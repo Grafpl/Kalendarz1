@@ -79,6 +79,45 @@ namespace Kalendarz1.KartotekaTowarow
         public string? GrupaScalowania { get; set; }
     }
 
+    public class AuditEntry
+    {
+        public string FieldName { get; set; } = "";
+        public string? OldValue { get; set; }
+        public string? NewValue { get; set; }
+        public string ChangedBy { get; set; } = "";
+        public DateTime ChangedAt { get; set; }
+        public string TimeAgo
+        {
+            get
+            {
+                var diff = DateTime.Now - ChangedAt;
+                if (diff.TotalMinutes < 1) return "przed chwila";
+                if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes} min temu";
+                if (diff.TotalHours < 24) return $"{(int)diff.TotalHours} godz. temu";
+                if (diff.TotalDays < 7) return $"{(int)diff.TotalDays} dni temu";
+                return ChangedAt.ToString("yyyy-MM-dd HH:mm");
+            }
+        }
+    }
+
+    public class DashboardStats
+    {
+        public int Total { get; set; }
+        public int Active { get; set; }
+        public int Halted { get; set; }
+        public int WithoutPrice { get; set; }
+        public int Standard { get; set; }
+        public double AvgCena1 { get; set; }
+        public List<GroupStat> ByGrupa { get; set; } = new();
+        public List<GroupStat> ByRodzaj { get; set; } = new();
+    }
+
+    public class GroupStat
+    {
+        public string Label { get; set; } = "";
+        public int Count { get; set; }
+    }
+
     public static class ArticleService
     {
         private static readonly string _connectionString =
@@ -535,6 +574,171 @@ namespace Kalendarz1.KartotekaTowarow
             }
             catch { }
             return (0, 0, 0);
+        }
+
+        // === AUDIT LOG ===
+
+        public static async Task LogChangeAsync(string guid, string articleId, string field, string? oldVal, string? newVal)
+        {
+            try
+            {
+                using var conn = new SqlConnection(_connectionString);
+                await conn.OpenAsync();
+                using var cmd = new SqlCommand(@"
+                    INSERT INTO ArticleAuditLog (ArticleGUID, ArticleID, FieldName, OldValue, NewValue, ChangedBy)
+                    VALUES (@GUID, @ID, @Field, @Old, @New, @User)", conn);
+                cmd.Parameters.AddWithValue("@GUID", guid);
+                cmd.Parameters.AddWithValue("@ID", articleId);
+                cmd.Parameters.AddWithValue("@Field", field);
+                cmd.Parameters.AddWithValue("@Old", (object?)oldVal ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@New", (object?)newVal ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@User", App.UserFullName ?? App.UserID ?? "system");
+                await cmd.ExecuteNonQueryAsync();
+            }
+            catch { }
+        }
+
+        public static async Task<List<AuditEntry>> GetAuditLogAsync(string guid, int top = 10)
+        {
+            var list = new List<AuditEntry>();
+            try
+            {
+                using var conn = new SqlConnection(_connectionString);
+                await conn.OpenAsync();
+                using var cmd = new SqlCommand($@"
+                    SELECT TOP ({top}) FieldName, OldValue, NewValue, ChangedBy, ChangedAt
+                    FROM ArticleAuditLog
+                    WHERE ArticleGUID = @GUID
+                    ORDER BY ChangedAt DESC", conn);
+                cmd.Parameters.AddWithValue("@GUID", guid);
+                using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    list.Add(new AuditEntry
+                    {
+                        FieldName = reader.GetString(0),
+                        OldValue = reader["OldValue"] as string,
+                        NewValue = reader["NewValue"] as string,
+                        ChangedBy = reader.GetString(3),
+                        ChangedAt = reader.GetDateTime(4)
+                    });
+                }
+            }
+            catch { }
+            return list;
+        }
+
+        // === FAVORITES ===
+
+        public static async Task<bool> ToggleFavoriteAsync(string guid, string userId)
+        {
+            try
+            {
+                using var conn = new SqlConnection(_connectionString);
+                await conn.OpenAsync();
+
+                using var cmdCheck = new SqlCommand(
+                    "SELECT COUNT(*) FROM ArticleFavorites WHERE ArticleGUID=@G AND UserID=@U", conn);
+                cmdCheck.Parameters.AddWithValue("@G", guid);
+                cmdCheck.Parameters.AddWithValue("@U", userId);
+                var exists = (int)(await cmdCheck.ExecuteScalarAsync() ?? 0) > 0;
+
+                if (exists)
+                {
+                    using var cmdDel = new SqlCommand(
+                        "DELETE FROM ArticleFavorites WHERE ArticleGUID=@G AND UserID=@U", conn);
+                    cmdDel.Parameters.AddWithValue("@G", guid);
+                    cmdDel.Parameters.AddWithValue("@U", userId);
+                    await cmdDel.ExecuteNonQueryAsync();
+                    return false;
+                }
+                else
+                {
+                    using var cmdIns = new SqlCommand(
+                        "INSERT INTO ArticleFavorites (ArticleGUID, UserID) VALUES (@G, @U)", conn);
+                    cmdIns.Parameters.AddWithValue("@G", guid);
+                    cmdIns.Parameters.AddWithValue("@U", userId);
+                    await cmdIns.ExecuteNonQueryAsync();
+                    return true;
+                }
+            }
+            catch { return false; }
+        }
+
+        public static async Task<HashSet<string>> GetFavoriteGuidsAsync(string userId)
+        {
+            var set = new HashSet<string>();
+            try
+            {
+                using var conn = new SqlConnection(_connectionString);
+                await conn.OpenAsync();
+                using var cmd = new SqlCommand(
+                    "SELECT ArticleGUID FROM ArticleFavorites WHERE UserID=@U", conn);
+                cmd.Parameters.AddWithValue("@U", userId);
+                using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                    set.Add(reader.GetString(0));
+            }
+            catch { }
+            return set;
+        }
+
+        // === DASHBOARD STATS ===
+
+        public static async Task<DashboardStats> GetDashboardStatsAsync()
+        {
+            var stats = new DashboardStats();
+            try
+            {
+                using var conn = new SqlConnection(_connectionString);
+                await conn.OpenAsync();
+
+                // Main counts
+                using (var cmd = new SqlCommand(@"
+                    SELECT
+                        COUNT(*),
+                        SUM(CASE WHEN ISNULL(Halt,0)=0 THEN 1 ELSE 0 END),
+                        SUM(CASE WHEN Halt=1 THEN 1 ELSE 0 END),
+                        SUM(CASE WHEN (Cena1 IS NULL OR Cena1=0) THEN 1 ELSE 0 END),
+                        SUM(CASE WHEN isStandard=1 THEN 1 ELSE 0 END),
+                        ISNULL(AVG(CASE WHEN Cena1 > 0 THEN Cena1 END), 0)
+                    FROM Article", conn))
+                {
+                    using var r = await cmd.ExecuteReaderAsync();
+                    if (await r.ReadAsync())
+                    {
+                        stats.Total = r.GetInt32(0);
+                        stats.Active = r.GetInt32(1);
+                        stats.Halted = r.GetInt32(2);
+                        stats.WithoutPrice = r.GetInt32(3);
+                        stats.Standard = r.GetInt32(4);
+                        stats.AvgCena1 = r.GetDouble(5);
+                    }
+                }
+
+                // By Grupa
+                using (var cmd = new SqlCommand(@"
+                    SELECT ISNULL(CAST(Grupa AS varchar), 'brak'), COUNT(*)
+                    FROM Article GROUP BY Grupa ORDER BY COUNT(*) DESC", conn))
+                {
+                    using var r = await cmd.ExecuteReaderAsync();
+                    while (await r.ReadAsync())
+                        stats.ByGrupa.Add(new GroupStat { Label = r.GetString(0), Count = r.GetInt32(1) });
+                }
+
+                // By Rodzaj
+                using (var cmd = new SqlCommand(@"
+                    SELECT CASE Rodzaj WHEN 0 THEN 'Mieso' WHEN 1 THEN 'Podroby' WHEN 2 THEN 'Odpady'
+                           ELSE ISNULL(CAST(Rodzaj AS varchar), 'brak') END, COUNT(*)
+                    FROM Article GROUP BY Rodzaj ORDER BY COUNT(*) DESC", conn))
+                {
+                    using var r = await cmd.ExecuteReaderAsync();
+                    while (await r.ReadAsync())
+                        stats.ByRodzaj.Add(new GroupStat { Label = r.GetString(0), Count = r.GetInt32(1) });
+                }
+            }
+            catch { }
+            return stats;
         }
 
         // === HELPERS ===

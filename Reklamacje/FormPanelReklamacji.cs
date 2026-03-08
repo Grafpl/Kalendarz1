@@ -441,10 +441,12 @@ namespace Kalendarz1
             {
                 try
                 {
-                    string rowFilter = $"NumerDokumentu LIKE '%{filter}%' OR " +
-                                      $"NazwaKontrahenta LIKE '%{filter}%' OR " +
-                                      $"Opis LIKE '%{filter}%' OR " +
-                                      $"CONVERT(Id, 'System.String') LIKE '%{filter}%'";
+                    // Escape special DataTable filter characters to prevent injection
+                    string safeFilter = filter.Replace("'", "''").Replace("[", "[[]").Replace("*", "[*]").Replace("%", "[%]");
+                    string rowFilter = $"NumerDokumentu LIKE '%{safeFilter}%' OR " +
+                                      $"NazwaKontrahenta LIKE '%{safeFilter}%' OR " +
+                                      $"Opis LIKE '%{safeFilter}%' OR " +
+                                      $"CONVERT(Id, 'System.String') LIKE '%{safeFilter}%'";
 
                     (dgvReklamacje.DataSource as DataTable).DefaultView.RowFilter = rowFilter;
                 }
@@ -458,34 +460,23 @@ namespace Kalendarz1
             {
                 string status = e.Value.ToString();
 
+                string hex;
                 switch (status)
                 {
-                    case "Nowa":
-                        e.CellStyle.BackColor = ColorTranslator.FromHtml("#e74c3c"); // Czerwony - wymaga uwagi
-                        e.CellStyle.ForeColor = Color.White;
-                        e.CellStyle.Font = new Font(dgvReklamacje.Font, FontStyle.Bold);
-                        break;
-                    case "W trakcie":
-                        e.CellStyle.BackColor = ColorTranslator.FromHtml("#f39c12"); // Pomarańczowy - w toku
-                        e.CellStyle.ForeColor = Color.White;
-                        e.CellStyle.Font = new Font(dgvReklamacje.Font, FontStyle.Bold);
-                        break;
-                    case "Zaakceptowana":
-                        e.CellStyle.BackColor = ColorTranslator.FromHtml("#27ae60"); // Zielony - zaakceptowana
-                        e.CellStyle.ForeColor = Color.White;
-                        e.CellStyle.Font = new Font(dgvReklamacje.Font, FontStyle.Bold);
-                        break;
-                    case "Odrzucona":
-                        e.CellStyle.BackColor = ColorTranslator.FromHtml("#c0392b"); // Ciemny czerwony - odrzucona
-                        e.CellStyle.ForeColor = Color.White;
-                        e.CellStyle.Font = new Font(dgvReklamacje.Font, FontStyle.Bold);
-                        break;
-                    case "Zamknieta":
-                        e.CellStyle.BackColor = ColorTranslator.FromHtml("#1e8449"); // Ciemny zielony - zamknięta
-                        e.CellStyle.ForeColor = Color.White;
-                        e.CellStyle.Font = new Font(dgvReklamacje.Font, FontStyle.Bold);
-                        break;
+                    case "Nowa": hex = "#3498DB"; break;
+                    case "Przyjeta": hex = "#2980B9"; break;
+                    case "W analizie": hex = "#F39C12"; break;
+                    case "W trakcie realizacji": hex = "#E67E22"; break;
+                    case "Oczekuje na dostawce": hex = "#9B59B6"; break;
+                    case "W trakcie": hex = "#F39C12"; break;
+                    case "Zaakceptowana": hex = "#27AE60"; break;
+                    case "Odrzucona": hex = "#E74C3C"; break;
+                    case "Zamknieta": case "Zamknięta": hex = "#95A5A6"; break;
+                    default: hex = "#BDC3C7"; break;
                 }
+                e.CellStyle.BackColor = ColorTranslator.FromHtml(hex);
+                e.CellStyle.ForeColor = Color.White;
+                e.CellStyle.Font = new Font(dgvReklamacje.Font, FontStyle.Bold);
             }
         }
 
@@ -737,7 +728,7 @@ namespace Kalendarz1
                         {
                             // Usuń zdjęcia reklamacji
                             using (SqlCommand cmd = new SqlCommand(
-                                "DELETE FROM [dbo].[ReklamacjeZdjecia] WHERE ReklamacjaId = @Id", conn, transaction))
+                                "DELETE FROM [dbo].[ReklamacjeZdjecia] WHERE IdReklamacji = @Id", conn, transaction))
                             {
                                 cmd.Parameters.AddWithValue("@Id", idReklamacji);
                                 cmd.ExecuteNonQuery();
@@ -745,7 +736,7 @@ namespace Kalendarz1
 
                             // Usuń partie reklamacji
                             using (SqlCommand cmd = new SqlCommand(
-                                "DELETE FROM [dbo].[ReklamacjePartie] WHERE ReklamacjaId = @Id", conn, transaction))
+                                "DELETE FROM [dbo].[ReklamacjePartie] WHERE IdReklamacji = @Id", conn, transaction))
                             {
                                 cmd.Parameters.AddWithValue("@Id", idReklamacji);
                                 cmd.ExecuteNonQuery();
@@ -753,7 +744,7 @@ namespace Kalendarz1
 
                             // Usuń towary reklamacji
                             using (SqlCommand cmd = new SqlCommand(
-                                "DELETE FROM [dbo].[ReklamacjeTowary] WHERE ReklamacjaId = @Id", conn, transaction))
+                                "DELETE FROM [dbo].[ReklamacjeTowary] WHERE IdReklamacji = @Id", conn, transaction))
                             {
                                 cmd.Parameters.AddWithValue("@Id", idReklamacji);
                                 cmd.ExecuteNonQuery();
@@ -761,7 +752,7 @@ namespace Kalendarz1
 
                             // Usuń historię zmian
                             using (SqlCommand cmd = new SqlCommand(
-                                "DELETE FROM [dbo].[ReklamacjeHistoria] WHERE ReklamacjaId = @Id", conn, transaction))
+                                "DELETE FROM [dbo].[ReklamacjeHistoria] WHERE IdReklamacji = @Id", conn, transaction))
                             {
                                 cmd.Parameters.AddWithValue("@Id", idReklamacji);
                                 cmd.ExecuteNonQuery();

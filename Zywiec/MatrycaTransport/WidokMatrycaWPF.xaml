@@ -617,8 +617,8 @@
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
 
-                            <!-- Sztuki -->
-                            <DataGridTextColumn Header="Sztuk" Binding="{Binding SztPoj}" Width="70"
+                            <!-- Sztuki na skrzynkę -->
+                            <DataGridTextColumn Header="Szt/Skrz" Binding="{Binding SztPoj}" Width="70"
                                                 HeaderStyle="{StaticResource DaneHeaderStyle}"
                                                 CellStyle="{StaticResource CellStyleGreen}">
                                 <DataGridTextColumn.ElementStyle>
@@ -626,6 +626,20 @@
                                         <Setter Property="HorizontalAlignment" Value="Center"/>
                                         <Setter Property="VerticalAlignment" Value="Center"/>
                                         <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <!-- Sztuki deklarowane (total z Excel) -->
+                            <DataGridTextColumn Header="Szt.Dek" Binding="{Binding DeclI1, StringFormat=N0}" Width="80"
+                                                HeaderStyle="{StaticResource DaneHeaderStyle}"
+                                                CellStyle="{StaticResource CellStyleGreen}">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="HorizontalAlignment" Value="Right"/>
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                        <Setter Property="Padding" Value="0,0,8,0"/>
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>

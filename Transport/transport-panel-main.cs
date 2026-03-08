@@ -15,6 +15,36 @@ using System.Windows.Forms;
 
 namespace Kalendarz1.Transport.Formularze
 {
+    /// <summary>
+    /// DataGridView bez obramowań komórek. WinForms standardowy DataGridView
+    /// ignoruje CellBorderStyle.None w wielu sytuacjach — jedynym pewnym sposobem
+    /// jest nadpisanie AdjustColumnHeaderBorderStyle i AdjustedTopLeftHeaderBorderStyle.
+    /// </summary>
+    internal class BorderlessDataGridView : DataGridView
+    {
+        public BorderlessDataGridView()
+        {
+            SetStyle(ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint, true);
+        }
+
+        protected override void OnCellPainting(DataGridViewCellPaintingEventArgs e)
+        {
+            // Rysuj wszystko OPRÓCZ obramowań
+            e.AdvancedBorderStyle.Top = DataGridViewAdvancedCellBorderStyle.None;
+            e.AdvancedBorderStyle.Bottom = DataGridViewAdvancedCellBorderStyle.None;
+            e.AdvancedBorderStyle.Left = DataGridViewAdvancedCellBorderStyle.None;
+            e.AdvancedBorderStyle.Right = DataGridViewAdvancedCellBorderStyle.None;
+            base.OnCellPainting(e);
+        }
+
+        protected override void OnRowPrePaint(DataGridViewRowPrePaintEventArgs e)
+        {
+            // Usuń domyślne rysowanie obramowań wierszy
+            e.PaintParts &= ~DataGridViewPaintParts.Border;
+            base.OnRowPrePaint(e);
+        }
+    }
+
     public partial class TransportMainFormImproved : Form
     {
         private readonly TransportRepozytorium _repozytorium;
@@ -40,7 +70,7 @@ namespace Kalendarz1.Transport.Formularze
         private Button btnNowyKurs;
         private Button btnEdytuj;
         private Button btnUsun;
-        private Button btnKopiuj;
+        private Button btnDebug;
         private Button btnMapa;
         private Button btnKierowcy;
         private Button btnPojazdy;
@@ -71,11 +101,49 @@ namespace Kalendarz1.Transport.Formularze
         private Label lblSummaryPalety;
         private Label lblSummaryWypelnienie;
 
+        // Cache zdjęć produktów (TowarId → Image)
+        private readonly Dictionary<int, Image> _productImages = new();
+
+
+
+        // Tryb prawego panelu: kurs-specific changes vs wolne zamówienia
+        private Panel panelKursZmiany;        // Panel zmian per kurs (zamienia wolne zamówienia)
+        private Label lblKursZmianyHeader;
+        private FlowLayoutPanel flowKursZmianyCards;
+        private Button btnAkceptujKursZmiany;
+        private Panel _wolneGridContainer;    // Referencja do gridContainer w prawy panel
+        private Panel _wolneHeader;           // Referencja do nagłówka "WOLNE ZAMÓWIENIA"
+        private long _selectedKursIdForZmiany = -1;
+
+        // Mapa kursId → lista zamIds (do wyszukiwania zmian per kurs)
+        private Dictionary<long, List<int>> _kursZamIds = new();
+
+        // ═══ Cached GDI resources (utworzone raz, zwolnione w FormClosed) ═══
+        private Font _fontAlertBang;        // "!" w kółku alertu
+        private Font _fontNameBold;         // Imię w Utworzył
+        private Font _fontDateSmall;        // Data w Utworzył
+        private Font _fontHandlText;        // Tekst w Handlowcy
+        private Font _fontGroupBold;        // Nagłówek grupy w wolnych zam.
+        private Font _fontGroupText;        // Tekst w wolnych zam.
+        private SolidBrush _brushAlertOrange;
+        private SolidBrush _brushWhite;
+        private SolidBrush _brushGroupText;  // kolor tekstu grup
+        private SolidBrush _brushDarkText;   // ciemny tekst danych
+        private Pen _penGroupLine;           // linia pod grupą
+        private StringFormat _sfCenter;     // Center+Center
+        private StringFormat _sfLeftCenter; // Left+Center+Ellipsis
+
+        // Pulsacja alertu
+        private Timer _pulseTimer;
+        private float _pulseAlpha = 1f;
+        private bool _pulseGrowing = false;
+
         // Dane
         private List<Kurs> _kursy;
         private Dictionary<long, WynikPakowania> _wypelnienia;
         private Timer _autoRefreshTimer;
         private bool _isRefreshing;
+        private int _lastPendingCount = -1; // Feature 11: track alert count for sound
 
         // Cache klientów dla szybszego ładowania
         private static Dictionary<int, string> _klienciCache = new Dictionary<int, string>();
@@ -88,6 +156,9 @@ namespace Kalendarz1.Transport.Formularze
 
         // Mapowanie handlowiec name → userId (do avatarów z sieci)
         private Dictionary<string, string> _handlowiecMapowanie;
+
+        // Odwrotne mapowanie: fullName → userId (do avatarów po ModyfikowalPrzez)
+        private Dictionary<string, string> _fullNameToUserIdCache = new(StringComparer.OrdinalIgnoreCase);
 
         public TransportMainFormImproved(TransportRepozytorium repozytorium, string uzytkownik = null)
         {
@@ -105,6 +176,23 @@ namespace Kalendarz1.Transport.Formularze
             this.Load += async (s, e) =>
             {
                 await LoadInitialDataAsync();
+                // Initialize pending count baseline
+                _lastPendingCount = TransportZmianyService.GetPendingCount();
+
+                // Pulsacja alertu (co 50ms zmienia alpha 1.0→0.35→1.0)
+                _pulseTimer = new Timer { Interval = 50 };
+                _pulseTimer.Tick += (pt, pe) =>
+                {
+                    if (_pulseGrowing) { _pulseAlpha += 0.04f; if (_pulseAlpha >= 1f) { _pulseAlpha = 1f; _pulseGrowing = false; } }
+                    else { _pulseAlpha -= 0.04f; if (_pulseAlpha <= 0.35f) { _pulseAlpha = 0.35f; _pulseGrowing = true; } }
+                    // Invaliduj całą kolumnę Alert jednym wywołaniem (zamiast iteracji po wierszach)
+                    if (dgvKursy != null && !dgvKursy.IsDisposed && dgvKursy.Columns.Count > 0 && dgvKursy.Columns["Alert"] != null)
+                    {
+                        try { dgvKursy.InvalidateColumn(dgvKursy.Columns["Alert"].Index); }
+                        catch { }
+                    }
+                };
+                _pulseTimer.Start();
 
                 // Auto-odświeżanie co 30 sekund
                 _autoRefreshTimer = new Timer { Interval = 30000 };
@@ -112,7 +200,22 @@ namespace Kalendarz1.Transport.Formularze
                 {
                     if (_isRefreshing) return;
                     _isRefreshing = true;
-                    try { await LoadKursyAsync(); }
+                    try
+                    {
+                        // Zapamiętaj poprzedni count przed detekcją
+                        var beforeCount = TransportZmianyService.GetPendingCount();
+                        // Detekcja zmian w tle, odświeżenie kursów na UI
+                        _ = Task.Run(async () => { try { await LoadZmianyAsync(); } catch { } });
+                        await LoadKursyAsync();
+                        // Feature 11: Alert dźwiękowy gdy pojawiły się nowe zmiany
+                        var afterCount = TransportZmianyService.GetPendingCount();
+                        if (afterCount > beforeCount && _lastPendingCount >= 0)
+                        {
+                            try { System.Media.SystemSounds.Exclamation.Play(); }
+                            catch { }
+                        }
+                        _lastPendingCount = afterCount;
+                    }
                     catch { }
                     finally { _isRefreshing = false; }
                 };
@@ -121,12 +224,21 @@ namespace Kalendarz1.Transport.Formularze
 
             this.FormClosed += (s, e) =>
             {
-                _autoRefreshTimer?.Stop();
-                _autoRefreshTimer?.Dispose();
-                // Zwolnij cache avatarów
-                foreach (var img in _avatarCache.Values)
-                    img?.Dispose();
+                _pulseTimer?.Stop(); _pulseTimer?.Dispose();
+                _autoRefreshTimer?.Stop(); _autoRefreshTimer?.Dispose();
+                // Zwolnij cache avatarów i zdjęć produktów
+                foreach (var img in _avatarCache.Values) img?.Dispose();
                 _avatarCache.Clear();
+                foreach (var img in _productImages.Values) img?.Dispose();
+                _productImages.Clear();
+                // Cached GDI resources
+                _fontAlertBang?.Dispose(); _fontNameBold?.Dispose();
+                _fontDateSmall?.Dispose(); _fontHandlText?.Dispose();
+                _fontGroupBold?.Dispose(); _fontGroupText?.Dispose();
+                _brushAlertOrange?.Dispose(); _brushWhite?.Dispose();
+                _brushGroupText?.Dispose(); _brushDarkText?.Dispose();
+                _penGroupLine?.Dispose();
+                _sfCenter?.Dispose(); _sfLeftCenter?.Dispose();
             };
         }
 
@@ -138,6 +250,23 @@ namespace Kalendarz1.Transport.Formularze
             Font = new Font("Segoe UI", 10F);
             BackColor = Color.FromArgb(240, 242, 247);
             WindowState = FormWindowState.Maximized;
+            DoubleBuffered = true;
+            KeyPreview = true;
+
+            // Cached GDI resources — tworzone RAZ, zwolnione w FormClosed
+            _fontAlertBang = new Font("Segoe UI", 12F, FontStyle.Bold);
+            _fontNameBold = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+            _fontDateSmall = new Font("Segoe UI", 7.5F);
+            _fontHandlText = new Font("Segoe UI", 8F);
+            _fontGroupBold = new Font("Segoe UI", 8F, FontStyle.Bold);
+            _fontGroupText = new Font("Segoe UI", 8F);
+            _brushAlertOrange = new SolidBrush(Color.FromArgb(230, 126, 34));
+            _brushWhite = new SolidBrush(Color.White);
+            _brushGroupText = new SolidBrush(Color.FromArgb(100, 60, 140));
+            _brushDarkText = new SolidBrush(Color.FromArgb(40, 50, 65));
+            _penGroupLine = new Pen(Color.FromArgb(210, 200, 225));
+            _sfCenter = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+            _sfLeftCenter = new StringFormat { LineAlignment = StringAlignment.Center, Trimming = StringTrimming.EllipsisCharacter };
 
             // ========== HEADER ==========
             CreateHeader();
@@ -279,8 +408,8 @@ namespace Kalendarz1.Transport.Formularze
             btnEdytuj = CreateActionButton("✏ EDYTUJ", ControlPaint.Light(colorAkcje, 0.15f), 100);
             btnEdytuj.Click += BtnEdytujKurs_Click;
 
-            btnKopiuj = CreateActionButton("⧉ KOPIUJ", ControlPaint.Light(colorAkcje, 0.25f), 100);
-            btnKopiuj.Click += BtnKopiujKurs_Click;
+            btnDebug = CreateActionButton("🔍 DEBUG", Color.FromArgb(192, 57, 43), 90);
+            btnDebug.Click += BtnDebug_Click;
 
             btnUsun = CreateActionButton("✕ USUŃ", Color.FromArgb(220, 53, 69), 80);
             btnUsun.Click += BtnUsunKurs_Click;
@@ -316,7 +445,7 @@ namespace Kalendarz1.Transport.Formularze
 
             // Dodanie wszystkich przycisków z separatorami (RightToLeft)
             panelButtons.Controls.AddRange(new Control[] {
-                btnUsun, btnKopiuj, sep1, btnMapa, btnStatystyki, btnRaport, sep2, btnKierowcy, btnPojazdy, btnPrzydziel, btnEdytuj, btnNowyKurs
+                btnUsun, btnDebug, sep1, btnMapa, btnStatystyki, btnRaport, sep2, btnKierowcy, btnPojazdy, btnPrzydziel, btnEdytuj, btnNowyKurs
             });
 
             panelHeader.Controls.Add(panelDate);
@@ -330,6 +459,244 @@ namespace Kalendarz1.Transport.Formularze
                     panelButtons.Location = new Point(panelHeader.Width - panelButtons.Width - 20, 15);
                 }
             };
+        }
+
+        private async void BtnDebug_Click(object sender, EventArgs e)
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("=== TRANSPORT DEBUG ===");
+            sb.AppendLine($"Data: {_selectedDate:yyyy-MM-dd}");
+            sb.AppendLine($"Kursy: {_kursy?.Count ?? 0}");
+            sb.AppendLine($"ConnLibra: {_connLibra}");
+            sb.AppendLine();
+
+            Dictionary<int, (int Pojemniki, bool TrybE2, int KlientId, string TransportStatus, int Palety, decimal IloscKg, DateTime? DataPrzyjazdu)> debugLiveMap = null;
+
+            // 1. Test PobierzLiveZamowieniaMapAsync
+            try
+            {
+                debugLiveMap = await PobierzLiveZamowieniaMapAsync();
+                var liveMap = debugLiveMap;
+                sb.AppendLine($"[LiveZamowienia] Zaladowano: {liveMap.Count} zamowien");
+                if (_lastLiveZamError != null)
+                    sb.AppendLine($"  >>> BLAD WEWN: {_lastLiveZamError}");
+                if (liveMap.Count > 0)
+                {
+                    foreach (var kvp in liveMap.Take(5))
+                        sb.AppendLine($"  ZamId={kvp.Key}: Pal={kvp.Value.Palety}, Poj={kvp.Value.Pojemniki}, KG={kvp.Value.IloscKg}, KlientId={kvp.Value.KlientId}");
+                    if (liveMap.Count > 5)
+                        sb.AppendLine($"  ... i {liveMap.Count - 5} wiecej");
+                }
+            }
+            catch (Exception ex)
+            {
+                sb.AppendLine($"[LiveZamowienia] BLAD: {ex.Message}");
+            }
+            sb.AppendLine();
+
+            // 2. Test ladunki per kurs (first 3 kursy)
+            if (_kursy != null && _kursy.Count > 0)
+            {
+                var liveMap = debugLiveMap ?? await PobierzLiveZamowieniaMapAsync();
+                foreach (var kurs in _kursy.Take(3))
+                {
+                    try
+                    {
+                        var ladunki = await _repozytorium.PobierzLadunkiAsync(kurs.KursID);
+                        sb.AppendLine($"[Kurs {kurs.KursID}] Ladunkow: {ladunki.Count}");
+                        int sumPal = 0, sumPoj = 0; decimal sumKg = 0;
+                        foreach (var lad in ladunki)
+                        {
+                            sb.Append($"  Lad: KodKlienta='{lad.KodKlienta}', PojE2={lad.PojemnikiE2}");
+                            if (lad.KodKlienta?.StartsWith("ZAM_") == true &&
+                                int.TryParse(lad.KodKlienta.Substring(4), out int zamId))
+                            {
+                                if (liveMap.TryGetValue(zamId, out var live))
+                                {
+                                    sb.Append($" → LIVE: Pal={live.Palety}, Poj={live.Pojemniki}, KG={live.IloscKg}");
+                                    sumPal += live.Palety; sumPoj += live.Pojemniki; sumKg += live.IloscKg;
+                                }
+                                else
+                                    sb.Append($" → ZamId={zamId} NIE ZNALEZIONO w LiveMap!");
+                            }
+                            else
+                                sb.Append(" → NIE jest ZAM_ ladunek");
+                            sb.AppendLine();
+                        }
+                        sb.AppendLine($"  SUMA: Pal={sumPal}, Poj={sumPoj}, KG={sumKg}");
+                    }
+                    catch (Exception ex)
+                    {
+                        sb.AppendLine($"  [Kurs {kurs.KursID}] BLAD: {ex.Message}");
+                    }
+                }
+            }
+            sb.AppendLine();
+
+            // 3. Test snapshot & zmiany tables
+            try
+            {
+                var connStr = "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+                using var conn = new SqlConnection(connStr);
+                await conn.OpenAsync();
+
+                using var cmdCount = new SqlCommand("SELECT COUNT(*) FROM TransportOrderSnapshot", conn);
+                var snapCount = (int)(await cmdCount.ExecuteScalarAsync() ?? 0);
+                sb.AppendLine($"[Snapshots] Rekordow: {snapCount}");
+
+                using var cmdSample = new SqlCommand("SELECT TOP 5 ZamowienieId, ISNULL(LiczbaPalet,0), ISNULL(LiczbaPojemnikow,0), ISNULL(IloscKg,0), DataZamowienia, KlientNazwa FROM TransportOrderSnapshot ORDER BY LastChecked DESC", conn);
+                using var rdr = await cmdSample.ExecuteReaderAsync();
+                while (await rdr.ReadAsync())
+                    sb.AppendLine($"  Snap: ZamId={rdr.GetInt32(0)}, Pal={rdr.GetInt32(1)}, Poj={rdr.GetInt32(2)}, Kg={rdr.GetDecimal(3)}, Data={(!rdr.IsDBNull(4) ? rdr.GetDateTime(4).ToString("yyyy-MM-dd") : "NULL")}, Klient={(!rdr.IsDBNull(5) ? rdr.GetString(5) : "NULL")}");
+                rdr.Close();
+
+                // TransportZmiany - all statuses
+                using var cmdAll = new SqlCommand("SELECT StatusZmiany, COUNT(*) FROM TransportZmiany GROUP BY StatusZmiany", conn);
+                using var rdrAll = await cmdAll.ExecuteReaderAsync();
+                sb.AppendLine();
+                sb.AppendLine("[TransportZmiany] Statusy:");
+                while (await rdrAll.ReadAsync())
+                    sb.AppendLine($"  {rdrAll.GetString(0)}: {rdrAll.GetInt32(1)}");
+                rdrAll.Close();
+
+                // Pending details
+                using var cmdPendingSample = new SqlCommand("SELECT TOP 10 ZamowienieId, TypZmiany, StareWartosc, NowaWartosc, DataZgloszenia, ZgloszonePrzez FROM TransportZmiany WHERE StatusZmiany = 'Oczekuje' ORDER BY DataZgloszenia DESC", conn);
+                using var rdr2 = await cmdPendingSample.ExecuteReaderAsync();
+                if (rdr2.HasRows) sb.AppendLine("\n[TransportZmiany] Oczekujace:");
+                while (await rdr2.ReadAsync())
+                    sb.AppendLine($"  ZamId={rdr2.GetInt32(0)}, {rdr2.GetString(1)}: '{(!rdr2.IsDBNull(2) ? rdr2.GetString(2) : "")}'→'{(!rdr2.IsDBNull(3) ? rdr2.GetString(3) : "")}' ({rdr2.GetDateTime(4):MM-dd HH:mm}, {(!rdr2.IsDBNull(5) ? rdr2.GetString(5) : "?")})");
+                rdr2.Close();
+            }
+            catch (Exception ex)
+            {
+                sb.AppendLine($"[DB Test] BLAD: {ex.Message}");
+            }
+            sb.AppendLine();
+
+            // 4. Grid state
+            sb.AppendLine($"[Grid] Rows: {dgvKursy.Rows.Count}, Columns: {dgvKursy.Columns.Count}");
+            if (dgvKursy.Rows.Count > 0)
+            {
+                for (int r = 0; r < Math.Min(3, dgvKursy.Rows.Count); r++)
+                {
+                    var row = dgvKursy.Rows[r];
+                    var kursId = row.Cells["KursID"].Value;
+                    var trasa = row.Cells["Trasa"].Value;
+                    var pal = row.Cells["Pal"].Value;
+                    var poj = row.Cells["Poj"].Value;
+                    var kg = row.Cells["KG"].Value;
+                    var alert = row.Cells["Alert"].Value;
+                    var maZmiany = row.Cells["MaZmiany"].Value;
+                    sb.AppendLine($"  Row{r}: KursID={kursId}, Trasa={trasa}, Pal={pal}, Poj={poj}, KG={kg}, Alert={alert}, MaZmiany={maZmiany}");
+                }
+            }
+            sb.AppendLine();
+
+            // 5. Kurs → ZamIds mapping
+            sb.AppendLine($"[KursZamIds] {_kursZamIds.Count} kursow z zamowieniami");
+            foreach (var kvp in _kursZamIds.Take(5))
+                sb.AppendLine($"  Kurs {kvp.Key}: [{string.Join(", ", kvp.Value)}]");
+            sb.AppendLine();
+
+            // 6. Test: what does the DetectNewOrders date-filtered query actually return?
+            try
+            {
+                await using var cnLibraTest = new SqlConnection(_connLibra);
+                await cnLibraTest.OpenAsync();
+                // Same date filter as DetectNewOrdersAsync
+                await using var cmdDateTest = new SqlCommand(@"
+                    SELECT COUNT(*) FROM dbo.ZamowieniaMieso zm
+                    WHERE zm.DataZamowienia >= DATEADD(day, -1, CAST(GETDATE() AS date))
+                      AND zm.DataZamowienia <= DATEADD(day, 14, CAST(GETDATE() AS date))
+                      AND ISNULL(zm.Status, 'Nowe') NOT IN ('Anulowane')", cnLibraTest);
+                var detectCount = (int)(await cmdDateTest.ExecuteScalarAsync() ?? 0);
+                sb.AppendLine($"[DetectQuery] Zamowienia w oknie dat (-1d..+14d od GETDATE): {detectCount}");
+
+                // Check: what date do our kurs orders have?
+                if (_kursy != null && _kursy.Count > 0)
+                {
+                    var kurs = _kursy.First();
+                    var ladunki = await _repozytorium.PobierzLadunkiAsync(kurs.KursID);
+                    foreach (var lad in ladunki.Take(3))
+                    {
+                        if (lad.KodKlienta?.StartsWith("ZAM_") == true &&
+                            int.TryParse(lad.KodKlienta.Substring(4), out int zamId))
+                        {
+                            await using var cmdDate = new SqlCommand(
+                                "SELECT DataZamowienia, DataPrzyjazdu, LiczbaPalet, LiczbaPojemnikow, Status FROM dbo.ZamowieniaMieso WHERE Id = @Id", cnLibraTest);
+                            cmdDate.Parameters.AddWithValue("@Id", zamId);
+                            await using var rdrDate = await cmdDate.ExecuteReaderAsync();
+                            if (await rdrDate.ReadAsync())
+                                sb.AppendLine($"  ZAM_{zamId}: DataZam={(!rdrDate.IsDBNull(0) ? rdrDate.GetDateTime(0).ToString("yyyy-MM-dd") : "NULL")}, Pal={rdrDate.GetInt32(3)}, Poj={rdrDate.GetInt32(3)}, Status={(!rdrDate.IsDBNull(4) ? rdrDate.GetString(4) : "NULL")}");
+                        }
+                    }
+                }
+                // Check GETDATE on server
+                await using var cmdNow = new SqlCommand("SELECT GETDATE()", cnLibraTest);
+                var serverNow = (DateTime)(await cmdNow.ExecuteScalarAsync()!);
+                sb.AppendLine($"  Server GETDATE(): {serverNow:yyyy-MM-dd HH:mm:ss}");
+            }
+            catch (Exception ex)
+            {
+                sb.AppendLine($"[DetectQuery] BLAD: {ex.Message}");
+            }
+            sb.AppendLine();
+
+            // 6. Run detect and show result
+            try
+            {
+                var user = App.UserFullName ?? App.UserID ?? "system";
+                var detected = await TransportZmianyService.DetectNewOrdersAsync(user);
+                sb.AppendLine($"[DetectNewOrders] Wykryto zmian: {detected}");
+                if (TransportZmianyService.LastDetectError != null)
+                    sb.AppendLine($"  >>> WEWN BLAD: {TransportZmianyService.LastDetectError}");
+            }
+            catch (Exception ex)
+            {
+                sb.AppendLine($"[DetectNewOrders] BLAD: {ex.Message}");
+                sb.AppendLine($"  StackTrace: {ex.StackTrace?.Substring(0, Math.Min(500, ex.StackTrace?.Length ?? 0))}");
+            }
+
+            // 7. Check snapshots AFTER detect ran
+            try
+            {
+                var connStr2 = "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+                using var conn2 = new SqlConnection(connStr2);
+                await conn2.OpenAsync();
+                using var cmdSnap2 = new SqlCommand("SELECT COUNT(*) FROM TransportOrderSnapshot", conn2);
+                var snapAfter = (int)(await cmdSnap2.ExecuteScalarAsync() ?? 0);
+                sb.AppendLine($"[Snapshots AFTER detect] Rekordow: {snapAfter}");
+            }
+            catch (Exception ex)
+            {
+                sb.AppendLine($"[Snapshots AFTER] BLAD: {ex.Message}");
+            }
+
+            var debugText = sb.ToString();
+            System.Diagnostics.Debug.WriteLine(debugText);
+
+            // Show in a scrollable textbox dialog
+            var dlg = new Form
+            {
+                Text = "Transport Debug",
+                Size = new Size(800, 650),
+                StartPosition = FormStartPosition.CenterParent,
+                BackColor = Color.FromArgb(30, 30, 30)
+            };
+            var txt = new TextBox
+            {
+                Dock = DockStyle.Fill,
+                Multiline = true,
+                ReadOnly = true,
+                ScrollBars = ScrollBars.Both,
+                Font = new Font("Consolas", 9.5F),
+                BackColor = Color.FromArgb(30, 30, 30),
+                ForeColor = Color.FromArgb(0, 255, 100),
+                Text = debugText,
+                WordWrap = false
+            };
+            dlg.Controls.Add(txt);
+            dlg.Show(this);
         }
 
         // NOWA METODA obsługi przycisku RAPORT
@@ -648,7 +1015,7 @@ namespace Kalendarz1.Transport.Formularze
                 Padding = new Padding(1)
             };
 
-            dgvKursy = new DataGridView
+            dgvKursy = new BorderlessDataGridView
             {
                 Dock = DockStyle.Fill,
                 AllowUserToAddRows = false,
@@ -661,10 +1028,10 @@ namespace Kalendarz1.Transport.Formularze
                 BorderStyle = BorderStyle.None,
                 RowHeadersVisible = false,
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal
+                CellBorderStyle = DataGridViewCellBorderStyle.None
             };
+            EnableDoubleBuffering(dgvKursy);
 
-            // Stylizacja nagłówków - bardziej subtelna
             dgvKursy.EnableHeadersVisualStyles = false;
             dgvKursy.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(250, 251, 253);
             dgvKursy.ColumnHeadersDefaultCellStyle.ForeColor = Color.FromArgb(80, 90, 110);
@@ -676,22 +1043,24 @@ namespace Kalendarz1.Transport.Formularze
             dgvKursy.ColumnHeadersHeight = 34;
             dgvKursy.ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.None;
 
-            // Stylizacja wierszy
             dgvKursy.DefaultCellStyle.Font = new Font("Segoe UI", 9F);
             dgvKursy.DefaultCellStyle.Padding = new Padding(4, 4, 4, 4);
             dgvKursy.DefaultCellStyle.SelectionBackColor = Color.FromArgb(232, 218, 239);
             dgvKursy.DefaultCellStyle.SelectionForeColor = Color.FromArgb(60, 40, 80);
             dgvKursy.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(252, 252, 254);
             dgvKursy.RowTemplate.Height = 46;
-            dgvKursy.GridColor = Color.FromArgb(240, 242, 246);
+            dgvKursy.GridColor = Color.White;
 
             dgvKursy.CellFormatting += DgvKursy_CellFormatting;
             dgvKursy.CellPainting += DgvKursy_CellPainting;
             dgvKursy.CellDoubleClick += (s, e) => BtnEdytujKurs_Click(s, e);
             dgvKursy.SelectionChanged += DgvKursy_SelectionChanged;
             dgvKursy.MouseClick += DgvKursy_MouseClick;
+            dgvKursy.CellMouseEnter += DgvKursy_CellMouseEnter;
+            dgvKursy.ShowCellToolTips = true;
 
             gridContainer.Controls.Add(dgvKursy);
+
             panelContent.Controls.Add(gridContainer);
         }
 
@@ -782,7 +1151,7 @@ namespace Kalendarz1.Transport.Formularze
             panelHeader.Controls.Add(headerLayout);
 
             // Grid zamówień
-            dgvWolneZamowienia = new DataGridView
+            dgvWolneZamowienia = new BorderlessDataGridView
             {
                 Dock = DockStyle.Fill,
                 AllowUserToAddRows = false,
@@ -795,9 +1164,10 @@ namespace Kalendarz1.Transport.Formularze
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
                 MultiSelect = false,
-                CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal
+                CellBorderStyle = DataGridViewCellBorderStyle.None
             };
 
+            EnableDoubleBuffering(dgvWolneZamowienia);
             dgvWolneZamowienia.EnableHeadersVisualStyles = false;
             dgvWolneZamowienia.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(245, 247, 250);
             dgvWolneZamowienia.ColumnHeadersDefaultCellStyle.ForeColor = Color.FromArgb(100, 100, 120);
@@ -813,7 +1183,7 @@ namespace Kalendarz1.Transport.Formularze
             dgvWolneZamowienia.DefaultCellStyle.SelectionForeColor = Color.FromArgb(60, 40, 80);
             dgvWolneZamowienia.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(250, 250, 252);
             dgvWolneZamowienia.RowTemplate.Height = 24;
-            dgvWolneZamowienia.GridColor = Color.FromArgb(240, 242, 245);
+            dgvWolneZamowienia.GridColor = Color.White;
             dgvWolneZamowienia.CellPainting += DgvWolneZamowienia_CellPainting;
 
             // Menu kontekstowe - zmiana na własny odbiór
@@ -832,11 +1202,793 @@ namespace Kalendarz1.Transport.Formularze
             };
             gridContainer.Controls.Add(dgvWolneZamowienia);
 
+            // ═══════ PANEL ZMIAN PER KURS (zamienia wolne zamówienia) ═══════
+            panelKursZmiany = new Panel
+            {
+                Dock = DockStyle.Fill,
+                Visible = false,
+                BackColor = Color.FromArgb(245, 246, 250) // jasny szaro-niebieski
+            };
+
+            // Nagłówek kursu zmian
+            var kursZmianyHeader = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 48,
+                Padding = new Padding(12, 0, 8, 0)
+            };
+            kursZmianyHeader.Paint += (s, ev) =>
+            {
+                using var gradBrush = new System.Drawing.Drawing2D.LinearGradientBrush(
+                    new Rectangle(0, 0, kursZmianyHeader.Width, kursZmianyHeader.Height),
+                    Color.FromArgb(231, 76, 60), Color.FromArgb(243, 156, 18),
+                    System.Drawing.Drawing2D.LinearGradientMode.Horizontal);
+                ev.Graphics.FillRectangle(gradBrush, 0, 0, kursZmianyHeader.Width, kursZmianyHeader.Height);
+            };
+
+            var lblKursZmianyIcon = new Label
+            {
+                Text = "\u26A0",
+                Font = new Font("Segoe UI", 16F, FontStyle.Bold),
+                ForeColor = Color.White,
+                AutoSize = true,
+                BackColor = Color.Transparent,
+                Location = new Point(10, 10)
+            };
+
+            lblKursZmianyHeader = new Label
+            {
+                Text = "ZMIANY W KURSIE",
+                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                ForeColor = Color.White,
+                AutoSize = true,
+                BackColor = Color.Transparent,
+                Location = new Point(36, 14)
+            };
+
+            btnAkceptujKursZmiany = new Button
+            {
+                Text = "\u2714 AKCEPTUJ",
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(46, 204, 113),
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
+                Size = new Size(110, 32),
+                Cursor = Cursors.Hand
+            };
+            btnAkceptujKursZmiany.FlatAppearance.BorderSize = 0;
+            btnAkceptujKursZmiany.FlatAppearance.MouseOverBackColor = Color.FromArgb(39, 174, 96);
+            btnAkceptujKursZmiany.Click += BtnAkceptujZmianyKursu_Click;
+
+            var btnWrocDoWolnych = new Button
+            {
+                Text = "\u25C0 WRÓĆ",
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(52, 73, 94),
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
+                Size = new Size(75, 32),
+                Cursor = Cursors.Hand
+            };
+            btnWrocDoWolnych.FlatAppearance.BorderSize = 0;
+            btnWrocDoWolnych.FlatAppearance.MouseOverBackColor = Color.FromArgb(44, 62, 80);
+            btnWrocDoWolnych.Click += (s, ev) => ShowRightPanelMode(false, 0);
+
+            kursZmianyHeader.Controls.Add(lblKursZmianyIcon);
+            kursZmianyHeader.Controls.Add(lblKursZmianyHeader);
+            kursZmianyHeader.Controls.Add(btnAkceptujKursZmiany);
+            kursZmianyHeader.Controls.Add(btnWrocDoWolnych);
+            kursZmianyHeader.Resize += (s, ev) =>
+            {
+                btnAkceptujKursZmiany.Location = new Point(
+                    kursZmianyHeader.Width - btnAkceptujKursZmiany.Width - 6, 8);
+                btnWrocDoWolnych.Location = new Point(
+                    kursZmianyHeader.Width - btnAkceptujKursZmiany.Width - btnWrocDoWolnych.Width - 12, 8);
+                kursZmianyHeader.Invalidate(); // repaint gradient on resize
+            };
+
+            flowKursZmianyCards = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                FlowDirection = FlowDirection.TopDown,
+                WrapContents = false,
+                AutoScroll = true,
+                BackColor = Color.FromArgb(245, 246, 250),
+                Padding = new Padding(8, 8, 8, 8)
+            };
+            flowKursZmianyCards.Resize += (s, ev) =>
+            {
+                var w = flowKursZmianyCards.Width - 30;
+                if (w < 200) w = 280;
+                foreach (Control c in flowKursZmianyCards.Controls)
+                    if (c is Panel p) p.Width = w;
+            };
+
+            panelKursZmiany.Controls.Add(flowKursZmianyCards);
+            panelKursZmiany.Controls.Add(kursZmianyHeader);
+
+            // Zapisz referencje do przełączania trybów
+            _wolneGridContainer = gridContainer;
+            _wolneHeader = panelHeader;
+
+            // Dock order: Header (top), KursZmiany (fill), Grid (fill) — add in reverse
+            mainContainer.Controls.Add(panelKursZmiany);
             mainContainer.Controls.Add(gridContainer);
             mainContainer.Controls.Add(panelHeader);
 
             panelWolneZamowienia.Controls.Add(mainContainer);
             panelWolneZamowienia.Controls.Add(leftBorder);
+        }
+
+        /// <summary>
+        /// Przełącza prawy panel między trybem "wolne zamówienia" a "zmiany w kursie"
+        /// </summary>
+        private void ShowRightPanelMode(bool showKursZmiany, long kursId)
+        {
+            var parent = _wolneGridContainer.Parent;
+            if (parent == null) return;
+
+            parent.SuspendLayout();
+            try
+            {
+                if (showKursZmiany)
+                {
+                    _wolneGridContainer.Visible = false;
+                    _wolneHeader.Visible = false;
+                    panelKursZmiany.Visible = true;
+                    panelKursZmiany.Dock = DockStyle.Fill;
+                    panelKursZmiany.BringToFront();
+                    _selectedKursIdForZmiany = kursId;
+                }
+                else
+                {
+                    panelKursZmiany.Visible = false;
+                    _wolneHeader.Visible = true;
+                    _wolneGridContainer.Visible = true;
+                    _wolneGridContainer.BringToFront();
+                    _selectedKursIdForZmiany = -1;
+                }
+            }
+            finally
+            {
+                parent.ResumeLayout(true);
+            }
+        }
+
+        /// <summary>
+        /// Ładuje zmiany per kurs do prawego panelu (z avatarem i zdjęciami towarów)
+        /// </summary>
+        private async Task LoadKursZmianyAsync(long kursId, string trasa)
+        {
+            flowKursZmianyCards.Controls.Clear();
+
+            var headerText = $"ZMIANY W KURSIE";
+            if (!string.IsNullOrEmpty(trasa)) headerText += $"  —  {trasa}";
+            lblKursZmianyHeader.Text = headerText;
+
+            // Pobierz oczekujące zmiany z TransportZmiany dla zamówień w tym kursie
+            var zamIds = _kursZamIds.ContainsKey(kursId) ? _kursZamIds[kursId] : new List<int>();
+            if (zamIds.Count == 0) { ShowEmptyChanges(); return; }
+
+            var zmianyPerZam = new Dictionary<int, List<(string Typ, string Stare, string Nowe, string Kto, DateTime Kiedy, string KlientNazwa)>>();
+            try
+            {
+                var connStr = "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+                using var conn = new SqlConnection(connStr);
+                await conn.OpenAsync();
+                var zamIdsStr = string.Join(",", zamIds);
+                using var cmd = new SqlCommand($@"
+                    SELECT ZamowienieId, TypZmiany, StareWartosc, NowaWartosc, ZgloszonePrzez, DataZgloszenia, KlientNazwa
+                    FROM TransportZmiany
+                    WHERE StatusZmiany = 'Oczekuje' AND TypZmiany NOT IN ('NoweZamowienie')
+                      AND ZamowienieId IN ({zamIdsStr})
+                    ORDER BY DataZgloszenia DESC", conn);
+                using var rdr = await cmd.ExecuteReaderAsync();
+                while (await rdr.ReadAsync())
+                {
+                    var zamId = Convert.ToInt32(rdr[0]);
+                    if (!zmianyPerZam.ContainsKey(zamId))
+                        zmianyPerZam[zamId] = new List<(string, string, string, string, DateTime, string)>();
+                    zmianyPerZam[zamId].Add((
+                        rdr[1]?.ToString() ?? "",
+                        rdr.IsDBNull(2) ? "" : rdr[2].ToString(),
+                        rdr.IsDBNull(3) ? "" : rdr[3].ToString(),
+                        rdr.IsDBNull(4) ? "" : rdr[4].ToString(),
+                        Convert.ToDateTime(rdr[5]),
+                        rdr.IsDBNull(6) ? "" : rdr[6].ToString()
+                    ));
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[LoadKursZmiany] Error: {ex.Message}");
+            }
+
+            if (zmianyPerZam.Count == 0) { ShowEmptyChanges(); return; }
+
+            // Pobierz towary zamówień (do zdjęć) z LibraNet
+            var zamTowary = new Dictionary<int, List<(int TowarId, string Kod, decimal Ilosc)>>();
+            try
+            {
+                using var connLibra = new SqlConnection(_connLibra);
+                await connLibra.OpenAsync();
+                var zamIdsStr = string.Join(",", zmianyPerZam.Keys);
+                using var cmdTow = new SqlCommand($@"
+                    SELECT zmt.ZamowienieId, zmt.KodTowaru, tw.Kod, ISNULL(zmt.Ilosc, 0)
+                    FROM dbo.ZamowieniaMiesoTowar zmt
+                    JOIN [HANDEL].[HM].[TW] tw ON zmt.KodTowaru = tw.Id
+                    WHERE zmt.ZamowienieId IN ({zamIdsStr}) AND ISNULL(zmt.Ilosc, 0) > 0
+                    ORDER BY zmt.ZamowienieId, tw.Kod", connLibra);
+                using var rdrTow = await cmdTow.ExecuteReaderAsync();
+                while (await rdrTow.ReadAsync())
+                {
+                    var zId = Convert.ToInt32(rdrTow[0]);
+                    if (!zamTowary.ContainsKey(zId))
+                        zamTowary[zId] = new List<(int, string, decimal)>();
+                    zamTowary[zId].Add((
+                        Convert.ToInt32(rdrTow[1]),
+                        rdrTow[2]?.ToString() ?? "",
+                        Convert.ToDecimal(rdrTow[3])
+                    ));
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[LoadKursZmiany-Towary] Error: {ex.Message}");
+            }
+
+            btnAkceptujKursZmiany.Visible = true;
+            var cardWidth = flowKursZmianyCards.Width - 30;
+            if (cardWidth < 200) cardWidth = 280;
+
+            // ═══ CAPACITY BAR — wpływ zmian na wypełnienie kursu ═══
+            {
+                int paletyBefore = 0, paletyAfter = 0;
+                foreach (var kvp in zmianyPerZam)
+                {
+                    foreach (var z in kvp.Value)
+                    {
+                        if (z.Typ == "ZmianaIlosci")
+                        {
+                            int.TryParse(z.Stare, out int oldP);
+                            int.TryParse(z.Nowe, out int newP);
+                            paletyBefore += oldP;
+                            paletyAfter += newP;
+                        }
+                    }
+                }
+                // Dodaj palety z kursów bez zmian
+                int currentTotal = 0;
+                if (_kursZamIds.ContainsKey(_selectedKursIdForZmiany))
+                {
+                    var row = FindKursRow(_selectedKursIdForZmiany);
+                    if (row != null && row.Cells["Pal"]?.Value != null)
+                        currentTotal = Convert.ToInt32(row.Cells["Pal"].Value);
+                }
+                int beforeTotal = currentTotal - (paletyAfter - paletyBefore);
+                int afterTotal = currentTotal;
+
+                if (paletyBefore != paletyAfter || beforeTotal > 0)
+                {
+                    var barPanel = CreateCapacityBar(beforeTotal, afterTotal, 33, cardWidth);
+                    flowKursZmianyCards.Controls.Add(barPanel);
+                }
+            }
+
+            foreach (var kvp in zmianyPerZam)
+            {
+                var zamId = kvp.Key;
+                var zmiany = kvp.Value;
+                var klientNazwa = zmiany.FirstOrDefault().KlientNazwa;
+                if (string.IsNullOrEmpty(klientNazwa)) klientNazwa = $"Zamówienie #{zamId}";
+                var kto = zmiany.FirstOrDefault().Kto ?? "";
+                var kiedy = zmiany.FirstOrDefault().Kiedy;
+                var towary = zamTowary.ContainsKey(zamId) ? zamTowary[zamId] : new();
+
+                var card = CreateSnapshotChangeCard(zamId, klientNazwa, kto, kiedy,
+                    zmiany.Select(z => (TypToLabel(z.Typ), z.Stare, z.Nowe, z.Typ)).ToList(),
+                    towary, cardWidth);
+                flowKursZmianyCards.Controls.Add(card);
+            }
+        }
+
+        private void ShowEmptyChanges()
+        {
+            var lblEmpty = new Label
+            {
+                Text = "Brak oczekujących zmian w tym kursie.",
+                Font = new Font("Segoe UI", 10F, FontStyle.Italic),
+                ForeColor = Color.FromArgb(127, 140, 141),
+                AutoSize = true,
+                Margin = new Padding(10, 20, 10, 10)
+            };
+            flowKursZmianyCards.Controls.Add(lblEmpty);
+            btnAkceptujKursZmiany.Visible = false;
+        }
+
+        private DataGridViewRow FindKursRow(long kursId)
+        {
+            if (dgvKursy == null || dgvKursy.IsDisposed) return null;
+            foreach (DataGridViewRow row in dgvKursy.Rows)
+            {
+                if (row.IsNewRow) continue;
+                var val = row.Cells["KursID"]?.Value;
+                if (val != null && Convert.ToInt64(val) == kursId)
+                    return row;
+            }
+            return null;
+        }
+
+        private Panel CreateCapacityBar(int before, int after, int maxCapacity, int width)
+        {
+            var panel = new Panel
+            {
+                Width = width,
+                Height = 56,
+                Margin = new Padding(0, 0, 0, 6),
+                BackColor = Color.White
+            };
+            panel.Paint += (s, e) =>
+            {
+                var g = e.Graphics;
+                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+
+                int barX = 8, barY = 22, barW = width - 16, barH = 14;
+
+                // Header
+                using (var f = new Font("Segoe UI", 8.5F, FontStyle.Bold))
+                    g.DrawString($"WYPEŁNIENIE KURSU", f, Brushes.Gray, barX, 4);
+
+                // Background track
+                using (var bgBrush = new SolidBrush(Color.FromArgb(235, 235, 235)))
+                {
+                    var bgRect = new Rectangle(barX, barY, barW, barH);
+                    using (var path = CreateRoundedRectPath(bgRect, 7))
+                        g.FillPath(bgBrush, path);
+                }
+
+                // "Before" bar
+                if (before > 0 && maxCapacity > 0)
+                {
+                    float pctBefore = Math.Min((float)before / maxCapacity, 1f);
+                    int wBefore = Math.Max((int)(barW * pctBefore), 4);
+                    var cBefore = Color.FromArgb(80, 149, 165, 166); // szary, przezroczysty
+                    using (var br = new SolidBrush(cBefore))
+                    {
+                        var r = new Rectangle(barX, barY, wBefore, barH);
+                        using (var path = CreateRoundedRectPath(r, 7))
+                            g.FillPath(br, path);
+                    }
+                }
+
+                // "After" bar (overlay)
+                if (after > 0 && maxCapacity > 0)
+                {
+                    float pctAfter = Math.Min((float)after / maxCapacity, 1f);
+                    int wAfter = Math.Max((int)(barW * pctAfter), 4);
+                    Color cAfter;
+                    if (pctAfter < 0.6f) cAfter = Color.FromArgb(39, 174, 96);       // zielony
+                    else if (pctAfter < 0.85f) cAfter = Color.FromArgb(243, 156, 18); // żółty
+                    else cAfter = Color.FromArgb(192, 57, 43);                         // czerwony
+
+                    using (var br = new SolidBrush(cAfter))
+                    {
+                        var r = new Rectangle(barX, barY, wAfter, barH);
+                        using (var path = CreateRoundedRectPath(r, 7))
+                            g.FillPath(br, path);
+                    }
+                }
+
+                // Labels below bar
+                using (var fSmall = new Font("Segoe UI", 7.5F))
+                {
+                    string beforeTxt = $"Przed: {before}/{maxCapacity}";
+                    string afterTxt = $"Po: {after}/{maxCapacity}";
+                    g.DrawString(beforeTxt, fSmall, Brushes.Gray, barX, barY + barH + 2);
+                    var afterSize = g.MeasureString(afterTxt, fSmall);
+                    Color afterColor = after > maxCapacity ? Color.FromArgb(192, 57, 43) : Color.FromArgb(39, 174, 96);
+                    using (var afterBr = new SolidBrush(afterColor))
+                        g.DrawString(afterTxt, fSmall, afterBr, barX + barW - afterSize.Width, barY + barH + 2);
+                }
+            };
+            return panel;
+        }
+
+        private static System.Drawing.Drawing2D.GraphicsPath CreateRoundedRectPath(Rectangle rect, int radius)
+        {
+            var path = new System.Drawing.Drawing2D.GraphicsPath();
+            int d = radius * 2;
+            path.AddArc(rect.X, rect.Y, d, d, 180, 90);
+            path.AddArc(rect.Right - d, rect.Y, d, d, 270, 90);
+            path.AddArc(rect.Right - d, rect.Bottom - d, d, d, 0, 90);
+            path.AddArc(rect.X, rect.Bottom - d, d, d, 90, 90);
+            path.CloseFigure();
+            return path;
+        }
+
+        // Kolory ikon i etykiet zmian — każdy typ ma inny, wyrazisty kolor
+        private static readonly Dictionary<string, (string Label, string Icon, Color Color)> _zmianaMeta = new()
+        {
+            ["ZmianaIlosci"]      = ("PALETY",         "\U0001F7E0", Color.FromArgb(230, 126, 34)),   // pomarańczowy
+            ["ZmianaPojemnikow"]  = ("POJEMNIKI",      "\U0001F535", Color.FromArgb(41, 128, 185)),   // niebieski
+            ["ZmianaKg"]          = ("ILOŚĆ KG",       "\U0001F534", Color.FromArgb(192, 57, 43)),    // czerwony
+            ["ZmianaAwizacji"]    = ("DATA AWIZACJI",   "\U0001F7E2", Color.FromArgb(39, 174, 96)),   // zielony
+            ["ZmianaStatusu"]     = ("STATUS",          "\U0001F7E3", Color.FromArgb(142, 68, 173)),  // fioletowy
+            ["ZmianaTerminu"]     = ("DATA ZAMÓWIENIA", "\U0001F7E1", Color.FromArgb(241, 196, 15)),  // żółty
+            ["ZmianaUwag"]        = ("UWAGI",           "\U0001F7E4", Color.FromArgb(121, 85, 72)),   // brązowy
+            ["ZmianaOdbiorcy"]    = ("ODBIORCA",        "\u26AA",     Color.FromArgb(0, 150, 136)),   // teal
+        };
+
+        private static (string Label, string Icon, Color Color) GetZmianaMeta(string typ)
+        {
+            if (_zmianaMeta.TryGetValue(typ, out var meta)) return meta;
+            return (typ, "\u2B24", Color.FromArgb(100, 100, 100));
+        }
+
+        private static string TypToLabel(string typ) => GetZmianaMeta(typ).Label;
+
+        private Panel CreateSnapshotChangeCard(int zamId, string klientNazwa, string zgloszonePrzez,
+            DateTime dataZgloszenia, List<(string Field, string OldVal, string NewVal, string RawTyp)> changes,
+            List<(int TowarId, string Kod, decimal Ilosc)> towary, int width)
+        {
+            var card = new Panel
+            {
+                Width = width,
+                BackColor = Color.White,
+                Padding = new Padding(0),
+                Margin = new Padding(5, 6, 5, 6)
+            };
+
+            // Gradient-like top accent bar + subtle shadow via Paint
+            card.Paint += (s, ev) =>
+            {
+                var g = ev.Graphics;
+                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+
+                // Górny pasek gradientowy (pomarańczowy → żółty)
+                using (var gradBrush = new System.Drawing.Drawing2D.LinearGradientBrush(
+                    new Rectangle(0, 0, card.Width, 5),
+                    Color.FromArgb(243, 156, 18), Color.FromArgb(241, 196, 15),
+                    System.Drawing.Drawing2D.LinearGradientMode.Horizontal))
+                    g.FillRectangle(gradBrush, 0, 0, card.Width, 5);
+
+                // Cień dolny
+                using var shadowPen = new Pen(Color.FromArgb(30, 0, 0, 0));
+                g.DrawLine(shadowPen, 2, card.Height - 1, card.Width - 2, card.Height - 1);
+
+                // Obramowanie (zaokrąglone wrażenie)
+                using var borderPen = new Pen(Color.FromArgb(220, 215, 200));
+                g.DrawRectangle(borderPen, 0, 0, card.Width - 1, card.Height - 1);
+            };
+
+            int y = 12; // pod górnym paskiem
+            int leftPad = 14;
+            int rightPad = 10;
+
+            // ════════════════════════════════════════════════════════
+            // SEKCJA 1: Avatar + kto zmienił + czas temu
+            // ════════════════════════════════════════════════════════
+            int avatarSize = 38;
+            var avatarBox = new PictureBox
+            {
+                Size = new Size(avatarSize, avatarSize),
+                Location = new Point(leftPad, y),
+                SizeMode = PictureBoxSizeMode.StretchImage,
+                BackColor = Color.Transparent
+            };
+            try
+            {
+                var avatarImg = GetAvatarByFullName(zgloszonePrzez, avatarSize);
+                if (avatarImg != null) avatarBox.Image = avatarImg;
+            }
+            catch { }
+            card.Controls.Add(avatarBox);
+
+            var displayName = string.IsNullOrEmpty(zgloszonePrzez) ? "Nieznany" : zgloszonePrzez;
+            var lblKto = new Label
+            {
+                Text = displayName,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(33, 37, 41),
+                AutoSize = true,
+                MaximumSize = new Size(width - avatarSize - leftPad - rightPad - 80, 0),
+                Location = new Point(leftPad + avatarSize + 10, y + 2)
+            };
+            card.Controls.Add(lblKto);
+
+            var timeAgo = FormatTimeAgo(dataZgloszenia);
+            var lblCzas = new Label
+            {
+                Text = timeAgo,
+                Font = new Font("Segoe UI", 8F),
+                ForeColor = Color.FromArgb(149, 165, 166),
+                AutoSize = true,
+                Location = new Point(leftPad + avatarSize + 10, y + 20)
+            };
+            card.Controls.Add(lblCzas);
+
+            // Badge "zmieniono" po prawej
+            var lblBadge = new Label
+            {
+                Text = "ZMIENIONO",
+                Font = new Font("Segoe UI", 7F, FontStyle.Bold),
+                ForeColor = Color.White,
+                BackColor = Color.FromArgb(231, 76, 60),
+                TextAlign = ContentAlignment.MiddleCenter,
+                AutoSize = false,
+                Size = new Size(70, 18),
+                Padding = new Padding(0)
+            };
+            lblBadge.Location = new Point(width - 70 - rightPad, y + 4);
+            card.Controls.Add(lblBadge);
+
+            y += avatarSize + 10;
+
+            // ════════════════════════════════════════════════════════
+            // SEKCJA 2: Klient (kolorowa etykieta)
+            // ════════════════════════════════════════════════════════
+            var lblKlient = new Label
+            {
+                Text = $"\U0001F4E6  {klientNazwa}",
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(25, 118, 210), // niebieski
+                AutoSize = true,
+                MaximumSize = new Size(width - leftPad - rightPad - 80, 0),
+                Location = new Point(leftPad, y)
+            };
+            card.Controls.Add(lblKlient);
+
+            var lblZamId = new Label
+            {
+                Text = $"# {zamId}",
+                Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(120, 120, 120),
+                BackColor = Color.FromArgb(240, 240, 245),
+                TextAlign = ContentAlignment.MiddleCenter,
+                AutoSize = false,
+                Size = new Size(60, 18)
+            };
+            lblZamId.Location = new Point(width - 60 - rightPad, y + 1);
+            card.Controls.Add(lblZamId);
+
+            y += lblKlient.PreferredHeight + 6;
+
+            // ════════════════════════════════════════════════════════
+            // SEKCJA 3: Separator
+            // ════════════════════════════════════════════════════════
+            var sep = new Panel
+            {
+                Location = new Point(leftPad, y),
+                Width = width - leftPad - rightPad,
+                Height = 1,
+                BackColor = Color.FromArgb(220, 220, 225)
+            };
+            card.Controls.Add(sep);
+            y += 8;
+
+            // ════════════════════════════════════════════════════════
+            // SEKCJA 4: Zmiany — każda z kolorową ikoną i wyrazistymi wartościami
+            // ════════════════════════════════════════════════════════
+            foreach (var ch in changes)
+            {
+                var meta = GetZmianaMeta(ch.RawTyp);
+
+                // Kolorowa kropka
+                var dotPanel = new Panel
+                {
+                    Size = new Size(10, 10),
+                    Location = new Point(leftPad + 2, y + 4),
+                    BackColor = meta.Color
+                };
+                dotPanel.Paint += (s2, e2) =>
+                {
+                    e2.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                    using var b = new SolidBrush(((Panel)s2).BackColor);
+                    e2.Graphics.Clear(Color.White);
+                    e2.Graphics.FillEllipse(b, 0, 0, 9, 9);
+                };
+                card.Controls.Add(dotPanel);
+
+                // Nazwa pola — w kolorze typu
+                var lblField = new Label
+                {
+                    Text = ch.Field,
+                    Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
+                    ForeColor = meta.Color,
+                    AutoSize = true,
+                    Location = new Point(leftPad + 16, y)
+                };
+                card.Controls.Add(lblField);
+                y += 18;
+
+                // Stara wartość (przekreślona szarym) → Nowa wartość (gruby, zielony)
+                var lblOld = new Label
+                {
+                    Text = ch.OldVal,
+                    Font = new Font("Segoe UI", 10F, FontStyle.Strikeout),
+                    ForeColor = Color.FromArgb(180, 180, 180),
+                    AutoSize = true,
+                    Location = new Point(leftPad + 18, y)
+                };
+                card.Controls.Add(lblOld);
+
+                var lblArrow = new Label
+                {
+                    Text = "\u27A1",
+                    Font = new Font("Segoe UI", 10F),
+                    ForeColor = Color.FromArgb(243, 156, 18),
+                    AutoSize = true,
+                    Location = new Point(leftPad + 18 + lblOld.PreferredWidth + 6, y)
+                };
+                card.Controls.Add(lblArrow);
+
+                var lblNew = new Label
+                {
+                    Text = ch.NewVal,
+                    Font = new Font("Segoe UI", 10.5F, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(39, 174, 96), // zielony — nowa wartość
+                    AutoSize = true,
+                    Location = new Point(lblArrow.Location.X + lblArrow.PreferredWidth + 6, y)
+                };
+                card.Controls.Add(lblNew);
+                y += 24;
+            }
+            y += 2;
+
+            // ════════════════════════════════════════════════════════
+            // SEKCJA 5: Zdjęcia towarów
+            // ════════════════════════════════════════════════════════
+            if (towary.Count > 0)
+            {
+                var sep2 = new Panel
+                {
+                    Location = new Point(leftPad, y),
+                    Width = width - leftPad - rightPad,
+                    Height = 1,
+                    BackColor = Color.FromArgb(235, 235, 240)
+                };
+                card.Controls.Add(sep2);
+                y += 6;
+
+                var lblTowHeader = new Label
+                {
+                    Text = $"PRODUKTY  ({towary.Count})",
+                    Font = new Font("Segoe UI", 7.5F, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(0, 150, 136), // teal
+                    AutoSize = true,
+                    Location = new Point(leftPad, y)
+                };
+                card.Controls.Add(lblTowHeader);
+                y += 16;
+
+                int imgSize = 42;
+                int gap = 4;
+                int imgX = leftPad;
+                var cardTooltip = new ToolTip { InitialDelay = 200 };
+
+                foreach (var tow in towary.Take(8))
+                {
+                    if (_productImages.TryGetValue(tow.TowarId, out var img) && img != null)
+                    {
+                        var pb = new PictureBox
+                        {
+                            Size = new Size(imgSize, imgSize),
+                            Location = new Point(imgX, y),
+                            SizeMode = PictureBoxSizeMode.Zoom,
+                            Image = img,
+                            BackColor = Color.FromArgb(250, 250, 252),
+                            BorderStyle = BorderStyle.FixedSingle
+                        };
+                        cardTooltip.SetToolTip(pb, $"{tow.Kod}\n{tow.Ilosc:N0} kg");
+                        card.Controls.Add(pb);
+                    }
+                    else
+                    {
+                        // Kolorowy placeholder z inicjałami towaru
+                        var placeholderColor = Color.FromArgb(
+                            100 + Math.Abs(tow.Kod.GetHashCode()) % 80,
+                            100 + Math.Abs(tow.Kod.GetHashCode() >> 8) % 80,
+                            140 + Math.Abs(tow.Kod.GetHashCode() >> 16) % 80);
+
+                        var lblPlaceholder = new Label
+                        {
+                            Text = SkrocKodTowaru(tow.Kod),
+                            Font = new Font("Segoe UI", 6F, FontStyle.Bold),
+                            ForeColor = Color.White,
+                            BackColor = placeholderColor,
+                            TextAlign = ContentAlignment.MiddleCenter,
+                            Size = new Size(imgSize, imgSize),
+                            Location = new Point(imgX, y)
+                        };
+                        cardTooltip.SetToolTip(lblPlaceholder, $"{tow.Kod}\n{tow.Ilosc:N0} kg");
+                        card.Controls.Add(lblPlaceholder);
+                    }
+
+                    imgX += imgSize + gap;
+                    if (imgX + imgSize > width - rightPad)
+                    {
+                        imgX = leftPad;
+                        y += imgSize + gap;
+                    }
+                }
+                y += imgSize + 6;
+
+                if (towary.Count > 8)
+                {
+                    var lblMore = new Label
+                    {
+                        Text = $"+{towary.Count - 8} więcej produktów",
+                        Font = new Font("Segoe UI", 7.5F, FontStyle.Italic),
+                        ForeColor = Color.FromArgb(0, 150, 136),
+                        AutoSize = true,
+                        Location = new Point(leftPad, y)
+                    };
+                    card.Controls.Add(lblMore);
+                    y += 16;
+                }
+            }
+
+            y += 6;
+            card.Height = y;
+            return card;
+        }
+
+        private static string SkrocKodTowaru(string kod)
+        {
+            if (string.IsNullOrEmpty(kod)) return "?";
+            var parts = kod.Split(' ');
+            return parts.Length >= 2 ? $"{parts[0]}\n{parts[1]}" : kod;
+        }
+
+        private static string FormatTimeAgo(DateTime dt)
+        {
+            var diff = DateTime.Now - dt;
+            if (diff.TotalMinutes < 1) return "przed chwilą";
+            if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes} min temu";
+            if (diff.TotalHours < 24) return $"{(int)diff.TotalHours} godz. temu";
+            return $"{(int)diff.TotalDays} dni temu";
+        }
+
+        private async Task LoadProductImagesAsync()
+        {
+            try
+            {
+                using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                const string checkSql = @"SELECT CASE WHEN EXISTS (SELECT 1 FROM sys.tables WHERE name = 'TowarZdjecia') THEN 1 ELSE 0 END";
+                using (var cmdCheck = new SqlCommand(checkSql, cn))
+                {
+                    var exists = (int)(await cmdCheck.ExecuteScalarAsync())!;
+                    if (exists == 0) return;
+                }
+
+                const string sql = @"SELECT TowarId, Zdjecie FROM dbo.TowarZdjecia WHERE Aktywne = 1";
+                using var cmd = new SqlCommand(sql, cn);
+                using var rdr = await cmd.ExecuteReaderAsync();
+                while (await rdr.ReadAsync())
+                {
+                    int towarId = Convert.ToInt32(rdr[0]);
+                    if (!rdr.IsDBNull(1))
+                    {
+                        byte[] data = (byte[])rdr[1];
+                        try
+                        {
+                            var ms = new System.IO.MemoryStream(data);
+                            var bmp = new Bitmap(ms);
+                            var thumb = new Bitmap(bmp, 100, 100);
+                            bmp.Dispose();
+                            ms.Dispose();
+                            _productImages[towarId] = thumb;
+                        }
+                        catch { }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[LoadProductImages] Error: {ex.Message}");
+            }
         }
 
         private void DgvWolneZamowienia_CellPainting(object sender, DataGridViewCellPaintingEventArgs e)
@@ -873,22 +2025,11 @@ namespace Kalendarz1.Transport.Formularze
                     e.Graphics.DrawImage(avatarImg, avatarX, avatarY, avatarSize, avatarSize);
                 }
 
-                // Skrócona nazwa handlowca
                 var textX = avatarX + avatarSize + 5;
-                var textColor = selected ? Color.White : Color.FromArgb(40, 50, 65);
+                var textBrush = selected ? _brushWhite : _brushDarkText;
                 var displayText = SkrocNazwe(cellValue);
-
-                using (var font = new Font("Segoe UI", 8F))
-                using (var brush = new SolidBrush(textColor))
-                {
-                    var sf = new StringFormat { LineAlignment = StringAlignment.Center, Trimming = StringTrimming.EllipsisCharacter };
-                    var textRect = new RectangleF(textX, e.CellBounds.Top, e.CellBounds.Right - textX - 4, e.CellBounds.Height);
-                    e.Graphics.DrawString(displayText, font, brush, textRect, sf);
-                }
-
-                using (var borderPen = new Pen(dgvWolneZamowienia.GridColor))
-                    e.Graphics.DrawLine(borderPen, e.CellBounds.Left, e.CellBounds.Bottom - 1,
-                        e.CellBounds.Right - 1, e.CellBounds.Bottom - 1);
+                var textRect = new RectangleF(textX, e.CellBounds.Top, e.CellBounds.Right - textX - 4, e.CellBounds.Height);
+                e.Graphics.DrawString(displayText, _fontHandlText, textBrush, textRect, _sfLeftCenter);
                 return;
             }
 
@@ -896,8 +2037,8 @@ namespace Kalendarz1.Transport.Formularze
             if (!isGroupRow) return;
 
             e.Handled = true;
-            var bgColor = row.Selected ? e.CellStyle.SelectionBackColor : Color.FromArgb(235, 230, 245);
-            using (var brush = new SolidBrush(bgColor))
+            var bgColorGrp = row.Selected ? e.CellStyle.SelectionBackColor : Color.FromArgb(235, 230, 245);
+            using (var brush = new SolidBrush(bgColorGrp))
                 e.Graphics.FillRectangle(brush, e.CellBounds);
 
             // Rysuj tekst grupy w kolumnie Odbiór — scalony przez Odbiór+Godz.+Palety+Poj.
@@ -909,19 +2050,20 @@ namespace Kalendarz1.Transport.Formularze
                     + (dgvWolneZamowienia.Columns["Palety"]?.Width ?? 0)
                     + (dgvWolneZamowienia.Columns["Poj."]?.Width ?? 0);
 
-                using (var font = new Font("Segoe UI", 8F, FontStyle.Bold))
-                using (var textBrush = new SolidBrush(Color.FromArgb(100, 60, 140)))
-                {
-                    var sf = new StringFormat { LineAlignment = StringAlignment.Center, Trimming = StringTrimming.EllipsisCharacter };
-                    e.Graphics.DrawString(headerText, font, textBrush,
-                        new RectangleF(e.CellBounds.Left + 4, e.CellBounds.Top, mergedWidth - 6, e.CellBounds.Height), sf);
-                }
+                e.Graphics.DrawString(headerText, _fontGroupBold, _brushGroupText,
+                    new RectangleF(e.CellBounds.Left + 4, e.CellBounds.Top, mergedWidth - 6, e.CellBounds.Height), _sfLeftCenter);
             }
+        }
 
-            // Dolna linia
-            using (var pen = new Pen(Color.FromArgb(210, 200, 225)))
-                e.Graphics.DrawLine(pen, e.CellBounds.Left, e.CellBounds.Bottom - 1,
-                    e.CellBounds.Right, e.CellBounds.Bottom - 1);
+        private async Task LoadZmianyAsync()
+        {
+            try
+            {
+                var user = App.UserFullName ?? App.UserID ?? "system";
+                var detectedCount = await TransportZmianyService.DetectNewOrdersAsync(user);
+                System.Diagnostics.Debug.WriteLine($"[Transport] DetectNewOrdersAsync detected {detectedCount} new changes");
+            }
+            catch { }
         }
 
         private void CreateSummary()
@@ -1057,20 +2199,36 @@ namespace Kalendarz1.Transport.Formularze
             try
             {
                 System.Diagnostics.Debug.WriteLine("=== LoadInitialDataAsync START ===");
-
-                // Załaduj mapowanie handlowiec → userId (do avatarów)
-                await EnsureHandlowiecMappingLoadedAsync();
+                var sw = System.Diagnostics.Stopwatch.StartNew();
 
                 // Ustaw nazwę dnia tygodnia
                 lblDayName.Text = _selectedDate.ToString("dddd", new System.Globalization.CultureInfo("pl-PL"));
 
-                // Załaduj kursy - to automatycznie wywoła UpdateSummary
-                await LoadKursyAsync();
+                // FAZA 1: Mapowanie handlowców (potrzebne przed kursami) + dane krytyczne RÓWNOLEGLE
+                // Kursy i wolne zamówienia ruszają natychmiast — nie czekają na zmiany ani zdjęcia
+                var mappingTask = EnsureHandlowiecMappingLoadedAsync();
+                var kursyTask = LoadKursyAsync();
+                var wolneTask = LoadWolneZamowieniaAsync();
 
-                // Załaduj wolne zamówienia z dzisiejszego uboju
-                await LoadWolneZamowieniaAsync();
+                // Mapowanie jest lekkie, czekamy na nie + gridy
+                await Task.WhenAll(mappingTask, kursyTask, wolneTask);
 
-                System.Diagnostics.Debug.WriteLine("=== LoadInitialDataAsync END ===");
+                System.Diagnostics.Debug.WriteLine($"=== LoadInitialDataAsync GRIDS READY in {sw.ElapsedMilliseconds}ms ===");
+
+                // FAZA 2: Niekrytyczne — zdjęcia produktów i detekcja zmian w tle
+                // Nie blokują UI — uruchamiamy fire-and-forget
+                _ = Task.Run(async () =>
+                {
+                    try { await LoadProductImagesAsync(); }
+                    catch { }
+                });
+                _ = Task.Run(async () =>
+                {
+                    try { await LoadZmianyAsync(); }
+                    catch { }
+                });
+
+                System.Diagnostics.Debug.WriteLine($"=== LoadInitialDataAsync END total {sw.ElapsedMilliseconds}ms ===");
             }
             catch (Exception ex)
             {
@@ -1086,10 +2244,10 @@ namespace Kalendarz1.Transport.Formularze
             lblDayName.Text = _selectedDate.ToString("dddd", new System.Globalization.CultureInfo("pl-PL"));
             System.Diagnostics.Debug.WriteLine($"Date changed to: {_selectedDate:yyyy-MM-dd}");
 
-            await LoadKursyAsync();
-            await LoadWolneZamowieniaAsync();
+            // Kursy + wolne zamówienia równolegle; DetectNewOrders w tle
+            _ = Task.Run(async () => { try { await LoadZmianyAsync(); } catch { } });
+            await Task.WhenAll(LoadKursyAsync(), LoadWolneZamowieniaAsync());
 
-            // Wymuś wywołanie UpdateSummary po zmianie daty
             System.Diagnostics.Debug.WriteLine("Force calling UpdateSummary after date change");
             UpdateSummary();
         }
@@ -1099,7 +2257,7 @@ namespace Kalendarz1.Transport.Formularze
             bool hasSelection = dgvKursy.CurrentRow != null;
             btnEdytuj.Enabled = hasSelection;
             btnUsun.Enabled = hasSelection;
-            btnKopiuj.Enabled = hasSelection;
+            btnDebug.Enabled = true;
             btnMapa.Enabled = hasSelection;
 
             // Aktywuj przycisk PRZYDZIEL tylko dla kursów wymagających przypisania
@@ -1111,116 +2269,141 @@ namespace Kalendarz1.Transport.Formularze
             {
                 btnPrzydziel.Enabled = false;
             }
+
+            // Pokaż zmiany w kursie w PRAWYM PANELU (zamienia wolne zamówienia)
+            bool maZmiany = false;
+            if (hasSelection && dgvKursy.CurrentRow.Cells["MaZmiany"]?.Value != null &&
+                dgvKursy.CurrentRow.Cells["MaZmiany"].Value != DBNull.Value)
+            {
+                maZmiany = Convert.ToBoolean(dgvKursy.CurrentRow.Cells["MaZmiany"].Value);
+            }
+
+            if (maZmiany && hasSelection)
+            {
+                var kursId = Convert.ToInt64(dgvKursy.CurrentRow.Cells["KursID"].Value);
+                var trasa = dgvKursy.CurrentRow.Cells["Trasa"]?.Value?.ToString() ?? "";
+                ShowRightPanelMode(true, kursId);
+                _ = LoadKursZmianyAsync(kursId, trasa);
+            }
+            else if (_selectedKursIdForZmiany > 0)
+            {
+                // Wróć do wolnych zamówień gdy zaznaczono kurs bez zmian
+                ShowRightPanelMode(false, 0);
+            }
         }
+
 
         private async Task LoadKursyAsync()
         {
             try
             {
                 Cursor = Cursors.WaitCursor;
-                System.Diagnostics.Debug.WriteLine("=== LoadKursyAsync START ===");
+                var sw = System.Diagnostics.Stopwatch.StartNew();
 
-                _kursy = await _repozytorium.PobierzKursyPoDacieAsync(_selectedDate);
+                // ═══ FAZA A: Równoległe pobranie kursy + live zamówienia (różne bazy) ═══
+                var kursyTask = _repozytorium.PobierzKursyPoDacieAsync(_selectedDate);
+                var liveTask = PobierzLiveZamowieniaMapAsync();
+                await Task.WhenAll(kursyTask, liveTask);
+
+                _kursy = kursyTask.Result;
                 _wypelnienia = new Dictionary<long, WynikPakowania>();
+                var liveZamowieniaMap = liveTask.Result;
 
-                System.Diagnostics.Debug.WriteLine($"Loaded {_kursy?.Count ?? 0} courses");
+                System.Diagnostics.Debug.WriteLine($"[Transport] Faza A: {_kursy?.Count ?? 0} kursów, {liveZamowieniaMap.Count} live zam. w {sw.ElapsedMilliseconds}ms");
 
-                // Pobierz LIVE dane zamówień z ZamowieniaMieso (pojemniki mogą się zmienić)
-                var liveZamowieniaMap = await PobierzLiveZamowieniaMapAsync();
+                // ═══ FAZA B: Bulk pobranie WSZYSTKICH ładunków jednym zapytaniem ═══
+                var allKursIds = _kursy?.Select(k => k.KursID).ToList() ?? new List<long>();
+                var allLadunkiMap = allKursIds.Count > 0
+                    ? await _repozytorium.PobierzLadunkiDlaKursowAsync(allKursIds)
+                    : new Dictionary<long, List<Ladunek>>();
 
-                // Zbierz KlientIds z ZAM_ ładunków aby pobrać Handlowców
+                System.Diagnostics.Debug.WriteLine($"[Transport] Faza B: bulk ładunki w {sw.ElapsedMilliseconds}ms");
+
+                // ═══ FAZA C: Przetworzenie ładunków (CPU, bez I/O) ═══
                 var kursHandlowcy = new Dictionary<long, HashSet<string>>();
                 var allKlientIds = new HashSet<int>();
                 var ladunkiCountMap = new Dictionary<long, int>();
-                var kursZmiany = new Dictionary<long, List<string>>();
-
-                // Struktura do przechowania surowych danych alertów (przed pobraniem nazw klientów)
-                var rawAlerts = new List<(long KursID, int KlientId, string Type, int OldPoj, int NewPoj)>();
-                var rawAnulowane = new List<(long KursID, int ZamId)>();
+                var kursZamIds = new Dictionary<long, List<int>>();
+                var allZamIds = new HashSet<int>();
+                var kursPalety = new Dictionary<long, int>();
+                var kursPojemniki = new Dictionary<long, int>();
+                var kursKg = new Dictionary<long, decimal>();
 
                 if (_kursy != null)
                 {
                     foreach (var kurs in _kursy)
                     {
+                        var ladunki = allLadunkiMap.TryGetValue(kurs.KursID, out var l) ? l : new List<Ladunek>();
+                        ladunkiCountMap[kurs.KursID] = ladunki.Count;
+                        int sumPal = 0, sumPoj = 0;
+                        decimal sumKg = 0;
+
+                        foreach (var lad in ladunki)
+                        {
+                            if (lad.KodKlienta?.StartsWith("ZAM_") == true &&
+                                int.TryParse(lad.KodKlienta.Substring(4), out int zamId))
+                            {
+                                if (liveZamowieniaMap.TryGetValue(zamId, out var liveData))
+                                {
+                                    lad.PojemnikiE2 = liveData.Pojemniki;
+                                    lad.TrybE2 = liveData.TrybE2;
+                                    allKlientIds.Add(liveData.KlientId);
+                                    sumPal += liveData.Palety;
+                                    sumPoj += liveData.Pojemniki;
+                                    sumKg += liveData.IloscKg;
+
+                                    if (!kursHandlowcy.ContainsKey(kurs.KursID))
+                                        kursHandlowcy[kurs.KursID] = new HashSet<string>();
+                                    kursHandlowcy[kurs.KursID].Add(liveData.KlientId.ToString());
+                                }
+
+                                if (!kursZamIds.ContainsKey(kurs.KursID))
+                                    kursZamIds[kurs.KursID] = new List<int>();
+                                kursZamIds[kurs.KursID].Add(zamId);
+                                allZamIds.Add(zamId);
+                            }
+                        }
+
+                        kursPalety[kurs.KursID] = sumPal;
+                        kursPojemniki[kurs.KursID] = sumPoj;
+                        kursKg[kurs.KursID] = sumKg;
+
                         try
                         {
-                            var ladunki = await _repozytorium.PobierzLadunkiAsync(kurs.KursID);
-                            ladunkiCountMap[kurs.KursID] = ladunki.Count;
-
-                            foreach (var lad in ladunki)
-                            {
-                                if (lad.KodKlienta?.StartsWith("ZAM_") == true &&
-                                    int.TryParse(lad.KodKlienta.Substring(4), out int zamId))
-                                {
-                                    if (liveZamowieniaMap.TryGetValue(zamId, out var liveData))
-                                    {
-                                        var oldPojemniki = lad.PojemnikiE2;
-                                        if (oldPojemniki != liveData.Pojemniki)
-                                            rawAlerts.Add((kurs.KursID, liveData.KlientId, "Pojemniki", oldPojemniki, liveData.Pojemniki));
-
-                                        if (liveData.TransportStatus == "Wlasny")
-                                            rawAlerts.Add((kurs.KursID, liveData.KlientId, "Wlasny", 0, 0));
-
-                                        lad.PojemnikiE2 = liveData.Pojemniki;
-                                        lad.TrybE2 = liveData.TrybE2;
-                                        allKlientIds.Add(liveData.KlientId);
-
-                                        if (!kursHandlowcy.ContainsKey(kurs.KursID))
-                                            kursHandlowcy[kurs.KursID] = new HashSet<string>();
-                                        kursHandlowcy[kurs.KursID].Add(liveData.KlientId.ToString());
-                                    }
-                                    else
-                                    {
-                                        rawAnulowane.Add((kurs.KursID, zamId));
-                                    }
-                                }
-                            }
-                            var wynik = _repozytorium.ObliczPakowanieZLadunkow(ladunki, kurs.PojazdID ?? 0);
-                            _wypelnienia[kurs.KursID] = wynik;
+                            _wypelnienia[kurs.KursID] = _repozytorium.ObliczPakowanieZLadunkow(ladunki, kurs.PojazdID ?? 0);
                         }
-                        catch (Exception ex)
+                        catch
                         {
-                            System.Diagnostics.Debug.WriteLine($"Error calculating packing for course {kurs.KursID}: {ex.Message}");
-                            _wypelnienia[kurs.KursID] = new WynikPakowania
-                            {
-                                SumaE2 = 0,
-                                PaletyNominal = 0,
-                                ProcNominal = 0
-                            };
+                            _wypelnienia[kurs.KursID] = new WynikPakowania { SumaE2 = 0, PaletyNominal = 0, ProcNominal = 0 };
                         }
                     }
                 }
 
-                // Pobierz nazwy klientów z Handel ZANIM wygenerujemy teksty alertów
-                if (allKlientIds.Count > 0)
-                    await LoadMissingKlienciAsync(allKlientIds);
+                _kursZamIds = kursZamIds;
 
-                // Teraz wygeneruj teksty alertów z prawidłowymi nazwami
-                foreach (var alert in rawAlerts)
-                {
-                    if (!kursZmiany.ContainsKey(alert.KursID))
-                        kursZmiany[alert.KursID] = new List<string>();
-                    var kn = _klienciCache.TryGetValue(alert.KlientId, out var knv) ? knv : $"KH {alert.KlientId}";
-                    if (alert.Type == "Pojemniki")
-                    {
-                        var diff = alert.NewPoj - alert.OldPoj;
-                        var diffStr = diff > 0 ? $"+{diff}" : diff.ToString();
-                        kursZmiany[alert.KursID].Add($"{kn}: Poj {alert.OldPoj}→{alert.NewPoj} ({diffStr})");
-                    }
-                    else if (alert.Type == "Wlasny")
-                    {
-                        kursZmiany[alert.KursID].Add($"{kn}: Transport WŁASNY!");
-                    }
-                }
-                foreach (var anul in rawAnulowane)
-                {
-                    if (!kursZmiany.ContainsKey(anul.KursID))
-                        kursZmiany[anul.KursID] = new List<string>();
-                    kursZmiany[anul.KursID].Add($"ZAM #{anul.ZamId}: ANULOWANE!");
-                }
+                // ═══ FAZA D: 3 niezależne zapytania RÓWNOLEGLE (3 różne serwery/bazy) ═══
+                // D1: TransportZmiany (TransportPL) — pending changes
+                // D2: Klienci + Handlowcy (Handel) — jedno połączenie!
+                // D3: Nazwy użytkowników (LibraNet)
+                var allUserIds = _kursy?.Select(k => k.Utworzyl)
+                    .Concat(_kursy?.Select(k => k.Zmienil) ?? Enumerable.Empty<string>())
+                    .Where(id => !string.IsNullOrEmpty(id)).Distinct() ?? Enumerable.Empty<string>();
 
-                // Pobierz nazwy handlowców hurtowo
-                var handlowcyMap = await PobierzHandlowcowAsync(allKlientIds);
+                var pendingTask = LoadPendingChangesAsync(allZamIds);
+                var klienciHandlowcyTask = LoadKlienciAndHandlowcyAsync(allKlientIds);
+                var userNamesTask = PobierzNazwyUzytkownikowAsync(allUserIds);
+
+                await Task.WhenAll(pendingTask, klienciHandlowcyTask, userNamesTask);
+
+                var zamIdsWithPendingChanges = pendingTask.Result;
+                var handlowcyMap = klienciHandlowcyTask.Result;
+
+                System.Diagnostics.Debug.WriteLine($"[Transport] Faza D: parallel done w {sw.ElapsedMilliseconds}ms");
+
+                // Ustal MaZmiany per kurs
+                var kursHasPendingChanges = new Dictionary<long, bool>();
+                foreach (var kvp in kursZamIds)
+                    kursHasPendingChanges[kvp.Key] = kvp.Value.Any(zamId => zamIdsWithPendingChanges.Contains(zamId));
 
                 // Zamień KlientId na nazwiska handlowców
                 var kursHandlowcyNazwy = new Dictionary<long, string>();
@@ -1235,12 +2418,6 @@ namespace Kalendarz1.Transport.Formularze
                     kursHandlowcyNazwy[kvp.Key] = nazwy.Count > 0 ? string.Join(", ", nazwy.Select(SkrocNazwe)) : "";
                 }
 
-                // Pobierz pełne nazwy użytkowników (Utworzyl/Zmienil to userId)
-                var allUserIds = _kursy?.Select(k => k.Utworzyl)
-                    .Concat(_kursy?.Select(k => k.Zmienil) ?? Enumerable.Empty<string>())
-                    .Where(id => !string.IsNullOrEmpty(id)).Distinct() ?? Enumerable.Empty<string>();
-                await PobierzNazwyUzytkownikowAsync(allUserIds);
-
                 var dt = new DataTable();
                 dt.Columns.Add("KursID", typeof(long));
                 dt.Columns.Add("Godzina", typeof(string));
@@ -1249,7 +2426,9 @@ namespace Kalendarz1.Transport.Formularze
                 dt.Columns.Add("Pojazd", typeof(string));
                 dt.Columns.Add("PojazdID", typeof(int)); // Ukryta - do filtrowania
                 dt.Columns.Add("Trasa", typeof(string));
-                dt.Columns.Add("Pojemniki", typeof(int));
+                dt.Columns.Add("Pal", typeof(int));
+                dt.Columns.Add("Poj", typeof(int));
+                dt.Columns.Add("KG", typeof(decimal));
                 dt.Columns.Add("Wypełnienie", typeof(decimal));
                 dt.Columns.Add("Status", typeof(string));
                 dt.Columns.Add("Utworzył", typeof(string));
@@ -1296,8 +2475,8 @@ namespace Kalendarz1.Transport.Formularze
 
                         // F1+F2
                         var liczbaLadunkow = ladunkiCountMap.ContainsKey(kurs.KursID) ? ladunkiCountMap[kurs.KursID] : 0;
-                        var maZmiany = kursZmiany.ContainsKey(kurs.KursID) && kursZmiany[kurs.KursID].Count > 0;
-                        var opisZmian = maZmiany ? string.Join("\n", kursZmiany[kurs.KursID]) : "";
+                        var maZmiany = kursHasPendingChanges.ContainsKey(kurs.KursID) && kursHasPendingChanges[kurs.KursID];
+                        var opisZmian = "";
 
                         dt.Rows.Add(
                             kurs.KursID,
@@ -1307,7 +2486,9 @@ namespace Kalendarz1.Transport.Formularze
                             pojazdTekst,
                             kurs.PojazdID ?? 0,
                             kurs.Trasa ?? "",
-                            wyp?.SumaE2 ?? 0,
+                            kursPalety.ContainsKey(kurs.KursID) ? kursPalety[kurs.KursID] : 0,
+                            kursPojemniki.ContainsKey(kurs.KursID) ? kursPojemniki[kurs.KursID] : 0,
+                            kursKg.ContainsKey(kurs.KursID) ? kursKg[kurs.KursID] : 0m,
                             wyp?.ProcNominal ?? 0,
                             status,
                             utworzylName,
@@ -1322,6 +2503,7 @@ namespace Kalendarz1.Transport.Formularze
                     }
                 }
 
+                dgvKursy.SuspendLayout();
                 dgvKursy.DataSource = dt;
 
                 // Konfiguracja kolumn - ukryj pomocnicze
@@ -1335,7 +2517,7 @@ namespace Kalendarz1.Transport.Formularze
                 // Kolumna Alert - pierwsza widoczna
                 if (dgvKursy.Columns["Alert"] != null)
                 {
-                    dgvKursy.Columns["Alert"].Width = 50;
+                    dgvKursy.Columns["Alert"].Width = 36;
                     dgvKursy.Columns["Alert"].HeaderText = "";
                     dgvKursy.Columns["Alert"].DisplayIndex = 0;
                     dgvKursy.Columns["Alert"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
@@ -1374,11 +2556,29 @@ namespace Kalendarz1.Transport.Formularze
                     dgvKursy.Columns["Trasa"].DefaultCellStyle.WrapMode = DataGridViewTriState.False;
                 }
 
-                if (dgvKursy.Columns["Pojemniki"] != null)
+                if (dgvKursy.Columns["Pal"] != null)
                 {
-                    dgvKursy.Columns["Pojemniki"].Width = 50;
-                    dgvKursy.Columns["Pojemniki"].HeaderText = "Poj.";
-                    dgvKursy.Columns["Pojemniki"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                    dgvKursy.Columns["Pal"].Width = 50;
+                    dgvKursy.Columns["Pal"].HeaderText = "Pal";
+                    dgvKursy.Columns["Pal"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                    dgvKursy.Columns["Pal"].DefaultCellStyle.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+                }
+
+                if (dgvKursy.Columns["Poj"] != null)
+                {
+                    dgvKursy.Columns["Poj"].Width = 50;
+                    dgvKursy.Columns["Poj"].HeaderText = "Poj";
+                    dgvKursy.Columns["Poj"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                    dgvKursy.Columns["Poj"].DefaultCellStyle.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+                }
+
+                if (dgvKursy.Columns["KG"] != null)
+                {
+                    dgvKursy.Columns["KG"].Width = 65;
+                    dgvKursy.Columns["KG"].HeaderText = "KG";
+                    dgvKursy.Columns["KG"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                    dgvKursy.Columns["KG"].DefaultCellStyle.Format = "N0";
+                    dgvKursy.Columns["KG"].DefaultCellStyle.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
                 }
 
                 if (dgvKursy.Columns["Wypełnienie"] != null)
@@ -1398,6 +2598,8 @@ namespace Kalendarz1.Transport.Formularze
                     dgvKursy.Columns["Handlowcy"].HeaderText = "Handl.";
                     dgvKursy.Columns["Handlowcy"].Width = 90;
                 }
+                dgvKursy.ResumeLayout(true);
+
                 System.Diagnostics.Debug.WriteLine("Calling UpdateSummary...");
                 UpdateSummary();
                 System.Diagnostics.Debug.WriteLine("UpdateSummary completed");
@@ -1679,6 +2881,39 @@ namespace Kalendarz1.Transport.Formularze
             if (e.RowIndex < 0) return;
 
             var colName = dgvKursy.Columns[e.ColumnIndex].Name;
+
+            // ═══ Kolumna Alert — pulsujące kółko z "!" ═══
+            if (colName == "Alert")
+            {
+                var alertVal = e.Value?.ToString() ?? "";
+                if (string.IsNullOrEmpty(alertVal)) return;
+
+                e.Handled = true;
+                var isSel = dgvKursy.Rows[e.RowIndex].Selected;
+                using (var bgBrush = new SolidBrush(isSel ? e.CellStyle.SelectionBackColor : e.CellStyle.BackColor))
+                    e.Graphics.FillRectangle(bgBrush, e.CellBounds);
+
+                e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+
+                var circleSize = 24;
+                var cx = e.CellBounds.Left + (e.CellBounds.Width - circleSize) / 2;
+                var cy = e.CellBounds.Top + (e.CellBounds.Height - circleSize) / 2;
+
+                // Pulsujący glow (zewnętrzne kółko, alpha sterowane timerem)
+                var glowAlpha = (int)(80 * _pulseAlpha);
+                using (var glowBrush = new SolidBrush(Color.FromArgb(glowAlpha, 230, 126, 34)))
+                    e.Graphics.FillEllipse(glowBrush, cx - 4, cy - 4, circleSize + 8, circleSize + 8);
+
+                // Główne kółko (alpha sterowane timerem)
+                var mainAlpha = (int)(255 * _pulseAlpha);
+                using (var brush = new SolidBrush(Color.FromArgb(mainAlpha, 230, 126, 34)))
+                    e.Graphics.FillEllipse(brush, cx, cy, circleSize, circleSize);
+
+                e.Graphics.DrawString("!", _fontAlertBang, _brushWhite,
+                    new RectangleF(cx, cy, circleSize, circleSize), _sfCenter);
+                return;
+            }
+
             if (colName != "Utworzył" && colName != "Handlowcy") return;
 
             var cellValue = e.Value?.ToString() ?? "";
@@ -1687,7 +2922,6 @@ namespace Kalendarz1.Transport.Formularze
             e.Handled = true;
             var selected = dgvKursy.Rows[e.RowIndex].Selected;
 
-            // Rysuj tło komórki
             using (var bgBrush = new SolidBrush(selected ? e.CellStyle.SelectionBackColor : e.CellStyle.BackColor))
                 e.Graphics.FillRectangle(bgBrush, e.CellBounds);
 
@@ -1696,50 +2930,33 @@ namespace Kalendarz1.Transport.Formularze
 
             if (colName == "Utworzył")
             {
-                // Pobierz userId z ukrytej kolumny
                 var userId = dgvKursy.Rows[e.RowIndex].Cells["UtworzylId"]?.Value?.ToString() ?? "";
-
-                // Parsuj: "Pełna Nazwa (dd.MM HH:mm)"
                 string displayName;
                 string dateInfo = "";
                 var parenIdx = cellValue.IndexOf('(');
-                if (parenIdx > 0)
-                {
-                    displayName = cellValue.Substring(0, parenIdx).Trim();
-                    dateInfo = cellValue.Substring(parenIdx).Trim();
-                }
-                else
-                {
-                    displayName = cellValue;
-                }
+                if (parenIdx > 0) { displayName = cellValue.Substring(0, parenIdx).Trim(); dateInfo = cellValue.Substring(parenIdx).Trim(); }
+                else displayName = cellValue;
 
                 var avatarSize = 30;
                 var avatarX = e.CellBounds.Left + 6;
                 var avatarY = e.CellBounds.Top + (e.CellBounds.Height - avatarSize) / 2;
 
-                // Avatar z UserAvatarManager (zdjęcie lub domyślny z inicjałami)
                 var avatarImg = GetOrCreateAvatar(
-                    !string.IsNullOrEmpty(userId) ? userId : displayName,
-                    displayName, avatarSize);
+                    !string.IsNullOrEmpty(userId) ? userId : displayName, displayName, avatarSize);
                 if (avatarImg != null)
                     e.Graphics.DrawImage(avatarImg, avatarX, avatarY, avatarSize, avatarSize);
 
-                // Tekst: nazwa + data
                 var textX = avatarX + avatarSize + 6;
                 var textColor = selected ? Color.White : Color.FromArgb(40, 50, 65);
                 var dateColor = selected ? Color.FromArgb(200, 220, 255) : Color.FromArgb(130, 140, 155);
 
-                using (var font = new Font("Segoe UI", 8.5F, FontStyle.Bold))
                 using (var brush = new SolidBrush(textColor))
-                    e.Graphics.DrawString(displayName, font, brush, textX,
+                    e.Graphics.DrawString(displayName, _fontNameBold, brush, textX,
                         e.CellBounds.Top + (e.CellBounds.Height / 2) - (string.IsNullOrEmpty(dateInfo) ? 7 : 12));
 
                 if (!string.IsNullOrEmpty(dateInfo))
-                {
-                    using (var font = new Font("Segoe UI", 7.5F))
                     using (var brush = new SolidBrush(dateColor))
-                        e.Graphics.DrawString(dateInfo, font, brush, textX, e.CellBounds.Top + (e.CellBounds.Height / 2) + 2);
-                }
+                        e.Graphics.DrawString(dateInfo, _fontDateSmall, brush, textX, e.CellBounds.Top + (e.CellBounds.Height / 2) + 2);
             }
             else // Handlowcy
             {
@@ -1751,7 +2968,6 @@ namespace Kalendarz1.Transport.Formularze
                 var startX = e.CellBounds.Left + 6;
                 var avatarY = e.CellBounds.Top + (e.CellBounds.Height - avatarSize) / 2;
 
-                // Rysuj avatary od tyłu (pierwszy na wierzchu)
                 var count = Math.Min(names.Count, 3);
                 for (int i = count - 1; i >= 0; i--)
                 {
@@ -1759,34 +2975,23 @@ namespace Kalendarz1.Transport.Formularze
                     var avatarImg = GetHandlowiecAvatar(names[i], avatarSize);
                     if (avatarImg != null)
                     {
-                        // Biała obwódka
                         using (var pen = new Pen(selected ? e.CellStyle.SelectionBackColor : Color.White, 2))
                             e.Graphics.DrawEllipse(pen, x - 1, avatarY - 1, avatarSize + 1, avatarSize + 1);
                         e.Graphics.DrawImage(avatarImg, x, avatarY, avatarSize, avatarSize);
                     }
                 }
 
-                // Tekst z nazwami
                 var textX = startX + count * (avatarSize - overlap) + overlap + 2;
                 var textColor = selected ? Color.White : Color.FromArgb(40, 50, 65);
+                var displayText = names.Count <= 2 ? string.Join(", ", names) : $"{names[0]} +{names.Count - 1}";
 
-                var displayText = names.Count <= 2
-                    ? string.Join(", ", names)
-                    : $"{names[0]} +{names.Count - 1}";
-
-                using (var font = new Font("Segoe UI", 8F))
                 using (var brush = new SolidBrush(textColor))
                 {
-                    var sf = new StringFormat { LineAlignment = StringAlignment.Center, Trimming = StringTrimming.EllipsisCharacter };
                     var textRect = new RectangleF(textX, e.CellBounds.Top, e.CellBounds.Right - textX - 4, e.CellBounds.Height);
-                    e.Graphics.DrawString(displayText, font, brush, textRect, sf);
+                    e.Graphics.DrawString(displayText, _fontHandlText, brush, textRect, _sfLeftCenter);
                 }
             }
 
-            // Obramowanie
-            using (var borderPen = new Pen(dgvKursy.GridColor))
-                e.Graphics.DrawLine(borderPen, e.CellBounds.Left, e.CellBounds.Bottom - 1,
-                    e.CellBounds.Right - 1, e.CellBounds.Bottom - 1);
         }
 
         // USUNIĘTE stare metody które nie działały:
@@ -1893,56 +3098,69 @@ namespace Kalendarz1.Transport.Formularze
             }
         }
 
-        private async void BtnKopiujKurs_Click(object sender, EventArgs e)
+        private async void BtnAkceptujZmianyKursu_Click(object sender, EventArgs e)
         {
-            if (dgvKursy.CurrentRow == null) return;
+            long kursId;
+            string trasa;
+
+            if (_selectedKursIdForZmiany > 0)
+            {
+                kursId = _selectedKursIdForZmiany;
+                trasa = dgvKursy.CurrentRow?.Cells["Trasa"]?.Value?.ToString() ?? "";
+            }
+            else if (dgvKursy.CurrentRow != null)
+            {
+                kursId = Convert.ToInt64(dgvKursy.CurrentRow.Cells["KursID"].Value);
+                trasa = dgvKursy.CurrentRow.Cells["Trasa"]?.Value?.ToString() ?? "";
+            }
+            else return;
+
+            var msg = $"Akceptujesz zmiany w kursie";
+            if (!string.IsNullOrEmpty(trasa)) msg += $" ({trasa})";
+            msg += "\n\nAktualny stan zamówień zostanie zapisany jako nowy snapshot.\n⚠ zniknie dopóki zamówienie nie zostanie ponownie zmienione.\n\nCzy kontynuować?";
+
+            if (MessageBox.Show(msg, "Akceptacja zmian", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
+                return;
 
             try
             {
-                var kursId = Convert.ToInt64(dgvKursy.CurrentRow.Cells["KursID"].Value);
-                var kurs = _kursy.FirstOrDefault(k => k.KursID == kursId);
-                if (kurs == null) return;
+                btnAkceptujKursZmiany.Enabled = false;
+                btnAkceptujKursZmiany.Text = "Akceptowanie...";
 
-                var nowyKurs = new Kurs
+                var zamIds = _kursZamIds.ContainsKey(kursId) ? _kursZamIds[kursId] : new List<int>();
+                var user = App.UserFullName ?? App.UserID ?? "system";
+
+                var connStr = "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+                using var conn = new SqlConnection(connStr);
+                await conn.OpenAsync();
+
+                // Oznacz TransportZmiany jako zaakceptowane
+                var zamIdsStr = string.Join(",", zamIds);
+                using (var cmdAcc = new SqlCommand($@"
+                    UPDATE TransportZmiany SET StatusZmiany = 'Zaakceptowano',
+                        ZaakceptowanePrzez = @User, DataAkceptacji = GETDATE()
+                    WHERE StatusZmiany = 'Oczekuje' AND TypZmiany NOT IN ('NoweZamowienie')
+                      AND ZamowienieId IN ({zamIdsStr})", conn))
                 {
-                    DataKursu = _selectedDate.AddDays(1),
-                    KierowcaID = kurs.KierowcaID,
-                    PojazdID = kurs.PojazdID,
-                    Trasa = kurs.Trasa,
-                    GodzWyjazdu = kurs.GodzWyjazdu,
-                    GodzPowrotu = kurs.GodzPowrotu,
-                    Status = "Planowany",
-                    PlanE2NaPalete = kurs.PlanE2NaPalete
-                };
-
-                var nowyKursId = await _repozytorium.DodajKursAsync(nowyKurs, _currentUser);
-
-                // Kopiuj ładunki
-                var ladunki = await _repozytorium.PobierzLadunkiAsync(kursId);
-                foreach (var ladunek in ladunki)
-                {
-                    var nowyLadunek = new Ladunek
-                    {
-                        KursID = nowyKursId,
-                        Kolejnosc = ladunek.Kolejnosc,
-                        KodKlienta = ladunek.KodKlienta,
-                        PojemnikiE2 = ladunek.PojemnikiE2,
-                        PaletyH1 = ladunek.PaletyH1,
-                        Uwagi = ladunek.Uwagi
-                    };
-                    await _repozytorium.DodajLadunekAsync(nowyLadunek);
+                    cmdAcc.Parameters.AddWithValue("@User", user);
+                    await cmdAcc.ExecuteNonQueryAsync();
                 }
 
-                MessageBox.Show($"Kurs został skopiowany na {nowyKurs.DataKursu:yyyy-MM-dd}.",
-                    "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                await LoadKursyAsync();
+                ShowRightPanelMode(false, 0);
 
-                _selectedDate = nowyKurs.DataKursu;
-                dtpData.Value = _selectedDate;
+                MessageBox.Show("Zmiany zaakceptowane.",
+                    "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd podczas kopiowania kursu: {ex.Message}",
+                MessageBox.Show($"Błąd akceptacji zmian: {ex.Message}",
                     "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                btnAkceptujKursZmiany.Text = "✔ Akceptuj wszystkie";
+                btnAkceptujKursZmiany.Enabled = true;
             }
         }
 
@@ -2222,9 +3440,11 @@ namespace Kalendarz1.Transport.Formularze
         /// Pobiera LIVE dane zamówień z ZamowieniaMieso (LiczbaPojemnikow, TrybE2)
         /// aby widok główny zawsze pokazywał aktualne wartości.
         /// </summary>
-        private async Task<Dictionary<int, (int Pojemniki, bool TrybE2, int KlientId, string TransportStatus)>> PobierzLiveZamowieniaMapAsync()
+        private string _lastLiveZamError = null;
+        private async Task<Dictionary<int, (int Pojemniki, bool TrybE2, int KlientId, string TransportStatus, int Palety, decimal IloscKg, DateTime? DataPrzyjazdu)>> PobierzLiveZamowieniaMapAsync()
         {
-            var map = new Dictionary<int, (int Pojemniki, bool TrybE2, int KlientId, string TransportStatus)>();
+            var map = new Dictionary<int, (int Pojemniki, bool TrybE2, int KlientId, string TransportStatus, int Palety, decimal IloscKg, DateTime? DataPrzyjazdu)>();
+            _lastLiveZamError = null;
             try
             {
                 await using var cn = new SqlConnection(_connLibra);
@@ -2232,23 +3452,42 @@ namespace Kalendarz1.Transport.Formularze
                 var sql = @"SELECT zm.Id,
                                    ISNULL(zm.LiczbaPojemnikow, 0),
                                    ISNULL(zm.TrybE2, 0),
-                                   zm.KlientId,
-                                   ISNULL(zm.TransportStatus, 'Oczekuje')
+                                   ISNULL(zm.KlientId, 0),
+                                   ISNULL(zm.TransportStatus, 'Oczekuje'),
+                                   ISNULL(zm.LiczbaPalet, 0),
+                                   ISNULL(SUM(zmt.Ilosc), 0),
+                                   zm.DataPrzyjazdu
                            FROM dbo.ZamowieniaMieso zm
-                           WHERE ISNULL(zm.Status, '') <> 'Anulowane'";
+                           LEFT JOIN dbo.ZamowieniaMiesoTowar zmt ON zm.Id = zmt.ZamowienieId
+                           WHERE ISNULL(zm.Status, '') <> 'Anulowane'
+                             AND zm.DataZamowienia >= @DateFrom
+                             AND zm.DataZamowienia <= @DateTo
+                           GROUP BY zm.Id, zm.LiczbaPojemnikow, zm.TrybE2, zm.KlientId,
+                                    zm.TransportStatus, zm.LiczbaPalet, zm.DataPrzyjazdu";
                 await using var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@DateFrom", _selectedDate.AddDays(-7));
+                cmd.Parameters.AddWithValue("@DateTo", _selectedDate.AddDays(14));
                 await using var rdr = await cmd.ExecuteReaderAsync();
                 while (await rdr.ReadAsync())
                 {
-                    var id = rdr.GetInt32(0);
-                    var pojemniki = rdr.GetInt32(1);
-                    var trybE2 = rdr.GetBoolean(2);
-                    var klientId = rdr.GetInt32(3);
-                    var transportStatus = rdr.GetString(4);
-                    map[id] = (pojemniki, trybE2, klientId, transportStatus);
+                    var id = Convert.ToInt32(rdr[0]);
+                    var pojemniki = Convert.ToInt32(rdr[1]);
+                    var trybE2 = Convert.ToBoolean(rdr[2]);
+                    var klientId = Convert.ToInt32(rdr[3]);
+                    var transportStatus = rdr[4]?.ToString() ?? "Oczekuje";
+                    var palety = Convert.ToInt32(rdr[5]);
+                    var iloscKg = Convert.ToDecimal(rdr[6]);
+                    DateTime? dataPrzyjazdu = rdr.IsDBNull(7) ? null : Convert.ToDateTime(rdr[7]);
+
+                    map[id] = (pojemniki, trybE2, klientId, transportStatus, palety, iloscKg, dataPrzyjazdu);
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                _lastLiveZamError = ex.Message;
+                System.Diagnostics.Debug.WriteLine($"[Transport] PobierzLiveZamowieniaMapAsync ERROR: {ex.Message}");
+            }
+            System.Diagnostics.Debug.WriteLine($"[Transport] PobierzLiveZamowieniaMapAsync loaded {map.Count} orders");
             return map;
         }
 
@@ -2307,20 +3546,126 @@ namespace Kalendarz1.Transport.Formularze
                     _userNameCache[id] = id;
         }
 
+        /// <summary>
+        /// Sprawdza które zamówienia mają oczekujące zmiany (TransportPL DB)
+        /// </summary>
+        private async Task<HashSet<int>> LoadPendingChangesAsync(HashSet<int> allZamIds)
+        {
+            var result = new HashSet<int>();
+            if (allZamIds.Count == 0) return result;
+            try
+            {
+                var connStr = "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+                using var connTr = new SqlConnection(connStr);
+                await connTr.OpenAsync();
+                var zamIdsStr = string.Join(",", allZamIds);
+                using var cmd = new SqlCommand($@"
+                    SELECT DISTINCT ZamowienieId FROM TransportZmiany
+                    WHERE StatusZmiany = 'Oczekuje'
+                      AND TypZmiany NOT IN ('NoweZamowienie')
+                      AND ZamowienieId IN ({zamIdsStr})", connTr);
+                using var rdr = await cmd.ExecuteReaderAsync();
+                while (await rdr.ReadAsync())
+                    result.Add(Convert.ToInt32(rdr[0]));
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[Transport] TransportZmiany query error: {ex.Message}");
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Pobiera nazwy klientów i handlowców w jednym połączeniu (Handel DB)
+        /// Zastępuje osobne LoadMissingKlienciAsync + PobierzHandlowcowAsync
+        /// </summary>
+        private async Task<Dictionary<int, string>> LoadKlienciAndHandlowcyAsync(HashSet<int> klientIds)
+        {
+            var handlowcyMap = new Dictionary<int, string>();
+            try
+            {
+                using var cn = new SqlConnection(_connHandel);
+                await cn.OpenAsync();
+
+                // Jedno zapytanie pobiera nazwę klienta + handlowca + adres
+                var sql = @"SELECT c.Id,
+                                   ISNULL(c.Shortcut, 'KH ' + CAST(c.Id AS VARCHAR(10))),
+                                   ISNULL(wym.CDim_Handlowiec_Val, ''),
+                                   ISNULL(poa.Postcode, '') + ' ' + ISNULL(poa.Street, '')
+                            FROM SSCommon.STContractors c
+                            LEFT JOIN SSCommon.ContractorClassification wym ON c.Id = wym.ElementId
+                            LEFT JOIN SSCommon.STPostOfficeAddresses poa
+                                ON poa.ContactGuid = c.ContactGuid AND poa.AddressName = N'adres domyślny'";
+                using var cmd = new SqlCommand(sql, cn);
+                using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    var id = reader.GetInt32(0);
+                    _klienciCache[id] = reader.GetString(1);
+                    var handlowiec = reader.GetString(2);
+                    if (!string.IsNullOrWhiteSpace(handlowiec))
+                        handlowcyMap[id] = handlowiec;
+                    var addr = reader.GetString(3).Trim();
+                    if (!string.IsNullOrWhiteSpace(addr))
+                        _klienciAdresCache[id] = addr;
+                }
+                _klienciCacheTime = DateTime.Now;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[Transport] LoadKlienciAndHandlowcy error: {ex.Message}");
+            }
+            return handlowcyMap;
+        }
+
         private async Task EnsureHandlowiecMappingLoadedAsync()
         {
             if (_handlowiecMapowanie != null) return;
             _handlowiecMapowanie = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             try
             {
+                // Jedno połączenie, dwa zapytania (ta sama baza LibraNet)
                 using var cnLib = new SqlConnection(_connLibra);
                 await cnLib.OpenAsync();
-                using var cmd = new SqlCommand("SELECT HandlowiecName, UserID FROM UserHandlowcy", cnLib);
-                using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
-                    _handlowiecMapowanie[reader.GetString(0)] = reader.GetString(1);
+
+                using (var cmd = new SqlCommand("SELECT HandlowiecName, UserID FROM UserHandlowcy", cnLib))
+                using (var reader = await cmd.ExecuteReaderAsync())
+                    while (await reader.ReadAsync())
+                        _handlowiecMapowanie[reader.GetString(0)] = reader.GetString(1);
+
+                // Odwrotne mapowanie fullName → userId (z tabeli operators)
+                using var cmd2 = new SqlCommand("SELECT ID, ISNULL(Name, ID) FROM operators WHERE Name IS NOT NULL AND Name <> ''", cnLib);
+                using var rdr2 = await cmd2.ExecuteReaderAsync();
+                while (await rdr2.ReadAsync())
+                {
+                    var uid = rdr2.GetString(0);
+                    var name = rdr2.GetString(1);
+                    _fullNameToUserIdCache[name] = uid;
+                }
             }
             catch { }
+        }
+
+        /// <summary>
+        /// Zwraca avatar po fullName (np. "Artur Danielewski") —
+        /// próbuje zamienić na userId (login) aby znaleźć zdjęcie z sieci
+        /// </summary>
+        private Image GetAvatarByFullName(string fullName, int size)
+        {
+            if (string.IsNullOrWhiteSpace(fullName))
+                return GetOrCreateAvatar("?", "?", size);
+
+            // 1) Spróbuj znaleźć userId po fullName
+            if (_fullNameToUserIdCache.TryGetValue(fullName, out var uid))
+                return GetOrCreateAvatar(uid, fullName, size);
+
+            // 2) Spróbuj mapowanie handlowiec
+            if (_handlowiecMapowanie != null &&
+                _handlowiecMapowanie.TryGetValue(fullName, out var hUid))
+                return GetOrCreateAvatar(hUid, fullName, size);
+
+            // 3) Fallback — generuj domyślny z inicjałami
+            return GetOrCreateAvatar(fullName, fullName, size);
         }
 
         private Image GetOrCreateAvatar(string userId, string displayName, int size)
@@ -2360,6 +3705,13 @@ namespace Kalendarz1.Transport.Formularze
         /// <summary>
         /// Skraca nazwę do formatu "Imie L." np. "Artur Danielewski" → "Artur D."
         /// </summary>
+        private static void EnableDoubleBuffering(DataGridView dgv)
+        {
+            var prop = typeof(DataGridView).GetProperty("DoubleBuffered",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            prop?.SetValue(dgv, true);
+        }
+
         private static string SkrocNazwe(string fullName)
         {
             if (string.IsNullOrWhiteSpace(fullName)) return fullName;
@@ -2577,6 +3929,7 @@ namespace Kalendarz1.Transport.Formularze
                     }
                 }
 
+                dgvWolneZamowienia.SuspendLayout();
                 dgvWolneZamowienia.DataSource = dt;
 
                 // Konfiguracja kolumn
@@ -2604,16 +3957,22 @@ namespace Kalendarz1.Transport.Formularze
                     dgvWolneZamowienia.Columns["Adres"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
 
                 // Formatuj wiersze grupujące
+                var groupStyle = new DataGridViewCellStyle
+                {
+                    BackColor = Color.FromArgb(235, 230, 245),
+                    ForeColor = Color.FromArgb(100, 60, 140),
+                    Font = _fontGroupBold
+                };
                 foreach (DataGridViewRow row in dgvWolneZamowienia.Rows)
                 {
                     if (row.Cells["IsGroupRow"]?.Value != null && Convert.ToBoolean(row.Cells["IsGroupRow"].Value))
                     {
-                        row.DefaultCellStyle.BackColor = Color.FromArgb(235, 230, 245);
-                        row.DefaultCellStyle.ForeColor = Color.FromArgb(100, 60, 140);
-                        row.DefaultCellStyle.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+                        row.DefaultCellStyle = groupStyle;
                         row.Height = 30;
                     }
                 }
+
+                dgvWolneZamowienia.ResumeLayout(true);
 
                 // Aktualizuj licznik
                 lblWolneZamowieniaInfo.Text = tempList.Count.ToString();
@@ -2658,6 +4017,12 @@ namespace Kalendarz1.Transport.Formularze
                 using var cmd = new SqlCommand(sql, cn);
                 cmd.Parameters.AddWithValue("@Id", zamId);
                 await cmd.ExecuteNonQueryAsync();
+
+                // Log to TransportZmiany
+                var user = App.UserFullName ?? App.UserID ?? "system";
+                await TransportZmianyService.LogChangeAsync(zamId, zamId.ToString(), klientNazwa,
+                    "ZmianaStatusu", $"Zamowienie oznaczone jako wlasny odbior",
+                    "Oczekuje", "Wlasny", user);
 
                 await LoadWolneZamowieniaAsync();
             }
@@ -2737,7 +4102,7 @@ namespace Kalendarz1.Transport.Formularze
             }
         }
 
-        private void MenuHistoriaZmian_Click(object sender, EventArgs e)
+        private async void MenuHistoriaZmian_Click(object sender, EventArgs e)
         {
             if (dgvKursy.CurrentRow == null) return;
 
@@ -2747,44 +4112,416 @@ namespace Kalendarz1.Transport.Formularze
                 var kurs = _kursy.FirstOrDefault(k => k.KursID == kursId);
                 if (kurs == null) return;
 
-                var sb = new System.Text.StringBuilder();
-                sb.AppendLine($"📋 HISTORIA ZMIAN KURSU #{kursId}");
-                sb.AppendLine(new string('─', 40));
-                sb.AppendLine();
+                var zamIds = _kursZamIds.ContainsKey(kursId) ? _kursZamIds[kursId] : new List<int>();
+                var zmiany = await TransportZmianyService.GetByZamowienieIdsAsync(zamIds);
 
-                sb.AppendLine("📅 UTWORZONO:");
-                sb.AppendLine($"   Data: {kurs.UtworzonoUTC.ToLocalTime():dd.MM.yyyy HH:mm:ss}");
-                sb.AppendLine($"   Przez: {kurs.Utworzyl ?? "Nieznany"}");
-                sb.AppendLine();
-
-                if (kurs.ZmienionoUTC.HasValue)
-                {
-                    sb.AppendLine("✏️ OSTATNIA ZMIANA:");
-                    sb.AppendLine($"   Data: {kurs.ZmienionoUTC.Value.ToLocalTime():dd.MM.yyyy HH:mm:ss}");
-                    sb.AppendLine($"   Przez: {kurs.Zmienil ?? "Nieznany"}");
-                }
-                else
-                {
-                    sb.AppendLine("✏️ Kurs nie był jeszcze modyfikowany.");
-                }
-
-                sb.AppendLine();
-                sb.AppendLine(new string('─', 40));
-                sb.AppendLine($"Status: {kurs.Status}");
-                sb.AppendLine($"Trasa: {kurs.Trasa ?? "Brak"}");
-                sb.AppendLine($"Kierowca: {kurs.KierowcaNazwa ?? "Nieprzypisany"}");
-                sb.AppendLine($"Pojazd: {kurs.PojazdRejestracja ?? "Nieprzypisany"}");
-
-                MessageBox.Show(sb.ToString(), "Historia zmian kursu",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                using var dlg = new HistoriaZmianKursuDialog(kurs, zmiany);
+                dlg.ShowDialog(this);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Blad: {ex.Message}", "Blad", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
+        // ═══ Feature 25: Skróty klawiszowe ═══
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            switch (keyData)
+            {
+                case Keys.F5:
+                    _ = LoadKursyAsync();
+                    return true;
+                case Keys.Control | Keys.N:
+                    BtnNowyKurs_Click(this, EventArgs.Empty);
+                    return true;
+                case Keys.Control | Keys.E:
+                    BtnEdytujKurs_Click(this, EventArgs.Empty);
+                    return true;
+                case Keys.Delete:
+                    if (dgvKursy.Focused || ActiveControl == dgvKursy)
+                    {
+                        BtnUsunKurs_Click(this, EventArgs.Empty);
+                        return true;
+                    }
+                    break;
+                case Keys.Left:
+                    if (!(ActiveControl is TextBox || ActiveControl is ComboBox || ActiveControl is DateTimePicker))
+                    {
+                        _selectedDate = _selectedDate.AddDays(-1);
+                        dtpData.Value = _selectedDate;
+                        return true;
+                    }
+                    break;
+                case Keys.Right:
+                    if (!(ActiveControl is TextBox || ActiveControl is ComboBox || ActiveControl is DateTimePicker))
+                    {
+                        _selectedDate = _selectedDate.AddDays(1);
+                        dtpData.Value = _selectedDate;
+                        return true;
+                    }
+                    break;
+                case Keys.T:
+                    if (!(ActiveControl is TextBox || ActiveControl is ComboBox))
+                    {
+                        _selectedDate = DateTime.Today;
+                        dtpData.Value = _selectedDate;
+                        return true;
+                    }
+                    break;
+            }
+            return base.ProcessCmdKey(ref msg, keyData);
+        }
+
+        // ═══ Feature 13: Tooltip zmian przy hoverze na Alert ═══
+        private int _lastTooltipRowIndex = -1;
+        private void DgvKursy_CellMouseEnter(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
+            var colName = dgvKursy.Columns[e.ColumnIndex].Name;
+            if (colName != "Alert") { _lastTooltipRowIndex = -1; return; }
+            if (e.RowIndex == _lastTooltipRowIndex) return;
+            _lastTooltipRowIndex = e.RowIndex;
+
+            var alertVal = dgvKursy.Rows[e.RowIndex].Cells["Alert"]?.Value?.ToString() ?? "";
+            if (string.IsNullOrEmpty(alertVal))
+            {
+                dgvKursy.Rows[e.RowIndex].Cells[e.ColumnIndex].ToolTipText = "";
+                return;
+            }
+
+            try
+            {
+                var kursId = Convert.ToInt64(dgvKursy.Rows[e.RowIndex].Cells["KursID"].Value);
+                var zamIds = _kursZamIds.ContainsKey(kursId) ? _kursZamIds[kursId] : new List<int>();
+                if (zamIds.Count == 0)
+                {
+                    dgvKursy.Rows[e.RowIndex].Cells[e.ColumnIndex].ToolTipText = "Oczekujace zmiany";
+                    return;
+                }
+
+                // Build tooltip from cached pending changes info
+                _ = BuildAlertTooltipAsync(e.RowIndex, e.ColumnIndex, kursId, zamIds);
+            }
+            catch { }
+        }
+
+        private async Task BuildAlertTooltipAsync(int rowIndex, int colIndex, long kursId, List<int> zamIds)
+        {
+            try
+            {
+                var connStr = "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+                using var conn = new SqlConnection(connStr);
+                await conn.OpenAsync();
+                var zamIdsStr = string.Join(",", zamIds);
+                using var cmd = new SqlCommand($@"
+                    SELECT TOP 8 TypZmiany, KlientNazwa, ZgloszonePrzez, DataZgloszenia, StareWartosc, NowaWartosc
+                    FROM TransportZmiany
+                    WHERE StatusZmiany = 'Oczekuje' AND TypZmiany NOT IN ('NoweZamowienie')
+                      AND ZamowienieId IN ({zamIdsStr})
+                    ORDER BY DataZgloszenia DESC", conn);
+                using var rdr = await cmd.ExecuteReaderAsync();
+                var sb = new System.Text.StringBuilder();
+                int count = 0;
+                while (await rdr.ReadAsync())
+                {
+                    var typ = rdr[0]?.ToString() ?? "";
+                    var klient = rdr.IsDBNull(1) ? "" : rdr[1].ToString();
+                    var kto = rdr.IsDBNull(2) ? "" : rdr[2].ToString();
+                    var kiedy = Convert.ToDateTime(rdr[3]);
+                    var stare = rdr.IsDBNull(4) ? "" : rdr[4].ToString();
+                    var nowe = rdr.IsDBNull(5) ? "" : rdr[5].ToString();
+                    var meta = GetZmianaMeta(typ);
+                    sb.AppendLine($"{meta.Icon} {meta.Label}: {stare} -> {nowe}");
+                    sb.AppendLine($"   {klient} | {kto} | {kiedy:dd.MM HH:mm}");
+                    count++;
+                }
+                if (count == 0) sb.Append("Oczekujace zmiany");
+
+                if (rowIndex < dgvKursy.Rows.Count && colIndex < dgvKursy.Columns.Count)
+                    dgvKursy.Rows[rowIndex].Cells[colIndex].ToolTipText = sb.ToString().TrimEnd();
+            }
+            catch { }
+        }
+
         #endregion
+    }
+
+    /// <summary>
+    /// Feature 34: Dialog historii zmian kursu — timeline z wszystkimi zmianami
+    /// </summary>
+    public class HistoriaZmianKursuDialog : Form
+    {
+        private readonly Kurs _kurs;
+        private readonly List<TransportZmiana> _zmiany;
+
+        public HistoriaZmianKursuDialog(Kurs kurs, List<TransportZmiana> zmiany)
+        {
+            _kurs = kurs;
+            _zmiany = zmiany;
+            InitializeComponent();
+        }
+
+        private void InitializeComponent()
+        {
+            Text = $"Historia zmian kursu #{_kurs.KursID}";
+            Size = new Size(620, 600);
+            StartPosition = FormStartPosition.CenterParent;
+            MinimumSize = new Size(500, 400);
+            Font = new Font("Segoe UI", 10F);
+            BackColor = Color.FromArgb(240, 242, 247);
+            WindowIconHelper.SetIcon(this);
+
+            // ═══ HEADER ═══
+            var header = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 80,
+                BackColor = Color.FromArgb(41, 44, 51),
+                Padding = new Padding(18, 12, 18, 12)
+            };
+            var lblTitle = new Label
+            {
+                Text = $"HISTORIA ZMIAN  —  KURS #{_kurs.KursID}",
+                Font = new Font("Segoe UI", 14F, FontStyle.Bold),
+                ForeColor = Color.White,
+                AutoSize = true,
+                Location = new Point(18, 12)
+            };
+            var lblSubtitle = new Label
+            {
+                Text = $"{_kurs.DataKursu:dd.MM.yyyy}  |  {_kurs.Trasa ?? "Brak trasy"}  |  {_kurs.KierowcaNazwa ?? "Brak kierowcy"}",
+                Font = new Font("Segoe UI", 9F),
+                ForeColor = Color.FromArgb(180, 190, 200),
+                AutoSize = true,
+                Location = new Point(18, 42)
+            };
+            header.Controls.AddRange(new Control[] { lblTitle, lblSubtitle });
+
+            // ═══ STATS BAR ═══
+            var statsBar = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 42,
+                BackColor = Color.White,
+                Padding = new Padding(18, 8, 18, 8)
+            };
+            var totalCount = _zmiany.Count;
+            var pendingCount = _zmiany.Count(z => z.StatusZmiany == "Oczekuje");
+            var acceptedCount = _zmiany.Count(z => z.StatusZmiany == "Zaakceptowano");
+            var rejectedCount = _zmiany.Count(z => z.StatusZmiany == "Odrzucono");
+            var lblStats = new Label
+            {
+                Text = $"Razem: {totalCount}    |    Oczekuje: {pendingCount}    |    Zaakceptowane: {acceptedCount}    |    Odrzucone: {rejectedCount}",
+                Font = new Font("Segoe UI", 9F),
+                ForeColor = Color.FromArgb(80, 90, 110),
+                AutoSize = true,
+                Location = new Point(18, 10)
+            };
+            statsBar.Controls.Add(lblStats);
+
+            // ═══ TIMELINE SCROLL ═══
+            var scrollPanel = new Panel
+            {
+                Dock = DockStyle.Fill,
+                AutoScroll = true,
+                Padding = new Padding(18, 10, 18, 10),
+                BackColor = Color.FromArgb(245, 247, 250)
+            };
+
+            var flow = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                FlowDirection = FlowDirection.TopDown,
+                WrapContents = false,
+                Padding = new Padding(0),
+                BackColor = Color.Transparent
+            };
+
+            // Group by date
+            var grouped = _zmiany
+                .OrderByDescending(z => z.DataZgloszenia)
+                .GroupBy(z => z.DataZgloszenia.Date);
+
+            foreach (var dayGroup in grouped)
+            {
+                // Date header
+                var lblDate = new Label
+                {
+                    Text = dayGroup.Key.ToString("dd MMMM yyyy (dddd)", new System.Globalization.CultureInfo("pl-PL")),
+                    Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(100, 110, 130),
+                    AutoSize = true,
+                    Margin = new Padding(0, 8, 0, 4),
+                    Padding = new Padding(24, 0, 0, 0)
+                };
+                flow.Controls.Add(lblDate);
+
+                foreach (var zmiana in dayGroup.OrderByDescending(z => z.DataZgloszenia))
+                {
+                    var card = CreateTimelineCard(zmiana, scrollPanel.Width - 60);
+                    flow.Controls.Add(card);
+                }
+            }
+
+            if (_zmiany.Count == 0)
+            {
+                // Kurs creation info
+                var lblEmpty = new Label
+                {
+                    Text = $"Brak zmian w zamowieniach tego kursu.\n\nKurs utworzony: {_kurs.UtworzonoUTC.ToLocalTime():dd.MM.yyyy HH:mm}\nPrzez: {_kurs.Utworzyl ?? "Nieznany"}",
+                    Font = new Font("Segoe UI", 10F),
+                    ForeColor = Color.FromArgb(120, 130, 150),
+                    AutoSize = true,
+                    Margin = new Padding(24, 30, 0, 0)
+                };
+                flow.Controls.Add(lblEmpty);
+            }
+
+            scrollPanel.Controls.Add(flow);
+
+            // ═══ FOOTER ═══
+            var footer = new Panel
+            {
+                Dock = DockStyle.Bottom,
+                Height = 50,
+                BackColor = Color.FromArgb(248, 249, 252),
+                Padding = new Padding(18, 8, 18, 8)
+            };
+            var btnClose = new Button
+            {
+                Text = "Zamknij",
+                Size = new Size(100, 34),
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(108, 117, 125),
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                Cursor = Cursors.Hand,
+                Anchor = AnchorStyles.Right
+            };
+            btnClose.FlatAppearance.BorderSize = 0;
+            btnClose.Click += (s, e) => Close();
+            btnClose.Location = new Point(footer.Width - 120, 8);
+            footer.Resize += (s, e) => btnClose.Location = new Point(footer.Width - 120, 8);
+            footer.Controls.Add(btnClose);
+
+            Controls.Add(scrollPanel);
+            Controls.Add(statsBar);
+            Controls.Add(header);
+            Controls.Add(footer);
+        }
+
+        private Panel CreateTimelineCard(TransportZmiana z, int maxWidth)
+        {
+            var cardWidth = Math.Max(maxWidth, 400);
+            var card = new Panel
+            {
+                Width = cardWidth,
+                Height = 72,
+                BackColor = Color.White,
+                Margin = new Padding(0, 2, 0, 2),
+                Padding = new Padding(0)
+            };
+
+            // Left timeline dot + line
+            card.Paint += (s, ev) =>
+            {
+                var g = ev.Graphics;
+                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+
+                // Timeline line
+                using var linePen = new Pen(Color.FromArgb(210, 215, 225), 2);
+                g.DrawLine(linePen, 14, 0, 14, card.Height);
+
+                // Dot
+                var dotColor = z.StatusZmiany switch
+                {
+                    "Oczekuje" => z.TypColor,
+                    "Zaakceptowano" => Color.FromArgb(39, 174, 96),
+                    "Odrzucono" => Color.FromArgb(192, 57, 43),
+                    _ => Color.FromArgb(150, 150, 150)
+                };
+                using var dotBrush = new SolidBrush(dotColor);
+                g.FillEllipse(dotBrush, 6, 26, 16, 16);
+
+                // Bottom border
+                using var borderPen = new Pen(Color.FromArgb(235, 238, 242));
+                g.DrawLine(borderPen, 30, card.Height - 1, card.Width, card.Height - 1);
+            };
+
+            // Type icon + label
+            var lblType = new Label
+            {
+                Text = $"{z.TypIcon}  {z.TypLabel}",
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                ForeColor = z.TypColor,
+                AutoSize = true,
+                Location = new Point(32, 8)
+            };
+            card.Controls.Add(lblType);
+
+            // Status badge
+            var statusColor = z.StatusZmiany switch
+            {
+                "Oczekuje" => Color.FromArgb(243, 156, 18),
+                "Zaakceptowano" => Color.FromArgb(39, 174, 96),
+                "Odrzucono" => Color.FromArgb(192, 57, 43),
+                _ => Color.Gray
+            };
+            var lblStatus = new Label
+            {
+                Text = z.StatusZmiany.ToUpper(),
+                Font = new Font("Segoe UI", 7F, FontStyle.Bold),
+                ForeColor = Color.White,
+                BackColor = statusColor,
+                TextAlign = ContentAlignment.MiddleCenter,
+                AutoSize = false,
+                Size = new Size(90, 18),
+                Location = new Point(cardWidth - 105, 8)
+            };
+            card.Controls.Add(lblStatus);
+
+            // Change details
+            var detail = "";
+            if (!string.IsNullOrEmpty(z.StareWartosc) || !string.IsNullOrEmpty(z.NowaWartosc))
+                detail = $"{z.StareWartosc ?? "-"}  ->  {z.NowaWartosc ?? "-"}";
+            else if (!string.IsNullOrEmpty(z.Opis))
+                detail = z.Opis;
+
+            if (!string.IsNullOrEmpty(detail))
+            {
+                var lblDetail = new Label
+                {
+                    Text = detail,
+                    Font = new Font("Segoe UI", 8.5F),
+                    ForeColor = Color.FromArgb(60, 70, 85),
+                    AutoSize = true,
+                    MaximumSize = new Size(cardWidth - 140, 0),
+                    Location = new Point(32, 30)
+                };
+                card.Controls.Add(lblDetail);
+            }
+
+            // Footer: klient, kto, kiedy
+            var klientInfo = !string.IsNullOrEmpty(z.KlientNazwa) ? z.KlientNazwa : $"Zam. #{z.ZamowienieId}";
+            var footerText = $"{klientInfo}  |  {z.ZgloszonePrzez}  |  {z.DataZgloszenia:HH:mm}";
+            if (z.StatusZmiany != "Oczekuje" && z.ZaakceptowanePrzez != null)
+                footerText += $"  |  {z.StatusZmiany} przez {z.ZaakceptowanePrzez}";
+
+            var lblFooter = new Label
+            {
+                Text = footerText,
+                Font = new Font("Segoe UI", 7.5F),
+                ForeColor = Color.FromArgb(140, 150, 165),
+                AutoSize = true,
+                MaximumSize = new Size(cardWidth - 50, 0),
+                Location = new Point(32, 52)
+            };
+            card.Controls.Add(lblFooter);
+
+            return card;
+        }
     }
 
     /// <summary>
@@ -3129,12 +4866,20 @@ namespace Kalendarz1.Transport.Formularze
 
             dgvLadunki.DataSource = dt;
 
-            if (dgvLadunki.Columns["Lp"] != null)
-                dgvLadunki.Columns["Lp"].Width = 50;
-            if (dgvLadunki.Columns["Pojemniki E2"] != null)
-                dgvLadunki.Columns["Pojemniki E2"].Width = 100;
-            if (dgvLadunki.Columns["Palety"] != null)
-                dgvLadunki.Columns["Palety"].Width = 80;
+            try
+            {
+                if (dgvLadunki.Columns["Lp"] != null)
+                    dgvLadunki.Columns["Lp"].FillWeight = 30;
+                if (dgvLadunki.Columns["Klient"] != null)
+                    dgvLadunki.Columns["Klient"].FillWeight = 120;
+                if (dgvLadunki.Columns["Pojemniki E2"] != null)
+                    dgvLadunki.Columns["Pojemniki E2"].FillWeight = 60;
+                if (dgvLadunki.Columns["Palety"] != null)
+                    dgvLadunki.Columns["Palety"].FillWeight = 50;
+                if (dgvLadunki.Columns["Uwagi"] != null)
+                    dgvLadunki.Columns["Uwagi"].FillWeight = 100;
+            }
+            catch { }
         }
     }
 }

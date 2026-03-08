@@ -1291,6 +1291,11 @@ namespace Kalendarz1.Transport.Formularze
                 cmd.Parameters.AddWithValue("@KursID", kursId);
                 cmd.Parameters.AddWithValue("@Id", zamId);
                 await cmd.ExecuteNonQueryAsync();
+
+                // Log to TransportZmiany
+                await TransportZmianyService.LogChangeAsync(zamId, zamId.ToString(), "",
+                    "ZmianaStatusu", $"Zamowienie przypisane do kursu #{kursId}",
+                    "Oczekuje", $"Przypisany (Kurs #{kursId})", _uzytkownik);
             }
             catch (Exception ex)
             {
@@ -1308,6 +1313,11 @@ namespace Kalendarz1.Transport.Formularze
                 await using var cmd = new SqlCommand(sql, cn);
                 cmd.Parameters.AddWithValue("@Id", zamId);
                 await cmd.ExecuteNonQueryAsync();
+
+                // Log to TransportZmiany
+                await TransportZmianyService.LogChangeAsync(zamId, zamId.ToString(), "",
+                    "ZmianaStatusu", $"Zamowienie usuniete z kursu",
+                    "Przypisany", "Oczekuje", _uzytkownik);
             }
             catch (Exception ex)
             {

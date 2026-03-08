@@ -16,8 +16,11 @@ namespace Kalendarz1.KartotekaTowarow
     {
         private List<ArticleModel> _allArticles = new();
         private List<ArticleModel> _filteredArticles = new();
+        private HashSet<string> _favoriteGuids = new();
         private bool _isLoading;
         private bool _initialized;
+        private bool _suppressDetailPriceSave;
+        private ArticleModel? _currentDetailArticle;
 
         public WidokTowary()
         {
@@ -30,6 +33,7 @@ namespace Kalendarz1.KartotekaTowarow
             _initialized = true;
 
             await LoadFiltersAsync();
+            await LoadFavoritesAsync();
             await LoadDataAsync();
         }
 
@@ -74,6 +78,16 @@ namespace Kalendarz1.KartotekaTowarow
             catch { }
         }
 
+        private async Task LoadFavoritesAsync()
+        {
+            try
+            {
+                var userId = App.UserID ?? "default";
+                _favoriteGuids = await ArticleService.GetFavoriteGuidsAsync(userId);
+            }
+            catch { }
+        }
+
         private async Task UpdateStatusBarAsync()
         {
             try
@@ -105,7 +119,7 @@ namespace Kalendarz1.KartotekaTowarow
                     (a.ShortName?.ToLower().Contains(lower) == true));
             }
 
-            // Update placeholder visibility
+            // Placeholder
             if (PlaceholderText != null)
                 PlaceholderText.Visibility = string.IsNullOrEmpty(TxtSzukaj?.Text)
                     ? Visibility.Visible : Visibility.Collapsed;
@@ -131,6 +145,7 @@ namespace Kalendarz1.KartotekaTowarow
                     case "Wstrzymane":   query = query.Where(a => a.Halt == 1); break;
                     case "Standardowe":  query = query.Where(a => a.isStandard == 1); break;
                     case "Bez ceny":     query = query.Where(a => a.Cena1 == null || a.Cena1 == 0); break;
+                    case "Ulubione":     query = query.Where(a => _favoriteGuids.Contains(a.GUID)); break;
                 }
             }
 
@@ -138,10 +153,7 @@ namespace Kalendarz1.KartotekaTowarow
             gridArticles.ItemsSource = _filteredArticles;
         }
 
-        private void TxtSzukaj_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            ApplyFilters();
-        }
+        private void TxtSzukaj_TextChanged(object sender, TextChangedEventArgs e) => ApplyFilters();
 
         private void Filter_Changed(object sender, SelectionChangedEventArgs e)
         {
@@ -165,6 +177,7 @@ namespace Kalendarz1.KartotekaTowarow
             {
                 TxtSelectHint.Visibility = Visibility.Visible;
                 ScrollDetails.Visibility = Visibility.Collapsed;
+                _currentDetailArticle = null;
             }
         }
 
@@ -176,12 +189,16 @@ namespace Kalendarz1.KartotekaTowarow
             {
                 var fieldName = e.Column.FieldName;
                 var value = e.Value;
+                string? oldValStr = null;
+                string? newValStr = value?.ToString();
 
                 if (fieldName == "Halt")
                 {
                     short haltValue = (value is bool b && b) ? (short)1 :
                                       (value is short s) ? s : (short)0;
+                    oldValStr = (haltValue == 1 ? "0" : "1");
                     await ArticleService.UpdateFieldAsync(article.GUID, "Halt", haltValue);
+                    newValStr = haltValue.ToString();
                 }
                 else if (fieldName is "Cena1" or "Cena2" or "Cena3")
                 {
@@ -193,8 +210,11 @@ namespace Kalendarz1.KartotekaTowarow
                         _ => null
                     };
                     await ArticleService.UpdateFieldAsync(article.GUID, fieldName, cenaValue);
+                    newValStr = cenaValue?.ToString("N2");
                 }
 
+                // Audit log
+                await ArticleService.LogChangeAsync(article.GUID, article.ID, fieldName, oldValStr, newValStr);
                 await UpdateStatusBarAsync();
             }
             catch (Exception ex)
@@ -219,9 +239,19 @@ namespace Kalendarz1.KartotekaTowarow
 
         private async Task ShowDetailsAsync(ArticleModel a)
         {
+            _suppressDetailPriceSave = true;
+            _currentDetailArticle = a;
+
             // Name + ID
             TxtDetailName.Text = a.Name ?? "(brak nazwy)";
             TxtDetailID.Text = $"ID: {a.ID}   Skrot: {a.ShortName ?? "-"}";
+
+            // Favorite star
+            var isFav = _favoriteGuids.Contains(a.GUID);
+            BtnFavorite.Content = isFav ? "\u2605" : "\u2606"; // ★ or ☆
+            BtnFavorite.Foreground = isFav
+                ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xD4, 0xAF, 0x37))
+                : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xBD, 0xC3, 0xC7));
 
             // Badges
             BadgeHalt.Visibility = a.Halt == 1 ? Visibility.Visible : Visibility.Collapsed;
@@ -235,13 +265,10 @@ namespace Kalendarz1.KartotekaTowarow
                 BadgeStandard.Visibility = Visibility.Collapsed;
             }
 
-            // Prices
-            TxtDetailCena1.Text = a.Cena1?.ToString("N2") ?? "-";
-            TxtDetailCena1.Foreground = (a.Cena1 == null || a.Cena1 == 0)
-                ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xE7, 0x4C, 0x3C))
-                : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x27, 0xAE, 0x60));
-            TxtDetailCena2.Text = a.Cena2?.ToString("N2") ?? "-";
-            TxtDetailCena3.Text = a.Cena3?.ToString("N2") ?? "-";
+            // Quick-edit prices
+            SpinDetailCena1.EditValue = a.Cena1 ?? 0.0;
+            SpinDetailCena2.EditValue = a.Cena2 ?? 0.0;
+            SpinDetailCena3.EditValue = a.Cena3 ?? 0.0;
 
             // JM, WRC, Wydajnosc
             TxtDetailJM.Text = a.JM ?? "-";
@@ -270,11 +297,12 @@ namespace Kalendarz1.KartotekaTowarow
             PanelRelated.Visibility = related.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
             TxtRelated.Text = string.Join(", ", related);
 
-            // Photo (async)
-            await LoadDetailPhotoAsync(a.ID);
+            _suppressDetailPriceSave = false;
 
-            // Partitions (async)
+            // Async loads
+            await LoadDetailPhotoAsync(a.ID);
             await LoadDetailPartitionsAsync(a.ID);
+            await LoadDetailAuditAsync(a.GUID);
         }
 
         private async Task LoadDetailPhotoAsync(string articleId)
@@ -317,6 +345,147 @@ namespace Kalendarz1.KartotekaTowarow
             }
         }
 
+        private async Task LoadDetailAuditAsync(string guid)
+        {
+            try
+            {
+                var entries = await ArticleService.GetAuditLogAsync(guid, 8);
+                PanelAudit.Visibility = entries.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+                ListAudit.ItemsSource = entries;
+            }
+            catch
+            {
+                PanelAudit.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // DETAIL PANEL - QUICK EDIT PRICES
+        // ═══════════════════════════════════════════════════════════════
+
+        private async void SpinDetailCena_Changed(object sender, DevExpress.Xpf.Editors.EditValueChangedEventArgs e)
+        {
+            if (_suppressDetailPriceSave || _currentDetailArticle == null) return;
+
+            var article = _currentDetailArticle;
+            string fieldName;
+            double? newVal;
+
+            if (sender == SpinDetailCena1)
+            {
+                fieldName = "Cena1";
+                newVal = ToDoubleOrNull(SpinDetailCena1.EditValue);
+                var oldVal = article.Cena1;
+                article.Cena1 = newVal;
+                await SaveDetailFieldAsync(article, fieldName, newVal, oldVal?.ToString("N2"));
+            }
+            else if (sender == SpinDetailCena2)
+            {
+                fieldName = "Cena2";
+                newVal = ToDoubleOrNull(SpinDetailCena2.EditValue);
+                var oldVal = article.Cena2;
+                article.Cena2 = newVal;
+                await SaveDetailFieldAsync(article, fieldName, newVal, oldVal?.ToString("N2"));
+            }
+            else if (sender == SpinDetailCena3)
+            {
+                fieldName = "Cena3";
+                newVal = ToDoubleOrNull(SpinDetailCena3.EditValue);
+                var oldVal = article.Cena3;
+                article.Cena3 = newVal;
+                await SaveDetailFieldAsync(article, fieldName, newVal, oldVal?.ToString("N2"));
+            }
+        }
+
+        private async Task SaveDetailFieldAsync(ArticleModel article, string field, double? value, string? oldValStr)
+        {
+            try
+            {
+                await ArticleService.UpdateFieldAsync(article.GUID, field, value);
+                await ArticleService.LogChangeAsync(article.GUID, article.ID, field, oldValStr, value?.ToString("N2"));
+                gridArticles.RefreshData();
+                FlashSaveIndicator();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Blad zapisu:\n{ex.Message}", "Blad",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async void FlashSaveIndicator()
+        {
+            TxtSaveIndicator.Visibility = Visibility.Visible;
+            await Task.Delay(1500);
+            TxtSaveIndicator.Visibility = Visibility.Collapsed;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // FAVORITES
+        // ═══════════════════════════════════════════════════════════════
+
+        private async void BtnFavorite_Click(object sender, RoutedEventArgs e)
+        {
+            await ToggleFavoriteAsync();
+        }
+
+        private async Task ToggleFavoriteAsync()
+        {
+            if (_currentDetailArticle == null) return;
+            var article = _currentDetailArticle;
+            var userId = App.UserID ?? "default";
+
+            var isNowFav = await ArticleService.ToggleFavoriteAsync(article.GUID, userId);
+
+            if (isNowFav)
+                _favoriteGuids.Add(article.GUID);
+            else
+                _favoriteGuids.Remove(article.GUID);
+
+            // Update star
+            BtnFavorite.Content = isNowFav ? "\u2605" : "\u2606";
+            BtnFavorite.Foreground = isNowFav
+                ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xD4, 0xAF, 0x37))
+                : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xBD, 0xC3, 0xC7));
+
+            // Re-filter if "Ulubione" filter is active
+            if (CmbStatus?.SelectedItem is ComboBoxItem si && si.Content?.ToString() == "Ulubione")
+                ApplyFilters();
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // DASHBOARD
+        // ═══════════════════════════════════════════════════════════════
+
+        private async void BtnDashboard_Click(object sender, RoutedEventArgs e)
+        {
+            if (PanelDashboard.Visibility == Visibility.Visible)
+            {
+                PanelDashboard.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            PanelDashboard.Visibility = Visibility.Visible;
+            await LoadDashboardAsync();
+        }
+
+        private async Task LoadDashboardAsync()
+        {
+            try
+            {
+                var stats = await ArticleService.GetDashboardStatsAsync();
+                DashTotal.Text = stats.Total.ToString();
+                DashActive.Text = stats.Active.ToString();
+                DashHalted.Text = stats.Halted.ToString();
+                DashStandard.Text = stats.Standard.ToString();
+                DashNoCena.Text = stats.WithoutPrice.ToString();
+                DashAvgCena.Text = stats.AvgCena1.ToString("N2");
+                DashGrupy.ItemsSource = stats.ByGrupa;
+                DashRodzaje.ItemsSource = stats.ByRodzaj;
+            }
+            catch { }
+        }
+
         // ═══════════════════════════════════════════════════════════════
         // TOOLBAR ACTIONS
         // ═══════════════════════════════════════════════════════════════
@@ -357,7 +526,9 @@ namespace Kalendarz1.KartotekaTowarow
                     "Potwierdzenie", MessageBoxButton.YesNo, MessageBoxImage.Question);
                 if (confirm != MessageBoxResult.Yes) return;
 
+                var oldVal = article.Halt?.ToString() ?? "0";
                 await ArticleService.UpdateFieldAsync(article.GUID, "Halt", newHalt);
+                await ArticleService.LogChangeAsync(article.GUID, article.ID, "Halt", oldVal, newHalt.ToString());
                 article.Halt = newHalt;
                 gridArticles.RefreshData();
                 if (gridArticles.SelectedItem is ArticleModel sel)
@@ -368,6 +539,41 @@ namespace Kalendarz1.KartotekaTowarow
             {
                 MessageBox.Show($"Blad:\n{ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        private void BtnCompare_Click(object sender, RoutedEventArgs e)
+        {
+            var selected = gridArticles.SelectedItems?.Cast<ArticleModel>().ToList();
+            if (selected == null || selected.Count < 2)
+            {
+                MessageBox.Show("Zaznacz co najmniej 2 artykuly do porownania (Ctrl+klik).",
+                    "Porownywarka", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            if (selected.Count > 4)
+            {
+                MessageBox.Show("Mozna porownac maksymalnie 4 artykuly naraz.",
+                    "Porownywarka", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var window = new ArticleCompareWindow(selected);
+            window.Owner = Window.GetWindow(this);
+            window.Show();
+        }
+
+        private void BtnPrint_Click(object sender, RoutedEventArgs e)
+        {
+            if (gridArticles.SelectedItem is not ArticleModel article)
+            {
+                MessageBox.Show("Zaznacz artykul do wydruku.", "Drukuj",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var window = new ProductCardWindow(article);
+            window.Owner = Window.GetWindow(this);
+            window.Show();
         }
 
         private void BtnExcel_Click(object sender, RoutedEventArgs e)
@@ -397,7 +603,7 @@ namespace Kalendarz1.KartotekaTowarow
             => await LoadDataAsync();
 
         // ═══════════════════════════════════════════════════════════════
-        // KEYBOARD SHORTCUTS (CommandBindings)
+        // KEYBOARD SHORTCUTS
         // ═══════════════════════════════════════════════════════════════
 
         private async void CmdDodaj_Executed(object sender, ExecutedRoutedEventArgs e)
@@ -418,6 +624,18 @@ namespace Kalendarz1.KartotekaTowarow
         // ═══════════════════════════════════════════════════════════════
         // HELPERS
         // ═══════════════════════════════════════════════════════════════
+
+        private static double? ToDoubleOrNull(object? value)
+        {
+            var d = value switch
+            {
+                double v => v,
+                decimal v => (double)v,
+                int v => v,
+                _ => 0.0
+            };
+            return d == 0 ? null : d;
+        }
 
         private static BitmapImage? BytesToImage(byte[] bytes)
         {

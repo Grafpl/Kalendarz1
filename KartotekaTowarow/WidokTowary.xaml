@@ -26,7 +26,7 @@
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
 
-        <!-- Toolbar button style -->
+        <!-- Toolbar button -->
         <Style x:Key="ToolbarButton" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="White"/>
@@ -60,7 +60,7 @@
             </Setter>
         </Style>
 
-        <!-- Accent button (colored bg) -->
+        <!-- Accent button -->
         <Style x:Key="ToolbarAccent" TargetType="Button" BasedOn="{StaticResource ToolbarButton}">
             <Setter Property="Template">
                 <Setter.Value>
@@ -117,10 +117,19 @@
             <Setter Property="Background" Value="#E8ECF0"/>
             <Setter Property="Margin" Value="0,4,0,8"/>
         </Style>
+
+        <!-- Stat card -->
+        <Style x:Key="StatCard" TargetType="Border">
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="16,10"/>
+            <Setter Property="Margin" Value="0,0,8,0"/>
+            <Setter Property="MinWidth" Value="110"/>
+        </Style>
     </UserControl.Resources>
 
     <Grid Background="#F0F3F7">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
@@ -151,15 +160,21 @@
                             Background="#E67E22" Click="BtnWstrzymaj_Click"
                             ToolTip="Wstrzymaj/Aktywuj (Delete)"/>
                     <Border Width="1" Background="#4D6D8E" Margin="8,10"/>
+                    <Button x:Name="BtnCompare" Content="Porownaj" Style="{StaticResource ToolbarButton}"
+                            Click="BtnCompare_Click" ToolTip="Porownaj zaznaczone artykuly (zaznacz 2-4)"/>
+                    <Button Content="Drukuj" Style="{StaticResource ToolbarButton}"
+                            Click="BtnPrint_Click" ToolTip="Drukuj karte produktu"/>
                     <Button Content="Excel" Style="{StaticResource ToolbarButton}"
                             Click="BtnExcel_Click" ToolTip="Eksportuj do pliku Excel"/>
+                    <Border Width="1" Background="#4D6D8E" Margin="8,10"/>
+                    <Button x:Name="BtnDashboard" Content="Dashboard" Style="{StaticResource ToolbarButton}"
+                            Click="BtnDashboard_Click" ToolTip="Pokaz/ukryj statystyki"/>
                     <Button Content="Odswiez" Style="{StaticResource ToolbarButton}"
                             Click="BtnOdswiez_Click" ToolTip="Odswiez dane (F5)"/>
                 </StackPanel>
 
                 <!-- Left: filters -->
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <!-- Search box with placeholder -->
                     <Border Background="White" CornerRadius="4" Width="240" Height="30"
                             BorderBrush="#5D7A99" BorderThickness="1">
                         <Grid Margin="8,0">
@@ -195,15 +210,121 @@
                         <ComboBoxItem Content="Wstrzymane"/>
                         <ComboBoxItem Content="Standardowe"/>
                         <ComboBoxItem Content="Bez ceny"/>
+                        <ComboBoxItem Content="Ulubione"/>
                     </ComboBox>
                 </StackPanel>
             </DockPanel>
         </Border>
 
         <!-- ═══════════════════════════════════════════════════════════ -->
+        <!-- DASHBOARD (collapsible)                                     -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <Border x:Name="PanelDashboard" Grid.Row="1" Visibility="Collapsed"
+                Background="White" BorderBrush="#DEE2E6" BorderThickness="0,0,0,1">
+            <StackPanel Margin="16,12">
+                <!-- Stat cards row -->
+                <WrapPanel>
+                    <Border Style="{StaticResource StatCard}" Background="#EBF5FB">
+                        <StackPanel>
+                            <TextBlock x:Name="DashTotal" Text="0" FontFamily="Segoe UI" FontSize="22"
+                                       FontWeight="Bold" Foreground="#2980B9"/>
+                            <TextBlock Text="WSZYSTKICH" FontFamily="Segoe UI" FontSize="9"
+                                       Foreground="#7FB3D8" FontWeight="SemiBold"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource StatCard}" Background="#EAFAF1">
+                        <StackPanel>
+                            <TextBlock x:Name="DashActive" Text="0" FontFamily="Segoe UI" FontSize="22"
+                                       FontWeight="Bold" Foreground="#27AE60"/>
+                            <TextBlock Text="AKTYWNYCH" FontFamily="Segoe UI" FontSize="9"
+                                       Foreground="#7DCEA0" FontWeight="SemiBold"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource StatCard}" Background="#FDEDEC">
+                        <StackPanel>
+                            <TextBlock x:Name="DashHalted" Text="0" FontFamily="Segoe UI" FontSize="22"
+                                       FontWeight="Bold" Foreground="#E74C3C"/>
+                            <TextBlock Text="WSTRZYMANYCH" FontFamily="Segoe UI" FontSize="9"
+                                       Foreground="#F1948A" FontWeight="SemiBold"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource StatCard}" Background="#FEF9E7">
+                        <StackPanel>
+                            <TextBlock x:Name="DashStandard" Text="0" FontFamily="Segoe UI" FontSize="22"
+                                       FontWeight="Bold" Foreground="#D4AF37"/>
+                            <TextBlock Text="STANDARDOWYCH" FontFamily="Segoe UI" FontSize="9"
+                                       Foreground="#D4AF37" FontWeight="SemiBold"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource StatCard}" Background="#FDF2E9">
+                        <StackPanel>
+                            <TextBlock x:Name="DashNoCena" Text="0" FontFamily="Segoe UI" FontSize="22"
+                                       FontWeight="Bold" Foreground="#E67E22"/>
+                            <TextBlock Text="BEZ CENY" FontFamily="Segoe UI" FontSize="9"
+                                       Foreground="#E67E22" FontWeight="SemiBold"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource StatCard}" Background="#F4ECF7">
+                        <StackPanel>
+                            <TextBlock x:Name="DashAvgCena" Text="0.00" FontFamily="Segoe UI" FontSize="22"
+                                       FontWeight="Bold" Foreground="#8E44AD"/>
+                            <TextBlock Text="SR. CENA 1" FontFamily="Segoe UI" FontSize="9"
+                                       Foreground="#8E44AD" FontWeight="SemiBold"/>
+                        </StackPanel>
+                    </Border>
+                </WrapPanel>
+
+                <!-- Breakdown row -->
+                <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                    <TextBlock Text="Grupy: " FontFamily="Segoe UI" FontSize="11"
+                               Foreground="#7F8C8D" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                    <ItemsControl x:Name="DashGrupy">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="#ECF0F1" CornerRadius="3" Padding="6,2" Margin="2,0">
+                                    <TextBlock FontFamily="Segoe UI" FontSize="10" Foreground="#2C3E50">
+                                        <Run Text="{Binding Label, Mode=OneWay}" FontWeight="SemiBold"/>
+                                        <Run Text=" ("/>
+                                        <Run Text="{Binding Count, Mode=OneWay}"/>
+                                        <Run Text=")"/>
+                                    </TextBlock>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <Border Width="1" Background="#DEE2E6" Margin="12,2"/>
+
+                    <TextBlock Text="Rodzaje: " FontFamily="Segoe UI" FontSize="11"
+                               Foreground="#7F8C8D" VerticalAlignment="Center" Margin="4,0,4,0"/>
+                    <ItemsControl x:Name="DashRodzaje">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="#ECF0F1" CornerRadius="3" Padding="6,2" Margin="2,0">
+                                    <TextBlock FontFamily="Segoe UI" FontSize="10" Foreground="#2C3E50">
+                                        <Run Text="{Binding Label, Mode=OneWay}" FontWeight="SemiBold"/>
+                                        <Run Text=" ("/>
+                                        <Run Text="{Binding Count, Mode=OneWay}"/>
+                                        <Run Text=")"/>
+                                    </TextBlock>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
         <!-- MAIN: Grid (75%) + Detail Panel (25%)                       -->
         <!-- ═══════════════════════════════════════════════════════════ -->
-        <Grid Grid.Row="1" Margin="6,6,6,0">
+        <Grid Grid.Row="2" Margin="6,6,6,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="3*"/>
                 <ColumnDefinition Width="Auto"/>
@@ -224,6 +345,7 @@
                                    AllowColumnFiltering="True"
                                    ShowAutoFilterRow="True"
                                    NavigationStyle="Row"
+                                   MultiSelectMode="Row"
                                    FocusedRowChanged="TableView_FocusedRowChanged"
                                    CellValueChanged="TableView_CellValueChanged"
                                    RowDoubleClick="TableView_RowDoubleClick"
@@ -310,10 +432,16 @@
                                 </Grid>
                             </Border>
 
-                            <!-- Name + ID badge -->
-                            <TextBlock x:Name="TxtDetailName" FontFamily="Segoe UI" FontSize="16"
-                                       FontWeight="Bold" Foreground="#1E3A5F" TextWrapping="Wrap"
-                                       Margin="0,0,0,2"/>
+                            <!-- Name + Favorite star -->
+                            <DockPanel Margin="0,0,0,2">
+                                <Button x:Name="BtnFavorite" DockPanel.Dock="Right" Content="&#9734;"
+                                        FontSize="22" Background="Transparent" BorderThickness="0"
+                                        Cursor="Hand" Foreground="#BDC3C7" Padding="4,0"
+                                        VerticalAlignment="Top" Click="BtnFavorite_Click"
+                                        ToolTip="Dodaj/Usun z ulubionych (Space)"/>
+                                <TextBlock x:Name="TxtDetailName" FontFamily="Segoe UI" FontSize="16"
+                                           FontWeight="Bold" Foreground="#1E3A5F" TextWrapping="Wrap"/>
+                            </DockPanel>
                             <TextBlock x:Name="TxtDetailID" FontFamily="Segoe UI" FontSize="10"
                                        Foreground="#95A5A6" Margin="0,0,0,10"/>
 
@@ -333,7 +461,7 @@
 
                             <Border Style="{StaticResource Separator}"/>
 
-                            <!-- Prices row -->
+                            <!-- Quick-edit Prices -->
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
@@ -342,19 +470,33 @@
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0">
                                     <TextBlock Text="CENA 1" Style="{StaticResource DetailLabel}"/>
-                                    <TextBlock x:Name="TxtDetailCena1" Style="{StaticResource DetailValue}" FontSize="14"/>
+                                    <dxe:SpinEdit x:Name="SpinDetailCena1" MinValue="0" Increment="0.1"
+                                                  DisplayFormatString="N2" FontFamily="Segoe UI" FontSize="13"
+                                                  FontWeight="Bold" Height="28" Margin="0,0,4,8"
+                                                  EditValueChanged="SpinDetailCena_Changed"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="1">
                                     <TextBlock Text="CENA 2" Style="{StaticResource DetailLabel}"/>
-                                    <TextBlock x:Name="TxtDetailCena2" Style="{StaticResource DetailValue}"/>
+                                    <dxe:SpinEdit x:Name="SpinDetailCena2" MinValue="0" Increment="0.1"
+                                                  DisplayFormatString="N2" FontFamily="Segoe UI" FontSize="12"
+                                                  Height="28" Margin="0,0,4,8"
+                                                  EditValueChanged="SpinDetailCena_Changed"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="2">
                                     <TextBlock Text="CENA 3" Style="{StaticResource DetailLabel}"/>
-                                    <TextBlock x:Name="TxtDetailCena3" Style="{StaticResource DetailValue}"/>
+                                    <dxe:SpinEdit x:Name="SpinDetailCena3" MinValue="0" Increment="0.1"
+                                                  DisplayFormatString="N2" FontFamily="Segoe UI" FontSize="12"
+                                                  Height="28" Margin="0,0,0,8"
+                                                  EditValueChanged="SpinDetailCena_Changed"/>
                                 </StackPanel>
                             </Grid>
 
-                            <!-- JM + WRC row -->
+                            <!-- Save indicator -->
+                            <TextBlock x:Name="TxtSaveIndicator" Text="Zapisano" FontFamily="Segoe UI"
+                                       FontSize="10" Foreground="#27AE60" FontWeight="SemiBold"
+                                       Visibility="Collapsed" Margin="0,-4,0,4"/>
+
+                            <!-- JM + WRC + Wydajnosc -->
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
@@ -428,7 +570,33 @@
                                            TextWrapping="Wrap" FontWeight="Normal"/>
                             </StackPanel>
 
-                            <!-- Footer: modification info -->
+                            <!-- Audit Log -->
+                            <StackPanel x:Name="PanelAudit" Visibility="Collapsed">
+                                <Border Style="{StaticResource Separator}"/>
+                                <TextBlock Text="HISTORIA ZMIAN" Style="{StaticResource DetailLabel}"/>
+                                <ItemsControl x:Name="ListAudit" Margin="0,4,0,0">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Margin="0,2">
+                                                <TextBlock FontFamily="Segoe UI" FontSize="10" TextWrapping="Wrap">
+                                                    <Run Text="{Binding FieldName, Mode=OneWay}" FontWeight="SemiBold" Foreground="#2C3E50"/>
+                                                    <Run Text=": " Foreground="#7F8C8D"/>
+                                                    <Run Text="{Binding OldValue, Mode=OneWay}" Foreground="#E74C3C"/>
+                                                    <Run Text=" &#x2192; " Foreground="#95A5A6"/>
+                                                    <Run Text="{Binding NewValue, Mode=OneWay}" Foreground="#27AE60"/>
+                                                </TextBlock>
+                                                <TextBlock FontFamily="Segoe UI" FontSize="9" Foreground="#BDC3C7">
+                                                    <Run Text="{Binding ChangedBy, Mode=OneWay}"/>
+                                                    <Run Text=" — "/>
+                                                    <Run Text="{Binding TimeAgo, Mode=OneWay}"/>
+                                                </TextBlock>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+
+                            <!-- Footer -->
                             <Border Style="{StaticResource Separator}" Margin="0,10,0,4"/>
                             <TextBlock x:Name="TxtDetailModified" FontFamily="Segoe UI" FontSize="9"
                                        Foreground="#ADB5BD" HorizontalAlignment="Right"/>
@@ -441,7 +609,7 @@
         <!-- ═══════════════════════════════════════════════════════════ -->
         <!-- STATUS BAR                                                  -->
         <!-- ═══════════════════════════════════════════════════════════ -->
-        <Border Grid.Row="2" Background="#1E3A5F" Height="26">
+        <Border Grid.Row="3" Background="#1E3A5F" Height="26">
             <DockPanel Margin="12,0">
                 <TextBlock x:Name="TxtLoadingIndicator" DockPanel.Dock="Right"
                            Text="Ladowanie..." Foreground="#F39C12"

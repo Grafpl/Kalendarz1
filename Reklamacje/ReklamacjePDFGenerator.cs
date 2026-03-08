@@ -107,6 +107,7 @@ namespace Kalendarz1.Reklamacje
                                 Opis = reader["Opis"]?.ToString() ?? "",
                                 Status = reader["Status"]?.ToString() ?? "",
                                 SumaKg = reader["SumaKg"] != DBNull.Value ? Convert.ToDecimal(reader["SumaKg"]) : 0,
+                                SumaWartosc = reader["SumaWartosc"] != DBNull.Value ? Convert.ToDecimal(reader["SumaWartosc"]) : 0,
                                 UserID = reader["UserID"]?.ToString() ?? "",
                                 OsobaRozpatrujaca = reader["OsobaRozpatrujaca"]?.ToString() ?? "",
                                 Komentarz = reader["Komentarz"]?.ToString() ?? "",
@@ -138,9 +139,11 @@ namespace Kalendarz1.Reklamacje
                         {
                             lista.Add(new TowarData
                             {
-                                NazwaTowaru = GetSafeString(reader, "NazwaTowaru"),
-                                IloscKg = GetSafeDecimal(reader, "IloscKg"),
-                                IdTowaru = GetSafeString(reader, "IdTowaru")
+                                NazwaTowaru = GetSafeString(reader, "Nazwa"),
+                                IloscKg = GetSafeDecimal(reader, "Waga"),
+                                IdTowaru = GetSafeString(reader, "IdTowaru"),
+                                Cena = GetSafeDecimal(reader, "Cena"),
+                                Wartosc = GetSafeDecimal(reader, "Wartosc")
                             });
                         }
                     }
@@ -166,16 +169,7 @@ namespace Kalendarz1.Reklamacje
                     {
                         while (reader.Read())
                         {
-                            string partia = "";
-                            for (int i = 0; i < reader.FieldCount; i++)
-                            {
-                                var colName = reader.GetName(i);
-                                if ((colName == "Partia" || colName == "NumerPartii") && !reader.IsDBNull(i))
-                                {
-                                    partia = reader[i].ToString();
-                                    break;
-                                }
-                            }
+                            string partia = GetSafeString(reader, "NumerPartii");
                             if (!string.IsNullOrEmpty(partia))
                                 lista.Add(partia);
                         }
@@ -194,7 +188,7 @@ namespace Kalendarz1.Reklamacje
             {
                 conn.Open();
 
-                var query = @"SELECT * FROM [dbo].[ReklamacjeHistoria] WHERE ReklamacjaId = @Id OR IdReklamacji = @Id ORDER BY DataZmiany DESC";
+                var query = @"SELECT * FROM [dbo].[ReklamacjeHistoria] WHERE IdReklamacji = @Id ORDER BY DataZmiany DESC";
                 using (var cmd = new SqlCommand(query, conn))
                 {
                     cmd.Parameters.AddWithValue("@Id", idReklamacji);
@@ -207,9 +201,9 @@ namespace Kalendarz1.Reklamacje
                                 lista.Add(new HistoriaData
                                 {
                                     DataZmiany = GetSafeDateTime(reader, "DataZmiany"),
-                                    StatusPoprzedni = GetSafeString(reader, "StatusPoprzedni"),
+                                    StatusPoprzedni = GetSafeString(reader, "PoprzedniStatus"),
                                     StatusNowy = GetSafeString(reader, "StatusNowy"),
-                                    ZmienionePrzez = GetSafeString(reader, "ZmienionePrzez"),
+                                    ZmienionePrzez = GetSafeString(reader, "UserID"),
                                     Komentarz = GetSafeString(reader, "Komentarz")
                                 });
                             }
@@ -259,6 +253,7 @@ namespace Kalendarz1.Reklamacje
                                 Opis = reader["Opis"]?.ToString() ?? "",
                                 Status = reader["Status"]?.ToString() ?? "",
                                 SumaKg = reader["SumaKg"] != DBNull.Value ? Convert.ToDecimal(reader["SumaKg"]) : 0,
+                                SumaWartosc = reader["SumaWartosc"] != DBNull.Value ? Convert.ToDecimal(reader["SumaWartosc"]) : 0,
                                 UserID = reader["UserID"]?.ToString() ?? "",
                                 OsobaRozpatrujaca = reader["OsobaRozpatrujaca"]?.ToString() ?? ""
                             });
@@ -313,6 +308,7 @@ namespace Kalendarz1.Reklamacje
             sb.AppendLine($"        <div class='info-row'><span class='label'>Nr dokumentu:</span><span class='value'>{EscapeHtml(reklamacja.NumerDokumentu)}</span></div>");
             sb.AppendLine($"        <div class='info-row'><span class='label'>Kontrahent:</span><span class='value'>{EscapeHtml(reklamacja.NazwaKontrahenta)}</span></div>");
             sb.AppendLine($"        <div class='info-row'><span class='label'>Suma kg:</span><span class='value'>{reklamacja.SumaKg:N2} kg</span></div>");
+            sb.AppendLine($"        <div class='info-row'><span class='label'>Wartość:</span><span class='value'>{reklamacja.SumaWartosc:N2} zł</span></div>");
             sb.AppendLine($"        <div class='info-row'><span class='label'>Osoba rozpatrująca:</span><span class='value'>{EscapeHtml(reklamacja.OsobaRozpatrujaca)}</span></div>");
 
             if (reklamacja.DataZamkniecia.HasValue)
@@ -333,18 +329,20 @@ namespace Kalendarz1.Reklamacje
                 sb.AppendLine("<div class='section'>");
                 sb.AppendLine("    <h3>Reklamowane towary</h3>");
                 sb.AppendLine("    <table>");
-                sb.AppendLine("    <thead><tr><th>Lp.</th><th>Nazwa towaru</th><th>ID towaru</th><th class='number'>Ilość [kg]</th></tr></thead>");
+                sb.AppendLine("    <thead><tr><th>Lp.</th><th>Nazwa towaru</th><th>ID towaru</th><th class='number'>Ilość [kg]</th><th class='number'>Cena</th><th class='number'>Wartość</th></tr></thead>");
                 sb.AppendLine("    <tbody>");
 
                 int lp = 1;
                 decimal suma = 0;
+                decimal sumaWart = 0;
                 foreach (var towar in towary)
                 {
-                    sb.AppendLine($"        <tr><td>{lp++}</td><td>{EscapeHtml(towar.NazwaTowaru)}</td><td>{EscapeHtml(towar.IdTowaru)}</td><td class='number'>{towar.IloscKg:N2}</td></tr>");
+                    sb.AppendLine($"        <tr><td>{lp++}</td><td>{EscapeHtml(towar.NazwaTowaru)}</td><td>{EscapeHtml(towar.IdTowaru)}</td><td class='number'>{towar.IloscKg:N2}</td><td class='number'>{towar.Cena:N2}</td><td class='number'>{towar.Wartosc:N2}</td></tr>");
                     suma += towar.IloscKg;
+                    sumaWart += towar.Wartosc;
                 }
 
-                sb.AppendLine($"        <tr class='summary-row'><td colspan='3'><strong>RAZEM:</strong></td><td class='number'><strong>{suma:N2}</strong></td></tr>");
+                sb.AppendLine($"        <tr class='summary-row'><td colspan='3'><strong>RAZEM:</strong></td><td class='number'><strong>{suma:N2}</strong></td><td></td><td class='number'><strong>{sumaWart:N2}</strong></td></tr>");
                 sb.AppendLine("    </tbody>");
                 sb.AppendLine("    </table>");
                 sb.AppendLine("</div>");
@@ -444,7 +442,8 @@ namespace Kalendarz1.Reklamacje
 
             // Podsumowanie
             var sumaKg = 0m;
-            foreach (var r in reklamacje) sumaKg += r.SumaKg;
+            var sumaWartosc = 0m;
+            foreach (var r in reklamacje) { sumaKg += r.SumaKg; sumaWartosc += r.SumaWartosc; }
 
             var statusy = new Dictionary<string, int>();
             foreach (var r in reklamacje)
@@ -456,6 +455,7 @@ namespace Kalendarz1.Reklamacje
             sb.AppendLine("<div class='summary'>");
             sb.AppendLine($"    <div class='summary-item'><span>Liczba reklamacji:</span> <strong>{reklamacje.Count}</strong></div>");
             sb.AppendLine($"    <div class='summary-item'><span>Suma kg:</span> <strong>{sumaKg:N2}</strong></div>");
+            sb.AppendLine($"    <div class='summary-item'><span>Wartość:</span> <strong>{sumaWartosc:N2} zł</strong></div>");
             foreach (var s in statusy)
             {
                 sb.AppendLine($"    <div class='summary-item'><span>{s.Key}:</span> <strong>{s.Value}</strong></div>");
@@ -471,6 +471,7 @@ namespace Kalendarz1.Reklamacje
             sb.AppendLine("        <th>Nr dokumentu</th>");
             sb.AppendLine("        <th>Kontrahent</th>");
             sb.AppendLine("        <th class='number'>Suma kg</th>");
+            sb.AppendLine("        <th class='number'>Wartość</th>");
             sb.AppendLine("        <th>Status</th>");
             sb.AppendLine("        <th>Zgłosił</th>");
             sb.AppendLine("        <th>Rozpatruje</th>");
@@ -486,6 +487,7 @@ namespace Kalendarz1.Reklamacje
                 sb.AppendLine($"        <td>{EscapeHtml(r.NumerDokumentu)}</td>");
                 sb.AppendLine($"        <td>{EscapeHtml(r.NazwaKontrahenta)}</td>");
                 sb.AppendLine($"        <td class='number'>{r.SumaKg:N2}</td>");
+                sb.AppendLine($"        <td class='number'>{r.SumaWartosc:N2}</td>");
                 sb.AppendLine($"        <td><span class='{GetStatusClass(r.Status)}'>{EscapeHtml(r.Status)}</span></td>");
                 sb.AppendLine($"        <td>{EscapeHtml(r.UserID)}</td>");
                 sb.AppendLine($"        <td>{EscapeHtml(r.OsobaRozpatrujaca)}</td>");
@@ -545,11 +547,15 @@ namespace Kalendarz1.Reklamacje
         }
         .status-banner .status-label { font-size: 11px; opacity: 0.8; }
         .status-banner .status-value { font-size: 18px; font-weight: bold; margin-left: 10px; }
-        .status-nowa { background: #e74c3c; color: white; }
-        .status-wtrakcie { background: #f39c12; color: white; }
-        .status-zaakceptowana { background: #27ae60; color: white; }
-        .status-odrzucona { background: #c0392b; color: white; }
-        .status-zamknieta { background: #1e8449; color: white; }
+        .status-nowa { background: #3498DB; color: white; }
+        .status-przyjeta { background: #2980B9; color: white; }
+        .status-wanalizie { background: #F39C12; color: white; }
+        .status-wtrakcierealizacji { background: #E67E22; color: white; }
+        .status-oczekujenadostawce { background: #9B59B6; color: white; }
+        .status-wtrakcie { background: #F39C12; color: white; }
+        .status-zaakceptowana { background: #27AE60; color: white; }
+        .status-odrzucona { background: #E74C3C; color: white; }
+        .status-zamknieta { background: #95A5A6; color: white; }
 
         .section { margin-bottom: 20px; }
         .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -618,6 +624,10 @@ namespace Kalendarz1.Reklamacje
             switch (s)
             {
                 case "nowa": return "status-nowa";
+                case "przyjeta": return "status-przyjeta";
+                case "wanalizie": return "status-wanalizie";
+                case "wtrakcierealizacji": return "status-wtrakcierealizacji";
+                case "oczekujenadostawce": return "status-oczekujenadostawce";
                 case "wtrakcie": return "status-wtrakcie";
                 case "zaakceptowana": return "status-zaakceptowana";
                 case "odrzucona": return "status-odrzucona";
@@ -692,6 +702,7 @@ namespace Kalendarz1.Reklamacje
             public string Opis { get; set; }
             public string Status { get; set; }
             public decimal SumaKg { get; set; }
+            public decimal SumaWartosc { get; set; }
             public string UserID { get; set; }
             public string OsobaRozpatrujaca { get; set; }
             public string Komentarz { get; set; }
@@ -704,6 +715,8 @@ namespace Kalendarz1.Reklamacje
             public string NazwaTowaru { get; set; }
             public decimal IloscKg { get; set; }
             public string IdTowaru { get; set; }
+            public decimal Cena { get; set; }
+            public decimal Wartosc { get; set; }
         }
 
         private class HistoriaData

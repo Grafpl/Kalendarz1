@@ -3,11 +3,15 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:local="clr-namespace:Kalendarz1.Partie.Views"
              mc:Ignorable="d"
              d:DesignHeight="800" d:DesignWidth="1400"
              Loaded="UserControl_Loaded">
 
     <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <local:HexToBrushConverter x:Key="HexToBrush"/>
+
         <Style x:Key="StatCard" TargetType="Border">
             <Setter Property="Background" Value="White"/>
             <Setter Property="CornerRadius" Value="8"/>
@@ -67,6 +71,39 @@
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
+        </Style>
+
+        <!-- Quick status button style -->
+        <Style x:Key="QuickStatusBtn" TargetType="Button">
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="#2980B9"/>
+            <Setter Property="Padding" Value="8,3"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}"
+                                CornerRadius="3" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#3498DB"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Alert item style -->
+        <Style x:Key="AlertBorder" TargetType="Border">
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="8,5"/>
+            <Setter Property="Margin" Value="0,2"/>
         </Style>
     </UserControl.Resources>
 
@@ -150,7 +187,7 @@
             </Border>
         </Grid>
 
-        <!-- MAIN CONTENT: Partie cards + Harmonogram -->
+        <!-- MAIN CONTENT -->
         <Grid Grid.Row="2" Margin="4,4,4,4">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="3*"/>
@@ -158,204 +195,306 @@
             </Grid.ColumnDefinitions>
 
             <!-- LEFT: Partie cards -->
-            <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" Padding="4">
-                <StackPanel>
-                    <TextBlock Text="AKTYWNE PARTIE" Style="{StaticResource SectionTitle}"/>
-                    <ItemsControl x:Name="CardsActive">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <WrapPanel/>
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Border Background="White" CornerRadius="8" Padding="14,10" Margin="4"
-                                        Width="340" Cursor="Hand"
-                                        MouseLeftButtonUp="Card_Click"
-                                        Tag="{Binding}">
-                                    <Border.Effect>
-                                        <DropShadowEffect ShadowDepth="1" BlurRadius="4" Opacity="0.08"/>
-                                    </Border.Effect>
-                                    <Grid>
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                        </Grid.RowDefinitions>
-
-                                        <!-- Row 0: Nr + Status badge -->
-                                        <DockPanel Grid.Row="0">
-                                            <Border DockPanel.Dock="Right" CornerRadius="10" Padding="8,3"
-                                                    Background="{Binding StatusColor}">
-                                                <TextBlock Text="{Binding StatusText}" Foreground="White"
-                                                           FontSize="10" FontWeight="SemiBold"/>
-                                            </Border>
-                                            <TextBlock Text="{Binding Partia}" FontSize="16" FontWeight="Bold"
-                                                       Foreground="#1E3A5F" FontFamily="Consolas"/>
-                                        </DockPanel>
-
-                                        <!-- Row 1: Dostawca -->
-                                        <TextBlock Grid.Row="1" Text="{Binding CustomerName}"
-                                                   FontSize="12" Foreground="#7F8C8D" Margin="0,4,0,0"
-                                                   TextTrimming="CharacterEllipsis"/>
-
-                                        <!-- Row 2: Key metrics -->
-                                        <Grid Grid.Row="2" Margin="0,8,0,0">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="*"/>
-                                            </Grid.ColumnDefinitions>
-                                            <StackPanel Grid.Column="0">
-                                                <TextBlock Text="{Binding SztDekl, StringFormat=N0}"
-                                                           FontSize="14" FontWeight="Bold" Foreground="#2C3E50"/>
-                                                <TextBlock Text="szt" FontSize="9" Foreground="#95A5A6"/>
-                                            </StackPanel>
-                                            <StackPanel Grid.Column="1">
-                                                <TextBlock Text="{Binding WydanoKg, StringFormat=N0}"
-                                                           FontSize="14" FontWeight="Bold" Foreground="#2980B9"/>
-                                                <TextBlock Text="wydano kg" FontSize="9" Foreground="#95A5A6"/>
-                                            </StackPanel>
-                                            <StackPanel Grid.Column="2">
-                                                <TextBlock Text="{Binding NaStanieKg, StringFormat=N0}"
-                                                           FontSize="14" FontWeight="Bold" Foreground="#E67E22"/>
-                                                <TextBlock Text="na stanie" FontSize="9" Foreground="#95A5A6"/>
-                                            </StackPanel>
-                                            <StackPanel Grid.Column="3">
-                                                <TextBlock Text="{Binding QCBadge}"
-                                                           FontSize="14" FontWeight="Bold" Foreground="#27AE60"/>
-                                                <TextBlock Text="QC" FontSize="9" Foreground="#95A5A6"/>
-                                            </StackPanel>
-                                        </Grid>
-
-                                        <!-- Row 3: Time + Wydajnosc -->
-                                        <DockPanel Grid.Row="3" Margin="0,6,0,0">
-                                            <TextBlock DockPanel.Dock="Right" Foreground="#8E44AD" FontSize="11" FontWeight="SemiBold">
-                                                <TextBlock.Text>
-                                                    <MultiBinding StringFormat="Wyd: {0}%">
-                                                        <Binding Path="WydajnoscProc" TargetNullValue="-"/>
-                                                    </MultiBinding>
-                                                </TextBlock.Text>
-                                            </TextBlock>
-                                            <TextBlock FontSize="11" Foreground="#95A5A6" FontFamily="Consolas"
-                                                       Text="{Binding CreateGodzina}"/>
-                                        </DockPanel>
-                                    </Grid>
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-
-                    <TextBlock Text="ZAMKNIETE DZIS" Style="{StaticResource SectionTitle}" Margin="8,24,8,8"/>
-                    <ItemsControl x:Name="CardsClosed">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <WrapPanel/>
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Border Background="#F5F5F5" CornerRadius="8" Padding="14,10" Margin="4"
-                                        Width="340" Cursor="Hand" Opacity="0.8"
-                                        MouseLeftButtonUp="Card_Click"
-                                        Tag="{Binding}">
-                                    <Grid>
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                        </Grid.RowDefinitions>
-                                        <DockPanel Grid.Row="0">
-                                            <Border DockPanel.Dock="Right" CornerRadius="10" Padding="8,3"
-                                                    Background="{Binding StatusColor}">
-                                                <TextBlock Text="{Binding StatusText}" Foreground="White"
-                                                           FontSize="10" FontWeight="SemiBold"/>
-                                            </Border>
-                                            <TextBlock Text="{Binding Partia}" FontSize="14" FontWeight="Bold"
-                                                       Foreground="#7F8C8D" FontFamily="Consolas"/>
-                                        </DockPanel>
-                                        <TextBlock Grid.Row="1" Text="{Binding CustomerName}"
-                                                   FontSize="11" Foreground="#95A5A6" Margin="0,2,0,0"
-                                                   TextTrimming="CharacterEllipsis"/>
-                                        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,4,0,0">
-                                            <TextBlock Text="{Binding WydanoKg, StringFormat='{}{0:N0} kg'}"
-                                                       FontSize="12" Foreground="#7F8C8D" Margin="0,0,12,0"/>
-                                            <TextBlock FontSize="12" Foreground="#8E44AD">
-                                                <TextBlock.Text>
-                                                    <MultiBinding StringFormat="Wyd: {0}%">
-                                                        <Binding Path="WydajnoscProc" TargetNullValue="-"/>
-                                                    </MultiBinding>
-                                                </TextBlock.Text>
-                                            </TextBlock>
-                                        </StackPanel>
-                                    </Grid>
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </StackPanel>
-            </ScrollViewer>
-
-            <!-- RIGHT: Harmonogram dostaw panel -->
-            <Border Grid.Column="1" Background="White" CornerRadius="8" Margin="4"
-                    Padding="0">
-                <Border.Effect>
-                    <DropShadowEffect ShadowDepth="1" BlurRadius="4" Opacity="0.08"/>
-                </Border.Effect>
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-                    <Border Grid.Row="0" Background="#1E3A5F" CornerRadius="8,8,0,0" Padding="12,10">
-                        <TextBlock Text="HARMONOGRAM DOSTAW" FontSize="12" FontWeight="Bold"
-                                   Foreground="White" FontFamily="Segoe UI"/>
-                    </Border>
-                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="8">
-                        <ItemsControl x:Name="ListHarmonogram">
+            <Grid Grid.Column="0">
+                <!-- Normal cards view -->
+                <ScrollViewer x:Name="CardsScrollViewer" VerticalScrollBarVisibility="Auto" Padding="4">
+                    <StackPanel>
+                        <TextBlock Text="AKTYWNE PARTIE" Style="{StaticResource SectionTitle}"/>
+                        <ItemsControl x:Name="CardsActive">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Padding="8,6" BorderBrush="#ECF0F1" BorderThickness="0,0,0,1"
-                                            Cursor="Hand" MouseLeftButtonUp="Harmonogram_Click" Tag="{Binding}">
-                                        <StackPanel>
-                                            <DockPanel>
-                                                <TextBlock DockPanel.Dock="Right" FontSize="10"
-                                                           Foreground="{Binding MaPartie, Converter={x:Null}}"
-                                                           FontWeight="SemiBold">
-                                                    <TextBlock.Style>
-                                                        <Style TargetType="TextBlock">
-                                                            <Setter Property="Text" Value="NOWA"/>
-                                                            <Setter Property="Foreground" Value="#27AE60"/>
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding MaPartie}" Value="True">
-                                                                    <Setter Property="Text" Value="MA PARTIE"/>
-                                                                    <Setter Property="Foreground" Value="#95A5A6"/>
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </TextBlock.Style>
-                                                </TextBlock>
-                                                <TextBlock Text="{Binding Dostawca}" FontSize="12" FontWeight="SemiBold"
-                                                           Foreground="#2C3E50" TextTrimming="CharacterEllipsis"/>
+                                    <Border Background="White" CornerRadius="8" Padding="14,10" Margin="4"
+                                            Width="340" Cursor="Hand"
+                                            MouseLeftButtonUp="Card_Click"
+                                            Tag="{Binding}">
+                                        <Border.Effect>
+                                            <DropShadowEffect ShadowDepth="1" BlurRadius="4" Opacity="0.08"/>
+                                        </Border.Effect>
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+
+                                            <!-- Row 0: Nr + Status badge -->
+                                            <DockPanel Grid.Row="0">
+                                                <Border DockPanel.Dock="Right" CornerRadius="10" Padding="8,3"
+                                                        Background="{Binding StatusColor, Converter={StaticResource HexToBrush}}">
+                                                    <TextBlock Text="{Binding StatusText}" Foreground="White"
+                                                               FontSize="10" FontWeight="SemiBold"/>
+                                                </Border>
+                                                <TextBlock Text="{Binding Partia}" FontSize="16" FontWeight="Bold"
+                                                           Foreground="#1E3A5F" FontFamily="Consolas"/>
                                             </DockPanel>
-                                            <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
-                                                <TextBlock Text="{Binding SztukiDek, StringFormat='{}{0} szt'}"
-                                                           FontSize="11" Foreground="#7F8C8D" Margin="0,0,8,0"/>
-                                                <TextBlock Text="{Binding WagaDek, StringFormat='{}{0:N0} kg'}"
-                                                           FontSize="11" Foreground="#7F8C8D" Margin="0,0,8,0"/>
-                                                <TextBlock Text="{Binding Cena, StringFormat='{}{0:N2} PLN'}"
-                                                           FontSize="11" Foreground="#D4AF37"/>
-                                            </StackPanel>
-                                        </StackPanel>
+
+                                            <!-- Row 1: Dostawca -->
+                                            <TextBlock Grid.Row="1" Text="{Binding CustomerName}"
+                                                       FontSize="12" Foreground="#7F8C8D" Margin="0,4,0,0"
+                                                       TextTrimming="CharacterEllipsis"/>
+
+                                            <!-- Row 2: Key metrics -->
+                                            <Grid Grid.Row="2" Margin="0,8,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0">
+                                                    <TextBlock Text="{Binding SztDekl, StringFormat=N0}"
+                                                               FontSize="14" FontWeight="Bold" Foreground="#2C3E50"/>
+                                                    <TextBlock Text="szt" FontSize="9" Foreground="#95A5A6"/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="1">
+                                                    <TextBlock Text="{Binding WydanoKg, StringFormat=N0}"
+                                                               FontSize="14" FontWeight="Bold" Foreground="#2980B9"/>
+                                                    <TextBlock Text="wydano kg" FontSize="9" Foreground="#95A5A6"/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="2">
+                                                    <TextBlock Text="{Binding NaStanieKg, StringFormat=N0}"
+                                                               FontSize="14" FontWeight="Bold" Foreground="#E67E22"/>
+                                                    <TextBlock Text="na stanie" FontSize="9" Foreground="#95A5A6"/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="3">
+                                                    <TextBlock Text="{Binding QCBadge}"
+                                                               FontSize="14" FontWeight="Bold" Foreground="#27AE60"/>
+                                                    <TextBlock Text="QC" FontSize="9" Foreground="#95A5A6"/>
+                                                </StackPanel>
+                                            </Grid>
+
+                                            <!-- Row 3: Sparkline (Feature 4) -->
+                                            <Polyline Grid.Row="3" Points="{Binding SparklinePoints}"
+                                                      Stroke="#8E44AD" StrokeThickness="1.5"
+                                                      Stretch="Fill" Height="22" Margin="0,4,0,0"
+                                                      Visibility="{Binding HasSparkline, Converter={StaticResource BoolToVis}}"/>
+
+                                            <!-- Row 4: Time + Wydajnosc + Quick status (Feature 5) -->
+                                            <DockPanel Grid.Row="4" Margin="0,6,0,0">
+                                                <!-- Quick status button -->
+                                                <Button DockPanel.Dock="Right" Style="{StaticResource QuickStatusBtn}"
+                                                        Content="{Binding NextStatusText}"
+                                                        Tag="{Binding}"
+                                                        Click="QuickStatus_Click"
+                                                        Visibility="{Binding CanAdvanceStatus, Converter={StaticResource BoolToVis}}"
+                                                        ToolTip="Zmien status na nastepny"/>
+                                                <TextBlock DockPanel.Dock="Right" Foreground="#8E44AD" FontSize="11"
+                                                           FontWeight="SemiBold" Margin="0,0,8,0" VerticalAlignment="Center">
+                                                    <TextBlock.Text>
+                                                        <MultiBinding StringFormat="Wyd: {0}%">
+                                                            <Binding Path="WydajnoscProc" TargetNullValue="-"/>
+                                                        </MultiBinding>
+                                                    </TextBlock.Text>
+                                                </TextBlock>
+                                                <TextBlock FontSize="11" Foreground="#95A5A6" FontFamily="Consolas"
+                                                           Text="{Binding CreateGodzina}" VerticalAlignment="Center"/>
+                                            </DockPanel>
+                                        </Grid>
                                     </Border>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
-                    </ScrollViewer>
-                </Grid>
-            </Border>
+
+                        <TextBlock Text="ZAMKNIETE DZIS" Style="{StaticResource SectionTitle}" Margin="8,24,8,8"/>
+                        <ItemsControl x:Name="CardsClosed">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="#F5F5F5" CornerRadius="8" Padding="14,10" Margin="4"
+                                            Width="340" Cursor="Hand" Opacity="0.8"
+                                            MouseLeftButtonUp="Card_Click"
+                                            Tag="{Binding}">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+                                            <DockPanel Grid.Row="0">
+                                                <Border DockPanel.Dock="Right" CornerRadius="10" Padding="8,3"
+                                                        Background="{Binding StatusColor, Converter={StaticResource HexToBrush}}">
+                                                    <TextBlock Text="{Binding StatusText}" Foreground="White"
+                                                               FontSize="10" FontWeight="SemiBold"/>
+                                                </Border>
+                                                <TextBlock Text="{Binding Partia}" FontSize="14" FontWeight="Bold"
+                                                           Foreground="#7F8C8D" FontFamily="Consolas"/>
+                                            </DockPanel>
+                                            <TextBlock Grid.Row="1" Text="{Binding CustomerName}"
+                                                       FontSize="11" Foreground="#95A5A6" Margin="0,2,0,0"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                            <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,4,0,0">
+                                                <TextBlock Text="{Binding WydanoKg, StringFormat='{}{0:N0} kg'}"
+                                                           FontSize="12" Foreground="#7F8C8D" Margin="0,0,12,0"/>
+                                                <TextBlock FontSize="12" Foreground="#8E44AD">
+                                                    <TextBlock.Text>
+                                                        <MultiBinding StringFormat="Wyd: {0}%">
+                                                            <Binding Path="WydajnoscProc" TargetNullValue="-"/>
+                                                        </MultiBinding>
+                                                    </TextBlock.Text>
+                                                </TextBlock>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- DETAIL FLYOUT (Feature 3) - overlay on the left side -->
+                <Border x:Name="DetailFlyout" Visibility="Collapsed"
+                        Background="White" Margin="4"
+                        CornerRadius="8">
+                    <Border.Effect>
+                        <DropShadowEffect ShadowDepth="2" BlurRadius="8" Opacity="0.15"/>
+                    </Border.Effect>
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Flyout header -->
+                        <Border Grid.Row="0" Background="#1E3A5F" CornerRadius="8,8,0,0" Padding="16,12">
+                            <DockPanel>
+                                <Button DockPanel.Dock="Right" Content="X" FontSize="14" FontWeight="Bold"
+                                        Foreground="White" Background="Transparent" BorderThickness="0"
+                                        Cursor="Hand" Click="CloseFlyout_Click" Padding="6,2"/>
+                                <StackPanel>
+                                    <TextBlock x:Name="FlyoutPartia" FontSize="20" FontWeight="Bold"
+                                               Foreground="White" FontFamily="Consolas"/>
+                                    <TextBlock x:Name="FlyoutStatus" FontSize="12" Foreground="#94A3B8"/>
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+
+                        <!-- Flyout content -->
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="16">
+                            <StackPanel x:Name="FlyoutContent" Margin="0,8,0,0">
+                                <!-- Populated in code-behind -->
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- RIGHT: Harmonogram + Alerts -->
+            <Grid Grid.Column="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto" MaxHeight="250"/>
+                </Grid.RowDefinitions>
+
+                <!-- Harmonogram -->
+                <Border Grid.Row="0" Background="White" CornerRadius="8" Margin="4"
+                        Padding="0">
+                    <Border.Effect>
+                        <DropShadowEffect ShadowDepth="1" BlurRadius="4" Opacity="0.08"/>
+                    </Border.Effect>
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <Border Grid.Row="0" Background="#1E3A5F" CornerRadius="8,8,0,0" Padding="12,10">
+                            <TextBlock Text="HARMONOGRAM DOSTAW" FontSize="12" FontWeight="Bold"
+                                       Foreground="White" FontFamily="Segoe UI"/>
+                        </Border>
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="8">
+                            <ItemsControl x:Name="ListHarmonogram">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Padding="8,6" BorderBrush="#ECF0F1" BorderThickness="0,0,0,1"
+                                                Cursor="Hand" MouseLeftButtonUp="Harmonogram_Click" Tag="{Binding}">
+                                            <StackPanel>
+                                                <DockPanel>
+                                                    <TextBlock DockPanel.Dock="Right" FontSize="10"
+                                                               FontWeight="SemiBold">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Setter Property="Text" Value="NOWA"/>
+                                                                <Setter Property="Foreground" Value="#27AE60"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding MaPartie}" Value="True">
+                                                                        <Setter Property="Text" Value="MA PARTIE"/>
+                                                                        <Setter Property="Foreground" Value="#95A5A6"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                    <TextBlock Text="{Binding Dostawca}" FontSize="12" FontWeight="SemiBold"
+                                                               Foreground="#2C3E50" TextTrimming="CharacterEllipsis"/>
+                                                </DockPanel>
+                                                <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                                    <TextBlock Text="{Binding SztukiDek, StringFormat='{}{0} szt'}"
+                                                               FontSize="11" Foreground="#7F8C8D" Margin="0,0,8,0"/>
+                                                    <TextBlock Text="{Binding WagaDek, StringFormat='{}{0:N0} kg'}"
+                                                               FontSize="11" Foreground="#7F8C8D" Margin="0,0,8,0"/>
+                                                    <TextBlock Text="{Binding Cena, StringFormat='{}{0:N2} PLN'}"
+                                                               FontSize="11" Foreground="#D4AF37"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+
+                <!-- ALERTS PANEL (Feature 7) -->
+                <Border x:Name="AlertsPanel" Grid.Row="1" Background="White" CornerRadius="8" Margin="4"
+                        Padding="0" Visibility="Collapsed">
+                    <Border.Effect>
+                        <DropShadowEffect ShadowDepth="1" BlurRadius="4" Opacity="0.08"/>
+                    </Border.Effect>
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <Border Grid.Row="0" Background="#E74C3C" CornerRadius="8,8,0,0" Padding="12,8">
+                            <DockPanel>
+                                <TextBlock x:Name="TxtAlertCount" DockPanel.Dock="Right" FontSize="11"
+                                           Foreground="White" VerticalAlignment="Center"/>
+                                <TextBlock Text="ALERTY" FontSize="12" FontWeight="Bold"
+                                           Foreground="White" FontFamily="Segoe UI"/>
+                            </DockPanel>
+                        </Border>
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="6">
+                            <ItemsControl x:Name="ListAlerts">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Style="{StaticResource AlertBorder}"
+                                                Background="{Binding SeverityBg, Converter={StaticResource HexToBrush}}">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="{Binding SeverityIcon}" FontSize="13" Width="20"
+                                                           Foreground="{Binding SeverityColor, Converter={StaticResource HexToBrush}}"
+                                                           VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding Message}" FontSize="11"
+                                                           Foreground="#2C3E50" TextWrapping="Wrap"
+                                                           VerticalAlignment="Center" FontFamily="Segoe UI"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+            </Grid>
         </Grid>
 
         <!-- LOADING OVERLAY -->

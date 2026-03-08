@@ -925,5 +925,183 @@ namespace Kalendarz1.Flota.Services
             var result = await cmd.ExecuteScalarAsync();
             return result != DBNull.Value ? Convert.ToDecimal(result) : 0;
         }
+
+        // ══════════════════════════════════════════════════════════════
+        // DIAGNOSTYKA
+        // ══════════════════════════════════════════════════════════════
+
+        public async Task<List<string>> RunDiagnosticsAsync()
+        {
+            var issues = new List<string>();
+
+            using var conn = new SqlConnection(_connectionString);
+            try
+            {
+                await conn.OpenAsync();
+                issues.Add("[OK] Polaczenie z baza LibraNet (192.168.0.109)");
+            }
+            catch (Exception ex)
+            {
+                issues.Add($"[BLAD] Nie mozna polaczyc z baza: {ex.Message}");
+                return issues;
+            }
+
+            // 1. Check required tables exist
+            var requiredTables = new[] { "Driver", "CarTrailer", "DriverDetails", "VehicleDetails", "DriverVehicleAssignment", "VehicleServiceLog" };
+            foreach (var table in requiredTables)
+            {
+                try
+                {
+                    using var cmd = new SqlCommand($"SELECT COUNT(*) FROM sys.tables WHERE name = @T", conn);
+                    cmd.Parameters.AddWithValue("@T", table);
+                    int exists = (int)(await cmd.ExecuteScalarAsync())!;
+                    if (exists == 0)
+                        issues.Add($"[BLAD] Tabela '{table}' NIE ISTNIEJE");
+                    else
+                    {
+                        using var cmdCnt = new SqlCommand($"SELECT COUNT(*) FROM [{table}]", conn);
+                        int count = (int)(await cmdCnt.ExecuteScalarAsync())!;
+                        issues.Add($"[OK] Tabela '{table}' istnieje ({count} rekordow)");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    issues.Add($"[BLAD] Tabela '{table}': {ex.Message}");
+                }
+            }
+
+            // 2. FarmerCalc (used for stats)
+            try
+            {
+                using var cmd = new SqlCommand("SELECT COUNT(*) FROM sys.tables WHERE name = 'FarmerCalc'", conn);
+                int exists = (int)(await cmd.ExecuteScalarAsync())!;
+                if (exists == 0)
+                    issues.Add("[UWAGA] Tabela 'FarmerCalc' nie istnieje - statystyki kursow beda puste");
+                else
+                    issues.Add("[OK] Tabela 'FarmerCalc' istnieje");
+            }
+            catch (Exception ex)
+            {
+                issues.Add($"[UWAGA] FarmerCalc: {ex.Message}");
+            }
+
+            // 3. Drivers without DriverDetails
+            try
+            {
+                using var cmd = new SqlCommand(@"
+                    SELECT COUNT(*) FROM Driver d
+                    LEFT JOIN DriverDetails dd ON d.GID = dd.DriverGID
+                    WHERE d.Deleted = 0 AND dd.DriverGID IS NULL", conn);
+                int count = (int)(await cmd.ExecuteScalarAsync())!;
+                if (count > 0)
+                    issues.Add($"[UWAGA] {count} kierowcow bez rekordu DriverDetails (nie uzupelniono danych szczegolowych)");
+                else
+                    issues.Add("[OK] Wszyscy kierowcy maja rekord DriverDetails");
+            }
+            catch (Exception ex) { issues.Add($"[BLAD] Sprawdzanie DriverDetails: {ex.Message}"); }
+
+            // 4. Vehicles without VehicleDetails
+            try
+            {
+                using var cmd = new SqlCommand(@"
+                    SELECT COUNT(*) FROM CarTrailer ct
+                    LEFT JOIN VehicleDetails vd ON ct.ID = vd.CarTrailerID
+                    WHERE vd.CarTrailerID IS NULL", conn);
+                int count = (int)(await cmd.ExecuteScalarAsync())!;
+                if (count > 0)
+                    issues.Add($"[UWAGA] {count} pojazdow bez rekordu VehicleDetails (nie uzupelniono danych szczegolowych)");
+                else
+                    issues.Add("[OK] Wszystkie pojazdy maja rekord VehicleDetails");
+            }
+            catch (Exception ex) { issues.Add($"[BLAD] Sprawdzanie VehicleDetails: {ex.Message}"); }
+
+            // 5. Orphaned assignments (driver deleted but assignment active)
+            try
+            {
+                using var cmd = new SqlCommand(@"
+                    SELECT COUNT(*) FROM DriverVehicleAssignment dva
+                    LEFT JOIN Driver d ON dva.DriverGID = d.GID
+                    WHERE dva.DataDo IS NULL AND (d.GID IS NULL OR d.Deleted = 1)", conn);
+                int count = (int)(await cmd.ExecuteScalarAsync())!;
+                if (count > 0)
+                    issues.Add($"[BLAD] {count} aktywnych przypisan do usunietych/nieistniejacych kierowcow");
+                else
+                    issues.Add("[OK] Brak osieroconych przypisan (kierowcy)");
+            }
+            catch (Exception ex) { issues.Add($"[BLAD] Sprawdzanie osieroconych przypisan: {ex.Message}"); }
+
+            // 6. Orphaned assignments (vehicle missing)
+            try
+            {
+                using var cmd = new SqlCommand(@"
+                    SELECT COUNT(*) FROM DriverVehicleAssignment dva
+                    LEFT JOIN CarTrailer ct ON dva.CarTrailerID = ct.ID
+                    WHERE dva.DataDo IS NULL AND ct.ID IS NULL", conn);
+                int count = (int)(await cmd.ExecuteScalarAsync())!;
+                if (count > 0)
+                    issues.Add($"[BLAD] {count} aktywnych przypisan do nieistniejacych pojazdow");
+                else
+                    issues.Add("[OK] Brak osieroconych przypisan (pojazdy)");
+            }
+            catch (Exception ex) { issues.Add($"[BLAD] Sprawdzanie osieroconych przypisan: {ex.Message}"); }
+
+            // 7. Multiple active assignments per driver
+            try
+            {
+                using var cmd = new SqlCommand(@"
+                    SELECT COUNT(*) FROM (
+                        SELECT DriverGID FROM DriverVehicleAssignment
+                        WHERE DataDo IS NULL
+                        GROUP BY DriverGID HAVING COUNT(*) > 1
+                    ) x", conn);
+                int count = (int)(await cmd.ExecuteScalarAsync())!;
+                if (count > 0)
+                    issues.Add($"[UWAGA] {count} kierowcow ma wiecej niz 1 aktywne przypisanie");
+                else
+                    issues.Add("[OK] Kazdy kierowca ma max 1 aktywne przypisanie");
+            }
+            catch (Exception ex) { issues.Add($"[BLAD] Sprawdzanie duplikatow przypisan: {ex.Message}"); }
+
+            // 8. Expired documents
+            try
+            {
+                using var cmd = new SqlCommand(@"
+                    SELECT
+                        (SELECT COUNT(*) FROM DriverDetails WHERE DataWaznosciPJ IS NOT NULL AND DataWaznosciPJ < GETDATE()) AS PJ_Expired,
+                        (SELECT COUNT(*) FROM DriverDetails WHERE DataWazBadanLek IS NOT NULL AND DataWazBadanLek < GETDATE()) AS Badania_Expired,
+                        (SELECT COUNT(*) FROM DriverDetails WHERE DataWazBHP IS NOT NULL AND DataWazBHP < GETDATE()) AS BHP_Expired,
+                        (SELECT COUNT(*) FROM VehicleDetails WHERE DataPrzegladu IS NOT NULL AND DataPrzegladu < GETDATE()) AS Przeglad_Expired,
+                        (SELECT COUNT(*) FROM VehicleDetails WHERE DataUbezpieczenia IS NOT NULL AND DataUbezpieczenia < GETDATE()) AS OC_Expired", conn);
+                using var reader = await cmd.ExecuteReaderAsync();
+                if (await reader.ReadAsync())
+                {
+                    int pj = reader.GetInt32(0), bad = reader.GetInt32(1), bhp = reader.GetInt32(2);
+                    int prz = reader.GetInt32(3), oc = reader.GetInt32(4);
+                    int total = pj + bad + bhp + prz + oc;
+                    if (total > 0)
+                        issues.Add($"[UWAGA] Wygasle dokumenty: PrawoJazdy={pj}, Badania={bad}, BHP={bhp}, Przeglady={prz}, OC/AC={oc}");
+                    else
+                        issues.Add("[OK] Brak wygaslych dokumentow");
+                }
+            }
+            catch (Exception ex) { issues.Add($"[BLAD] Sprawdzanie dokumentow: {ex.Message}"); }
+
+            // 9. Halted drivers with active assignments
+            try
+            {
+                using var cmd = new SqlCommand(@"
+                    SELECT COUNT(*) FROM DriverVehicleAssignment dva
+                    JOIN Driver d ON dva.DriverGID = d.GID
+                    WHERE dva.DataDo IS NULL AND d.Halt = 1", conn);
+                int count = (int)(await cmd.ExecuteScalarAsync())!;
+                if (count > 0)
+                    issues.Add($"[UWAGA] {count} wstrzymanych kierowcow ma aktywne przypisanie do pojazdu");
+                else
+                    issues.Add("[OK] Wstrzymani kierowcy nie maja aktywnych przypisan");
+            }
+            catch (Exception ex) { issues.Add($"[BLAD] Sprawdzanie wstrzymanych: {ex.Message}"); }
+
+            return issues;
+        }
     }
 }

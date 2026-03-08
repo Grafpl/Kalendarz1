@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Data.SqlClient;
 using Kalendarz1.Partie.Models;
@@ -1289,6 +1290,247 @@ VALUES (@Partia, @Status, 'IN_PRODUCTION', @OpID, @Komentarz)", conn, tran))
         {
             string dzis = DateTime.Today.ToString("yyyy-MM-dd");
             return await GetPartieAsync(dzis, dzis);
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // AUTO STATUS DETECTION (Feature 10)
+        // ═══════════════════════════════════════════════════════════════
+
+        public async Task RunAutoStatusDetectionAsync(List<PartiaModel> parties)
+        {
+            var updates = new List<(string partia, string newStatus)>();
+
+            foreach (var p in parties)
+            {
+                if (!p.IsActive) continue;
+
+                var detected = DetectAutoStatus(p);
+                if (detected != p.StatusV2 && (int)detected > (int)p.StatusV2
+                    && (int)detected <= (int)PartiaStatusEnum.IN_PRODUCTION)
+                {
+                    updates.Add((p.Partia, detected.ToString()));
+                    p.StatusV2String = detected.ToString();
+                }
+            }
+
+            if (updates.Count == 0) return;
+
+            using (var conn = new SqlConnection(_connectionString))
+            {
+                await conn.OpenAsync();
+                foreach (var (partia, newStatus) in updates)
+                {
+                    using (var cmd = new SqlCommand(
+                        "UPDATE listapartii SET StatusV2 = @Status, ModificationData = @Data, ModificationGodzina = @Godz WHERE Partia = @Partia", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Status", newStatus);
+                        cmd.Parameters.AddWithValue("@Data", DateTime.Now.ToString("yyyy-MM-dd"));
+                        cmd.Parameters.AddWithValue("@Godz", DateTime.Now.ToString("HH:mm:ss"));
+                        cmd.Parameters.AddWithValue("@Partia", partia);
+                        await cmd.ExecuteNonQueryAsync();
+                    }
+                }
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // ALERTS (Feature 7)
+        // ═══════════════════════════════════════════════════════════════
+
+        public List<AlertModel> GetAlerts(List<PartiaModel> parties, List<QCNormaModel> normy)
+        {
+            var alerts = new List<AlertModel>();
+            var now = DateTime.Now;
+
+            foreach (var p in parties.Where(p => p.IsActive))
+            {
+                // Open > 3h without weighings
+                if (p.WydanoKg == 0 && !string.IsNullOrEmpty(p.CreateGodzina))
+                {
+                    if (TimeSpan.TryParse(p.CreateGodzina, out var openTime))
+                    {
+                        var openDate = DateTime.Today.Add(openTime);
+                        if ((now - openDate).TotalHours > 3)
+                        {
+                            alerts.Add(new AlertModel
+                            {
+                                Severity = "WARNING",
+                                Message = $"Partia {p.Partia} otwarta >3h bez wazen",
+                                Partia = p.Partia
+                            });
+                        }
+                    }
+                }
+
+                // Temp > norm
+                var normTemp = normy?.Find(n => n.Nazwa == "TempRampa");
+                if (normTemp != null && p.TempRampa.HasValue && !normTemp.IsInNorm(p.TempRampa))
+                {
+                    alerts.Add(new AlertModel
+                    {
+                        Severity = "ERROR",
+                        Message = $"Partia {p.Partia}: temp rampa {p.TempRampa:N1}C (max {normTemp.MaxWartosc}C)",
+                        Partia = p.Partia
+                    });
+                }
+
+                // No vet certificate
+                if (string.IsNullOrEmpty(p.VetNo) && p.NettoSkup > 0)
+                {
+                    alerts.Add(new AlertModel
+                    {
+                        Severity = "WARNING",
+                        Message = $"Partia {p.Partia}: brak swiadectwa wet.",
+                        Partia = p.Partia
+                    });
+                }
+
+                // Klasa B above norm
+                var normKlB = normy?.Find(n => n.Nazwa == "KlasaB");
+                if (normKlB != null && p.KlasaBProc.HasValue && !normKlB.IsInNorm(p.KlasaBProc))
+                {
+                    alerts.Add(new AlertModel
+                    {
+                        Severity = "WARNING",
+                        Message = $"Partia {p.Partia}: klasa B {p.KlasaBProc:N1}% (max {normKlB.MaxWartosc}%)",
+                        Partia = p.Partia
+                    });
+                }
+            }
+
+            return alerts
+                .OrderByDescending(a => a.Severity == "ERROR" ? 2 : a.Severity == "WARNING" ? 1 : 0)
+                .ToList();
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // DOSTAWCA COMPARISON (Feature 6)
+        // ═══════════════════════════════════════════════════════════════
+
+        public async Task<List<DostawcaComparisonModel>> GetDostawcaComparisonAsync(string dataOd, string dataDo)
+        {
+            var lista = new List<DostawcaComparisonModel>();
+            string query = @"
+SELECT
+    pd.CustomerID, pd.CustomerName,
+    COUNT(*) AS IloscPartii,
+    AVG(CASE WHEN w.WydanoKg > 0 AND fc.NettoWeight > 0
+         THEN w.WydanoKg / fc.NettoWeight * 100 ELSE NULL END) AS SrWydajnosc,
+    AVG(qcp.KlasaB_Proc) AS SrKlasaB,
+    AVG(qct.Srednia) AS SrTempRampa,
+    SUM(ISNULL(w.WydanoKg, 0)) AS SumKg,
+    SUM(ISNULL(fc.DeclI1, 0)) AS SumSzt,
+    AVG(CAST(ISNULL(fc.DeclI2, 0) AS decimal)) AS SrPadle
+FROM listapartii lp
+LEFT JOIN PartiaDostawca pd ON lp.Partia = pd.Partia
+LEFT JOIN (
+    SELECT P1 AS Partia, SUM(ActWeight) AS WydanoKg FROM Out1A WHERE ActWeight IS NOT NULL GROUP BY P1
+) w ON w.Partia = lp.Partia
+LEFT JOIN (
+    SELECT Partia, NettoWeight, DeclI1, DeclI2,
+           ROW_NUMBER() OVER (PARTITION BY Partia ORDER BY ID DESC) AS rn
+    FROM FarmerCalc WHERE Deleted = 0 OR Deleted IS NULL
+) fc ON fc.Partia = lp.Partia AND fc.rn = 1
+LEFT JOIN vw_QC_Podsum qcp ON qcp.PartiaId = lp.Partia
+LEFT JOIN (
+    SELECT PartiaId, Srednia,
+           ROW_NUMBER() OVER (PARTITION BY PartiaId ORDER BY ID DESC) AS rn
+    FROM TemperaturyMiejsca WHERE LOWER(Miejsce) = 'rampa'
+) qct ON qct.PartiaId = lp.Partia AND qct.rn = 1
+WHERE lp.CreateData >= @DataOd AND lp.CreateData <= @DataDo
+    AND pd.CustomerID IS NOT NULL
+GROUP BY pd.CustomerID, pd.CustomerName
+HAVING COUNT(*) >= 1
+ORDER BY AVG(CASE WHEN w.WydanoKg > 0 AND fc.NettoWeight > 0
+    THEN w.WydanoKg / fc.NettoWeight * 100 ELSE NULL END) DESC";
+
+            using (var conn = new SqlConnection(_connectionString))
+            {
+                await conn.OpenAsync();
+                using (var cmd = new SqlCommand(query, conn))
+                {
+                    cmd.CommandTimeout = 60;
+                    cmd.Parameters.AddWithValue("@DataOd", dataOd);
+                    cmd.Parameters.AddWithValue("@DataDo", dataDo);
+                    using (var reader = await cmd.ExecuteReaderAsync())
+                    {
+                        while (await reader.ReadAsync())
+                        {
+                            lista.Add(new DostawcaComparisonModel
+                            {
+                                CustomerID = GetStringSafe(reader, "CustomerID"),
+                                CustomerName = GetStringSafe(reader, "CustomerName"),
+                                IloscPartii = GetIntSafe(reader, "IloscPartii"),
+                                SrWydajnosc = GetDecimalSafe(reader, "SrWydajnosc"),
+                                SrKlasaB = GetDecimalSafe(reader, "SrKlasaB"),
+                                SrTempRampa = GetDecimalSafe(reader, "SrTempRampa"),
+                                SumKg = GetDecimalSafe(reader, "SumKg"),
+                                SumSzt = GetIntSafe(reader, "SumSzt"),
+                                SrPadle = GetDecimalSafe(reader, "SrPadle")
+                            });
+                        }
+                    }
+                }
+            }
+            return lista;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // HOURLY PRODUCTION BULK (Feature 4 - sparkline)
+        // ═══════════════════════════════════════════════════════════════
+
+        public async Task<Dictionary<string, List<HourlyProductionPoint>>> GetHourlyProductionBulkAsync(string dzisData = null)
+        {
+            var result = new Dictionary<string, List<HourlyProductionPoint>>();
+            string dzis = dzisData ?? DateTime.Today.ToString("yyyy-MM-dd");
+
+            string query = @"
+SELECT o.P1 AS Partia,
+       DATEPART(HOUR, CAST(o.Godzina AS time)) AS Godzina,
+       SUM(o.ActWeight) AS KgPerHour
+FROM Out1A o
+INNER JOIN listapartii lp ON o.P1 = lp.Partia
+WHERE lp.CreateData = @Dzis AND o.ActWeight > 0
+GROUP BY o.P1, DATEPART(HOUR, CAST(o.Godzina AS time))
+ORDER BY o.P1, Godzina";
+
+            using (var conn = new SqlConnection(_connectionString))
+            {
+                await conn.OpenAsync();
+                using (var cmd = new SqlCommand(query, conn))
+                {
+                    cmd.CommandTimeout = 30;
+                    cmd.Parameters.AddWithValue("@Dzis", dzis);
+                    using (var reader = await cmd.ExecuteReaderAsync())
+                    {
+                        while (await reader.ReadAsync())
+                        {
+                            string partia = GetStringSafe(reader, "Partia");
+                            int hour = GetIntSafe(reader, "Godzina");
+                            decimal kg = GetDecimalSafe(reader, "KgPerHour");
+
+                            if (!result.ContainsKey(partia))
+                                result[partia] = new List<HourlyProductionPoint>();
+
+                            result[partia].Add(new HourlyProductionPoint { Hour = hour, CumulativeKg = kg });
+                        }
+                    }
+                }
+            }
+
+            // Convert to cumulative
+            foreach (var kvp in result)
+            {
+                var ordered = kvp.Value.OrderBy(p => p.Hour).ToList();
+                decimal cumulative = 0;
+                foreach (var pt in ordered)
+                {
+                    cumulative += pt.CumulativeKg;
+                    pt.CumulativeKg = cumulative;
+                }
+            }
+
+            return result;
         }
 
         // ═══════════════════════════════════════════════════════════════

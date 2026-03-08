@@ -68,11 +68,17 @@ namespace Kalendarz1.DashboardPrzychodu.Models
         private decimal? _odchylenieProc;
         private decimal? _odchylenieWagi;        // Różnica średnich wag
         private int _statusId;
+        private int _sztukiExcel;            // Sztuki z Excel AVILOG (SztukiExcel w FarmerCalc)
+        private decimal? _nowyPlanKg;        // Override planu w trybie "Nowe"
         private int _padle;
         private int _konfiskaty;
         private DateTime? _przyjazd;
         private DateTime? _godzinaWazenia;
         private string _ktoWazyl;
+        private Brush _hodowcaKolor;
+        private Brush _hodowcaKolorTlo;
+        private bool _ostatniWierszHodowcy;
+        private bool _pierwszyWierszGrupy;
 
         #region Properties - Identyfikacja
 
@@ -114,6 +120,42 @@ namespace Kalendarz1.DashboardPrzychodu.Models
         /// Wyswietlana nazwa hodowcy - skrot lub pelna nazwa
         /// </summary>
         public string HodowcaDisplay => !string.IsNullOrWhiteSpace(HodowcaSkrot) ? HodowcaSkrot : Hodowca;
+
+        /// <summary>
+        /// Kolor czcionki hodowcy - unikalny per hodowca
+        /// </summary>
+        public Brush HodowcaKolor
+        {
+            get => _hodowcaKolor;
+            set { _hodowcaKolor = value; OnPropertyChanged(); }
+        }
+
+        /// <summary>
+        /// Czy to ostatni wiersz tego hodowcy (do wyświetlania POZOST. tylko raz)
+        /// </summary>
+        public bool OstatniWierszHodowcy
+        {
+            get => _ostatniWierszHodowcy;
+            set { _ostatniWierszHodowcy = value; OnPropertyChanged(); }
+        }
+
+        /// <summary>
+        /// Czy to pierwszy wiersz nowej grupy hodowcy (do separatora grup)
+        /// </summary>
+        public bool PierwszyWierszGrupy
+        {
+            get => _pierwszyWierszGrupy;
+            set { _pierwszyWierszGrupy = value; OnPropertyChanged(); }
+        }
+
+        /// <summary>
+        /// Tło wiersza - subtelny gradient w kolorze hodowcy (5% opacity)
+        /// </summary>
+        public Brush HodowcaKolorTlo
+        {
+            get => _hodowcaKolorTlo;
+            set { _hodowcaKolorTlo = value; OnPropertyChanged(); }
+        }
 
         /// <summary>
         /// FK do HarmonogramDostaw.Lp
@@ -313,6 +355,10 @@ namespace Kalendarz1.DashboardPrzychodu.Models
         {
             get
             {
+                // Tryb "Nowe" - plan z SztukiExcel * WagaDek
+                if (NowyPlanKg.HasValue)
+                    return NowyPlanKg.Value;
+
                 // Jesli to ostatnie oczekujace auto i jeszcze nie zwazone
                 if (CzyOstatnieAuto)
                 {
@@ -431,6 +477,40 @@ namespace Kalendarz1.DashboardPrzychodu.Models
                 if (absProc <= 5)
                     return new SolidColorBrush(System.Windows.Media.Color.FromRgb(251, 191, 36));  // Zolty
                 return new SolidColorBrush(System.Windows.Media.Color.FromRgb(233, 69, 96));       // Czerwony
+            }
+        }
+
+        #endregion
+
+        #region Properties - SztukiExcel + Nowy Plan
+
+        /// <summary>
+        /// Sztuki z Excel AVILOG (kolumna SztukiExcel w FarmerCalc)
+        /// </summary>
+        public int SztukiExcel
+        {
+            get => _sztukiExcel;
+            set { _sztukiExcel = value; OnPropertyChanged(); }
+        }
+
+        /// <summary>
+        /// Override planu kg w trybie "Nowe" (SztukiExcel * WagaDek, reszta na ostatnim)
+        /// Null = tryb "Stare" (domyślny)
+        /// </summary>
+        public decimal? NowyPlanKg
+        {
+            get => _nowyPlanKg;
+            set
+            {
+                _nowyPlanKg = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(KgPlanNaAuto));
+                OnPropertyChanged(nameof(OdchylenieKgCalc));
+                OnPropertyChanged(nameof(OdchylenieProcCalc));
+                OnPropertyChanged(nameof(OdchylenieDisplay));
+                OnPropertyChanged(nameof(Poziom));
+                OnPropertyChanged(nameof(JestProblem));
+                OnPropertyChanged(nameof(PasekKolor));
             }
         }
 
@@ -607,9 +687,7 @@ namespace Kalendarz1.DashboardPrzychodu.Models
                     ? rozmiarGlowny - 1  // np. 6.7 -> "7/6"
                     : rozmiarGlowny + 1; // np. 6.3 -> "6/7"
 
-                return czescUlamkowa >= 0.5m
-                    ? $"{rozmiarGlowny}/{rozmiarDodatkowy}"
-                    : $"{rozmiarGlowny}/{rozmiarDodatkowy}";
+                return $"{rozmiarGlowny}/{rozmiarDodatkowy}";
             }
         }
 
@@ -717,16 +795,32 @@ namespace Kalendarz1.DashboardPrzychodu.Models
         /// <summary>
         /// Obliczone odchylenie w kg
         /// </summary>
-        public decimal? OdchylenieKgCalc => KgRzeczywiste > 0 && KgPlan > 0
-            ? KgRzeczywiste - KgPlan
-            : OdchylenieKg;
+        public decimal? OdchylenieKgCalc
+        {
+            get
+            {
+                if (NowyPlanKg.HasValue)
+                    return KgRzeczywiste > 0 ? KgRzeczywiste - NowyPlanKg.Value : (decimal?)null;
+                return KgRzeczywiste > 0 && KgPlan > 0
+                    ? KgRzeczywiste - KgPlan
+                    : OdchylenieKg;
+            }
+        }
 
         /// <summary>
         /// Obliczone odchylenie w procentach
         /// </summary>
-        public decimal? OdchylenieProcCalc => KgRzeczywiste > 0 && KgPlan > 0
-            ? Math.Round((KgRzeczywiste - KgPlan) / KgPlan * 100, 2)
-            : OdchylenieProc;
+        public decimal? OdchylenieProcCalc
+        {
+            get
+            {
+                if (NowyPlanKg.HasValue && NowyPlanKg.Value > 0)
+                    return KgRzeczywiste > 0 ? Math.Round((KgRzeczywiste - NowyPlanKg.Value) / NowyPlanKg.Value * 100, 2) : (decimal?)null;
+                return KgRzeczywiste > 0 && KgPlan > 0
+                    ? Math.Round((KgRzeczywiste - KgPlan) / KgPlan * 100, 2)
+                    : OdchylenieProc;
+            }
+        }
 
         /// <summary>
         /// Wyświetlany tekst odchylenia

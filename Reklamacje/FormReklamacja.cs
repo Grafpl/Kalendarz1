@@ -12,10 +12,9 @@ namespace Kalendarz1
 {
     public partial class FormReklamacja : Form
     {
-        // Connection string do Handel (.112) - pobieranie towarów z faktury
         private string connectionStringHandel;
-        // Connection string do LibraNet (.109) - zapis reklamacji
-        private string connectionStringLibraNet = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+        private string connectionStringLibraNet;
+        private const string DefaultLibraNetConnString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
 
         private int idDokumentu;
         private int idKontrahenta;
@@ -43,9 +42,10 @@ namespace Kalendarz1
         private DataTable dtTowary;
         private DataTable dtPartie;
 
-        public FormReklamacja(string connStringHandel, int dokId, int kontrId, string nrDok, string nazwaKontr, string user)
+        public FormReklamacja(string connStringHandel, int dokId, int kontrId, string nrDok, string nazwaKontr, string user, string connStringLibraNet = null)
         {
             connectionStringHandel = connStringHandel;
+            connectionStringLibraNet = connStringLibraNet ?? DefaultLibraNetConnString;
             idDokumentu = dokId;
             idKontrahenta = kontrId;
             numerDokumentu = nrDok;
@@ -551,7 +551,9 @@ namespace Kalendarz1
                             DP.kod AS Symbol,
                             TW.kod AS Nazwa,
                             CAST(DP.ilosc AS DECIMAL(10,2)) AS Ilość,
-                            CAST(DP.ilosc AS DECIMAL(10,2)) AS [Waga (kg)]
+                            CAST(DP.ilosc AS DECIMAL(10,2)) AS [Waga (kg)],
+                            CAST(ISNULL(DP.cena, 0) AS DECIMAL(10,2)) AS Cena,
+                            CAST(ISNULL(DP.ilosc, 0) * ISNULL(DP.cena, 0) AS DECIMAL(10,2)) AS Wartosc
                         FROM [HM].[DP] DP
                         LEFT JOIN [HM].[TW] TW ON DP.idtw = TW.ID
                         WHERE DP.super = @IdDokumentu
@@ -681,6 +683,7 @@ namespace Kalendarz1
         private void AktualizujSumeKg()
         {
             decimal suma = 0;
+            decimal wartosc = 0;
 
             if (dgvTowary != null && dtTowary != null)
             {
@@ -691,12 +694,15 @@ namespace Kalendarz1
                         var waga = dtTowary.Rows[row.Index]["Waga (kg)"];
                         if (waga != DBNull.Value)
                             suma += Convert.ToDecimal(waga);
+                        var w = dtTowary.Rows[row.Index]["Wartosc"];
+                        if (w != DBNull.Value)
+                            wartosc += Convert.ToDecimal(w);
                     }
                 }
             }
 
             if (lblSumaKg != null)
-                lblSumaKg.Text = $"Suma kg: {suma:N2} kg";
+                lblSumaKg.Text = $"Suma kg: {suma:N2} kg | Wartość: {wartosc:N2} zł";
         }
 
         private void ListBoxZdjecia_SelectedIndexChanged(object sender, EventArgs e)
@@ -775,8 +781,9 @@ namespace Kalendarz1
                 return;
             }
 
-            // Oblicz sumę kg
+            // Oblicz sumę kg i wartości
             decimal sumaKg = 0;
+            decimal sumaWartosc = 0;
             foreach (DataGridViewRow row in dgvTowary.SelectedRows)
             {
                 if (row.Index < dtTowary.Rows.Count)
@@ -784,6 +791,9 @@ namespace Kalendarz1
                     var waga = dtTowary.Rows[row.Index]["Waga (kg)"];
                     if (waga != DBNull.Value)
                         sumaKg += Convert.ToDecimal(waga);
+                    var wartosc = dtTowary.Rows[row.Index]["Wartosc"];
+                    if (wartosc != DBNull.Value)
+                        sumaWartosc += Convert.ToDecimal(wartosc);
                 }
             }
 
@@ -801,9 +811,9 @@ namespace Kalendarz1
                             // 1. Zapisz główny rekord reklamacji
                             string queryReklamacja = @"
                                 INSERT INTO [dbo].[Reklamacje]
-                                (DataZgloszenia, UserID, IdDokumentu, NumerDokumentu, IdKontrahenta, NazwaKontrahenta, Opis, SumaKg, Status, TypReklamacji, Priorytet)
+                                (DataZgloszenia, UserID, IdDokumentu, NumerDokumentu, IdKontrahenta, NazwaKontrahenta, Opis, SumaKg, SumaWartosc, Status, TypReklamacji, Priorytet)
                                 VALUES
-                                (GETDATE(), @UserID, @IdDokumentu, @NumerDokumentu, @IdKontrahenta, @NazwaKontrahenta, @Opis, @SumaKg, 'Nowa', @TypReklamacji, @Priorytet);
+                                (GETDATE(), @UserID, @IdDokumentu, @NumerDokumentu, @IdKontrahenta, @NazwaKontrahenta, @Opis, @SumaKg, @SumaWartosc, 'Nowa', @TypReklamacji, @Priorytet);
                                 SELECT SCOPE_IDENTITY();";
 
                             using (SqlCommand cmd = new SqlCommand(queryReklamacja, conn, transaction))
@@ -815,6 +825,7 @@ namespace Kalendarz1
                                 cmd.Parameters.AddWithValue("@NazwaKontrahenta", nazwaKontrahenta);
                                 cmd.Parameters.AddWithValue("@Opis", txtOpis.Text.Trim());
                                 cmd.Parameters.AddWithValue("@SumaKg", sumaKg);
+                                cmd.Parameters.AddWithValue("@SumaWartosc", sumaWartosc);
                                 cmd.Parameters.AddWithValue("@TypReklamacji", cmbTypReklamacji.SelectedItem?.ToString() ?? "Inne");
                                 cmd.Parameters.AddWithValue("@Priorytet", cmbPriorytet.SelectedItem?.ToString() ?? "Normalny");
 
@@ -824,9 +835,9 @@ namespace Kalendarz1
                             // 2. Zapisz towary
                             string queryTowary = @"
                                 INSERT INTO [dbo].[ReklamacjeTowary]
-                                (IdReklamacji, IdTowaru, Symbol, Nazwa, Ilosc, Waga)
+                                (IdReklamacji, IdTowaru, Symbol, Nazwa, Waga, Cena, Wartosc)
                                 VALUES
-                                (@IdReklamacji, @IdTowaru, @Symbol, @Nazwa, @Ilosc, @Waga)";
+                                (@IdReklamacji, @IdTowaru, @Symbol, @Nazwa, @Waga, @Cena, @Wartosc)";
 
                             foreach (DataGridViewRow row in dgvTowary.SelectedRows)
                             {
@@ -839,8 +850,9 @@ namespace Kalendarz1
                                         cmd.Parameters.AddWithValue("@IdTowaru", dataRow["ID"]);
                                         cmd.Parameters.AddWithValue("@Symbol", dataRow["Symbol"] ?? DBNull.Value);
                                         cmd.Parameters.AddWithValue("@Nazwa", dataRow["Nazwa"] ?? DBNull.Value);
-                                        cmd.Parameters.AddWithValue("@Ilosc", dataRow["Ilość"] ?? DBNull.Value);
                                         cmd.Parameters.AddWithValue("@Waga", dataRow["Waga (kg)"] ?? DBNull.Value);
+                                        cmd.Parameters.AddWithValue("@Cena", dataRow["Cena"] ?? DBNull.Value);
+                                        cmd.Parameters.AddWithValue("@Wartosc", dataRow["Wartosc"] ?? DBNull.Value);
                                         cmd.ExecuteNonQuery();
                                     }
                                 }
@@ -851,9 +863,9 @@ namespace Kalendarz1
                             {
                                 string queryPartie = @"
                                     INSERT INTO [dbo].[ReklamacjePartie]
-                                    (IdReklamacji, GuidPartii, Partia, CustomerID, CustomerName)
+                                    (IdReklamacji, GuidPartii, NumerPartii, CustomerID, CustomerName)
                                     VALUES
-                                    (@IdReklamacji, @GuidPartii, @Partia, @CustomerID, @CustomerName)";
+                                    (@IdReklamacji, @GuidPartii, @NumerPartii, @CustomerID, @CustomerName)";
 
                                 foreach (DataGridViewRow row in dgvPartie.SelectedRows)
                                 {
@@ -864,7 +876,7 @@ namespace Kalendarz1
                                         {
                                             cmd.Parameters.AddWithValue("@IdReklamacji", idReklamacji);
                                             cmd.Parameters.AddWithValue("@GuidPartii", dataRow["ID"] ?? DBNull.Value);
-                                            cmd.Parameters.AddWithValue("@Partia", dataRow["Nr partii"]?.ToString() ?? "");
+                                            cmd.Parameters.AddWithValue("@NumerPartii", dataRow["Nr partii"]?.ToString() ?? "");
                                             cmd.Parameters.AddWithValue("@CustomerID", dataRow["ID dostawcy"] ?? DBNull.Value);
                                             cmd.Parameters.AddWithValue("@CustomerName", dataRow["Nazwa dostawcy"] ?? DBNull.Value);
                                             cmd.ExecuteNonQuery();
@@ -927,7 +939,8 @@ namespace Kalendarz1
                                 $"Typ: {cmbTypReklamacji.SelectedItem}\n" +
                                 $"Priorytet: {cmbPriorytet.SelectedItem}\n" +
                                 $"Towarów: {dgvTowary.SelectedRows.Count}\n" +
-                                $"Suma kg: {sumaKg:N2}",
+                                $"Suma kg: {sumaKg:N2}\n" +
+                                $"Wartość: {sumaWartosc:N2} zł",
                                 "Sukces",
                                 MessageBoxButtons.OK,
                                 MessageBoxIcon.Information);

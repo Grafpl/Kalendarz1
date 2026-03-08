@@ -42,6 +42,11 @@ namespace Kalendarz1
         private System.Windows.Forms.Timer _chatBadgeTimer;
         private Label _crBadgeLabel;
         private System.Windows.Forms.Timer _crBadgeTimer;
+        private Label _transportPendingBadge;
+        private Label _transportFreeBadge;
+        private System.Windows.Forms.Timer _transportBadgeTimer;
+        private Label _reklamacjeBadgeLabel;
+        private System.Windows.Forms.Timer _reklamacjeBadgeTimer;
 
         public MENU()
         {
@@ -53,6 +58,8 @@ namespace Kalendarz1
             StartTaskNotifications();
             StartChatBadgeTimer();
             StartCrBadgeTimer();
+            StartTransportBadgeTimer();
+            StartReklamacjeBadgeTimer();
         }
 
         private void StartTaskNotifications()
@@ -229,6 +236,121 @@ namespace Kalendarz1
             {
                 _crBadgeLabel.Visible = false;
             }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // TRANSPORT BADGE - pending changes + free orders
+        // ═══════════════════════════════════════════════════════════════
+
+        private void StartTransportBadgeTimer()
+        {
+            _transportBadgeTimer = new System.Windows.Forms.Timer();
+            _transportBadgeTimer.Interval = 30000; // Co 30 sekund
+            _transportBadgeTimer.Tick += (s, e) => UpdateTransportBadge();
+            _transportBadgeTimer.Start();
+            UpdateTransportBadge();
+        }
+
+        private void UpdateTransportBadge()
+        {
+            if (_transportPendingBadge == null && _transportFreeBadge == null) return;
+            try
+            {
+                var pendingCount = Transport.TransportZmianyService.GetPendingCount();
+                var freeCount = Transport.TransportZmianyService.GetFreeOrdersCount();
+                if (InvokeRequired)
+                    Invoke(new Action(() => UpdateTransportBadgeUI(pendingCount, freeCount)));
+                else
+                    UpdateTransportBadgeUI(pendingCount, freeCount);
+            }
+            catch { }
+        }
+
+        private void UpdateTransportBadgeUI(int pendingCount, int freeCount)
+        {
+            if (_transportPendingBadge != null)
+            {
+                if (pendingCount > 0)
+                {
+                    _transportPendingBadge.Text = pendingCount > 99 ? "99+" : pendingCount.ToString();
+                    _transportPendingBadge.Visible = true;
+                }
+                else
+                {
+                    _transportPendingBadge.Visible = false;
+                }
+            }
+
+            if (_transportFreeBadge != null)
+            {
+                if (freeCount > 0)
+                {
+                    _transportFreeBadge.Text = freeCount > 99 ? "99+" : freeCount.ToString();
+                    _transportFreeBadge.Visible = true;
+                }
+                else
+                {
+                    _transportFreeBadge.Visible = false;
+                }
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // REKLAMACJE BADGE - nowe reklamacje
+        // ═══════════════════════════════════════════════════════════════
+
+        private void StartReklamacjeBadgeTimer()
+        {
+            _reklamacjeBadgeTimer = new System.Windows.Forms.Timer();
+            _reklamacjeBadgeTimer.Interval = 30000;
+            _reklamacjeBadgeTimer.Tick += (s, e) => UpdateReklamacjeBadge();
+            _reklamacjeBadgeTimer.Start();
+            UpdateReklamacjeBadge();
+        }
+
+        private void UpdateReklamacjeBadge()
+        {
+            if (_reklamacjeBadgeLabel == null) return;
+            try
+            {
+                int count = GetNoweReklamacjeCount();
+                if (InvokeRequired)
+                    Invoke(new Action(() => UpdateReklamacjeBadgeUI(count)));
+                else
+                    UpdateReklamacjeBadgeUI(count);
+            }
+            catch { }
+        }
+
+        private void UpdateReklamacjeBadgeUI(int count)
+        {
+            if (_reklamacjeBadgeLabel == null) return;
+            if (count > 0)
+            {
+                _reklamacjeBadgeLabel.Text = count > 99 ? "99+" : count.ToString();
+                _reklamacjeBadgeLabel.Visible = true;
+            }
+            else
+            {
+                _reklamacjeBadgeLabel.Visible = false;
+            }
+        }
+
+        private int GetNoweReklamacjeCount()
+        {
+            try
+            {
+                using (var conn = new Microsoft.Data.SqlClient.SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    using (var cmd = new Microsoft.Data.SqlClient.SqlCommand(
+                        "SELECT COUNT(*) FROM [dbo].[Reklamacje] WHERE Status IN ('Nowa', 'Przyjeta')", conn))
+                    {
+                        return Convert.ToInt32(cmd.ExecuteScalar());
+                    }
+                }
+            }
+            catch { return 0; }
         }
 
         private ChatMainWindow _chatWindow;
@@ -1141,7 +1263,8 @@ namespace Kalendarz1
                 [55] = "PozyskiwanieHodowcow",
                 [56] = "KartotekaTowarow",
                 [57] = "Flota",
-                [58] = "ListaPartii"
+                [58] = "ListaPartii",
+                [59] = "TransportZmiany"
             };
 
             for (int i = 0; i < accessString.Length && i < accessMap.Count; i++)
@@ -1229,7 +1352,7 @@ namespace Kalendarz1
                 "DashboardZamowien", "QuizDrobiarstwo",
 
                 // OPAKOWANIA I TRANSPORT
-                "PodsumowanieSaldOpak", "SaldaOdbiorcowOpak", "UstalanieTranportu", "Flota",
+                "PodsumowanieSaldOpak", "SaldaOdbiorcowOpak", "UstalanieTranportu", "Flota", "TransportZmiany",
 
                 // FINANSE I ZARZĄDZANIE
                 "PulpitZarzadu", "DaneFinansowe", "CentrumSpotkan", "NotatkiZeSpotkan",
@@ -1827,6 +1950,92 @@ namespace Kalendarz1
                 tile.Controls.Add(badgeLabel);
                 badgeLabel.BringToFront();
                 _crBadgeLabel = badgeLabel;
+            }
+
+            // Badge na kafelku Planowanie Transportu - lewa: oczekujace zmiany, prawa: wolne zamowienia
+            if (config.ModuleName == "UstalanieTranportu")
+            {
+                // Lewa - oczekujace zmiany (amber)
+                var pendingBadge = new Label
+                {
+                    Text = "0",
+                    Font = new Font("Segoe UI", 8, FontStyle.Bold),
+                    Size = new Size(26, 26),
+                    Location = new Point(8, 8),
+                    ForeColor = Color.White,
+                    BackColor = Color.FromArgb(245, 158, 11), // Amber #F59E0B
+                    TextAlign = ContentAlignment.MiddleCenter,
+                    Visible = false,
+                    Cursor = Cursors.Hand
+                };
+                pendingBadge.Paint += (s, e) =>
+                {
+                    e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                    using (var path = new System.Drawing.Drawing2D.GraphicsPath())
+                    {
+                        path.AddEllipse(0, 0, pendingBadge.Width - 1, pendingBadge.Height - 1);
+                        pendingBadge.Region = new Region(path);
+                    }
+                };
+                tile.Controls.Add(pendingBadge);
+                pendingBadge.BringToFront();
+                _transportPendingBadge = pendingBadge;
+
+                // Prawa - wolne zamowienia (teal)
+                var freeBadge = new Label
+                {
+                    Text = "0",
+                    Font = new Font("Segoe UI", 8, FontStyle.Bold),
+                    Size = new Size(26, 26),
+                    Location = new Point(tile.Width - 38, 8),
+                    ForeColor = Color.White,
+                    BackColor = Color.FromArgb(0, 131, 143), // Teal #00838F
+                    TextAlign = ContentAlignment.MiddleCenter,
+                    Visible = false,
+                    Cursor = Cursors.Hand
+                };
+                freeBadge.Paint += (s, e) =>
+                {
+                    e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                    using (var path = new System.Drawing.Drawing2D.GraphicsPath())
+                    {
+                        path.AddEllipse(0, 0, freeBadge.Width - 1, freeBadge.Height - 1);
+                        freeBadge.Region = new Region(path);
+                    }
+                };
+                tile.Controls.Add(freeBadge);
+                freeBadge.BringToFront();
+                _transportFreeBadge = freeBadge;
+            }
+
+            // Badge na kafelku Reklamacje - nowe reklamacje
+            if (config.ModuleName == "PanelReklamacji")
+            {
+                var rekBadge = new Label
+                {
+                    Text = "0",
+                    Font = new Font("Segoe UI", 8, FontStyle.Bold),
+                    ForeColor = Color.White,
+                    BackColor = Color.FromArgb(231, 76, 60), // czerwony
+                    Size = new Size(22, 22),
+                    TextAlign = ContentAlignment.MiddleCenter,
+                    Location = new Point(tile.Width - 28, 6),
+                    Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                    Visible = false,
+                    Cursor = Cursors.Hand
+                };
+                rekBadge.Paint += (s, e) =>
+                {
+                    e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                    using (var path = new System.Drawing.Drawing2D.GraphicsPath())
+                    {
+                        path.AddEllipse(0, 0, rekBadge.Width - 1, rekBadge.Height - 1);
+                        rekBadge.Region = new Region(path);
+                    }
+                };
+                tile.Controls.Add(rekBadge);
+                rekBadge.BringToFront();
+                _reklamacjeBadgeLabel = rekBadge;
             }
 
             // Podłącz ikonę do efektu bounce

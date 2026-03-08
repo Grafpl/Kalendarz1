@@ -479,7 +479,9 @@
                 </Border>
 
                 <!-- KARTA: DOKUMENTACJA ZDJECIOWA -->
-                <Border Grid.Row="1" Style="{StaticResource CardPanel}">
+                <Border Grid.Row="1" Style="{StaticResource CardPanel}"
+                        AllowDrop="True" Drop="ZdjeciaPanel_Drop"
+                        DragEnter="ZdjeciaPanel_DragEnter" DragLeave="ZdjeciaPanel_DragLeave" DragOver="ZdjeciaPanel_DragOver">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
@@ -517,6 +519,18 @@
                                                HorizontalAlignment="Center" VerticalAlignment="Center"
                                                FontSize="10" Foreground="#9E9E9E" FontStyle="Italic"/>
                                 </Grid>
+                            </Border>
+
+                            <!-- Drop overlay -->
+                            <Border x:Name="dropOverlay" Grid.ColumnSpan="2" Background="#40C2185B" CornerRadius="6"
+                                    BorderBrush="#C2185B" BorderThickness="2" Visibility="Collapsed"
+                                    IsHitTestVisible="False">
+                                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <TextBlock Text="&#xE896;" FontFamily="Segoe MDL2 Assets" FontSize="28"
+                                               Foreground="White" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Upusc pliki tutaj" FontSize="13" FontWeight="SemiBold"
+                                               Foreground="White" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                                </StackPanel>
                             </Border>
                         </Grid>
 

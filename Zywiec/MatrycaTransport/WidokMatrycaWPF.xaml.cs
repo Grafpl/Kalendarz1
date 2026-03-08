@@ -313,7 +313,7 @@ namespace Kalendarz1
                     connection.Open();
 
                     // Sprawdź czy są dane w FarmerCalc
-                    string checkQuery = @"SELECT COUNT(*) FROM [LibraNet].[dbo].[FarmerCalc] WHERE CalcDate = @SelectedDate";
+                    string checkQuery = @"SELECT COUNT(*) FROM [LibraNet].[dbo].[FarmerCalc] WHERE CalcDate = @SelectedDate AND ISNULL(Deleted, 0) = 0";
                     SqlCommand checkCommand = new SqlCommand(checkQuery, connection);
                     checkCommand.Parameters.AddWithValue("@SelectedDate", selectedDate);
                     int count = (int)checkCommand.ExecuteScalar();
@@ -351,6 +351,7 @@ namespace Kalendarz1
                                 KoniecUslugi
                             FROM [LibraNet].[dbo].[FarmerCalc]
                             WHERE CalcDate = @SelectedDate
+                              AND ISNULL(Deleted, 0) = 0
                             ORDER BY CarLp, LpDostawy";
 
                         SqlCommand command = new SqlCommand(query, connection);
@@ -826,7 +827,8 @@ namespace Kalendarz1
                             CustomerGID = importRow.MappedHodowcaGID ?? "",
                             HodowcaNazwa = hodowcaNazwa,
                             WagaDek = importRow.WagaDek,
-                            SztPoj = importRow.SztukiNaSkrzynke, // Liczba sztuk na skrzynkę (z "16 x 264" -> 16)
+                            SztPoj = importRow.SztukiNaSkrzynke, // Sztuki na skrzynkę (z "16 x 264" -> 16)
+                            DeclI1 = importRow.Sztuki, // Sztuki deklarowane (total z Excel, np. 5280)
                             DriverGID = importRow.MappedKierowcaGID,
                             CarID = !string.IsNullOrEmpty(importRow.MappedCiagnikID) ? importRow.MappedCiagnikID : importRow.Ciagnik,
                             TrailerID = !string.IsNullOrEmpty(importRow.MappedNaczepaID) ? importRow.MappedNaczepaID : importRow.Naczepa,
@@ -1765,15 +1767,170 @@ namespace Kalendarz1
 
         private void BtnSaveToDatabase_Click(object sender, RoutedEventArgs e)
         {
-            var confirmResult = MessageBox.Show(
-                "Czy na pewno chcesz zapisać dane do bazy?\n\nOperacja nadpisze istniejące dane dla tego dnia.",
-                "Potwierdzenie zapisu",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Question);
+            DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
 
-            if (confirmResult != MessageBoxResult.Yes)
-                return;
+            // Sprawdź czy istnieją rekordy w FarmerCalc dla tego dnia
+            try
+            {
+                using (SqlConnection checkConn = new SqlConnection(connectionString))
+                {
+                    checkConn.Open();
 
+                    // Dodaj kolumnę SztukiExcel jeśli nie istnieje
+                    string ensureColumnSql = @"
+                        IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('dbo.FarmerCalc') AND name = 'SztukiExcel')
+                        BEGIN
+                            ALTER TABLE dbo.FarmerCalc ADD SztukiExcel INT NULL;
+                        END";
+                    using (SqlCommand ensureCmd = new SqlCommand(ensureColumnSql, checkConn))
+                    {
+                        ensureCmd.ExecuteNonQuery();
+                    }
+
+                    string checkSql = @"SELECT fc.ID, fc.CarLp, fc.CustomerGID, d.ShortName AS Hodowca,
+                            fc.WagaDek, fc.SztPoj, fc.SztukiExcel,
+                            fc.CarID, fc.TrailerID,
+                            CASE WHEN ISNULL(fc.FullWeight,0) > 0 THEN 'ZWAŻONY' ELSE 'PLAN' END AS Status
+                        FROM dbo.FarmerCalc fc
+                        LEFT JOIN dbo.Dostawcy d ON LTRIM(RTRIM(CAST(d.ID AS NVARCHAR(20)))) = LTRIM(RTRIM(fc.CustomerGID))
+                        WHERE fc.CalcDate = @Data AND ISNULL(fc.Deleted, 0) = 0
+                        ORDER BY fc.CarLp";
+                    DataTable existingData = new DataTable();
+                    using (SqlCommand checkCmd = new SqlCommand(checkSql, checkConn))
+                    {
+                        checkCmd.Parameters.AddWithValue("@Data", selectedDate);
+                        using (SqlDataAdapter adapter = new SqlDataAdapter(checkCmd))
+                        {
+                            adapter.Fill(existingData);
+                        }
+                    }
+
+                    if (existingData.Rows.Count > 0)
+                    {
+                        // Pokaż okno z istniejącymi danymi
+                        int zwazonych = 0;
+                        foreach (DataRow r in existingData.Rows)
+                        {
+                            if (r["Status"]?.ToString() == "ZWAŻONY") zwazonych++;
+                        }
+
+                        var confirmWindow = new Window
+                        {
+                            Title = $"Istniejące specyfikacje na {selectedDate:dd.MM.yyyy}",
+                            Width = 900,
+                            Height = 500,
+                            WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                            Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#ECEFF1"))
+                        };
+                        WindowIconHelper.SetIcon(confirmWindow);
+
+                        var mainGrid = new Grid();
+                        mainGrid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto });
+                        mainGrid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+                        mainGrid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto });
+
+                        // Nagłówek
+                        var header = new TextBlock
+                        {
+                            Text = $"W bazie istnieje już {existingData.Rows.Count} rekordów na dzień {selectedDate:dd.MM.yyyy}" +
+                                   (zwazonych > 0 ? $" (w tym {zwazonych} zważonych)" : ""),
+                            FontSize = 14,
+                            FontWeight = FontWeights.Bold,
+                            Margin = new Thickness(15, 15, 15, 5),
+                            Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#C62828"))
+                        };
+                        Grid.SetRow(header, 0);
+                        mainGrid.Children.Add(header);
+
+                        // DataGrid
+                        var dg = new DataGrid
+                        {
+                            ItemsSource = existingData.DefaultView,
+                            AutoGenerateColumns = false,
+                            IsReadOnly = true,
+                            Margin = new Thickness(15, 5, 15, 10),
+                            CanUserAddRows = false
+                        };
+                        dg.Columns.Add(new DataGridTextColumn { Header = "LP", Binding = new System.Windows.Data.Binding("CarLp"), Width = 40 });
+                        dg.Columns.Add(new DataGridTextColumn { Header = "Hodowca", Binding = new System.Windows.Data.Binding("Hodowca"), Width = 200 });
+                        dg.Columns.Add(new DataGridTextColumn { Header = "Waga/szt", Binding = new System.Windows.Data.Binding("WagaDek"), Width = 70 });
+                        dg.Columns.Add(new DataGridTextColumn { Header = "SztPoj", Binding = new System.Windows.Data.Binding("SztPoj"), Width = 60 });
+                        dg.Columns.Add(new DataGridTextColumn { Header = "SztukiExcel", Binding = new System.Windows.Data.Binding("SztukiExcel"), Width = 80 });
+                        dg.Columns.Add(new DataGridTextColumn { Header = "Ciągnik", Binding = new System.Windows.Data.Binding("CarID"), Width = 100 });
+                        dg.Columns.Add(new DataGridTextColumn { Header = "Naczepa", Binding = new System.Windows.Data.Binding("TrailerID"), Width = 100 });
+                        dg.Columns.Add(new DataGridTextColumn { Header = "Status", Binding = new System.Windows.Data.Binding("Status"), Width = 80 });
+                        Grid.SetRow(dg, 1);
+                        mainGrid.Children.Add(dg);
+
+                        // Przyciski
+                        var btnPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(15, 0, 15, 15) };
+
+                        string confirmAction = null;
+
+                        var btnNadpisz = new Button
+                        {
+                            Content = "🔄 NADPISZ (usuń stare, wstaw nowe)",
+                            Padding = new Thickness(14, 10, 14, 10),
+                            Margin = new Thickness(5),
+                            Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E74C3C")),
+                            Foreground = Brushes.White,
+                            FontWeight = FontWeights.SemiBold,
+                            Cursor = Cursors.Hand
+                        };
+                        btnNadpisz.Click += (s, ev) => { confirmAction = "NADPISZ"; confirmWindow.DialogResult = true; };
+
+                        var btnDodaj = new Button
+                        {
+                            Content = "➕ DODAJ (zachowaj stare, dodaj nowe)",
+                            Padding = new Thickness(14, 10, 14, 10),
+                            Margin = new Thickness(5),
+                            Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#5C8A3A")),
+                            Foreground = Brushes.White,
+                            FontWeight = FontWeights.SemiBold,
+                            Cursor = Cursors.Hand
+                        };
+                        btnDodaj.Click += (s, ev) => { confirmAction = "DODAJ"; confirmWindow.DialogResult = true; };
+
+                        var btnAnuluj = new Button
+                        {
+                            Content = "Anuluj",
+                            Padding = new Thickness(14, 10, 14, 10),
+                            Margin = new Thickness(5),
+                            Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#607D8B")),
+                            Foreground = Brushes.White,
+                            Cursor = Cursors.Hand
+                        };
+                        btnAnuluj.Click += (s, ev) => { confirmWindow.DialogResult = false; };
+
+                        btnPanel.Children.Add(btnNadpisz);
+                        btnPanel.Children.Add(btnDodaj);
+                        btnPanel.Children.Add(btnAnuluj);
+                        Grid.SetRow(btnPanel, 2);
+                        mainGrid.Children.Add(btnPanel);
+
+                        confirmWindow.Content = mainGrid;
+
+                        if (confirmWindow.ShowDialog() != true)
+                            return;
+
+                        // Wykonaj akcję
+                        SaveToDatabase(selectedDate, confirmAction == "NADPISZ");
+                    }
+                    else
+                    {
+                        // Brak danych — zapisuj bez pytania
+                        SaveToDatabase(selectedDate, false);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd sprawdzania danych:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void SaveToDatabase(DateTime selectedDate, bool deleteExisting)
+        {
             try
             {
                 UpdateStatus("Zapisywanie danych...");
@@ -1786,19 +1943,34 @@ namespace Kalendarz1
                         (ID, CalcDate, CustomerGID, CustomerRealGID, DriverGID, LpDostawy, CarLp, SztPoj, WagaDek,
                          CarID, TrailerID, NotkaWozek, Wyjazd, Zaladunek, Przyjazd, Price,
                          Loss, PriceTypeID, YearNumber, Number,
-                         PoczatekUslugi, DojazdHodowca, ZaladunekKoniec, WyjazdHodowca, KoniecUslugi)
+                         PoczatekUslugi, DojazdHodowca, ZaladunekKoniec, WyjazdHodowca, KoniecUslugi,
+                         SztukiExcel)
                         VALUES
                         (@ID, @Date, @Dostawca, @Dostawca, @Kierowca, @LpDostawy, @CarLp, @SztPoj, @WagaDek,
                          @Ciagnik, @Naczepa, @NotkaWozek, @Wyjazd, @Zaladunek,
                          @Przyjazd, @Cena, @Ubytek, @TypCeny, @YearNumber, @Number,
-                         @PoczatekUslugi, @DojazdHodowca, @ZaladunekKoniec, @WyjazdHodowca, @KoniecUslugi)";
+                         @PoczatekUslugi, @DojazdHodowca, @ZaladunekKoniec, @WyjazdHodowca, @KoniecUslugi,
+                         @SztukiExcel)";
 
                     using (SqlTransaction transaction = conn.BeginTransaction())
                     {
                         try
                         {
                             int savedCount = 0;
-                            DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+
+                            if (deleteExisting)
+                            {
+                                string deleteSql = @"DELETE FROM dbo.FarmerCalc
+                                    WHERE CalcDate = @DelDate
+                                      AND ISNULL(Deleted, 0) = 0
+                                      AND ISNULL(FullWeight, 0) = 0
+                                      AND ISNULL(EmptyWeight, 0) = 0";
+                                using (SqlCommand delCmd = new SqlCommand(deleteSql, conn, transaction))
+                                {
+                                    delCmd.Parameters.AddWithValue("@DelDate", selectedDate);
+                                    delCmd.ExecuteNonQuery();
+                                }
+                            }
 
                             foreach (var row in matrycaData)
                             {
@@ -1867,6 +2039,7 @@ namespace Kalendarz1
                                     cmd.Parameters.AddWithValue("@ZaladunekKoniec", row.ZaladunekKoniec ?? (object)DBNull.Value);
                                     cmd.Parameters.AddWithValue("@WyjazdHodowca", row.WyjazdHodowca ?? (object)DBNull.Value);
                                     cmd.Parameters.AddWithValue("@KoniecUslugi", row.KoniecUslugi ?? (object)DBNull.Value);
+                                    cmd.Parameters.AddWithValue("@SztukiExcel", row.DeclI1 > 0 ? row.DeclI1 : (object)DBNull.Value);
 
                                     cmd.ExecuteNonQuery();
                                     savedCount++;
@@ -2569,6 +2742,14 @@ namespace Kalendarz1
         {
             get => _priceTypeName;
             set { _priceTypeName = value; OnPropertyChanged(nameof(PriceTypeName)); }
+        }
+
+        // Sztuki deklarowane (total z Excel, np. 5280) -> FarmerCalc.DeclI1
+        private int _declI1;
+        public int DeclI1
+        {
+            get => _declI1;
+            set { _declI1 = value; OnPropertyChanged(nameof(DeclI1)); }
         }
 
         // LP z harmonogramu dostaw (do zapisu w FarmerCalc.LpDostawy)

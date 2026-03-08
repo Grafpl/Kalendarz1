@@ -334,11 +334,13 @@ namespace Kalendarz1.Reklamacje
             btnZmienStatus.FlatAppearance.MouseOverBackColor = ColorTranslator.FromHtml("#d68910");
             btnZmienStatus.Click += (s, e) =>
             {
-                var formZmiana = new FormZmianaStatusu(connectionString, idReklamacji, "", userId);
-                if (formZmiana.ShowDialog() == DialogResult.OK)
+                using (var formZmiana = new FormZmianaStatusu(connectionString, idReklamacji, "", userId))
                 {
-                    WczytajSzczegoly();
-                    DialogResult = DialogResult.OK;
+                    if (formZmiana.ShowDialog() == DialogResult.OK)
+                    {
+                        WczytajSzczegoly();
+                        DialogResult = DialogResult.OK;
+                    }
                 }
             };
 
@@ -501,6 +503,7 @@ namespace Kalendarz1.Reklamacje
                             rtbInfo.AppendText($"REKLAMACJA\n");
                             rtbInfo.AppendText($"Status: {GetValue(reader, "Status")}\n");
                             rtbInfo.AppendText($"Suma kg: {GetValue(reader, "SumaKg")} kg\n");
+                            rtbInfo.AppendText($"Wartość: {GetValue(reader, "SumaWartosc")} zł\n");
                             rtbInfo.AppendText($"Osoba rozpatrująca: {GetValue(reader, "OsobaRozpatrujaca")}\n");
 
                             var dataZamkniecia = GetValue(reader, "DataZamkniecia");
@@ -560,23 +563,11 @@ namespace Kalendarz1.Reklamacje
                     {
                         while (reader.Read())
                         {
-                            // Szukaj kolumny z numerem partii (może być Partia lub NumerPartii)
-                            string partia = "";
-                            string dataDodania = "";
+                            string partia = reader["NumerPartii"] != DBNull.Value ? reader["NumerPartii"].ToString() : "";
+                            string dataDodania = reader["DataDodania"] != DBNull.Value ? reader["DataDodania"].ToString() : "";
 
-                            for (int i = 0; i < reader.FieldCount; i++)
-                            {
-                                string colName = reader.GetName(i);
-                                if (!reader.IsDBNull(i))
-                                {
-                                    if (colName == "Partia" || colName == "NumerPartii")
-                                        partia = reader[i].ToString();
-                                    else if (colName == "DataDodania")
-                                        dataDodania = reader[i].ToString();
-                                    else if (colName == "CustomerName" && string.IsNullOrEmpty(partia))
-                                        partia = reader[i].ToString(); // Użyj nazwy dostawcy jako fallback
-                                }
-                            }
+                            if (string.IsNullOrEmpty(partia) && reader["CustomerName"] != DBNull.Value)
+                                partia = reader["CustomerName"].ToString();
 
                             if (!string.IsNullOrEmpty(partia))
                                 lbPartie.Items.Add($"{partia} (dodano: {dataDodania})");
@@ -966,15 +957,8 @@ namespace Kalendarz1.Reklamacje
         private Label lblWorkflow;
         private Label lblRozwiazanie;
 
-        // Definicja dozwolonych przejść między statusami
-        private static readonly Dictionary<string, List<string>> dozwolonePrzejscia = new Dictionary<string, List<string>>
-        {
-            { "Nowa", new List<string> { "W trakcie", "Odrzucona" } },
-            { "W trakcie", new List<string> { "Zaakceptowana", "Odrzucona", "Nowa" } },
-            { "Zaakceptowana", new List<string> { "Zamknieta", "W trakcie" } },
-            { "Odrzucona", new List<string> { "Zamknieta", "Nowa", "W trakcie" } },
-            { "Zamknieta", new List<string>() } // Zamknięta reklamacja - brak przejść (tylko admin może)
-        };
+        // Dozwolone przejscia - delegacja do centralnej definicji
+        private static Dictionary<string, List<string>> dozwolonePrzejscia => FormRozpatrzenieWindow.dozwolonePrzejscia;
 
         public FormZmianaStatusu(string connString, int reklamacjaId, string currentStatus, string user)
         {
@@ -1147,13 +1131,14 @@ namespace Kalendarz1.Reklamacje
             {
                 using (var conn = new SqlConnection(connectionString))
                 {
-                    var cmd = new SqlCommand("SELECT Status FROM [dbo].[Reklamacje] WHERE Id = @Id", conn);
-                    cmd.Parameters.AddWithValue("@Id", idReklamacji);
                     conn.Open();
-
-                    aktualnyStatus = cmd.ExecuteScalar()?.ToString() ?? "Nieznany";
-                    lblAktualnyStatus.Text = $"Aktualny status: {aktualnyStatus}";
-                    lblAktualnyStatus.ForeColor = GetStatusColor(aktualnyStatus);
+                    using (var cmd = new SqlCommand("SELECT Status FROM [dbo].[Reklamacje] WHERE Id = @Id", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Id", idReklamacji);
+                        aktualnyStatus = cmd.ExecuteScalar()?.ToString() ?? "Nieznany";
+                        lblAktualnyStatus.Text = $"Aktualny status: {aktualnyStatus}";
+                        lblAktualnyStatus.ForeColor = GetStatusColor(aktualnyStatus);
+                    }
                 }
             }
             catch { }
@@ -1167,8 +1152,8 @@ namespace Kalendarz1.Reklamacje
 
             if (isAdmin)
             {
-                // Admin może zmienić na dowolny status
-                cmbStatus.Items.AddRange(new object[] { "Nowa", "W trakcie", "Zaakceptowana", "Odrzucona", "Zamknieta" });
+                // Admin moze zmienic na dowolny status
+                cmbStatus.Items.AddRange(FormRozpatrzenieWindow.statusPipeline);
                 lblWorkflow.Text = "Administrator - wszystkie przejścia dozwolone";
                 lblWorkflow.ForeColor = ColorTranslator.FromHtml("#27ae60");
             }
@@ -1205,15 +1190,8 @@ namespace Kalendarz1.Reklamacje
 
         private Color GetStatusColor(string status)
         {
-            switch (status)
-            {
-                case "Nowa": return ColorTranslator.FromHtml("#3498db");
-                case "W trakcie": return ColorTranslator.FromHtml("#f39c12");
-                case "Zaakceptowana": return ColorTranslator.FromHtml("#27ae60");
-                case "Odrzucona": return ColorTranslator.FromHtml("#e74c3c");
-                case "Zamknieta": return ColorTranslator.FromHtml("#7f8c8d");
-                default: return Color.Black;
-            }
+            string hex = FormRozpatrzenieWindow.GetStatusColor(status ?? "");
+            return ColorTranslator.FromHtml(hex);
         }
 
         private void CmbStatus_SelectedIndexChanged(object sender, EventArgs e)
@@ -1313,30 +1291,16 @@ namespace Kalendarz1.Reklamacje
                             }
 
                             // 2. Dodaj wpis do historii
-                            // Najpierw sprawdź czy kolumna ReklamacjaId czy IdReklamacji
-                            string kolumnaId = "ReklamacjaId";
-                            try
-                            {
-                                using (var cmdCheck = new SqlCommand(
-                                    "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'ReklamacjeHistoria' AND COLUMN_NAME IN ('ReklamacjaId', 'IdReklamacji')", conn, transaction))
-                                {
-                                    var result = cmdCheck.ExecuteScalar();
-                                    if (result != null)
-                                        kolumnaId = result.ToString();
-                                }
-                            }
-                            catch { }
-
-                            string historiaQuery = $@"
-                                INSERT INTO [dbo].[ReklamacjeHistoria] ({kolumnaId}, StatusPoprzedni, StatusNowy, DataZmiany, ZmienionePrzez, Komentarz)
-                                VALUES (@ReklamacjaId, @StatusPoprzedni, @StatusNowy, GETDATE(), @ZmienionePrzez, @Komentarz)";
+                            string historiaQuery = @"
+                                INSERT INTO [dbo].[ReklamacjeHistoria] (IdReklamacji, PoprzedniStatus, StatusNowy, DataZmiany, UserID, Komentarz, TypAkcji)
+                                VALUES (@IdReklamacji, @PoprzedniStatus, @StatusNowy, GETDATE(), @UserID, @Komentarz, 'ZmianaStatusu')";
 
                             using (var cmd = new SqlCommand(historiaQuery, conn, transaction))
                             {
-                                cmd.Parameters.AddWithValue("@ReklamacjaId", idReklamacji);
-                                cmd.Parameters.AddWithValue("@StatusPoprzedni", aktualnyStatus);
+                                cmd.Parameters.AddWithValue("@IdReklamacji", idReklamacji);
+                                cmd.Parameters.AddWithValue("@PoprzedniStatus", aktualnyStatus);
                                 cmd.Parameters.AddWithValue("@StatusNowy", nowyStatus);
-                                cmd.Parameters.AddWithValue("@ZmienionePrzez", userId);
+                                cmd.Parameters.AddWithValue("@UserID", userId);
                                 cmd.Parameters.AddWithValue("@Komentarz", txtKomentarz.Text + (string.IsNullOrWhiteSpace(txtRozwiazanie.Text) ? "" : $"\nRozwiązanie: {txtRozwiazanie.Text}"));
                                 cmd.ExecuteNonQuery();
                             }
@@ -1412,42 +1376,44 @@ namespace Kalendarz1.Reklamacje
                     conn.Open();
 
                     // Statystyki według statusu
-                    var cmd = new SqlCommand(@"
-                        SELECT 
+                    using (var cmd = new SqlCommand(@"
+                        SELECT
                             Status,
                             COUNT(*) AS Liczba,
                             SUM(SumaKg) AS SumaKg,
                             AVG(DniRozpatrywania) AS SredniCzas
                         FROM vw_ReklamacjePelneInfo
-                        GROUP BY Status", conn);
-
-                    using (var reader = cmd.ExecuteReader())
+                        GROUP BY Status", conn))
                     {
-                        rtb.AppendText("WEDŁUG STATUSU:\n");
-                        while (reader.Read())
+                        using (var reader = cmd.ExecuteReader())
                         {
-                            rtb.AppendText($"  {reader["Status"],-20} Liczba: {reader["Liczba"],5}   Kg: {reader["SumaKg"],10:N2}   Średni czas: {reader["SredniCzas"],5:N1} dni\n");
+                            rtb.AppendText("WEDŁUG STATUSU:\n");
+                            while (reader.Read())
+                            {
+                                rtb.AppendText($"  {reader["Status"],-20} Liczba: {reader["Liczba"],5}   Kg: {reader["SumaKg"],10:N2}   Średni czas: {reader["SredniCzas"],5:N1} dni\n");
+                            }
                         }
                     }
 
                     rtb.AppendText("\n" + new string('-', 80) + "\n\n");
 
                     // Top kontrahenci
-                    cmd = new SqlCommand(@"
+                    using (var cmd2 = new SqlCommand(@"
                         SELECT TOP 10
                             NazwaKontrahenta,
                             COUNT(*) AS Liczba
                         FROM vw_ReklamacjePelneInfo
                         GROUP BY NazwaKontrahenta, IdKontrahenta
-                        ORDER BY COUNT(*) DESC", conn);
-
-                    using (var reader = cmd.ExecuteReader())
+                        ORDER BY COUNT(*) DESC", conn))
                     {
-                        rtb.AppendText("TOP 10 KONTRAHENTÓW Z REKLAMACJAMI:\n");
-                        int i = 1;
-                        while (reader.Read())
+                        using (var reader = cmd2.ExecuteReader())
                         {
-                            rtb.AppendText($"  {i++}. {reader["NazwaKontrahenta"],-50} Reklamacji: {reader["Liczba"]}\n");
+                            rtb.AppendText("TOP 10 KONTRAHENTÓW Z REKLAMACJAMI:\n");
+                            int i = 1;
+                            while (reader.Read())
+                            {
+                                rtb.AppendText($"  {i++}. {reader["NazwaKontrahenta"],-50} Reklamacji: {reader["Liczba"]}\n");
+                            }
                         }
                     }
                 }

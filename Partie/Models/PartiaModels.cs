@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Windows;
+using System.Windows.Media;
 
 namespace Kalendarz1.Partie.Models
 {
@@ -52,6 +54,29 @@ namespace Kalendarz1.Partie.Models
             PartiaStatusEnum.CLOSED_INCOMPLETE => "#D4AF37",
             PartiaStatusEnum.REJECTED => "#E74C3C",
             _ => "#7F8C8D"
+        };
+
+        public static string ToRowBackgroundHex(this PartiaStatusEnum status) => status switch
+        {
+            PartiaStatusEnum.IN_PRODUCTION => "#E8F4FD",
+            PartiaStatusEnum.CLOSED => "#F0F0F0",
+            PartiaStatusEnum.CLOSED_INCOMPLETE => "#FFF8E1",
+            PartiaStatusEnum.REJECTED => "#FFEBEE",
+            PartiaStatusEnum.PLANNED => "#F5F5F5",
+            PartiaStatusEnum.AT_RAMP => "#FFF3E0",
+            PartiaStatusEnum.APPROVED => "#E8F5E9",
+            _ => "#FFFFFF"
+        };
+
+        public static PartiaStatusEnum? GetNextStatus(PartiaStatusEnum current) => current switch
+        {
+            PartiaStatusEnum.PLANNED => PartiaStatusEnum.IN_TRANSIT,
+            PartiaStatusEnum.IN_TRANSIT => PartiaStatusEnum.AT_RAMP,
+            PartiaStatusEnum.AT_RAMP => PartiaStatusEnum.VET_CHECK,
+            PartiaStatusEnum.VET_CHECK => PartiaStatusEnum.APPROVED,
+            PartiaStatusEnum.APPROVED => PartiaStatusEnum.IN_PRODUCTION,
+            PartiaStatusEnum.IN_PRODUCTION => PartiaStatusEnum.PROD_DONE,
+            _ => null
         };
 
         public static PartiaStatusEnum Parse(string s)
@@ -154,6 +179,17 @@ namespace Kalendarz1.Partie.Models
         public bool IsActive => StatusV2 != PartiaStatusEnum.CLOSED
                              && StatusV2 != PartiaStatusEnum.CLOSED_INCOMPLETE
                              && StatusV2 != PartiaStatusEnum.REJECTED;
+
+        // Row coloring (Feature 1)
+        public string RowBackgroundColor => StatusV2.ToRowBackgroundHex();
+
+        // Sparkline (Feature 4)
+        public PointCollection SparklinePoints { get; set; }
+        public bool HasSparkline => SparklinePoints != null && SparklinePoints.Count >= 2;
+
+        // Quick status (Feature 5)
+        public string NextStatusText => PartiaStatusHelper.GetNextStatus(StatusV2)?.ToDisplayText();
+        public bool CanAdvanceStatus => PartiaStatusHelper.GetNextStatus(StatusV2) != null;
     }
 
     public class WazenieModel
@@ -393,5 +429,67 @@ namespace Kalendarz1.Partie.Models
 
         public string StatusDisplay => PartiaStatusHelper.Parse(Status).ToDisplayText();
         public string TimeDisplay => CreatedAtUTC.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // ALERT MODEL (Feature 7)
+    // ═══════════════════════════════════════════════════════════════
+
+    public class AlertModel
+    {
+        public string Severity { get; set; } // "ERROR", "WARNING", "INFO"
+        public string Message { get; set; }
+        public string Partia { get; set; }
+
+        public string SeverityColor => Severity switch
+        {
+            "ERROR" => "#E74C3C",
+            "WARNING" => "#F39C12",
+            "INFO" => "#3498DB",
+            _ => "#7F8C8D"
+        };
+
+        public string SeverityIcon => Severity switch
+        {
+            "ERROR" => "\u26A0",
+            "WARNING" => "\u26A0",
+            "INFO" => "\u2139",
+            _ => "\u2022"
+        };
+
+        public string SeverityBg => Severity switch
+        {
+            "ERROR" => "#FFEBEE",
+            "WARNING" => "#FFF8E1",
+            "INFO" => "#E3F2FD",
+            _ => "#F5F5F5"
+        };
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // DOSTAWCA COMPARISON MODEL (Feature 6)
+    // ═══════════════════════════════════════════════════════════════
+
+    public class DostawcaComparisonModel
+    {
+        public string CustomerID { get; set; }
+        public string CustomerName { get; set; }
+        public int IloscPartii { get; set; }
+        public decimal SrWydajnosc { get; set; }
+        public decimal SrKlasaB { get; set; }
+        public decimal SrTempRampa { get; set; }
+        public decimal SumKg { get; set; }
+        public int SumSzt { get; set; }
+        public decimal SrPadle { get; set; }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // HOURLY PRODUCTION (for sparkline, Feature 4)
+    // ═══════════════════════════════════════════════════════════════
+
+    public class HourlyProductionPoint
+    {
+        public int Hour { get; set; }
+        public decimal CumulativeKg { get; set; }
     }
 }

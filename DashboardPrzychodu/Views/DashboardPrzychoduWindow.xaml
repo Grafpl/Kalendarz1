@@ -177,15 +177,12 @@
         </Style>
 
         <Style x:Key="DgRow" TargetType="DataGridRow">
-            <Setter Property="Background" Value="#1c1917"/>
+            <Setter Property="Background" Value="{Binding HodowcaKolorTlo}"/>
             <Setter Property="Foreground" Value="#e7e5e4"/>
             <Setter Property="BorderThickness" Value="3,0,0,0"/>
-            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="{Binding HodowcaKolor}"/>
             <Setter Property="FontSize" Value="12"/>
             <Style.Triggers>
-                <Trigger Property="AlternationIndex" Value="1">
-                    <Setter Property="Background" Value="#292524"/>
-                </Trigger>
                 <Trigger Property="IsSelected" Value="True">
                     <Setter Property="Background" Value="#44403c"/>
                 </Trigger>
@@ -194,6 +191,11 @@
                 </Trigger>
                 <DataTrigger Binding="{Binding JestProblem}" Value="True">
                     <Setter Property="Background" Value="#2D1F1F"/>
+                </DataTrigger>
+                <!-- Separator grup hodowców: grubsza linia na górze pierwszego wiersza nowej grupy -->
+                <DataTrigger Binding="{Binding PierwszyWierszGrupy}" Value="True">
+                    <Setter Property="BorderThickness" Value="3,2,0,0"/>
+                    <Setter Property="BorderBrush" Value="{Binding HodowcaKolor}"/>
                 </DataTrigger>
             </Style.Triggers>
         </Style>
@@ -221,9 +223,8 @@
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="#e7e5e4"/>
             <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="RowBackground" Value="#1c1917"/>
-            <Setter Property="AlternatingRowBackground" Value="#292524"/>
-            <Setter Property="AlternationCount" Value="2"/>
+            <Setter Property="RowBackground" Value="Transparent"/>
+            <Setter Property="AlternationCount" Value="0"/>
             <Setter Property="GridLinesVisibility" Value="None"/>
             <Setter Property="RowHeight" Value="34"/>
             <Setter Property="FontSize" Value="12"/>
@@ -337,6 +338,16 @@
                                 Width="100" Style="{StaticResource DarkDatePicker}" Margin="4,0,0,0"/>
                     <TextBlock x:Name="txtDataDisplay" Text="" FontSize="9"
                                Foreground="#78716c" Margin="6,0,0,0" VerticalAlignment="Center"/>
+
+                    <Rectangle Width="1" Height="16" Fill="#44403c" Margin="12,0"/>
+
+                    <TextBlock Text="Plan:" FontSize="9" Foreground="#78716c" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                    <RadioButton x:Name="rbPlanStare" Content="Stare" GroupName="PlanMode"
+                                 IsChecked="True" Checked="RbPlanMode_Checked"
+                                 Foreground="#a8a29e" FontSize="9" VerticalAlignment="Center" Margin="0,0,8,0" Cursor="Hand"/>
+                    <RadioButton x:Name="rbPlanNowe" Content="Nowe" GroupName="PlanMode"
+                                 Checked="RbPlanMode_Checked"
+                                 Foreground="#a8a29e" FontSize="9" VerticalAlignment="Center" Cursor="Hand"/>
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
@@ -382,7 +393,11 @@
                     <TextBlock x:Name="IcoZwazone" Text="✓" FontSize="14" Foreground="#22c55e"
                                VerticalAlignment="Center" Margin="0,0,6,0"/>
                     <StackPanel>
-                        <TextBlock Text="ZWAŻONE" FontSize="7" Foreground="#78716c" FontWeight="SemiBold"/>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="ZWAŻONE" FontSize="7" Foreground="#78716c" FontWeight="SemiBold"/>
+                            <TextBlock x:Name="txtTempoZwazone" Text="" FontSize="7" Foreground="#22c55e"
+                                       Margin="6,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
                         <StackPanel Orientation="Horizontal">
                             <TextBlock x:Name="txtKgZwazone" Text="0" FontSize="13" FontWeight="Bold" Foreground="#22c55e"/>
                             <TextBlock Text=" kg" FontSize="8" Foreground="#78716c" VerticalAlignment="Bottom" Margin="0,0,0,1"/>
@@ -469,7 +484,7 @@
         <!-- ============================================ -->
         <Grid Grid.Row="2" Margin="0,4,0,0">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="380"/>  <!-- Sidebar - szerszy -->
+                <ColumnDefinition Width="460"/>  <!-- Sidebar - szerszy -->
                 <ColumnDefinition Width="*"/>    <!-- Table -->
             </Grid.ColumnDefinitions>
 
@@ -490,6 +505,30 @@
                                     <TextBlock Text=" kg" FontSize="8" Foreground="#57534e"/>
                                 </StackPanel>
                             </Grid>
+
+                            <!-- Pasek realizacji łączonej dnia - kolorowy stacked bar -->
+                            <Grid Margin="0,0,0,6">
+                                <Border Background="#1c1917" CornerRadius="4" Height="14">
+                                    <ItemsControl x:Name="icStackedBar">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <StackPanel Orientation="Horizontal"/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Height="14" Width="{Binding BarWidth, Mode=OneWay}"
+                                                        Background="{Binding HodowcaKolor, Mode=OneWay}"
+                                                        ToolTip="{Binding BarTooltip, Mode=OneWay}"
+                                                        Opacity="0.85" CornerRadius="2"/>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </Border>
+                                <TextBlock x:Name="txtStackedBarLabel" Text="" FontSize="8" FontWeight="Bold"
+                                           Foreground="#1c1917" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Grid>
+
                             <ItemsControl x:Name="icHarmonogramy">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
@@ -498,59 +537,97 @@
                                 </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Border CornerRadius="5" Padding="8,6" Margin="0,0,6,6" MinWidth="170"
-                                                Background="{Binding TileBackground, Mode=OneWay}"
+                                        <Border CornerRadius="6" Margin="0,0,6,6" MinWidth="200"
+                                                Background="#1c1917"
                                                 ToolTip="{Binding Hodowca, Mode=OneWay}">
-                                            <StackPanel>
-                                                <!-- Nagłówek: Hodowca + Procent -->
-                                                <Grid Margin="0,0,0,4">
-                                                    <TextBlock Text="{Binding Hodowca, Mode=OneWay}" FontSize="10" FontWeight="Bold"
-                                                               Foreground="#fef3c7" TextTrimming="CharacterEllipsis" MaxWidth="120"/>
-                                                    <TextBlock Text="{Binding TrendDisplay, Mode=OneWay}" FontSize="11" FontWeight="Bold"
-                                                               Foreground="#fef3c7" HorizontalAlignment="Right"/>
-                                                </Grid>
-                                                <!-- Wiersz 1: kg Plan vs Rzecz -->
-                                                <Grid Margin="0,0,0,2">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <StackPanel Grid.Column="0">
-                                                        <TextBlock Text="Plan kg" FontSize="7" Foreground="#fef3c7" Opacity="0.7"/>
-                                                        <TextBlock Text="{Binding KgPlanDisplay, Mode=OneWay}" FontSize="11" FontWeight="SemiBold"
-                                                                   Foreground="#fef3c7" Opacity="0.9"/>
-                                                    </StackPanel>
-                                                    <StackPanel Grid.Column="1" HorizontalAlignment="Right">
-                                                        <TextBlock Text="Rzecz kg" FontSize="7" Foreground="#fef3c7" Opacity="0.7" HorizontalAlignment="Right"/>
-                                                        <TextBlock Text="{Binding KgRzeczDisplay, Mode=OneWay}" FontSize="11" FontWeight="Bold"
-                                                                   Foreground="#fef3c7" HorizontalAlignment="Right"/>
-                                                    </StackPanel>
-                                                </Grid>
-                                                <!-- Wiersz 2: Waga Plan vs Rzecz -->
-                                                <Grid Margin="0,2,0,0">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <StackPanel Grid.Column="0" Orientation="Horizontal">
-                                                        <TextBlock Text="⚖ " FontSize="8" Foreground="#fef3c7" Opacity="0.6"/>
-                                                        <TextBlock Text="{Binding SredniaWagaPlanDisplay, Mode=OneWay}" FontSize="9"
-                                                                   Foreground="#fef3c7" Opacity="0.8"/>
-                                                    </StackPanel>
-                                                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
-                                                        <TextBlock Text="→ " FontSize="8" Foreground="#fef3c7" Opacity="0.6"/>
-                                                        <TextBlock Text="{Binding SredniaWagaRzeczDisplay, Mode=OneWay}" FontSize="9" FontWeight="SemiBold"
-                                                                   Foreground="#fef3c7"/>
-                                                    </StackPanel>
-                                                </Grid>
-                                                <!-- Pasek postępu -->
-                                                <Grid Margin="0,4,0,0">
-                                                    <ProgressBar Value="{Binding RealizacjaProc, Mode=OneWay}" Maximum="100"
-                                                                 Height="4" Background="#00000030" Foreground="#fef3c7"/>
-                                                    <TextBlock Text="{Binding PostepDisplay, Mode=OneWay}" FontSize="7"
-                                                               Foreground="#fef3c7" Opacity="0.7" HorizontalAlignment="Right" Margin="0,-1,0,0"/>
-                                                </Grid>
-                                            </StackPanel>
+                                            <!-- Pulsowanie aktywnej karty - kolorowe obramowanie -->
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="BorderBrush" Value="#44403c"/>
+                                                    <Setter Property="BorderThickness" Value="1"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding JestAktywna}" Value="True">
+                                                            <Setter Property="BorderBrush" Value="{Binding HodowcaKolor}"/>
+                                                            <Setter Property="BorderThickness" Value="2"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <Grid>
+                                                <!-- Kolorowy pasek akcentu po lewej -->
+                                                <Border Width="4" HorizontalAlignment="Left"
+                                                        CornerRadius="6,0,0,6"
+                                                        Background="{Binding HodowcaKolor, Mode=OneWay}"/>
+
+                                                <StackPanel Margin="12,7,8,7">
+                                                    <!-- Nagłówek: Hodowca + kropka statusu + % realizacji -->
+                                                    <Grid Margin="0,0,0,5">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <!-- Kropka statusu -->
+                                                            <Ellipse Width="8" Height="8" Margin="0,0,5,0"
+                                                                     Fill="{Binding StatusDotColor, Mode=OneWay}"
+                                                                     Opacity="{Binding StatusDotOpacity, Mode=OneWay}"
+                                                                     VerticalAlignment="Center"/>
+                                                            <TextBlock Text="{Binding Hodowca, Mode=OneWay}" FontSize="11" FontWeight="Bold"
+                                                                       Foreground="{Binding HodowcaKolor, Mode=OneWay}"
+                                                                       TextTrimming="CharacterEllipsis" MaxWidth="120"/>
+                                                        </StackPanel>
+                                                        <Border Background="{Binding HodowcaKolor, Mode=OneWay}" CornerRadius="3"
+                                                                Padding="5,1,5,1" HorizontalAlignment="Right">
+                                                            <TextBlock Text="{Binding TrendDisplay, Mode=OneWay}" FontSize="10" FontWeight="Bold"
+                                                                       Foreground="#1c1917"/>
+                                                        </Border>
+                                                    </Grid>
+
+                                                    <!-- Plan vs Rzecz - 2 kolumny -->
+                                                    <Grid Margin="0,0,0,3">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <StackPanel Grid.Column="0">
+                                                            <TextBlock Text="PLAN" FontSize="7" Foreground="#78716c" FontWeight="SemiBold"/>
+                                                            <TextBlock Text="{Binding KgPlanDisplay, Mode=OneWay}" FontSize="13" FontWeight="SemiBold"
+                                                                       Foreground="#a8a29e"/>
+                                                        </StackPanel>
+                                                        <TextBlock Grid.Column="1" Text="→" Foreground="#57534e" FontSize="12"
+                                                                   VerticalAlignment="Bottom" Margin="6,0,6,1"/>
+                                                        <StackPanel Grid.Column="2" HorizontalAlignment="Right">
+                                                            <TextBlock Text="RZECZ" FontSize="7" Foreground="#78716c" FontWeight="SemiBold"
+                                                                       HorizontalAlignment="Right"/>
+                                                            <TextBlock Text="{Binding KgRzeczDisplay, Mode=OneWay}" FontSize="13" FontWeight="Bold"
+                                                                       Foreground="#e7e5e4" HorizontalAlignment="Right"/>
+                                                        </StackPanel>
+                                                    </Grid>
+
+                                                    <!-- Waga: dek → rzecz -->
+                                                    <Grid Margin="0,0,0,4">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <TextBlock Text="⚖ " FontSize="8" Foreground="#57534e"/>
+                                                            <TextBlock Text="{Binding SredniaWagaPlanDisplay, Mode=OneWay}" FontSize="9"
+                                                                       Foreground="#78716c"/>
+                                                            <TextBlock Text="  →  " FontSize="8" Foreground="#57534e"/>
+                                                            <TextBlock Text="{Binding SredniaWagaRzeczDisplay, Mode=OneWay}" FontSize="9" FontWeight="Bold"
+                                                                       Foreground="#e7e5e4"/>
+                                                            <TextBlock Text=" kg" FontSize="8" Foreground="#57534e"/>
+                                                        </StackPanel>
+                                                    </Grid>
+
+                                                    <!-- Pasek postępu + auta -->
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <ProgressBar Grid.Column="0" Value="{Binding RealizacjaProc, Mode=OneWay}" Maximum="100"
+                                                                     Height="5" Background="#292524" Foreground="{Binding HodowcaKolor, Mode=OneWay}"
+                                                                     VerticalAlignment="Center"/>
+                                                        <TextBlock Grid.Column="1" Text="{Binding PostepDisplay, Mode=OneWay}" FontSize="8" FontWeight="SemiBold"
+                                                                   Foreground="#78716c" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                                    </Grid>
+                                                </StackPanel>
+                                            </Grid>
                                         </Border>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
@@ -774,15 +851,17 @@
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
 
-                            <DataGridTextColumn Header="HODOWCA" Binding="{Binding Hodowca}" Width="*" MinWidth="180">
-                                <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
-                                        <Setter Property="FontSize" Value="12"/>
-                                        <Setter Property="VerticalAlignment" Value="Center"/>
-                                    </Style>
-                                </DataGridTextColumn.ElementStyle>
-                            </DataGridTextColumn>
+                            <DataGridTemplateColumn Header="HODOWCA" Width="*" MinWidth="180">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Hodowca}"
+                                                   Foreground="{Binding HodowcaKolor}"
+                                                   FontWeight="SemiBold"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   FontSize="12" VerticalAlignment="Center"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
 
                             <!-- PLAN NA AUTO -->
                             <DataGridTemplateColumn Header="PLAN" Width="100">
@@ -818,11 +897,12 @@
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
-                            <!-- POZOSTALO Z HARMONOGRAMU -->
+                            <!-- POZOSTALO Z HARMONOGRAMU - tylko na ostatnim wierszu hodowcy -->
                             <DataGridTemplateColumn Header="POZOST." Width="105">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <StackPanel VerticalAlignment="Center">
+                                        <StackPanel VerticalAlignment="Center"
+                                                    Visibility="{Binding OstatniWierszHodowcy, Converter={StaticResource BoolToVisibilityConverter}}">
                                             <TextBlock Foreground="{Binding PozostaloKolor}" FontSize="11">
                                                 <Run Text="{Binding KgPozostalo, StringFormat=N0}"/><Run Text=" kg"/>
                                             </TextBlock>
@@ -831,11 +911,12 @@
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
-                            <!-- POSTEP HARMONOGRAMU -->
+                            <!-- POSTEP HARMONOGRAMU - tylko na ostatnim wierszu hodowcy -->
                             <DataGridTemplateColumn Header="POST." Width="80">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <StackPanel VerticalAlignment="Center">
+                                        <StackPanel VerticalAlignment="Center"
+                                                    Visibility="{Binding OstatniWierszHodowcy, Converter={StaticResource BoolToVisibilityConverter}}">
                                             <TextBlock Text="{Binding PostepDisplay}" FontSize="10" Foreground="#78716c" HorizontalAlignment="Center"/>
                                             <ProgressBar Value="{Binding PostepProc, Mode=OneWay}" Maximum="100"
                                                          Height="3" Background="#44403c" Foreground="#22c55e"/>
@@ -1016,7 +1097,19 @@
                 <StackPanel>
                     <TextBlock Text="Błąd połączenia" FontSize="16" FontWeight="Bold" Foreground="#ef4444" HorizontalAlignment="Center" Margin="0,0,0,10"/>
                     <TextBlock x:Name="txtErrorMessage" Text="" Foreground="#a8a29e" TextWrapping="Wrap" TextAlignment="Center" Margin="0,0,0,15"/>
-                    <Button Content="Spróbuj ponownie" Style="{StaticResource BtnAmber}" HorizontalAlignment="Center" Click="BtnRetry_Click" Padding="15,6"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <Button Content="Spróbuj ponownie" Style="{StaticResource BtnAmber}" Click="BtnRetry_Click" Padding="15,6" Margin="0,0,8,0"/>
+                        <Button Content="Kopiuj błąd" Click="BtnCopyError_Click" Padding="15,6" Cursor="Hand"
+                                Background="#44403c" Foreground="#d6d3d1" BorderThickness="0" FontSize="11">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                    </StackPanel>
                 </StackPanel>
             </Border>
         </Border>

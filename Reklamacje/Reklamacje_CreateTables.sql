@@ -131,7 +131,7 @@ BEGIN
         [DataZmiany] DATETIME NOT NULL DEFAULT GETDATE(),
         [UserID] NVARCHAR(50) NOT NULL,
         [PoprzedniStatus] NVARCHAR(50) NULL,
-        [NowyStatus] NVARCHAR(50) NOT NULL,
+        [StatusNowy] NVARCHAR(50) NOT NULL,
         [Komentarz] NVARCHAR(MAX) NULL,
         [TypAkcji] NVARCHAR(50) NULL,                      -- ZmianaStatusu, DodanieKomentarza, DodanieZdjecia, itp.
         CONSTRAINT [PK_ReklamacjeHistoria] PRIMARY KEY CLUSTERED ([Id] ASC),
@@ -265,7 +265,7 @@ BEGIN
 
     -- 5. Historia zmian
     SELECT
-        Id, DataZmiany, UserID, PoprzedniStatus, NowyStatus, Komentarz, TypAkcji
+        Id, DataZmiany, UserID, PoprzedniStatus, StatusNowy, Komentarz, TypAkcji
     FROM [dbo].[ReklamacjeHistoria]
     WHERE IdReklamacji = @IdReklamacji
     ORDER BY DataZmiany DESC;
@@ -306,14 +306,14 @@ BEGIN
         Status = @NowyStatus,
         OsobaRozpatrujaca = @UserID,
         DataModyfikacji = GETDATE(),
-        DataZamkniecia = CASE WHEN @NowyStatus = 'Zamknięta' THEN GETDATE() ELSE DataZamkniecia END,
+        DataZamkniecia = CASE WHEN @NowyStatus IN ('Zamknieta', 'Zamknięta') THEN GETDATE() ELSE DataZamkniecia END,
         Komentarz = CASE WHEN @Komentarz IS NOT NULL THEN @Komentarz ELSE Komentarz END,
         Rozwiazanie = CASE WHEN @Rozwiazanie IS NOT NULL THEN @Rozwiazanie ELSE Rozwiazanie END
     WHERE Id = @IdReklamacji;
 
     -- Dodaj wpis do historii
     INSERT INTO [dbo].[ReklamacjeHistoria]
-        (IdReklamacji, UserID, PoprzedniStatus, NowyStatus, Komentarz, TypAkcji)
+        (IdReklamacji, UserID, PoprzedniStatus, StatusNowy, Komentarz, TypAkcji)
     VALUES
         (@IdReklamacji, @UserID, @PoprzedniStatus, @NowyStatus, @Komentarz, 'ZmianaStatusu');
 

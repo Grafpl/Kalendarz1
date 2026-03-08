@@ -22,6 +22,8 @@ namespace Kalendarz1.DashboardPrzychodu.Models
         private decimal _kgZwazoneSuma;
         private decimal? _sredniaWagaPlan;
         private decimal? _sredniaWagaRzecz;
+        private Brush _hodowcaKolor;
+        private bool _jestAktywna;
 
         #region Properties - Identyfikacja
 
@@ -41,6 +43,15 @@ namespace Kalendarz1.DashboardPrzychodu.Models
         {
             get => _hodowca;
             set { _hodowca = value; OnPropertyChanged(); }
+        }
+
+        /// <summary>
+        /// Kolor czcionki hodowcy - unikalny per hodowca
+        /// </summary>
+        public Brush HodowcaKolor
+        {
+            get => _hodowcaKolor;
+            set { _hodowcaKolor = value; OnPropertyChanged(); }
         }
 
         #endregion
@@ -322,6 +333,46 @@ namespace Kalendarz1.DashboardPrzychodu.Models
             : new SolidColorBrush(Color.FromRgb(217, 119, 6));   // Pomarańczowy - w trakcie
 
         /// <summary>
+        /// Czy właśnie jest ważone (zmiana statusu w ostatnim odświeżeniu) - do pulsowania
+        /// </summary>
+        public bool JestAktywna
+        {
+            get => _jestAktywna;
+            set
+            {
+                _jestAktywna = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(StatusDotColor));
+                OnPropertyChanged(nameof(StatusDotOpacity));
+            }
+        }
+
+        /// <summary>
+        /// Kolor kropki statusu: zielony=zakończone, pomarańczowy=w trakcie, czerwony=oczekuje
+        /// </summary>
+        public Brush StatusDotColor
+        {
+            get
+            {
+                if (CzyZakonczone)
+                    return new SolidColorBrush(Color.FromRgb(34, 197, 94));    // zielony
+                if (AutaZwazone > 0)
+                    return new SolidColorBrush(Color.FromRgb(251, 191, 36));   // pomarańczowy
+                return new SolidColorBrush(Color.FromRgb(239, 68, 68));        // czerwony
+            }
+        }
+
+        /// <summary>
+        /// Opacity dla kropki (pulsowanie gdy aktywna)
+        /// </summary>
+        public double StatusDotOpacity => JestAktywna ? 1.0 : 0.6;
+
+        /// <summary>
+        /// Klucz sortowania: aktywne (w trakcie) na górze, zakończone na dole
+        /// </summary>
+        public int SortOrder => CzyZakonczone ? 1 : 0;
+
+        /// <summary>
         /// Skrócona nazwa hodowcy (max 10 znaków)
         /// </summary>
         public string HodowcaSkrot => string.IsNullOrEmpty(Hodowca)
@@ -373,5 +424,16 @@ namespace Kalendarz1.DashboardPrzychodu.Models
         }
 
         #endregion
+    }
+
+    /// <summary>
+    /// Segment paska realizacji łączonej (stacked bar) - jeden hodowca
+    /// </summary>
+    public class BarSegment
+    {
+        public string Hodowca { get; set; }
+        public double BarWidth { get; set; }
+        public Brush HodowcaKolor { get; set; }
+        public string BarTooltip { get; set; }
     }
 }

@@ -5,12 +5,14 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:dxg="http://schemas.devexpress.com/winfx/2008/xaml/grid"
              xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
+             xmlns:local="clr-namespace:Kalendarz1.Partie.Views"
              mc:Ignorable="d"
              d:DesignHeight="800" d:DesignWidth="1400"
              Loaded="UserControl_Loaded">
 
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <local:HexToBrushConverter x:Key="HexToBrush"/>
 
         <!-- Toolbar button style -->
         <Style x:Key="ToolbarButton" TargetType="Button">
@@ -102,6 +104,8 @@
                             Background="#1E8449" Click="BtnExcel_Click" ToolTip="Eksport do Excel"/>
                     <Button x:Name="BtnOdswiez" Content="Odswiez" Style="{StaticResource ToolbarButton}"
                             Click="BtnOdswiez_Click" ToolTip="Odswiez dane (F5)"/>
+                    <Button x:Name="BtnPorownanie" Content="Dostawcy" Style="{StaticResource ToolbarButton}"
+                            Background="#8E44AD" Click="BtnPorownanie_Click" ToolTip="Porownanie dostawcow"/>
                     <Border Width="1" Background="#5D6D7E" Margin="6,8"/>
                     <Button x:Name="BtnDashboard" Content="Dashboard" Style="{StaticResource ToolbarButton}"
                             Background="#1E3A5F" Click="BtnDashboard_Click" ToolTip="Widok Produkcja Dzis"/>
@@ -196,13 +200,32 @@
             </dxg:GridControl.View>
 
             <dxg:GridControl.Columns>
+                <!-- Color bar (Feature 1) -->
+                <dxg:GridColumn FieldName="RowBackgroundColor" Header="" Width="6" Fixed="Left"
+                                AllowSorting="False" AllowColumnFiltering="False"
+                                AllowResizing="False" ShowInColumnChooser="False">
+                    <dxg:GridColumn.CellTemplate>
+                        <DataTemplate>
+                            <Border Background="{Binding RowData.Row.StatusColor, Converter={StaticResource HexToBrush}}"
+                                    Margin="-4,-2"/>
+                        </DataTemplate>
+                    </dxg:GridColumn.CellTemplate>
+                </dxg:GridColumn>
                 <dxg:GridColumn FieldName="Partia" Header="Partia" Width="95" Fixed="Left"/>
                 <dxg:GridColumn FieldName="CreateData" Header="Data" Width="85"/>
                 <dxg:GridColumn FieldName="CreateGodzina" Header="Godz." Width="65"/>
                 <dxg:GridColumn FieldName="CustomerName" Header="Dostawca" Width="170"/>
                 <dxg:GridColumn FieldName="CustomerID" Header="ID Dost." Width="70"/>
                 <dxg:GridColumn FieldName="DirID" Header="Dzial" Width="50"/>
-                <dxg:GridColumn FieldName="StatusText" Header="Status" Width="110"/>
+                <dxg:GridColumn FieldName="StatusText" Header="Status" Width="110">
+                    <dxg:GridColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding RowData.Row.StatusText}"
+                                       Foreground="{Binding RowData.Row.StatusColor, Converter={StaticResource HexToBrush}}"
+                                       FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        </DataTemplate>
+                    </dxg:GridColumn.CellTemplate>
+                </dxg:GridColumn>
                 <dxg:GridColumn FieldName="SztDekl" Header="Szt. dekl." Width="75">
                     <dxg:GridColumn.EditSettings>
                         <dxe:TextEditSettings HorizontalContentAlignment="Right" DisplayFormat="N0"/>
@@ -252,11 +275,11 @@
 
             <!-- Master-Detail: content panel -->
             <dxg:GridControl.DetailDescriptor>
-                <dxg:DataControlDetailDescriptor>
-                    <dxg:DataControlDetailDescriptor.ContentTemplate>
+                <dxg:ContentDetailDescriptor>
+                    <dxg:ContentDetailDescriptor.ContentTemplate>
                         <DataTemplate>
                             <Border x:Name="DetailBorder" Background="#FAFBFC" Padding="10" MinHeight="300"
-                                    Tag="{Binding Path=Row}">
+                                    Tag="{Binding}">
                                 <TabControl x:Name="DetailTabs" FontFamily="Segoe UI" FontSize="12"
                                             Loaded="DetailTabs_Loaded"
                                             SelectionChanged="DetailTabs_SelectionChanged">
@@ -387,8 +410,8 @@
                                 </TabControl>
                             </Border>
                         </DataTemplate>
-                    </dxg:DataControlDetailDescriptor.ContentTemplate>
-                </dxg:DataControlDetailDescriptor>
+                    </dxg:ContentDetailDescriptor.ContentTemplate>
+                </dxg:ContentDetailDescriptor>
             </dxg:GridControl.DetailDescriptor>
 
             <!-- Total summaries -->

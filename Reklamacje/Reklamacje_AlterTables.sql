@@ -23,7 +23,7 @@ GO
 IF NOT EXISTS (SELECT * FROM sys.check_constraints WHERE name = 'CK_Reklamacje_Status')
 BEGIN
     ALTER TABLE [dbo].[Reklamacje] ADD CONSTRAINT [CK_Reklamacje_Status]
-    CHECK ([Status] IN ('Nowa', 'W trakcie', 'Zaakceptowana', 'Odrzucona', 'Zamknieta', 'Zamknięta'))
+    CHECK ([Status] IN ('Nowa', 'Przyjeta', 'W analizie', 'W trakcie realizacji', 'Oczekuje na dostawce', 'Zaakceptowana', 'Odrzucona', 'Zamknieta', 'Zamknięta', 'W trakcie'))
     PRINT 'Dodano nowy constraint CK_Reklamacje_Status'
 END
 GO
@@ -85,6 +85,18 @@ IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[Re
 BEGIN
     ALTER TABLE [dbo].[Reklamacje] ADD [OsobaRozpatrujaca] NVARCHAR(50) NULL
     PRINT 'Dodano kolumne OsobaRozpatrujaca'
+END
+
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[Reklamacje]') AND name = 'PrzyczynaGlowna')
+BEGIN
+    ALTER TABLE [dbo].[Reklamacje] ADD [PrzyczynaGlowna] NVARCHAR(MAX) NULL
+    PRINT 'Dodano kolumne PrzyczynaGlowna'
+END
+
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[Reklamacje]') AND name = 'AkcjeNaprawcze')
+BEGIN
+    ALTER TABLE [dbo].[Reklamacje] ADD [AkcjeNaprawcze] NVARCHAR(MAX) NULL
+    PRINT 'Dodano kolumne AkcjeNaprawcze'
 END
 
 GO
@@ -253,10 +265,20 @@ BEGIN
     PRINT 'Dodano kolumne PoprzedniStatus'
 END
 
+-- StatusNowy: obsluga obu wariantow nazwy (NowyStatus z CreateTables, StatusNowy z kodu C#)
 IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ReklamacjeHistoria]') AND name = 'StatusNowy')
 BEGIN
-    ALTER TABLE [dbo].[ReklamacjeHistoria] ADD [StatusNowy] NVARCHAR(50) NOT NULL DEFAULT 'Nowa'
-    PRINT 'Dodano kolumne StatusNowy'
+    -- Sprawdz czy istnieje stara kolumna NowyStatus - jesli tak, zmien nazwe
+    IF EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ReklamacjeHistoria]') AND name = 'NowyStatus')
+    BEGIN
+        EXEC sp_rename 'ReklamacjeHistoria.NowyStatus', 'StatusNowy', 'COLUMN'
+        PRINT 'Zmieniono nazwe kolumny NowyStatus na StatusNowy'
+    END
+    ELSE
+    BEGIN
+        ALTER TABLE [dbo].[ReklamacjeHistoria] ADD [StatusNowy] NVARCHAR(50) NOT NULL DEFAULT 'Nowa'
+        PRINT 'Dodano kolumne StatusNowy'
+    END
 END
 
 IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ReklamacjeHistoria]') AND name = 'Komentarz')
@@ -291,12 +313,16 @@ BEGIN
 
     -- 1. Podstawowe informacje o reklamacji
     SELECT
-        Id, DataZgloszenia, UserID, IdDokumentu, NumerDokumentu,
-        IdKontrahenta, NazwaKontrahenta, Opis, SumaKg, SumaWartosc, Status,
-        OsobaRozpatrujaca, Komentarz, Rozwiazanie, DataModyfikacji, DataZamkniecia,
-        TypReklamacji, Priorytet, KosztReklamacji
-    FROM [dbo].[Reklamacje]
-    WHERE Id = @IdReklamacji;
+        r.Id, r.DataZgloszenia, r.UserID, r.IdDokumentu, r.NumerDokumentu,
+        r.IdKontrahenta, r.NazwaKontrahenta, r.Opis, r.SumaKg, r.SumaWartosc, r.Status,
+        r.OsobaRozpatrujaca, r.Komentarz, r.Rozwiazanie, r.DataModyfikacji, r.DataZamkniecia,
+        r.TypReklamacji, r.Priorytet, r.KosztReklamacji, r.PrzyczynaGlowna, r.AkcjeNaprawcze,
+        ISNULL(o1.Name, r.UserID) AS ZglaszajacyNazwa,
+        ISNULL(o2.Name, r.OsobaRozpatrujaca) AS RozpatrujacyNazwa
+    FROM [dbo].[Reklamacje] r
+    LEFT JOIN [dbo].[operators] o1 ON r.UserID = o1.ID
+    LEFT JOIN [dbo].[operators] o2 ON r.OsobaRozpatrujaca = o2.ID
+    WHERE r.Id = @IdReklamacji;
 
     -- 2. Towary w reklamacji
     SELECT
@@ -346,7 +372,9 @@ CREATE PROCEDURE [dbo].[sp_ZmienStatusReklamacji]
     @NowyStatus NVARCHAR(50),
     @UserID NVARCHAR(50),
     @Komentarz NVARCHAR(MAX) = NULL,
-    @Rozwiazanie NVARCHAR(MAX) = NULL
+    @Rozwiazanie NVARCHAR(MAX) = NULL,
+    @PrzyczynaGlowna NVARCHAR(MAX) = NULL,
+    @AkcjeNaprawcze NVARCHAR(MAX) = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -358,22 +386,24 @@ BEGIN
     FROM [dbo].[Reklamacje]
     WHERE Id = @IdReklamacji;
 
-    -- Aktualizuj reklamację
+    -- Aktualizuj reklamacje
     UPDATE [dbo].[Reklamacje]
     SET
         Status = @NowyStatus,
         OsobaRozpatrujaca = @UserID,
         DataModyfikacji = GETDATE(),
-        DataZamkniecia = CASE WHEN @NowyStatus = 'Zamknieta' THEN GETDATE() ELSE DataZamkniecia END,
+        DataZamkniecia = CASE WHEN @NowyStatus IN ('Zamknieta', 'Zamknięta') THEN GETDATE() ELSE DataZamkniecia END,
         Komentarz = CASE WHEN @Komentarz IS NOT NULL THEN @Komentarz ELSE Komentarz END,
-        Rozwiazanie = CASE WHEN @Rozwiazanie IS NOT NULL THEN @Rozwiazanie ELSE Rozwiazanie END
+        Rozwiazanie = CASE WHEN @Rozwiazanie IS NOT NULL THEN @Rozwiazanie ELSE Rozwiazanie END,
+        PrzyczynaGlowna = CASE WHEN @PrzyczynaGlowna IS NOT NULL THEN @PrzyczynaGlowna ELSE PrzyczynaGlowna END,
+        AkcjeNaprawcze = CASE WHEN @AkcjeNaprawcze IS NOT NULL THEN @AkcjeNaprawcze ELSE AkcjeNaprawcze END
     WHERE Id = @IdReklamacji;
 
     -- Dodaj wpis do historii
     INSERT INTO [dbo].[ReklamacjeHistoria]
         (IdReklamacji, UserID, PoprzedniStatus, StatusNowy, Komentarz, TypAkcji)
     VALUES
-        (@IdReklamacji, @UserID, @PoprzedniStatus, @NowyStatus, @Komentarz, 'ZmianaStatusu');
+        (@IdReklamacji, @UserID, @PoprzedniStatus, @NowyStatus, @Komentarz, 'Rozpatrzenie');
 
     SELECT 'OK' AS Wynik, @IdReklamacji AS IdReklamacji;
 END

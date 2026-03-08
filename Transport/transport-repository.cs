@@ -614,6 +614,50 @@ namespace Kalendarz1.Transport.Repozytorium
             return ladunki;
         }
 
+        /// <summary>
+        /// Pobiera WSZYSTKIE ładunki dla podanych kursów w jednym zapytaniu (eliminuje N+1).
+        /// </summary>
+        public async Task<Dictionary<long, List<Ladunek>>> PobierzLadunkiDlaKursowAsync(IEnumerable<long> kursIds)
+        {
+            var result = new Dictionary<long, List<Ladunek>>();
+            var idList = kursIds.ToList();
+            if (idList.Count == 0) return result;
+
+            using var connection = new SqlConnection(_connectionString);
+            await connection.OpenAsync();
+
+            var sql = $@"SELECT LadunekID, KursID, Kolejnosc, KodKlienta, PojemnikiE2,
+                              PaletyH1, PlanE2NaPaleteOverride, Uwagi, UtworzonoUTC, TrybE2
+                       FROM dbo.Ladunek
+                       WHERE KursID IN ({string.Join(",", idList)})
+                       ORDER BY KursID, Kolejnosc";
+
+            using var cmd = new SqlCommand(sql, connection);
+            using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                var lad = new Ladunek
+                {
+                    LadunekID = reader.GetInt64(0),
+                    KursID = reader.GetInt64(1),
+                    Kolejnosc = reader.GetInt32(2),
+                    KodKlienta = reader.IsDBNull(3) ? null : reader.GetString(3),
+                    PojemnikiE2 = reader.GetInt32(4),
+                    PaletyH1 = reader.IsDBNull(5) ? null : reader.GetInt32(5),
+                    PlanE2NaPaleteOverride = reader.IsDBNull(6) ? null : reader.GetByte(6),
+                    Uwagi = reader.IsDBNull(7) ? null : reader.GetString(7),
+                    UtworzonoUTC = reader.GetDateTime(8),
+                    TrybE2 = reader.GetBoolean(9)
+                };
+
+                if (!result.ContainsKey(lad.KursID))
+                    result[lad.KursID] = new List<Ladunek>();
+                result[lad.KursID].Add(lad);
+            }
+
+            return result;
+        }
+
         public async Task<long> DodajLadunekAsync(Ladunek ladunek)
         {
             using var connection = new SqlConnection(_connectionString);

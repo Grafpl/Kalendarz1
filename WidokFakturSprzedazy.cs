@@ -55,7 +55,9 @@ namespace Kalendarz1
         private DataGridView dataGridViewPorownaniaSwiezeMrozone;
         private Label lblStatystykiPorown;
 
-
+        // Reklamacje - cache statusów per IdDokumentu
+        private static readonly string reklamacjeConnString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+        private Dictionary<int, string> _reklamacjeCache = new Dictionary<int, string>();
 
         public WidokFakturSprzedazy()
         {
@@ -2908,6 +2910,7 @@ ORDER BY Dzien ASC;";
                     {
                         MessageBox.Show("Reklamacja została pomyślnie zgłoszona!",
                             "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        OdswiezDaneGlownejSiatki();
                     }
                 }
             }
@@ -3484,6 +3487,8 @@ ORDER BY SortDate DESC, SortOrder ASC, SredniaCena DESC;";
                     var dt = new DataTable();
                     adapter.Fill(dt);
                     dataGridViewOdbiorcy.DataSource = dt;
+
+                    WczytajReklamacjeStatusy(dt);
                 }
             }
             catch (Exception ex)
@@ -3491,6 +3496,52 @@ ORDER BY SortDate DESC, SortOrder ASC, SredniaCena DESC;";
                 MessageBox.Show("❌ Błąd podczas wczytywania dokumentów: " + ex.Message, "Błąd Bazy Danych", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+
+        private void WczytajReklamacjeStatusy(DataTable dt)
+        {
+            _reklamacjeCache.Clear();
+            try
+            {
+                // Zbierz unikalne ID dokumentow (nie-grupowe)
+                var ids = new HashSet<int>();
+                foreach (DataRow row in dt.Rows)
+                {
+                    if (row["IsGroupRow"] != DBNull.Value && Convert.ToBoolean(row["IsGroupRow"])) continue;
+                    if (row["ID"] != DBNull.Value)
+                        ids.Add(Convert.ToInt32(row["ID"]));
+                }
+                if (ids.Count == 0) return;
+
+                using (var conn = new SqlConnection(reklamacjeConnString))
+                {
+                    conn.Open();
+                    // Pobierz najnowszy status reklamacji per dokument
+                    string idList = string.Join(",", ids);
+                    using (var cmd = new SqlCommand($@"
+                        SELECT IdDokumentu, Status
+                        FROM (
+                            SELECT IdDokumentu, Status,
+                                   ROW_NUMBER() OVER (PARTITION BY IdDokumentu ORDER BY DataZgloszenia DESC) AS rn
+                            FROM [dbo].[Reklamacje]
+                            WHERE IdDokumentu IN ({idList})
+                        ) sub
+                        WHERE rn = 1", conn))
+                    {
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                int idDok = reader.GetInt32(0);
+                                string status = reader.GetString(1);
+                                _reklamacjeCache[idDok] = status;
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+        }
+
         private void WczytajPozycjeDokumentu(int idDokumentu)
         {
             string query = @"
@@ -3675,6 +3726,34 @@ ORDER BY SortDate DESC, SortOrder ASC, SredniaCena DESC;";
                         }
                     }
                     e.FormattingApplied = true;
+                }
+
+                // Kolorowanie NumerDokumentu wg statusu reklamacji
+                if (colName == "NumerDokumentu")
+                {
+                    var idCell = dataGridViewOdbiorcy.Rows[e.RowIndex].Cells["ID"].Value;
+                    if (idCell != null && idCell != DBNull.Value)
+                    {
+                        int idDok = Convert.ToInt32(idCell);
+                        if (_reklamacjeCache.TryGetValue(idDok, out string rekStatus))
+                        {
+                            switch (rekStatus)
+                            {
+                                case "Zaakceptowana":
+                                    e.CellStyle.ForeColor = ColorTranslator.FromHtml("#27ae60");
+                                    e.CellStyle.Font = new Font(dataGridViewOdbiorcy.Font, FontStyle.Bold);
+                                    break;
+                                case "Odrzucona":
+                                    e.CellStyle.ForeColor = ColorTranslator.FromHtml("#e74c3c");
+                                    e.CellStyle.Font = new Font(dataGridViewOdbiorcy.Font, FontStyle.Bold);
+                                    break;
+                                default: // Nowa, Przyjeta itp.
+                                    e.CellStyle.ForeColor = ColorTranslator.FromHtml("#b8860b");
+                                    e.CellStyle.Font = new Font(dataGridViewOdbiorcy.Font, FontStyle.Bold);
+                                    break;
+                            }
+                        }
+                    }
                 }
             }
         }        // NOWA METODA: Obsługa podwójnego kliknięcia w tabeli płatności

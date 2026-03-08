@@ -332,6 +332,9 @@
                     <Border Grid.Row="0" Background="#34495E" Height="50">
                         <DockPanel Margin="10,0">
                             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button Content="DEBUG" Style="{StaticResource ToolbarButton}"
+                                        Background="#C0392B" Click="BtnDebug_Click" ToolTip="Diagnostyka modulu Flota"/>
+                                <Border Width="1" Background="#5D6D7E" Margin="6,8"/>
                                 <Button Content="Odswiez" Style="{StaticResource ToolbarButton}"
                                         Click="BtnOdswiezPrzypisania_Click"/>
                             </StackPanel>
@@ -350,8 +353,11 @@
                         </DockPanel>
                     </Border>
 
-                    <dxg:GridControl x:Name="GridPrzypisania" Grid.Row="1">
+                    <dxg:GridControl x:Name="GridPrzypisania" Grid.Row="1"
+                                     SelectionMode="Row"
+                                     MouseDoubleClick="GridPrzypisania_MouseDoubleClick">
                         <dxg:GridControl.Columns>
+                            <dxg:GridColumn FieldName="DriverGID" Header="GID" Width="0" ReadOnly="True" Visible="False"/>
                             <dxg:GridColumn FieldName="KierowcaNazwa" Header="Kierowca" Width="180" ReadOnly="True"/>
                             <dxg:GridColumn FieldName="CarTrailerID" Header="Symbol" Width="60" ReadOnly="True"/>
                             <dxg:GridColumn FieldName="Rejestracja" Header="Rejestracja" Width="110" ReadOnly="True"/>

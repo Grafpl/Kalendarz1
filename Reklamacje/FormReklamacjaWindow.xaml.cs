@@ -16,7 +16,7 @@ namespace Kalendarz1.Reklamacje
     public partial class FormReklamacjaWindow : Window
     {
         private string connectionStringHandel;
-        private string connectionStringLibraNet = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+        private string connectionStringLibraNet;
 
         private int idDokumentu;
         private int idKontrahenta;
@@ -30,12 +30,15 @@ namespace Kalendarz1.Reklamacje
 
         public bool ReklamacjaZapisana { get; private set; } = false;
 
-        public FormReklamacjaWindow(string connStringHandel, int dokId, int kontrId, string nrDok, string nazwaKontr, string user)
+        private const string DefaultLibraNetConnString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+
+        public FormReklamacjaWindow(string connStringHandel, int dokId, int kontrId, string nrDok, string nazwaKontr, string user, string connStringLibraNet = null)
         {
             InitializeComponent();
             WindowIconHelper.SetIcon(this);
 
             connectionStringHandel = connStringHandel;
+            connectionStringLibraNet = connStringLibraNet ?? DefaultLibraNetConnString;
             idDokumentu = dokId;
             idKontrahenta = kontrId;
             numerDokumentu = nrDok;
@@ -346,6 +349,72 @@ namespace Kalendarz1.Reklamacje
             }
         }
 
+        // ========================================
+        // DRAG & DROP ZDJEC
+        // ========================================
+
+        private static readonly HashSet<string> dozwoloneRozszerzenia = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ".jpg", ".jpeg", ".png", ".bmp", ".gif"
+        };
+
+        private void ZdjeciaPanel_DragOver(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                var pliki = (string[])e.Data.GetData(DataFormats.FileDrop);
+                bool maObrazki = pliki.Any(f => dozwoloneRozszerzenia.Contains(Path.GetExtension(f)));
+                e.Effects = maObrazki ? DragDropEffects.Copy : DragDropEffects.None;
+            }
+            else
+            {
+                e.Effects = DragDropEffects.None;
+            }
+            e.Handled = true;
+        }
+
+        private void ZdjeciaPanel_DragEnter(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                var pliki = (string[])e.Data.GetData(DataFormats.FileDrop);
+                if (pliki.Any(f => dozwoloneRozszerzenia.Contains(Path.GetExtension(f))))
+                    dropOverlay.Visibility = Visibility.Visible;
+            }
+        }
+
+        private void ZdjeciaPanel_DragLeave(object sender, DragEventArgs e)
+        {
+            dropOverlay.Visibility = Visibility.Collapsed;
+        }
+
+        private void ZdjeciaPanel_Drop(object sender, DragEventArgs e)
+        {
+            dropOverlay.Visibility = Visibility.Collapsed;
+
+            if (!e.Data.GetDataPresent(DataFormats.FileDrop)) return;
+
+            var pliki = (string[])e.Data.GetData(DataFormats.FileDrop);
+            int dodano = 0;
+
+            foreach (string plik in pliki)
+            {
+                if (!dozwoloneRozszerzenia.Contains(Path.GetExtension(plik))) continue;
+                if (sciezkiZdjec.Contains(plik)) continue;
+
+                sciezkiZdjec.Add(plik);
+                listZdjecia.Items.Add(Path.GetFileName(plik));
+                dodano++;
+            }
+
+            if (dodano > 0)
+            {
+                AktualizujLiczniki();
+                if (listZdjecia.SelectedIndex < 0)
+                    listZdjecia.SelectedIndex = 0;
+            }
+        }
+
         private void BtnAnuluj_Click(object sender, RoutedEventArgs e)
         {
             this.DialogResult = false;
@@ -449,34 +518,11 @@ namespace Kalendarz1.Reklamacje
                             var zaznaczonePartie = partie.Where(p => p.IsSelected).ToList();
                             if (zaznaczonePartie.Count > 0)
                             {
-                                // Sprawdź jakie kolumny istnieją w tabeli
-                                bool maKolumnePartia = false;
-                                bool maKolumneNumerPartii = false;
-                                try
-                                {
-                                    using (var cmdCheck = new SqlCommand(
-                                        "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'ReklamacjePartie' AND COLUMN_NAME IN ('Partia', 'NumerPartii')", conn, transaction))
-                                    {
-                                        using (var reader = cmdCheck.ExecuteReader())
-                                        {
-                                            while (reader.Read())
-                                            {
-                                                string colName = reader.GetString(0);
-                                                if (colName == "Partia") maKolumnePartia = true;
-                                                if (colName == "NumerPartii") maKolumneNumerPartii = true;
-                                            }
-                                        }
-                                    }
-                                }
-                                catch { maKolumnePartia = true; } // Domyślnie użyj Partia
-
-                                string nazwaKolumnyPartii = maKolumnePartia ? "Partia" : (maKolumneNumerPartii ? "NumerPartii" : "Partia");
-
-                                string queryPartie = $@"
+                                string queryPartie = @"
                                     INSERT INTO [dbo].[ReklamacjePartie]
-                                    (IdReklamacji, GuidPartii, [{nazwaKolumnyPartii}], CustomerID, CustomerName)
+                                    (IdReklamacji, GuidPartii, NumerPartii, CustomerID, CustomerName)
                                     VALUES
-                                    (@IdReklamacji, @GuidPartii, @Partia, @CustomerID, @CustomerName)";
+                                    (@IdReklamacji, @GuidPartii, @NumerPartii, @CustomerID, @CustomerName)";
 
                                 foreach (PartiaDostawcy partia in zaznaczonePartie)
                                 {
@@ -484,7 +530,7 @@ namespace Kalendarz1.Reklamacje
                                     {
                                         cmd.Parameters.AddWithValue("@IdReklamacji", idReklamacji);
                                         cmd.Parameters.AddWithValue("@GuidPartii", partia.GuidPartii != Guid.Empty ? (object)partia.GuidPartii : DBNull.Value);
-                                        cmd.Parameters.AddWithValue("@Partia", partia.NrPartii ?? "");
+                                        cmd.Parameters.AddWithValue("@NumerPartii", partia.NrPartii ?? "");
                                         cmd.Parameters.AddWithValue("@CustomerID", partia.IdDostawcy ?? (object)DBNull.Value);
                                         cmd.Parameters.AddWithValue("@CustomerName", partia.NazwaDostawcy ?? (object)DBNull.Value);
                                         cmd.ExecuteNonQuery();

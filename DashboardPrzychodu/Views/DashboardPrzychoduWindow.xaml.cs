@@ -39,12 +39,43 @@ namespace Kalendarz1.DashboardPrzychodu.Views
         // Trend tracking
         private decimal _poprzednieZwazone = 0;
         private DateTime? _trendStartTime = null;
+        private DateTime _lastRefreshTime = DateTime.MinValue;
         private Storyboard _pulseStoryboard;
+
+        // Tryb obliczania planu
+        private bool _useNowyPlan = false;
+        private decimal _origKgPlanDoZwazonych;
+        private decimal _origOdchylenieKgSuma;
 
         // KPI icon customization
         private string _currentKpiTarget;
 
+        // Śledzenie zmian hodowców (do pulsowania kart)
+        private Dictionary<string, int> _poprzednieAutaZwazone = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
         private const int AUTO_REFRESH_SECONDS = 30;
+
+        // Paleta kolorów hodowców - maksymalnie różnorodne, żadne podobne
+        private static readonly Color[] HodowcaColorPalette = new[]
+        {
+            Color.FromRgb(239, 68, 68),    // CZERWONY
+            Color.FromRgb(250, 204, 21),   // ŻÓŁTY
+            Color.FromRgb(34, 197, 94),    // ZIELONY
+            Color.FromRgb(59, 130, 246),   // NIEBIESKI
+            Color.FromRgb(249, 115, 22),   // POMARAŃCZOWY
+            Color.FromRgb(168, 85, 247),   // FIOLETOWY
+            Color.FromRgb(6, 182, 212),    // CYAN
+            Color.FromRgb(236, 72, 153),   // RÓŻOWY
+            Color.FromRgb(132, 204, 22),   // LIMONKOWY
+            Color.FromRgb(244, 63, 94),    // MALINOWY
+            Color.FromRgb(20, 184, 166),   // MORSKI
+            Color.FromRgb(245, 158, 11),   // BURSZTYNOWY
+            Color.FromRgb(99, 102, 241),   // INDYGO
+            Color.FromRgb(16, 185, 129),   // SZMARAGD
+            Color.FromRgb(217, 70, 239),   // MAGENTA
+            Color.FromRgb(251, 191, 36),   // ZŁOTY
+        };
+        private readonly Dictionary<string, Brush> _hodowcaColorMap = new Dictionary<string, Brush>(StringComparer.OrdinalIgnoreCase);
 
         public DashboardPrzychoduWindow()
         {
@@ -81,7 +112,15 @@ namespace Kalendarz1.DashboardPrzychodu.Views
             InitializePulseAnimation();
 
             // Eventy
-            dpData.SelectedDateChanged += async (s, e) => await LoadDataAsync();
+            dpData.SelectedDateChanged += async (s, e) =>
+            {
+                // Reset śledzenia przy zmianie daty
+                _poprzednieZwazone = 0;
+                _trendStartTime = null;
+                _poprzednieAutaZwazone.Clear();
+                UpdateDateDisplay();
+                await LoadDataAsync();
+            };
             txtSearch.TextChanged += TxtSearch_TextChanged;
             Loaded += async (s, e) => await InitializeAsync();
             Closing += DashboardPrzychoduWindow_Closing;
@@ -176,9 +215,18 @@ namespace Kalendarz1.DashboardPrzychodu.Views
                 _podsumowanie.FaktKlasaAKg = faktyczny.KlasaA;
                 _podsumowanie.FaktKlasaBKg = faktyczny.KlasaB;
 
+                // Zapamiętaj oryginalne wartości planu (do przełączania Stare/Nowe)
+                _origKgPlanDoZwazonych = _podsumowanie.KgPlanDoZwazonych;
+                _origOdchylenieKgSuma = _podsumowanie.OdchylenieKgSuma;
+
                 // Aktualizuj UI w watku UI
                 await Dispatcher.InvokeAsync(() =>
                 {
+                    // Zachowaj selekcje i scroll przed odswiezeniem
+                    int? selectedId = (dgDostawy.SelectedItem as DostawaItem)?.ID;
+                    var scrollViewer = FindScrollViewer(dgDostawy);
+                    double scrollOffset = scrollViewer?.VerticalOffset ?? 0;
+
                     // Aktualizuj kolekcje dostaw
                     _dostawy.Clear();
                     foreach (var dostawa in noweDostawy)
@@ -186,24 +234,91 @@ namespace Kalendarz1.DashboardPrzychodu.Views
                         _dostawy.Add(dostawa);
                     }
 
-                    // Aktualizuj kolekcje harmonogramow
-                    _postepyHarmonogramow.Clear();
-                    foreach (var harmonogram in noweHarmonogramy)
+                    // Przywroc selekcje
+                    if (selectedId.HasValue)
                     {
-                        _postepyHarmonogramow.Add(harmonogram);
+                        var sel = _dostawy.FirstOrDefault(d => d.ID == selectedId.Value);
+                        if (sel != null)
+                            dgDostawy.SelectedItem = sel;
                     }
+
+                    // Przywroc scroll po renderowaniu
+                    if (scrollOffset > 0)
+                    {
+                        dgDostawy.Dispatcher.BeginInvoke(
+                            DispatcherPriority.Loaded,
+                            new Action(() => scrollViewer?.ScrollToVerticalOffset(scrollOffset)));
+                    }
+
+                    // Aktualizuj kolekcje harmonogramow — merguj duplikaty po nazwie hodowcy
+                    _postepyHarmonogramow.Clear();
+
+                    // Grupuj harmonogramy z SQL po nazwie hodowcy (mogą mieć różne LpDostawy)
+                    var mergedHarmonogramy = noweHarmonogramy
+                        .GroupBy(h => (h.Hodowca ?? "").Trim(), StringComparer.OrdinalIgnoreCase)
+                        .Select(g =>
+                        {
+                            var first = g.First();
+                            if (g.Count() == 1) return first;
+                            // Merguj wiele wpisów tego samego hodowcy
+                            return new PostepHarmonogramu
+                            {
+                                LpDostawy = first.LpDostawy,
+                                Hodowca = first.Hodowca,
+                                AutaZwazone = g.Sum(x => x.AutaZwazone),
+                                AutaOgolem = g.Sum(x => x.AutaOgolem),
+                                AutaPlanowane = g.Sum(x => x.AutaPlanowane),
+                                PlanSztukiLacznie = g.Sum(x => x.PlanSztukiLacznie),
+                                PlanKgLacznie = g.Sum(x => x.PlanKgLacznie),
+                                SztukiZwazoneSuma = g.Sum(x => x.SztukiZwazoneSuma),
+                                KgZwazoneSuma = g.Sum(x => x.KgZwazoneSuma),
+                                SredniaWagaPlan = first.SredniaWagaPlan,
+                                SredniaWagaRzecz = g.Where(x => x.SredniaWagaRzecz.HasValue).Select(x => x.SredniaWagaRzecz).LastOrDefault(),
+                            };
+                        }).ToList();
+
+                    foreach (var harmonogram in mergedHarmonogramy)
+                        _postepyHarmonogramow.Add(harmonogram);
+
+                    // Dodaj brakujących hodowców (z tabeli, ale bez harmonogramu)
+                    var istniejaceHodowcy = new HashSet<string>(
+                        _postepyHarmonogramow.Select(h => (h.Hodowca ?? "").Trim()),
+                        StringComparer.OrdinalIgnoreCase);
+                    var brakujacyHodowcy = _dostawy
+                        .GroupBy(d => (d.Hodowca ?? "").Trim(), StringComparer.OrdinalIgnoreCase)
+                        .Where(g => !string.IsNullOrEmpty(g.Key) && !istniejaceHodowcy.Contains(g.Key));
+                    foreach (var grp in brakujacyHodowcy)
+                    {
+                        var items = grp.ToList();
+                        int zwazone = items.Count(x => x.Status == StatusDostawy.Zwazony);
+                        _postepyHarmonogramow.Add(new PostepHarmonogramu
+                        {
+                            LpDostawy = items.First().LpDostawy ?? 0,
+                            Hodowca = grp.Key,
+                            AutaZwazone = zwazone,
+                            AutaOgolem = items.Count,
+                            AutaPlanowane = items.Count,
+                            PlanSztukiLacznie = items.Sum(x => x.SztukiPlan),
+                            PlanKgLacznie = items.Sum(x => x.KgPlan),
+                            SztukiZwazoneSuma = items.Where(x => x.Status == StatusDostawy.Zwazony).Sum(x => x.SztukiRzeczywiste),
+                            KgZwazoneSuma = items.Where(x => x.Status == StatusDostawy.Zwazony).Sum(x => x.KgRzeczywiste),
+                            SredniaWagaPlan = items.First().WagaDeklHarmonogram,
+                            SredniaWagaRzecz = items.First().SredniaWagaRzeczywistaCalc,
+                        });
+                    }
+
+                    // Przypisz kolory hodowcom
+                    AssignHodowcaColors();
+
+                    // Zastosuj tryb planu (Nowe/Stare)
+                    if (_useNowyPlan)
+                        RecalculateNowyPlan();
 
                     // Aktualizuj podsumowanie
                     UpdateSummaryUI();
 
-                    // Aktualizuj prognoze redukcji
-                    UpdatePrognozaUI();
-
                     // Aktualizuj wiersz podsumowania tabeli
                     UpdateTableSummary();
-
-                    // Aktualizuj pasek postepu
-                    UpdateProgressBar();
 
                     // Aktualizuj licznik wynikow
                     txtLiczbaWynikow.Text = $"Wyniki: {_dostawy.Count}";
@@ -224,7 +339,37 @@ namespace Kalendarz1.DashboardPrzychodu.Views
             {
                 Debug.WriteLine($"[DashboardPrzychodu] Błąd ładowania: {ex.Message}");
                 HideLoading();
-                ShowError($"Nie udało się połączyć z bazą danych.\n\n{ex.Message}");
+
+                // Diagnostyka: sprawdź które zapytanie powoduje błąd
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine($"Błąd: {ex.Message}");
+                sb.AppendLine();
+
+                var queries = new (string Name, Func<System.Threading.Tasks.Task> Action)[]
+                {
+                    ("GetDostawyAsync", async () => await _przychodService.GetDostawyAsync(selectedDate)),
+                    ("GetPodsumowanieAsync", async () => await _przychodService.GetPodsumowanieAsync(selectedDate)),
+                    ("GetPrognozaDniaAsync", async () => await _przychodService.GetPrognozaDniaAsync(selectedDate)),
+                    ("GetPostepyHarmonogramowAsync", async () => await _przychodService.GetPostepyHarmonogramowAsync(selectedDate)),
+                    ("GetFaktycznyPrzychodAsync", async () => { await _przychodService.GetFaktycznyPrzychodAsync(selectedDate); }),
+                };
+
+                foreach (var (name, action) in queries)
+                {
+                    try
+                    {
+                        await action();
+                        sb.AppendLine($"[OK] {name}");
+                    }
+                    catch (Exception qex)
+                    {
+                        sb.AppendLine($"[BŁĄD] {name}: {qex.Message}");
+                    }
+                }
+
+                var fullError = sb.ToString();
+                try { Clipboard.SetText(fullError); } catch { }
+                ShowError("Błąd skopiowany do schowka.\n\n" + fullError);
             }
             finally
             {
@@ -399,14 +544,6 @@ namespace Kalendarz1.DashboardPrzychodu.Views
             }
         }
 
-        /// <summary>
-        /// Aktualizacja prognozy - informacje wyświetlane teraz w sidebarze
-        /// </summary>
-        private void UpdatePrognozaUI()
-        {
-            // Wszystkie informacje o prognozie są teraz w sidebarze (UpdateSummaryUI)
-            // Ta metoda pozostaje dla kompatybilności
-        }
 
         /// <summary>
         /// Aktualizacja trendu dla kafelka ZWAŻONE w KPI Strip
@@ -417,22 +554,54 @@ namespace Kalendarz1.DashboardPrzychodu.Views
             {
                 // Pierwsze ładowanie
                 txtTrendZwazone.Text = "";
+                txtTempoZwazone.Text = "";
                 _trendStartTime = DateTime.Now;
-            }
-            else if (noweZwazone > _poprzednieZwazone)
-            {
-                txtTrendZwazone.Text = "↑";
-                txtTrendZwazone.Foreground = new SolidColorBrush(Color.FromRgb(34, 197, 94)); // #22c55e
-            }
-            else if (noweZwazone < _poprzednieZwazone)
-            {
-                txtTrendZwazone.Text = "↓";
-                txtTrendZwazone.Foreground = new SolidColorBrush(Color.FromRgb(239, 68, 68)); // #ef4444
+                _lastRefreshTime = DateTime.Now;
             }
             else
             {
-                txtTrendZwazone.Text = "→";
-                txtTrendZwazone.Foreground = new SolidColorBrush(Color.FromRgb(120, 113, 108)); // #78716c
+                decimal roznica = noweZwazone - _poprzednieZwazone;
+                if (roznica > 0)
+                {
+                    txtTrendZwazone.Text = "↑";
+                    txtTrendZwazone.Foreground = new SolidColorBrush(Color.FromRgb(34, 197, 94));
+                }
+                else if (roznica < 0)
+                {
+                    txtTrendZwazone.Text = "↓";
+                    txtTrendZwazone.Foreground = new SolidColorBrush(Color.FromRgb(239, 68, 68));
+                }
+                else
+                {
+                    txtTrendZwazone.Text = "→";
+                    txtTrendZwazone.Foreground = new SolidColorBrush(Color.FromRgb(120, 113, 108));
+                }
+
+                // Tempo - ile kg przybyło od startu śledzenia
+                if (_trendStartTime.HasValue)
+                {
+                    var elapsed = DateTime.Now - _trendStartTime.Value;
+                    decimal totalDiff = noweZwazone - 0; // od początku sesji
+                    if (elapsed.TotalMinutes >= 1 && roznica != 0)
+                    {
+                        string tempoText;
+                        if (Math.Abs(roznica) >= 1000)
+                            tempoText = $"+{roznica / 1000:N1}k";
+                        else
+                            tempoText = $"+{roznica:N0}";
+                        txtTempoZwazone.Text = $"{tempoText} / {AUTO_REFRESH_SECONDS}s";
+                        txtTempoZwazone.Foreground = roznica > 0
+                            ? new SolidColorBrush(Color.FromRgb(34, 197, 94))
+                            : new SolidColorBrush(Color.FromRgb(239, 68, 68));
+                    }
+                    else if (roznica == 0)
+                    {
+                        txtTempoZwazone.Text = "bez zmian";
+                        txtTempoZwazone.Foreground = new SolidColorBrush(Color.FromRgb(120, 113, 108));
+                    }
+                }
+
+                _lastRefreshTime = DateTime.Now;
             }
 
             _poprzednieZwazone = noweZwazone;
@@ -462,15 +631,161 @@ namespace Kalendarz1.DashboardPrzychodu.Views
             }
         }
 
+
         /// <summary>
-        /// Aktualizacja paska postępu realizacji
-        /// W nowym layoucie pasek postępu jest zintegrowany w KPI Strip (REALIZACJA)
+        /// Przypisuje unikalne kolory hodowcom na podstawie nazwy.
+        /// Ten sam hodowca = ten sam kolor w tabeli i kafelkach.
         /// </summary>
-        private void UpdateProgressBar()
+        private void AssignHodowcaColors()
         {
-            // Pasek postępu został usunięty z nowego layoutu "Warm Industrial"
-            // Realizacja jest teraz pokazywana jako % w kafelku KPI
-            // Ta metoda pozostaje dla kompatybilności, ale nie wykonuje już żadnych operacji
+            _hodowcaColorMap.Clear();
+            int colorIndex = 0;
+
+            // Zbierz unikalne nazwy hodowców z dostaw
+            var uniqueNames = _dostawy
+                .Select(d => (d.Hodowca ?? "").Trim())
+                .Where(n => !string.IsNullOrEmpty(n))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            foreach (var name in uniqueNames)
+            {
+                var color = HodowcaColorPalette[colorIndex % HodowcaColorPalette.Length];
+                var brush = new SolidColorBrush(color);
+                brush.Freeze();
+                _hodowcaColorMap[name] = brush;
+                colorIndex++;
+            }
+
+            // Przypisz kolory, tła i flagę ostatniego wiersza do każdej dostawy
+            // Najpierw znajdź ostatni wiersz każdego hodowcy (wg pozycji w kolekcji)
+            var ostatniIndex = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            for (int i = 0; i < _dostawy.Count; i++)
+            {
+                var key2 = (_dostawy[i].Hodowca ?? "").Trim();
+                if (!string.IsNullOrEmpty(key2))
+                    ostatniIndex[key2] = i;
+            }
+
+            // Znajdź pierwszy wiersz każdego hodowcy (do separatora grup)
+            var pierwszyIndex = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            for (int i = 0; i < _dostawy.Count; i++)
+            {
+                var key2b = (_dostawy[i].Hodowca ?? "").Trim();
+                if (!string.IsNullOrEmpty(key2b) && !pierwszyIndex.ContainsKey(key2b))
+                    pierwszyIndex[key2b] = i;
+            }
+
+            for (int i = 0; i < _dostawy.Count; i++)
+            {
+                var d = _dostawy[i];
+                var key = (d.Hodowca ?? "").Trim();
+
+                d.OstatniWierszHodowcy = ostatniIndex.TryGetValue(key, out int li) && li == i;
+
+                // Separator grup: pierwszy wiersz nowej grupy (oprócz pierwszego wiersza w ogóle)
+                d.PierwszyWierszGrupy = i > 0 && pierwszyIndex.TryGetValue(key, out int fi) && fi == i;
+
+                if (_hodowcaColorMap.TryGetValue(key, out var brush))
+                {
+                    d.HodowcaKolor = brush;
+
+                    // Tło wiersza = kolor hodowcy (8%) + status tint (5%)
+                    var srcColor = ((SolidColorBrush)brush).Color;
+
+                    // Status: zielony=zważony, pomarańczowy=brutto, czerwony=oczekuje
+                    byte sR, sG, sB;
+                    byte statusAlpha;
+                    switch (d.Status)
+                    {
+                        case StatusDostawy.Zwazony:
+                            sR = 34; sG = 197; sB = 94; statusAlpha = 12; break;
+                        case StatusDostawy.BruttoWpisane:
+                            sR = 249; sG = 115; sB = 22; statusAlpha = 10; break;
+                        default: // Oczekuje
+                            sR = 239; sG = 68; sB = 68; statusAlpha = 10; break;
+                    }
+
+                    // Blend: base dark (28,25,23) + hodowca 8% + status
+                    byte bR = (byte)(28 + (srcColor.R - 28) * 0.08 + (sR - 28) * statusAlpha / 255.0);
+                    byte bG = (byte)(25 + (srcColor.G - 25) * 0.08 + (sG - 25) * statusAlpha / 255.0);
+                    byte bB = (byte)(23 + (srcColor.B - 23) * 0.08 + (sB - 23) * statusAlpha / 255.0);
+
+                    var bgBrush = new SolidColorBrush(Color.FromRgb(bR, bG, bB));
+                    bgBrush.Freeze();
+                    d.HodowcaKolorTlo = bgBrush;
+                }
+            }
+
+            // Wykryj aktywne karty (zmiana aut zważonych od ostatniego odświeżenia)
+            var noweAuta = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+            // Sortuj: aktywne (w trakcie) na górze, zakończone na dole
+            var posortowane = _postepyHarmonogramow.OrderBy(h => h.CzyZakonczone ? 1 : 0).ThenBy(h => h.Hodowca).ToList();
+            _postepyHarmonogramow.Clear();
+            foreach (var h in posortowane)
+            {
+                var key = (h.Hodowca ?? "").Trim();
+
+                // Kolor
+                if (_hodowcaColorMap.TryGetValue(key, out var brush))
+                    h.HodowcaKolor = brush;
+
+                // Pulsowanie - wykryj zmianę
+                bool aktywna = false;
+                if (_poprzednieAutaZwazone.TryGetValue(key, out int poprzednio))
+                {
+                    aktywna = h.AutaZwazone > poprzednio; // nowe ważenie od ostatniego odświeżenia
+                }
+                h.JestAktywna = aktywna;
+
+                noweAuta[key] = h.AutaZwazone;
+                _postepyHarmonogramow.Add(h);
+            }
+
+            _poprzednieAutaZwazone = noweAuta;
+
+            // Aktualizuj stacked bar realizacji dnia
+            UpdateStackedBar();
+        }
+
+        /// <summary>
+        /// Aktualizuje pasek realizacji łączonej dnia (stacked bar kolorowany per hodowca)
+        /// </summary>
+        private void UpdateStackedBar()
+        {
+            var segments = new List<BarSegment>();
+            decimal totalPlan = _postepyHarmonogramow.Sum(h => h.PlanKgLacznie);
+            if (totalPlan <= 0)
+            {
+                icStackedBar.ItemsSource = segments;
+                txtStackedBarLabel.Text = "";
+                return;
+            }
+
+            // Szerokość dostępna = szerokość panelu minus padding
+            double barTotalWidth = Math.Max(100, icStackedBar.ActualWidth > 0 ? icStackedBar.ActualWidth : 430);
+
+            decimal totalZwazone = 0;
+            foreach (var h in _postepyHarmonogramow)
+            {
+                if (h.KgZwazoneSuma <= 0) continue;
+                double proportion = (double)(h.KgZwazoneSuma / totalPlan);
+                double width = Math.Max(3, proportion * barTotalWidth);
+                totalZwazone += h.KgZwazoneSuma;
+
+                segments.Add(new BarSegment
+                {
+                    Hodowca = h.Hodowca,
+                    BarWidth = width,
+                    HodowcaKolor = h.HodowcaKolor,
+                    BarTooltip = $"{h.Hodowca}: {h.KgZwazoneSuma:N0} kg ({proportion * 100:N0}%)"
+                });
+            }
+
+            icStackedBar.ItemsSource = segments;
+            decimal procent = totalPlan > 0 ? totalZwazone / totalPlan * 100 : 0;
+            txtStackedBarLabel.Text = $"{procent:N0}%";
         }
 
         /// <summary>
@@ -481,7 +796,7 @@ namespace Kalendarz1.DashboardPrzychodu.Views
             int liczbaDostawFiltrowanych = _dostawyView.Cast<object>().Count();
             txtSumaDostawy.Text = $"{liczbaDostawFiltrowanych} dostaw";
 
-            decimal sumaPlan = _dostawy.Sum(d => d.KgPlan);
+            decimal sumaPlan = _dostawy.Sum(d => d.KgPlanNaAuto);
             decimal sumaRzecz = _dostawy.Where(d => d.Status == StatusDostawy.Zwazony).Sum(d => d.KgRzeczywiste);
             decimal? sumaOdchylenie = _dostawy
                 .Where(d => d.OdchylenieKgCalc.HasValue)
@@ -562,6 +877,98 @@ namespace Kalendarz1.DashboardPrzychodu.Views
         }
 
         /// <summary>
+        /// Obsługa zmiany trybu planu (Stare/Nowe)
+        /// </summary>
+        private void RbPlanMode_Checked(object sender, RoutedEventArgs e)
+        {
+            if (rbPlanNowe == null || rbPlanStare == null) return; // jeszcze nie zainicjalizowane
+
+            _useNowyPlan = rbPlanNowe.IsChecked == true;
+
+            if (_useNowyPlan)
+                RecalculateNowyPlan();
+            else
+                ClearNowyPlan();
+
+            UpdateSummaryUI();
+            UpdateTableSummary();
+        }
+
+        /// <summary>
+        /// Tryb "Nowe": per-auto plan = SztukiExcel * WagaDek(harmonogram),
+        /// ostatnie auto w grupie = reszta z harmonogramu
+        /// </summary>
+        private void RecalculateNowyPlan()
+        {
+            // Grupy po LpDostawy (harmonogram)
+            var groups = _dostawy
+                .Where(d => d.LpDostawy.HasValue)
+                .GroupBy(d => d.LpDostawy.Value);
+
+            foreach (var group in groups)
+            {
+                var items = group.OrderBy(d => d.NrKursu).ToList();
+                decimal planKgLacznie = items.First().PlanKgLacznie;
+                decimal wagaDekl = items.First().WagaDeklHarmonogram ?? 0;
+
+                decimal sumaAssigned = 0;
+                for (int i = 0; i < items.Count; i++)
+                {
+                    if (i == items.Count - 1)
+                    {
+                        // Ostatnie auto = reszta z harmonogramu
+                        items[i].NowyPlanKg = planKgLacznie - sumaAssigned;
+                    }
+                    else
+                    {
+                        decimal planNaAuto = items[i].SztukiExcel * wagaDekl;
+                        items[i].NowyPlanKg = planNaAuto;
+                        sumaAssigned += planNaAuto;
+                    }
+                }
+            }
+
+            // Rekordy bez LpDostawy: SztukiExcel * WagaDek z FarmerCalc
+            foreach (var item in _dostawy.Where(d => !d.LpDostawy.HasValue))
+            {
+                decimal wagaDekl = item.WagaDeklHarmonogram ?? item.SredniaWagaPlan ?? 0;
+                item.NowyPlanKg = item.SztukiExcel * wagaDekl;
+            }
+
+            // Przelicz odchylenie w podsumowaniu
+            RecalculateNowySummary();
+        }
+
+        /// <summary>
+        /// Tryb "Stare": kasuje override planu
+        /// </summary>
+        private void ClearNowyPlan()
+        {
+            foreach (var item in _dostawy)
+            {
+                item.NowyPlanKg = null;
+            }
+
+            // Przywróć oryginalne wartości
+            _podsumowanie.KgPlanDoZwazonych = _origKgPlanDoZwazonych;
+            _podsumowanie.OdchylenieKgSuma = _origOdchylenieKgSuma;
+        }
+
+        /// <summary>
+        /// Przelicza odchylenie sumaryczne w trybie "Nowe"
+        /// </summary>
+        private void RecalculateNowySummary()
+        {
+            // Suma planów dla zważonych aut w trybie Nowe
+            decimal kgPlanDoZwazonych = _dostawy
+                .Where(d => d.Status == StatusDostawy.Zwazony && d.NowyPlanKg.HasValue)
+                .Sum(d => d.NowyPlanKg.Value);
+
+            _podsumowanie.OdchylenieKgSuma = _podsumowanie.KgZwazoneSuma - kgPlanDoZwazonych;
+            _podsumowanie.KgPlanDoZwazonych = kgPlanDoZwazonych;
+        }
+
+        /// <summary>
         /// Aktualizacja wyświetlanej daty
         /// </summary>
         private void UpdateDateDisplay()
@@ -627,110 +1034,567 @@ namespace Kalendarz1.DashboardPrzychodu.Views
 
         /// <summary>
         /// Pokazuje szczegóły dostawy w oknie popup (styl Warm Industrial)
+        /// Pełne rozbicie wartości i sposób obliczenia każdego pola
         /// </summary>
-        private void ShowDeliveryDetails(DostawaItem dostawa)
+        private void ShowDeliveryDetails(DostawaItem d)
         {
+            // Kolory
+            var bgMain = Color.FromRgb(28, 25, 23);       // #1c1917
+            var bgPanel = Color.FromRgb(41, 37, 36);      // #292524
+            var bgSection = Color.FromRgb(55, 50, 48);    // #373230
+            var amber = Color.FromRgb(251, 191, 36);      // #fbbf24
+            var amberDark = Color.FromRgb(245, 158, 11);  // #f59e0b
+            var green = Color.FromRgb(34, 197, 94);       // #22c55e
+            var red = Color.FromRgb(239, 68, 68);         // #ef4444
+            var yellow = Color.FromRgb(251, 191, 36);     // #fbbf24
+            var cyan = Color.FromRgb(96, 165, 250);       // #60a5fa
+            var purple = Color.FromRgb(192, 132, 252);    // #c084fc
+            var textPrimary = Color.FromRgb(231, 229, 228);
+            var textSecondary = Color.FromRgb(168, 162, 158);
+            var textMuted = Color.FromRgb(120, 113, 108);
+            var borderColor = Color.FromRgb(68, 64, 60);
+
             var detailWindow = new Window
             {
-                Title = $"Szczegóły dostawy - {dostawa.Hodowca}",
-                Width = 500,
-                Height = 450,
+                Title = $"Szczegóły dostawy #{d.NrKursu} - {d.Hodowca}",
+                Width = 750,
+                Height = 820,
+                MinWidth = 650,
+                MinHeight = 600,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
                 Owner = this,
-                Background = new SolidColorBrush(Color.FromRgb(28, 25, 23)), // #1c1917
-                ResizeMode = ResizeMode.NoResize
+                Background = new SolidColorBrush(bgMain),
+                ResizeMode = ResizeMode.CanResize
             };
 
-            var grid = new Grid { Margin = new Thickness(20) };
-            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            // === Helpers ===
+            Brush Br(Color c) => new SolidColorBrush(c);
 
-            // Nagłówek
-            var header = new TextBlock
+            // Wiersz danych: etykieta | wartość | (opcjonalnie) objaśnienie
+            UIElement MakeRow(string label, string value, Brush valueBrush = null, string explanation = null)
             {
-                Text = $"Dostawa #{dostawa.NrKursu}",
-                FontSize = 18,
-                FontWeight = FontWeights.Bold,
-                Foreground = new SolidColorBrush(Color.FromRgb(251, 191, 36)), // #fbbf24
-                Margin = new Thickness(0, 0, 0, 15)
-            };
-            Grid.SetRow(header, 0);
-            grid.Children.Add(header);
+                var sp = new StackPanel { Margin = new Thickness(0, 2, 0, 2) };
+                var row = new Grid();
+                row.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(180) });
+                row.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
-            // Szczegóły
-            var details = new StackPanel();
-            Grid.SetRow(details, 1);
-
-            void AddDetailRow(string label, string value, Brush valueBrush = null)
-            {
-                var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 4) };
-                row.Children.Add(new TextBlock
+                var lbl = new TextBlock
                 {
                     Text = label,
-                    Width = 140,
-                    Foreground = new SolidColorBrush(Color.FromRgb(120, 113, 108)), // #78716c
-                    FontSize = 12
-                });
-                row.Children.Add(new TextBlock
+                    Foreground = Br(textMuted),
+                    FontSize = 12,
+                    VerticalAlignment = VerticalAlignment.Top
+                };
+                Grid.SetColumn(lbl, 0);
+                row.Children.Add(lbl);
+
+                var val = new TextBlock
                 {
                     Text = value,
-                    Foreground = valueBrush ?? new SolidColorBrush(Color.FromRgb(231, 229, 228)), // #e7e5e4
+                    Foreground = valueBrush ?? Br(textPrimary),
                     FontWeight = FontWeights.SemiBold,
-                    FontSize = 12
-                });
-                details.Children.Add(row);
+                    FontSize = 12,
+                    TextWrapping = TextWrapping.Wrap,
+                    VerticalAlignment = VerticalAlignment.Top
+                };
+                Grid.SetColumn(val, 1);
+                row.Children.Add(val);
+
+                sp.Children.Add(row);
+
+                if (!string.IsNullOrEmpty(explanation))
+                {
+                    var expl = new TextBlock
+                    {
+                        Text = explanation,
+                        Foreground = Br(textSecondary),
+                        FontSize = 10.5,
+                        FontStyle = FontStyles.Italic,
+                        Margin = new Thickness(180, 0, 0, 0),
+                        TextWrapping = TextWrapping.Wrap
+                    };
+                    sp.Children.Add(expl);
+                }
+                return sp;
             }
 
-            AddDetailRow("Hodowca:", dostawa.Hodowca);
-            AddDetailRow("Data:", dostawa.Data.ToString("dd.MM.yyyy"));
-            AddDetailRow("Nr kursu:", dostawa.NrKursu.ToString());
-            details.Children.Add(new Border { Height = 1, Background = new SolidColorBrush(Color.FromRgb(68, 64, 60)), Margin = new Thickness(0, 8, 0, 8) }); // #44403c
-
-            AddDetailRow("Plan [kg]:", dostawa.KgPlan.ToString("N0"));
-            AddDetailRow("Plan [szt]:", dostawa.SztukiPlan.ToString("N0"));
-            AddDetailRow("Rzeczywiste [kg]:", dostawa.KgRzeczywiste.ToString("N0"),
-                dostawa.Status == StatusDostawy.Zwazony ? new SolidColorBrush(Color.FromRgb(34, 197, 94)) : null); // #22c55e
-            AddDetailRow("Rzeczywiste [szt]:", dostawa.SztukiRzeczywiste.ToString("N0"));
-            details.Children.Add(new Border { Height = 1, Background = new SolidColorBrush(Color.FromRgb(68, 64, 60)), Margin = new Thickness(0, 8, 0, 8) });
-
-            var odchylenieBrush = dostawa.Poziom switch
+            // Wiersz z formułą obliczenia (wyróżniony)
+            UIElement MakeCalcRow(string formula, string result, Brush resultBrush = null)
             {
-                PoziomOdchylenia.OK => new SolidColorBrush(Color.FromRgb(34, 197, 94)),      // #22c55e
-                PoziomOdchylenia.Uwaga => new SolidColorBrush(Color.FromRgb(251, 191, 36)), // #fbbf24
-                PoziomOdchylenia.Problem => new SolidColorBrush(Color.FromRgb(239, 68, 68)), // #ef4444
-                _ => new SolidColorBrush(Color.FromRgb(168, 162, 158)) // #a8a29e
+                var border = new Border
+                {
+                    Background = Br(bgSection),
+                    CornerRadius = new CornerRadius(4),
+                    Padding = new Thickness(10, 5, 10, 5),
+                    Margin = new Thickness(0, 2, 0, 4)
+                };
+                var sp = new StackPanel { Orientation = Orientation.Horizontal };
+                sp.Children.Add(new TextBlock
+                {
+                    Text = formula,
+                    Foreground = Br(textSecondary),
+                    FontSize = 11,
+                    FontFamily = new FontFamily("Consolas"),
+                    VerticalAlignment = VerticalAlignment.Center
+                });
+                sp.Children.Add(new TextBlock
+                {
+                    Text = $"  =  {result}",
+                    Foreground = resultBrush ?? Br(amber),
+                    FontSize = 11,
+                    FontWeight = FontWeights.Bold,
+                    FontFamily = new FontFamily("Consolas"),
+                    VerticalAlignment = VerticalAlignment.Center
+                });
+                border.Child = sp;
+                return border;
+            }
+
+            // Nagłówek sekcji
+            UIElement MakeSectionHeader(string title, string icon)
+            {
+                var border = new Border
+                {
+                    BorderBrush = Br(amberDark),
+                    BorderThickness = new Thickness(0, 0, 0, 1),
+                    Margin = new Thickness(0, 14, 0, 6),
+                    Padding = new Thickness(0, 0, 0, 4)
+                };
+                var sp = new StackPanel { Orientation = Orientation.Horizontal };
+                sp.Children.Add(new TextBlock
+                {
+                    Text = icon,
+                    FontSize = 13,
+                    Margin = new Thickness(0, 0, 6, 0),
+                    VerticalAlignment = VerticalAlignment.Center
+                });
+                sp.Children.Add(new TextBlock
+                {
+                    Text = title.ToUpper(),
+                    FontSize = 13,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = Br(amber),
+                    VerticalAlignment = VerticalAlignment.Center
+                });
+                border.Child = sp;
+                return border;
+            }
+
+            // Separator
+            UIElement MakeSeparator() => new Border
+            {
+                Height = 1,
+                Background = Br(borderColor),
+                Margin = new Thickness(0, 4, 0, 4),
+                Opacity = 0.5
             };
-            AddDetailRow("Odchylenie:", dostawa.OdchylenieDisplay, odchylenieBrush);
-            AddDetailRow("Średnia waga:", dostawa.SredniaWagaRzeczywistaCalc?.ToString("N3") ?? "-");
-            AddDetailRow("Status:", dostawa.StatusText);
-            details.Children.Add(new Border { Height = 1, Background = new SolidColorBrush(Color.FromRgb(68, 64, 60)), Margin = new Thickness(0, 8, 0, 8) });
 
-            AddDetailRow("Brutto:", dostawa.Brutto.ToString("N0"));
-            AddDetailRow("Tara:", dostawa.Tara.ToString("N0"));
-            AddDetailRow("Przyjazd:", dostawa.PrzyjazdDisplay);
-            AddDetailRow("Ważył:", dostawa.KtoWazyl ?? "-");
+            // ============ BUDOWA CONTENTU ============
+            var content = new StackPanel { Margin = new Thickness(24, 16, 24, 16) };
 
-            grid.Children.Add(details);
+            // === NAGŁÓWEK GŁÓWNY ===
+            var headerPanel = new StackPanel { Margin = new Thickness(0, 0, 0, 4) };
+            headerPanel.Children.Add(new TextBlock
+            {
+                Text = $"DOSTAWA #{d.NrKursu}",
+                FontSize = 20,
+                FontWeight = FontWeights.Bold,
+                Foreground = Br(amber)
+            });
+            headerPanel.Children.Add(new TextBlock
+            {
+                Text = $"{d.Hodowca}  |  {d.Data:dd.MM.yyyy (dddd)}  |  Status: {d.StatusText}",
+                FontSize = 12,
+                Foreground = Br(textSecondary),
+                Margin = new Thickness(0, 4, 0, 0)
+            });
+            content.Children.Add(headerPanel);
 
-            // Przycisk zamknij (styl Amber)
+            // ─────────────────────────────────────────
+            // SEKCJA 1: IDENTYFIKACJA
+            // ─────────────────────────────────────────
+            content.Children.Add(MakeSectionHeader("Identyfikacja", "\u2139"));
+            content.Children.Add(MakeRow("Hodowca:", d.Hodowca ?? "-"));
+            content.Children.Add(MakeRow("Hodowca (skrót):", d.HodowcaSkrot ?? "-"));
+            content.Children.Add(MakeRow("Nr kursu (CarLp):", d.NrKursu.ToString()));
+            content.Children.Add(MakeRow("Data:", d.Data.ToString("dd.MM.yyyy")));
+            content.Children.Add(MakeRow("LP dostawy:", d.LpDostawy?.ToString() ?? "-",
+                explanation: "Klucz powiązania z HarmonogramDostaw.Lp"));
+            content.Children.Add(MakeRow("ID (FarmerCalc):", d.ID.ToString()));
+
+            // ─────────────────────────────────────────
+            // SEKCJA 2: PLAN (HARMONOGRAM)
+            // ─────────────────────────────────────────
+            content.Children.Add(MakeSectionHeader("Plan z harmonogramu", "\U0001F4CB"));
+            content.Children.Add(MakeRow("Plan łącznie [szt]:", d.PlanSztukiLacznie.ToString("N0"),
+                explanation: "Suma SztukiDek ze wszystkich aut tego hodowcy w HarmonogramDostaw"));
+            content.Children.Add(MakeRow("Plan łącznie [kg]:", d.PlanKgLacznie.ToString("N0"),
+                explanation: "Suma (SztukiDek × WagaDek) ze wszystkich aut"));
+            content.Children.Add(MakeRow("Aut planowanych:", d.AutaPlanowane.ToString(),
+                explanation: "Kolumna Auta z HarmonogramDostaw"));
+            content.Children.Add(MakeRow("Waga deklar. [kg/szt]:", d.WagaDeklHarmonogram?.ToString("N3") ?? "-",
+                explanation: "WagaDek z HarmonogramDostaw - średnia waga 1 sztuki"));
+            content.Children.Add(MakeRow("Szt/pojemnik plan:", d.SztPojPlan?.ToString("N1") ?? "-"));
+            content.Children.Add(MakeSeparator());
+
+            // Dynamiczny plan na to auto
+            content.Children.Add(MakeRow("Tryb planu:", d.NowyPlanKg.HasValue ? "NOWY (SztukiExcel × WagaDek)" : "STARY (harmonogram)", Br(cyan)));
+            if (d.NowyPlanKg.HasValue)
+            {
+                content.Children.Add(MakeRow("SztukiExcel (AVILOG):", d.SztukiExcel.ToString("N0")));
+                content.Children.Add(MakeCalcRow(
+                    $"NowyPlanKg = SztukiExcel × WagaDek = {d.SztukiExcel} × {d.WagaDeklHarmonogram?.ToString("N3") ?? "?"}",
+                    $"{d.NowyPlanKg:N0} kg"));
+            }
+
+            bool ostatnie = d.CzyOstatnieAuto;
+            content.Children.Add(MakeRow("Ostatnie auto?:", ostatnie ? "TAK (plan = reszta z harmonogramu)" : "NIE (plan = łącznie / auta)",
+                ostatnie ? Br(yellow) : null));
+
+            // Obliczenie planu na to auto
+            if (d.NowyPlanKg.HasValue)
+            {
+                content.Children.Add(MakeCalcRow(
+                    $"Plan kg na auto = NowyPlanKg",
+                    $"{d.KgPlanNaAuto:N0} kg", Br(cyan)));
+            }
+            else if (ostatnie)
+            {
+                content.Children.Add(MakeCalcRow(
+                    $"Plan kg na auto = KgPozostalo",
+                    $"{d.KgPlanNaAuto:N0} kg", Br(cyan)));
+                content.Children.Add(MakeCalcRow(
+                    $"Plan szt na auto = SztukiPozostalo",
+                    $"{d.SztukiPlanNaAuto:N0} szt", Br(cyan)));
+            }
+            else if (d.AutaPlanowane > 0)
+            {
+                content.Children.Add(MakeCalcRow(
+                    $"Plan kg na auto = {d.PlanKgLacznie:N0} / {d.AutaPlanowane}",
+                    $"{d.KgPlanNaAuto:N0} kg", Br(cyan)));
+                content.Children.Add(MakeCalcRow(
+                    $"Plan szt na auto = {d.PlanSztukiLacznie:N0} / {d.AutaPlanowane}",
+                    $"{d.SztukiPlanNaAuto:N0} szt", Br(cyan)));
+            }
+            else
+            {
+                content.Children.Add(MakeCalcRow(
+                    "Plan kg (fallback z FarmerCalc)",
+                    $"{d.KgPlan:N0} kg", Br(cyan)));
+                content.Children.Add(MakeCalcRow(
+                    "Plan szt (fallback z FarmerCalc)",
+                    $"{d.SztukiPlan:N0} szt", Br(cyan)));
+            }
+
+            // ─────────────────────────────────────────
+            // SEKCJA 3: WAŻENIE (RZECZYWISTE)
+            // ─────────────────────────────────────────
+            content.Children.Add(MakeSectionHeader("Ważenie - dane rzeczywiste", "\u2696"));
+
+            var statusBrush = d.Status switch
+            {
+                StatusDostawy.Zwazony => Br(green),
+                StatusDostawy.BruttoWpisane => Br(yellow),
+                _ => Br(red)
+            };
+            content.Children.Add(MakeRow("Status:", d.StatusText, statusBrush,
+                explanation: d.Status switch
+                {
+                    StatusDostawy.Zwazony => "Brutto > 0 AND Tara > 0",
+                    StatusDostawy.BruttoWpisane => "Brutto > 0, ale Tara = 0",
+                    _ => "Brutto = 0 (jeszcze nie ważono)"
+                }));
+
+            content.Children.Add(MakeRow("Brutto (pełne):", $"{d.Brutto:N0} kg",
+                explanation: "FullWeight z FarmerCalc (auto z żywcem)"));
+            content.Children.Add(MakeRow("Tara (puste):", $"{d.Tara:N0} kg",
+                explanation: "EmptyWeight z FarmerCalc (puste auto po rozładunku)"));
+
+            if (d.Status == StatusDostawy.Zwazony || d.Brutto > 0)
+            {
+                content.Children.Add(MakeCalcRow(
+                    $"Netto = Brutto - Tara = {d.Brutto:N0} - {d.Tara:N0}",
+                    $"{d.KgRzeczywiste:N0} kg", Br(green)));
+            }
+            else
+            {
+                content.Children.Add(MakeRow("Netto [kg]:", "-", Br(textMuted)));
+            }
+
+            content.Children.Add(MakeRow("Sztuki rzeczywiste:", d.SztukiRzeczywiste > 0 ? d.SztukiRzeczywiste.ToString("N0") : "-",
+                explanation: "DeclI1 z FarmerCalc"));
+            content.Children.Add(MakeRow("Sztuki Excel (AVILOG):", d.SztukiExcel > 0 ? d.SztukiExcel.ToString("N0") : "-",
+                explanation: "SztukiExcel z FarmerCalc"));
+            content.Children.Add(MakeRow("Padłe:", d.Padle.ToString("N0"),
+                explanation: "DeclI2 z FarmerCalc"));
+            content.Children.Add(MakeRow("Konfiskaty:", d.Konfiskaty.ToString("N0"),
+                explanation: "DeclI3 + DeclI4 + DeclI5 z FarmerCalc"));
+            content.Children.Add(MakeSeparator());
+            content.Children.Add(MakeRow("Przyjazd:", d.PrzyjazdDisplay));
+            content.Children.Add(MakeRow("Godzina ważenia:", d.GodzinaWazeniaDisplay));
+            content.Children.Add(MakeRow("Kto ważył:", d.KtoWazyl ?? "-"));
+
+            // ─────────────────────────────────────────
+            // SEKCJA 4: ŚREDNIA WAGA
+            // ─────────────────────────────────────────
+            content.Children.Add(MakeSectionHeader("Średnia waga sztuki", "\u2696"));
+
+            content.Children.Add(MakeRow("Waga deklarowana:", d.WagaDeklHarmonogram?.ToString("N3") + " kg" ?? "-",
+                explanation: "Z HarmonogramDostaw.WagaDek"));
+
+            if (d.SredniaWagaPlanCalc.HasValue && d.SztukiPlan > 0)
+            {
+                content.Children.Add(MakeCalcRow(
+                    $"Śr. waga plan = KgPlan / SztPlan = {d.KgPlan:N0} / {d.SztukiPlan}",
+                    $"{d.SredniaWagaPlanCalc:N3} kg"));
+            }
+
+            if (d.SztukiRzeczywiste > 0 && d.KgRzeczywiste > 0)
+            {
+                content.Children.Add(MakeCalcRow(
+                    $"Śr. waga rzecz. = Netto / Szt = {d.KgRzeczywiste:N0} / {d.SztukiRzeczywiste}",
+                    $"{d.SredniaWagaRzeczywistaCalc:N3} kg", Br(green)));
+
+                if (d.WagaDeklHarmonogram.HasValue)
+                {
+                    var diffWaga = d.OdchylenieWagiCalc ?? d.OdchylenieWagi;
+                    var diffBrush = diffWaga switch
+                    {
+                        > 0.02m => Br(green),
+                        < -0.02m => Br(red),
+                        _ => Br(textPrimary)
+                    };
+                    string znak = diffWaga > 0 ? "+" : "";
+                    content.Children.Add(MakeCalcRow(
+                        $"Odchylenie wagi = {d.SredniaWagaRzeczywistaCalc:N3} - {d.WagaDeklHarmonogram:N3}",
+                        $"{znak}{diffWaga:N3} kg  {d.WagaTrend}", diffBrush));
+                }
+            }
+            else
+            {
+                content.Children.Add(MakeRow("Śr. waga rzeczywista:", "-", Br(textMuted),
+                    explanation: "Brak danych (auto nie zważone)"));
+            }
+
+            // ─────────────────────────────────────────
+            // SEKCJA 5: ODCHYLENIE OD PLANU
+            // ─────────────────────────────────────────
+            content.Children.Add(MakeSectionHeader("Odchylenie od planu", "\U0001F4CA"));
+
+            var odchBrush = d.Poziom switch
+            {
+                PoziomOdchylenia.OK => Br(green),
+                PoziomOdchylenia.Uwaga => Br(yellow),
+                PoziomOdchylenia.Problem => Br(red),
+                _ => Br(textMuted)
+            };
+
+            decimal planRef = d.NowyPlanKg ?? d.KgPlan;
+            string planLabel = d.NowyPlanKg.HasValue ? "NowyPlanKg" : "KgPlan";
+
+            if (d.Status == StatusDostawy.Zwazony && planRef > 0)
+            {
+                var odchKg = d.OdchylenieKgCalc ?? d.OdchylenieKg;
+                var odchProc = d.OdchylenieProcCalc ?? d.OdchylenieProc;
+                string zn = odchKg > 0 ? "+" : "";
+
+                content.Children.Add(MakeCalcRow(
+                    $"Odch. kg = Netto - {planLabel} = {d.KgRzeczywiste:N0} - {planRef:N0}",
+                    $"{zn}{odchKg:N0} kg", odchBrush));
+                content.Children.Add(MakeCalcRow(
+                    $"Odch. % = ({zn}{odchKg:N0} / {planRef:N0}) × 100",
+                    $"{zn}{odchProc:N1}%", odchBrush));
+
+                content.Children.Add(MakeRow("Ocena:", d.Poziom switch
+                {
+                    PoziomOdchylenia.OK => "OK (do ±2% lub więcej niż plan)",
+                    PoziomOdchylenia.Uwaga => "UWAGA (2-5% poniżej planu)",
+                    PoziomOdchylenia.Problem => "PROBLEM (>5% poniżej planu)",
+                    _ => "-"
+                }, odchBrush));
+            }
+            else
+            {
+                content.Children.Add(MakeRow("Odchylenie:", "-", Br(textMuted),
+                    explanation: d.Status != StatusDostawy.Zwazony
+                        ? "Auto jeszcze nie zważone"
+                        : "Brak planu do porównania"));
+            }
+
+            // ─────────────────────────────────────────
+            // SEKCJA 6: POSTĘP HARMONOGRAMU (HODOWCA)
+            // ─────────────────────────────────────────
+            content.Children.Add(MakeSectionHeader("Postęp harmonogramu hodowcy", "\U0001F69A"));
+
+            content.Children.Add(MakeRow("Aut ogółem:", d.AutaOgolem.ToString(),
+                explanation: "Ile aut przyjechało/jest w planie od tego hodowcy"));
+            content.Children.Add(MakeRow("Aut zważonych:", d.AutaZwazone.ToString(), Br(green)));
+            content.Children.Add(MakeRow("Aut czekających:", d.AutaCzekajacych.ToString(),
+                d.AutaCzekajacych > 0 ? Br(yellow) : Br(green)));
+            content.Children.Add(MakeCalcRow(
+                $"Postęp = {d.AutaZwazone}/{d.AutaOgolem} aut",
+                $"{d.PostepProc:N0}%", d.PostepProc >= 100 ? Br(green) : Br(cyan)));
+            content.Children.Add(MakeSeparator());
+
+            content.Children.Add(MakeRow("Zważono łącznie [szt]:", d.SztukiZwazoneSuma.ToString("N0")));
+            content.Children.Add(MakeRow("Zważono łącznie [kg]:", d.KgZwazoneSuma.ToString("N0")));
+
+            if (d.PlanSztukiLacznie > 0)
+            {
+                content.Children.Add(MakeCalcRow(
+                    $"Szt pozostało = {d.PlanSztukiLacznie:N0} - {d.SztukiZwazoneSuma:N0}",
+                    $"{d.SztukiPozostalo:N0} szt"));
+            }
+            if (d.PlanKgLacznie > 0)
+            {
+                content.Children.Add(MakeCalcRow(
+                    $"Kg pozostało = {d.PlanKgLacznie:N0} - {d.KgZwazoneSuma:N0}",
+                    $"{d.KgPozostalo:N0} kg"));
+            }
+
+            if (d.AutaZwazone > 0 && d.AutaPlanowane > 0)
+            {
+                content.Children.Add(MakeRow("Trend hodowcy:", d.TrendHodowcy,
+                    d.TrendProc < 95 ? Br(red) : d.TrendProc > 105 ? Br(green) : Br(textPrimary),
+                    explanation: $"Śr. kg na zważone auto vs plan na auto = ({d.KgZwazoneSuma:N0}/{d.AutaZwazone}) / ({d.PlanKgLacznie:N0}/{d.AutaPlanowane}) × 100 = {d.TrendProc:N0}%"));
+            }
+
+            // ─────────────────────────────────────────
+            // SEKCJA 7: TUSZKI (PROGNOZA PRODUKCJI)
+            // ─────────────────────────────────────────
+            content.Children.Add(MakeSectionHeader("Tuszki - prognoza produkcji (78%)", "\U0001F357"));
+
+            content.Children.Add(MakeRow("Wydajność:", "78%", Br(textSecondary),
+                explanation: "Stały współczynnik: z 1 kg żywca powstaje 0.78 kg tuszki"));
+
+            content.Children.Add(MakeCalcRow(
+                $"Tuszki plan = KgPlan × 0.78 = {d.KgPlan:N0} × 0.78",
+                $"{d.TuszkiPlanKg:N0} kg"));
+
+            if (d.TuszkiRzeczywisteKg.HasValue)
+            {
+                content.Children.Add(MakeCalcRow(
+                    $"Tuszki rzecz. = Netto × 0.78 = {d.KgRzeczywiste:N0} × 0.78",
+                    $"{d.TuszkiRzeczywisteKg:N0} kg", Br(green)));
+            }
+
+            if (d.WagaTuszkiKg.HasValue)
+            {
+                content.Children.Add(MakeCalcRow(
+                    $"Waga tuszki = Śr.waga × 0.78 = {d.SredniaWagaRzeczywistaCalc:N3} × 0.78",
+                    $"{d.WagaTuszkiKg:N3} kg", Br(purple)));
+            }
+
+            if (d.SztukWPojemniku.HasValue)
+            {
+                content.Children.Add(MakeCalcRow(
+                    $"Szt/pojemnik = 15kg / {d.WagaTuszkiKg:N3}",
+                    $"{d.SztukWPojemniku:N2} szt", Br(purple)));
+                content.Children.Add(MakeRow("Rozmiar:", d.RozmiarDisplay, Br(purple),
+                    explanation: "Zaokrąglona liczba sztuk w 15kg pojemniku"));
+            }
+
+            content.Children.Add(MakeRow("Szt/poj plan:", d.SztPojPlan?.ToString("N1") ?? "-"));
+            content.Children.Add(MakeRow("Szt/poj rzecz.:", d.SztPojRzecz?.ToString("N1") ?? "-"));
+
+            if (d.KgPozostalo > 0)
+            {
+                content.Children.Add(MakeSeparator());
+                content.Children.Add(MakeCalcRow(
+                    $"Tuszki pozostałe = KgPozostało × 0.78 = {d.KgPozostalo:N0} × 0.78",
+                    $"{d.TuszkiPozostalo:N0} kg", Br(cyan)));
+                content.Children.Add(MakeCalcRow(
+                    $"Pozostało % = KgPozost / PlanKg × 100 = {d.KgPozostalo:N0} / {d.PlanKgLacznie:N0} × 100",
+                    $"{d.PozostaloProc:N1}%", d.PozostaloProc < 5 ? Br(red) : Br(cyan)));
+            }
+
+            // ============ SCROLL + FOOTER ============
+            var scrollViewer = new ScrollViewer
+            {
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                Content = content
+            };
+
+            var mainGrid = new Grid();
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            Grid.SetRow(scrollViewer, 0);
+            mainGrid.Children.Add(scrollViewer);
+
+            // Footer z przyciskami
+            var footer = new Border
+            {
+                Background = Br(bgPanel),
+                Padding = new Thickness(24, 10, 24, 10),
+                BorderBrush = Br(borderColor),
+                BorderThickness = new Thickness(0, 1, 0, 0)
+            };
+            var footerPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+
+            // Kopiuj do schowka
+            var copyButton = new Button
+            {
+                Content = "Kopiuj do schowka",
+                Padding = new Thickness(15, 7, 15, 7),
+                Background = Br(Color.FromRgb(68, 64, 60)),
+                Foreground = Br(textPrimary),
+                BorderThickness = new Thickness(0),
+                Cursor = Cursors.Hand,
+                FontSize = 12,
+                Margin = new Thickness(0, 0, 8, 0)
+            };
+            copyButton.Click += (s, ev) =>
+            {
+                try
+                {
+                    var sb = new System.Text.StringBuilder();
+                    sb.AppendLine($"DOSTAWA #{d.NrKursu} - {d.Hodowca}");
+                    sb.AppendLine($"Data: {d.Data:dd.MM.yyyy}  |  Status: {d.StatusText}");
+                    sb.AppendLine(new string('-', 50));
+                    sb.AppendLine($"LP dostawy (harmonogram): {d.LpDostawy?.ToString() ?? "-"}");
+                    sb.AppendLine($"Plan łącznie: {d.PlanSztukiLacznie:N0} szt / {d.PlanKgLacznie:N0} kg / {d.AutaPlanowane} aut");
+                    sb.AppendLine($"Waga deklar.: {d.WagaDeklHarmonogram?.ToString("N3") ?? "-"} kg/szt");
+                    sb.AppendLine($"Plan na auto: {d.SztukiPlanNaAuto:N0} szt / {d.KgPlanNaAuto:N0} kg {(ostatnie ? "(ostatnie auto=reszta)" : "")}");
+                    sb.AppendLine(new string('-', 50));
+                    sb.AppendLine($"Brutto: {d.Brutto:N0} kg  |  Tara: {d.Tara:N0} kg  |  Netto: {d.KgRzeczywiste:N0} kg");
+                    sb.AppendLine($"Sztuki: {d.SztukiRzeczywiste:N0}  |  SztExcel: {d.SztukiExcel:N0}");
+                    sb.AppendLine($"Padłe: {d.Padle}  |  Konfiskaty: {d.Konfiskaty}");
+                    sb.AppendLine($"Śr. waga: {d.SredniaWagaRzeczywistaCalc?.ToString("N3") ?? "-"} kg  (dekl: {d.WagaDeklHarmonogram?.ToString("N3") ?? "-"})");
+                    sb.AppendLine(new string('-', 50));
+                    sb.AppendLine($"Odchylenie: {d.OdchylenieDisplay}  |  Ocena: {d.Poziom}");
+                    sb.AppendLine($"Postęp: {d.PostepDisplay}  |  Trend: {d.TrendHodowcy}");
+                    sb.AppendLine($"Tuszki plan: {d.TuszkiPlanKg:N0} kg  |  rzecz: {d.TuszkiRzeczywisteKg?.ToString("N0") ?? "-"} kg");
+                    sb.AppendLine($"Rozmiar: {d.RozmiarDisplay}  |  Szt/poj: {d.SztukWPojemniku?.ToString("N2") ?? "-"}");
+                    sb.AppendLine($"Przyjazd: {d.PrzyjazdDisplay}  |  Ważenie: {d.GodzinaWazeniaDisplay}  |  Ważył: {d.KtoWazyl ?? "-"}");
+                    Clipboard.SetText(sb.ToString());
+                    ((Button)s).Content = "Skopiowano!";
+                }
+                catch { }
+            };
+            footerPanel.Children.Add(copyButton);
+
+            // Zamknij
             var closeButton = new Button
             {
                 Content = "Zamknij",
-                Padding = new Thickness(20, 8, 20, 8),
-                Background = new SolidColorBrush(Color.FromRgb(245, 158, 11)), // #f59e0b
-                Foreground = new SolidColorBrush(Color.FromRgb(28, 25, 23)),   // #1c1917
+                Padding = new Thickness(20, 7, 20, 7),
+                Background = Br(amberDark),
+                Foreground = Br(bgMain),
                 BorderThickness = new Thickness(0),
                 Cursor = Cursors.Hand,
                 FontWeight = FontWeights.SemiBold,
-                HorizontalAlignment = HorizontalAlignment.Right,
-                Margin = new Thickness(0, 15, 0, 0)
+                FontSize = 12
             };
-            closeButton.Click += (s, e) => detailWindow.Close();
-            Grid.SetRow(closeButton, 2);
-            grid.Children.Add(closeButton);
+            closeButton.Click += (s, ev) => detailWindow.Close();
+            footerPanel.Children.Add(closeButton);
 
-            detailWindow.Content = grid;
+            footer.Child = footerPanel;
+            Grid.SetRow(footer, 1);
+            mainGrid.Children.Add(footer);
+
+            detailWindow.Content = mainGrid;
             detailWindow.ShowDialog();
         }
 
@@ -993,6 +1857,7 @@ namespace Kalendarz1.DashboardPrzychodu.Views
         {
             txtErrorMessage.Text = message;
             errorOverlay.Visibility = Visibility.Visible;
+            try { Clipboard.SetText(message); } catch { }
         }
 
         /// <summary>
@@ -1001,6 +1866,37 @@ namespace Kalendarz1.DashboardPrzychodu.Views
         private void HideError()
         {
             errorOverlay.Visibility = Visibility.Collapsed;
+        }
+
+        private void BtnCopyError_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                Clipboard.SetText(txtErrorMessage.Text);
+                if (sender is Button btn)
+                {
+                    btn.Content = "Skopiowano!";
+                    var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+                    timer.Tick += (s, _) => { btn.Content = "Kopiuj błąd"; timer.Stop(); };
+                    timer.Start();
+                }
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// Znajduje ScrollViewer w drzewie wizualnym kontrolki (do zachowania pozycji scrolla)
+        /// </summary>
+        private static ScrollViewer FindScrollViewer(DependencyObject obj)
+        {
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(obj); i++)
+            {
+                var child = VisualTreeHelper.GetChild(obj, i);
+                if (child is ScrollViewer sv) return sv;
+                var result = FindScrollViewer(child);
+                if (result != null) return result;
+            }
+            return null;
         }
 
         /// <summary>

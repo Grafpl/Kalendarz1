@@ -3614,6 +3614,12 @@ Adres: {zamowienie.Adres}";
                         kursInfo,
                         "Oczekuje na przypisanie",
                         $"Zamówienie usunięte z kursu transportowego");
+
+                    // Log to TransportZmiany for approval system
+                    var klientNazwa = _ladunki.FirstOrDefault(l => l.KodKlienta == $"ZAM_{zamId}")?.NazwaKlienta ?? "";
+                    await TransportZmianyService.LogChangeAsync(zamId, zamId.ToString(), klientNazwa,
+                        "ZmianaStatusu", $"Zamowienie usuniete z kursu: {kursInfo}",
+                        kursInfo, "Oczekuje na przypisanie", _uzytkownik);
                 }
 
                 // Aktualizuj WSZYSTKIE zamówienia powiązane z ładunkami w kursie (nie tylko nowo dodane)
@@ -3655,6 +3661,13 @@ Adres: {zamowienie.Adres}";
                             "Oczekuje na przypisanie",
                             kursInfo,
                             $"Zamówienie przypisane do kursu transportowego");
+
+                        // Log to TransportZmiany for approval system
+                        var klientNazwa = _ladunki.FirstOrDefault(l => l.KodKlienta == $"ZAM_{zamId}")?.NazwaKlienta
+                            ?? _zamowieniaDoDodania.FirstOrDefault(z => z.ZamowienieId == zamId)?.KlientNazwa ?? "";
+                        await TransportZmianyService.LogChangeAsync(zamId, zamId.ToString(), klientNazwa,
+                            "ZmianaStatusu", $"Zamowienie przypisane do kursu: {kursInfo}",
+                            "Oczekuje na przypisanie", kursInfo, _uzytkownik);
                     }
                 }
 

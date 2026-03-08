@@ -283,7 +283,7 @@
                             <Border Background="#FFF3E0" CornerRadius="8" Padding="15,8" Margin="5,0">
                                 <StackPanel Orientation="Horizontal">
                                     <Ellipse Width="12" Height="12" Fill="#F39C12" Margin="0,0,8,0"/>
-                                    <TextBlock Text="W trakcie: " FontSize="12" Foreground="#EF6C00" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Przyjete: " FontSize="12" Foreground="#EF6C00" VerticalAlignment="Center"/>
                                     <TextBlock x:Name="txtStatWTrakcie" Text="0" FontSize="16" FontWeight="Bold" Foreground="#F39C12" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Border>
@@ -342,10 +342,9 @@
                                 <ComboBox x:Name="cmbStatus" Width="130" FontSize="11" SelectionChanged="CmbStatus_SelectionChanged">
                                     <ComboBoxItem Content="Wszystkie" IsSelected="True"/>
                                     <ComboBoxItem Content="Nowa"/>
-                                    <ComboBoxItem Content="W trakcie"/>
+                                    <ComboBoxItem Content="Przyjeta"/>
                                     <ComboBoxItem Content="Zaakceptowana"/>
                                     <ComboBoxItem Content="Odrzucona"/>
-                                    <ComboBoxItem Content="Zamknieta"/>
                                 </ComboBox>
                             </StackPanel>
 
@@ -361,6 +360,7 @@
                                     <ComboBoxItem Content="Niezgodnosc z zamowieniem"/>
                                     <ComboBoxItem Content="Temperatura"/>
                                     <ComboBoxItem Content="Ciala obce"/>
+                                    <ComboBoxItem Content="Faktura korygujaca"/>
                                     <ComboBoxItem Content="Inne"/>
                                 </ComboBox>
                             </StackPanel>
@@ -377,15 +377,12 @@
                                 </ComboBox>
                             </StackPanel>
 
-                            <!-- Data od -->
-                            <StackPanel Grid.Column="3" Grid.Row="0" Margin="0,0,10,0">
-                                <TextBlock Text="Data od:" FontSize="10" FontWeight="SemiBold" Foreground="#7F8C8D" Margin="0,0,0,4"/>
+                            <!-- Data od (ukryte - pokazujemy wszystkie) -->
+                            <StackPanel Grid.Column="3" Grid.Row="0" Margin="0,0,10,0" Visibility="Collapsed">
                                 <DatePicker x:Name="dpDataOd" Width="120" FontSize="11" SelectedDateChanged="DpData_SelectedDateChanged"/>
                             </StackPanel>
 
-                            <!-- Data do -->
-                            <StackPanel Grid.Column="4" Grid.Row="0" Margin="0,0,15,0">
-                                <TextBlock Text="Data do:" FontSize="10" FontWeight="SemiBold" Foreground="#7F8C8D" Margin="0,0,0,4"/>
+                            <StackPanel Grid.Column="4" Grid.Row="0" Margin="0,0,15,0" Visibility="Collapsed">
                                 <DatePicker x:Name="dpDataDo" Width="120" FontSize="11" SelectedDateChanged="DpData_SelectedDateChanged"/>
                             </StackPanel>
 
@@ -427,6 +424,24 @@
                                 <Button x:Name="btnStatystyki" Content="Statystyki" Click="BtnStatystyki_Click"
                                         Padding="12,8" FontSize="11"
                                         Background="#9B59B6" Foreground="White" BorderThickness="0" Cursor="Hand">
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Border>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                                <Button x:Name="btnDebugSync" Content="Debug sync" Click="BtnDebugSync_Click"
+                                        Padding="12,8" Margin="10,0,0,0" FontSize="11"
+                                        Background="#E67E22" Foreground="White" BorderThickness="0" Cursor="Hand"
+                                        Visibility="Collapsed">
                                     <Button.Style>
                                         <Style TargetType="Button">
                                             <Setter Property="Template">
@@ -542,11 +557,75 @@
                                                     <Setter TargetName="statusBorder" Property="Background" Value="#ECEFF1"/>
                                                     <Setter TargetName="statusText" Property="Foreground" Value="#546E7A"/>
                                                 </DataTrigger>
+                                                <DataTrigger Binding="{Binding Status}" Value="Przyjeta">
+                                                    <Setter TargetName="statusBorder" Property="Background" Value="#E3F2FD"/>
+                                                    <Setter TargetName="statusText" Property="Foreground" Value="#1565C0"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding Status}" Value="W analizie">
+                                                    <Setter TargetName="statusBorder" Property="Background" Value="#FFF3E0"/>
+                                                    <Setter TargetName="statusText" Property="Foreground" Value="#EF6C00"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding Status}" Value="W trakcie realizacji">
+                                                    <Setter TargetName="statusBorder" Property="Background" Value="#FFF3E0"/>
+                                                    <Setter TargetName="statusText" Property="Foreground" Value="#D84315"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding Status}" Value="Oczekuje na dostawce">
+                                                    <Setter TargetName="statusBorder" Property="Background" Value="#F3E5F5"/>
+                                                    <Setter TargetName="statusText" Property="Foreground" Value="#7B1FA2"/>
+                                                </DataTrigger>
                                             </DataTemplate.Triggers>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTextColumn Header="Zglaszajacy" Binding="{Binding Zglaszajacy}" Width="120"/>
+                                <!-- Zglaszajacy z avatarem -->
+                                <DataGridTemplateColumn Header="Zglaszajacy" Width="160">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Grid Width="26" Height="26" Margin="0,0,6,0">
+                                                    <Border Width="26" Height="26" CornerRadius="13"
+                                                            Background="{Binding ZglaszajacyAvatarBrush}">
+                                                        <TextBlock Text="{Binding ZglaszajacyInitials}" Foreground="White"
+                                                                   FontWeight="Bold" FontSize="9"
+                                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                    <Ellipse Width="26" Height="26" Visibility="{Binding ZglaszajacyAvatarPhotoVis}">
+                                                        <Ellipse.Fill>
+                                                            <ImageBrush ImageSource="{Binding ZglaszajacyAvatar}" Stretch="UniformToFill"/>
+                                                        </Ellipse.Fill>
+                                                    </Ellipse>
+                                                </Grid>
+                                                <TextBlock Text="{Binding Zglaszajacy}" VerticalAlignment="Center"
+                                                           FontSize="11" TextTrimming="CharacterEllipsis"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <!-- Rozpatrujacy z avatarem -->
+                                <DataGridTemplateColumn Header="Rozpatruje" Width="160">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
+                                                        Visibility="{Binding RozpatrujacyVis}">
+                                                <Grid Width="26" Height="26" Margin="0,0,6,0">
+                                                    <Border Width="26" Height="26" CornerRadius="13"
+                                                            Background="{Binding RozpatrujacyAvatarBrush}">
+                                                        <TextBlock Text="{Binding RozpatrujacyInitials}" Foreground="White"
+                                                                   FontWeight="Bold" FontSize="9"
+                                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                    <Ellipse Width="26" Height="26" Visibility="{Binding RozpatrujacyAvatarPhotoVis}">
+                                                        <Ellipse.Fill>
+                                                            <ImageBrush ImageSource="{Binding RozpatrujacyAvatar}" Stretch="UniformToFill"/>
+                                                        </Ellipse.Fill>
+                                                    </Ellipse>
+                                                </Grid>
+                                                <TextBlock Text="{Binding OsobaRozpatrujaca}" VerticalAlignment="Center"
+                                                           FontSize="11" TextTrimming="CharacterEllipsis"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
                             </DataGrid.Columns>
                             <DataGrid.ContextMenu>
                                 <ContextMenu>
@@ -576,6 +655,8 @@
 
                     <!-- Przyciski akcji -->
                     <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <Button x:Name="btnUzupelnij" Content="Uzupelnij" Style="{StaticResource WarningButton}"
+                                Width="140" Click="BtnUzupelnij_Click" IsEnabled="False" Margin="0,0,10,0"/>
                         <Button x:Name="btnSzczegoly" Content="Szczegoly" Style="{StaticResource InfoButton}"
                                 Width="140" Click="BtnSzczegoly_Click" IsEnabled="False" Margin="0,0,10,0"/>
                         <Button x:Name="btnZmienStatus" Content="Zmien status" Style="{StaticResource WarningButton}"
@@ -584,6 +665,9 @@
                                 Width="140" Click="BtnZaakceptuj_Click" IsEnabled="False" Margin="0,0,10,0"/>
                         <Button x:Name="btnOdrzuc" Content="Odrzuc" Style="{StaticResource PrimaryButton}"
                                 Width="140" Click="BtnOdrzuc_Click" IsEnabled="False"/>
+                        <Button x:Name="btnUsun" Content="Usun" Style="{StaticResource PrimaryButton}"
+                                Width="100" Click="BtnUsun_Click" IsEnabled="False" Margin="20,0,0,0"
+                                Visibility="Collapsed" Background="#E74C3C"/>
                     </StackPanel>
                 </Grid>
             </Border>

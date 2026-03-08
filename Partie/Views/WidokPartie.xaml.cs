@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -14,6 +16,22 @@ using Kalendarz1.Partie.Windows;
 
 namespace Kalendarz1.Partie.Views
 {
+    public class HexToBrushConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is string hex && !string.IsNullOrEmpty(hex))
+            {
+                try { return new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex)); }
+                catch { }
+            }
+            return Brushes.Transparent;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            => throw new NotImplementedException();
+    }
+
     public partial class WidokPartie : UserControl
     {
         private readonly PartiaService _service;
@@ -111,15 +129,28 @@ namespace Kalendarz1.Partie.Views
         // DETAIL LOADING (lazy, on expand)
         // ═══════════════════════════════════════════════════════════════
 
+        private PartiaModel GetPartiaFromDetail(DependencyObject element)
+        {
+            var border = FindParent<Border>(element);
+            while (border != null)
+            {
+                if (border.Tag is PartiaModel pm) return pm;
+                // Also check DataContext in case Tag binding uses wrapper
+                if (border.DataContext is PartiaModel dc) return dc;
+                border = FindParent<Border>(VisualTreeHelper.GetParent(border));
+            }
+            return null;
+        }
+
         private async void DetailTabs_Loaded(object sender, RoutedEventArgs e)
         {
             // When detail expands, load the first tab (wazenia) automatically
             if (sender is not TabControl tabs) return;
-            var border = FindParent<Border>(tabs);
-            var partia = border?.Tag as PartiaModel;
+            var partia = GetPartiaFromDetail(tabs);
             if (partia == null) return;
 
-            await LoadDetailWazeniaForTabAsync(partia.Partia, tabs);
+            try { await LoadDetailWazeniaForTabAsync(partia.Partia, tabs); }
+            catch { /* detail load failure should not crash */ }
         }
 
         private async void DetailTabs_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -127,33 +158,35 @@ namespace Kalendarz1.Partie.Views
             if (e.Source is not TabControl tabs) return;
             if (tabs.SelectedItem is not TabItem tab) return;
 
-            // Find the partia from the visual tree
-            var border = FindParent<Border>(tabs);
-            var partia = border?.Tag as PartiaModel;
+            var partia = GetPartiaFromDetail(tabs);
             if (partia == null) return;
 
             string tag = tab.Tag?.ToString();
-            switch (tag)
+            try
             {
-                case "wazenia":
-                    await LoadDetailWazeniaForTabAsync(partia.Partia, tabs);
-                    break;
-                case "produkty":
-                    await LoadDetailProduktyForTabAsync(partia.Partia, tabs);
-                    break;
-                case "qc":
-                    await LoadDetailQCForTabAsync(partia.Partia, tabs);
-                    break;
-                case "skup":
-                    await LoadDetailSkupForTabAsync(partia.Partia, tabs);
-                    break;
-                case "haccp":
-                    await LoadDetailHaccpForTabAsync(partia.Partia, tabs);
-                    break;
-                case "timeline":
-                    await LoadDetailTimelineForTabAsync(partia.Partia, tabs);
-                    break;
+                switch (tag)
+                {
+                    case "wazenia":
+                        await LoadDetailWazeniaForTabAsync(partia.Partia, tabs);
+                        break;
+                    case "produkty":
+                        await LoadDetailProduktyForTabAsync(partia.Partia, tabs);
+                        break;
+                    case "qc":
+                        await LoadDetailQCForTabAsync(partia.Partia, tabs);
+                        break;
+                    case "skup":
+                        await LoadDetailSkupForTabAsync(partia.Partia, tabs);
+                        break;
+                    case "haccp":
+                        await LoadDetailHaccpForTabAsync(partia.Partia, tabs);
+                        break;
+                    case "timeline":
+                        await LoadDetailTimelineForTabAsync(partia.Partia, tabs);
+                        break;
+                }
             }
+            catch { /* detail tab load failure should not crash */ }
         }
 
         private async System.Threading.Tasks.Task LoadDetailWazeniaForTabAsync(string partia, TabControl tabs)
@@ -607,6 +640,16 @@ namespace Kalendarz1.Partie.Views
                 if (tagStr.StartsWith("V2:")) return tagStr.Substring(3);
             }
             return null;
+        }
+
+        private void BtnPorownanie_Click(object sender, RoutedEventArgs e)
+        {
+            string dataOd = dpOd.SelectedDate?.ToString("yyyy-MM-dd") ?? DateTime.Today.AddDays(-30).ToString("yyyy-MM-dd");
+            string dataDo = dpDo.SelectedDate?.ToString("yyyy-MM-dd") ?? DateTime.Today.ToString("yyyy-MM-dd");
+
+            var win = new DostawcaComparisonWindow(dataOd, dataDo);
+            win.Owner = Window.GetWindow(this);
+            win.Show();
         }
 
         private void BtnDashboard_Click(object sender, RoutedEventArgs e)

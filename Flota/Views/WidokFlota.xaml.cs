@@ -439,6 +439,52 @@ namespace Kalendarz1.Flota.Views
             catch (Exception ex) { MessageBox.Show(ex.ToString(), "Blad", MessageBoxButton.OK, MessageBoxImage.Error); }
         }
 
+        private async void GridPrzypisania_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            var rowView = GridPrzypisania.SelectedItem as DataRowView;
+            if (rowView == null) return;
+            var row = rowView.Row;
+
+            int driverGID = Convert.ToInt32(row["DriverGID"]);
+            var dlg = new DriverEditWindow(_svc, driverGID);
+            dlg.Owner = Window.GetWindow(this);
+            if (dlg.ShowDialog() == true)
+            {
+                await LoadAssignmentsAsync();
+                await LoadDriversAsync();
+                await LoadVehiclesAsync();
+            }
+        }
+
+        private async void BtnDebug_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var btn = sender as Button;
+                if (btn != null) { btn.IsEnabled = false; btn.Content = "Sprawdzam..."; }
+
+                var issues = await _svc.RunDiagnosticsAsync();
+
+                string report = "=== DIAGNOSTYKA MODULU FLOTA ===\n"
+                    + $"Data: {DateTime.Now:yyyy-MM-dd HH:mm:ss}\n"
+                    + $"Uzytkownik: {App.UserID ?? "?"}\n"
+                    + new string('=', 50) + "\n\n"
+                    + string.Join("\n", issues)
+                    + "\n\n" + new string('=', 50)
+                    + "\n(Raport skopiowany do schowka)";
+
+                Clipboard.SetText(report);
+
+                MessageBox.Show(report, "Diagnostyka Flota", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                if (btn != null) { btn.IsEnabled = true; btn.Content = "DEBUG"; }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Blad diagnostyki:\n{ex}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
         // ══════════════════════════════════════════════════════════════
         // ALERTY
         // ══════════════════════════════════════════════════════════════

@@ -136,7 +136,7 @@
                 </DataGridTextColumn>
 
                 <!-- AVILOG: Kierowca -->
-                <DataGridTextColumn Header="KIEROWCA (EXCEL)" Binding="{Binding AvilogKierowca}" Width="150" IsReadOnly="True">
+                <DataGridTextColumn Header="KIEROWCA (EXCEL)" Binding="{Binding AvilogKierowca}" Width="130" IsReadOnly="True">
                     <DataGridTextColumn.HeaderStyle>
                         <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource AvilogHeaderStyle}"/>
                     </DataGridTextColumn.HeaderStyle>
@@ -150,7 +150,7 @@
                 </DataGridTextColumn>
 
                 <!-- Mapowanie: Kierowca -->
-                <DataGridTemplateColumn Header="KIEROWCA (BAZA)" Width="180">
+                <DataGridTemplateColumn Header="KIEROWCA (BAZA)" Width="160">
                     <DataGridTemplateColumn.HeaderStyle>
                         <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource MappingHeaderStyle}"/>
                     </DataGridTemplateColumn.HeaderStyle>
@@ -183,7 +183,7 @@
                 </DataGridTextColumn>
 
                 <!-- AVILOG: Adres hodowcy -->
-                <DataGridTextColumn Header="ADRES (EXCEL)" Binding="{Binding AvilogAdres}" Width="180" IsReadOnly="True">
+                <DataGridTextColumn Header="ADRES (EXCEL)" Binding="{Binding AvilogAdres}" Width="150" IsReadOnly="True">
                     <DataGridTextColumn.HeaderStyle>
                         <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource AvilogHeaderStyle}"/>
                     </DataGridTextColumn.HeaderStyle>
@@ -282,21 +282,57 @@
                 </DataGridTemplateColumn>
 
                 <!-- Ilości -->
-                <DataGridTextColumn Header="SZTUKI" Binding="{Binding Sztuki, StringFormat=N0}" Width="80" IsReadOnly="True">
+                <DataGridTextColumn Header="SZTUKI" Binding="{Binding Sztuki, StringFormat=N0}" Width="70" IsReadOnly="True">
+                    <DataGridTextColumn.HeaderStyle>
+                        <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource AvilogHeaderStyle}"/>
+                    </DataGridTextColumn.HeaderStyle>
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="Padding" Value="5"/>
                             <Setter Property="TextAlignment" Value="Right"/>
                             <Setter Property="FontWeight" Value="Bold"/>
+                            <Setter Property="Background" Value="#E8F5E9"/>
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
 
-                <DataGridTextColumn Header="WAGA/SZT" Binding="{Binding WagaDek, StringFormat=N2}" Width="80" IsReadOnly="True">
+                <DataGridTextColumn Header="SKRZYNKI" Binding="{Binding WymiarSkrzyn}" Width="75" IsReadOnly="True">
+                    <DataGridTextColumn.HeaderStyle>
+                        <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource AvilogHeaderStyle}"/>
+                    </DataGridTextColumn.HeaderStyle>
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Padding" Value="5"/>
+                            <Setter Property="TextAlignment" Value="Center"/>
+                            <Setter Property="Background" Value="#E8F5E9"/>
+                            <Setter Property="FontSize" Value="10"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+
+                <DataGridTextColumn Header="SZT/SKR" Binding="{Binding SztukiNaSkrzynke}" Width="60" IsReadOnly="True">
+                    <DataGridTextColumn.HeaderStyle>
+                        <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource AvilogHeaderStyle}"/>
+                    </DataGridTextColumn.HeaderStyle>
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Padding" Value="5"/>
+                            <Setter Property="TextAlignment" Value="Center"/>
+                            <Setter Property="Background" Value="#E8F5E9"/>
+                            <Setter Property="FontWeight" Value="SemiBold"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+
+                <DataGridTextColumn Header="WAGA/SZT" Binding="{Binding WagaDek, StringFormat=N2}" Width="70" IsReadOnly="True">
+                    <DataGridTextColumn.HeaderStyle>
+                        <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource AvilogHeaderStyle}"/>
+                    </DataGridTextColumn.HeaderStyle>
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="Padding" Value="5"/>
                             <Setter Property="TextAlignment" Value="Right"/>
+                            <Setter Property="Background" Value="#E8F5E9"/>
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>

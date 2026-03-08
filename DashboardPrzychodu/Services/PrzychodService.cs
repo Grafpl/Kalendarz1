@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Data.SqlClient;
@@ -204,17 +205,27 @@ namespace Kalendarz1.DashboardPrzychodu.Services
 
             // Zapytanie z CTE: dynamiczny plan gdzie ostatnie auto = RESZTA z harmonogramu
             const string query = @"
-                WITH SumaZwazonychPerHarmonogram AS (
+                WITH DaneDostawy AS (
+                    -- Pobranie wszystkich rekordów na dany dzień (jeden skan FarmerCalc)
+                    SELECT fc.*, RTRIM(fc.CustomerGID) AS CustGID
+                    FROM dbo.FarmerCalc fc
+                    WHERE fc.CalcDate = @Data AND ISNULL(fc.Deleted, 0) = 0
+                ),
+                DostawcyMap AS (
+                    -- Pre-trim Dostawcy raz (zamiast LTRIM/RTRIM per wiersz w JOIN)
+                    SELECT LTRIM(RTRIM(d.ID)) AS TrimID, d.Name, d.ShortName
+                    FROM dbo.Dostawcy d
+                    WHERE LTRIM(RTRIM(d.ID)) IN (SELECT DISTINCT CustGID FROM DaneDostawy)
+                ),
+                SumaZwazonychPerHarmonogram AS (
                     -- Suma juz zwazonych dla kazdego harmonogramu
                     SELECT
                         fc.LpDostawy,
                         COUNT(*) AS AutaZwazone,
                         SUM(ISNULL(fc.LumQnt, 0)) AS SztukiZwazoneSuma,
                         SUM(ISNULL(fc.NettoWeight, 0)) AS KgZwazoneSuma
-                    FROM dbo.FarmerCalc fc
-                    WHERE fc.CalcDate = @Data
-                      AND ISNULL(fc.Deleted, 0) = 0
-                      AND ISNULL(fc.FullWeight, 0) > 0
+                    FROM DaneDostawy fc
+                    WHERE ISNULL(fc.FullWeight, 0) > 0
                       AND ISNULL(fc.EmptyWeight, 0) > 0  -- tylko zwazone (brutto + tara)
                     GROUP BY fc.LpDostawy
                 ),
@@ -223,9 +234,7 @@ namespace Kalendarz1.DashboardPrzychodu.Services
                     SELECT
                         fc.LpDostawy,
                         COUNT(*) AS AutaOgolem
-                    FROM dbo.FarmerCalc fc
-                    WHERE fc.CalcDate = @Data
-                      AND ISNULL(fc.Deleted, 0) = 0
+                    FROM DaneDostawy fc
                     GROUP BY fc.LpDostawy
                 ),
                 PozostaloPerHarmonogram AS (
@@ -234,9 +243,9 @@ namespace Kalendarz1.DashboardPrzychodu.Services
                         fc.LpDostawy,
                         hd.Lp AS HarmonogramLp,
                         hd.Dostawca AS HodowcaHarmonogram,
-                        ISNULL(hd.SztukiDek, 0) AS PlanSztukiLacznie,
-                        CAST(ISNULL(hd.SztukiDek, 0) * ISNULL(hd.WagaDek, 0) AS DECIMAL(12,0)) AS PlanKgLacznie,
-                        ISNULL(hd.WagaDek, 0) AS WagaDekl,
+                        ISNULL(TRY_CAST(hd.SztukiDek AS INT), 0) AS PlanSztukiLacznie,
+                        CAST(ISNULL(TRY_CAST(hd.SztukiDek AS INT), 0) * ISNULL(TRY_CAST(hd.WagaDek AS DECIMAL(10,3)), 0) AS DECIMAL(12,0)) AS PlanKgLacznie,
+                        ISNULL(TRY_CAST(hd.WagaDek AS DECIMAL(10,3)), 0) AS WagaDekl,
                         TRY_CAST(hd.SztSzuflada AS DECIMAL(10,2)) AS SztPojPlan,
                         ISNULL(TRY_CAST(hd.Auta AS INT), 1) AS AutaPlanowane,
                         ISNULL(sz.AutaZwazone, 0) AS AutaZwazone,
@@ -244,27 +253,27 @@ namespace Kalendarz1.DashboardPrzychodu.Services
                         ISNULL(sz.SztukiZwazoneSuma, 0) AS SztukiZwazoneSuma,
                         ISNULL(sz.KgZwazoneSuma, 0) AS KgZwazoneSuma,
                         -- POZOSTALO
-                        ISNULL(hd.SztukiDek, 0) - ISNULL(sz.SztukiZwazoneSuma, 0) AS SztukiPozostalo,
-                        CAST(ISNULL(hd.SztukiDek, 0) * ISNULL(hd.WagaDek, 0) AS DECIMAL(12,0)) - ISNULL(sz.KgZwazoneSuma, 0) AS KgPozostalo,
+                        ISNULL(TRY_CAST(hd.SztukiDek AS INT), 0) - ISNULL(sz.SztukiZwazoneSuma, 0) AS SztukiPozostalo,
+                        CAST(ISNULL(TRY_CAST(hd.SztukiDek AS INT), 0) * ISNULL(TRY_CAST(hd.WagaDek AS DECIMAL(10,3)), 0) AS DECIMAL(12,0)) - ISNULL(sz.KgZwazoneSuma, 0) AS KgPozostalo,
                         -- Ile aut jeszcze czeka
                         ISNULL(sw.AutaOgolem, 0) - ISNULL(sz.AutaZwazone, 0) AS AutaCzekajacych,
                         -- Procent realizacji
-                        CASE WHEN CAST(ISNULL(hd.SztukiDek, 0) * ISNULL(hd.WagaDek, 0) AS DECIMAL(12,0)) > 0
-                             THEN CAST(ISNULL(sz.KgZwazoneSuma, 0) * 100.0 / (ISNULL(hd.SztukiDek, 0) * ISNULL(hd.WagaDek, 0)) AS DECIMAL(5,1))
+                        CASE WHEN CAST(ISNULL(TRY_CAST(hd.SztukiDek AS INT), 0) * ISNULL(TRY_CAST(hd.WagaDek AS DECIMAL(10,3)), 0) AS DECIMAL(12,0)) > 0
+                             THEN CAST(ISNULL(sz.KgZwazoneSuma, 0) * 100.0 / (ISNULL(TRY_CAST(hd.SztukiDek AS INT), 0) * ISNULL(TRY_CAST(hd.WagaDek AS DECIMAL(10,3)), 0)) AS DECIMAL(5,1))
                              ELSE 0 END AS RealizacjaProc,
                         -- Trend (srednia na zwazone auto vs plan na auto)
                         CASE WHEN ISNULL(sz.AutaZwazone, 0) > 0 AND ISNULL(TRY_CAST(hd.Auta AS INT), 1) > 0
                              THEN CAST((ISNULL(sz.KgZwazoneSuma, 0) / sz.AutaZwazone)
-                                  / NULLIF((CAST(ISNULL(hd.SztukiDek, 0) * ISNULL(hd.WagaDek, 0) AS DECIMAL(12,0)) / ISNULL(TRY_CAST(hd.Auta AS INT), 1)), 0) * 100 AS DECIMAL(5,1))
+                                  / NULLIF((CAST(ISNULL(TRY_CAST(hd.SztukiDek AS INT), 0) * ISNULL(TRY_CAST(hd.WagaDek AS DECIMAL(10,3)), 0) AS DECIMAL(12,0)) / ISNULL(TRY_CAST(hd.Auta AS INT), 1)), 0) * 100 AS DECIMAL(5,1))
                              ELSE 100 END AS TrendProc
-                    FROM (SELECT DISTINCT LpDostawy FROM dbo.FarmerCalc WHERE CalcDate = @Data AND ISNULL(Deleted, 0) = 0) fc
-                    LEFT JOIN dbo.HarmonogramDostaw hd ON fc.LpDostawy = hd.Lp
+                    FROM (SELECT DISTINCT LpDostawy FROM DaneDostawy) fc
+                    LEFT JOIN dbo.HarmonogramDostaw hd ON TRY_CAST(fc.LpDostawy AS INT) = hd.Lp
                     LEFT JOIN SumaZwazonychPerHarmonogram sz ON fc.LpDostawy = sz.LpDostawy
                     LEFT JOIN SumaWszystkichPerHarmonogram sw ON fc.LpDostawy = sw.LpDostawy
                 )
                 SELECT
                     fc.ID,
-                    fc.CarLp AS NrKursu,
+                    ISNULL(TRY_CAST(fc.CarLp AS INT), 0) AS NrKursu,
                     fc.CalcDate AS Data,
                     fc.LpDostawy,
 
@@ -351,19 +360,20 @@ namespace Kalendarz1.DashboardPrzychodu.Services
 
                     -- KONFISKATY
                     ISNULL(fc.DeclI2, 0) AS Padle,
-                    ISNULL(fc.DeclI3, 0) + ISNULL(fc.DeclI4, 0) + ISNULL(fc.DeclI5, 0) AS Konfiskaty,
+                    ISNULL(TRY_CAST(fc.DeclI3 AS INT), 0) + ISNULL(TRY_CAST(fc.DeclI4 AS INT), 0) + ISNULL(TRY_CAST(fc.DeclI5 AS INT), 0) AS Konfiskaty,
 
                     -- TIMESTAMPY
                     fc.Przyjazd,
                     fc.SlaughterWeightDate AS GodzinaWazenia,
-                    fc.SlaughterWeightUser AS KtoWazyl
+                    fc.SlaughterWeightUser AS KtoWazyl,
 
-                FROM dbo.FarmerCalc fc
+                    -- SZTUKI Z EXCEL (do trybu Nowe)
+                    ISNULL(fc.SztukiExcel, 0) AS SztukiExcel
+
+                FROM DaneDostawy fc
                 LEFT JOIN PozostaloPerHarmonogram ph ON fc.LpDostawy = ph.LpDostawy
-                LEFT JOIN dbo.Dostawcy d ON LTRIM(RTRIM(CAST(d.ID AS NVARCHAR(20)))) = LTRIM(RTRIM(fc.CustomerGID))
-                WHERE fc.CalcDate = @Data
-                  AND ISNULL(fc.Deleted, 0) = 0
-                ORDER BY fc.CarLp";
+                LEFT JOIN DostawcyMap d ON d.TrimID = fc.CustGID
+                ORDER BY TRY_CAST(fc.CarLp AS INT)";
 
             try
             {
@@ -428,7 +438,9 @@ namespace Kalendarz1.DashboardPrzychodu.Services
                                     Konfiskaty = reader.GetInt32(reader.GetOrdinal("Konfiskaty")),
                                     Przyjazd = reader.IsDBNull(reader.GetOrdinal("Przyjazd")) ? null : reader.GetDateTime(reader.GetOrdinal("Przyjazd")),
                                     GodzinaWazenia = reader.IsDBNull(reader.GetOrdinal("GodzinaWazenia")) ? null : reader.GetDateTime(reader.GetOrdinal("GodzinaWazenia")),
-                                    KtoWazyl = reader.IsDBNull(reader.GetOrdinal("KtoWazyl")) ? null : reader.GetString(reader.GetOrdinal("KtoWazyl"))
+                                    KtoWazyl = reader.IsDBNull(reader.GetOrdinal("KtoWazyl")) ? null : reader.GetString(reader.GetOrdinal("KtoWazyl")),
+
+                                    SztukiExcel = reader.IsDBNull(reader.GetOrdinal("SztukiExcel")) ? 0 : reader.GetInt32(reader.GetOrdinal("SztukiExcel"))
                                 };
                                 dostawy.Add(item);
                             }
@@ -442,11 +454,178 @@ namespace Kalendarz1.DashboardPrzychodu.Services
             catch (Exception ex)
             {
                 Debug.WriteLine($"[PrzychodService] Błąd GetDostawyAsync: {ex.Message}");
-                Debug.WriteLine($"[PrzychodService] Stack: {ex.StackTrace}");
 
-                // Zapisz szczegóły błędu
-                LastDiagnosticError = $"Błąd: {ex.Message}\n\nStack trace:\n{ex.StackTrace}";
-                throw;
+                // Diagnostyka: szukaj źródła '0-1'
+                var diag = new System.Text.StringBuilder();
+                diag.AppendLine($"BŁĄD: {ex.Message}");
+                diag.AppendLine();
+                try
+                {
+                    using (var conn2 = new SqlConnection(_connectionString))
+                    {
+                        await conn2.OpenAsync();
+
+                        // 0. Czy FarmerCalc to tabela czy widok?
+                        try
+                        {
+                            using (var cmdType = new SqlCommand(@"
+                                SELECT TABLE_TYPE FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'FarmerCalc'
+                                UNION ALL
+                                SELECT 'VIEW DEF: ' + LEFT(VIEW_DEFINITION, 200) FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_NAME = 'FarmerCalc'", conn2))
+                            {
+                                cmdType.CommandTimeout = 10;
+                                using (var r = await cmdType.ExecuteReaderAsync())
+                                {
+                                    while (await r.ReadAsync())
+                                        diag.AppendLine($"FarmerCalc typ: {r.GetString(0)}");
+                                }
+                            }
+                        }
+                        catch (Exception e) { diag.AppendLine($"Typ check error: {e.Message}"); }
+
+                        // 1. Szukaj '0-1' we WSZYSTKICH kolumnach FarmerCalc
+                        try
+                        {
+                            using (var cmdAll = new SqlCommand(@"
+                                SELECT c.COLUMN_NAME, c.DATA_TYPE
+                                FROM INFORMATION_SCHEMA.COLUMNS c
+                                WHERE c.TABLE_NAME = 'FarmerCalc'
+                                ORDER BY c.ORDINAL_POSITION", conn2))
+                            {
+                                cmdAll.CommandTimeout = 10;
+                                var allCols = new System.Collections.Generic.List<(string name, string type)>();
+                                using (var r = await cmdAll.ExecuteReaderAsync())
+                                {
+                                    while (await r.ReadAsync())
+                                        allCols.Add((r.GetString(0), r.GetString(1)));
+                                }
+                                diag.AppendLine($"FarmerCalc: {allCols.Count} kolumn");
+
+                                // Szukaj varchar/nvarchar kolumn z wartością '0-1'
+                                var varcharCols = allCols.Where(c => c.type.Contains("char") || c.type.Contains("text")).ToList();
+                                diag.AppendLine($"Varchar kolumny: {string.Join(", ", varcharCols.Select(c => c.name))}");
+
+                                foreach (var (colName, colType) in varcharCols)
+                                {
+                                    try
+                                    {
+                                        using (var cmdSearch = new SqlCommand($@"
+                                            SELECT TOP 1 [{colName}] FROM dbo.FarmerCalc
+                                            WHERE CalcDate = @Data AND [{colName}] LIKE '%0-1%'", conn2))
+                                        {
+                                            cmdSearch.Parameters.AddWithValue("@Data", data.Date);
+                                            cmdSearch.CommandTimeout = 10;
+                                            using (var r2 = await cmdSearch.ExecuteReaderAsync())
+                                            {
+                                                if (await r2.ReadAsync())
+                                                    diag.AppendLine($"  ZNALEZIONO '0-1' w {colName}: {r2.GetValue(0)}");
+                                            }
+                                        }
+                                    }
+                                    catch { }
+                                }
+                            }
+                        }
+                        catch (Exception e) { diag.AppendLine($"Cols check error: {e.Message}"); }
+
+                        // 2. Progresywne dodawanie CTEs
+                        var cteTests = new (string Name, string Sql)[]
+                        {
+                            ("Bez CTEs", @"SELECT TOP 1 fc.ID FROM dbo.FarmerCalc fc WHERE fc.CalcDate = @Data AND ISNULL(fc.Deleted, 0) = 0"),
+
+                            ("CTE1 SumaZwazonych", @"
+                                WITH CTE1 AS (
+                                    SELECT fc.LpDostawy, COUNT(*) AS AutaZwazone
+                                    FROM dbo.FarmerCalc fc
+                                    WHERE fc.CalcDate = @Data AND ISNULL(fc.Deleted, 0) = 0
+                                      AND ISNULL(fc.FullWeight, 0) > 0 AND ISNULL(fc.EmptyWeight, 0) > 0
+                                    GROUP BY fc.LpDostawy
+                                )
+                                SELECT TOP 1 fc.ID FROM dbo.FarmerCalc fc
+                                LEFT JOIN CTE1 c ON fc.LpDostawy = c.LpDostawy
+                                WHERE fc.CalcDate = @Data AND ISNULL(fc.Deleted, 0) = 0"),
+
+                            ("CTE1+2", @"
+                                WITH CTE1 AS (
+                                    SELECT fc.LpDostawy, COUNT(*) AS AutaZwazone
+                                    FROM dbo.FarmerCalc fc
+                                    WHERE fc.CalcDate = @Data AND ISNULL(fc.Deleted, 0) = 0
+                                      AND ISNULL(fc.FullWeight, 0) > 0 AND ISNULL(fc.EmptyWeight, 0) > 0
+                                    GROUP BY fc.LpDostawy
+                                ),
+                                CTE2 AS (
+                                    SELECT fc.LpDostawy, COUNT(*) AS AutaOgolem
+                                    FROM dbo.FarmerCalc fc
+                                    WHERE fc.CalcDate = @Data AND ISNULL(fc.Deleted, 0) = 0
+                                    GROUP BY fc.LpDostawy
+                                )
+                                SELECT TOP 1 fc.ID FROM dbo.FarmerCalc fc
+                                LEFT JOIN CTE1 c1 ON fc.LpDostawy = c1.LpDostawy
+                                LEFT JOIN CTE2 c2 ON fc.LpDostawy = c2.LpDostawy
+                                WHERE fc.CalcDate = @Data AND ISNULL(fc.Deleted, 0) = 0"),
+
+                            ("CTE1+2+3 (full)", @"
+                                WITH CTE1 AS (
+                                    SELECT fc.LpDostawy, COUNT(*) AS AutaZwazone
+                                    FROM dbo.FarmerCalc fc
+                                    WHERE fc.CalcDate = @Data AND ISNULL(fc.Deleted, 0) = 0
+                                      AND ISNULL(fc.FullWeight, 0) > 0 AND ISNULL(fc.EmptyWeight, 0) > 0
+                                    GROUP BY fc.LpDostawy
+                                ),
+                                CTE2 AS (
+                                    SELECT fc.LpDostawy, COUNT(*) AS AutaOgolem
+                                    FROM dbo.FarmerCalc fc
+                                    WHERE fc.CalcDate = @Data AND ISNULL(fc.Deleted, 0) = 0
+                                    GROUP BY fc.LpDostawy
+                                ),
+                                CTE3 AS (
+                                    SELECT fc.LpDostawy,
+                                        ISNULL(TRY_CAST(hd.SztukiDek AS INT), 0) AS PlanSzt
+                                    FROM (SELECT DISTINCT LpDostawy FROM dbo.FarmerCalc WHERE CalcDate = @Data AND ISNULL(Deleted, 0) = 0) fc
+                                    LEFT JOIN dbo.HarmonogramDostaw hd ON fc.LpDostawy = hd.Lp
+                                    LEFT JOIN CTE1 c1 ON fc.LpDostawy = c1.LpDostawy
+                                    LEFT JOIN CTE2 c2 ON fc.LpDostawy = c2.LpDostawy
+                                )
+                                SELECT TOP 1 fc.ID FROM dbo.FarmerCalc fc
+                                LEFT JOIN CTE3 c3 ON fc.LpDostawy = c3.LpDostawy
+                                WHERE fc.CalcDate = @Data AND ISNULL(fc.Deleted, 0) = 0"),
+
+                            ("FarmerCalc + Dostawcy only", @"
+                                SELECT TOP 1 fc.ID FROM dbo.FarmerCalc fc
+                                LEFT JOIN dbo.Dostawcy d ON LTRIM(RTRIM(d.ID)) = LTRIM(RTRIM(fc.CustomerGID))
+                                WHERE fc.CalcDate = @Data AND ISNULL(fc.Deleted, 0) = 0"),
+
+                            ("FarmerCalc + HarmonogramDostaw direct", @"
+                                SELECT TOP 1 fc.ID FROM dbo.FarmerCalc fc
+                                LEFT JOIN dbo.HarmonogramDostaw hd ON fc.LpDostawy = hd.Lp
+                                WHERE fc.CalcDate = @Data AND ISNULL(fc.Deleted, 0) = 0"),
+                        };
+
+                        foreach (var (name, sql) in cteTests)
+                        {
+                            try
+                            {
+                                using (var cmd2 = new SqlCommand(sql, conn2))
+                                {
+                                    cmd2.Parameters.AddWithValue("@Data", data.Date);
+                                    cmd2.CommandTimeout = 10;
+                                    var result = await cmd2.ExecuteScalarAsync();
+                                    diag.AppendLine($"[OK] {name} → {result}");
+                                }
+                            }
+                            catch (Exception qex) { diag.AppendLine($"[BŁĄD] {name}: {qex.Message}"); }
+                        }
+
+                        // (stare per-column testy usunięte - wyżej są CTE testy)
+                    }
+                }
+                catch (Exception diagEx)
+                {
+                    diag.AppendLine($"Błąd diagnostyki: {diagEx.Message}");
+                }
+
+                LastDiagnosticError = diag.ToString();
+                throw new Exception(diag.ToString());
             }
 
             return dostawy;
@@ -463,30 +642,48 @@ namespace Kalendarz1.DashboardPrzychodu.Services
             // Nowe zapytanie z CTE: Plan z unikalnych harmonogramów
             // UWAGA: hd.Auta i hd.SztSzuflada mogą zawierać tekst, więc używamy TRY_CAST
             const string query = @"
-                WITH UnikalneHarmonogramy AS (
+                WITH DaneDostawy AS (
+                    SELECT fc.LpDostawy, fc.DeclI1, fc.NettoFarmWeight, fc.WagaDek,
+                           fc.FullWeight, fc.EmptyWeight, fc.NettoWeight, fc.LumQnt
+                    FROM dbo.FarmerCalc fc
+                    WHERE fc.CalcDate = @Data AND ISNULL(fc.Deleted, 0) = 0
+                ),
+                UnikalneHarmonogramy AS (
                     -- Każdy LpDostawy tylko raz (bo może być kilka aut z tego samego harmonogramu)
                     SELECT DISTINCT
                         fc.LpDostawy,
-                        hd.SztukiDek,
-                        hd.WagaDek,
+                        TRY_CAST(hd.SztukiDek AS INT) AS SztukiDek,
+                        TRY_CAST(hd.WagaDek AS DECIMAL(10,3)) AS WagaDek,
                         TRY_CAST(hd.SztSzuflada AS DECIMAL(10,2)) AS SztSzuflada,
                         TRY_CAST(hd.Auta AS INT) AS Auta,
-                        CAST(ISNULL(hd.SztukiDek, 0) * ISNULL(hd.WagaDek, 0) AS DECIMAL(12,0)) AS KgPlanLacznie
-                    FROM dbo.FarmerCalc fc
-                    INNER JOIN dbo.HarmonogramDostaw hd ON fc.LpDostawy = hd.Lp
-                    WHERE fc.CalcDate = @Data
-                      AND ISNULL(fc.Deleted, 0) = 0
-                      AND fc.LpDostawy IS NOT NULL
+                        CAST(ISNULL(TRY_CAST(hd.SztukiDek AS INT), 0) * ISNULL(TRY_CAST(hd.WagaDek AS DECIMAL(10,3)), 0) AS DECIMAL(12,0)) AS KgPlanLacznie
+                    FROM DaneDostawy fc
+                    INNER JOIN dbo.HarmonogramDostaw hd ON TRY_CAST(fc.LpDostawy AS INT) = hd.Lp
+                    WHERE fc.LpDostawy IS NOT NULL
                 ),
                 PlanZFarmerCalc AS (
                     -- Fallback: plan z FarmerCalc dla rekordów bez LpDostawy
                     SELECT
                         SUM(ISNULL(fc.DeclI1, 0)) AS SztukiPlan,
                         SUM(CAST(COALESCE(fc.NettoFarmWeight, fc.WagaDek, 0) AS DECIMAL(18,2))) AS KgPlan
-                    FROM dbo.FarmerCalc fc
-                    WHERE fc.CalcDate = @Data
-                      AND ISNULL(fc.Deleted, 0) = 0
-                      AND fc.LpDostawy IS NULL
+                    FROM DaneDostawy fc
+                    WHERE fc.LpDostawy IS NULL
+                ),
+                PlanDlaZwazonych AS (
+                    -- Plan kg proporcjonalny przypisany TYLKO do zwazonych aut
+                    SELECT
+                        SUM(
+                            CASE
+                                WHEN hd.Lp IS NOT NULL AND ISNULL(TRY_CAST(hd.Auta AS INT), 1) > 0
+                                THEN CAST(ISNULL(TRY_CAST(hd.SztukiDek AS INT), 0) * ISNULL(TRY_CAST(hd.WagaDek AS DECIMAL(10,3)), 0) AS DECIMAL(12,0))
+                                     / ISNULL(TRY_CAST(hd.Auta AS INT), 1)
+                                ELSE CAST(COALESCE(fc.NettoFarmWeight, fc.WagaDek, 0) AS DECIMAL(18,2))
+                            END
+                        ) AS KgPlanDoZwazonych
+                    FROM DaneDostawy fc
+                    LEFT JOIN dbo.HarmonogramDostaw hd ON TRY_CAST(fc.LpDostawy AS INT) = hd.Lp
+                    WHERE ISNULL(fc.FullWeight, 0) > 0
+                      AND ISNULL(fc.EmptyWeight, 0) > 0
                 ),
                 RzeczywisteDnia AS (
                     SELECT
@@ -502,9 +699,7 @@ namespace Kalendarz1.DashboardPrzychodu.Services
                             THEN CAST(ISNULL(fc.NettoWeight, 0) AS DECIMAL(18,2)) ELSE 0 END) AS KgZwazoneSuma,
                         SUM(CASE WHEN ISNULL(fc.FullWeight,0) > 0 AND ISNULL(fc.EmptyWeight,0) > 0
                             THEN ISNULL(fc.LumQnt, 0) ELSE 0 END) AS SztukiZwazoneSuma
-                    FROM dbo.FarmerCalc fc
-                    WHERE fc.CalcDate = @Data
-                      AND ISNULL(fc.Deleted, 0) = 0
+                    FROM DaneDostawy fc
                 )
                 SELECT
                     -- PLAN (z harmonogramów + fallback)
@@ -527,11 +722,11 @@ namespace Kalendarz1.DashboardPrzychodu.Services
                          THEN CAST(r.KgZwazoneSuma / NULLIF(r.SztukiZwazoneSuma, 0) AS DECIMAL(10,3))
                          ELSE NULL END AS SrWagaRzeczSrednia,
 
-                    -- ODCHYLENIE (zważone - plan dla zważonych)
-                    r.KgZwazoneSuma - ISNULL((SELECT SUM(uh.KgPlanLacznie) FROM UnikalneHarmonogramy uh), 0) AS OdchylenieKgSuma,
+                    -- ODCHYLENIE (zwazone kg - plan proporcjonalny do zwazonych aut)
+                    r.KgZwazoneSuma - ISNULL(pz.KgPlanDoZwazonych, 0) AS OdchylenieKgSuma,
 
-                    -- Plan do zważonych (do obliczenia %)
-                    ISNULL((SELECT SUM(uh.KgPlanLacznie) FROM UnikalneHarmonogramy uh), 0) AS KgPlanDoZwazonych,
+                    -- Plan przypisany do zwazonych aut (do obliczenia %)
+                    ISNULL(pz.KgPlanDoZwazonych, 0) AS KgPlanDoZwazonych,
 
                     -- LICZNIKI
                     r.LiczbaDostawOgolem,
@@ -539,7 +734,8 @@ namespace Kalendarz1.DashboardPrzychodu.Services
                     r.LiczbaCzekaNaTare,
                     r.LiczbaOczekujacych
 
-                FROM RzeczywisteDnia r";
+                FROM RzeczywisteDnia r
+                CROSS JOIN PlanDlaZwazonych pz";
 
             try
             {
@@ -596,21 +792,25 @@ namespace Kalendarz1.DashboardPrzychodu.Services
             var prognoza = new PrognozaDnia();
 
             const string query = @"
-                WITH DaneDnia AS (
+                WITH DaneDostawy AS (
+                    SELECT fc.LpDostawy, fc.FullWeight, fc.EmptyWeight, fc.NettoWeight
+                    FROM dbo.FarmerCalc fc
+                    WHERE fc.CalcDate = @Data AND ISNULL(fc.Deleted, 0) = 0
+                ),
+                DaneDnia AS (
                     SELECT
-                        SUM(ISNULL(fc.NettoWeight, 0)) AS KgZwazone,
+                        SUM(CASE WHEN ISNULL(fc.FullWeight,0) > 0 AND ISNULL(fc.EmptyWeight,0) > 0
+                                 THEN ISNULL(fc.NettoWeight, 0) ELSE 0 END) AS KgZwazone,
                         SUM(CASE WHEN ISNULL(fc.FullWeight,0) > 0 AND ISNULL(fc.EmptyWeight,0) > 0
                                  THEN 1 ELSE 0 END) AS AutaZwazone,
                         COUNT(*) AS AutaOgolem
-                    FROM dbo.FarmerCalc fc
-                    WHERE fc.CalcDate = @Data
-                      AND ISNULL(fc.Deleted, 0) = 0
+                    FROM DaneDostawy fc
                 ),
                 PlanDnia AS (
                     SELECT
-                        SUM(CAST(ISNULL(hd.SztukiDek, 0) * ISNULL(hd.WagaDek, 0) AS DECIMAL(12,0))) AS KgPlanLacznie
-                    FROM (SELECT DISTINCT LpDostawy FROM dbo.FarmerCalc WHERE CalcDate = @Data AND ISNULL(Deleted, 0) = 0 AND LpDostawy IS NOT NULL) fc
-                    INNER JOIN dbo.HarmonogramDostaw hd ON fc.LpDostawy = hd.Lp
+                        SUM(CAST(ISNULL(TRY_CAST(hd.SztukiDek AS INT), 0) * ISNULL(TRY_CAST(hd.WagaDek AS DECIMAL(10,3)), 0) AS DECIMAL(12,0))) AS KgPlanLacznie
+                    FROM (SELECT DISTINCT LpDostawy FROM DaneDostawy WHERE LpDostawy IS NOT NULL) fc
+                    INNER JOIN dbo.HarmonogramDostaw hd ON TRY_CAST(fc.LpDostawy AS INT) = hd.Lp
                 )
                 SELECT
                     ISNULL(p.KgPlanLacznie, 0) AS KgPlanLacznie,
@@ -663,16 +863,19 @@ namespace Kalendarz1.DashboardPrzychodu.Services
             var postepy = new List<PostepHarmonogramu>();
 
             const string query = @"
-                WITH SumaZwazonychPerHarmonogram AS (
+                WITH DaneDostawy AS (
+                    SELECT fc.LpDostawy, fc.LumQnt, fc.NettoWeight, fc.FullWeight, fc.EmptyWeight
+                    FROM dbo.FarmerCalc fc
+                    WHERE fc.CalcDate = @Data AND ISNULL(fc.Deleted, 0) = 0
+                ),
+                SumaZwazonychPerHarmonogram AS (
                     SELECT
                         fc.LpDostawy,
                         COUNT(*) AS AutaZwazone,
                         SUM(ISNULL(fc.LumQnt, 0)) AS SztukiZwazoneSuma,
                         SUM(ISNULL(fc.NettoWeight, 0)) AS KgZwazoneSuma
-                    FROM dbo.FarmerCalc fc
-                    WHERE fc.CalcDate = @Data
-                      AND ISNULL(fc.Deleted, 0) = 0
-                      AND ISNULL(fc.FullWeight, 0) > 0
+                    FROM DaneDostawy fc
+                    WHERE ISNULL(fc.FullWeight, 0) > 0
                       AND ISNULL(fc.EmptyWeight, 0) > 0
                     GROUP BY fc.LpDostawy
                 ),
@@ -680,9 +883,7 @@ namespace Kalendarz1.DashboardPrzychodu.Services
                     SELECT
                         fc.LpDostawy,
                         COUNT(*) AS AutaOgolem
-                    FROM dbo.FarmerCalc fc
-                    WHERE fc.CalcDate = @Data
-                      AND ISNULL(fc.Deleted, 0) = 0
+                    FROM DaneDostawy fc
                     GROUP BY fc.LpDostawy
                 )
                 SELECT
@@ -691,16 +892,16 @@ namespace Kalendarz1.DashboardPrzychodu.Services
                     ISNULL(sz.AutaZwazone, 0) AS AutaZwazone,
                     ISNULL(sw.AutaOgolem, 0) AS AutaOgolem,
                     ISNULL(TRY_CAST(hd.Auta AS INT), 1) AS AutaPlanowane,
-                    ISNULL(hd.SztukiDek, 0) AS PlanSztukiLacznie,
-                    CAST(ISNULL(hd.SztukiDek, 0) * ISNULL(hd.WagaDek, 0) AS DECIMAL(12,0)) AS PlanKgLacznie,
+                    ISNULL(TRY_CAST(hd.SztukiDek AS INT), 0) AS PlanSztukiLacznie,
+                    CAST(ISNULL(TRY_CAST(hd.SztukiDek AS INT), 0) * ISNULL(TRY_CAST(hd.WagaDek AS DECIMAL(10,3)), 0) AS DECIMAL(12,0)) AS PlanKgLacznie,
                     ISNULL(sz.SztukiZwazoneSuma, 0) AS SztukiZwazoneSuma,
                     ISNULL(sz.KgZwazoneSuma, 0) AS KgZwazoneSuma,
-                    hd.WagaDek AS SredniaWagaPlan,
+                    TRY_CAST(hd.WagaDek AS DECIMAL(10,3)) AS SredniaWagaPlan,
                     CASE WHEN ISNULL(sz.SztukiZwazoneSuma, 0) > 0
                          THEN CAST(sz.KgZwazoneSuma AS DECIMAL(12,3)) / sz.SztukiZwazoneSuma
                          ELSE NULL END AS SredniaWagaRzecz
-                FROM (SELECT DISTINCT LpDostawy FROM dbo.FarmerCalc WHERE CalcDate = @Data AND ISNULL(Deleted, 0) = 0 AND LpDostawy IS NOT NULL) fc
-                INNER JOIN dbo.HarmonogramDostaw hd ON fc.LpDostawy = hd.Lp
+                FROM (SELECT DISTINCT LpDostawy FROM DaneDostawy WHERE LpDostawy IS NOT NULL) fc
+                INNER JOIN dbo.HarmonogramDostaw hd ON TRY_CAST(fc.LpDostawy AS INT) = hd.Lp
                 LEFT JOIN SumaZwazonychPerHarmonogram sz ON fc.LpDostawy = sz.LpDostawy
                 LEFT JOIN SumaWszystkichPerHarmonogram sw ON fc.LpDostawy = sw.LpDostawy
                 ORDER BY hd.Dostawca";

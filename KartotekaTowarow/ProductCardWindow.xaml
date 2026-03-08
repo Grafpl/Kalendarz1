@@ -1,0 +1,206 @@
+<Window x:Class="Kalendarz1.KartotekaTowarow.ProductCardWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Karta produktu" Width="750" Height="900"
+        MinWidth="550" MinHeight="600"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResize">
+
+    <Grid Background="#F0F3F7">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Toolbar -->
+        <Border Grid.Row="0" Background="#1E3A5F" Padding="16,10">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Content="  Drukuj  " FontFamily="Segoe UI" FontSize="12"
+                        Background="#27AE60" Foreground="White" FontWeight="SemiBold"
+                        Padding="16,6" BorderThickness="0" Cursor="Hand" Click="BtnPrint_Click"/>
+                <TextBlock Text="Karta produktu" FontFamily="Segoe UI" FontSize="16"
+                           FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+            </DockPanel>
+        </Border>
+
+        <!-- Printable content -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="20">
+            <Border x:Name="PrintArea" Background="White" BorderBrush="#DEE2E6" BorderThickness="1"
+                    Padding="40,30" MaxWidth="700">
+                <StackPanel>
+                    <!-- Title bar -->
+                    <Border Background="#1E3A5F" CornerRadius="4" Padding="16,12" Margin="0,0,0,20">
+                        <StackPanel>
+                            <TextBlock Text="KARTA PRODUKTU" FontFamily="Segoe UI" FontSize="10"
+                                       Foreground="#8EAFC4" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                            <TextBlock x:Name="TxtCardName" FontFamily="Segoe UI" FontSize="20"
+                                       FontWeight="Bold" Foreground="White" TextWrapping="Wrap"/>
+                            <TextBlock x:Name="TxtCardId" FontFamily="Segoe UI" FontSize="11"
+                                       Foreground="#8EAFC4" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Status -->
+                    <StackPanel x:Name="PanelCardStatus" Orientation="Horizontal" Margin="0,0,0,16">
+                        <Border x:Name="BadgeCardHalt" Visibility="Collapsed" Background="#FDEDEC"
+                                CornerRadius="4" Padding="8,4" Margin="0,0,8,0">
+                            <TextBlock Text="WSTRZYMANY" FontFamily="Segoe UI" FontSize="10"
+                                       FontWeight="Bold" Foreground="#E74C3C"/>
+                        </Border>
+                        <Border x:Name="BadgeCardStandard" Visibility="Collapsed" Background="#FEF9E7"
+                                CornerRadius="4" Padding="8,4">
+                            <TextBlock x:Name="TxtCardStandard" FontFamily="Segoe UI" FontSize="10"
+                                       FontWeight="Bold" Foreground="#D4AF37"/>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Section: Dane podstawowe -->
+                    <TextBlock Text="DANE PODSTAWOWE" FontFamily="Segoe UI" FontSize="11"
+                               FontWeight="SemiBold" Foreground="#1E3A5F" Margin="0,0,0,8"/>
+                    <Border Background="#F8F9FA" CornerRadius="4" Padding="16,12" Margin="0,0,0,16">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition/>
+                                <RowDefinition/>
+                            </Grid.RowDefinitions>
+                            <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,0,8">
+                                <TextBlock Text="JM" FontFamily="Segoe UI" FontSize="9" Foreground="#95A5A6"/>
+                                <TextBlock x:Name="TxtCardJM" FontFamily="Segoe UI" FontSize="12" FontWeight="SemiBold" Foreground="#2C3E50"/>
+                            </StackPanel>
+                            <StackPanel Grid.Row="0" Grid.Column="1" Margin="0,0,0,8">
+                                <TextBlock Text="Grupa" FontFamily="Segoe UI" FontSize="9" Foreground="#95A5A6"/>
+                                <TextBlock x:Name="TxtCardGrupa" FontFamily="Segoe UI" FontSize="12" FontWeight="SemiBold" Foreground="#2C3E50"/>
+                            </StackPanel>
+                            <StackPanel Grid.Row="0" Grid.Column="2" Margin="0,0,0,8">
+                                <TextBlock Text="Rodzaj" FontFamily="Segoe UI" FontSize="9" Foreground="#95A5A6"/>
+                                <TextBlock x:Name="TxtCardRodzaj" FontFamily="Segoe UI" FontSize="12" FontWeight="SemiBold" Foreground="#2C3E50"/>
+                            </StackPanel>
+                            <StackPanel Grid.Row="1" Grid.Column="0">
+                                <TextBlock Text="WRC" FontFamily="Segoe UI" FontSize="9" Foreground="#95A5A6"/>
+                                <TextBlock x:Name="TxtCardWRC" FontFamily="Segoe UI" FontSize="12" FontWeight="SemiBold" Foreground="#2C3E50"/>
+                            </StackPanel>
+                            <StackPanel Grid.Row="1" Grid.Column="1">
+                                <TextBlock Text="Wydajnosc" FontFamily="Segoe UI" FontSize="9" Foreground="#95A5A6"/>
+                                <TextBlock x:Name="TxtCardWydajnosc" FontFamily="Segoe UI" FontSize="12" FontWeight="SemiBold" Foreground="#2C3E50"/>
+                            </StackPanel>
+                            <StackPanel Grid.Row="1" Grid.Column="2">
+                                <TextBlock Text="Przelicznik" FontFamily="Segoe UI" FontSize="9" Foreground="#95A5A6"/>
+                                <TextBlock x:Name="TxtCardPrzelicznik" FontFamily="Segoe UI" FontSize="12" FontWeight="SemiBold" Foreground="#2C3E50"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- Section: Ceny -->
+                    <TextBlock Text="CENY" FontFamily="Segoe UI" FontSize="11"
+                               FontWeight="SemiBold" Foreground="#1E3A5F" Margin="0,0,0,8"/>
+                    <Border Background="#F8F9FA" CornerRadius="4" Padding="16,12" Margin="0,0,0,16">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Cena 1" FontFamily="Segoe UI" FontSize="9" Foreground="#95A5A6"/>
+                                <TextBlock x:Name="TxtCardCena1" FontFamily="Segoe UI" FontSize="16" FontWeight="Bold" Foreground="#27AE60"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="Cena 2" FontFamily="Segoe UI" FontSize="9" Foreground="#95A5A6"/>
+                                <TextBlock x:Name="TxtCardCena2" FontFamily="Segoe UI" FontSize="14" FontWeight="SemiBold" Foreground="#2C3E50"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="Cena 3" FontFamily="Segoe UI" FontSize="9" Foreground="#95A5A6"/>
+                                <TextBlock x:Name="TxtCardCena3" FontFamily="Segoe UI" FontSize="14" FontWeight="SemiBold" Foreground="#2C3E50"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- Section: Etykieta -->
+                    <TextBlock Text="ETYKIETA I SKLAD" FontFamily="Segoe UI" FontSize="11"
+                               FontWeight="SemiBold" Foreground="#1E3A5F" Margin="0,0,0,8"/>
+                    <Border Background="#F8F9FA" CornerRadius="4" Padding="16,12" Margin="0,0,0,16">
+                        <StackPanel>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Termin waznosci" FontFamily="Segoe UI" FontSize="9" Foreground="#95A5A6"/>
+                                    <TextBlock x:Name="TxtCardDuration" FontFamily="Segoe UI" FontSize="12" FontWeight="SemiBold" Foreground="#2C3E50"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="Temperatura" FontFamily="Segoe UI" FontSize="9" Foreground="#95A5A6"/>
+                                    <TextBlock x:Name="TxtCardTemp" FontFamily="Segoe UI" FontSize="12" FontWeight="SemiBold" Foreground="#2C3E50"/>
+                                </StackPanel>
+                            </Grid>
+                            <TextBlock Text="Sklad" FontFamily="Segoe UI" FontSize="9" Foreground="#95A5A6" Margin="0,10,0,0"/>
+                            <TextBlock x:Name="TxtCardSklad" FontFamily="Segoe UI" FontSize="11" Foreground="#2C3E50"
+                                       TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Section: Standardy wagi -->
+                    <StackPanel x:Name="PanelCardStandard" Visibility="Collapsed">
+                        <TextBlock Text="STANDARDY WAGI" FontFamily="Segoe UI" FontSize="11"
+                                   FontWeight="SemiBold" Foreground="#1E3A5F" Margin="0,0,0,8"/>
+                        <Border Background="#FEF9E7" CornerRadius="4" Padding="16,12" Margin="0,0,0,16">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Waga standardowa" FontFamily="Segoe UI" FontSize="9" Foreground="#95A5A6"/>
+                                    <TextBlock x:Name="TxtCardStdWeight" FontFamily="Segoe UI" FontSize="14" FontWeight="Bold" Foreground="#D4AF37"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="Tolerancja +" FontFamily="Segoe UI" FontSize="9" Foreground="#95A5A6"/>
+                                    <TextBlock x:Name="TxtCardTolPlus" FontFamily="Segoe UI" FontSize="12" FontWeight="SemiBold" Foreground="#2C3E50"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="Tolerancja -" FontFamily="Segoe UI" FontSize="9" Foreground="#95A5A6"/>
+                                    <TextBlock x:Name="TxtCardTolMinus" FontFamily="Segoe UI" FontSize="12" FontWeight="SemiBold" Foreground="#2C3E50"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Section: Powiazania -->
+                    <StackPanel x:Name="PanelCardRelated" Visibility="Collapsed">
+                        <TextBlock Text="POWIAZANE ARTYKULY" FontFamily="Segoe UI" FontSize="11"
+                                   FontWeight="SemiBold" Foreground="#1E3A5F" Margin="0,0,0,8"/>
+                        <Border Background="#F8F9FA" CornerRadius="4" Padding="16,12" Margin="0,0,0,16">
+                            <TextBlock x:Name="TxtCardRelated" FontFamily="Segoe UI" FontSize="11"
+                                       Foreground="#2C3E50" TextWrapping="Wrap"/>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Footer -->
+                    <Border Height="1" Background="#DEE2E6" Margin="0,10,0,10"/>
+                    <Grid>
+                        <TextBlock x:Name="TxtCardCreated" FontFamily="Segoe UI" FontSize="9"
+                                   Foreground="#BDC3C7" HorizontalAlignment="Left"/>
+                        <TextBlock x:Name="TxtCardPrintDate" FontFamily="Segoe UI" FontSize="9"
+                                   Foreground="#BDC3C7" HorizontalAlignment="Right"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </ScrollViewer>
+
+        <!-- Bottom bar -->
+        <Border Grid.Row="2" Background="#F0F3F7" Padding="16,8">
+            <Button Content="  Zamknij  " FontFamily="Segoe UI" FontSize="12"
+                    Background="#95A5A6" Foreground="White" Padding="16,6"
+                    BorderThickness="0" Cursor="Hand" HorizontalAlignment="Right"
+                    Click="BtnClose_Click"/>
+        </Border>
+    </Grid>
+</Window>
