@@ -694,6 +694,17 @@
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="HorizontalAlignment" Value="Center"/>
+                                            <Style.Triggers>
+                                                <MultiDataTrigger>
+                                                    <MultiDataTrigger.Conditions>
+                                                        <Condition Binding="{Binding IsHeaderRow}" Value="False"/>
+                                                        <Condition Binding="{Binding IsSeparator}" Value="False"/>
+                                                        <Condition Binding="{Binding IsWstawienieConfirmed}" Value="False"/>
+                                                    </MultiDataTrigger.Conditions>
+                                                    <Setter Property="Foreground" Value="#D32F2F"/>
+                                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                                </MultiDataTrigger>
+                                            </Style.Triggers>
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
@@ -1034,6 +1045,17 @@
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="HorizontalAlignment" Value="Center"/>
+                                        <Style.Triggers>
+                                            <MultiDataTrigger>
+                                                <MultiDataTrigger.Conditions>
+                                                    <Condition Binding="{Binding IsHeaderRow}" Value="False"/>
+                                                    <Condition Binding="{Binding IsSeparator}" Value="False"/>
+                                                    <Condition Binding="{Binding IsWstawienieConfirmed}" Value="False"/>
+                                                </MultiDataTrigger.Conditions>
+                                                <Setter Property="Foreground" Value="#D32F2F"/>
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                            </MultiDataTrigger>
+                                        </Style.Triggers>
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>

@@ -6156,10 +6156,19 @@ namespace Kalendarz1.Zywiec.Kalendarz
             if (_inlineEditPopup != null && _inlineEditPopup.IsOpen)
                 return;
 
+            // Blokuj drag przez 500ms po zamknięciu inline edit popup
+            if ((DateTime.Now - _inlineEditClosedTime).TotalMilliseconds < CONTEXT_MENU_DRAG_BLOCK_MS)
+            {
+                _skipNextDragStart = false;
+                _dragStartPoint = e.GetPosition(null); // Resetuj punkt startowy aby uniknąć stale distance
+                return;
+            }
+
             // Pochłoń kliknięcie które zamknęło popup (nie startuj draga)
             if (_skipNextDragStart)
             {
                 _skipNextDragStart = false;
+                _dragStartPoint = e.GetPosition(null); // Resetuj punkt startowy aby uniknąć stale distance
                 return;
             }
 
@@ -6193,6 +6202,9 @@ namespace Kalendarz1.Zywiec.Kalendarz
             if (_inlineEditPopup != null && _inlineEditPopup.IsOpen)
                 return;
             if (_skipNextDragStart)
+                return;
+            // Blokuj drag przez 500ms po zamknięciu inline edit popup
+            if ((DateTime.Now - _inlineEditClosedTime).TotalMilliseconds < CONTEXT_MENU_DRAG_BLOCK_MS)
                 return;
 
             var dg = sender as DataGrid;

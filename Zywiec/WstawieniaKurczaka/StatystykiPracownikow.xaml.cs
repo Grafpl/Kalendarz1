@@ -142,35 +142,95 @@ namespace Kalendarz1
         }
     }
 
+    // ==================== KPI Model ====================
+    public class ZakupowiecKpi : INotifyPropertyChanged
+    {
+        public int Pozycja { get; set; }
+        public string Nazwa { get; set; }
+        public string UserID { get; set; }
+        public int Utworzone { get; set; }
+        public int Potwierdzone { get; set; }
+        public double ProcentPotwierdzonych { get; set; }
+        public double SredniCzasPotwGodziny { get; set; }
+        public int LiczbaDostawcow { get; set; }
+        public long Wolumen { get; set; }
+        public double Produktywnosc { get; set; }
+
+        public string Inicjaly
+        {
+            get
+            {
+                if (string.IsNullOrWhiteSpace(Nazwa)) return "?";
+                var parts = Nazwa.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length >= 2)
+                    return $"{parts[0][0]}{parts[1][0]}".ToUpper();
+                return Nazwa.Length >= 2 ? Nazwa.Substring(0, 2).ToUpper() : Nazwa.ToUpper();
+            }
+        }
+
+        public Brush KolorBrush { get; set; }
+
+        private ImageSource _avatarSource;
+        public ImageSource AvatarSource
+        {
+            get => _avatarSource;
+            set
+            {
+                _avatarSource = value;
+                OnPropertyChanged(nameof(AvatarSource));
+            }
+        }
+
+        public string ProcentPotwTekst => $"{ProcentPotwierdzonych:F0}%";
+        public double ProcentPotwWidth => ProcentPotwierdzonych * 0.6; // max ~60px for 100%
+
+        public string SredniCzasPotwTekst
+        {
+            get
+            {
+                if (SredniCzasPotwGodziny <= 0) return "-";
+                if (SredniCzasPotwGodziny < 1) return $"{SredniCzasPotwGodziny * 60:F0} min";
+                if (SredniCzasPotwGodziny < 24) return $"{SredniCzasPotwGodziny:F1} godz.";
+                return $"{SredniCzasPotwGodziny / 24:F1} dni";
+            }
+        }
+
+        public string WolumenTekst => Wolumen.ToString("N0");
+        public string ProduktywTekst => $"{Produktywnosc:F1}";
+
+        public event PropertyChangedEventHandler PropertyChanged;
+        protected virtual void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+    }
+
     public partial class StatystykiPracownikow : Window
     {
         private string connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
         private DateTime currentStartDate;
         private DateTime currentEndDate;
 
-        // Słownik do przechowywania stałych kolorów użytkowników
         private Dictionary<string, Color> userColors = new Dictionary<string, Color>();
 
-        // Paleta kolorów dla wykresów
         private readonly Color[] chartColors = new Color[]
         {
-            Color.FromRgb(92, 138, 58),   // Zielony
-            Color.FromRgb(52, 152, 219),  // Niebieski
-            Color.FromRgb(243, 156, 18),  // Pomarańczowy
-            Color.FromRgb(155, 89, 182),  // Fioletowy
-            Color.FromRgb(231, 76, 60),   // Czerwony
-            Color.FromRgb(26, 188, 156),  // Turkusowy
-            Color.FromRgb(241, 196, 15),  // Żółty
-            Color.FromRgb(230, 126, 34),  // Pomarańczowy ciemny
-            Color.FromRgb(149, 165, 166), // Szary
-            Color.FromRgb(127, 140, 141)  // Szary ciemny
+            Color.FromRgb(92, 138, 58),
+            Color.FromRgb(52, 152, 219),
+            Color.FromRgb(243, 156, 18),
+            Color.FromRgb(155, 89, 182),
+            Color.FromRgb(231, 76, 60),
+            Color.FromRgb(26, 188, 156),
+            Color.FromRgb(241, 196, 15),
+            Color.FromRgb(230, 126, 34),
+            Color.FromRgb(149, 165, 166),
+            Color.FromRgb(127, 140, 141)
         };
 
         public StatystykiPracownikow()
         {
             InitializeComponent();
             WindowIconHelper.SetIcon(this);
-            // Domyślnie załaduj bieżący miesiąc
             FilterButton_Click(btnMiesiac, null);
         }
 
@@ -179,18 +239,14 @@ namespace Kalendarz1
             var button = sender as Button;
             if (button == null) return;
 
-            // Pobierz okres z Tag przycisku
             string period = button.Tag?.ToString() ?? "";
             if (string.IsNullOrEmpty(period)) return;
 
-            // Resetuj wygląd wszystkich przycisków
             ResetAllButtons();
 
-            // Ustaw wygląd aktywnego przycisku (zielone tło, biały tekst)
-            button.Background = new SolidColorBrush(Color.FromRgb(92, 138, 58)); // Zielony
+            button.Background = new SolidColorBrush(Color.FromRgb(92, 138, 58));
             button.Foreground = Brushes.White;
 
-            // Pobierz zakres dat i załaduj statystyki
             (DateTime startDate, DateTime endDate) = GetDateRangeFromTag(period);
             currentStartDate = startDate;
             currentEndDate = endDate;
@@ -200,12 +256,10 @@ namespace Kalendarz1
 
         private void ResetAllButtons()
         {
-            // Kolor domyślny dla przycisków
-            var defaultBackground = new SolidColorBrush(Color.FromRgb(234, 236, 238)); // #EAECEE
-            var defaultForeground = new SolidColorBrush(Color.FromRgb(44, 62, 80));   // #2C3E50
+            var defaultBackground = new SolidColorBrush(Color.FromRgb(234, 236, 238));
+            var defaultForeground = new SolidColorBrush(Color.FromRgb(44, 62, 80));
 
-            // Resetuj przyciski szybkiego wyboru
-            var quickButtons = new[] { btnDzis, btnWczoraj, btnTydzien, btnPoprzedniTydzien, 
+            var quickButtons = new[] { btnDzis, btnWczoraj, btnTydzien, btnPoprzedniTydzien,
                                        btnMiesiac, btnPoprzedniMiesiac, btnRok, btnPoprzedniRok };
             foreach (var btn in quickButtons)
             {
@@ -213,25 +267,24 @@ namespace Kalendarz1
                 btn.Foreground = defaultForeground;
             }
 
-            // Resetuj wszystkie przyciski miesięcy w panelu głównym
             ResetMonthButtonsInPanel(this);
         }
 
         private void ResetMonthButtonsInPanel(DependencyObject parent)
         {
-            var defaultBackground = new SolidColorBrush(Color.FromRgb(234, 236, 238)); // #EAECEE
-            var defaultForeground = new SolidColorBrush(Color.FromRgb(44, 62, 80));   // #2C3E50
+            var defaultBackground = new SolidColorBrush(Color.FromRgb(234, 236, 238));
+            var defaultForeground = new SolidColorBrush(Color.FromRgb(44, 62, 80));
 
             for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
             {
                 var child = VisualTreeHelper.GetChild(parent, i);
-                
+
                 if (child is Button btn && btn.Tag != null && btn.Tag.ToString().Contains("-"))
                 {
                     btn.Background = defaultBackground;
                     btn.Foreground = defaultForeground;
                 }
-                
+
                 ResetMonthButtonsInPanel(child);
             }
         }
@@ -240,7 +293,6 @@ namespace Kalendarz1
         {
             DateTime today = DateTime.Today;
 
-            // Sprawdź czy to konkretny miesiąc (format: 2025-01, 2024-12 itp.)
             if (tag.Contains("-") && tag.Length == 7)
             {
                 try
@@ -248,61 +300,58 @@ namespace Kalendarz1
                     var parts = tag.Split('-');
                     int year = int.Parse(parts[0]);
                     int month = int.Parse(parts[1]);
-                    
+
                     DateTime startDate = new DateTime(year, month, 1);
                     DateTime endDate = startDate.AddMonths(1);
-                    
-                    // Jeśli to bieżący miesiąc, kończymy na dzisiejszej dacie + 1 dzień
+
                     if (year == today.Year && month == today.Month)
                     {
                         endDate = today.AddDays(1);
                     }
-                    
+
                     return (startDate, endDate);
                 }
                 catch
                 {
-                    // Jeśli parsing się nie powiódł, zwróć dzisiaj
                     return (today, today.AddDays(1));
                 }
             }
 
-            // Szybkie opcje
             switch (tag)
             {
                 case "Today":
                     return (today, today.AddDays(1));
-                
+
                 case "Yesterday":
                     return (today.AddDays(-1), today);
-                
+
                 case "Week":
                     DateTime startOfWeek = today.AddDays(-(int)today.DayOfWeek + (int)DayOfWeek.Monday);
                     return (startOfWeek, today.AddDays(1));
-                
+
                 case "LastWeek":
                     DateTime lastWeekStart = today.AddDays(-(int)today.DayOfWeek + (int)DayOfWeek.Monday - 7);
                     DateTime lastWeekEnd = lastWeekStart.AddDays(7);
                     return (lastWeekStart, lastWeekEnd);
-                
+
                 case "Month":
                     DateTime startOfMonth = new DateTime(today.Year, today.Month, 1);
                     return (startOfMonth, today.AddDays(1));
-                
+
                 case "LastMonth":
                     DateTime lastMonthStart = new DateTime(today.Year, today.Month, 1).AddMonths(-1);
                     DateTime lastMonthEnd = lastMonthStart.AddMonths(1);
                     return (lastMonthStart, lastMonthEnd);
-                
+
                 case "Year":
                     DateTime startOfYear = new DateTime(today.Year, 1, 1);
                     return (startOfYear, today.AddDays(1));
-                
+
                 case "LastYear":
                     DateTime lastYearStart = new DateTime(today.Year - 1, 1, 1);
                     DateTime lastYearEnd = new DateTime(today.Year, 1, 1);
                     return (lastYearStart, lastYearEnd);
-                
+
                 default:
                     return (today, today.AddDays(1));
             }
@@ -312,19 +361,15 @@ namespace Kalendarz1
         {
             try
             {
-                // Załaduj podsumowania
                 LoadSummary();
 
-                // Załaduj statystyki utworzeń i potwierdzeń
                 var stworzone = LoadStatistics("Stworzone", currentStartDate, currentEndDate);
                 var potwierdzone = LoadStatistics("Potwierdzone", currentStartDate, currentEndDate);
 
-                // Zbierz wszystkich unikalnych użytkowników i przypisz im kolory
                 var allUsers = new HashSet<string>();
                 foreach (var stat in stworzone) allUsers.Add(stat.NazwaPracownika);
                 foreach (var stat in potwierdzone) allUsers.Add(stat.NazwaPracownika);
 
-                // Wyczyść stare mapowanie kolorów i stwórz nowe dla wszystkich użytkowników
                 userColors.Clear();
                 int colorIndex = 0;
                 foreach (var user in allUsers.OrderBy(u => u))
@@ -333,32 +378,29 @@ namespace Kalendarz1
                     colorIndex++;
                 }
 
-                // Przypisz kolory zgodnie z mapowaniem
                 AssignColors(stworzone);
                 AssignColors(potwierdzone);
 
-                // Ustaw źródła danych
                 itemsStworzone.ItemsSource = stworzone;
                 itemsPotwierdzone.ItemsSource = potwierdzone;
 
-                // Narysuj wykresy kołowe
                 DrawPieChart(canvasStworzone, stworzone);
                 DrawPieChart(canvasPotwierdzone, potwierdzone);
 
-                // Załaduj szczegółową tabelę
                 LoadDetailsTable();
+                LoadKpiRanking();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd podczas ładowania statystyk: {ex.Message}", 
-                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Blad podczas ladowania statystyk: {ex.Message}",
+                    "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
         private void LoadSummary()
         {
             string query = @"
-                SELECT 
+                SELECT
                     COUNT(*) as TotalStworzone,
                     SUM(CASE WHEN isConf = 1 THEN 1 ELSE 0 END) as TotalPotwierdzone,
                     SUM(CASE WHEN isConf = 0 OR isConf IS NULL THEN 1 ELSE 0 END) as TotalOczekujace
@@ -451,13 +493,12 @@ namespace Kalendarz1
                 }
             }
 
-            // Oblicz procenty
             int totalActions = 0;
             foreach (var stat in stats) totalActions += stat.LiczbaAkcji;
 
             if (totalActions > 0)
             {
-                double maxWidth = 300; // Maksymalna szerokość paska w pikselach
+                double maxWidth = 300;
                 foreach (var stat in stats)
                 {
                     stat.Procent = (double)stat.LiczbaAkcji / totalActions * 100;
@@ -465,7 +506,6 @@ namespace Kalendarz1
                 }
             }
 
-            // Load avatars asynchronously
             LoadAvatarsForStats(stats);
 
             return stats;
@@ -511,13 +551,11 @@ namespace Kalendarz1
 
         private Color GetColorForUser(string userName)
         {
-            // Jeśli użytkownik już ma przypisany kolor, zwróć go
             if (userColors.ContainsKey(userName))
             {
                 return userColors[userName];
             }
 
-            // Przypisz nowy kolor z palety
             int colorIndex = userColors.Count % chartColors.Length;
             Color newColor = chartColors[colorIndex];
             userColors[userName] = newColor;
@@ -543,20 +581,18 @@ namespace Kalendarz1
             double centerY = canvas.Height / 2;
             double radius = Math.Min(centerX, centerY) - 10;
 
-            double startAngle = -90; // Rozpocznij od góry
+            double startAngle = -90;
 
             foreach (var stat in stats)
             {
-                double angle = stat.Procent * 3.6; // 360 stopni / 100%
+                double angle = stat.Procent * 3.6;
 
-                // Narysuj wycinek
                 var path = CreatePieSlice(centerX, centerY, radius, startAngle, angle, stat.Kolor);
                 canvas.Children.Add(path);
 
                 startAngle += angle;
             }
 
-            // Dodaj białe koło w środku (efekt donut)
             var centerCircle = new Ellipse
             {
                 Width = radius * 0.6,
@@ -617,7 +653,7 @@ namespace Kalendarz1
                     os.Name as KtoStworzyl,
                     CAST(w.KtoStwo AS VARCHAR(20)) as KtoStworzylID,
                     w.DataUtw,
-                    CASE WHEN w.isConf = 1 THEN 'Potwierdzone' ELSE 'Oczekujące' END as Status,
+                    CASE WHEN w.isConf = 1 THEN 'Potwierdzone' ELSE 'Oczekujace' END as Status,
                     oc.Name as KtoPotwierdził,
                     CAST(w.KtoConf AS VARCHAR(20)) as KtoPotwierdziłID,
                     w.DataConf
@@ -660,7 +696,6 @@ namespace Kalendarz1
 
             dgSzczegoly.ItemsSource = details;
 
-            // Load avatars for details
             LoadAvatarsForDetails(details);
         }
 
@@ -668,7 +703,6 @@ namespace Kalendarz1
         {
             foreach (var detail in details)
             {
-                // Load avatar for creator
                 if (!string.IsNullOrEmpty(detail.KtoStworzylID))
                 {
                     string userId = detail.KtoStworzylID;
@@ -685,7 +719,6 @@ namespace Kalendarz1
                     });
                 }
 
-                // Load avatar for confirmer
                 if (!string.IsNullOrEmpty(detail.KtoPotwierdziłID))
                 {
                     string userId = detail.KtoPotwierdziłID;
@@ -704,6 +737,153 @@ namespace Kalendarz1
             }
         }
 
+        // ==================== KPI RANKING ====================
+
+        private void LoadKpiRanking()
+        {
+            string query = @"
+                SELECT
+                    ISNULL(o.Name, 'Nieznany') AS Nazwa,
+                    CAST(w.KtoStwo AS VARCHAR(20)) AS UserID,
+                    COUNT(*) AS Utworzone,
+                    SUM(CASE WHEN w.isConf = 1 THEN 1 ELSE 0 END) AS Potwierdzone,
+                    AVG(CASE WHEN w.isConf = 1 AND w.DataConf IS NOT NULL AND w.DataUtw IS NOT NULL
+                        THEN DATEDIFF(MINUTE, w.DataUtw, w.DataConf)
+                        ELSE NULL END) AS SrCzasMinut,
+                    COUNT(DISTINCT w.Dostawca) AS LiczbaDostawcow,
+                    ISNULL(SUM(CAST(w.IloscWstawienia AS BIGINT)), 0) AS Wolumen,
+                    DATEDIFF(DAY, @StartDate, @EndDate) AS DniOkresu
+                FROM dbo.WstawieniaKurczakow w
+                LEFT JOIN dbo.operators o ON w.KtoStwo = o.ID
+                WHERE w.DataUtw >= @StartDate AND w.DataUtw < @EndDate
+                    AND w.KtoStwo IS NOT NULL
+                GROUP BY o.Name, w.KtoStwo
+                ORDER BY Utworzone DESC";
+
+            var kpiList = new List<ZakupowiecKpi>();
+
+            using (var connection = new SqlConnection(connectionString))
+            using (var cmd = new SqlCommand(query, connection))
+            {
+                cmd.Parameters.AddWithValue("@StartDate", currentStartDate);
+                cmd.Parameters.AddWithValue("@EndDate", currentEndDate);
+
+                connection.Open();
+                using (var reader = cmd.ExecuteReader())
+                {
+                    int pos = 1;
+                    while (reader.Read())
+                    {
+                        int utworzone = Convert.ToInt32(reader["Utworzone"]);
+                        int potwierdzone = Convert.ToInt32(reader["Potwierdzone"]);
+                        double srCzasMinut = reader["SrCzasMinut"] != DBNull.Value ? Convert.ToDouble(reader["SrCzasMinut"]) : 0;
+                        int dniOkresu = Math.Max(1, Convert.ToInt32(reader["DniOkresu"]));
+                        // Estimate working days as ~5/7 of calendar days, minimum 1
+                        int dniRobocze = Math.Max(1, (int)Math.Ceiling(dniOkresu * 5.0 / 7.0));
+
+                        string nazwa = reader["Nazwa"].ToString();
+                        var kpi = new ZakupowiecKpi
+                        {
+                            Pozycja = pos++,
+                            Nazwa = nazwa,
+                            UserID = reader["UserID"]?.ToString(),
+                            Utworzone = utworzone,
+                            Potwierdzone = potwierdzone,
+                            ProcentPotwierdzonych = utworzone > 0 ? (double)potwierdzone / utworzone * 100 : 0,
+                            SredniCzasPotwGodziny = srCzasMinut / 60.0,
+                            LiczbaDostawcow = Convert.ToInt32(reader["LiczbaDostawcow"]),
+                            Wolumen = Convert.ToInt64(reader["Wolumen"]),
+                            Produktywnosc = (double)utworzone / dniRobocze,
+                            KolorBrush = new SolidColorBrush(GetColorForUser(nazwa))
+                        };
+
+                        kpiList.Add(kpi);
+                    }
+                }
+            }
+
+            dgKpiRanking.ItemsSource = kpiList;
+
+            // Load avatars
+            foreach (var kpi in kpiList)
+            {
+                if (!string.IsNullOrEmpty(kpi.UserID))
+                {
+                    string userId = kpi.UserID;
+                    Task.Run(() =>
+                    {
+                        var avatarBitmap = UserAvatarManager.GetAvatar(userId);
+                        if (avatarBitmap != null)
+                        {
+                            Application.Current.Dispatcher.Invoke(() =>
+                            {
+                                kpi.AvatarSource = ConvertToImageSource(avatarBitmap);
+                            });
+                        }
+                    });
+                }
+            }
+
+            // Update top performer cards
+            UpdateTopPerformers(kpiList);
+        }
+
+        private void UpdateTopPerformers(List<ZakupowiecKpi> kpiList)
+        {
+            if (kpiList.Count == 0)
+            {
+                txtTopWolumen.Text = "-";
+                txtTopWolumenVal.Text = "";
+                txtTopCzas.Text = "-";
+                txtTopCzasVal.Text = "";
+                txtTopProcent.Text = "-";
+                txtTopProcentVal.Text = "";
+                txtTopDostawcy.Text = "-";
+                txtTopDostawcyVal.Text = "";
+                return;
+            }
+
+            // Najwyzszy wolumen
+            var topWol = kpiList.OrderByDescending(k => k.Wolumen).First();
+            txtTopWolumen.Text = topWol.Nazwa;
+            txtTopWolumenVal.Text = $"{topWol.WolumenTekst} szt.";
+
+            // Najszybsze potwierdzenie (lowest avg time, excluding 0)
+            var withTime = kpiList.Where(k => k.SredniCzasPotwGodziny > 0).ToList();
+            if (withTime.Count > 0)
+            {
+                var topCzas = withTime.OrderBy(k => k.SredniCzasPotwGodziny).First();
+                txtTopCzas.Text = topCzas.Nazwa;
+                txtTopCzasVal.Text = topCzas.SredniCzasPotwTekst;
+            }
+            else
+            {
+                txtTopCzas.Text = "-";
+                txtTopCzasVal.Text = "brak danych";
+            }
+
+            // Najwyzszy % potwierdzonych (min 5 wstawien)
+            var withEnough = kpiList.Where(k => k.Utworzone >= 5).ToList();
+            if (withEnough.Count > 0)
+            {
+                var topProc = withEnough.OrderByDescending(k => k.ProcentPotwierdzonych).First();
+                txtTopProcent.Text = topProc.Nazwa;
+                txtTopProcentVal.Text = $"{topProc.ProcentPotwierdzonych:F0}%";
+            }
+            else
+            {
+                // Fall back to all
+                var topProc = kpiList.OrderByDescending(k => k.ProcentPotwierdzonych).First();
+                txtTopProcent.Text = topProc.Nazwa;
+                txtTopProcentVal.Text = $"{topProc.ProcentPotwierdzonych:F0}%";
+            }
+
+            // Najwiecej dostawcow
+            var topDost = kpiList.OrderByDescending(k => k.LiczbaDostawcow).First();
+            txtTopDostawcy.Text = topDost.Nazwa;
+            txtTopDostawcyVal.Text = $"{topDost.LiczbaDostawcow} dostawcow";
+        }
+
         private void BtnPracownikDetails_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -714,7 +894,6 @@ namespace Kalendarz1
                 string nazwaPracownika = button.Tag?.ToString();
                 if (string.IsNullOrEmpty(nazwaPracownika)) return;
 
-                // Otworz okno ze szczegolami pracownika
                 var detailsWindow = new SzczegółyPracownika(nazwaPracownika, currentStartDate, currentEndDate);
                 detailsWindow.ShowDialog();
             }
