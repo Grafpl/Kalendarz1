@@ -226,6 +226,10 @@ namespace Kalendarz1.Opakowania.Services
         /// Pobiera zestawienie sald dla wszystkich odbiorców danego typu opakowania
         /// ZOPTYMALIZOWANE z cache'owaniem
         /// </summary>
+        /// <summary>
+        /// Pobiera zestawienie sald dla wszystkich odbiorców danego typu opakowania
+        /// ZOPTYMALIZOWANE V2: 1 skan tabeli zamiast 4, brak FULL OUTER JOIN, brak OUTER APPLY
+        /// </summary>
         public async Task<List<ZestawienieSalda>> PobierzZestawienieSaldAsync(DateTime dataOd, DateTime dataDo, string towar, string handlowiecFilter = null)
         {
             // Generuj klucz cache'a
@@ -249,153 +253,154 @@ namespace Kalendarz1.Opakowania.Services
             var sw = Stopwatch.StartNew();
             var zestawienie = new List<ZestawienieSalda>();
 
-            string query = @"
-WITH WynikPierwszyZakres AS (
-    SELECT 
-        'Suma' AS Kontrahent,
-        0 AS KontrahentId,
-        CAST(ISNULL(SUM(MZ.Ilosc), 0) AS INT) AS SumaIlosci,
-        '' AS Handlowiec
-    FROM [HANDEL].[HM].[MZ] MZ
-    INNER JOIN [HANDEL].[HM].[TW] TW ON MZ.idtw = TW.id 
-    INNER JOIN [HANDEL].[HM].[MG] MG ON MZ.super = MG.id 
-    INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON MG.khid = C.id
-    WHERE MZ.data >= '2020-01-01' 
-      AND MZ.data <= @DataOd 
-      AND MG.anulowany = 0
-      AND TW.nazwa = @Towar
-
-    UNION ALL
-
+            // V2: Jedno zapytanie z warunkowym sumowaniem (1 skan zamiast 4)
+            // - SaldoDoOd = suma dokumentow do DataOd (pierwszy zakres)
+            // - SaldoDoDo = suma dokumentow do DataDo (drugi zakres)
+            // - OUTER APPLY zamieniony na MAX(MG.Data) w glownym zapytaniu
+            // - Osobne wersje BezFiltra/ZFiltrem (unika @param IS NULL OR)
+            string queryBezFiltra = @"
+;WITH Dane AS (
     SELECT
-        C.Shortcut AS Kontrahent,
-        C.id AS KontrahentId,
-        CAST(ISNULL(SUM(MZ.Ilosc), 0) AS INT) AS SumaIlosci,
-        ISNULL(WYM.CDim_Handlowiec_Val, '-') AS Handlowiec
-    FROM [HANDEL].[HM].[MZ] MZ
-    INNER JOIN [HANDEL].[HM].[TW] TW ON MZ.idtw = TW.id 
-    INNER JOIN [HANDEL].[HM].[MG] MG ON MZ.super = MG.id 
-    INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON MG.khid = C.id
-    LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON C.Id = WYM.ElementId
-    WHERE MZ.data >= '2020-01-01' 
-      AND MZ.data <= @DataOd 
-      AND MG.anulowany = 0
+        MG.khid AS KontrahentId,
+        MZ.Ilosc,
+        MG.Data
+    FROM [HANDEL].[HM].[MG] MG WITH (NOLOCK)
+    INNER JOIN [HANDEL].[HM].[MZ] MZ WITH (NOLOCK) ON MZ.super = MG.id
+    INNER JOIN [HANDEL].[HM].[TW] TW WITH (NOLOCK) ON MZ.idtw = TW.id
+    WHERE MG.anulowany = 0
+      AND MG.magazyn = 65559
+      AND MG.typ_dk IN ('MW1', 'MP')
+      AND MG.data <= @DataDo
       AND TW.nazwa = @Towar
-    GROUP BY C.Shortcut, C.id, WYM.CDim_Handlowiec_Val
 ),
-
-WynikDrugiZakres AS (
-    SELECT 
-        'Suma' AS Kontrahent,
-        0 AS KontrahentId,
-        CAST(ISNULL(SUM(MZ.Ilosc), 0) AS INT) AS SumaIlosci,
-        '' AS Handlowiec
-    FROM [HANDEL].[HM].[MZ] MZ
-    INNER JOIN [HANDEL].[HM].[TW] TW ON MZ.idtw = TW.id 
-    INNER JOIN [HANDEL].[HM].[MG] MG ON MZ.super = MG.id 
-    INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON MG.khid = C.id
-    WHERE MZ.data >= '2020-01-01' 
-      AND MZ.data <= @DataDo 
-      AND MG.anulowany = 0
-      AND TW.nazwa = @Towar
-
-    UNION ALL
-
+Salda AS (
     SELECT
-        C.Shortcut AS Kontrahent,
-        C.id AS KontrahentId,
-        CAST(ISNULL(SUM(MZ.Ilosc), 0) AS INT) AS SumaIlosci,
-        ISNULL(WYM.CDim_Handlowiec_Val, '-') AS Handlowiec
-    FROM [HANDEL].[HM].[MZ] MZ
-    INNER JOIN [HANDEL].[HM].[TW] TW ON MZ.idtw = TW.id 
-    INNER JOIN [HANDEL].[HM].[MG] MG ON MZ.super = MG.id 
-    INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON MG.khid = C.id
-    LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON C.Id = WYM.ElementId
-    WHERE MZ.data >= '2020-01-01' 
-      AND MZ.data <= @DataDo 
-      AND MG.anulowany = 0
-      AND TW.nazwa = @Towar
-    GROUP BY C.Shortcut, C.id, WYM.CDim_Handlowiec_Val
+        KontrahentId,
+        CAST(ISNULL(SUM(CASE WHEN Data <= @DataOd THEN Ilosc ELSE 0 END), 0) AS INT) AS SaldoDoOd,
+        CAST(ISNULL(SUM(Ilosc), 0) AS INT) AS SaldoDoDo,
+        MAX(Data) AS OstatniDokument
+    FROM Dane
+    GROUP BY KontrahentId
+    HAVING ABS(SUM(Ilosc)) > 0 OR ABS(SUM(CASE WHEN Data <= @DataOd THEN Ilosc ELSE 0 END)) > 0
 )
+SELECT
+    C.Shortcut AS Kontrahent,
+    C.id AS KontrahentId,
+    S.SaldoDoOd AS IloscPierwszyZakres,
+    S.SaldoDoDo AS IloscDrugiZakres,
+    S.SaldoDoDo - S.SaldoDoOd AS Roznica,
+    ISNULL(WYM.CDim_Handlowiec_Val, '-') AS Handlowiec,
+    S.OstatniDokument AS DataOstatniegoDokumentu
+FROM Salda S
+INNER JOIN [HANDEL].[SSCommon].[STContractors] C WITH (NOLOCK) ON C.id = S.KontrahentId
+LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM WITH (NOLOCK) ON C.Id = WYM.ElementId
+WHERE S.SaldoDoOd != 0 OR S.SaldoDoDo != 0
+ORDER BY S.SaldoDoDo DESC, C.Shortcut
+OPTION (RECOMPILE, MAXDOP 4)";
 
-SELECT 
-    COALESCE(P.Kontrahent, D.Kontrahent) AS [Kontrahent],
-    COALESCE(P.KontrahentId, D.KontrahentId) AS [KontrahentId],
-    CAST(ISNULL(P.SumaIlosci, 0) AS INT) AS [IloscPierwszyZakres],
-    CAST(ISNULL(D.SumaIlosci, 0) AS INT) AS [IloscDrugiZakres],
-    CAST(ISNULL(D.SumaIlosci, 0) - ISNULL(P.SumaIlosci, 0) AS INT) AS [Roznica],
-    COALESCE(P.Handlowiec, D.Handlowiec) AS [Handlowiec],
-    OD.DataOstatniegoDokumentu,
-    OD.TowarZDokumentu
-FROM WynikPierwszyZakres P
-FULL OUTER JOIN WynikDrugiZakres D ON P.Kontrahent = D.Kontrahent
+            string queryZFiltrem = @"
+;WITH Dane AS (
+    SELECT
+        MG.khid AS KontrahentId,
+        MZ.Ilosc,
+        MG.Data
+    FROM [HANDEL].[HM].[MG] MG WITH (NOLOCK)
+    INNER JOIN [HANDEL].[HM].[MZ] MZ WITH (NOLOCK) ON MZ.super = MG.id
+    INNER JOIN [HANDEL].[HM].[TW] TW WITH (NOLOCK) ON MZ.idtw = TW.id
+    WHERE MG.anulowany = 0
+      AND MG.magazyn = 65559
+      AND MG.typ_dk IN ('MW1', 'MP')
+      AND MG.data <= @DataDo
+      AND TW.nazwa = @Towar
+),
+Salda AS (
+    SELECT
+        KontrahentId,
+        CAST(ISNULL(SUM(CASE WHEN Data <= @DataOd THEN Ilosc ELSE 0 END), 0) AS INT) AS SaldoDoOd,
+        CAST(ISNULL(SUM(Ilosc), 0) AS INT) AS SaldoDoDo,
+        MAX(Data) AS OstatniDokument
+    FROM Dane
+    GROUP BY KontrahentId
+    HAVING ABS(SUM(Ilosc)) > 0 OR ABS(SUM(CASE WHEN Data <= @DataOd THEN Ilosc ELSE 0 END)) > 0
+)
+SELECT
+    C.Shortcut AS Kontrahent,
+    C.id AS KontrahentId,
+    S.SaldoDoOd AS IloscPierwszyZakres,
+    S.SaldoDoDo AS IloscDrugiZakres,
+    S.SaldoDoDo - S.SaldoDoOd AS Roznica,
+    ISNULL(WYM.CDim_Handlowiec_Val, '-') AS Handlowiec,
+    S.OstatniDokument AS DataOstatniegoDokumentu
+FROM Salda S
+INNER JOIN [HANDEL].[SSCommon].[STContractors] C WITH (NOLOCK) ON C.id = S.KontrahentId
+INNER JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM WITH (NOLOCK) ON C.Id = WYM.ElementId
+WHERE (S.SaldoDoOd != 0 OR S.SaldoDoDo != 0)
+  AND WYM.CDim_Handlowiec_Val = @HandlowiecFilter
+ORDER BY S.SaldoDoDo DESC, C.Shortcut
+OPTION (RECOMPILE, MAXDOP 4)";
 
-OUTER APPLY (
-    SELECT TOP 1 
-        MG.Data AS DataOstatniegoDokumentu,
-        MG.Nazwa AS TowarZDokumentu
-    FROM [HANDEL].[HM].[MG] MG
-    INNER JOIN [HANDEL].[HM].[MZ] MZ ON MZ.super = MG.id
-    INNER JOIN [HANDEL].[HM].[TW] TW ON MZ.idtw = TW.id
-    INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON MG.khid = C.id
-    WHERE MG.anulowany = 0 
-      AND MG.seria IN ('sMW', 'sMP')
-      AND C.Shortcut = COALESCE(P.Kontrahent, D.Kontrahent)
-      AND MG.Data <= @DataDo
-    ORDER BY MG.Data DESC
-) OD
-
-WHERE 
-    (ISNULL(P.SumaIlosci, 0) != 0 OR ISNULL(D.SumaIlosci, 0) != 0)
-    AND (@HandlowiecFilter IS NULL OR COALESCE(P.Handlowiec, D.Handlowiec) = @HandlowiecFilter)
-ORDER BY [IloscDrugiZakres] DESC, [Kontrahent]
-OPTION (RECOMPILE)";
+            var query = string.IsNullOrEmpty(handlowiecFilter) ? queryBezFiltra : queryZFiltrem;
 
             try
             {
-                // OPTYMALIZACJA: Pobierz wszystkie potwierdzenia JEDNYM zapytaniem (zamiast N+1)
-                var potwierdzenia = await PobierzWszystkiePotwierdzenia(towar);
+                // Pobierz potwierdzenia równolegle z glownym zapytaniem
+                var taskPotwierdzenia = PobierzWszystkiePotwierdzenia(towar);
 
                 using (var connection = new SqlConnection(_connectionStringHandel))
                 {
-                    await connection.OpenAsync();
+                    await connection.OpenAsync().ConfigureAwait(false);
                     using (var command = new SqlCommand(query, connection))
                     {
-                        command.CommandTimeout = 60; // 60 sekund timeout dla złożonego zapytania
+                        command.CommandTimeout = 60;
                         command.Parameters.AddWithValue("@DataOd", dataOd);
                         command.Parameters.AddWithValue("@DataDo", dataDo);
                         command.Parameters.AddWithValue("@Towar", towar);
-                        command.Parameters.AddWithValue("@HandlowiecFilter", (object)handlowiecFilter ?? DBNull.Value);
 
-                        using (var reader = await command.ExecuteReaderAsync())
+                        if (!string.IsNullOrEmpty(handlowiecFilter))
+                            command.Parameters.AddWithValue("@HandlowiecFilter", handlowiecFilter);
+
+                        using (var reader = await command.ExecuteReaderAsync().ConfigureAwait(false))
                         {
-                            while (await reader.ReadAsync())
+                            while (await reader.ReadAsync().ConfigureAwait(false))
                             {
-                                var item = new ZestawienieSalda
+                                zestawienie.Add(new ZestawienieSalda
                                 {
-                                    Kontrahent = reader.GetString(reader.GetOrdinal("Kontrahent")),
-                                    KontrahentId = Convert.ToInt32(reader["KontrahentId"]),
-                                    IloscPierwszyZakres = Convert.ToInt32(reader["IloscPierwszyZakres"]),
-                                    IloscDrugiZakres = Convert.ToInt32(reader["IloscDrugiZakres"]),
-                                    Roznica = Convert.ToInt32(reader["Roznica"]),
-                                    Handlowiec = reader.GetString(reader.GetOrdinal("Handlowiec")),
-                                    DataOstatniegoDokumentu = reader.IsDBNull(reader.GetOrdinal("DataOstatniegoDokumentu"))
-                                        ? null : reader.GetDateTime(reader.GetOrdinal("DataOstatniegoDokumentu")),
-                                    TowarZDokumentu = reader.IsDBNull(reader.GetOrdinal("TowarZDokumentu"))
-                                        ? null : reader.GetString(reader.GetOrdinal("TowarZDokumentu"))
-                                };
-
-                                // Sprawdź potwierdzenie z słownika (zamiast N+1 zapytań do bazy!)
-                                if (item.KontrahentId > 0 && potwierdzenia.TryGetValue(item.KontrahentId, out var potw))
-                                {
-                                    item.JestPotwierdzone = potw.JestPotwierdzone;
-                                    item.DataPotwierdzenia = potw.DataPotwierdzenia;
-                                }
-
-                                zestawienie.Add(item);
+                                    Kontrahent = reader.GetString(0),
+                                    KontrahentId = reader.GetInt32(1),
+                                    IloscPierwszyZakres = reader.GetInt32(2),
+                                    IloscDrugiZakres = reader.GetInt32(3),
+                                    Roznica = reader.GetInt32(4),
+                                    Handlowiec = reader.GetString(5),
+                                    DataOstatniegoDokumentu = reader.IsDBNull(6) ? null : reader.GetDateTime(6)
+                                });
                             }
                         }
                     }
+                }
+
+                // Merge potwierdzen
+                var potwierdzenia = await taskPotwierdzenia;
+                foreach (var item in zestawienie)
+                {
+                    if (item.KontrahentId > 0 && potwierdzenia.TryGetValue(item.KontrahentId, out var potw))
+                    {
+                        item.JestPotwierdzone = potw.JestPotwierdzone;
+                        item.DataPotwierdzenia = potw.DataPotwierdzenia;
+                    }
+                }
+
+                // Dodaj wiersz sumy
+                if (zestawienie.Count > 0)
+                {
+                    zestawienie.Insert(0, new ZestawienieSalda
+                    {
+                        Kontrahent = "Suma",
+                        KontrahentId = 0,
+                        IloscPierwszyZakres = zestawienie.Sum(z => z.IloscPierwszyZakres),
+                        IloscDrugiZakres = zestawienie.Sum(z => z.IloscDrugiZakres),
+                        Roznica = zestawienie.Sum(z => z.Roznica),
+                        Handlowiec = ""
+                    });
                 }
             }
             catch (Exception ex)
@@ -678,6 +683,10 @@ OPTION (RECOMPILE)";
         /// Pobiera salda wszystkich opakowań dla WSZYSTKICH kontrahentów jednym zapytaniem (SZYBKA WERSJA)
         /// ZOPTYMALIZOWANE z cache'owaniem
         /// </summary>
+        /// <summary>
+        /// Pobiera salda wszystkich opakowań per kontrahent
+        /// ZOPTYMALIZOWANE V2: CTE + NOLOCK + MAXDOP 4 + osobne zapytania bez/z filtrem
+        /// </summary>
         public async Task<List<SaldoOpakowania>> PobierzWszystkieSaldaAsync(DateTime dataDo, string handlowiecFilter = null)
         {
             // Generuj klucz cache'a
@@ -699,59 +708,115 @@ OPTION (RECOMPILE)";
 
             // SLOW PATH: Pobierz z bazy
             var sw = Stopwatch.StartNew();
-            var wyniki = new List<SaldoOpakowania>();
+            var wyniki = new List<SaldoOpakowania>(300);
 
-            string query = @"
-SELECT 
+            // V2: CTE z NOLOCK, RECOMPILE, MAXDOP 4. Osobne zapytania unikaja (@param IS NULL OR)
+            string queryBezFiltra = @"
+;WITH DokumentyOpakowan AS (
+    SELECT
+        MG.khid AS KontrahentId,
+        TW.nazwa AS TowarNazwa,
+        MZ.Ilosc
+    FROM [HANDEL].[HM].[MG] MG WITH (NOLOCK)
+    INNER JOIN [HANDEL].[HM].[MZ] MZ WITH (NOLOCK) ON MZ.super = MG.id
+    INNER JOIN [HANDEL].[HM].[TW] TW WITH (NOLOCK) ON MZ.idtw = TW.id
+    WHERE MG.anulowany = 0
+      AND MG.magazyn = 65559
+      AND MG.typ_dk IN ('MW1', 'MP')
+      AND MG.data <= @DataDo
+      AND TW.nazwa IN ('Pojemnik Drobiowy E2', 'Paleta H1', 'Paleta EURO', 'Paleta plastikowa', 'Paleta Drewniana')
+),
+SaldaKontrahentow AS (
+    SELECT
+        KontrahentId,
+        CAST(ISNULL(SUM(CASE WHEN TowarNazwa = 'Pojemnik Drobiowy E2' THEN Ilosc ELSE 0 END), 0) AS INT) AS SaldoE2,
+        CAST(ISNULL(SUM(CASE WHEN TowarNazwa = 'Paleta H1' THEN Ilosc ELSE 0 END), 0) AS INT) AS SaldoH1,
+        CAST(ISNULL(SUM(CASE WHEN TowarNazwa = 'Paleta EURO' THEN Ilosc ELSE 0 END), 0) AS INT) AS SaldoEURO,
+        CAST(ISNULL(SUM(CASE WHEN TowarNazwa = 'Paleta plastikowa' THEN Ilosc ELSE 0 END), 0) AS INT) AS SaldoPCV,
+        CAST(ISNULL(SUM(CASE WHEN TowarNazwa = 'Paleta Drewniana' THEN Ilosc ELSE 0 END), 0) AS INT) AS SaldoDREW
+    FROM DokumentyOpakowan
+    GROUP BY KontrahentId
+    HAVING ABS(SUM(Ilosc)) > 0
+)
+SELECT
     C.Shortcut AS Kontrahent,
     C.id AS KontrahentId,
     ISNULL(WYM.CDim_Handlowiec_Val, '-') AS Handlowiec,
-    CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Pojemnik Drobiowy E2' THEN MZ.Ilosc ELSE 0 END), 0) AS INT) AS SaldoE2,
-    CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Paleta H1' THEN MZ.Ilosc ELSE 0 END), 0) AS INT) AS SaldoH1,
-    CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Paleta EURO' THEN MZ.Ilosc ELSE 0 END), 0) AS INT) AS SaldoEURO,
-    CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Paleta plastikowa' THEN MZ.Ilosc ELSE 0 END), 0) AS INT) AS SaldoPCV,
-    CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Paleta Drewniana' THEN MZ.Ilosc ELSE 0 END), 0) AS INT) AS SaldoDREW
-FROM [HANDEL].[SSCommon].[STContractors] C
-INNER JOIN [HANDEL].[HM].[MG] MG ON MG.khid = C.id
-INNER JOIN [HANDEL].[HM].[MZ] MZ ON MZ.super = MG.id
-INNER JOIN [HANDEL].[HM].[TW] TW ON MZ.idtw = TW.id
-LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON C.Id = WYM.ElementId
-WHERE MG.anulowany = 0
-  AND MG.magazyn = 65559
-  AND MG.typ_dk IN ('MW1', 'MP')
-  AND MG.data <= @DataDo
-  AND TW.nazwa IN ('Pojemnik Drobiowy E2', 'Paleta H1', 'Paleta EURO', 'Paleta plastikowa', 'Paleta Drewniana')
-  AND (@HandlowiecFilter IS NULL OR WYM.CDim_Handlowiec_Val = @HandlowiecFilter)
-GROUP BY C.id, C.Shortcut, WYM.CDim_Handlowiec_Val
-HAVING SUM(CASE WHEN TW.nazwa IN ('Pojemnik Drobiowy E2', 'Paleta H1', 'Paleta EURO', 'Paleta plastikowa', 'Paleta Drewniana') 
-           THEN ABS(MZ.Ilosc) ELSE 0 END) > 0
-ORDER BY C.Shortcut";
+    SK.SaldoE2, SK.SaldoH1, SK.SaldoEURO, SK.SaldoPCV, SK.SaldoDREW
+FROM SaldaKontrahentow SK
+INNER JOIN [HANDEL].[SSCommon].[STContractors] C WITH (NOLOCK) ON C.id = SK.KontrahentId
+LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM WITH (NOLOCK) ON C.Id = WYM.ElementId
+ORDER BY C.Shortcut
+OPTION (RECOMPILE, MAXDOP 4)";
+
+            string queryZFiltrem = @"
+;WITH DokumentyOpakowan AS (
+    SELECT
+        MG.khid AS KontrahentId,
+        TW.nazwa AS TowarNazwa,
+        MZ.Ilosc
+    FROM [HANDEL].[HM].[MG] MG WITH (NOLOCK)
+    INNER JOIN [HANDEL].[HM].[MZ] MZ WITH (NOLOCK) ON MZ.super = MG.id
+    INNER JOIN [HANDEL].[HM].[TW] TW WITH (NOLOCK) ON MZ.idtw = TW.id
+    WHERE MG.anulowany = 0
+      AND MG.magazyn = 65559
+      AND MG.typ_dk IN ('MW1', 'MP')
+      AND MG.data <= @DataDo
+      AND TW.nazwa IN ('Pojemnik Drobiowy E2', 'Paleta H1', 'Paleta EURO', 'Paleta plastikowa', 'Paleta Drewniana')
+),
+SaldaKontrahentow AS (
+    SELECT
+        KontrahentId,
+        CAST(ISNULL(SUM(CASE WHEN TowarNazwa = 'Pojemnik Drobiowy E2' THEN Ilosc ELSE 0 END), 0) AS INT) AS SaldoE2,
+        CAST(ISNULL(SUM(CASE WHEN TowarNazwa = 'Paleta H1' THEN Ilosc ELSE 0 END), 0) AS INT) AS SaldoH1,
+        CAST(ISNULL(SUM(CASE WHEN TowarNazwa = 'Paleta EURO' THEN Ilosc ELSE 0 END), 0) AS INT) AS SaldoEURO,
+        CAST(ISNULL(SUM(CASE WHEN TowarNazwa = 'Paleta plastikowa' THEN Ilosc ELSE 0 END), 0) AS INT) AS SaldoPCV,
+        CAST(ISNULL(SUM(CASE WHEN TowarNazwa = 'Paleta Drewniana' THEN Ilosc ELSE 0 END), 0) AS INT) AS SaldoDREW
+    FROM DokumentyOpakowan
+    GROUP BY KontrahentId
+    HAVING ABS(SUM(Ilosc)) > 0
+)
+SELECT
+    C.Shortcut AS Kontrahent,
+    C.id AS KontrahentId,
+    ISNULL(WYM.CDim_Handlowiec_Val, '-') AS Handlowiec,
+    SK.SaldoE2, SK.SaldoH1, SK.SaldoEURO, SK.SaldoPCV, SK.SaldoDREW
+FROM SaldaKontrahentow SK
+INNER JOIN [HANDEL].[SSCommon].[STContractors] C WITH (NOLOCK) ON C.id = SK.KontrahentId
+INNER JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM WITH (NOLOCK) ON C.Id = WYM.ElementId
+WHERE WYM.CDim_Handlowiec_Val = @HandlowiecFilter
+ORDER BY C.Shortcut
+OPTION (RECOMPILE, MAXDOP 4)";
+
+            var query = string.IsNullOrEmpty(handlowiecFilter) ? queryBezFiltra : queryZFiltrem;
 
             try
             {
                 using (var connection = new SqlConnection(_connectionStringHandel))
                 {
-                    await connection.OpenAsync();
+                    await connection.OpenAsync().ConfigureAwait(false);
                     using (var command = new SqlCommand(query, connection))
                     {
-                        command.CommandTimeout = 60; // 60 sekund timeout
+                        command.CommandTimeout = 60;
                         command.Parameters.AddWithValue("@DataDo", dataDo);
-                        command.Parameters.AddWithValue("@HandlowiecFilter", (object)handlowiecFilter ?? DBNull.Value);
 
-                        using (var reader = await command.ExecuteReaderAsync())
+                        if (!string.IsNullOrEmpty(handlowiecFilter))
+                            command.Parameters.AddWithValue("@HandlowiecFilter", handlowiecFilter);
+
+                        using (var reader = await command.ExecuteReaderAsync().ConfigureAwait(false))
                         {
-                            while (await reader.ReadAsync())
+                            while (await reader.ReadAsync().ConfigureAwait(false))
                             {
                                 wyniki.Add(new SaldoOpakowania
                                 {
-                                    Kontrahent = reader.GetString(reader.GetOrdinal("Kontrahent")),
-                                    KontrahentId = reader.GetInt32(reader.GetOrdinal("KontrahentId")),
-                                    Handlowiec = reader.IsDBNull(reader.GetOrdinal("Handlowiec")) ? "-" : reader.GetString(reader.GetOrdinal("Handlowiec")),
-                                    SaldoE2 = reader.GetInt32(reader.GetOrdinal("SaldoE2")),
-                                    SaldoH1 = reader.GetInt32(reader.GetOrdinal("SaldoH1")),
-                                    SaldoEURO = reader.GetInt32(reader.GetOrdinal("SaldoEURO")),
-                                    SaldoPCV = reader.GetInt32(reader.GetOrdinal("SaldoPCV")),
-                                    SaldoDREW = reader.GetInt32(reader.GetOrdinal("SaldoDREW"))
+                                    Kontrahent = reader.GetString(0),
+                                    KontrahentId = reader.GetInt32(1),
+                                    Handlowiec = reader.GetString(2),
+                                    SaldoE2 = reader.GetInt32(3),
+                                    SaldoH1 = reader.GetInt32(4),
+                                    SaldoEURO = reader.GetInt32(5),
+                                    SaldoPCV = reader.GetInt32(6),
+                                    SaldoDREW = reader.GetInt32(7)
                                 });
                             }
                         }
@@ -1129,6 +1194,70 @@ WHERE Id = @Id";
                 DataWprowadzenia = reader.GetDateTime(reader.GetOrdinal("DataWprowadzenia")),
                 DataModyfikacji = reader.IsDBNull(reader.GetOrdinal("DataModyfikacji")) ? null : reader.GetDateTime(reader.GetOrdinal("DataModyfikacji"))
             };
+        }
+
+        #endregion
+
+        #region Salda kontrahentów (delegowane do SaldaService)
+
+        private readonly SaldaService _saldaService = new SaldaService();
+
+        /// <summary>
+        /// Pobiera salda kontrahentów (wszystkie typy) - deleguje do SaldaService z agresywnym cache 8h
+        /// </summary>
+        public async Task<List<SaldoKontrahenta>> PobierzSaldaKontrahentowAsync(DateTime dataDo, string handlowiecFilter = null)
+        {
+            return await _saldaService.PobierzWszystkieSaldaAsync(dataDo, handlowiecFilter);
+        }
+
+        /// <summary>
+        /// Pobiera dokumenty salda kontrahenta - deleguje do SaldaService z cache 1h
+        /// </summary>
+        public async Task<List<DokumentSalda>> PobierzDokumentySaldaAsync(int kontrahentId, DateTime dataOd, DateTime dataDo)
+        {
+            return await _saldaService.PobierzDokumentyAsync(kontrahentId, dataOd, dataDo);
+        }
+
+        /// <summary>
+        /// Pobiera potwierdzenia kontrahenta - deleguje do SaldaService
+        /// </summary>
+        public async Task<List<Potwierdzenie>> PobierzPotwierdzeniaKontrahentaAsync(int kontrahentId)
+        {
+            return await _saldaService.PobierzPotwierdzeniaKontrahentaAsync(kontrahentId);
+        }
+
+        /// <summary>
+        /// Dodaje potwierdzenie salda - deleguje do SaldaService
+        /// </summary>
+        public async Task<int> DodajPotwierdzenieSaldaAsync(int kontrahentId, string kontrahentNazwa, string typOpakowania,
+            int iloscPotwierdzona, int saldoSystemowe, string status, string uwagi, string uzytkownikId, string uzytkownikNazwa)
+        {
+            var result = await _saldaService.DodajPotwierdzenieAsync(
+                kontrahentId, kontrahentNazwa, typOpakowania,
+                iloscPotwierdzona, saldoSystemowe, status, uwagi, uzytkownikId, uzytkownikNazwa);
+
+            // Invaliduj też lokalne cache'e
+            InvalidateZestawieniaCache();
+            InvalidateWszystkieSaldaCache();
+
+            return result;
+        }
+
+        /// <summary>
+        /// Invaliduje cache sald kontrahentów
+        /// </summary>
+        public void InvalidateSaldaKontrahentowCache()
+        {
+            SaldaService.InvalidateCache();
+            InvalidateWszystkieSaldaCache();
+        }
+
+        /// <summary>
+        /// Pobiera handlowca (deleguje do SaldaService z cache 24h)
+        /// </summary>
+        public async Task<string> PobierzHandlowcaSaldaAsync(string userId)
+        {
+            return await _saldaService.PobierzHandlowcaAsync(userId);
         }
 
         #endregion

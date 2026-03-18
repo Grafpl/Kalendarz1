@@ -205,6 +205,84 @@ namespace Kalendarz1
         }
     }
 
+    // ==================== CROSS-MODULE KPI Model ====================
+    public class CrossModuleKpi : INotifyPropertyChanged
+    {
+        public int Pozycja { get; set; }
+        public string Nazwa { get; set; }
+        public string UserID { get; set; }
+        public Brush KolorBrush { get; set; }
+
+        private ImageSource _avatarSource;
+        public ImageSource AvatarSource
+        {
+            get => _avatarSource;
+            set { _avatarSource = value; OnPropertyChanged(nameof(AvatarSource)); }
+        }
+
+        public string Inicjaly
+        {
+            get
+            {
+                if (string.IsNullOrWhiteSpace(Nazwa)) return "?";
+                var parts = Nazwa.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length >= 2) return $"{parts[0][0]}{parts[1][0]}".ToUpper();
+                return Nazwa.Length >= 2 ? Nazwa.Substring(0, 2).ToUpper() : Nazwa.ToUpper();
+            }
+        }
+
+        // Wstawienia
+        public int WstawieniaUtworzone { get; set; }
+        public int WstawieniaPotwierdzone { get; set; }
+        public int WstawieniaTotal => WstawieniaUtworzone + WstawieniaPotwierdzone;
+
+        // Kalendarz Dostaw
+        public int KalendarzDostawy { get; set; }
+        public int KalendarzPotwWagi { get; set; }
+        public int KalendarzPotwSztuk { get; set; }
+        public int KalendarzTotal => KalendarzDostawy + KalendarzPotwWagi + KalendarzPotwSztuk;
+
+        // Specyfikacja (wprowadzenia + weryfikacje z RozliczeniaZatwierdzenia)
+        public int SpecWprowadzenia { get; set; }
+        public int SpecWeryfikacje { get; set; }
+        public int SpecyfikacjaTotal => SpecWprowadzenia + SpecWeryfikacje;
+
+        // Pozyskiwanie Hodowcow (CRM: Pozyskiwanie_Aktywnosci + OcenyDostawcow)
+        public int HodowcyTelefony { get; set; }
+        public int HodowcyNotatki { get; set; }
+        public int HodowcyOceny { get; set; }
+        public int HodowcyTotal => HodowcyTelefony + HodowcyNotatki + HodowcyOceny;
+
+        // Dokumenty
+        public int DokumentyUtworzone { get; set; }
+        public int DokumentyWyslane { get; set; }
+        public int DokumentyOtrzymane { get; set; }
+        public int DokumentyTotal => DokumentyUtworzone + DokumentyWyslane + DokumentyOtrzymane;
+
+        // Wnioski
+        public int WnioskiZlozone { get; set; }
+        public int WnioskiRozpatrzone { get; set; }
+        public int WnioskiTotal => WnioskiZlozone + WnioskiRozpatrzone;
+
+        // Suma
+        public int SumaAkcji => WstawieniaTotal + KalendarzTotal + SpecyfikacjaTotal
+                              + HodowcyTotal + DokumentyTotal + WnioskiTotal;
+
+        // Tooltips
+        public string WstawieniaTooltip => $"Utworzone: {WstawieniaUtworzone}\nPotwierdzone: {WstawieniaPotwierdzone}\n\nZrodlo: WstawieniaKurczakow\nDwuklik = szczegoly";
+        public string KalendarzTooltip => $"Dostawy utworzone: {KalendarzDostawy}\nPotw. wagi: {KalendarzPotwWagi}\nPotw. sztuk: {KalendarzPotwSztuk}\n\nZrodlo: HarmonogramDostaw\nDwuklik = szczegoly";
+        public string SpecyfikacjaTooltip => $"Wprowadzenia: {SpecWprowadzenia}\nWeryfikacje: {SpecWeryfikacje}\n\nZrodlo: RozliczeniaZatwierdzenia\nDwuklik = szczegoly";
+        public string HodowcyTooltip => $"Telefony do hodowcow: {HodowcyTelefony}\nNotatki CRM: {HodowcyNotatki}\nOceny dostawcow: {HodowcyOceny}\n\nZrodlo: Pozyskiwanie_Aktywnosci + OcenyDostawcow\nDwuklik = szczegoly";
+        public string DokumentyTooltip => $"Utworzone: {DokumentyUtworzone}\nWyslane: {DokumentyWyslane}\nOtrzymane: {DokumentyOtrzymane}\n\nZrodlo: HarmonogramDostaw (flagi dok.)\nDwuklik = szczegoly";
+        public string WnioskiTooltip => $"Zlozone: {WnioskiZlozone}\nRozpatrzone: {WnioskiRozpatrzone}\n\nZrodlo: DostawcyCR\nDwuklik = szczegoly";
+
+        public event PropertyChangedEventHandler PropertyChanged;
+        protected virtual void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+    }
+
     public partial class StatystykiPracownikow : Window
     {
         private string connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
@@ -389,6 +467,7 @@ namespace Kalendarz1
 
                 LoadDetailsTable();
                 LoadKpiRanking();
+                LoadCrossModuleKpi();
             }
             catch (Exception ex)
             {
@@ -425,6 +504,11 @@ namespace Kalendarz1
                         txtTotalStworzone.Text = stworzone.ToString();
                         txtTotalPotwierdzone.Text = potwierdzone.ToString();
                         txtTotalOczekujace.Text = oczekujace.ToString();
+
+                        // Header badges
+                        txtHeaderUtw.Text = stworzone.ToString();
+                        txtHeaderPotw.Text = potwierdzone.ToString();
+                        txtHeaderOcz.Text = oczekujace.ToString();
 
                         if (stworzone > 0)
                         {
@@ -901,6 +985,322 @@ namespace Kalendarz1
             {
                 MessageBox.Show($"Blad otwierania szczegolow: {ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        // ==================== CROSS-MODULE KPI ====================
+
+        private void LoadCrossModuleKpi()
+        {
+            var userMap = new Dictionary<string, CrossModuleKpi>(); // key = UserName
+
+            using (var conn = new SqlConnection(connectionString))
+            {
+                conn.Open();
+
+                // 1. Wstawienia - utworzone
+                RunModuleQuery(conn, userMap, @"
+                    SELECT ISNULL(o.Name, 'Nieznany') AS UserName, CAST(w.KtoStwo AS VARCHAR(20)) AS UserID, COUNT(*) AS Cnt
+                    FROM dbo.WstawieniaKurczakow w
+                    LEFT JOIN dbo.operators o ON w.KtoStwo = o.ID
+                    WHERE w.DataUtw >= @S AND w.DataUtw < @E AND w.KtoStwo IS NOT NULL
+                    GROUP BY o.Name, w.KtoStwo",
+                    (kpi, cnt) => kpi.WstawieniaUtworzone += cnt);
+
+                // 2. Wstawienia - potwierdzone
+                RunModuleQuery(conn, userMap, @"
+                    SELECT ISNULL(o.Name, 'Nieznany') AS UserName, CAST(w.KtoConf AS VARCHAR(20)) AS UserID, COUNT(*) AS Cnt
+                    FROM dbo.WstawieniaKurczakow w
+                    LEFT JOIN dbo.operators o ON w.KtoConf = o.ID
+                    WHERE w.isConf = 1 AND w.DataConf >= @S AND w.DataConf < @E AND w.KtoConf IS NOT NULL
+                    GROUP BY o.Name, w.KtoConf",
+                    (kpi, cnt) => kpi.WstawieniaPotwierdzone += cnt);
+
+                // 3. Kalendarz - dostawy utworzone
+                RunModuleQuery(conn, userMap, @"
+                    SELECT ISNULL(o.Name, 'Nieznany') AS UserName, CAST(h.ktoStwo AS VARCHAR(20)) AS UserID, COUNT(*) AS Cnt
+                    FROM dbo.HarmonogramDostaw h
+                    LEFT JOIN dbo.operators o ON h.ktoStwo = o.ID
+                    WHERE h.DataUtw >= @S AND h.DataUtw < @E AND h.ktoStwo IS NOT NULL
+                    GROUP BY o.Name, h.ktoStwo",
+                    (kpi, cnt) => kpi.KalendarzDostawy += cnt);
+
+                // 4. Kalendarz - potwierdzenia wagi
+                RunModuleQuery(conn, userMap, @"
+                    SELECT ISNULL(o.Name, 'Nieznany') AS UserName, CAST(h.KtoWaga AS VARCHAR(20)) AS UserID, COUNT(*) AS Cnt
+                    FROM dbo.HarmonogramDostaw h
+                    LEFT JOIN dbo.operators o ON h.KtoWaga = o.ID
+                    WHERE h.PotwWaga = 1 AND h.KiedyWaga >= @S AND h.KiedyWaga < @E AND h.KtoWaga IS NOT NULL
+                    GROUP BY o.Name, h.KtoWaga",
+                    (kpi, cnt) => kpi.KalendarzPotwWagi += cnt);
+
+                // 5. Kalendarz - potwierdzenia sztuk
+                RunModuleQuery(conn, userMap, @"
+                    SELECT ISNULL(o.Name, 'Nieznany') AS UserName, CAST(h.KtoSztuki AS VARCHAR(20)) AS UserID, COUNT(*) AS Cnt
+                    FROM dbo.HarmonogramDostaw h
+                    LEFT JOIN dbo.operators o ON h.KtoSztuki = o.ID
+                    WHERE h.PotwSztuki = 1 AND h.KiedySztuki >= @S AND h.KiedySztuki < @E AND h.KtoSztuki IS NOT NULL
+                    GROUP BY o.Name, h.KtoSztuki",
+                    (kpi, cnt) => kpi.KalendarzPotwSztuk += cnt);
+
+                // 6. Specyfikacja - wprowadzenia (zatwierdzenia)
+                RunModuleQuerySafe(conn, userMap, @"
+                    SELECT ISNULL(ZatwierdzonePrzez, 'Nieznany') AS UserName, ISNULL(ZatwierdzoneByUserID, '') AS UserID, COUNT(*) AS Cnt
+                    FROM dbo.RozliczeniaZatwierdzenia
+                    WHERE Zatwierdzony = 1 AND DataZatwierdzenia >= @S AND DataZatwierdzenia < @E AND ZatwierdzoneByUserID IS NOT NULL
+                    GROUP BY ZatwierdzonePrzez, ZatwierdzoneByUserID",
+                    (kpi, cnt) => kpi.SpecWprowadzenia += cnt);
+
+                // 7. Specyfikacja - weryfikacje
+                RunModuleQuerySafe(conn, userMap, @"
+                    SELECT ISNULL(ZweryfikowanePrzez, 'Nieznany') AS UserName, ISNULL(ZweryfikowaneByUserID, '') AS UserID, COUNT(*) AS Cnt
+                    FROM dbo.RozliczeniaZatwierdzenia
+                    WHERE Zweryfikowany = 1 AND DataWeryfikacji >= @S AND DataWeryfikacji < @E AND ZweryfikowaneByUserID IS NOT NULL
+                    GROUP BY ZweryfikowanePrzez, ZweryfikowaneByUserID",
+                    (kpi, cnt) => kpi.SpecWeryfikacje += cnt);
+
+                // 8. Hodowcy - telefony
+                RunModuleQuerySafe(conn, userMap, @"
+                    SELECT ISNULL(UzytkownikNazwa, 'Nieznany') AS UserName, ISNULL(UzytkownikId, '') AS UserID, COUNT(*) AS Cnt
+                    FROM dbo.Pozyskiwanie_Aktywnosci
+                    WHERE TypAktywnosci = 'Telefon' AND DataUtworzenia >= @S AND DataUtworzenia < @E AND UzytkownikId IS NOT NULL AND UzytkownikId <> 'IMPORT'
+                    GROUP BY UzytkownikNazwa, UzytkownikId",
+                    (kpi, cnt) => kpi.HodowcyTelefony += cnt);
+
+                // 12. Hodowcy - notatki
+                RunModuleQuerySafe(conn, userMap, @"
+                    SELECT ISNULL(UzytkownikNazwa, 'Nieznany') AS UserName, ISNULL(UzytkownikId, '') AS UserID, COUNT(*) AS Cnt
+                    FROM dbo.Pozyskiwanie_Aktywnosci
+                    WHERE TypAktywnosci = 'Notatka' AND DataUtworzenia >= @S AND DataUtworzenia < @E AND UzytkownikId IS NOT NULL AND UzytkownikId <> 'IMPORT'
+                    GROUP BY UzytkownikNazwa, UzytkownikId",
+                    (kpi, cnt) => kpi.HodowcyNotatki += cnt);
+
+                // 13. Hodowcy - oceny dostawcow
+                RunModuleQuerySafe(conn, userMap, @"
+                    SELECT ISNULL(o.Name, 'Nieznany') AS UserName, oc.OceniajacyUserID AS UserID, COUNT(*) AS Cnt
+                    FROM dbo.OcenyDostawcow oc
+                    LEFT JOIN dbo.operators o ON TRY_CAST(oc.OceniajacyUserID AS INT) = o.ID
+                    WHERE oc.DataUtworzenia >= @S AND oc.DataUtworzenia < @E AND oc.OceniajacyUserID IS NOT NULL
+                    GROUP BY o.Name, oc.OceniajacyUserID",
+                    (kpi, cnt) => kpi.HodowcyOceny += cnt);
+
+                // 14. Dokumenty - utworzone
+                RunModuleQuerySafe(conn, userMap, @"
+                    SELECT ISNULL(o.Name, 'Nieznany') AS UserName, CAST(h.KtoUtw AS VARCHAR(20)) AS UserID, COUNT(*) AS Cnt
+                    FROM dbo.HarmonogramDostaw h
+                    LEFT JOIN dbo.operators o ON h.KtoUtw = o.ID
+                    WHERE h.Utworzone = 1 AND h.KiedyUtw >= @S AND h.KiedyUtw < @E AND h.KtoUtw IS NOT NULL
+                    GROUP BY o.Name, h.KtoUtw",
+                    (kpi, cnt) => kpi.DokumentyUtworzone += cnt);
+
+                // 15. Dokumenty - wyslane
+                RunModuleQuerySafe(conn, userMap, @"
+                    SELECT ISNULL(o.Name, 'Nieznany') AS UserName, CAST(h.KtoWysl AS VARCHAR(20)) AS UserID, COUNT(*) AS Cnt
+                    FROM dbo.HarmonogramDostaw h
+                    LEFT JOIN dbo.operators o ON h.KtoWysl = o.ID
+                    WHERE h.Wysłane = 1 AND h.KiedyWysl >= @S AND h.KiedyWysl < @E AND h.KtoWysl IS NOT NULL
+                    GROUP BY o.Name, h.KtoWysl",
+                    (kpi, cnt) => kpi.DokumentyWyslane += cnt);
+
+                // 16. Dokumenty - otrzymane
+                RunModuleQuerySafe(conn, userMap, @"
+                    SELECT ISNULL(o.Name, 'Nieznany') AS UserName, CAST(h.KtoOtrzym AS VARCHAR(20)) AS UserID, COUNT(*) AS Cnt
+                    FROM dbo.HarmonogramDostaw h
+                    LEFT JOIN dbo.operators o ON h.KtoOtrzym = o.ID
+                    WHERE h.Otrzymane = 1 AND h.KiedyOtrzm >= @S AND h.KiedyOtrzm < @E AND h.KtoOtrzym IS NOT NULL
+                    GROUP BY o.Name, h.KtoOtrzym",
+                    (kpi, cnt) => kpi.DokumentyOtrzymane += cnt);
+
+                // 17. Wnioski - zlozone
+                RunModuleQuerySafe(conn, userMap, @"
+                    SELECT ISNULL(o.Name, RequestedBy) AS UserName, RequestedBy AS UserID, COUNT(*) AS Cnt
+                    FROM dbo.DostawcyCR cr
+                    LEFT JOIN dbo.operators o ON TRY_CAST(cr.RequestedBy AS INT) = o.ID
+                    WHERE cr.RequestedAtUTC >= @S AND cr.RequestedAtUTC < @E AND cr.RequestedBy IS NOT NULL
+                    GROUP BY o.Name, cr.RequestedBy",
+                    (kpi, cnt) => kpi.WnioskiZlozone += cnt);
+
+                // 18. Wnioski - rozpatrzone (decyzje)
+                RunModuleQuerySafe(conn, userMap, @"
+                    SELECT ISNULL(o.Name, DecyzjaKto) AS UserName, DecyzjaKto AS UserID, COUNT(*) AS Cnt
+                    FROM dbo.DostawcyCR cr
+                    LEFT JOIN dbo.operators o ON TRY_CAST(cr.DecyzjaKto AS INT) = o.ID
+                    WHERE cr.DecyzjaKiedyUTC >= @S AND cr.DecyzjaKiedyUTC < @E AND cr.DecyzjaKto IS NOT NULL
+                    GROUP BY o.Name, cr.DecyzjaKto",
+                    (kpi, cnt) => kpi.WnioskiRozpatrzone += cnt);
+            }
+
+            // Build sorted list
+            var list = userMap.Values
+                .Where(k => k.SumaAkcji > 0)
+                .OrderByDescending(k => k.SumaAkcji)
+                .ToList();
+
+            int pos = 1;
+            foreach (var kpi in list)
+            {
+                kpi.Pozycja = pos++;
+                kpi.KolorBrush = new SolidColorBrush(GetColorForUser(kpi.Nazwa));
+            }
+
+            dgCrossModule.ItemsSource = list;
+            dgCrossModuleDetail.ItemsSource = list;
+
+            // Load avatars
+            foreach (var kpi in list)
+            {
+                if (!string.IsNullOrEmpty(kpi.UserID))
+                {
+                    string userId = kpi.UserID;
+                    Task.Run(() =>
+                    {
+                        var avatarBitmap = UserAvatarManager.GetAvatar(userId);
+                        if (avatarBitmap != null)
+                        {
+                            Application.Current.Dispatcher.Invoke(() =>
+                            {
+                                kpi.AvatarSource = ConvertToImageSource(avatarBitmap);
+                            });
+                        }
+                    });
+                }
+            }
+
+            // Update leader cards
+            UpdateCrossModuleLeaders(list);
+        }
+
+        private void RunModuleQuery(SqlConnection conn, Dictionary<string, CrossModuleKpi> map,
+            string sql, Action<CrossModuleKpi, int> assignAction)
+        {
+            using (var cmd = new SqlCommand(sql, conn))
+            {
+                cmd.Parameters.AddWithValue("@S", currentStartDate);
+                cmd.Parameters.AddWithValue("@E", currentEndDate);
+                using (var reader = cmd.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        string name = reader["UserName"]?.ToString() ?? "Nieznany";
+                        string userId = reader["UserID"]?.ToString() ?? "";
+                        int cnt = Convert.ToInt32(reader["Cnt"]);
+
+                        if (!map.ContainsKey(name))
+                            map[name] = new CrossModuleKpi { Nazwa = name, UserID = userId };
+
+                        // Keep the first non-empty UserID
+                        if (string.IsNullOrEmpty(map[name].UserID) && !string.IsNullOrEmpty(userId))
+                            map[name].UserID = userId;
+
+                        assignAction(map[name], cnt);
+                    }
+                }
+            }
+        }
+
+        private void RunModuleQuerySafe(SqlConnection conn, Dictionary<string, CrossModuleKpi> map,
+            string sql, Action<CrossModuleKpi, int> assignAction)
+        {
+            try
+            {
+                RunModuleQuery(conn, map, sql, assignAction);
+            }
+            catch
+            {
+                // Table might not exist yet - silently skip
+            }
+        }
+
+        private void UpdateCrossModuleLeaders(List<CrossModuleKpi> list)
+        {
+            if (list.Count == 0)
+            {
+                txtCmLiderWstawien.Text = "-"; txtCmLiderWstawienVal.Text = "";
+                txtCmLiderKalendarz.Text = "-"; txtCmLiderKalendarzVal.Text = "";
+                txtCmLiderSpec.Text = "-"; txtCmLiderSpecVal.Text = "";
+                txtCmLiderHodowcy.Text = "-"; txtCmLiderHodowcyVal.Text = "";
+                txtCmLiderOgolny.Text = "-"; txtCmLiderOgolnyVal.Text = "";
+                return;
+            }
+
+            // Lider Wstawien
+            var top = list.Where(k => k.WstawieniaTotal > 0).OrderByDescending(k => k.WstawieniaTotal).FirstOrDefault();
+            txtCmLiderWstawien.Text = top?.Nazwa ?? "-";
+            txtCmLiderWstawienVal.Text = top != null ? $"{top.WstawieniaTotal} akcji" : "";
+
+            // Lider Kalendarza
+            top = list.Where(k => k.KalendarzTotal > 0).OrderByDescending(k => k.KalendarzTotal).FirstOrDefault();
+            txtCmLiderKalendarz.Text = top?.Nazwa ?? "-";
+            txtCmLiderKalendarzVal.Text = top != null ? $"{top.KalendarzTotal} akcji" : "";
+
+            // Lider Specyfikacji
+            top = list.Where(k => k.SpecyfikacjaTotal > 0).OrderByDescending(k => k.SpecyfikacjaTotal).FirstOrDefault();
+            txtCmLiderSpec.Text = top?.Nazwa ?? "-";
+            txtCmLiderSpecVal.Text = top != null ? $"{top.SpecyfikacjaTotal} edycji" : "";
+
+            // Lider Hodowcow
+            top = list.Where(k => k.HodowcyTotal > 0).OrderByDescending(k => k.HodowcyTotal).FirstOrDefault();
+            txtCmLiderHodowcy.Text = top?.Nazwa ?? "-";
+            txtCmLiderHodowcyVal.Text = top != null ? $"{top.HodowcyTotal} aktywnosci" : "";
+
+            // Lider Ogolny
+            var topAll = list.First();
+            txtCmLiderOgolny.Text = topAll.Nazwa;
+            txtCmLiderOgolnyVal.Text = $"{topAll.SumaAkcji} akcji lacznie";
+        }
+
+        // ==================== DRILL-DOWN ====================
+
+        private void DgCrossModule_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            try
+            {
+                var dg = sender as DataGrid;
+                if (dg == null) return;
+
+                var kpi = dg.SelectedItem as CrossModuleKpi;
+                if (kpi == null) return;
+
+                // Determine which column was clicked
+                var cell = GetClickedCell(dg, e);
+                if (cell == null) return;
+
+                int colIndex = cell.Column.DisplayIndex;
+
+                // Map column index to module name
+                // 0=#, 1=Zakupowiec, 2=Wstaw., 3=Kalend., 4=Specyf., 5=Hodowcy, 6=Dok., 7=Wnioski, 8=SUMA
+                string moduleName;
+                switch (colIndex)
+                {
+                    case 2: moduleName = "Wstawienia"; break;
+                    case 3: moduleName = "Kalendarz"; break;
+                    case 4: moduleName = "Specyfikacja"; break;
+                    case 5: moduleName = "Hodowcy"; break;
+                    case 6: moduleName = "Dokumenty"; break;
+                    case 7: moduleName = "Wnioski"; break;
+                    case 8: moduleName = "SUMA"; break;
+                    default: moduleName = "SUMA"; break;
+                }
+
+                var window = new KpiDrillDownWindow(kpi.Nazwa, kpi.UserID, moduleName,
+                    currentStartDate, currentEndDate);
+                window.Owner = this;
+                window.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Blad otwierania szczegolow: {ex.Message}", "Blad",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private DataGridCell GetClickedCell(DataGrid dg, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            var dep = (DependencyObject)e.OriginalSource;
+            while (dep != null && !(dep is DataGridCell))
+            {
+                dep = VisualTreeHelper.GetParent(dep);
+            }
+            return dep as DataGridCell;
         }
     }
 }

@@ -592,6 +592,8 @@
                                 <MenuItem Header="✅ Potwierdź SZTUKI" Click="MenuPotwierdzSztuki_Click" InputGestureText="Ctrl+S"/>
                                 <MenuItem Header="❌ Cofnij potwierdzenie WAGI" Click="MenuCofnijWage_Click"/>
                                 <MenuItem Header="❌ Cofnij potwierdzenie SZTUK" Click="MenuCofnijSztuki_Click"/>
+                                <MenuItem Header="🐣 Potwierdź WSTAWIENIE" Click="MenuPotwierdzWstawienie_Click" Foreground="#F57C00" FontWeight="SemiBold"/>
+                                <MenuItem Header="❌ Cofnij potwierdzenie WSTAWIENIA" Click="MenuCofnijWstawienie_Click"/>
                                 <Separator/>
 
                                 <!-- SEKCJA: Status dostawy -->
@@ -943,6 +945,8 @@
                                 <MenuItem Header="✅ Potwierdź SZTUKI" Click="MenuPotwierdzSztuki_Click" InputGestureText="Ctrl+S"/>
                                 <MenuItem Header="❌ Cofnij potwierdzenie WAGI" Click="MenuCofnijWage_Click"/>
                                 <MenuItem Header="❌ Cofnij potwierdzenie SZTUK" Click="MenuCofnijSztuki_Click"/>
+                                <MenuItem Header="🐣 Potwierdź WSTAWIENIE" Click="MenuPotwierdzWstawienie_Click" Foreground="#F57C00" FontWeight="SemiBold"/>
+                                <MenuItem Header="❌ Cofnij potwierdzenie WSTAWIENIA" Click="MenuCofnijWstawienie_Click"/>
                                 <Separator/>
 
                                 <!-- SEKCJA: Status dostawy -->
@@ -1450,6 +1454,33 @@
                         <Border Background="#F8FAFC" CornerRadius="4" Padding="1" Margin="0,0,3,0" BorderBrush="#E2E8F0" BorderThickness="1">
                             <Button Click="BtnHistoriaZmian_Click" ToolTip="Historia zmian" Width="26" Height="26">
                                 <TextBlock Text="📜" FontSize="10"/>
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="Background" Value="Transparent"/>
+                                        <Setter Property="BorderThickness" Value="0"/>
+                                        <Setter Property="Cursor" Value="Hand"/>
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border Background="{TemplateBinding Background}" CornerRadius="4">
+                                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                        <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="#E2E8F0"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                        </Border>
+                        <!-- Mapa dostaw -->
+                        <Border Background="#F8FAFC" CornerRadius="4" Padding="1" Margin="0,0,3,0" BorderBrush="#E2E8F0" BorderThickness="1">
+                            <Button Click="BtnMapaDostaw_Click" ToolTip="Mapa dostaw - wizualizacja tras" Width="26" Height="26">
+                                <TextBlock Text="M" FontSize="11" FontWeight="Bold" Foreground="#22C55E"/>
                                 <Button.Style>
                                     <Style TargetType="Button">
                                         <Setter Property="Background" Value="Transparent"/>
@@ -2756,6 +2787,7 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
                     <StackPanel Grid.Column="0">
                         <TextBlock Text="Utworzono:" Style="{StaticResource FormLabelStyle}"/>
@@ -2823,6 +2855,23 @@
                                 </Ellipse>
                             </Grid>
                             <TextBlock x:Name="txtKtoPotwSztuki" FontSize="9" Margin="4,0,0,0" Foreground="#7F8C8D" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </StackPanel>
+                    <StackPanel Grid.Column="4">
+                        <TextBlock Text="Potw. wstawienie:" Style="{StaticResource FormLabelStyle}" Foreground="#F57C00"/>
+                        <TextBlock x:Name="txtDataPotwWstawienie" FontSize="10"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                            <Grid Width="18" Height="18" VerticalAlignment="Center">
+                                <Border x:Name="avatarPotwWstawienie" Width="18" Height="18" CornerRadius="9" Background="#F57C00">
+                                    <TextBlock x:Name="txtAvatarPotwWstawienie" FontSize="8" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <Ellipse x:Name="imgAvatarPotwWstawienie" Width="18" Height="18" Visibility="Collapsed">
+                                    <Ellipse.Fill>
+                                        <ImageBrush x:Name="imgAvatarPotwWstawienieBrush" Stretch="UniformToFill"/>
+                                    </Ellipse.Fill>
+                                </Ellipse>
+                            </Grid>
+                            <TextBlock x:Name="txtKtoPotwWstawienie" FontSize="9" Margin="4,0,0,0" Foreground="#7F8C8D" VerticalAlignment="Center"/>
                         </StackPanel>
                     </StackPanel>
                 </Grid>

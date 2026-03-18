@@ -29,12 +29,12 @@ namespace Kalendarz1.Transport
             "ZmianaIlosci" => "Zmiana palet",
             "ZmianaTerminu" => "Zmiana terminu",
             "Anulowanie" => "Anulowanie",
-            "ZmianaStatusu" => "Zmiana statusu",
             "ZmianaPojemnikow" => "Zmiana pojemnikow",
             "ZmianaKg" => "Zmiana wagi",
             "ZmianaAwizacji" => "Zmiana awizacji",
             "ZmianaUwag" => "Zmiana uwag",
             "ZmianaOdbiorcy" => "Zmiana odbiorcy",
+            "ZmianaDataProdukcji" => "Zmiana daty produkcji",
             _ => TypZmiany
         };
 
@@ -46,10 +46,10 @@ namespace Kalendarz1.Transport
             "ZmianaKg" => "\u2261",              // ≡
             "ZmianaAwizacji" => "\u25CB",         // ○
             "ZmianaTerminu" => "\u25CB",          // ○
-            "ZmianaStatusu" => "\u25BA",          // ►
             "Anulowanie" => "\u2716",             // ✖
             "ZmianaUwag" => "\u270E",             // ✎
             "ZmianaOdbiorcy" => "\u263A",          // ☺
+            "ZmianaDataProdukcji" => "\u2692",     // ⚒
             _ => "\u26A0"                         // ⚠
         };
 
@@ -61,10 +61,10 @@ namespace Kalendarz1.Transport
             "ZmianaKg" => System.Drawing.Color.FromArgb(230, 126, 34),
             "ZmianaAwizacji" => System.Drawing.Color.FromArgb(231, 76, 60),
             "ZmianaTerminu" => System.Drawing.Color.FromArgb(231, 76, 60),
-            "ZmianaStatusu" => System.Drawing.Color.FromArgb(52, 152, 219),
             "Anulowanie" => System.Drawing.Color.FromArgb(192, 57, 43),
             "ZmianaUwag" => System.Drawing.Color.FromArgb(127, 140, 141),
             "ZmianaOdbiorcy" => System.Drawing.Color.FromArgb(211, 84, 0),
+            "ZmianaDataProdukcji" => System.Drawing.Color.FromArgb(155, 89, 182),  // Fioletowy
             _ => System.Drawing.Color.FromArgb(243, 156, 18)
         };
 
@@ -320,6 +320,7 @@ namespace Kalendarz1.Transport
             public decimal IloscKg;
             public DateTime DataZamowienia;
             public DateTime? DataPrzyjazdu;
+            public DateTime? DataProdukcji;
             public string? Status;
             public string? TransportStatus;
             public long? TransportKursID;
@@ -356,6 +357,8 @@ namespace Kalendarz1.Transport
                     ALTER TABLE TransportOrderSnapshot ADD DataPrzyjazdu DATETIME NULL;
                 IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('TransportOrderSnapshot') AND name = 'ModyfikowalPrzez')
                     ALTER TABLE TransportOrderSnapshot ADD ModyfikowalPrzez NVARCHAR(100) NULL;
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('TransportOrderSnapshot') AND name = 'DataProdukcji')
+                    ALTER TABLE TransportOrderSnapshot ADD DataProdukcji DATETIME NULL;
             ", conn);
             await cmd.ExecuteNonQueryAsync();
         }
@@ -390,7 +393,8 @@ namespace Kalendarz1.Transport
                 using (var cmdSnap = new SqlCommand(@"
                     SELECT ZamowienieId, KlientId, ISNULL(LiczbaPojemnikow,0), ISNULL(LiczbaPalet,0),
                            ISNULL(IloscKg,0), DataZamowienia, DataPrzyjazdu,
-                           Status, TransportStatus, TransportKursID, Uwagi, KlientNazwa, ModyfikowalPrzez
+                           Status, TransportStatus, TransportKursID, Uwagi, KlientNazwa, ModyfikowalPrzez,
+                           DataProdukcji
                     FROM TransportOrderSnapshot", connTransport))
                 {
                     using var reader = await cmdSnap.ExecuteReaderAsync();
@@ -410,7 +414,8 @@ namespace Kalendarz1.Transport
                             TransportKursID = reader.IsDBNull(9) ? null : Convert.ToInt64(reader[9]),
                             Uwagi = reader.IsDBNull(10) ? null : reader[10].ToString(),
                             KlientNazwa = reader.IsDBNull(11) ? null : reader[11].ToString(),
-                            ModyfikowalPrzez = reader.IsDBNull(12) ? null : reader[12].ToString()
+                            ModyfikowalPrzez = reader.IsDBNull(12) ? null : reader[12].ToString(),
+                            DataProdukcji = reader.IsDBNull(13) ? null : Convert.ToDateTime(reader[13])
                         };
                         snapshots[s.ZamowienieId] = s;
                     }
@@ -423,7 +428,7 @@ namespace Kalendarz1.Transport
                            ISNULL(zm.LiczbaPojemnikow, 0), ISNULL(zm.LiczbaPalet, 0),
                            ISNULL(SUM(zmt.Ilosc), 0), zm.DataPrzyjazdu,
                            ISNULL(zm.Status, 'Nowe'), ISNULL(zm.TransportStatus, 'Oczekuje'),
-                           zm.TransportKursID, zm.Uwagi, zm.ModyfikowalPrzez
+                           zm.TransportKursID, zm.Uwagi, zm.ModyfikowalPrzez, zm.DataProdukcji
                     FROM dbo.ZamowieniaMieso zm
                     LEFT JOIN dbo.ZamowieniaMiesoTowar zmt ON zm.Id = zmt.ZamowienieId
                     WHERE zm.DataZamowienia >= DATEADD(day, -1, CAST(GETDATE() AS date))
@@ -431,7 +436,7 @@ namespace Kalendarz1.Transport
                       AND ISNULL(zm.Status, 'Nowe') NOT IN ('Anulowane')
                     GROUP BY zm.Id, zm.KlientId, zm.DataZamowienia, zm.LiczbaPojemnikow, zm.LiczbaPalet,
                              zm.DataPrzyjazdu, zm.Status, zm.TransportStatus, zm.TransportKursID,
-                             zm.Uwagi, zm.ModyfikowalPrzez
+                             zm.Uwagi, zm.ModyfikowalPrzez, zm.DataProdukcji
                     ORDER BY zm.DataZamowienia", connLibra))
                 {
                     using var reader = await cmdOrders.ExecuteReaderAsync();
@@ -452,7 +457,8 @@ namespace Kalendarz1.Transport
                                 TransportStatus = reader[8].ToString(),
                                 TransportKursID = reader.IsDBNull(9) ? null : Convert.ToInt64(reader[9]),
                                 Uwagi = reader.IsDBNull(10) ? null : reader[10].ToString(),
-                                ModyfikowalPrzez = reader.IsDBNull(11) ? null : reader[11].ToString()
+                                ModyfikowalPrzez = reader.IsDBNull(11) ? null : reader[11].ToString(),
+                                DataProdukcji = reader.IsDBNull(12) ? null : Convert.ToDateTime(reader[12])
                             });
                         }
                         catch (Exception exRow)
@@ -536,11 +542,14 @@ namespace Kalendarz1.Transport
                             detected++;
                         }
 
-                        if ((snap.TransportStatus ?? "") != (order.TransportStatus ?? ""))
+                        // Zmiana daty produkcji — tylko gdy obie daty istnieją (ignoruj (brak) → data)
+                        if (snap.DataProdukcji.HasValue && order.DataProdukcji.HasValue
+                            && snap.DataProdukcji.Value.Date != order.DataProdukcji.Value.Date)
                         {
                             await InsertZmiana(connTransport, order.ZamowienieId, order.KlientId.ToString(), nazwa,
-                                "ZmianaStatusu", $"Zmiana statusu transportu",
-                                snap.TransportStatus ?? "(brak)", order.TransportStatus ?? "(brak)", modifier);
+                                "ZmianaDataProdukcji", $"Zmiana daty produkcji",
+                                snap.DataProdukcji.Value.ToString("yyyy-MM-dd"),
+                                order.DataProdukcji.Value.ToString("yyyy-MM-dd"), modifier);
                             detected++;
                         }
 
@@ -569,16 +578,6 @@ namespace Kalendarz1.Transport
                             await InsertZmiana(connTransport, order.ZamowienieId, order.KlientId.ToString(), nowaNazwa,
                                 "ZmianaOdbiorcy", $"Zmiana odbiorcy",
                                 staraNazwa, nowaNazwa, modifier);
-                            detected++;
-                        }
-
-                        if (snap.TransportKursID != order.TransportKursID)
-                        {
-                            var stary = snap.TransportKursID.HasValue ? $"Kurs #{snap.TransportKursID}" : "Nieprzypisany";
-                            var nowy = order.TransportKursID.HasValue ? $"Kurs #{order.TransportKursID}" : "Nieprzypisany";
-                            await InsertZmiana(connTransport, order.ZamowienieId, order.KlientId.ToString(), nazwa,
-                                "ZmianaStatusu", $"Zmiana przypisania do kursu",
-                                stary, nowy, modifier);
                             detected++;
                         }
                     }
@@ -661,14 +660,15 @@ namespace Kalendarz1.Transport
                 WHEN MATCHED THEN UPDATE SET
                     KlientId = @KlientId, LiczbaPojemnikow = @Poj, LiczbaPalet = @Pal,
                     IloscKg = @Kg, DataZamowienia = @Data, DataPrzyjazdu = @Przyjazd,
+                    DataProdukcji = @Produkcji,
                     Status = @Status, TransportStatus = @TStatus,
                     TransportKursID = @KursId, Uwagi = @Uwagi, KlientNazwa = @Nazwa,
                     ModyfikowalPrzez = @Modifier, LastChecked = GETDATE()
                 WHEN NOT MATCHED THEN INSERT
                     (ZamowienieId, KlientId, LiczbaPojemnikow, LiczbaPalet, IloscKg,
-                     DataZamowienia, DataPrzyjazdu, Status, TransportStatus, TransportKursID,
+                     DataZamowienia, DataPrzyjazdu, DataProdukcji, Status, TransportStatus, TransportKursID,
                      Uwagi, KlientNazwa, ModyfikowalPrzez)
-                VALUES (@Id, @KlientId, @Poj, @Pal, @Kg, @Data, @Przyjazd,
+                VALUES (@Id, @KlientId, @Poj, @Pal, @Kg, @Data, @Przyjazd, @Produkcji,
                         @Status, @TStatus, @KursId, @Uwagi, @Nazwa, @Modifier);",
                 conn);
             cmd.Parameters.AddWithValue("@Id", order.ZamowienieId);
@@ -678,6 +678,7 @@ namespace Kalendarz1.Transport
             cmd.Parameters.AddWithValue("@Kg", order.IloscKg);
             cmd.Parameters.AddWithValue("@Data", order.DataZamowienia);
             cmd.Parameters.AddWithValue("@Przyjazd", (object?)order.DataPrzyjazdu ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@Produkcji", (object?)order.DataProdukcji ?? DBNull.Value);
             cmd.Parameters.AddWithValue("@Status", (object?)order.Status ?? DBNull.Value);
             cmd.Parameters.AddWithValue("@TStatus", (object?)order.TransportStatus ?? DBNull.Value);
             cmd.Parameters.AddWithValue("@KursId", (object?)order.TransportKursID ?? DBNull.Value);
@@ -729,13 +730,14 @@ namespace Kalendarz1.Transport
                 using (var cmd = new SqlCommand($@"
                     SELECT zm.Id, ISNULL(zm.LiczbaPojemnikow, 0), ISNULL(zm.TrybE2, 0), zm.KlientId,
                            ISNULL(zm.LiczbaPalet, 0), ISNULL(SUM(zmt.Ilosc), 0), zm.DataPrzyjazdu,
-                           zm.DataZamowienia, ISNULL(zm.TransportStatus, 'Oczekuje'), zm.ModyfikowalPrzez
+                           zm.DataZamowienia, ISNULL(zm.TransportStatus, 'Oczekuje'), zm.ModyfikowalPrzez,
+                           zm.DataProdukcji
                     FROM dbo.ZamowieniaMieso zm
                     LEFT JOIN dbo.ZamowieniaMiesoTowar zmt ON zm.Id = zmt.ZamowienieId
                     WHERE zm.Id IN ({zamIdsStr})
                     GROUP BY zm.Id, zm.LiczbaPojemnikow, zm.TrybE2, zm.KlientId,
                              zm.LiczbaPalet, zm.DataPrzyjazdu, zm.DataZamowienia,
-                             zm.TransportStatus, zm.ModyfikowalPrzez", connLibra))
+                             zm.TransportStatus, zm.ModyfikowalPrzez, zm.DataProdukcji", connLibra))
                 {
                     using var rdr = await cmd.ExecuteReaderAsync();
                     while (await rdr.ReadAsync())
@@ -752,6 +754,7 @@ namespace Kalendarz1.Transport
                             DataZamowienia = rdr.IsDBNull(7) ? DateTime.MinValue : Convert.ToDateTime(rdr[7]),
                             TransportStatus = rdr[8]?.ToString() ?? "Oczekuje",
                             ModyfikowalPrzez = rdr.IsDBNull(9) ? null : rdr[9].ToString(),
+                            DataProdukcji = rdr.IsDBNull(10) ? null : Convert.ToDateTime(rdr[10]),
                             TransportKursID = kursId
                         };
                     }

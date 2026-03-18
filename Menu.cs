@@ -1274,6 +1274,12 @@ namespace Kalendarz1
                     userPermissions[accessMap[i]] = true;
                 }
             }
+
+            // Scalenie uprawnień opakowań: użytkownicy z SaldaOdbiorcowOpak widzą nowy scalony kafelek
+            if (userPermissions.ContainsKey("SaldaOdbiorcowOpak") && userPermissions["SaldaOdbiorcowOpak"])
+            {
+                userPermissions["PodsumowanieSaldOpak"] = true;
+            }
         }
 
         /// <summary>
@@ -1699,15 +1705,10 @@ namespace Kalendarz1
                 // ═══════════════════════════════════════════════════════════════════════════
                 ["OPAKOWANIA I TRANSPORT"] = new List<MenuItemConfig>
                 {
-                    new MenuItemConfig("PodsumowanieSaldOpak", "Zestawienie Opakowań",
-                        "Zbiorcze zestawienie sald opakowań zwrotnych wg typu z podsumowaniem wartości",
-                        Color.FromArgb(128, 222, 234), // Jasny turkusowy #80DEEA
-                        () => new ZestawienieOpakowanWindow(), "📦", "Opakowania"),
-
-                    new MenuItemConfig("SaldaOdbiorcowOpak", "Salda Opakowań Klientów",
-                        "Szczegółowe salda opakowań zwrotnych dla każdego kontrahenta z historią obrotów",
+                    new MenuItemConfig("PodsumowanieSaldOpak", "Opakowania Zwrotne",
+                        "Salda opakowań zwrotnych - widok zbiorczy i per typ z eksportem",
                         Color.FromArgb(0, 172, 193), // #00ACC1
-                        () => new SaldaWszystkichOpakowanWindow(), "🏷️", "Salda Opak."),
+                        () => new OpakowaniaWindow(), "📦", "Opakowania"),
 
                     new MenuItemConfig("UstalanieTranportu", "Planowanie Transportu",
                         "Organizacja tras dostaw do klientów z przydziałem pojazdów i kierowców",

@@ -2477,13 +2477,16 @@ namespace Kalendarz1.Zywiec.Kalendarz
                     await conn.OpenAsync(token);
                     string sql = @"SELECT HD.*, HD.KiedyWaga, HD.KiedySztuki, D.Address, D.PostalCode, D.City, D.Distance, D.Phone1, D.Phone2, D.Phone3,
                                    D.Info1, D.Info2, D.Info3, D.Email, D.TypOsobowosci, D.TypOsobowosci2,
-                                   O1.Name as KtoStwoName, O2.Name as KtoModName, O3.Name as KtoWagaName, O4.Name as KtoSztukiName
+                                   O1.Name as KtoStwoName, O2.Name as KtoModName, O3.Name as KtoWagaName, O4.Name as KtoSztukiName,
+                                   WK.isConf as WstawienieIsConf, WK.KtoConf as WstawienieKtoConf, WK.DataConf as WstawienieDataConf, O5.Name as KtoConfName
                                    FROM HarmonogramDostaw HD
                                    LEFT JOIN Dostawcy D ON HD.Dostawca = D.Name
                                    LEFT JOIN operators O1 ON HD.ktoStwo = O1.ID
                                    LEFT JOIN operators O2 ON HD.ktoMod = O2.ID
                                    LEFT JOIN operators O3 ON HD.KtoWaga = O3.ID
                                    LEFT JOIN operators O4 ON HD.KtoSztuki = O4.ID
+                                   LEFT JOIN WstawieniaKurczakow WK ON HD.LpW = WK.Lp
+                                   LEFT JOIN operators O5 ON WK.KtoConf = O5.ID
                                    WHERE HD.LP = @lp";
 
                     using (SqlCommand cmd = new SqlCommand(sql, conn))
@@ -2553,6 +2556,10 @@ namespace Kalendarz1.Zywiec.Kalendarz
                                     SetAvatar(avatarPotwWaga, txtAvatarPotwWaga, txtKtoPotwWaga, r["KtoWagaName"]?.ToString(), r["KtoWaga"]?.ToString(), imgAvatarPotwWaga, imgAvatarPotwWagaBrush);
                                     txtDataPotwSztuki.Text = r["KiedySztuki"] != DBNull.Value ? Convert.ToDateTime(r["KiedySztuki"]).ToString("yyyy-MM-dd HH:mm") : "";
                                     SetAvatar(avatarPotwSztuki, txtAvatarPotwSztuki, txtKtoPotwSztuki, r["KtoSztukiName"]?.ToString(), r["KtoSztuki"]?.ToString(), imgAvatarPotwSztuki, imgAvatarPotwSztukiBrush);
+
+                                    // Info potwierdzenia wstawienia
+                                    txtDataPotwWstawienie.Text = r["WstawienieDataConf"] != DBNull.Value ? Convert.ToDateTime(r["WstawienieDataConf"]).ToString("yyyy-MM-dd HH:mm") : "";
+                                    SetAvatar(avatarPotwWstawienie, txtAvatarPotwWstawienie, txtKtoPotwWstawienie, r["KtoConfName"]?.ToString(), r["WstawienieKtoConf"]?.ToString(), imgAvatarPotwWstawienie, imgAvatarPotwWstawienieBrush);
 
                                     // Transport
                                     txtSztNaSzufladeCalc.Text = r["SztSzuflada"]?.ToString();
@@ -3648,13 +3655,16 @@ namespace Kalendarz1.Zywiec.Kalendarz
                     conn.Open();
                     string sql = @"SELECT HD.*, HD.KiedyWaga, HD.KiedySztuki, D.Address, D.PostalCode, D.City, D.Distance, D.Phone1, D.Phone2, D.Phone3,
                                    D.Info1, D.Info2, D.Info3, D.Email, D.TypOsobowosci, D.TypOsobowosci2,
-                                   O1.Name as KtoStwoName, O2.Name as KtoModName, O3.Name as KtoWagaName, O4.Name as KtoSztukiName
+                                   O1.Name as KtoStwoName, O2.Name as KtoModName, O3.Name as KtoWagaName, O4.Name as KtoSztukiName,
+                                   WK.isConf as WstawienieIsConf, WK.KtoConf as WstawienieKtoConf, WK.DataConf as WstawienieDataConf, O5.Name as KtoConfName
                                    FROM HarmonogramDostaw HD
                                    LEFT JOIN Dostawcy D ON HD.Dostawca = D.Name
                                    LEFT JOIN operators O1 ON HD.ktoStwo = O1.ID
                                    LEFT JOIN operators O2 ON HD.ktoMod = O2.ID
                                    LEFT JOIN operators O3 ON HD.KtoWaga = O3.ID
                                    LEFT JOIN operators O4 ON HD.KtoSztuki = O4.ID
+                                   LEFT JOIN WstawieniaKurczakow WK ON HD.LpW = WK.Lp
+                                   LEFT JOIN operators O5 ON WK.KtoConf = O5.ID
                                    WHERE HD.LP = @lp";
 
                     using (SqlCommand cmd = new SqlCommand(sql, conn))
@@ -3721,6 +3731,10 @@ namespace Kalendarz1.Zywiec.Kalendarz
                                 SetAvatar(avatarPotwWaga, txtAvatarPotwWaga, txtKtoPotwWaga, r["KtoWagaName"]?.ToString(), r["KtoWaga"]?.ToString(), imgAvatarPotwWaga, imgAvatarPotwWagaBrush);
                                 txtDataPotwSztuki.Text = r["KiedySztuki"] != DBNull.Value ? Convert.ToDateTime(r["KiedySztuki"]).ToString("yyyy-MM-dd HH:mm") : "";
                                 SetAvatar(avatarPotwSztuki, txtAvatarPotwSztuki, txtKtoPotwSztuki, r["KtoSztukiName"]?.ToString(), r["KtoSztuki"]?.ToString(), imgAvatarPotwSztuki, imgAvatarPotwSztukiBrush);
+
+                                // Info potwierdzenia wstawienia
+                                txtDataPotwWstawienie.Text = r["WstawienieDataConf"] != DBNull.Value ? Convert.ToDateTime(r["WstawienieDataConf"]).ToString("yyyy-MM-dd HH:mm") : "";
+                                SetAvatar(avatarPotwWstawienie, txtAvatarPotwWstawienie, txtKtoPotwWstawienie, r["KtoConfName"]?.ToString(), r["WstawienieKtoConf"]?.ToString(), imgAvatarPotwWstawienie, imgAvatarPotwWstawienieBrush);
 
                                 // Transport
                                 txtSztNaSzufladeCalc.Text = r["SztSzuflada"]?.ToString();
@@ -4349,6 +4363,121 @@ namespace Kalendarz1.Zywiec.Kalendarz
                     await _auditService.LogFieldChangeAsync("HarmonogramDostaw", _selectedLP,
                         AuditChangeSource.ContextMenu_CofnijSztuki, "PotwSztuki", "1", "0",
                         new AuditContextInfo { Dostawca = dostawa?.Dostawca, DataOdbioru = dostawa?.DataOdbioru }, _cts.Token);
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowToast($"Błąd: {ex.Message}", ToastType.Error);
+            }
+        }
+
+        // Menu kontekstowe - Potwierdź WSTAWIENIE
+        private async void MenuPotwierdzWstawienie_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(_selectedLP))
+            {
+                ShowToast("Wybierz dostawę", ToastType.Warning);
+                return;
+            }
+
+            var dostawa = _dostawy.FirstOrDefault(d => d.LP == _selectedLP) ?? _dostawyNastepnyTydzien.FirstOrDefault(d => d.LP == _selectedLP);
+            if (dostawa == null || string.IsNullOrEmpty(dostawa.LpW))
+            {
+                ShowToast("Brak powiązanego wstawienia (LpW)", ToastType.Warning);
+                return;
+            }
+
+            if (_isSimulationMode)
+            {
+                dostawa.IsWstawienieConfirmed = true;
+                dgDostawy.Items.Refresh();
+                dgDostawyNastepny.Items.Refresh();
+                ShowToast("📝 Wstawienie potwierdzone (symulacja)", ToastType.Info);
+                return;
+            }
+
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(ConnectionString))
+                {
+                    await conn.OpenAsync(_cts.Token);
+                    using (SqlCommand cmd = new SqlCommand(
+                        "UPDATE WstawieniaKurczakow SET isConf = 1, KtoConf = @kto, DataConf = @data WHERE Lp = @lp", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@kto", UserID ?? "0");
+                        cmd.Parameters.AddWithValue("@data", DateTime.Now);
+                        cmd.Parameters.AddWithValue("@lp", dostawa.LpW);
+                        await cmd.ExecuteNonQueryAsync(_cts.Token);
+                    }
+                }
+
+                dostawa.IsWstawienieConfirmed = true;
+                txtDataPotwWstawienie.Text = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
+                string userName = txtUserName?.Text ?? UserName ?? "";
+                SetAvatar(avatarPotwWstawienie, txtAvatarPotwWstawienie, txtKtoPotwWstawienie, userName, UserID, imgAvatarPotwWstawienie, imgAvatarPotwWstawienieBrush);
+                dgDostawy.Items.Refresh();
+                dgDostawyNastepny.Items.Refresh();
+                ShowToast("🐣 Wstawienie potwierdzone!", ToastType.Success);
+
+                if (_auditService != null)
+                {
+                    await _auditService.LogWstawienieConfirmationAsync(dostawa.LpW, true, _cts.Token);
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowToast($"Błąd: {ex.Message}", ToastType.Error);
+            }
+        }
+
+        // Menu kontekstowe - Cofnij potwierdzenie WSTAWIENIA
+        private async void MenuCofnijWstawienie_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(_selectedLP))
+            {
+                ShowToast("Wybierz dostawę", ToastType.Warning);
+                return;
+            }
+
+            var dostawa = _dostawy.FirstOrDefault(d => d.LP == _selectedLP) ?? _dostawyNastepnyTydzien.FirstOrDefault(d => d.LP == _selectedLP);
+            if (dostawa == null || string.IsNullOrEmpty(dostawa.LpW))
+            {
+                ShowToast("Brak powiązanego wstawienia (LpW)", ToastType.Warning);
+                return;
+            }
+
+            if (_isSimulationMode)
+            {
+                dostawa.IsWstawienieConfirmed = false;
+                dgDostawy.Items.Refresh();
+                dgDostawyNastepny.Items.Refresh();
+                ShowToast("📝 Cofnięto potwierdzenie wstawienia (symulacja)", ToastType.Info);
+                return;
+            }
+
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(ConnectionString))
+                {
+                    await conn.OpenAsync(_cts.Token);
+                    using (SqlCommand cmd = new SqlCommand(
+                        "UPDATE WstawieniaKurczakow SET isConf = 0, KtoConf = NULL, DataConf = NULL WHERE Lp = @lp", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@lp", dostawa.LpW);
+                        await cmd.ExecuteNonQueryAsync(_cts.Token);
+                    }
+                }
+
+                dostawa.IsWstawienieConfirmed = false;
+                txtDataPotwWstawienie.Text = "";
+                SetAvatar(avatarPotwWstawienie, txtAvatarPotwWstawienie, txtKtoPotwWstawienie, null, null, imgAvatarPotwWstawienie, imgAvatarPotwWstawienieBrush);
+                dgDostawy.Items.Refresh();
+                dgDostawyNastepny.Items.Refresh();
+                ShowToast("↩️ Cofnięto potwierdzenie wstawienia", ToastType.Info);
+
+                if (_auditService != null)
+                {
+                    await _auditService.LogWstawienieConfirmationAsync(dostawa.LpW, false, _cts.Token);
                 }
             }
             catch (Exception ex)
@@ -5496,6 +5625,24 @@ namespace Kalendarz1.Zywiec.Kalendarz
             catch (Exception ex)
             {
                 MessageBox.Show($"Błąd otwarcia historii zmian:\n{ex.Message}\n\n{ex.StackTrace}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+
+
+        private void BtnMapaDostaw_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var monday = _selectedDate;
+                while (monday.DayOfWeek != DayOfWeek.Monday)
+                    monday = monday.AddDays(-1);
+                var mapaWindow = new MapaDostawWindow(monday);
+                mapaWindow.Show();
+            }
+            catch (Exception ex)
+            {
+                ShowToast($"Błąd otwarcia mapy: {ex.Message}", ToastType.Error);
             }
         }
 

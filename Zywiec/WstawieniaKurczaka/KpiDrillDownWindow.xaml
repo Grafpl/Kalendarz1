@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window x:Class="Kalendarz1.KpiDrillDownWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Szczegoly KPI"
+        Width="1250" Height="760"
+        WindowStartupLocation="CenterOwner"
+        Background="#F0F2F5"
+        MinWidth="900" MinHeight="500">
+
+    <Window.Resources>
+        <Style x:Key="ModernHeaderStyle" TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="#F1F3F5"/>
+            <Setter Property="Foreground" Value="#495057"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="BorderBrush" Value="#DEE2E6"/>
+            <Setter Property="BorderThickness" Value="0,0,1,2"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+        </Style>
+
+        <Style x:Key="ModernCellStyle" TargetType="DataGridCell">
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="BorderBrush" Value="#F1F3F5"/>
+            <Setter Property="BorderThickness" Value="0,0,1,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DataGridCell">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#E8F4FD"/>
+                    <Setter Property="Foreground" Value="#2C3E50"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- ======== HEADER BAR ======== -->
+        <Border x:Name="headerBar" Grid.Row="0" Padding="30,22,30,20">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0.4">
+                    <GradientStop Color="#1A1D21" Offset="0"/>
+                    <GradientStop Color="#2C3E50" Offset="1"/>
+                </LinearGradientBrush>
+            </Border.Background>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Avatar + Info -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <Grid Width="52" Height="52" Margin="0,0,18,0">
+                        <Border x:Name="avatarBorder" Width="52" Height="52" CornerRadius="26" Background="#5C8A3A">
+                            <TextBlock x:Name="txtInitials" Text="?" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       Foreground="White" FontSize="19" FontWeight="Bold"/>
+                        </Border>
+                        <Ellipse x:Name="avatarEllipse" Width="52" Height="52">
+                            <Ellipse.Fill>
+                                <ImageBrush x:Name="avatarImageBrush" Stretch="UniformToFill"/>
+                            </Ellipse.Fill>
+                        </Ellipse>
+                    </Grid>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock x:Name="txtUserName" Text="" FontSize="21" FontWeight="Bold" Foreground="White" Margin="0,0,0,4"/>
+                        <StackPanel Orientation="Horizontal">
+                            <Border x:Name="badgeModul" CornerRadius="4" Padding="10,4" Margin="0,0,12,0">
+                                <TextBlock x:Name="txtModulName" Text="" FontSize="11" FontWeight="Bold" Foreground="White"/>
+                            </Border>
+                            <TextBlock x:Name="txtPeriod" Text="" FontSize="12" Foreground="#AEB6BF" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Stat boxes -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border Background="#FFFFFF15" CornerRadius="10" Padding="20,10" Margin="0,0,12,0" BorderBrush="#FFFFFF20" BorderThickness="1">
+                        <StackPanel HorizontalAlignment="Center">
+                            <TextBlock x:Name="txtRecordCount" Text="0" FontSize="28" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+                            <TextBlock Text="rekordow" FontSize="10" Foreground="#AEB6BF" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Background="#FFFFFF15" CornerRadius="10" Padding="20,10" BorderBrush="#FFFFFF20" BorderThickness="1">
+                        <StackPanel HorizontalAlignment="Center">
+                            <TextBlock x:Name="txtTypCount" Text="0" FontSize="28" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+                            <TextBlock Text="typow akcji" FontSize="10" Foreground="#AEB6BF" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ======== SUMMARY CARDS ======== -->
+        <Border Grid.Row="1" Background="White" Padding="26,12,26,10" BorderBrush="#E5E8EB" BorderThickness="0,0,0,1">
+            <Border.Effect>
+                <DropShadowEffect Color="#D5D8DC" Direction="270" ShadowDepth="1" BlurRadius="4" Opacity="0.15"/>
+            </Border.Effect>
+            <WrapPanel x:Name="panelSummary"/>
+        </Border>
+
+        <!-- ======== DATA GRID ======== -->
+        <Grid Grid.Row="2" Margin="20,14,20,20">
+            <Border Background="White" CornerRadius="12" ClipToBounds="True">
+                <Border.Effect>
+                    <DropShadowEffect Color="#C8CDD0" Direction="270" ShadowDepth="3" BlurRadius="14" Opacity="0.18"/>
+                </Border.Effect>
+                <DataGrid x:Name="dgDetails" AutoGenerateColumns="True" IsReadOnly="True"
+                          CanUserAddRows="False" CanUserDeleteRows="False"
+                          GridLinesVisibility="None" HeadersVisibility="Column"
+                          BorderThickness="0" Background="White"
+                          ColumnHeaderStyle="{StaticResource ModernHeaderStyle}"
+                          CellStyle="{StaticResource ModernCellStyle}"
+                          FontSize="12.5" RowHeight="42"
+                          RowBackground="White" AlternatingRowBackground="#FAFBFC"
+                          CanUserSortColumns="True" CanUserResizeColumns="True"
+                          HorizontalScrollBarVisibility="Auto"
+                          VerticalScrollBarVisibility="Auto"
+                          AutoGeneratingColumn="DgDetails_AutoGeneratingColumn"
+                          SelectionMode="Single" SelectionUnit="FullRow"
+                          FrozenColumnCount="1"
+                          Margin="0"/>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

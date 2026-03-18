@@ -533,6 +533,13 @@ namespace Kalendarz1.Opakowania.Models
         private int _domyslnyOkresDni = 7;
         private string _sciezkaPDF1 = @"\\192.168.0.170\Public\Salda Opakowan";
         private string _sciezkaPDF2 = @"\\192.168.0.171\Public\Salda Opakowan";
+        private string _domyslnyWidok = "WszystkieTypy";
+
+        public string DomyslnyWidok
+        {
+            get => _domyslnyWidok;
+            set => SetProperty(ref _domyslnyWidok, value);
+        }
 
         public int ProgOstrzezenia
         {

@@ -51,6 +51,43 @@
             </Setter>
         </Style>
 
+        <!-- Global DataGrid row hover -->
+        <Style x:Key="RankingRowStyle" TargetType="DataGridRow">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#F0F2F5"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#EBF5FB"/>
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#D4EFDF"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="RankingHeaderStyle" TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="#F1F3F5"/>
+            <Setter Property="Foreground" Value="#495057"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="BorderBrush" Value="#DEE2E6"/>
+            <Setter Property="BorderThickness" Value="0,0,1,2"/>
+        </Style>
+
+        <Style x:Key="RankingCellStyle" TargetType="DataGridCell">
+            <Setter Property="BorderBrush" Value="#F4F6F7"/>
+            <Setter Property="BorderThickness" Value="0,0,1,0"/>
+            <Setter Property="Padding" Value="6,4"/>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="Transparent"/>
+                    <Setter Property="Foreground" Value="#2C3E50"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
         <Style x:Key="TabHeaderStyle" TargetType="TabItem">
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
@@ -78,7 +115,7 @@
         </Style>
     </Window.Resources>
 
-    <Grid Margin="20">
+    <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -86,21 +123,54 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- Naglowek -->
-        <TextBlock Grid.Row="0"
-                   Text="KPI Zakupowcow - Wstawienia Kurczakow"
-                   FontSize="26"
-                   FontWeight="Bold"
-                   Foreground="#2C3E50"
-                   Margin="0,0,0,20"/>
+        <!-- ======== DARK HEADER ======== -->
+        <Border Grid.Row="0" Padding="28,16,28,14">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0.4">
+                    <GradientStop Color="#1A1D21" Offset="0"/>
+                    <GradientStop Color="#2C3533" Offset="1"/>
+                </LinearGradientBrush>
+            </Border.Background>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                    <TextBlock Text="KPI Zakupowcow" FontSize="22" FontWeight="Bold" Foreground="White"/>
+                    <TextBlock Text="Sledzenie wydajnosci wstawien, kalendarza, specyfikacji, SMS, hodowcow, dokumentow i wnioskow"
+                               FontSize="11" Foreground="#8C9196" Margin="0,3,0,0"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border Background="#5C8A3A" CornerRadius="6" Padding="14,6" Margin="0,0,8,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock x:Name="txtHeaderUtw" Text="0" FontSize="15" FontWeight="Bold" Foreground="White" Margin="0,0,5,0"/>
+                            <TextBlock Text="utw." FontSize="11" Foreground="#FFFFFFBB" VerticalAlignment="Bottom" Margin="0,0,0,1"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Background="#3498DB" CornerRadius="6" Padding="14,6" Margin="0,0,8,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock x:Name="txtHeaderPotw" Text="0" FontSize="15" FontWeight="Bold" Foreground="White" Margin="0,0,5,0"/>
+                            <TextBlock Text="potw." FontSize="11" Foreground="#FFFFFFBB" VerticalAlignment="Bottom" Margin="0,0,0,1"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Background="#F39C12" CornerRadius="6" Padding="14,6">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock x:Name="txtHeaderOcz" Text="0" FontSize="15" FontWeight="Bold" Foreground="White" Margin="0,0,5,0"/>
+                            <TextBlock Text="ocz." FontSize="11" Foreground="#FFFFFFBB" VerticalAlignment="Bottom" Margin="0,0,0,1"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Grid>
+        </Border>
 
-        <!-- Panel wyboru daty -->
-        <Border Grid.Row="1" Background="White" CornerRadius="12" Padding="15" Margin="0,0,0,10">
-            <Border.Effect>
-                <DropShadowEffect Color="#D5D8DC" Direction="270" ShadowDepth="2" BlurRadius="8" Opacity="0.3"/>
-            </Border.Effect>
+        <!-- ======== DATE PICKER (collapsible) ======== -->
+        <Expander Grid.Row="1" IsExpanded="True" Margin="16,8,16,4">
+            <Expander.Header>
+                <TextBlock Text="Wybor Okresu" FontSize="13" FontWeight="Bold" Foreground="#34495E"/>
+            </Expander.Header>
+            <Border Background="White" CornerRadius="0,0,10,10" Padding="15,10,15,12">
             <StackPanel>
-                <TextBlock Text="Wybor Okresu" FontSize="14" FontWeight="Bold" Foreground="#34495E" Margin="0,0,0,10"/>
 
                 <!-- Szybki wybor -->
                 <WrapPanel Margin="0,0,0,8">
@@ -160,10 +230,11 @@
                     </WrapPanel>
                 </StackPanel>
             </StackPanel>
-        </Border>
+            </Border>
+        </Expander>
 
-        <!-- Podsumowanie -->
-        <Grid Grid.Row="2" Margin="0,0,0,10">
+        <!-- ======== SUMMARY CARDS ======== -->
+        <Grid Grid.Row="2" Margin="16,6,16,8">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="*"/>
@@ -171,37 +242,66 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <Border Grid.Column="0" Style="{StaticResource KpiCard}" Margin="0,0,5,0">
-                <StackPanel>
-                    <TextBlock Text="Utworzone" FontSize="13" Foreground="#7F8C8D" Margin="0,0,0,4"/>
-                    <TextBlock x:Name="txtTotalStworzone" Text="0" FontSize="30" FontWeight="Bold" Foreground="#5C8A3A"/>
-                </StackPanel>
+            <!-- Utworzone -->
+            <Border Grid.Column="0" Background="White" CornerRadius="10" Margin="0,0,5,0" ClipToBounds="True">
+                <Border.Effect><DropShadowEffect Color="#D5D8DC" Direction="270" ShadowDepth="1" BlurRadius="6" Opacity="0.2"/></Border.Effect>
+                <Grid>
+                    <Border Width="4" HorizontalAlignment="Left" Background="#5C8A3A" CornerRadius="10,0,0,10"/>
+                    <StackPanel Margin="16,12,14,12">
+                        <TextBlock Text="UTWORZONE" FontSize="10" Foreground="#95A5A6" FontWeight="SemiBold" Margin="0,0,0,2"/>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock x:Name="txtTotalStworzone" Text="0" FontSize="28" FontWeight="Bold" Foreground="#5C8A3A"/>
+                            <TextBlock Text=" wstawien" FontSize="11" Foreground="#95A5A6" VerticalAlignment="Bottom" Margin="4,0,0,5"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
             </Border>
 
-            <Border Grid.Column="1" Style="{StaticResource KpiCard}">
-                <StackPanel>
-                    <TextBlock Text="Potwierdzone" FontSize="13" Foreground="#7F8C8D" Margin="0,0,0,4"/>
-                    <TextBlock x:Name="txtTotalPotwierdzone" Text="0" FontSize="30" FontWeight="Bold" Foreground="#3498DB"/>
-                </StackPanel>
+            <!-- Potwierdzone -->
+            <Border Grid.Column="1" Background="White" CornerRadius="10" Margin="5,0" ClipToBounds="True">
+                <Border.Effect><DropShadowEffect Color="#D5D8DC" Direction="270" ShadowDepth="1" BlurRadius="6" Opacity="0.2"/></Border.Effect>
+                <Grid>
+                    <Border Width="4" HorizontalAlignment="Left" Background="#3498DB" CornerRadius="10,0,0,10"/>
+                    <StackPanel Margin="16,12,14,12">
+                        <TextBlock Text="POTWIERDZONE" FontSize="10" Foreground="#95A5A6" FontWeight="SemiBold" Margin="0,0,0,2"/>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock x:Name="txtTotalPotwierdzone" Text="0" FontSize="28" FontWeight="Bold" Foreground="#3498DB"/>
+                            <TextBlock Text=" wstawien" FontSize="11" Foreground="#95A5A6" VerticalAlignment="Bottom" Margin="4,0,0,5"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
             </Border>
 
-            <Border Grid.Column="2" Style="{StaticResource KpiCard}">
-                <StackPanel>
-                    <TextBlock Text="Oczekujace" FontSize="13" Foreground="#7F8C8D" Margin="0,0,0,4"/>
-                    <TextBlock x:Name="txtTotalOczekujace" Text="0" FontSize="30" FontWeight="Bold" Foreground="#F39C12"/>
-                </StackPanel>
+            <!-- Oczekujace -->
+            <Border Grid.Column="2" Background="White" CornerRadius="10" Margin="5,0" ClipToBounds="True">
+                <Border.Effect><DropShadowEffect Color="#D5D8DC" Direction="270" ShadowDepth="1" BlurRadius="6" Opacity="0.2"/></Border.Effect>
+                <Grid>
+                    <Border Width="4" HorizontalAlignment="Left" Background="#F39C12" CornerRadius="10,0,0,10"/>
+                    <StackPanel Margin="16,12,14,12">
+                        <TextBlock Text="OCZEKUJACE" FontSize="10" Foreground="#95A5A6" FontWeight="SemiBold" Margin="0,0,0,2"/>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock x:Name="txtTotalOczekujace" Text="0" FontSize="28" FontWeight="Bold" Foreground="#F39C12"/>
+                            <TextBlock Text=" wstawien" FontSize="11" Foreground="#95A5A6" VerticalAlignment="Bottom" Margin="4,0,0,5"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
             </Border>
 
-            <Border Grid.Column="3" Style="{StaticResource KpiCard}" Margin="5,0,0,0">
-                <StackPanel>
-                    <TextBlock Text="% Potwierdzonych" FontSize="13" Foreground="#7F8C8D" Margin="0,0,0,4"/>
-                    <TextBlock x:Name="txtProcentPotwierdzone" Text="0%" FontSize="30" FontWeight="Bold" Foreground="#9B59B6"/>
-                </StackPanel>
+            <!-- % Potwierdzonych -->
+            <Border Grid.Column="3" Background="White" CornerRadius="10" Margin="5,0,0,0" ClipToBounds="True">
+                <Border.Effect><DropShadowEffect Color="#D5D8DC" Direction="270" ShadowDepth="1" BlurRadius="6" Opacity="0.2"/></Border.Effect>
+                <Grid>
+                    <Border Width="4" HorizontalAlignment="Left" Background="#9B59B6" CornerRadius="10,0,0,10"/>
+                    <StackPanel Margin="16,12,14,12">
+                        <TextBlock Text="% POTWIERDZONYCH" FontSize="10" Foreground="#95A5A6" FontWeight="SemiBold" Margin="0,0,0,2"/>
+                        <TextBlock x:Name="txtProcentPotwierdzone" Text="0%" FontSize="28" FontWeight="Bold" Foreground="#9B59B6"/>
+                    </StackPanel>
+                </Grid>
             </Border>
         </Grid>
 
         <!-- TabControl -->
-        <TabControl x:Name="mainTabControl" Grid.Row="3" BorderThickness="0" Background="Transparent" Padding="0">
+        <TabControl x:Name="mainTabControl" Grid.Row="3" BorderThickness="0" Background="Transparent" Padding="0" Margin="16,0,16,10">
 
             <!-- ==================== TAB 1: PRZEGLAD ==================== -->
             <TabItem Header="Przeglad Wstawien" Style="{StaticResource TabHeaderStyle}">
@@ -595,6 +695,353 @@
                                                FontSize="13" Foreground="#95A5A6" TextWrapping="Wrap" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center"/>
                                 </Border>
                             </DockPanel>
+                        </Border>
+
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ==================== TAB 3: KPI WIELOMODULOWE ==================== -->
+            <TabItem Header="KPI Wielomodulowe" Style="{StaticResource TabHeaderStyle}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,0,0">
+                    <StackPanel>
+
+                        <!-- Top performers per module -->
+                        <Grid Margin="0,0,0,15">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <Border Grid.Column="0" Background="#EAFAF1" CornerRadius="12" Padding="14,12" Margin="0,0,4,0">
+                                <Border.Effect><DropShadowEffect Color="#D5D8DC" Direction="270" ShadowDepth="2" BlurRadius="6" Opacity="0.25"/></Border.Effect>
+                                <StackPanel>
+                                    <TextBlock Text="LIDER WSTAWIEN" FontSize="9" Foreground="#5D6D7E" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                    <TextBlock x:Name="txtCmLiderWstawien" Text="-" FontSize="14" FontWeight="Bold" Foreground="#27AE60"/>
+                                    <TextBlock x:Name="txtCmLiderWstawienVal" Text="" FontSize="11" Foreground="#7F8C8D"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Grid.Column="1" Background="#EBF5FB" CornerRadius="12" Padding="14,12" Margin="4,0">
+                                <Border.Effect><DropShadowEffect Color="#D5D8DC" Direction="270" ShadowDepth="2" BlurRadius="6" Opacity="0.25"/></Border.Effect>
+                                <StackPanel>
+                                    <TextBlock Text="LIDER KALENDARZA" FontSize="9" Foreground="#5D6D7E" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                    <TextBlock x:Name="txtCmLiderKalendarz" Text="-" FontSize="14" FontWeight="Bold" Foreground="#2980B9"/>
+                                    <TextBlock x:Name="txtCmLiderKalendarzVal" Text="" FontSize="11" Foreground="#7F8C8D"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Grid.Column="2" Background="#F5EEF8" CornerRadius="12" Padding="14,12" Margin="4,0">
+                                <Border.Effect><DropShadowEffect Color="#D5D8DC" Direction="270" ShadowDepth="2" BlurRadius="6" Opacity="0.25"/></Border.Effect>
+                                <StackPanel>
+                                    <TextBlock Text="LIDER SPECYFIKACJI" FontSize="9" Foreground="#5D6D7E" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                    <TextBlock x:Name="txtCmLiderSpec" Text="-" FontSize="14" FontWeight="Bold" Foreground="#8E44AD"/>
+                                    <TextBlock x:Name="txtCmLiderSpecVal" Text="" FontSize="11" Foreground="#7F8C8D"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Grid.Column="3" Background="#FDEDEC" CornerRadius="12" Padding="14,12" Margin="4,0">
+                                <Border.Effect><DropShadowEffect Color="#D5D8DC" Direction="270" ShadowDepth="2" BlurRadius="6" Opacity="0.25"/></Border.Effect>
+                                <StackPanel>
+                                    <TextBlock Text="LIDER POZYSKIWANIA" FontSize="9" Foreground="#5D6D7E" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                    <TextBlock x:Name="txtCmLiderHodowcy" Text="-" FontSize="14" FontWeight="Bold" Foreground="#E74C3C"/>
+                                    <TextBlock x:Name="txtCmLiderHodowcyVal" Text="" FontSize="11" Foreground="#7F8C8D"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Grid.Column="4" Background="#E8F6F3" CornerRadius="12" Padding="14,12" Margin="4,0,0,0">
+                                <Border.Effect><DropShadowEffect Color="#D5D8DC" Direction="270" ShadowDepth="2" BlurRadius="6" Opacity="0.25"/></Border.Effect>
+                                <StackPanel>
+                                    <TextBlock Text="LIDER OGOLNY" FontSize="9" Foreground="#5D6D7E" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                    <TextBlock x:Name="txtCmLiderOgolny" Text="-" FontSize="14" FontWeight="Bold" Foreground="#1ABC9C"/>
+                                    <TextBlock x:Name="txtCmLiderOgolnyVal" Text="" FontSize="11" Foreground="#7F8C8D"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+
+                        <!-- Ranking wielomodulowy -->
+                        <Border Background="White" CornerRadius="12" Padding="20" Margin="0,0,0,15">
+                            <Border.Effect>
+                                <DropShadowEffect Color="#D5D8DC" Direction="270" ShadowDepth="2" BlurRadius="8" Opacity="0.3"/>
+                            </Border.Effect>
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Top" Text="Ranking Wielomodulowy Zakupowcow" FontSize="18" FontWeight="Bold" Foreground="#34495E" Margin="0,0,0,15"/>
+                                <TextBlock DockPanel.Dock="Top" Text="Dwuklik w komorke = szczegoly akcji danego modulu" FontSize="10" Foreground="#95A5A6" Margin="0,0,0,10" FontStyle="Italic"/>
+                                <DataGrid x:Name="dgCrossModule" AutoGenerateColumns="False" IsReadOnly="True"
+                                          CanUserAddRows="False" CanUserDeleteRows="False"
+                                          GridLinesVisibility="None" HeadersVisibility="Column"
+                                          BorderThickness="0" Background="White"
+                                          RowStyle="{StaticResource RankingRowStyle}"
+                                          ColumnHeaderStyle="{StaticResource RankingHeaderStyle}"
+                                          CellStyle="{StaticResource RankingCellStyle}"
+                                          FontSize="12" RowHeight="44" CanUserSortColumns="True"
+                                          HorizontalScrollBarVisibility="Auto"
+                                          SelectionMode="Single" SelectionUnit="FullRow"
+                                          MouseDoubleClick="DgCrossModule_MouseDoubleClick"
+                                          Cursor="Hand">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="#" Binding="{Binding Pozycja}" Width="35">
+                                            <DataGridTextColumn.ElementStyle>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="FontWeight" Value="Bold"/>
+                                                    <Setter Property="Foreground" Value="#5C8A3A"/>
+                                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                                    <Setter Property="HorizontalAlignment" Value="Center"/>
+                                                </Style>
+                                            </DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
+
+                                        <DataGridTemplateColumn Header="Zakupowiec" Width="180" SortMemberPath="Nazwa">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="4,0">
+                                                        <Grid Width="28" Height="28" Margin="0,0,6,0">
+                                                            <Border Width="28" Height="28" CornerRadius="14" Background="{Binding KolorBrush}">
+                                                                <TextBlock Text="{Binding Inicjaly}" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White" FontSize="10" FontWeight="SemiBold"/>
+                                                            </Border>
+                                                            <Ellipse Width="28" Height="28">
+                                                                <Ellipse.Fill>
+                                                                    <ImageBrush ImageSource="{Binding AvatarSource}" Stretch="UniformToFill"/>
+                                                                </Ellipse.Fill>
+                                                            </Ellipse>
+                                                        </Grid>
+                                                        <TextBlock Text="{Binding Nazwa}" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="#2C3E50" FontSize="12"/>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+
+                                        <!-- Wstawienia -->
+                                        <DataGridTemplateColumn Header="Wstawienia" Width="90" SortMemberPath="WstawieniaTotal">
+                                            <DataGridTemplateColumn.HeaderStyle><Style TargetType="DataGridColumnHeader"><Setter Property="Foreground" Value="#27AE60"/><Setter Property="FontWeight" Value="Bold"/><Setter Property="Padding" Value="10,8"/><Setter Property="Background" Value="#F1F3F5"/><Setter Property="BorderBrush" Value="#DEE2E6"/><Setter Property="BorderThickness" Value="0,0,1,2"/></Style></DataGridTemplateColumn.HeaderStyle>
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding WstawieniaTotal}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                               FontWeight="Bold" FontSize="14" Foreground="#27AE60"
+                                                               ToolTip="{Binding WstawieniaTooltip}"/>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+
+                                        <!-- Kalendarz -->
+                                        <DataGridTemplateColumn Header="Kalendarz" Width="90" SortMemberPath="KalendarzTotal">
+                                            <DataGridTemplateColumn.HeaderStyle><Style TargetType="DataGridColumnHeader"><Setter Property="Foreground" Value="#2980B9"/><Setter Property="FontWeight" Value="Bold"/><Setter Property="Padding" Value="10,8"/><Setter Property="Background" Value="#F1F3F5"/><Setter Property="BorderBrush" Value="#DEE2E6"/><Setter Property="BorderThickness" Value="0,0,1,2"/></Style></DataGridTemplateColumn.HeaderStyle>
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding KalendarzTotal}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                               FontWeight="Bold" FontSize="14" Foreground="#2980B9"
+                                                               ToolTip="{Binding KalendarzTooltip}"/>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+
+                                        <!-- Specyfikacja (wprowadzenia + weryfikacje) -->
+                                        <DataGridTemplateColumn Header="Specyfikacja" Width="100" SortMemberPath="SpecyfikacjaTotal">
+                                            <DataGridTemplateColumn.HeaderStyle><Style TargetType="DataGridColumnHeader"><Setter Property="Foreground" Value="#8E44AD"/><Setter Property="FontWeight" Value="Bold"/><Setter Property="Padding" Value="10,8"/><Setter Property="Background" Value="#F1F3F5"/><Setter Property="BorderBrush" Value="#DEE2E6"/><Setter Property="BorderThickness" Value="0,0,1,2"/></Style></DataGridTemplateColumn.HeaderStyle>
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding SpecyfikacjaTotal}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                               FontWeight="Bold" FontSize="14" Foreground="#8E44AD"
+                                                               ToolTip="{Binding SpecyfikacjaTooltip}"/>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+
+                                        <!-- Pozyskiwanie Hodowcow -->
+                                        <DataGridTemplateColumn Header="Pozyskiwanie" Width="100" SortMemberPath="HodowcyTotal">
+                                            <DataGridTemplateColumn.HeaderStyle><Style TargetType="DataGridColumnHeader"><Setter Property="Foreground" Value="#E74C3C"/><Setter Property="FontWeight" Value="Bold"/><Setter Property="Padding" Value="10,8"/><Setter Property="Background" Value="#F1F3F5"/><Setter Property="BorderBrush" Value="#DEE2E6"/><Setter Property="BorderThickness" Value="0,0,1,2"/></Style></DataGridTemplateColumn.HeaderStyle>
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding HodowcyTotal}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                               FontWeight="Bold" FontSize="14" Foreground="#E74C3C"
+                                                               ToolTip="{Binding HodowcyTooltip}"/>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+
+                                        <!-- Dokumenty -->
+                                        <DataGridTemplateColumn Header="Dokumenty" Width="90" SortMemberPath="DokumentyTotal">
+                                            <DataGridTemplateColumn.HeaderStyle><Style TargetType="DataGridColumnHeader"><Setter Property="Foreground" Value="#16A085"/><Setter Property="FontWeight" Value="Bold"/><Setter Property="Padding" Value="10,8"/><Setter Property="Background" Value="#F1F3F5"/><Setter Property="BorderBrush" Value="#DEE2E6"/><Setter Property="BorderThickness" Value="0,0,1,2"/></Style></DataGridTemplateColumn.HeaderStyle>
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding DokumentyTotal}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                               FontWeight="Bold" FontSize="14" Foreground="#16A085"
+                                                               ToolTip="{Binding DokumentyTooltip}"/>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+
+                                        <!-- Wnioski -->
+                                        <DataGridTemplateColumn Header="Wnioski" Width="80" SortMemberPath="WnioskiTotal">
+                                            <DataGridTemplateColumn.HeaderStyle><Style TargetType="DataGridColumnHeader"><Setter Property="Foreground" Value="#E67E22"/><Setter Property="FontWeight" Value="Bold"/><Setter Property="Padding" Value="10,8"/><Setter Property="Background" Value="#F1F3F5"/><Setter Property="BorderBrush" Value="#DEE2E6"/><Setter Property="BorderThickness" Value="0,0,1,2"/></Style></DataGridTemplateColumn.HeaderStyle>
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding WnioskiTotal}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                               FontWeight="Bold" FontSize="14" Foreground="#E67E22"
+                                                               ToolTip="{Binding WnioskiTooltip}"/>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+
+                                        <!-- SUMA -->
+                                        <DataGridTemplateColumn Header="SUMA" Width="80" SortMemberPath="SumaAkcji">
+                                            <DataGridTemplateColumn.HeaderStyle><Style TargetType="DataGridColumnHeader"><Setter Property="Foreground" Value="White"/><Setter Property="FontWeight" Value="Bold"/><Setter Property="FontSize" Value="12"/><Setter Property="Background" Value="#1ABC9C"/><Setter Property="Padding" Value="10,8"/><Setter Property="BorderThickness" Value="0,0,0,2"/></Style></DataGridTemplateColumn.HeaderStyle>
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <Border Background="#E8F8F5" CornerRadius="6" Padding="6,2" Margin="2">
+                                                        <TextBlock Text="{Binding SumaAkcji}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                   FontWeight="Bold" FontSize="15" Foreground="#1ABC9C"/>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </DockPanel>
+                        </Border>
+
+                        <!-- Legenda modulow -->
+                        <Border Background="White" CornerRadius="12" Padding="20" Margin="0,0,0,15">
+                            <Border.Effect>
+                                <DropShadowEffect Color="#D5D8DC" Direction="270" ShadowDepth="2" BlurRadius="8" Opacity="0.3"/>
+                            </Border.Effect>
+                            <StackPanel>
+                                <TextBlock Text="Legenda - co mierzy kazdy modul" FontSize="16" FontWeight="Bold" Foreground="#34495E" Margin="0,0,0,12"/>
+                                <WrapPanel>
+                                    <Border Background="#EAFAF1" CornerRadius="6" Padding="10,6" Margin="0,0,8,8">
+                                        <TextBlock FontSize="11"><Run FontWeight="Bold" Foreground="#27AE60" Text="Wstawienia"/><Run Text=" = Utworzone + Potwierdzone cykle wstawien (WstawieniaKurczakow)"/></TextBlock>
+                                    </Border>
+                                    <Border Background="#EBF5FB" CornerRadius="6" Padding="10,6" Margin="0,0,8,8">
+                                        <TextBlock FontSize="11"><Run FontWeight="Bold" Foreground="#2980B9" Text="Kalendarz"/><Run Text=" = Dostawy utworzone + Potw. wagi + Potw. sztuk (HarmonogramDostaw)"/></TextBlock>
+                                    </Border>
+                                    <Border Background="#F5EEF8" CornerRadius="6" Padding="10,6" Margin="0,0,8,8">
+                                        <TextBlock FontSize="11"><Run FontWeight="Bold" Foreground="#8E44AD" Text="Specyfikacja"/><Run Text=" = Wprowadzenia + Weryfikacje specyfikacji surowca (RozliczeniaZatwierdzenia)"/></TextBlock>
+                                    </Border>
+                                    <Border Background="#FDEDEC" CornerRadius="6" Padding="10,6" Margin="0,0,8,8">
+                                        <TextBlock FontSize="11"><Run FontWeight="Bold" Foreground="#E74C3C" Text="Pozyskiwanie"/><Run Text=" = Telefony + Notatki CRM + Oceny dostawcow z modulu Pozyskiwanie Hodowcow"/></TextBlock>
+                                    </Border>
+                                    <Border Background="#E8F6F3" CornerRadius="6" Padding="10,6" Margin="0,0,8,8">
+                                        <TextBlock FontSize="11"><Run FontWeight="Bold" Foreground="#16A085" Text="Dokumenty"/><Run Text=" = Utworzone + Wyslane + Otrzymane dokumenty/umowy (HarmonogramDostaw flagi)"/></TextBlock>
+                                    </Border>
+                                    <Border Background="#FDF2E9" CornerRadius="6" Padding="10,6" Margin="0,0,8,8">
+                                        <TextBlock FontSize="11"><Run FontWeight="Bold" Foreground="#E67E22" Text="Wnioski"/><Run Text=" = Wnioski o zmiany danych hodowcow zlozone + rozpatrzone (DostawcyCR)"/></TextBlock>
+                                    </Border>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Szczegoly per modul -->
+                        <Border Background="White" CornerRadius="12" Padding="20" Margin="0,0,0,15">
+                            <Border.Effect>
+                                <DropShadowEffect Color="#D5D8DC" Direction="270" ShadowDepth="2" BlurRadius="8" Opacity="0.3"/>
+                            </Border.Effect>
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Top" Text="Rozbicie Szczegolowe per Modul" FontSize="18" FontWeight="Bold" Foreground="#34495E" Margin="0,0,0,15"/>
+                                <DataGrid x:Name="dgCrossModuleDetail" AutoGenerateColumns="False" IsReadOnly="True"
+                                          CanUserAddRows="False" CanUserDeleteRows="False"
+                                          GridLinesVisibility="None" HeadersVisibility="Column"
+                                          BorderThickness="0" Background="White"
+                                          RowStyle="{StaticResource RankingRowStyle}"
+                                          ColumnHeaderStyle="{StaticResource RankingHeaderStyle}"
+                                          CellStyle="{StaticResource RankingCellStyle}"
+                                          FontSize="11" RowHeight="36" CanUserSortColumns="True"
+                                          HorizontalScrollBarVisibility="Auto">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="#" Binding="{Binding Pozycja}" Width="30">
+                                            <DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="VerticalAlignment" Value="Center"/><Setter Property="HorizontalAlignment" Value="Center"/><Setter Property="FontWeight" Value="Bold"/><Setter Property="Foreground" Value="#95A5A6"/></Style></DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
+                                        <DataGridTextColumn Header="Zakupowiec" Binding="{Binding Nazwa}" Width="160" SortMemberPath="Nazwa">
+                                            <DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="VerticalAlignment" Value="Center"/><Setter Property="FontWeight" Value="SemiBold"/></Style></DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
+
+                                        <!-- Wstawienia detail -->
+                                        <DataGridTextColumn Header="W:Utw" Binding="{Binding WstawieniaUtworzone}" Width="55">
+                                            <DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="VerticalAlignment" Value="Center"/><Setter Property="HorizontalAlignment" Value="Center"/></Style></DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
+                                        <DataGridTextColumn Header="W:Potw" Binding="{Binding WstawieniaPotwierdzone}" Width="60">
+                                            <DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="VerticalAlignment" Value="Center"/><Setter Property="HorizontalAlignment" Value="Center"/></Style></DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
+
+                                        <!-- Kalendarz detail -->
+                                        <DataGridTextColumn Header="K:Dost" Binding="{Binding KalendarzDostawy}" Width="55">
+                                            <DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="VerticalAlignment" Value="Center"/><Setter Property="HorizontalAlignment" Value="Center"/></Style></DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
+                                        <DataGridTextColumn Header="K:Waga" Binding="{Binding KalendarzPotwWagi}" Width="60">
+                                            <DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="VerticalAlignment" Value="Center"/><Setter Property="HorizontalAlignment" Value="Center"/></Style></DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
+                                        <DataGridTextColumn Header="K:Szt" Binding="{Binding KalendarzPotwSztuk}" Width="55">
+                                            <DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="VerticalAlignment" Value="Center"/><Setter Property="HorizontalAlignment" Value="Center"/></Style></DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
+
+                                        <!-- Specyfikacja detail -->
+                                        <DataGridTextColumn Header="Wprow." Binding="{Binding SpecWprowadzenia}" Width="60">
+                                            <DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="VerticalAlignment" Value="Center"/><Setter Property="HorizontalAlignment" Value="Center"/><Setter Property="Foreground" Value="#8E44AD"/></Style></DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
+                                        <DataGridTextColumn Header="Weryf." Binding="{Binding SpecWeryfikacje}" Width="60">
+                                            <DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="VerticalAlignment" Value="Center"/><Setter Property="HorizontalAlignment" Value="Center"/><Setter Property="Foreground" Value="#8E44AD"/></Style></DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
+
+                                        <!-- Pozyskiwanie Hodowcow detail -->
+                                        <DataGridTextColumn Header="H:Tel" Binding="{Binding HodowcyTelefony}" Width="50">
+                                            <DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="VerticalAlignment" Value="Center"/><Setter Property="HorizontalAlignment" Value="Center"/></Style></DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
+                                        <DataGridTextColumn Header="H:Not" Binding="{Binding HodowcyNotatki}" Width="50">
+                                            <DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="VerticalAlignment" Value="Center"/><Setter Property="HorizontalAlignment" Value="Center"/></Style></DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
+                                        <DataGridTextColumn Header="H:Oc" Binding="{Binding HodowcyOceny}" Width="50">
+                                            <DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="VerticalAlignment" Value="Center"/><Setter Property="HorizontalAlignment" Value="Center"/></Style></DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
+
+                                        <!-- Dokumenty detail -->
+                                        <DataGridTextColumn Header="D:Utw" Binding="{Binding DokumentyUtworzone}" Width="55">
+                                            <DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="VerticalAlignment" Value="Center"/><Setter Property="HorizontalAlignment" Value="Center"/></Style></DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
+                                        <DataGridTextColumn Header="D:Wys" Binding="{Binding DokumentyWyslane}" Width="55">
+                                            <DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="VerticalAlignment" Value="Center"/><Setter Property="HorizontalAlignment" Value="Center"/></Style></DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
+                                        <DataGridTextColumn Header="D:Otrz" Binding="{Binding DokumentyOtrzymane}" Width="55">
+                                            <DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="VerticalAlignment" Value="Center"/><Setter Property="HorizontalAlignment" Value="Center"/></Style></DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
+
+                                        <!-- Wnioski detail -->
+                                        <DataGridTextColumn Header="Wn:Zloz" Binding="{Binding WnioskiZlozone}" Width="60">
+                                            <DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="VerticalAlignment" Value="Center"/><Setter Property="HorizontalAlignment" Value="Center"/></Style></DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
+                                        <DataGridTextColumn Header="Wn:Dec" Binding="{Binding WnioskiRozpatrzone}" Width="60">
+                                            <DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="VerticalAlignment" Value="Center"/><Setter Property="HorizontalAlignment" Value="Center"/></Style></DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </DockPanel>
+                        </Border>
+
+                        <!-- Propozycje dodatkowych KPI -->
+                        <Border Background="White" CornerRadius="12" Padding="20" Margin="0,0,0,15">
+                            <Border.Effect>
+                                <DropShadowEffect Color="#D5D8DC" Direction="270" ShadowDepth="2" BlurRadius="8" Opacity="0.3"/>
+                            </Border.Effect>
+                            <StackPanel>
+                                <TextBlock Text="Propozycje dodatkowych KPI do wdrozenia" FontSize="16" FontWeight="Bold" Foreground="#34495E" Margin="0,0,0,12"/>
+                                <Border Background="#F8F9FA" CornerRadius="8" Padding="20" MinHeight="80">
+                                    <TextBlock FontSize="12" Foreground="#5D6D7E" TextWrapping="Wrap" LineHeight="22">
+                                        <Run FontWeight="Bold">1.</Run><Run Text=" Czas reakcji na wstawienie (sr. czas od utworzenia do potwierdzenia per osoba)"/><LineBreak/>
+                                        <Run FontWeight="Bold">2.</Run><Run Text=" Trend miesiac do miesiaca (porownanie aktywnosci z poprzednim okresem, strzalki gora/dol)"/><LineBreak/>
+                                        <Run FontWeight="Bold">3.</Run><Run Text=" Procent potwierdzen wagi/sztuk w ciagu 24h od dostawy"/><LineBreak/>
+                                        <Run FontWeight="Bold">4.</Run><Run Text=" Pokrycie dostawcow (ile unikalnych dostawcow obsluzyl kazdy zakupowiec)"/><LineBreak/>
+                                        <Run FontWeight="Bold">5.</Run><Run Text=" Wolumen zakupow per osoba (suma IloscWstawienia + SztukiDek z kalendarza)"/><LineBreak/>
+                                        <Run FontWeight="Bold">6.</Run><Run Text=" Wskaznik samodzielnosci (ile operacji bez pomocy innych)"/><LineBreak/>
+                                        <Run FontWeight="Bold">7.</Run><Run Text=" Wskaznik poprawek SMS (ile razy musial wyslac korekte po zmianie planu)"/><LineBreak/>
+                                        <Run FontWeight="Bold">8.</Run><Run Text=" Skutecznosc telefonow do hodowcow (% odebranych / proba kontaktu)"/><LineBreak/>
+                                        <Run FontWeight="Bold">9.</Run><Run Text=" Czas od zatwierdzenia specyfikacji do weryfikacji (dwuetapowy workflow)"/><LineBreak/>
+                                        <Run FontWeight="Bold">10.</Run><Run Text=" Aktywnosc godzinowa (heat-mapa: kiedy w ciagu dnia pracownik jest najaktywniejszy)"/><LineBreak/>
+                                        <Run FontWeight="Bold">11.</Run><Run Text=" Wskaznik terminowosci dokumentow (ile dokumentow wyslanych w terminie)"/><LineBreak/>
+                                        <Run FontWeight="Bold">12.</Run><Run Text=" Ranking jakosci hodowcow per zakupowiec (sr. ocena dostawcow ktore obsluguje)"/>
+                                    </TextBlock>
+                                </Border>
+                            </StackPanel>
                         </Border>
 
                     </StackPanel>

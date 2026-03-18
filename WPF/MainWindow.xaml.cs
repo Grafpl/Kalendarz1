@@ -98,6 +98,9 @@ namespace Kalendarz1.WPF
         private DateTime _cachedKonfiguracjaProduktowDate = DateTime.MinValue;
 
         private Dictionary<string, List<int>> _grupyDoProduktow = new(); // NazwaGrupy -> lista TowarId
+
+        // Prognoza klas wagowych z HarmonogramDostaw (indeksy 5-12)
+        private int[] _pojemnikiKlasyPrognoza = new int[13];
         private List<string> _grupyTowaroweNazwy = new(); // Lista nazw grup towarowych dla kolumn w tabeli zamówień
         private Dictionary<string, string> _grupyKolumnDoNazw = new(); // Sanitized column name -> original display name
         private HashSet<string> _expandedGroups = new(); // Rozwinięte grupy
@@ -5733,23 +5736,28 @@ ORDER BY zm.Id";
 
             string dateColAgg = (_showBySlaughterDate && _slaughterDateColumnExists) ? "DataUboju" : "DataZamowienia";
 
+            // Pobierz surowe dane z HarmonogramDostaw (obliczenia pojemników po załadowaniu konfiguracji)
             var taskHarmonogram = Task.Run(async () =>
             {
                 decimal mass = 0m;
+                var dostawy = new List<(decimal wagaDek, decimal zywiecKg)>();
                 await using var cn = new SqlConnection(_connLibra);
                 await cn.OpenAsync();
                 const string sql = @"SELECT WagaDek, SztukiDek FROM dbo.HarmonogramDostaw
-            WHERE DataOdbioru = @Day AND Bufor = 'Potwierdzony'";
+            WHERE DataOdbioru = @Day AND Bufor IN ('B.Wolny', 'B.Kontr.', 'Potwierdzony')";
                 await using var cmd = new SqlCommand(sql, cn);
                 cmd.Parameters.AddWithValue("@Day", day.Date);
                 await using var rdr = await cmd.ExecuteReaderAsync();
                 while (await rdr.ReadAsync())
                 {
-                    var weight = rdr.IsDBNull(0) ? 0m : Convert.ToDecimal(rdr.GetValue(0));
-                    var quantity = rdr.IsDBNull(1) ? 0m : Convert.ToDecimal(rdr.GetValue(1));
-                    mass += (weight * quantity);
+                    var wagaDek = rdr.IsDBNull(0) ? 0m : Convert.ToDecimal(rdr.GetValue(0));
+                    var sztukiDek = rdr.IsDBNull(1) ? 0m : Convert.ToDecimal(rdr.GetValue(1));
+                    decimal zywiecKg = wagaDek * sztukiDek;
+                    mass += zywiecKg;
+                    if (wagaDek > 0 && zywiecKg > 0)
+                        dostawy.Add((wagaDek, zywiecKg));
                 }
-                return mass;
+                return (mass, dostawy);
             });
 
             var taskOrderIds = Task.Run(async () =>
@@ -5768,13 +5776,42 @@ ORDER BY zm.Id";
             await Task.WhenAll(taskKonfWydajnosci, taskHarmonogram, taskOrderIds);
 
             var (wspolczynnikTuszki, procentA, procentB) = await taskKonfWydajnosci;
-            decimal totalMassDek = await taskHarmonogram;
+            var (totalMassDek, harmDostawy) = await taskHarmonogram;
             var orderIds = await taskOrderIds;
             diagTimes.Add(("Konfig+Harm+Ids(||)", diagSw.ElapsedMilliseconds));
 
             decimal pulaTuszki = totalMassDek * (wspolczynnikTuszki / 100m);
             decimal pulaTuszkiA = pulaTuszki * (procentA / 100m);
             decimal pulaTuszkiB = pulaTuszki * (procentB / 100m);
+
+            // Oblicz pojemniki per klasa wagowa z rzeczywistą konfiguracją wydajności
+            var pojemnikiKlasy = new int[13];
+            foreach (var (wagaDek, zywiecKg) in harmDostawy)
+            {
+                decimal tuszkaASztuka = wagaDek * (wspolczynnikTuszki / 100m);
+                decimal tuszkaAKg = zywiecKg * (wspolczynnikTuszki / 100m) * (procentA / 100m);
+                if (tuszkaASztuka <= 0) continue;
+
+                decimal sztukWPoj = 15m / tuszkaASztuka;
+                decimal liczbaPoj = tuszkaAKg / 15m;
+                int dolny = (int)Math.Floor(sztukWPoj);
+                int gorny = (int)Math.Ceiling(sztukWPoj);
+                decimal frac = sztukWPoj - dolny;
+
+                int pojGorne = 0, pojDolne = 0;
+                if (dolny == gorny)
+                    pojDolne = (int)Math.Ceiling(liczbaPoj);
+                else
+                {
+                    pojGorne = (int)Math.Round(liczbaPoj * frac);
+                    pojDolne = (int)Math.Ceiling(liczbaPoj) - pojGorne;
+                }
+
+                pojemnikiKlasy[Math.Clamp(dolny, 5, 12)] += pojDolne;
+                if (pojGorne > 0)
+                    pojemnikiKlasy[Math.Clamp(gorny, 5, 12)] += pojGorne;
+            }
+            _pojemnikiKlasyPrognoza = pojemnikiKlasy;
 
             // ✅ OPTYMALIZACJA: Cache przychodów + równoległe zapytania
             diagSw.Restart();
@@ -6147,55 +6184,48 @@ ORDER BY zm.Id";
             };
             int colorIdx = 0;
 
+            // 1. Kurczak A zawsze jako pierwsza karta
+            if (kurczakA.Key > 0 && dashboardProductIds.Contains(kurczakA.Key))
+            {
+                var kurczakAName = productNames.TryGetValue(kurczakA.Key, out var n) ? n : "Kurczak A";
+                decimal wartoscA = uzywajWydan ? wydaniaA : ordersA;
+                wpProductCards.Children.Add(CreateKurczakACard(
+                    kurczakAName, planA, factA, wartoscA, balanceA, stanMagA,
+                    colors[colorIdx % colors.Length], kurczakAName, kurczakA.Key,
+                    _pojemnikiKlasyPrognoza, uzywajWydan));
+                colorIdx++;
+
+                // 2. Separator po Kurczaku A
+                var separator = new Border
+                {
+                    Width = 1,
+                    Background = new SolidColorBrush(Color.FromRgb(200, 200, 200)),
+                    Margin = new Thickness(2, 8, 2, 8)
+                };
+                wpProductCards.Children.Add(separator);
+            }
+
+            // 3. Pozostałe produkty (pomijając Kurczak A)
             foreach (var productId in dashboardProductIds)
             {
                 if (!productNames.TryGetValue(productId, out var productName))
                     continue;
+                if (productId == kurczakA.Key)
+                    continue; // już dodany na początku
 
-                // Pobierz dane produktu
                 decimal plan = 0, fakt = 0, zam = 0, wyd = 0, stan = 0, bilans = 0;
 
-                // ✅ SPECJALNA OBSŁUGA DLA KURCZAK A
-                if (productId == kurczakA.Key)
-                {
-                    plan = planA;
-                    fakt = factA;
-                    zam = ordersA;
-                    wyd = wydaniaA;
-                    stan = stanMagA;
-                    bilans = balanceA;
-                }
-                else
-                {
-                    // Plan z konfiguracji produktów (Kurczak B)
-                    if (konfiguracjaProduktow.TryGetValue(productId, out var procent))
-                        plan = pulaTuszkiB * (procent / 100m);
+                if (konfiguracjaProduktow.TryGetValue(productId, out var procent))
+                    plan = pulaTuszkiB * (procent / 100m);
+                if (actualIncomeElementy.TryGetValue(productId, out var f)) fakt = f;
+                if (orderSum.TryGetValue(productId, out var z)) zam = z;
+                if (wydaniaSum.TryGetValue(productId, out var w)) wyd = w;
+                if (stanyMagazynowe.TryGetValue(productId, out var s)) stan = s;
+                decimal baseVal = fakt > 0 ? fakt : plan;
+                decimal odejmij = uzywajWydan ? wyd : zam;
+                bilans = baseVal + stan - odejmij;
 
-                    // Fakt z przychodów
-                    if (actualIncomeElementy.TryGetValue(productId, out var f))
-                        fakt = f;
-
-                    // Zamówienia
-                    if (orderSum.TryGetValue(productId, out var z))
-                        zam = z;
-
-                    // Wydania
-                    if (wydaniaSum.TryGetValue(productId, out var w))
-                        wyd = w;
-
-                    // Stan magazynowy
-                    if (stanyMagazynowe.TryGetValue(productId, out var s))
-                        stan = s;
-
-                    // Bilans: (Fakt lub Plan) + Stan - (Zamówienia lub Wydania)
-                    decimal baseVal = fakt > 0 ? fakt : plan;
-                    decimal odejmij = uzywajWydan ? wyd : zam;
-                    bilans = baseVal + stan - odejmij;
-                }
-
-                // ✅ UŻYJ WYD ZAMIAST ZAM JEŚLI WYBRANO RADIO WYD
                 decimal wartoscDoPokazania = uzywajWydan ? wyd : zam;
-
                 wpProductCards.Children.Add(CreateDashboardCard(
                     productName, plan, fakt, wartoscDoPokazania, bilans, stan,
                     colors[colorIdx % colors.Length], false, productName, productId));
@@ -6211,8 +6241,9 @@ ORDER BY zm.Id";
 
                 wpProductCards.Children.Add(CreateDashboardCard("SUMA", planA + sumaPlanB, factA + sumaFaktB, sumaZamWyd, bilansCalk, stanMagA + sumaStanB,
                     Color.FromRgb(76, 175, 80), true));
-                wpProductCards.Children.Add(CreateDashboardCard("Kurczak A", planA, factA, zamWydA, balanceA, stanMagA,
-                    Color.FromRgb(102, 187, 106), true));
+                wpProductCards.Children.Add(CreateKurczakACard("Kurczak A", planA, factA, zamWydA, balanceA, stanMagA,
+                    Color.FromRgb(102, 187, 106), "Kurczak A", kurczakA.Key,
+                    _pojemnikiKlasyPrognoza, uzywajWydan));
                 wpProductCards.Children.Add(CreateDashboardCard("Kurczak B", sumaPlanB, sumaFaktB, zamWydB, bilansB, sumaStanB,
                     Color.FromRgb(66, 165, 245), true));
             }
@@ -6617,6 +6648,521 @@ ORDER BY zm.Id";
             grid.Children.Add(text);
 
             return grid;
+        }
+
+        /// <summary>
+        /// Tworzy powiększoną kartę Kurczak A z rozbiciem na klasy wagowe (Kl.5-12)
+        /// </summary>
+        private Border CreateKurczakACard(string nazwa, decimal plan, decimal fakt,
+            decimal zamLubWyd, decimal bilans, decimal stan, Color barColor,
+            string tooltip, int towarId, int[] pojemnikiKlasy, bool uzywajWydan)
+        {
+            bool uzytoFakt = fakt > 0;
+            string zamWydLabel = uzywajWydan ? "wyd" : "zam";
+            decimal maxBarValue = Math.Max(Math.Max(plan, fakt), Math.Max(zamLubWyd, 1));
+            double maxBarWidth = 155;
+
+            var card = new Border
+            {
+                Background = Brushes.White,
+                CornerRadius = new CornerRadius(6),
+                Margin = new Thickness(4),
+                Padding = new Thickness(10),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
+                BorderThickness = new Thickness(1),
+                Width = 420, // Powiększona karta (standardowa = 200)
+                ToolTip = tooltip,
+                Tag = new { TowarId = towarId, Nazwa = nazwa },
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+
+            if (towarId > 0)
+                card.MouseLeftButtonUp += (s, e) => FilterOrdersByProduct(towarId, nazwa);
+
+            // Menu kontekstowe
+            var contextMenu = new ContextMenu();
+            var menuPowieksz = new MenuItem { Header = "Powiększ do nowego okna" };
+            menuPowieksz.Click += async (s, e) =>
+                await DashboardWindow.OpenProductDetailDirectlyAsync(_connLibra, _connHandel, nazwa, _selectedDate);
+            contextMenu.Items.Add(menuPowieksz);
+            if (towarId > 0)
+            {
+                var menuFiltruj = new MenuItem { Header = "Filtruj zamówienia" };
+                menuFiltruj.Click += (s, e) => FilterOrdersByProduct(towarId, nazwa);
+                contextMenu.Items.Add(menuFiltruj);
+            }
+            card.ContextMenu = contextMenu;
+
+            // Pulsacja jeśli filtrowany
+            if (towarId > 0 && _selectedProductId.HasValue && _selectedProductId.Value == towarId)
+            {
+                card.BorderBrush = new SolidColorBrush(Color.FromRgb(46, 204, 113));
+                card.BorderThickness = new Thickness(3);
+                var pulseAnim = new System.Windows.Media.Animation.ColorAnimation
+                {
+                    From = Color.FromRgb(46, 204, 113),
+                    To = Color.FromRgb(144, 238, 144),
+                    Duration = TimeSpan.FromMilliseconds(700),
+                    AutoReverse = true,
+                    RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever,
+                    EasingFunction = new System.Windows.Media.Animation.SineEase()
+                };
+                var brush = new SolidColorBrush(Color.FromRgb(46, 204, 113));
+                card.BorderBrush = brush;
+                brush.BeginAnimation(SolidColorBrush.ColorProperty, pulseAnim);
+            }
+
+            // Główny layout: lewy panel (standardowe dane) | prawy panel (klasy wagowe)
+            var mainGrid = new Grid();
+            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Auto) });
+
+            // ========== LEWA STRONA: standardowe dane ==========
+            var leftStack = new StackPanel();
+
+            // Nagłówek ze zdjęciem
+            var headerGrid = new Grid { Margin = new Thickness(0, -4, 0, 2) };
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            var productImage = towarId > 0 ? GetProductImage(towarId) : null;
+            Border imgBorder;
+            if (productImage != null)
+            {
+                var img = new System.Windows.Controls.Image
+                {
+                    Source = productImage, Width = 36, Height = 36, Stretch = Stretch.Uniform
+                };
+                RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.HighQuality);
+                imgBorder = new Border
+                {
+                    Width = 38, Height = 38, CornerRadius = new CornerRadius(6),
+                    ClipToBounds = true, Child = img,
+                    Margin = new Thickness(0, 0, 6, 0), VerticalAlignment = VerticalAlignment.Top
+                };
+            }
+            else
+            {
+                imgBorder = new Border
+                {
+                    Width = 38, Height = 38, CornerRadius = new CornerRadius(6),
+                    Background = new SolidColorBrush(Color.FromRgb(236, 240, 241)),
+                    Margin = new Thickness(0, 0, 6, 0), VerticalAlignment = VerticalAlignment.Top,
+                    Child = new TextBlock
+                    {
+                        Text = "\U0001F4F7", FontSize = 14,
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166))
+                    }
+                };
+            }
+            Grid.SetColumn(imgBorder, 0);
+            headerGrid.Children.Add(imgBorder);
+
+            var titleText = new TextBlock
+            {
+                Text = nazwa, FontSize = 12, FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(titleText, 1);
+            headerGrid.Children.Add(titleText);
+            leftStack.Children.Add(headerGrid);
+
+            // Paski: plan, fakt, zam/wyd
+            leftStack.Children.Add(CreateMiniBar("plan", plan, maxBarValue, maxBarWidth,
+                uzytoFakt ? Color.FromRgb(189, 195, 199) : Color.FromRgb(241, 196, 15), uzytoFakt));
+            if (fakt > 0)
+                leftStack.Children.Add(CreateMiniBar("fakt", fakt, maxBarValue, maxBarWidth,
+                    Color.FromRgb(241, 196, 15), false));
+            leftStack.Children.Add(CreateMiniBar(zamWydLabel, zamLubWyd, maxBarValue, maxBarWidth,
+                Color.FromRgb(52, 152, 219), false));
+
+            // Stan magazynowy
+            if (stan > 0)
+            {
+                var stanPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3, 0, 0), HorizontalAlignment = HorizontalAlignment.Right };
+                stanPanel.Children.Add(new TextBlock { Text = "Stan: ", FontSize = 10, Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141)) });
+                stanPanel.Children.Add(new TextBlock { Text = $"{stan:N0}", FontSize = 10, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(155, 89, 182)) });
+                leftStack.Children.Add(stanPanel);
+            }
+
+            // Bilans
+            string bilansLabel = bilans >= 0 ? "Do sprzedania: " : "Nadmiar: ";
+            var bilansColor = bilans >= 0 ? Color.FromRgb(39, 174, 96) : Color.FromRgb(231, 76, 60);
+            var bilansText = new TextBlock { FontSize = 11, Margin = new Thickness(0, 5, 0, 0), HorizontalAlignment = HorizontalAlignment.Right };
+            bilansText.Inlines.Add(new Run(bilansLabel) { Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141)) });
+            bilansText.Inlines.Add(new Run($"{Math.Abs(bilans):N0}") { FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(bilansColor) });
+            leftStack.Children.Add(bilansText);
+
+            Grid.SetColumn(leftStack, 0);
+            mainGrid.Children.Add(leftStack);
+
+            // ========== PRAWA STRONA: klasy wagowe ==========
+            var rightBorder = new Border
+            {
+                BorderBrush = new SolidColorBrush(Color.FromRgb(224, 224, 224)),
+                BorderThickness = new Thickness(1, 0, 0, 0),
+                Margin = new Thickness(10, 0, 0, 0),
+                Padding = new Thickness(10, 0, 0, 0)
+            };
+
+            var rightStack = new StackPanel();
+
+            // Kolory klas wagowych
+            var klasaKolory = new Dictionary<int, Color>
+            {
+                { 5, Color.FromRgb(220, 38, 38) },
+                { 6, Color.FromRgb(234, 88, 12) },
+                { 7, Color.FromRgb(202, 138, 4) },
+                { 8, Color.FromRgb(101, 163, 13) },
+                { 9, Color.FromRgb(22, 163, 74) },
+                { 10, Color.FromRgb(8, 145, 178) },
+                { 11, Color.FromRgb(37, 99, 235) },
+                { 12, Color.FromRgb(124, 58, 237) }
+            };
+
+            // Oblicz sumy: duży (5-8), mały (9-12), total
+            int pojDuzy = 0, pojMaly = 0;
+            for (int kl = 5; kl <= 8; kl++) pojDuzy += pojemnikiKlasy[kl];
+            for (int kl = 9; kl <= 12; kl++) pojMaly += pojemnikiKlasy[kl];
+            int sumaPoj = pojDuzy + pojMaly;
+            decimal kgDuzy = pojDuzy * 15m;
+            decimal kgMaly = pojMaly * 15m;
+            decimal sumaKg = kgDuzy + kgMaly;
+
+            // Helper: tworzy wiersz klasy wagowej
+            void DodajWierszKlasy(StackPanel parent, int kl, int poj, decimal maxKg)
+            {
+                if (poj == 0) return;
+                decimal kg = poj * 15m;
+                var klColor = klasaKolory.TryGetValue(kl, out var cc) ? cc : Color.FromRgb(128, 128, 128);
+
+                var row = new Grid { Margin = new Thickness(0, 0, 0, 1), Height = 16 };
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(44) });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
+
+                // Kółko + etykieta
+                var lbl = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+                lbl.Children.Add(new Border
+                {
+                    Width = 8, Height = 8, CornerRadius = new CornerRadius(4),
+                    Background = new SolidColorBrush(klColor),
+                    Margin = new Thickness(0, 0, 3, 0), VerticalAlignment = VerticalAlignment.Center
+                });
+                lbl.Children.Add(new TextBlock
+                {
+                    Text = $"Kl.{kl}", FontSize = 9, FontWeight = FontWeights.SemiBold,
+                    Foreground = new SolidColorBrush(Color.FromRgb(60, 60, 60)),
+                    VerticalAlignment = VerticalAlignment.Center
+                });
+                Grid.SetColumn(lbl, 0);
+                row.Children.Add(lbl);
+
+                // Pasek
+                double barMax = 90;
+                double barW = maxKg > 0 ? (double)(kg / maxKg) * barMax : 3;
+                var bar = new Border
+                {
+                    Height = 11, Width = Math.Max(barW, 4),
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                    CornerRadius = new CornerRadius(3),
+                    Background = new SolidColorBrush(klColor),
+                    Opacity = 0.75,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                Grid.SetColumn(bar, 1);
+                row.Children.Add(bar);
+
+                // Wartość kg
+                var val = new TextBlock
+                {
+                    Text = $"{kg:N0} kg",
+                    FontSize = 9, FontWeight = FontWeights.Bold,
+                    Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
+                    VerticalAlignment = VerticalAlignment.Center,
+                    HorizontalAlignment = HorizontalAlignment.Right,
+                    TextAlignment = TextAlignment.Right
+                };
+                Grid.SetColumn(val, 2);
+                row.Children.Add(val);
+
+                parent.Children.Add(row);
+            }
+
+            // Helper: nagłówek sekcji (DUŻY / MAŁY)
+            void DodajNaglowekSekcji(StackPanel parent, string tekst, Color kolor, decimal kgSekcji, int pojSekcji)
+            {
+                var hdr = new Border
+                {
+                    Background = new SolidColorBrush(Color.FromArgb(25, kolor.R, kolor.G, kolor.B)),
+                    CornerRadius = new CornerRadius(3),
+                    Padding = new Thickness(5, 2, 5, 2),
+                    Margin = new Thickness(0, 1, 0, 1)
+                };
+                var hdrGrid = new Grid();
+                hdrGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                hdrGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+                var hdrLabel = new TextBlock
+                {
+                    FontSize = 9, FontWeight = FontWeights.Bold,
+                    Foreground = new SolidColorBrush(kolor),
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                hdrLabel.Inlines.Add(new Run(tekst));
+                Grid.SetColumn(hdrLabel, 0);
+                hdrGrid.Children.Add(hdrLabel);
+
+                var hdrVal = new TextBlock
+                {
+                    FontSize = 9, FontWeight = FontWeights.Bold,
+                    Foreground = new SolidColorBrush(kolor),
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                hdrVal.Inlines.Add(new Run($"{kgSekcji:N0} kg"));
+                Grid.SetColumn(hdrVal, 1);
+                hdrGrid.Children.Add(hdrVal);
+
+                hdr.Child = hdrGrid;
+                parent.Children.Add(hdr);
+            }
+
+            if (sumaPoj > 0)
+            {
+                // === SEKCJA DUŻY (Kl. 5-8) ===
+                DodajNaglowekSekcji(rightStack, "DUŻY (Kl.5-8)", Color.FromRgb(220, 80, 20), kgDuzy, pojDuzy);
+                for (int kl = 5; kl <= 8; kl++)
+                    DodajWierszKlasy(rightStack, kl, pojemnikiKlasy[kl], sumaKg);
+
+                // === SEKCJA MAŁY (Kl. 9-12) ===
+                DodajNaglowekSekcji(rightStack, "MAŁY (Kl.9-12)", Color.FromRgb(22, 120, 180), kgMaly, pojMaly);
+                for (int kl = 9; kl <= 12; kl++)
+                    DodajWierszKlasy(rightStack, kl, pojemnikiKlasy[kl], sumaKg);
+            }
+            else
+            {
+                rightStack.Children.Add(new TextBlock
+                {
+                    Text = "Brak danych\nz harmonogramu",
+                    FontSize = 9, FontStyle = FontStyles.Italic,
+                    Foreground = new SolidColorBrush(Color.FromRgb(160, 160, 160)),
+                    TextAlignment = TextAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(0, 10, 0, 0)
+                });
+            }
+
+            rightBorder.Child = rightStack;
+            Grid.SetColumn(rightBorder, 1);
+            mainGrid.Children.Add(rightBorder);
+
+            card.Child = mainGrid;
+            return card;
+        }
+
+        /// <summary>
+        /// Pasek podsumowania dnia — kluczowe liczby na jednym pasku
+        /// </summary>
+        private UIElement BuildDaySummaryBar(int liczbaZamowien, decimal plan, decimal fakt,
+            decimal zamWyd, decimal bilans, bool uzywajWydan)
+        {
+            var bar = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
+                CornerRadius = new CornerRadius(5),
+                Padding = new Thickness(10, 6, 10, 6)
+            };
+
+            var grid = new Grid();
+            for (int i = 0; i < 4; i++)
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            void AddCell(int col, string label, string value, Color valueColor)
+            {
+                var sp = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
+                sp.Children.Add(new TextBlock
+                {
+                    Text = label, FontSize = 9,
+                    Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)),
+                    HorizontalAlignment = HorizontalAlignment.Center
+                });
+                sp.Children.Add(new TextBlock
+                {
+                    Text = value, FontSize = 13, FontWeight = FontWeights.Bold,
+                    Foreground = new SolidColorBrush(valueColor),
+                    HorizontalAlignment = HorizontalAlignment.Center
+                });
+                Grid.SetColumn(sp, col);
+                grid.Children.Add(sp);
+            }
+
+            AddCell(0, "Zamówień", $"{liczbaZamowien}", Color.FromRgb(236, 240, 241));
+            AddCell(1, "Plan", $"{plan:N0}", Color.FromRgb(241, 196, 15));
+            AddCell(2, uzywajWydan ? "Wydano" : "Zamówiono", $"{zamWyd:N0}", Color.FromRgb(52, 152, 219));
+
+            var bilansColor = bilans >= 0 ? Color.FromRgb(46, 204, 113) : Color.FromRgb(231, 76, 60);
+            string bilansPrefix = bilans >= 0 ? "+" : "";
+            AddCell(3, "Bilans", $"{bilansPrefix}{bilans:N0}", bilansColor);
+
+            bar.Child = grid;
+            return bar;
+        }
+
+        /// <summary>
+        /// Kompaktowa karta produktu (160px) — mniej paddings, 2 linie danych
+        /// </summary>
+        private Border CreateCompactCard(string nazwa, decimal plan, decimal fakt,
+            decimal zamLubWyd, decimal bilans, decimal stan, Color barColor,
+            string tooltip, int towarId)
+        {
+            bool uzytoFakt = fakt > 0;
+            bool uzywajWydan = rbBilansWydania?.IsChecked == true;
+            string zamWydLabel = uzywajWydan ? "wyd" : "zam";
+
+            var card = new Border
+            {
+                Background = Brushes.White,
+                CornerRadius = new CornerRadius(5),
+                Margin = new Thickness(3),
+                Padding = new Thickness(8, 6, 8, 6),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(224, 224, 224)),
+                BorderThickness = new Thickness(1),
+                Width = 160,
+                ToolTip = tooltip ?? nazwa,
+                Tag = new { TowarId = towarId, Nazwa = nazwa },
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+
+            if (towarId > 0)
+                card.MouseLeftButtonUp += (s, e) => FilterOrdersByProduct(towarId, nazwa);
+
+            // Menu kontekstowe
+            var contextMenu = new ContextMenu();
+            var menuPowieksz = new MenuItem { Header = "Powiększ do nowego okna" };
+            menuPowieksz.Click += async (s, e) =>
+                await DashboardWindow.OpenProductDetailDirectlyAsync(_connLibra, _connHandel, nazwa, _selectedDate);
+            contextMenu.Items.Add(menuPowieksz);
+            if (towarId > 0)
+            {
+                var menuFiltruj = new MenuItem { Header = "Filtruj zamówienia" };
+                menuFiltruj.Click += (s, e) => FilterOrdersByProduct(towarId, nazwa);
+                contextMenu.Items.Add(menuFiltruj);
+            }
+            card.ContextMenu = contextMenu;
+
+            // Pulsacja
+            if (towarId > 0 && _selectedProductId.HasValue && _selectedProductId.Value == towarId)
+            {
+                card.BorderBrush = new SolidColorBrush(Color.FromRgb(46, 204, 113));
+                card.BorderThickness = new Thickness(2);
+            }
+
+            var stack = new StackPanel();
+
+            // Nagłówek: zdjęcie + nazwa
+            var hdr = new Grid { Margin = new Thickness(0, 0, 0, 3) };
+            hdr.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            hdr.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            var productImage = towarId > 0 ? GetProductImage(towarId) : null;
+            if (productImage != null)
+            {
+                var img = new System.Windows.Controls.Image
+                {
+                    Source = productImage, Width = 24, Height = 24, Stretch = Stretch.Uniform
+                };
+                RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.HighQuality);
+                var imgB = new Border
+                {
+                    Width = 26, Height = 26, CornerRadius = new CornerRadius(4),
+                    ClipToBounds = true, Child = img,
+                    Margin = new Thickness(0, 0, 5, 0), VerticalAlignment = VerticalAlignment.Center
+                };
+                Grid.SetColumn(imgB, 0);
+                hdr.Children.Add(imgB);
+            }
+
+            var title = new TextBlock
+            {
+                Text = ShortenProductName(nazwa), FontSize = 10, FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
+                VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis
+            };
+            Grid.SetColumn(title, 1);
+            hdr.Children.Add(title);
+            stack.Children.Add(hdr);
+
+            // Pasek kolorowy (plan lub fakt)
+            decimal barSource = uzytoFakt ? fakt : plan;
+            decimal maxVal = Math.Max(Math.Max(barSource, zamLubWyd), 1);
+            double maxBarW = 120;
+
+            // Plan/fakt linia
+            var planLine = new Grid { Margin = new Thickness(0, 1, 0, 1) };
+            planLine.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            planLine.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var planBar = new Border
+            {
+                Height = 10, Width = Math.Max((double)(barSource / maxVal) * maxBarW, 4),
+                HorizontalAlignment = HorizontalAlignment.Left, CornerRadius = new CornerRadius(2),
+                Background = new SolidColorBrush(uzytoFakt ? Color.FromRgb(241, 196, 15) : Color.FromRgb(189, 195, 199))
+            };
+            Grid.SetColumn(planBar, 0);
+            planLine.Children.Add(planBar);
+
+            var planText = new TextBlock
+            {
+                Text = $"{(uzytoFakt ? "f" : "p")} {barSource:N0}", FontSize = 8,
+                Foreground = new SolidColorBrush(Color.FromRgb(100, 100, 100)),
+                VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(3, 0, 0, 0)
+            };
+            Grid.SetColumn(planText, 1);
+            planLine.Children.Add(planText);
+            stack.Children.Add(planLine);
+
+            // Zam/wyd linia
+            var zamLine = new Grid { Margin = new Thickness(0, 1, 0, 1) };
+            zamLine.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            zamLine.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var zamBar = new Border
+            {
+                Height = 10, Width = Math.Max((double)(zamLubWyd / maxVal) * maxBarW, 4),
+                HorizontalAlignment = HorizontalAlignment.Left, CornerRadius = new CornerRadius(2),
+                Background = new SolidColorBrush(Color.FromRgb(52, 152, 219))
+            };
+            Grid.SetColumn(zamBar, 0);
+            zamLine.Children.Add(zamBar);
+
+            var zamText = new TextBlock
+            {
+                Text = $"{zamWydLabel} {zamLubWyd:N0}", FontSize = 8,
+                Foreground = new SolidColorBrush(Color.FromRgb(100, 100, 100)),
+                VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(3, 0, 0, 0)
+            };
+            Grid.SetColumn(zamText, 1);
+            zamLine.Children.Add(zamText);
+            stack.Children.Add(zamLine);
+
+            // Bilans — na dole
+            var bilansColor = bilans >= 0 ? Color.FromRgb(39, 174, 96) : Color.FromRgb(231, 76, 60);
+            string prefix = bilans >= 0 ? "+" : "";
+            var bilansText = new TextBlock
+            {
+                Text = $"{prefix}{bilans:N0}",
+                FontSize = 10, FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(bilansColor),
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(0, 2, 0, 0)
+            };
+            stack.Children.Add(bilansText);
+
+            card.Child = stack;
+            return card;
         }
 
         /// <summary>
