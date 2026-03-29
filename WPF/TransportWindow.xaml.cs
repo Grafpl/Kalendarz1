@@ -26,6 +26,7 @@ namespace Kalendarz1.WPF
         private static readonly System.Net.Http.HttpClient _httpEta = new() { Timeout = TimeSpan.FromSeconds(10) };
         private static Dictionary<string, BitmapSource> _avatarCache = new(StringComparer.OrdinalIgnoreCase);
         private Dictionary<string, string> _userIdToName = new();
+        private Dictionary<string, string> _handlowiecToUserId = new(StringComparer.OrdinalIgnoreCase);
 
         [DllImport("gdi32.dll")] private static extern bool DeleteObject(IntPtr hObject);
 
@@ -159,47 +160,6 @@ namespace Kalendarz1.WPF
             dgTransport.Columns.Add(CreateAvatarColumn("Utworzył kurs", "KursUtworzyl", 120));
 
             dgTransport.LoadingRow += DgTransport_LoadingRow;
-        }
-
-        private void DgTransport_LoadingRow(object sender, DataGridRowEventArgs e)
-        {
-            if (e.Row.Item is DataRowView rowView)
-            {
-                var status = rowView.Row.Field<string>("Status") ?? "";
-                var kursId = rowView.Row.IsNull("KursId") ? 0L : rowView.Row.Field<long>("KursId");
-
-                if (status == "Brak" || kursId == 0)
-                {
-                    // Bez przypisanego transportu - jasne czerwone tło
-                    e.Row.Background = new SolidColorBrush(Color.FromRgb(255, 235, 235));
-                    e.Row.BorderThickness = new Thickness(0);
-                }
-                else
-                {
-                    // Kolorowanie wg trasy
-                    var color = GetColorForRoute(kursId);
-                    e.Row.Background = new SolidColorBrush(color);
-
-                    // Sprawdź czy to pierwsza pozycja w nowej grupie (trasie)
-                    var rowIndex = _dtTransport.DefaultView.Cast<DataRowView>().ToList().IndexOf(rowView);
-                    if (rowIndex > 0)
-                    {
-                        var prevRow = _dtTransport.DefaultView[rowIndex - 1];
-                        var prevKursId = prevRow.Row.IsNull("KursId") ? 0L : prevRow.Row.Field<long>("KursId");
-
-                        if (prevKursId != kursId && prevKursId != 0 && kursId != 0)
-                        {
-                            // Nowa grupa - dodaj grubszą górną linię
-                            e.Row.BorderBrush = new SolidColorBrush(Color.FromRgb(44, 62, 80));
-                            e.Row.BorderThickness = new Thickness(0, 3, 0, 0);
-                        }
-                        else
-                        {
-                            e.Row.BorderThickness = new Thickness(0);
-                        }
-                    }
-                }
-            }
         }
 
         private Color GetColorForRoute(long kursId)
@@ -461,7 +421,7 @@ namespace Kalendarz1.WPF
                     kursIdToGroupIndex[kursId] = groupIdx++;
                 }
 
-                // Pobierz nazwy użytkowników (operators w LibraNet) do zamiany UserID → imię
+                // Pobierz nazwy użytkowników (operators) + mapowanie handlowiec→userId (UserHandlowcy)
                 var userNames = new Dictionary<string, string>();
                 try
                 {
@@ -476,6 +436,17 @@ namespace Kalendarz1.WPF
                     }
                 }
                 catch { }
+                try
+                {
+                    await using var cnH = new SqlConnection(_connLibra);
+                    await cnH.OpenAsync();
+                    await using var cmdH = new SqlCommand("SELECT HandlowiecName, UserID FROM UserHandlowcy", cnH);
+                    await using var rdH = await cmdH.ExecuteReaderAsync();
+                    while (await rdH.ReadAsync())
+                        _handlowiecToUserId[rdH.GetString(0)] = rdH.GetString(1);
+                    Log($"Handlowcy→UserID: {_handlowiecToUserId.Count} mapowań");
+                }
+                catch (Exception ex) { Log($"UserHandlowcy err: {ex.Message}"); }
 
                 // Oblicz ETA z OSRM — per kurs, po kolei przystanki
                 _etaCache.Clear();
@@ -747,23 +718,29 @@ namespace Kalendarz1.WPF
 
             // Grid z avatarem (Border z inicjałami + Ellipse na zdjęcie)
             var gridFactory = new FrameworkElementFactory(typeof(Grid));
-            gridFactory.SetValue(Grid.WidthProperty, 28.0);
-            gridFactory.SetValue(Grid.HeightProperty, 28.0);
-            gridFactory.SetValue(Grid.MarginProperty, new Thickness(0, 0, 5, 0));
+            gridFactory.SetValue(Grid.WidthProperty, 34.0);
+            gridFactory.SetValue(Grid.HeightProperty, 34.0);
+            gridFactory.SetValue(Grid.MarginProperty, new Thickness(0, 0, 6, 0));
 
-            // Border z inicjałami (fallback)
+            // Border z inicjałami (fallback) — delikatniejsze kolory
             var borderFactory = new FrameworkElementFactory(typeof(Border));
-            borderFactory.SetValue(Border.WidthProperty, 28.0);
-            borderFactory.SetValue(Border.HeightProperty, 28.0);
-            borderFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(14));
-            borderFactory.SetValue(Border.BackgroundProperty, new SolidColorBrush(Color.FromRgb(66, 165, 245)));
+            borderFactory.SetValue(Border.WidthProperty, 34.0);
+            borderFactory.SetValue(Border.HeightProperty, 34.0);
+            borderFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(17));
+            borderFactory.SetValue(Border.BackgroundProperty, new SolidColorBrush(Color.FromRgb(144, 202, 249))); // jaśniejszy niebieski
+            borderFactory.SetValue(Border.BorderBrushProperty, new SolidColorBrush(Color.FromRgb(224, 238, 252)));
+            borderFactory.SetValue(Border.BorderThicknessProperty, new Thickness(1.5));
+            borderFactory.SetValue(Border.EffectProperty, new System.Windows.Media.Effects.DropShadowEffect
+            {
+                ShadowDepth = 1, BlurRadius = 3, Opacity = 0.12, Direction = 270
+            });
 
             var initialsFactory = new FrameworkElementFactory(typeof(TextBlock));
             initialsFactory.SetValue(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center);
             initialsFactory.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
-            initialsFactory.SetValue(TextBlock.ForegroundProperty, Brushes.White);
-            initialsFactory.SetValue(TextBlock.FontSizeProperty, 10.0);
-            initialsFactory.SetValue(TextBlock.FontWeightProperty, FontWeights.SemiBold);
+            initialsFactory.SetValue(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(21, 101, 192)));
+            initialsFactory.SetValue(TextBlock.FontSizeProperty, 12.0);
+            initialsFactory.SetValue(TextBlock.FontWeightProperty, FontWeights.Bold);
             initialsFactory.SetBinding(TextBlock.TextProperty, new Binding(bindingName)
             {
                 Converter = new InitialsConverter()
@@ -773,8 +750,10 @@ namespace Kalendarz1.WPF
 
             // Ellipse na zdjęcie (domyślnie hidden, LoadingRow ustawia)
             var ellipseFactory = new FrameworkElementFactory(typeof(System.Windows.Shapes.Ellipse));
-            ellipseFactory.SetValue(System.Windows.Shapes.Ellipse.WidthProperty, 28.0);
-            ellipseFactory.SetValue(System.Windows.Shapes.Ellipse.HeightProperty, 28.0);
+            ellipseFactory.SetValue(System.Windows.Shapes.Ellipse.WidthProperty, 34.0);
+            ellipseFactory.SetValue(System.Windows.Shapes.Ellipse.HeightProperty, 34.0);
+            ellipseFactory.SetValue(System.Windows.Shapes.Ellipse.StrokeProperty, new SolidColorBrush(Color.FromRgb(224, 238, 252)));
+            ellipseFactory.SetValue(System.Windows.Shapes.Ellipse.StrokeThicknessProperty, 1.5);
             ellipseFactory.SetValue(UIElement.VisibilityProperty, Visibility.Collapsed);
             ellipseFactory.SetValue(System.Windows.Shapes.Ellipse.NameProperty, $"av_{bindingName}");
             gridFactory.AppendChild(ellipseFactory);
@@ -828,6 +807,106 @@ namespace Kalendarz1.WPF
                 MessageBoxButton.YesNo, MessageBoxImage.Information);
             if (result == MessageBoxResult.Yes)
                 Clipboard.SetText(text);
+        }
+
+        private void DgTransport_LoadingRow(object sender, DataGridRowEventArgs e)
+        {
+            e.Row.ClipToBounds = false;
+            if (e.Row.Item is not DataRowView drv) return;
+
+            // Avatary
+            LoadAvatarForCell(e.Row, drv, "Handlowiec", "av_Handlowiec");
+            LoadAvatarForCell(e.Row, drv, "KursUtworzyl", "av_KursUtworzyl");
+
+            // Kolorowanie wierszy wg kursu
+            var status = drv["Status"]?.ToString() ?? "";
+            var kursId = drv.Row.IsNull("KursId") ? 0L : drv.Row.Field<long>("KursId");
+            if (status == "Brak" || kursId == 0)
+            {
+                e.Row.Background = new SolidColorBrush(Color.FromRgb(255, 240, 238));
+            }
+            else
+            {
+                var color = GetColorForRoute(kursId);
+                e.Row.Background = new SolidColorBrush(color);
+                var rowIndex = _dtTransport.DefaultView.Cast<DataRowView>().ToList().IndexOf(drv);
+                if (rowIndex > 0)
+                {
+                    var prevKursId = _dtTransport.DefaultView[rowIndex - 1].Row.IsNull("KursId") ? 0L : _dtTransport.DefaultView[rowIndex - 1].Row.Field<long>("KursId");
+                    if (prevKursId != kursId && prevKursId != 0)
+                    {
+                        e.Row.BorderBrush = new SolidColorBrush(Color.FromRgb(44, 62, 80));
+                        e.Row.BorderThickness = new Thickness(0, 3, 0, 0);
+                    }
+                    else e.Row.BorderThickness = new Thickness(0);
+                }
+            }
+        }
+
+        private void LoadAvatarForCell(DataGridRow row, DataRowView drv, string columnName, string ellipseName)
+        {
+            var val = drv[columnName]?.ToString() ?? "";
+            if (string.IsNullOrEmpty(val)) return;
+
+            // Znajdź userId: 1) handlowiec→userId, 2) nazwa→id z operators, 3) val jako fallback
+            var userId = val;
+            if (_handlowiecToUserId.TryGetValue(val, out var hUid))
+                userId = hUid;
+            else
+            {
+                foreach (var kv in _userIdToName)
+                    if (kv.Value.Equals(val, StringComparison.OrdinalIgnoreCase)) { userId = kv.Key; break; }
+            }
+
+            Task.Run(() =>
+            {
+                try
+                {
+                    var avatar = UserAvatarManager.GetAvatar(userId);
+                    if (avatar == null) return;
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        try
+                        {
+                            var ellipse = FindVisualChild<System.Windows.Shapes.Ellipse>(row, ellipseName);
+                            if (ellipse != null)
+                            {
+                                var src = ConvertToImageSource(avatar);
+                                if (src != null)
+                                {
+                                    ellipse.Fill = new ImageBrush(src) { Stretch = Stretch.UniformToFill };
+                                    ellipse.Visibility = Visibility.Visible;
+                                }
+                            }
+                        }
+                        catch { }
+                    });
+                }
+                catch { }
+            });
+        }
+
+        private T? FindVisualChild<T>(DependencyObject parent, string? name = null) where T : DependencyObject
+        {
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                if (child is T tc && (name == null || (child is FrameworkElement fe && fe.Name == name)))
+                    return tc;
+                var found = FindVisualChild<T>(child, name);
+                if (found != null) return found;
+            }
+            return null;
+        }
+
+        private ImageSource? ConvertToImageSource(System.Drawing.Image image)
+        {
+            using var ms = new System.IO.MemoryStream();
+            image.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+            ms.Position = 0;
+            var bmp = new BitmapImage();
+            bmp.BeginInit(); bmp.CacheOption = BitmapCacheOption.OnLoad; bmp.StreamSource = ms; bmp.EndInit(); bmp.Freeze();
+            return bmp;
         }
 
         private void BtnClose_Click(object sender, RoutedEventArgs e)

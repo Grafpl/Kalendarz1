@@ -460,11 +460,12 @@ WHERE d.khid = @kontrahentId
   AND d.data <= @dataOd";
 
             string daneQuery = @"
-SELECT 
+SELECT
     d.kod AS NrDok,
     d.data AS Data,
     DATENAME(WEEKDAY, d.data) AS DzienTyg,
     d.opis AS Dokumenty,
+    d.typ_dk AS TypDokumentu,
     CAST(ISNULL(SUM(CASE WHEN z.kod = 'Pojemnik drobiowy E2' THEN z.ilosc ELSE 0 END), 0) AS INT) AS E2,
     CAST(ISNULL(SUM(CASE WHEN z.kod = 'PALETA H1' THEN z.ilosc ELSE 0 END), 0) AS INT) AS H1,
     CAST(ISNULL(SUM(CASE WHEN z.kod = 'PALETA EURO' THEN z.ilosc ELSE 0 END), 0) AS INT) AS EURO,
@@ -477,7 +478,7 @@ WHERE d.khid = @kontrahentId
   AND d.typ_dk IN ('MW1', 'MP')
   AND d.anulowany = 0
   AND d.data BETWEEN DATEADD(DAY, 1, @dataOd) AND @dataDo
-GROUP BY d.id, d.kod, d.data, d.opis
+GROUP BY d.id, d.kod, d.data, d.opis, d.typ_dk
 ORDER BY d.data DESC";
 
             try
@@ -528,6 +529,7 @@ ORDER BY d.data DESC";
                                     Data = reader.GetDateTime(reader.GetOrdinal("Data")),
                                     DzienTyg = reader.IsDBNull(reader.GetOrdinal("DzienTyg")) ? "" : reader.GetString(reader.GetOrdinal("DzienTyg")),
                                     Dokumenty = reader.IsDBNull(reader.GetOrdinal("Dokumenty")) ? "" : reader.GetString(reader.GetOrdinal("Dokumenty")),
+                                    TypDokumentu = reader.IsDBNull(reader.GetOrdinal("TypDokumentu")) ? "" : reader.GetString(reader.GetOrdinal("TypDokumentu")),
                                     E2 = reader.IsDBNull(reader.GetOrdinal("E2")) ? 0 : reader.GetInt32(reader.GetOrdinal("E2")),
                                     H1 = reader.IsDBNull(reader.GetOrdinal("H1")) ? 0 : reader.GetInt32(reader.GetOrdinal("H1")),
                                     EURO = reader.IsDBNull(reader.GetOrdinal("EURO")) ? 0 : reader.GetInt32(reader.GetOrdinal("EURO")),

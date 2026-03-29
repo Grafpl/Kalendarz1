@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Microsoft.Data.SqlClient;
@@ -17,17 +18,34 @@ namespace Kalendarz1.Opakowania.Forms
         readonly int _id;
         readonly string _nazwa, _handlowiec, _userId;
         readonly OpakowaniaDataService _ds;
+        readonly ExportService _export = new();
         SaldoOpakowania _saldo;
         Image _avatarHandl;
+        List<DokumentOpakowania> _docs = new();
+        List<PotwierdzenieSalda> _potw = new();
 
-        // Controls
+        // Layout
         Panel _header, _cardStrip, _infoPanel, _bottomBar;
-        Label[] _crdVal = new Label[5];
-        Label[] _crdDelta = new Label[5];
+        Label[] _crdVal = new Label[5], _crdDelta = new Label[5];
         DataGridView _grid;
         Label _lblCount, _lblSaldoEnd;
+
+        // Info sidebar
         Label _lblInfoNazwa, _lblInfoHandl, _lblInfoEmail, _lblInfoTel;
-        Label _lblStatWyd, _lblStatPrzyj, _lblStatDni, _lblStatPotw;
+        Label _lblStatWyd, _lblStatPrzyj, _lblStatDni, _lblStatPotw, _lblStatBilans, _lblStatZwrot;
+
+        // Toolbar buttons
+        Button _btnCopy, _btnPdf, _btnEmail;
+
+        // Colors
+        static readonly Color CRed = Color.FromArgb(220, 38, 38);
+        static readonly Color CGreen = Color.FromArgb(22, 163, 74);
+        static readonly Color CGray = Color.FromArgb(156, 163, 175);
+        static readonly Color CYellow = Color.FromArgb(250, 204, 21);
+        static readonly Color CSlate = Color.FromArgb(15, 23, 42);
+        static readonly Color CMuted = Color.FromArgb(100, 116, 139);
+        static readonly Color CBorder = Color.FromArgb(226, 232, 240);
+        static readonly Color CBg = Color.FromArgb(248, 250, 252);
 
         public SzczegolyKontrahentaForm(int id, string nazwa, string handlowiec, SaldoOpakowania saldo, string userId, OpakowaniaDataService ds)
         {
@@ -36,10 +54,12 @@ namespace Kalendarz1.Opakowania.Forms
             Load += async (_, __) => await LoadAsync();
         }
 
+        #region Build UI
+
         void BuildUI()
         {
             Text = $"{_nazwa} — Opakowania";
-            Size = new Size(1300, 800);
+            Size = new Size(1300, 820);
             MinimumSize = new Size(950, 550);
             StartPosition = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.Sizable;
@@ -48,146 +68,180 @@ namespace Kalendarz1.Opakowania.Forms
             KeyPreview = true;
             try { Icon = System.Drawing.Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
 
-            // === Tworzenie kontrolek (jeszcze nie dodajemy do Controls) ===
+            // --- Create all controls first ---
+            BuildHeader();
+            BuildCardStrip();
+            BuildBottom();
+            BuildInfoPanel();
+            var gridHost = BuildGridHost();
 
-            _header = new Panel { Dock = DockStyle.Top, Height = 70 };
-            _header.Paint += PaintHeader;
+            // --- Add in correct order: Fill first, then edges ---
+            Controls.Add(gridHost);
+            Controls.Add(_infoPanel);
+            Controls.Add(_bottomBar);
+            Controls.Add(_cardStrip);
+            Controls.Add(_header);
+        }
 
-            _cardStrip = new Panel { Dock = DockStyle.Top, Height = 56, BackColor = Color.White };
-            _cardStrip.Paint += (_, e) => { using var p = new Pen(Color.FromArgb(226, 232, 240)); e.Graphics.DrawLine(p, 0, _cardStrip.Height - 1, _cardStrip.Width, _cardStrip.Height - 1); };
+        void BuildHeader()
+        {
+            _header = new Panel { Dock = DockStyle.Top, Height = 58 };
+            _header.Paint += (_, e) =>
+            {
+                var g = e.Graphics; g.SmoothingMode = SmoothingMode.AntiAlias;
+                using var bg = new LinearGradientBrush(new Rectangle(0, 0, _header.Width, _header.Height), Color.FromArgb(15, 23, 42), Color.FromArgb(24, 45, 75), LinearGradientMode.Horizontal);
+                g.FillRectangle(bg, 0, 0, _header.Width, _header.Height);
+
+                // Avatar
+                int s = 36, x = 14, y = 6;
+                using (var br = new SolidBrush(Color.FromArgb(22, 163, 74))) g.FillEllipse(br, x, y, s, s);
+                var ini = _nazwa.Length >= 2 ? _nazwa[..2].ToUpper() : "?";
+                using (var f = new Font("Segoe UI Semibold", 12)) { var sz = g.MeasureString(ini, f); g.DrawString(ini, f, Brushes.White, x + (s - sz.Width) / 2, y + (s - sz.Height) / 2); }
+
+                // Nazwa
+                int tx = x + s + 10;
+                using (var f = new Font("Segoe UI Semibold", 13)) g.DrawString(_nazwa, f, Brushes.White, tx, 4);
+
+                // Handlowiec
+                int my = 32;
+                if (_avatarHandl != null) g.DrawImage(_avatarHandl, tx, my, 16, 16);
+                else { using (var br = new SolidBrush(AvCol(_handlowiec))) g.FillEllipse(br, tx, my, 16, 16); var hi = Ini(_handlowiec); using var hf = new Font("Segoe UI", 5.5f, FontStyle.Bold); var hs = g.MeasureString(hi, hf); g.DrawString(hi, hf, Brushes.White, tx + (16 - hs.Width) / 2, my + (16 - hs.Height) / 2); }
+                using (var f = new Font("Segoe UI", 8.5f)) using (var br = new SolidBrush(Color.FromArgb(148, 163, 184))) g.DrawString(_handlowiec, f, br, tx + 20, my);
+
+                // Legenda + ID (prawa strona)
+                using (var f = new Font("Segoe UI", 7))
+                {
+                    int rx = _header.Width - 190;
+                    using (var br = new SolidBrush(CRed)) { g.FillRectangle(br, rx, 10, 8, 8); g.DrawString("Wydanie", f, new SolidBrush(Color.FromArgb(252,165,165)), rx + 12, 8); }
+                    using (var br = new SolidBrush(CGreen)) { g.FillRectangle(br, rx, 24, 8, 8); g.DrawString("Przyjecie", f, new SolidBrush(Color.FromArgb(134,239,172)), rx + 12, 22); }
+                    using (var br = new SolidBrush(CYellow)) { g.FillRectangle(br, rx, 38, 8, 8); g.DrawString("Saldo", f, new SolidBrush(Color.FromArgb(253,224,71)), rx + 12, 36); }
+                    g.DrawString($"ID: {_id}", f, new SolidBrush(Color.FromArgb(71,85,105)), _header.Width - 65, 10);
+                }
+            };
+        }
+
+        void BuildCardStrip()
+        {
+            _cardStrip = new Panel { Dock = DockStyle.Top, Height = 48, BackColor = Color.White };
+            _cardStrip.Paint += (_, e) => { using var p = new Pen(CBorder); e.Graphics.DrawLine(p, 0, _cardStrip.Height - 1, _cardStrip.Width, _cardStrip.Height - 1); };
             string[] cn = { "E2", "H1", "EURO", "PCV", "DREW" };
             Color[] cc = { Color.FromArgb(59,130,246), Color.FromArgb(249,115,22), Color.FromArgb(16,185,129), Color.FromArgb(139,92,246), Color.FromArgb(245,158,11) };
             for (int i = 0; i < 5; i++)
             {
-                var p = new Panel { BackColor = Color.Transparent, Tag = cc[i] };
-                p.Paint += (s, e) =>
-                {
-                    var cl = (Color)((Panel)s).Tag;
-                    using (var br = new SolidBrush(cl)) e.Graphics.FillEllipse(br, 10, 10, 10, 10);
-                };
-                var lN = new Label { Text = cn[i], Location = new Point(26, 6), AutoSize = true, ForeColor = Color.FromArgb(100,116,139), Font = new Font("Segoe UI", 8, FontStyle.Bold), BackColor = Color.Transparent };
-                _crdVal[i] = new Label { Text = "--", Location = new Point(26, 22), AutoSize = true, ForeColor = cc[i], Font = new Font("Segoe UI", 16, FontStyle.Bold), BackColor = Color.Transparent };
-                _crdDelta[i] = new Label { Text = "", Location = new Point(90, 28), AutoSize = true, ForeColor = Color.FromArgb(100,116,139), Font = new Font("Segoe UI", 8), BackColor = Color.Transparent };
-                p.Controls.AddRange(new Control[] { lN, _crdVal[i], _crdDelta[i] });
-                _cardStrip.Controls.Add(p);
+                var card = new Panel { BackColor = Color.Transparent, Tag = cc[i] };
+                card.Paint += (s, e) => { var cl = (Color)((Panel)s).Tag; using var br = new SolidBrush(cl); e.Graphics.FillEllipse(br, 10, 8, 10, 10); };
+                card.Controls.Add(new Label { Text = cn[i], Location = new Point(26, 4), AutoSize = true, ForeColor = CMuted, Font = new Font("Segoe UI", 8, FontStyle.Bold), BackColor = Color.Transparent });
+                _crdVal[i] = new Label { Text = "--", Location = new Point(26, 20), AutoSize = true, ForeColor = cc[i], Font = new Font("Segoe UI", 15, FontStyle.Bold), BackColor = Color.Transparent };
+                _crdDelta[i] = new Label { Text = "", Location = new Point(95, 26), AutoSize = true, ForeColor = CMuted, Font = new Font("Segoe UI", 8), BackColor = Color.Transparent };
+                card.Controls.AddRange(new Control[] { _crdVal[i], _crdDelta[i] });
+                _cardStrip.Controls.Add(card);
             }
-            _cardStrip.Resize += (_, __) =>
-            {
-                var cs = _cardStrip.Controls.OfType<Panel>().ToArray();
-                int w = (_cardStrip.ClientSize.Width - 10) / 5;
-                for (int j = 0; j < cs.Length; j++) cs[j].SetBounds(j * w, 0, w, _cardStrip.Height - 1);
-            };
+            _cardStrip.Resize += (_, __) => { var cs = _cardStrip.Controls.OfType<Panel>().ToArray(); int w = (_cardStrip.ClientSize.Width - 10) / 5; for (int j = 0; j < cs.Length; j++) cs[j].SetBounds(j * w, 0, w, _cardStrip.Height - 1); };
+        }
 
-            _bottomBar = new Panel { Dock = DockStyle.Bottom, Height = 34, BackColor = Color.White };
-            _bottomBar.Paint += (_, e) => { using var p = new Pen(Color.FromArgb(226, 232, 240)); e.Graphics.DrawLine(p, 0, 0, _bottomBar.Width, 0); };
-            _lblSaldoEnd = new Label { Dock = DockStyle.Fill, Text = "", ForeColor = Color.FromArgb(15, 23, 42), Font = new Font("Segoe UI", 9, FontStyle.Bold), TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(12, 0, 0, 0) };
-            var btnClose = new Button { Text = "Zamknij", Dock = DockStyle.Right, Width = 90, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(100, 116, 139), ForeColor = Color.White, Font = new Font("Segoe UI", 9, FontStyle.Bold), Cursor = Cursors.Hand };
-            btnClose.FlatAppearance.BorderSize = 0;
-            btnClose.Click += (_, __) => Close();
+        void BuildBottom()
+        {
+            _bottomBar = new Panel { Dock = DockStyle.Bottom, Height = 34, BackColor = Color.FromArgb(249, 250, 251) };
+            _bottomBar.Paint += (_, e) => { using var p = new Pen(CBorder); e.Graphics.DrawLine(p, 0, 0, _bottomBar.Width, 0); };
+
+            _lblSaldoEnd = new Label { Dock = DockStyle.Fill, Text = "", ForeColor = CSlate, Font = new Font("Segoe UI", 9, FontStyle.Bold), TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(12, 0, 0, 0) };
+
+            var flow = new FlowLayoutPanel { Dock = DockStyle.Right, AutoSize = true, FlowDirection = FlowDirection.LeftToRight, BackColor = Color.Transparent, WrapContents = false, Padding = new Padding(0, 3, 8, 0) };
+            _btnCopy = MkBtn("Kopiuj saldo", Color.FromArgb(99, 102, 241)); _btnCopy.Click += (_, __) => CopySaldo();
+            _btnPdf = MkBtn("PDF", Color.FromArgb(37, 99, 235)); _btnPdf.Click += async (_, __) => await ExportPdfAsync();
+            _btnEmail = MkBtn("Email", Color.FromArgb(5, 150, 105)); _btnEmail.Click += (_, __) => SendEmail();
+            var btnClose = MkBtn("Zamknij", Color.FromArgb(100, 116, 139)); btnClose.Click += (_, __) => Close();
+            flow.Controls.AddRange(new Control[] { _btnCopy, _btnPdf, _btnEmail, btnClose });
+
             _bottomBar.Controls.Add(_lblSaldoEnd);
-            _bottomBar.Controls.Add(btnClose);
+            _bottomBar.Controls.Add(flow);
+        }
 
-            _infoPanel = new Panel { Dock = DockStyle.Right, Width = 260, BackColor = Color.FromArgb(248, 250, 252), Padding = new Padding(16, 12, 16, 12) };
-            _infoPanel.Paint += (_, e) => { using var p = new Pen(Color.FromArgb(226, 232, 240)); e.Graphics.DrawLine(p, 0, 0, 0, _infoPanel.Height); };
-            BuildInfoPanel();
-
-            var gridHost = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
-            _lblCount = new Label { Dock = DockStyle.Top, Height = 28, Text = "  Dokumenty", ForeColor = Color.FromArgb(71, 85, 105), Font = new Font("Segoe UI", 9, FontStyle.Bold), TextAlign = ContentAlignment.MiddleLeft, BackColor = Color.FromArgb(248, 250, 252) };
-            _grid = MkGrid();
-            _grid.Columns.AddRange(new DataGridViewColumn[]
-            {
-                new DataGridViewTextBoxColumn { Name = "Typ", HeaderText = "", Width = 6 },
-                new DataGridViewTextBoxColumn { Name = "NrDok", HeaderText = "Dokument", DataPropertyName = "NrDok", AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill, MinimumWidth = 120 },
-                new DataGridViewTextBoxColumn { Name = "Data", HeaderText = "Data", DataPropertyName = "DataText", Width = 85 },
-                new DataGridViewTextBoxColumn { Name = "Dzien", HeaderText = "Dzien", DataPropertyName = "DzienTyg", Width = 50 },
-                RCol("E2", 60), RCol("H1", 60), RCol("EURO", 60), RCol("PCV", 60), RCol("DREW", 60),
-            });
-            _grid.CellFormatting += FmtGrid;
-            _grid.CellPainting += PaintTypCol;
-            gridHost.Controls.Add(_grid);
-            gridHost.Controls.Add(_lblCount);
-
-            // === Dodanie do Controls w POPRAWNEJ kolejnosci ===
-            // WinForms Dock: Fill PIERWSZY, potem Bottom, Right, Top (odwrotnie niz intuicja)
-            Controls.Add(gridHost);      // Fill — musi byc pierwszy
-            Controls.Add(_infoPanel);    // Right
-            Controls.Add(_bottomBar);    // Bottom
-            Controls.Add(_cardStrip);    // Top (pod headerem)
-            Controls.Add(_header);       // Top (na samej gorze)
+        Button MkBtn(string text, Color bg)
+        {
+            var b = new Button { Text = text, AutoSize = true, MinimumSize = new Size(70, 30), FlatStyle = FlatStyle.Flat, BackColor = bg, ForeColor = Color.White, Font = new Font("Segoe UI", 8.5f, FontStyle.Bold), Cursor = Cursors.Hand, Margin = new Padding(3, 0, 0, 0), Padding = new Padding(8, 0, 8, 0) };
+            b.FlatAppearance.BorderSize = 0;
+            return b;
         }
 
         void BuildInfoPanel()
         {
+            _infoPanel = new Panel { Dock = DockStyle.Right, Width = 240, BackColor = CBg, AutoScroll = true, Padding = new Padding(12, 10, 12, 10) };
+            _infoPanel.Paint += (_, e) => { using var p = new Pen(CBorder); e.Graphics.DrawLine(p, 0, 0, 0, _infoPanel.Height); };
+
             int y = 0;
-            // Kontrahent
-            AddInfoSection("KONTRAHENT", ref y);
-            _lblInfoNazwa = AddInfoValue(_nazwa, ref y, new Font("Segoe UI", 10, FontStyle.Bold));
-            y += 8;
+            Sec("KONTRAHENT", ref y);
+            _lblInfoNazwa = Val(_nazwa, ref y, new Font("Segoe UI", 10, FontStyle.Bold));
+            y += 6;
+            Sec("HANDLOWIEC", ref y);
+            _lblInfoHandl = Val(_handlowiec, ref y);
+            y += 6;
+            Sec("KONTAKT", ref y);
+            _lblInfoEmail = Val("-", ref y);
+            _lblInfoTel = Val("-", ref y);
+            y += 4;
+            _infoPanel.Controls.Add(new Panel { Location = new Point(0, y), Size = new Size(250, 1), BackColor = CBorder }); y += 10;
 
-            // Handlowiec
-            AddInfoSection("HANDLOWIEC", ref y);
-            _lblInfoHandl = AddInfoValue(_handlowiec, ref y);
-            y += 8;
+            Sec("STATYSTYKI (3 mies.)", ref y);
+            _lblStatWyd = Val("Wydania: --", ref y); _lblStatWyd.ForeColor = CRed;
+            _lblStatPrzyj = Val("Przyjecia: --", ref y); _lblStatPrzyj.ForeColor = CGreen;
+            _lblStatBilans = Val("Bilans: --", ref y);
+            _lblStatZwrot = Val("Zwrot: -- %", ref y);
+            y += 4;
+            _infoPanel.Controls.Add(new Panel { Location = new Point(0, y), Size = new Size(250, 1), BackColor = CBorder }); y += 10;
 
-            // Kontakt
-            AddInfoSection("KONTAKT", ref y);
-            _lblInfoEmail = AddInfoValue("-", ref y);
-            _lblInfoTel = AddInfoValue("-", ref y);
-            y += 8;
-
-            // Separator
-            _infoPanel.Controls.Add(new Panel { Location = new Point(0, y), Size = new Size(260, 1), BackColor = Color.FromArgb(226, 232, 240) });
-            y += 12;
-
-            // Statystyki
-            AddInfoSection("STATYSTYKI (3 mies.)", ref y);
-            _lblStatWyd = AddInfoValue("Wydania: --", ref y);
-            _lblStatPrzyj = AddInfoValue("Przyjecia: --", ref y);
-            _lblStatDni = AddInfoValue("Dni od ost. dok.: --", ref y);
-            _lblStatPotw = AddInfoValue("Potwierdzenia: --", ref y);
+            Sec("AKTYWNOSC", ref y);
+            _lblStatDni = Val("Ost. dokument: --", ref y);
+            _lblStatPotw = Val("Potwierdzenia: --", ref y);
         }
 
-        void AddInfoSection(string title, ref int y)
+        void Sec(string t, ref int y) { _infoPanel.Controls.Add(new Label { Text = t, Location = new Point(14, y), AutoSize = true, ForeColor = CMuted, Font = new Font("Segoe UI", 7, FontStyle.Bold), BackColor = Color.Transparent }); y += 15; }
+        Label Val(string t, ref int y, Font f = null)
         {
-            var l = new Label { Text = title, Location = new Point(16, y), AutoSize = true, ForeColor = Color.FromArgb(100, 116, 139), Font = new Font("Segoe UI", 7.5f, FontStyle.Bold), BackColor = Color.Transparent };
-            _infoPanel.Controls.Add(l);
-            y += 16;
+            var l = new Label { Text = t, Location = new Point(14, y), AutoSize = true, MaximumSize = new Size(222, 0), ForeColor = CSlate, Font = f ?? new Font("Segoe UI", 9.5f), BackColor = Color.Transparent };
+            _infoPanel.Controls.Add(l); y += (int)(l.Font.Size * 2.2f) + 2; return l;
         }
 
-        Label AddInfoValue(string text, ref int y, Font font = null)
+        Panel BuildGridHost()
         {
-            var l = new Label { Text = text, Location = new Point(16, y), AutoSize = true, MaximumSize = new Size(228, 0), ForeColor = Color.FromArgb(15, 23, 42), Font = font ?? new Font("Segoe UI", 9.5f), BackColor = Color.Transparent };
-            _infoPanel.Controls.Add(l);
-            y += (int)(l.Font.Size * 2.2f) + 2;
-            return l;
+            var host = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
+            _lblCount = new Label { Dock = DockStyle.Top, Height = 28, Text = "  Dokumenty", ForeColor = Color.FromArgb(71, 85, 105), Font = new Font("Segoe UI", 9, FontStyle.Bold), TextAlign = ContentAlignment.MiddleLeft, BackColor = CBg };
+            _grid = MkGrid();
+            _grid.Columns.AddRange(new DataGridViewColumn[]
+            {
+                new DataGridViewTextBoxColumn { Name = "Bar", HeaderText = "", Width = 6 },
+                new DataGridViewTextBoxColumn { Name = "TypTxt", HeaderText = "Typ", Width = 65 },
+                new DataGridViewTextBoxColumn { Name = "NrDok", HeaderText = "Dokument", DataPropertyName = "NrDok", AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill, MinimumWidth = 100 },
+                new DataGridViewTextBoxColumn { Name = "Data", HeaderText = "Data", DataPropertyName = "DataText", Width = 82 },
+                new DataGridViewTextBoxColumn { Name = "Dzien", HeaderText = "Dzien", DataPropertyName = "DzienTyg", Width = 45 },
+                RCol("E2", 60), RCol("H1", 60), RCol("EURO", 60), RCol("PCV", 60), RCol("DREW", 60),
+            });
+            _grid.CellFormatting += FmtGrid;
+            _grid.CellPainting += PaintCells;
+            _grid.ContextMenuStrip = BuildCtxMenu();
+
+            host.Controls.Add(_grid);
+            host.Controls.Add(_lblCount);
+            return host;
         }
 
-        DataGridViewTextBoxColumn RCol(string name, int w) => new DataGridViewTextBoxColumn
-        {
-            Name = name, HeaderText = name, DataPropertyName = name, Width = w,
-            DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleRight, Font = new Font("Segoe UI", 9.5f, FontStyle.Bold) },
-            SortMode = DataGridViewColumnSortMode.Automatic
-        };
+        DataGridViewTextBoxColumn RCol(string name, int w) => new() { Name = name, HeaderText = name, DataPropertyName = name, Width = w, DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleRight, Font = new Font("Segoe UI", 9.5f, FontStyle.Bold) }, SortMode = DataGridViewColumnSortMode.Automatic };
 
         DataGridView MkGrid()
         {
             var g = new DataGridView
             {
-                Dock = DockStyle.Fill, ReadOnly = true, AllowUserToAddRows = false, AllowUserToDeleteRows = false,
-                AllowUserToResizeRows = false, SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-                MultiSelect = false, AutoGenerateColumns = false, RowHeadersVisible = false,
-                BackgroundColor = Color.White, GridColor = Color.FromArgb(241, 245, 249),
-                BorderStyle = BorderStyle.None, CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal,
-                ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.None,
-                ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle { BackColor = Color.FromArgb(248, 250, 252), ForeColor = Color.FromArgb(100, 116, 139), Font = new Font("Segoe UI", 8.5f, FontStyle.Bold), SelectionBackColor = Color.FromArgb(248, 250, 252) },
-                ColumnHeadersHeight = 34, ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing,
-                DefaultCellStyle = new DataGridViewCellStyle { Font = new Font("Segoe UI", 9.5f), Padding = new Padding(4, 2, 4, 2), SelectionBackColor = Color.FromArgb(209, 250, 229), SelectionForeColor = Color.FromArgb(15, 23, 42) },
+                Dock = DockStyle.Fill, ReadOnly = true, AllowUserToAddRows = false, AllowUserToDeleteRows = false, AllowUserToResizeRows = false,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect, MultiSelect = false, AutoGenerateColumns = false, RowHeadersVisible = false,
+                BackgroundColor = Color.White, GridColor = Color.FromArgb(243, 244, 246), BorderStyle = BorderStyle.None,
+                CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal, ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.None,
+                ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle { BackColor = Color.FromArgb(249, 250, 251), ForeColor = Color.FromArgb(107, 114, 128), Font = new Font("Segoe UI", 8, FontStyle.Bold), SelectionBackColor = Color.FromArgb(249, 250, 251) },
+                ColumnHeadersHeight = 32, ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing,
+                DefaultCellStyle = new DataGridViewCellStyle { Font = new Font("Segoe UI", 9.5f), Padding = new Padding(4, 2, 4, 2), SelectionBackColor = Color.FromArgb(220, 252, 231), SelectionForeColor = CSlate },
                 AlternatingRowsDefaultCellStyle = new DataGridViewCellStyle { BackColor = Color.FromArgb(249, 250, 251) },
-                RowTemplate = { Height = 34 }, EnableHeadersVisualStyles = false
+                RowTemplate = { Height = 32 }, EnableHeadersVisualStyles = false
             };
-            // DoubleBuffered
             typeof(DataGridView).GetProperty("DoubleBuffered", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)?.SetValue(g, true);
-            // Hover
             int hov = -1;
             g.CellMouseEnter += (_, e) => { if (e.RowIndex >= 0) { hov = e.RowIndex; g.InvalidateRow(e.RowIndex); } };
             g.CellMouseLeave += (_, e) => { if (e.RowIndex >= 0) { var p = hov; hov = -1; if (p >= 0 && p < g.Rows.Count) g.InvalidateRow(p); } };
@@ -195,23 +249,55 @@ namespace Kalendarz1.Opakowania.Forms
             return g;
         }
 
-        // Kolorowy pasek po lewej stronie wiersza
-        void PaintTypCol(object sender, DataGridViewCellPaintingEventArgs e)
+        ContextMenuStrip BuildCtxMenu()
         {
-            if (e.ColumnIndex != 0 || e.RowIndex < 0) return;
-            e.Handled = true;
+            var m = new ContextMenuStrip { Font = new Font("Segoe UI", 9.5f) };
+            m.Items.Add("Kopiuj wiersz", null, (_, __) => CopyRow());
+            m.Items.Add("Kopiuj saldo do schowka", null, (_, __) => CopySaldo());
+            m.Items.Add(new ToolStripSeparator());
+            m.Items.Add("Eksport PDF", null, async (_, __) => await ExportPdfAsync());
+            m.Items.Add("Wyslij email z saldem", null, (_, __) => SendEmail());
+            return m;
+        }
+
+        #endregion
+
+        #region Cell Painting
+
+        void PaintCells(object sender, DataGridViewCellPaintingEventArgs e)
+        {
+            if (e.RowIndex < 0) return;
             if (_grid.Rows[e.RowIndex].DataBoundItem is not DokumentOpakowania d) return;
+            var cn = _grid.Columns[e.ColumnIndex].Name;
 
-            Color barColor;
-            if (d.JestSaldem) barColor = Color.FromArgb(250, 204, 21); // zolty = saldo
-            else if (d.TypDokumentu == "MW1") barColor = Color.FromArgb(220, 38, 38); // czerwony = wydanie
-            else barColor = Color.FromArgb(22, 163, 74); // zielony = przyjecie
+            // Kolorowy pasek (kolumna 0)
+            if (cn == "Bar")
+            {
+                e.Handled = true;
+                Color bar = d.JestSaldem ? CYellow : d.TypDokumentu == "MW1" ? CRed : CGreen;
+                bool sel = e.State.HasFlag(DataGridViewElementStates.Selected);
+                using (var bg = new SolidBrush(sel ? e.CellStyle.SelectionBackColor : e.CellStyle.BackColor)) e.Graphics.FillRectangle(bg, e.CellBounds);
+                using (var br = new SolidBrush(bar)) e.Graphics.FillRectangle(br, e.CellBounds.X, e.CellBounds.Y + 2, 4, e.CellBounds.Height - 4);
+            }
 
-            bool sel = e.State.HasFlag(DataGridViewElementStates.Selected);
-            using (var bg = new SolidBrush(sel ? e.CellStyle.SelectionBackColor : e.CellStyle.BackColor))
-                e.Graphics.FillRectangle(bg, e.CellBounds);
-            using (var br = new SolidBrush(barColor))
-                e.Graphics.FillRectangle(br, e.CellBounds.X, e.CellBounds.Y + 2, 4, e.CellBounds.Height - 4);
+            // Kolumna Typ — "Wydanie" czerwone, "Przyjecie" zielone, "SALDO" zolte
+            if (cn == "TypTxt")
+            {
+                e.Handled = true;
+                bool sel = e.State.HasFlag(DataGridViewElementStates.Selected);
+                using (var bg = new SolidBrush(sel ? e.CellStyle.SelectionBackColor : (d.JestSaldem ? Color.FromArgb(255, 251, 235) : e.CellStyle.BackColor))) e.Graphics.FillRectangle(bg, e.CellBounds);
+
+                string txt; Color col; Font fnt;
+                if (d.JestSaldem) { txt = "SALDO"; col = Color.FromArgb(161, 98, 7); fnt = new Font("Segoe UI", 8, FontStyle.Bold); }
+                else if (d.TypDokumentu == "MW1") { txt = "Wydanie"; col = CRed; fnt = new Font("Segoe UI", 8.5f, FontStyle.Bold); }
+                else { txt = "Przyjecie"; col = CGreen; fnt = new Font("Segoe UI", 8.5f, FontStyle.Bold); }
+
+                using (fnt) using (var br = new SolidBrush(col))
+                {
+                    var sf = new StringFormat { LineAlignment = StringAlignment.Center };
+                    e.Graphics.DrawString(txt, fnt, br, new RectangleF(e.CellBounds.X + 6, e.CellBounds.Y, e.CellBounds.Width - 8, e.CellBounds.Height), sf);
+                }
+            }
         }
 
         void FmtGrid(object sender, DataGridViewCellFormattingEventArgs e)
@@ -219,56 +305,34 @@ namespace Kalendarz1.Opakowania.Forms
             var cn = _grid.Columns[e.ColumnIndex].Name;
             if (cn is "E2" or "H1" or "EURO" or "PCV" or "DREW" && e.Value is int v)
             {
-                e.CellStyle.ForeColor = v > 0 ? Color.FromArgb(220, 38, 38) : v < 0 ? Color.FromArgb(22, 163, 74) : Color.FromArgb(200, 200, 200);
+                e.CellStyle.ForeColor = v > 0 ? CRed : v < 0 ? CGreen : Color.FromArgb(200, 200, 200);
                 if (v == 0) e.Value = "-";
             }
-            if (_grid.Rows[e.RowIndex].DataBoundItem is DokumentOpakowania d && d.JestSaldem)
+            if (_grid.Rows[e.RowIndex].DataBoundItem is DokumentOpakowania d)
             {
-                e.CellStyle.BackColor = Color.FromArgb(255, 251, 235);
-                e.CellStyle.Font = new Font("Segoe UI", 9.5f, FontStyle.Bold);
+                if (d.JestSaldem)
+                {
+                    e.CellStyle.BackColor = Color.FromArgb(255, 251, 235);
+                    e.CellStyle.Font = new Font("Segoe UI", 9.5f, FontStyle.Bold);
+                }
+                // Caly wiersz wydania lekko czerwony, przyjecia lekko zielony
+                else if (cn is "NrDok" or "Data" or "Dzien")
+                {
+                    if (d.TypDokumentu == "MW1") e.CellStyle.ForeColor = Color.FromArgb(153, 27, 27);
+                    else e.CellStyle.ForeColor = Color.FromArgb(20, 83, 45);
+                }
             }
         }
 
-        void PaintHeader(object sender, PaintEventArgs e)
-        {
-            var g = e.Graphics; g.SmoothingMode = SmoothingMode.AntiAlias;
-            using var bg = new LinearGradientBrush(new Rectangle(0, 0, _header.Width, _header.Height), Color.FromArgb(15, 23, 42), Color.FromArgb(30, 58, 95), LinearGradientMode.Horizontal);
-            g.FillRectangle(bg, 0, 0, _header.Width, _header.Height);
+        #endregion
 
-            // Avatar kontrahenta
-            int s = 44, x = 20, y = (_header.Height - s) / 2;
-            using (var br = new SolidBrush(Color.FromArgb(34, 197, 94))) g.FillEllipse(br, x, y, s, s);
-            var ini = _nazwa.Length >= 2 ? _nazwa[..2].ToUpper() : "?";
-            using (var f = new Font("Segoe UI", 14, FontStyle.Bold)) { var sz = g.MeasureString(ini, f); g.DrawString(ini, f, Brushes.White, x + (s - sz.Width) / 2, y + (s - sz.Height) / 2); }
-
-            int tx = x + s + 14;
-            using (var f = new Font("Segoe UI", 14, FontStyle.Bold)) g.DrawString(_nazwa, f, Brushes.White, tx, 10);
-
-            // Handlowiec
-            int my = 40;
-            if (_avatarHandl != null)
-                g.DrawImage(_avatarHandl, tx, my, 18, 18);
-            else
-            {
-                using (var br = new SolidBrush(AvCol(_handlowiec))) g.FillEllipse(br, tx, my, 18, 18);
-                var hi = Ini(_handlowiec);
-                using var hf = new Font("Segoe UI", 6, FontStyle.Bold);
-                var hs = g.MeasureString(hi, hf);
-                g.DrawString(hi, hf, Brushes.White, tx + (18 - hs.Width) / 2, my + (18 - hs.Height) / 2);
-            }
-            using (var f = new Font("Segoe UI", 9)) using (var br = new SolidBrush(Color.FromArgb(148, 163, 184))) g.DrawString(_handlowiec, f, br, tx + 22, my + 1);
-
-            // ID
-            using (var f = new Font("Segoe UI", 8)) using (var br = new SolidBrush(Color.FromArgb(100, 116, 139))) g.DrawString($"ID: {_id}", f, br, _header.Width - 80, 10);
-        }
+        #region Data Loading
 
         async Task LoadAsync()
         {
             try
             {
                 Cursor = Cursors.WaitCursor;
-
-                // Avatar (w tle)
                 _ = LoadAvatarAsync();
 
                 // Saldo
@@ -280,41 +344,48 @@ namespace Kalendarz1.Opakowania.Forms
                     {
                         _crdVal[i].Text = v[i].ToString();
                         _crdVal[i].ForeColor = VCol(v[i]);
-                        _crdDelta[i].Text = v[i] > 0 ? "winni" : v[i] < 0 ? "zwrot" : "";
+                        _crdDelta[i].Text = v[i] > 0 ? "winni" : v[i] < 0 ? "zwrot" : "OK";
                         _crdDelta[i].ForeColor = VCol(v[i]);
                     }
-
                     _lblInfoEmail.Text = _saldo.Email ?? "-";
                     _lblInfoTel.Text = _saldo.Telefon ?? "-";
                 }
 
-                // Dokumenty
-                var docs = await _ds.PobierzSaldoKontrahentaAsync(_id, DateTime.Today.AddMonths(-3), DateTime.Today);
+                // Dokumenty (3 miesiace)
+                _docs = await _ds.PobierzSaldoKontrahentaAsync(_id, DateTime.Today.AddMonths(-3), DateTime.Today);
                 _grid.SuspendLayout();
-                _grid.DataSource = new BindingList<DokumentOpakowania>(docs);
+                _grid.DataSource = new SortableBindingList<DokumentOpakowania>(_docs);
                 _grid.ResumeLayout();
 
-                int docCount = docs.Count(d => !d.JestSaldem);
-                int saldoCount = docs.Count(d => d.JestSaldem);
-                int wydania = docs.Count(d => !d.JestSaldem && d.TypDokumentu == "MW1");
-                int przyjecia = docs.Count(d => !d.JestSaldem && d.TypDokumentu == "MP");
-                _lblCount.Text = $"  Dokumenty ({docCount})  |  Wydania: {wydania}  Przyjecia: {przyjecia}";
+                // Statystyki
+                int wydania = _docs.Count(d => !d.JestSaldem && d.TypDokumentu == "MW1");
+                int przyjecia = _docs.Count(d => !d.JestSaldem && d.TypDokumentu == "MP");
+                int docCount = _docs.Count(d => !d.JestSaldem);
+                _lblCount.Text = $"  Dokumenty ({docCount})   |   Wydania: {wydania}   Przyjecia: {przyjecia}";
 
-                // Saldo koncowe
-                var lastSaldo = docs.FirstOrDefault(d => d.JestSaldem);
+                var lastSaldo = _docs.FirstOrDefault(d => d.JestSaldem);
                 if (lastSaldo != null)
                     _lblSaldoEnd.Text = $"  Saldo:  E2={lastSaldo.E2}   H1={lastSaldo.H1}   EURO={lastSaldo.EURO}   PCV={lastSaldo.PCV}   DREW={lastSaldo.DREW}";
 
-                // Statystyki
-                _lblStatWyd.Text = $"Wydania: {wydania}";
-                _lblStatPrzyj.Text = $"Przyjecia: {przyjecia}";
-                var lastDoc = docs.Where(d => !d.JestSaldem).FirstOrDefault();
-                _lblStatDni.Text = lastDoc != null ? $"Ost. dok.: {(DateTime.Today - (lastDoc.Data ?? DateTime.Today)).Days} dni temu" : "Ost. dok.: -";
+                _lblStatWyd.Text = $"Wydania: {wydania} dok.";
+                _lblStatPrzyj.Text = $"Przyjecia: {przyjecia} dok.";
+
+                int sumWyd = _docs.Where(d => !d.JestSaldem && d.TypDokumentu == "MW1").Sum(d => d.E2 + d.H1 + d.EURO + d.PCV + d.DREW);
+                int sumPrzyj = _docs.Where(d => !d.JestSaldem && d.TypDokumentu == "MP").Sum(d => Math.Abs(d.E2 + d.H1 + d.EURO + d.PCV + d.DREW));
+                _lblStatBilans.Text = $"Bilans: {sumWyd - sumPrzyj:+#;-#;0} szt.";
+                _lblStatBilans.ForeColor = sumWyd > sumPrzyj ? CRed : CGreen;
+                _lblStatZwrot.Text = sumWyd > 0 ? $"Zwrot: {sumPrzyj * 100.0 / sumWyd:F0}%" : "Zwrot: -";
+
+                var lastDoc = _docs.Where(d => !d.JestSaldem).FirstOrDefault();
+                int dniOd = lastDoc?.Data != null ? (DateTime.Today - lastDoc.Data.Value).Days : -1;
+                _lblStatDni.Text = dniOd >= 0 ? $"Ost. dokument: {dniOd} dni temu" : "Ost. dokument: -";
+                _lblStatDni.ForeColor = dniOd > 30 ? CRed : dniOd > 14 ? Color.FromArgb(245, 158, 11) : CGreen;
 
                 // Potwierdzenia
-                var potw = await _ds.PobierzPotwierdzeniaDlaKontrahentaAsync(_id);
-                int potwOk = potw.Count(p => p.StatusPotwierdzenia == "Potwierdzone");
-                _lblStatPotw.Text = $"Potwierdzenia: {potwOk}/{potw.Count}";
+                _potw = await _ds.PobierzPotwierdzeniaDlaKontrahentaAsync(_id);
+                int potwOk = _potw.Count(p => p.StatusPotwierdzenia == "Potwierdzone");
+                _lblStatPotw.Text = $"Potwierdzenia: {potwOk}/{_potw.Count}";
+                _lblStatPotw.ForeColor = _potw.Count == 0 ? CGray : potwOk == _potw.Count ? CGreen : Color.FromArgb(245, 158, 11);
             }
             catch (Exception ex) { MessageBox.Show(ex.Message, "Blad", MessageBoxButtons.OK, MessageBoxIcon.Error); }
             finally { Cursor = Cursors.Default; }
@@ -328,24 +399,88 @@ namespace Kalendarz1.Opakowania.Forms
                 using var conn = new SqlConnection("Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True;");
                 await conn.OpenAsync();
                 string uid = null;
-                using (var cmd = new SqlCommand("SELECT TOP 1 UserID FROM UserHandlowcy WHERE HandlowiecName = @N", conn))
-                { cmd.Parameters.AddWithValue("@N", _handlowiec); uid = (await cmd.ExecuteScalarAsync())?.ToString(); }
-                if (uid == null)
-                    using (var cmd = new SqlCommand("SELECT TOP 1 ID FROM operators WHERE Name = @N", conn))
-                    { cmd.Parameters.AddWithValue("@N", _handlowiec); uid = (await cmd.ExecuteScalarAsync())?.ToString(); }
+                using (var cmd = new SqlCommand("SELECT TOP 1 UserID FROM UserHandlowcy WHERE HandlowiecName = @N", conn)) { cmd.Parameters.AddWithValue("@N", _handlowiec); uid = (await cmd.ExecuteScalarAsync())?.ToString(); }
+                if (uid == null) using (var cmd = new SqlCommand("SELECT TOP 1 ID FROM operators WHERE Name = @N", conn)) { cmd.Parameters.AddWithValue("@N", _handlowiec); uid = (await cmd.ExecuteScalarAsync())?.ToString(); }
                 uid ??= _handlowiec;
-                _avatarHandl = UserAvatarManager.HasAvatar(uid) ? UserAvatarManager.GetAvatarRounded(uid, 18) : UserAvatarManager.GenerateDefaultAvatar(_handlowiec, uid, 18);
+                _avatarHandl = UserAvatarManager.HasAvatar(uid) ? UserAvatarManager.GetAvatarRounded(uid, 16) : UserAvatarManager.GenerateDefaultAvatar(_handlowiec, uid, 16);
                 _header.Invalidate();
             }
             catch { }
         }
 
-        static Color VCol(int v) => v > 0 ? Color.FromArgb(220, 38, 38) : v < 0 ? Color.FromArgb(22, 163, 74) : Color.FromArgb(156, 163, 175);
+        #endregion
+
+        #region Actions
+
+        void CopySaldo()
+        {
+            if (_saldo == null) return;
+            var sb = new StringBuilder();
+            sb.AppendLine($"Saldo opakowan: {_nazwa}");
+            sb.AppendLine($"Data: {DateTime.Today:dd.MM.yyyy}");
+            sb.AppendLine($"Handlowiec: {_handlowiec}");
+            sb.AppendLine();
+            sb.AppendLine($"E2 Pojemnik:     {_saldo.SaldoE2}");
+            sb.AppendLine($"H1 Paleta:       {_saldo.SaldoH1}");
+            sb.AppendLine($"EURO Paleta:     {_saldo.SaldoEURO}");
+            sb.AppendLine($"PCV Plastikowa:  {_saldo.SaldoPCV}");
+            sb.AppendLine($"DREW Drewniana:  {_saldo.SaldoDREW}");
+            sb.AppendLine($"RAZEM:           {_saldo.SaldoCalkowite}");
+            Clipboard.SetText(sb.ToString());
+            _lblSaldoEnd.Text = "  Skopiowano do schowka!";
+        }
+
+        void CopyRow()
+        {
+            if (_grid.CurrentRow?.DataBoundItem is DokumentOpakowania d)
+            {
+                var txt = $"{d.NrDok}\t{d.DataText}\t{d.DzienTyg}\tE2={d.E2}\tH1={d.H1}\tEURO={d.EURO}\tPCV={d.PCV}\tDREW={d.DREW}";
+                Clipboard.SetText(txt);
+            }
+        }
+
+        async Task ExportPdfAsync()
+        {
+            try
+            {
+                Cursor = Cursors.WaitCursor;
+                var saldo = _saldo ?? new SaldoOpakowania();
+                var path = await _export.EksportujSaldoKontrahentaDoPDFAsync(_nazwa, _id, saldo, _docs, DateTime.Today.AddMonths(-3), DateTime.Today);
+                if (MessageBox.Show($"Zapisano:\n{path}\n\nOtworzyc?", "PDF", MessageBoxButtons.YesNo) == DialogResult.Yes)
+                    _export.OtworzPlik(path);
+            }
+            catch (Exception ex) { MessageBox.Show(ex.Message); }
+            finally { Cursor = Cursors.Default; }
+        }
+
+        void SendEmail()
+        {
+            if (_saldo == null) return;
+            var subject = $"Saldo opakowan - {_nazwa}";
+            var body = $"Szanowni Panstwo,\n\nPrzesylam stan sald opakowan:\n\n" +
+                $"E2: {_saldo.SaldoE2}\nH1: {_saldo.SaldoH1}\nEURO: {_saldo.SaldoEURO}\nPCV: {_saldo.SaldoPCV}\nDREW: {_saldo.SaldoDREW}\n\n" +
+                $"Stan na dzien: {DateTime.Today:dd.MM.yyyy}\n\nZ powazaniem";
+            _export.WyslijEmail(_saldo.Email ?? "", subject, body);
+        }
+
+        #endregion
+
+        #region Helpers
+
+        static Color VCol(int v) => v > 0 ? CRed : v < 0 ? CGreen : CGray;
         static readonly Color[] _ac = { Color.FromArgb(59,130,246), Color.FromArgb(249,115,22), Color.FromArgb(16,185,129), Color.FromArgb(139,92,246), Color.FromArgb(236,72,153), Color.FromArgb(245,158,11) };
         static Color AvCol(string n) => _ac[Math.Abs((n ?? "").GetHashCode()) % _ac.Length];
         static string Ini(string n) { if (string.IsNullOrWhiteSpace(n) || n == "-") return "?"; var p = n.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries); return p.Length >= 2 ? $"{p[0][0]}{p[1][0]}".ToUpper() : n[..Math.Min(2, n.Length)].ToUpper(); }
 
-        protected override bool ProcessCmdKey(ref Message msg, Keys keyData) { if (keyData == Keys.Escape) { Close(); return true; } return base.ProcessCmdKey(ref msg, keyData); }
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            if (keyData == Keys.Escape) { Close(); return true; }
+            if (keyData == (Keys.Control | Keys.C)) { CopySaldo(); return true; }
+            return base.ProcessCmdKey(ref msg, keyData);
+        }
+
         protected override void OnFormClosed(FormClosedEventArgs e) { _avatarHandl?.Dispose(); base.OnFormClosed(e); }
+
+        #endregion
     }
 }

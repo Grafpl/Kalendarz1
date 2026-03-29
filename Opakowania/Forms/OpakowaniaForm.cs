@@ -252,23 +252,29 @@ namespace Kalendarz1.Opakowania.Forms
 
         void BuildTitle()
         {
-            _titleBar = new Panel { Dock = DockStyle.Top, Height = 44 };
-            _titleBar.Paint += (_, e) => { using var b = new LinearGradientBrush(new Rectangle(0, 0, _titleBar.Width, 44), Color.FromArgb(15, 23, 42), Color.FromArgb(30, 58, 95), 0f); e.Graphics.FillRectangle(b, 0, 0, _titleBar.Width, 44); e.Graphics.DrawString("  OPAKOWANIA ZWROTNE", new Font("Segoe UI", 13, FontStyle.Bold), new SolidBrush(Color.FromArgb(34, 197, 94)), 8, 10); };
+            _titleBar = new Panel { Dock = DockStyle.Top, Height = 40 };
+            _titleBar.Paint += (_, e) =>
+            {
+                using var b = new LinearGradientBrush(new Rectangle(0, 0, _titleBar.Width, 40), Color.FromArgb(15, 23, 42), Color.FromArgb(24, 45, 75), 0f);
+                e.Graphics.FillRectangle(b, 0, 0, _titleBar.Width, 40);
+                using var f = new Font("Segoe UI Semibold", 11);
+                e.Graphics.DrawString("  OPAKOWANIA ZWROTNE", f, new SolidBrush(Color.FromArgb(34, 197, 94)), 6, 9);
+            };
             _titleBar.MouseDown += (_, e) => { if (e.Clicks == 2) WindowState = WindowState == FormWindowState.Maximized ? FormWindowState.Normal : FormWindowState.Maximized; else { _drag = true; _dragPt = e.Location; } };
             _titleBar.MouseMove += (_, e) => { if (_drag) { var p = PointToScreen(e.Location); Location = new Point(p.X - _dragPt.X, p.Y - _dragPt.Y); } };
             _titleBar.MouseUp += (_, __) => _drag = false;
             var fl = new FlowLayoutPanel { Dock = DockStyle.Right, AutoSize = true, FlowDirection = FlowDirection.LeftToRight, BackColor = Color.Transparent, WrapContents = false };
-            fl.Controls.Add(TBtn("_", Color.FromArgb(60, 70, 90), () => WindowState = FormWindowState.Minimized));
-            fl.Controls.Add(TBtn("[]", Color.FromArgb(60, 70, 90), () => WindowState = WindowState == FormWindowState.Maximized ? FormWindowState.Normal : FormWindowState.Maximized));
-            fl.Controls.Add(TBtn("X", Color.FromArgb(220, 40, 40), Close));
+            fl.Controls.Add(TBtn("—", Color.FromArgb(45, 55, 72), () => WindowState = FormWindowState.Minimized));
+            fl.Controls.Add(TBtn("□", Color.FromArgb(45, 55, 72), () => WindowState = WindowState == FormWindowState.Maximized ? FormWindowState.Normal : FormWindowState.Maximized));
+            fl.Controls.Add(TBtn("✕", Color.FromArgb(185, 28, 28), Close));
             _titleBar.Controls.Add(fl);
         }
 
-        Button TBtn(string t, Color h, Action a) { var b = new Button { Text = t, Size = new Size(46, 44), FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(148, 163, 184), BackColor = Color.Transparent, Font = new Font("Segoe UI", 10), Cursor = Cursors.Hand, TabStop = false }; b.FlatAppearance.BorderSize = 0; b.FlatAppearance.MouseOverBackColor = h; b.Click += (_, __) => a(); return b; }
+        Button TBtn(string t, Color h, Action a) { var b = new Button { Text = t, Size = new Size(42, 40), FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(148, 163, 184), BackColor = Color.Transparent, Font = new Font("Segoe UI", 10), Cursor = Cursors.Hand, TabStop = false }; b.FlatAppearance.BorderSize = 0; b.FlatAppearance.MouseOverBackColor = h; b.Click += (_, __) => a(); return b; }
 
         void BuildStatus()
         {
-            _statusBar = new Panel { Dock = DockStyle.Bottom, Height = 26, BackColor = Color.White };
+            _statusBar = new Panel { Dock = DockStyle.Bottom, Height = 24, BackColor = Color.FromArgb(249, 250, 251) };
             _statusBar.Paint += (_, e) => { using var p = new Pen(Color.FromArgb(226, 232, 240)); e.Graphics.DrawLine(p, 0, 0, _statusBar.Width, 0); };
             _lblStatus = new Label { Dock = DockStyle.Fill, Text = "  F5: Odswiez  |  ESC: Zamknij  |  2x klik: Szczegoly", ForeColor = Color.FromArgb(100, 116, 139), Font = new Font("Segoe UI", 8), TextAlign = ContentAlignment.MiddleLeft };
             _statusBar.Controls.Add(_lblStatus);
@@ -285,10 +291,10 @@ namespace Kalendarz1.Opakowania.Forms
 
         void BuildToolbar()
         {
-            _toolbar = new Panel { Dock = DockStyle.Top, Height = 48, BackColor = Color.White };
+            _toolbar = new Panel { Dock = DockStyle.Top, Height = 44, BackColor = Color.White };
             _toolbar.Paint += (_, e) => { using var p = new Pen(Color.FromArgb(226, 232, 240)); e.Graphics.DrawLine(p, 0, _toolbar.Height - 1, _toolbar.Width, _toolbar.Height - 1); };
 
-            var lf = new FlowLayoutPanel { Dock = DockStyle.Left, AutoSize = true, FlowDirection = FlowDirection.LeftToRight, BackColor = Color.Transparent, WrapContents = false, Padding = new Padding(8, 7, 0, 0) };
+            var lf = new FlowLayoutPanel { Dock = DockStyle.Left, AutoSize = true, FlowDirection = FlowDirection.LeftToRight, BackColor = Color.Transparent, WrapContents = false, Padding = new Padding(8, 6, 0, 0) };
             _btnAll = ToolBtn("Wszystkie typy", true); _btnAll.Click += async (_, __) => { if (!_suppress && !_allMode) { _allMode = true; StyleToggle(); await SwitchView(); } };
             _btnPerTyp = ToolBtn("Per typ", false); _btnPerTyp.Click += async (_, __) => { if (!_suppress && _allMode) { _allMode = false; StyleToggle(); await SwitchView(); } };
             var s1 = new Panel { Size = new Size(1, 28), Margin = new Padding(8, 2, 8, 0), BackColor = Color.FromArgb(226, 232, 240) };
@@ -330,24 +336,24 @@ namespace Kalendarz1.Opakowania.Forms
 
         Button ToolBtn(string text, bool active)
         {
-            var b = new Button { Text = text, AutoSize = true, MinimumSize = new Size(80, 32), FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 9, active ? FontStyle.Bold : FontStyle.Regular), BackColor = active ? Color.FromArgb(34, 197, 94) : Color.FromArgb(241, 245, 249), ForeColor = active ? Color.White : Color.FromArgb(71, 85, 105), Cursor = Cursors.Hand, Padding = new Padding(12, 0, 12, 0) };
-            b.FlatAppearance.BorderSize = 0; b.FlatAppearance.MouseOverBackColor = active ? Color.FromArgb(22, 163, 74) : Color.FromArgb(226, 232, 240);
+            var b = new Button { Text = text, AutoSize = true, MinimumSize = new Size(80, 30), FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 8.5f, active ? FontStyle.Bold : FontStyle.Regular), BackColor = active ? Color.FromArgb(22, 163, 74) : Color.FromArgb(241, 245, 249), ForeColor = active ? Color.White : Color.FromArgb(71, 85, 105), Cursor = Cursors.Hand, Padding = new Padding(10, 0, 10, 0) };
+            b.FlatAppearance.BorderSize = 0; b.FlatAppearance.MouseOverBackColor = active ? Color.FromArgb(16, 140, 60) : Color.FromArgb(226, 232, 240);
             return b;
         }
         Button ABtn(string text, Color bg)
         {
-            var b = new Button { Text = text, AutoSize = true, MinimumSize = new Size(60, 32), FlatStyle = FlatStyle.Flat, BackColor = bg, ForeColor = Color.White, Font = new Font("Segoe UI", 8.5f, FontStyle.Bold), Cursor = Cursors.Hand, Margin = new Padding(3, 0, 0, 0), Padding = new Padding(10, 0, 10, 0) };
-            b.FlatAppearance.BorderSize = 0; b.FlatAppearance.MouseOverBackColor = ControlPaint.Dark(bg, 0.15f);
+            var b = new Button { Text = text, AutoSize = true, MinimumSize = new Size(56, 30), FlatStyle = FlatStyle.Flat, BackColor = bg, ForeColor = Color.White, Font = new Font("Segoe UI", 8, FontStyle.Bold), Cursor = Cursors.Hand, Margin = new Padding(3, 0, 0, 0), Padding = new Padding(8, 0, 8, 0) };
+            b.FlatAppearance.BorderSize = 0; b.FlatAppearance.MouseOverBackColor = ControlPaint.Dark(bg, 0.12f);
             return b;
         }
         void StyleToggle()
         {
-            _btnAll.BackColor = _allMode ? Color.FromArgb(34, 197, 94) : Color.FromArgb(241, 245, 249);
+            _btnAll.BackColor = _allMode ? Color.FromArgb(22, 163, 74) : Color.FromArgb(241, 245, 249);
             _btnAll.ForeColor = _allMode ? Color.White : Color.FromArgb(71, 85, 105);
-            _btnAll.Font = new Font("Segoe UI", 9, _allMode ? FontStyle.Bold : FontStyle.Regular);
-            _btnPerTyp.BackColor = !_allMode ? Color.FromArgb(34, 197, 94) : Color.FromArgb(241, 245, 249);
+            _btnAll.Font = new Font("Segoe UI", 8.5f, _allMode ? FontStyle.Bold : FontStyle.Regular);
+            _btnPerTyp.BackColor = !_allMode ? Color.FromArgb(22, 163, 74) : Color.FromArgb(241, 245, 249);
             _btnPerTyp.ForeColor = !_allMode ? Color.White : Color.FromArgb(71, 85, 105);
-            _btnPerTyp.Font = new Font("Segoe UI", 9, !_allMode ? FontStyle.Bold : FontStyle.Regular);
+            _btnPerTyp.Font = new Font("Segoe UI", 8.5f, !_allMode ? FontStyle.Bold : FontStyle.Regular);
         }
 
         void BuildTypeRow()
@@ -416,14 +422,14 @@ namespace Kalendarz1.Opakowania.Forms
                 ReadOnly = true, AllowUserToAddRows = false, AllowUserToDeleteRows = false, AllowUserToResizeRows = false,
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect, MultiSelect = false,
                 AutoGenerateColumns = false, RowHeadersVisible = false,
-                BackgroundColor = Color.White, GridColor = Color.FromArgb(241, 245, 249),
+                BackgroundColor = Color.White, GridColor = Color.FromArgb(243, 244, 246),
                 BorderStyle = BorderStyle.None, CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal,
                 ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.None,
-                ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle { BackColor = Color.FromArgb(248, 250, 252), ForeColor = Color.FromArgb(100, 116, 139), Font = new Font("Segoe UI", 8.5f, FontStyle.Bold), SelectionBackColor = Color.FromArgb(248, 250, 252), Padding = new Padding(8, 0, 0, 0) },
-                ColumnHeadersHeight = 38, ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing,
-                DefaultCellStyle = new DataGridViewCellStyle { Font = new Font("Segoe UI", 9.5f), Padding = new Padding(8, 2, 4, 2), SelectionBackColor = Color.FromArgb(209, 250, 229), SelectionForeColor = Color.FromArgb(15, 23, 42) },
+                ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle { BackColor = Color.FromArgb(249, 250, 251), ForeColor = Color.FromArgb(107, 114, 128), Font = new Font("Segoe UI", 8, FontStyle.Bold), SelectionBackColor = Color.FromArgb(249, 250, 251), Padding = new Padding(6, 0, 0, 0) },
+                ColumnHeadersHeight = 34, ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing,
+                DefaultCellStyle = new DataGridViewCellStyle { Font = new Font("Segoe UI", 9.5f), Padding = new Padding(6, 2, 4, 2), SelectionBackColor = Color.FromArgb(220, 252, 231), SelectionForeColor = Color.FromArgb(15, 23, 42) },
                 AlternatingRowsDefaultCellStyle = new DataGridViewCellStyle { BackColor = Color.FromArgb(249, 250, 251) },
-                RowTemplate = { Height = 38 }, EnableHeadersVisualStyles = false
+                RowTemplate = { Height = 36 }, EnableHeadersVisualStyles = false
             };
             g.CellMouseEnter += (_, e) => { if (e.RowIndex >= 0) { _hover = e.RowIndex; g.InvalidateRow(e.RowIndex); } };
             g.CellMouseLeave += (_, e) => { if (e.RowIndex >= 0) { var p = _hover; _hover = -1; if (p >= 0 && p < g.Rows.Count) g.InvalidateRow(p); } };
