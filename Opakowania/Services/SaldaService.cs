@@ -203,10 +203,18 @@ SELECT
     C.Name AS Nazwa,
     ISNULL(WYM.CDim_Handlowiec_Val, '-') AS Handlowiec,
     SK.E2, SK.H1, SK.EURO, SK.PCV, SK.DREW,
-    SK.OstatniDokument
+    SK.OstatniDokument,
+    OD.TypDok AS TypOstatniegoDok
 FROM SaldaKontrahentow SK
 INNER JOIN [HANDEL].[SSCommon].[STContractors] C WITH (NOLOCK) ON C.id = SK.KontrahentId
 LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM WITH (NOLOCK) ON C.Id = WYM.ElementId
+OUTER APPLY (
+    SELECT TOP 1 CASE WHEN MG2.typ_dk = 'MW1' THEN 'Wydanie' ELSE 'Przyjecie' END AS TypDok
+    FROM [HANDEL].[HM].[MG] MG2 WITH (NOLOCK)
+    WHERE MG2.khid = SK.KontrahentId AND MG2.anulowany = 0 AND MG2.magazyn = 65559 AND MG2.typ_dk IN ('MW1','MP')
+      AND MG2.Data = SK.OstatniDokument
+    ORDER BY MG2.id DESC
+) OD
 ORDER BY C.Shortcut
 OPTION (RECOMPILE, MAXDOP 4)";
 
@@ -247,10 +255,18 @@ SELECT
     C.Name AS Nazwa,
     ISNULL(WYM.CDim_Handlowiec_Val, '-') AS Handlowiec,
     SK.E2, SK.H1, SK.EURO, SK.PCV, SK.DREW,
-    SK.OstatniDokument
+    SK.OstatniDokument,
+    OD.TypDok AS TypOstatniegoDok
 FROM SaldaKontrahentow SK
 INNER JOIN [HANDEL].[SSCommon].[STContractors] C WITH (NOLOCK) ON C.id = SK.KontrahentId
 INNER JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM WITH (NOLOCK) ON C.Id = WYM.ElementId
+OUTER APPLY (
+    SELECT TOP 1 CASE WHEN MG2.typ_dk = 'MW1' THEN 'Wydanie' ELSE 'Przyjecie' END AS TypDok
+    FROM [HANDEL].[HM].[MG] MG2 WITH (NOLOCK)
+    WHERE MG2.khid = SK.KontrahentId AND MG2.anulowany = 0 AND MG2.magazyn = 65559 AND MG2.typ_dk IN ('MW1','MP')
+      AND MG2.Data = SK.OstatniDokument
+    ORDER BY MG2.id DESC
+) OD
 WHERE WYM.CDim_Handlowiec_Val = @HandlowiecFilter
 ORDER BY C.Shortcut
 OPTION (RECOMPILE, MAXDOP 4)";
@@ -446,7 +462,8 @@ OPTION (RECOMPILE)";
                                 EURO = reader.GetInt32(6),
                                 PCV = reader.GetInt32(7),
                                 DREW = reader.GetInt32(8),
-                                OstatniDokument = reader.IsDBNull(9) ? null : reader.GetDateTime(9)
+                                OstatniDokument = reader.IsDBNull(9) ? null : reader.GetDateTime(9),
+                                TypOstatniegoDok = reader.IsDBNull(10) ? null : reader.GetString(10)
                             });
                         }
                     }

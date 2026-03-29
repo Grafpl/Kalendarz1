@@ -25,7 +25,12 @@ namespace Kalendarz1
             { "Hodowcy",    "#E74C3C" },
             { "Dokumenty",  "#16A085" },
             { "Wnioski",    "#E67E22" },
-            { "SUMA",       "#1ABC9C" }
+            { "SUMA",       "#1ABC9C" },
+            { "Audyt",      "#C0392B" },
+            { "Efektywnosc","#2ECC71" },
+            { "Czas",       "#3498DB" },
+            { "Jakosc",     "#F39C12" },
+            { "Regularnosc","#9B59B6" }
         };
 
         // Column width hints per column name
@@ -41,6 +46,7 @@ namespace Kalendarz1
             { "Status", 120 }, { "Decyzja", 120 },
             { "Pole", 120 }, { "Stara Wartosc", 140 }, { "Nowa Wartosc", 140 },
             { "Tresc", 260 }, { "Powod", 200 },
+            { "Typ", 150 }, { "Zrodlo", 220 }, { "LP Dostawy", 85 },
             { "Telefon", 120 }, { "ID Hodowcy", 100 }, { "ID Dostawcy", 100 },
             { "Nr Wniosku", 90 },
             { "Wynik Telefonu", 130 }, { "Status Przed", 120 }, { "Status Po", 120 }
@@ -135,6 +141,8 @@ namespace Kalendarz1
                     case "Hodowcy":       LoadHodowcy(dt, userID, startDate, endDate); break;
                     case "Dokumenty":     LoadDokumenty(dt, userID, startDate, endDate); break;
                     case "Wnioski":       LoadWnioski(dt, userID, startDate, endDate); break;
+                    case "Audyt":         LoadAudyt(dt, userID, startDate, endDate); break;
+                    case "Efektywnosc":   LoadAll(dt, userName, userID, startDate, endDate); break;
                     default:              LoadAll(dt, userName, userID, startDate, endDate); break;
                 }
 
@@ -264,6 +272,59 @@ namespace Kalendarz1
                 FROM dbo.HarmonogramDostaw h
                 WHERE h.PotwSztuki = 1 AND h.KtoSztuki = TRY_CAST(@UID AS INT) AND h.KiedySztuki >= @S AND h.KiedySztuki < @E
                 ORDER BY [Data Akcji] DESC", userID, s, e);
+
+            // Ceny dodane
+            var dtCeny = new DataTable();
+            FillTableSafe(dtCeny, @"
+                SELECT 'Dodal cene ' + Typ AS Akcja, CAST(0 AS INT) AS LP, '' AS Dostawca,
+                       Data AS [Data Odbioru], CAST(0 AS INT) AS Sztuki, CAST(Cena AS DECIMAL(10,2)) AS Waga,
+                       Typ AS Status, KiedyDodal AS [Data Akcji]
+                FROM (
+                    SELECT 'Ministerialna' AS Typ, Data, Cena, KtoDodal, KiedyDodal FROM dbo.CenaMinisterialna WHERE KtoDodal = TRY_CAST(@UID AS INT) AND KiedyDodal >= @S AND KiedyDodal < @E
+                    UNION ALL
+                    SELECT 'Rolnicza', Data, Cena, KtoDodal, KiedyDodal FROM dbo.CenaRolnicza WHERE KtoDodal = TRY_CAST(@UID AS INT) AND KiedyDodal >= @S AND KiedyDodal < @E
+                    UNION ALL
+                    SELECT 'Tuszka', Data, Cena, KtoDodal, KiedyDodal FROM dbo.CenaTuszki WHERE KtoDodal = TRY_CAST(@UID AS INT) AND KiedyDodal >= @S AND KiedyDodal < @E
+                ) c
+                ORDER BY [Data Akcji] DESC", userID, s, e);
+
+            foreach (DataRow row in dtCeny.Rows) dt.ImportRow(row);
+
+            // Edycje z historii zmian (AuditLog_Dostawy)
+            var dtEdycje = new DataTable();
+            FillTableSafe(dtEdycje, @"
+                SELECT
+                    'Edycja: ' + ISNULL(a.ZrodloZmiany, '') AS Akcja,
+                    TRY_CAST(a.RekordID AS INT) AS LP,
+                    ISNULL(JSON_VALUE(a.DodatkoweInfo, '$.dostawca'), '') AS Dostawca,
+                    NULL AS [Data Odbioru],
+                    CAST(0 AS INT) AS Sztuki,
+                    CAST(0 AS DECIMAL(10,2)) AS Waga,
+                    ISNULL(a.NazwaPola, '') + ': ' + ISNULL(LEFT(a.StaraWartosc,30),'') + ' -> ' + ISNULL(LEFT(a.NowaWartosc,30),'') AS Status,
+                    a.DataZmiany AS [Data Akcji]
+                FROM dbo.AuditLog_Dostawy a
+                WHERE a.UserID = @UID AND a.TypOperacji = 'UPDATE' AND a.DataZmiany >= @S AND a.DataZmiany < @E
+                ORDER BY a.DataZmiany DESC", userID, s, e);
+
+            foreach (DataRow row in dtEdycje.Rows) dt.ImportRow(row);
+
+            // Notatki dodane
+            var dtNotatki = new DataTable();
+            FillTableSafe(dtNotatki, @"
+                SELECT
+                    'Dodal notatke' AS Akcja,
+                    n.IndeksID AS LP,
+                    '' AS Dostawca,
+                    NULL AS [Data Odbioru],
+                    CAST(0 AS INT) AS Sztuki,
+                    CAST(0 AS DECIMAL(10,2)) AS Waga,
+                    LEFT(n.Tresc, 80) AS Status,
+                    n.DataUtworzenia AS [Data Akcji]
+                FROM dbo.Notatki n
+                WHERE n.KtoStworzyl = TRY_CAST(@UID AS INT) AND n.DataUtworzenia >= @S AND n.DataUtworzenia < @E
+                ORDER BY n.DataUtworzenia DESC", userID, s, e);
+
+            foreach (DataRow row in dtNotatki.Rows) dt.ImportRow(row);
         }
 
         // ==================== SPECYFIKACJA ====================
@@ -303,31 +364,20 @@ namespace Kalendarz1
                 ORDER BY [Data Wyslania] DESC", userID, s, e);
         }
 
-        // ==================== HODOWCY ====================
+        // ==================== HODOWCY (Zmiany statusu + Notatki) ====================
         private void LoadHodowcy(DataTable dt, string userID, DateTime s, DateTime e)
         {
             FillTableSafe(dt, @"
                 SELECT pa.TypAktywnosci AS Akcja, ph.Dostawca AS Hodowca,
-                       pa.WynikTelefonu AS [Wynik Telefonu],
                        pa.StatusPrzed AS [Status Przed], pa.StatusPo AS [Status Po],
                        LEFT(pa.Tresc, 150) AS Tresc, pa.DataUtworzenia AS [Data Akcji]
                 FROM dbo.Pozyskiwanie_Aktywnosci pa
                 LEFT JOIN dbo.Pozyskiwanie_Hodowcy ph ON pa.HodowcaId = ph.Id
-                WHERE pa.UzytkownikId = @UID AND pa.DataUtworzenia >= @S AND pa.DataUtworzenia < @E AND pa.UzytkownikId <> 'IMPORT'
+                WHERE pa.UzytkownikId = @UID
+                  AND pa.TypAktywnosci IN ('Zmiana statusu', 'Notatka')
+                  AND pa.DataUtworzenia >= @S AND pa.DataUtworzenia < @E
+                  AND pa.UzytkownikId <> 'IMPORT'
                 ORDER BY pa.DataUtworzenia DESC", userID, s, e);
-
-            var dt2 = new DataTable();
-            FillTableSafe(dt2, @"
-                SELECT 'Ocena dostawcy' AS Akcja, d.Name AS Hodowca,
-                       '' AS [Wynik Telefonu], '' AS [Status Przed], '' AS [Status Po],
-                       'Punkty: ' + CAST(oc.PunktyRazem AS VARCHAR(10)) AS Tresc,
-                       oc.DataUtworzenia AS [Data Akcji]
-                FROM dbo.OcenyDostawcow oc
-                LEFT JOIN dbo.Dostawcy d ON oc.DostawcaID = d.ID
-                WHERE oc.OceniajacyUserID = @UID AND oc.DataUtworzenia >= @S AND oc.DataUtworzenia < @E
-                ORDER BY oc.DataUtworzenia DESC", userID, s, e);
-
-            foreach (DataRow row in dt2.Rows) dt.ImportRow(row);
         }
 
         // ==================== DOKUMENTY ====================
@@ -364,6 +414,78 @@ namespace Kalendarz1
                 ORDER BY [Data Akcji] DESC", userID, s, e);
         }
 
+        // ==================== AUDYT ====================
+        private void LoadAudyt(DataTable dt, string userID, DateTime s, DateTime e)
+        {
+            // Puste edycje
+            FillTableSafe(dt, @"
+                SELECT 'Pusta edycja' AS Typ,
+                       ISNULL(a.NazwaPola,'') AS Pole,
+                       a.RekordID AS [LP Dostawy],
+                       ISNULL(a.ZrodloZmiany,'') AS Zrodlo,
+                       ISNULL(LEFT(a.StaraWartosc,50),'(puste)') AS [Wartosc],
+                       a.DataZmiany AS [Data]
+                FROM dbo.AuditLog_Dostawy a
+                WHERE a.UserID = @UID AND a.TypOperacji = 'UPDATE'
+                  AND a.DataZmiany >= @S AND a.DataZmiany < @E
+                  AND ISNULL(a.StaraWartosc,'') = ISNULL(a.NowaWartosc,'')
+                ORDER BY a.DataZmiany DESC", userID, s, e);
+
+            // Odwrocone zmiany
+            var dt2 = new DataTable();
+            FillTableSafe(dt2, @"
+                SELECT 'Odwrocona zmiana' AS Typ,
+                       a1.NazwaPola AS Pole,
+                       a1.RekordID AS [LP Dostawy],
+                       a1.StaraWartosc + ' -> ' + a1.NowaWartosc + ' -> ' + a2.NowaWartosc AS Zrodlo,
+                       CAST(DATEDIFF(SECOND, a1.DataZmiany, a2.DataZmiany) AS VARCHAR) + 's odstep' AS [Wartosc],
+                       a1.DataZmiany AS [Data]
+                FROM dbo.AuditLog_Dostawy a1
+                INNER JOIN dbo.AuditLog_Dostawy a2
+                    ON a1.UserID = a2.UserID AND a1.RekordID = a2.RekordID AND a1.NazwaPola = a2.NazwaPola
+                    AND a2.DataZmiany > a1.DataZmiany
+                    AND DATEDIFF(MINUTE, a1.DataZmiany, a2.DataZmiany) <= 10
+                    AND ISNULL(a1.StaraWartosc,'') = ISNULL(a2.NowaWartosc,'')
+                    AND ISNULL(a1.NowaWartosc,'') = ISNULL(a2.StaraWartosc,'')
+                WHERE a1.UserID = @UID AND a1.TypOperacji = 'UPDATE'
+                  AND a1.DataZmiany >= @S AND a1.DataZmiany < @E
+                ORDER BY a1.DataZmiany DESC", userID, s, e);
+            foreach (DataRow row in dt2.Rows) dt.ImportRow(row);
+
+            // Samo-potwierdzenia
+            var dt3 = new DataTable();
+            FillTableSafe(dt3, @"
+                SELECT 'Samo-potwierdzenie' AS Typ,
+                       'Wstawienie' AS Pole,
+                       CAST(w.Lp AS VARCHAR) AS [LP Dostawy],
+                       w.Dostawca AS Zrodlo,
+                       'Utworzyl: ' + CONVERT(VARCHAR, w.DataUtw, 104) + ', Potw: ' + CONVERT(VARCHAR, w.DataConf, 104) AS [Wartosc],
+                       w.DataUtw AS [Data]
+                FROM dbo.WstawieniaKurczakow w
+                WHERE w.KtoStwo = TRY_CAST(@UID AS INT) AND w.KtoStwo = w.KtoConf
+                  AND w.isConf = 1 AND w.DataUtw >= @S AND w.DataUtw < @E
+                ORDER BY w.DataUtw DESC", userID, s, e);
+            foreach (DataRow row in dt3.Rows) dt.ImportRow(row);
+
+            // Szybkie serie
+            var dt4 = new DataTable();
+            FillTableSafe(dt4, @"
+                SELECT 'Szybka seria' AS Typ,
+                       a.NazwaPola AS Pole,
+                       a.RekordID AS [LP Dostawy],
+                       CAST(COUNT(*) AS VARCHAR) + ' edycji w 2 min' AS Zrodlo,
+                       MIN(CONVERT(VARCHAR, a.DataZmiany, 108)) + ' - ' + MAX(CONVERT(VARCHAR, a.DataZmiany, 108)) AS [Wartosc],
+                       MIN(a.DataZmiany) AS [Data]
+                FROM dbo.AuditLog_Dostawy a
+                WHERE a.UserID = @UID AND a.TypOperacji = 'UPDATE'
+                  AND a.DataZmiany >= @S AND a.DataZmiany < @E
+                GROUP BY a.RekordID, a.NazwaPola,
+                         DATEADD(MINUTE, DATEDIFF(MINUTE, 0, a.DataZmiany) / 2 * 2, 0)
+                HAVING COUNT(*) > 3
+                ORDER BY [Data] DESC", userID, s, e);
+            foreach (DataRow row in dt4.Rows) dt.ImportRow(row);
+        }
+
         // ==================== ALL (SUMA) ====================
         private void LoadAll(DataTable dt, string userName, string userID, DateTime s, DateTime e)
         {
@@ -389,6 +511,26 @@ namespace Kalendarz1
                 SELECT 'Potw. sztuki', h.Dostawca + ' LP:' + CAST(h.LP AS VARCHAR), h.KiedySztuki
                 FROM dbo.HarmonogramDostaw h WHERE h.PotwSztuki = 1 AND h.KtoSztuki = TRY_CAST(@UID AS INT) AND h.KiedySztuki >= @S AND h.KiedySztuki < @E");
 
+            LoadAllModuleSafe(dt, "Kalendarz", userID, s, e, @"
+                SELECT 'Edycja: ' + ISNULL(a.ZrodloZmiany,''), ISNULL(a.NazwaPola,'') + ' LP:' + a.RekordID, a.DataZmiany
+                FROM dbo.AuditLog_Dostawy a
+                WHERE a.UserID = @UID AND a.TypOperacji = 'UPDATE' AND a.DataZmiany >= @S AND a.DataZmiany < @E");
+
+            LoadAllModuleSafe(dt, "Kalendarz", userID, s, e, @"
+                SELECT 'Notatka', LEFT(n.Tresc,80), n.DataUtworzenia
+                FROM dbo.Notatki n
+                WHERE n.KtoStworzyl = TRY_CAST(@UID AS INT) AND n.DataUtworzenia >= @S AND n.DataUtworzenia < @E");
+
+            LoadAllModuleSafe(dt, "Kalendarz", userID, s, e, @"
+                SELECT 'Dodal cene ' + Typ, Typ + ' ' + CONVERT(VARCHAR(10), Data, 104) + ': ' + CAST(Cena AS VARCHAR(20)) + ' zl', KiedyDodal
+                FROM (
+                    SELECT 'Ministerialna' AS Typ, Data, Cena, KtoDodal, KiedyDodal FROM dbo.CenaMinisterialna WHERE KtoDodal = TRY_CAST(@UID AS INT) AND KiedyDodal >= @S AND KiedyDodal < @E
+                    UNION ALL
+                    SELECT 'Rolnicza', Data, Cena, KtoDodal, KiedyDodal FROM dbo.CenaRolnicza WHERE KtoDodal = TRY_CAST(@UID AS INT) AND KiedyDodal >= @S AND KiedyDodal < @E
+                    UNION ALL
+                    SELECT 'Tuszka', Data, Cena, KtoDodal, KiedyDodal FROM dbo.CenaTuszki WHERE KtoDodal = TRY_CAST(@UID AS INT) AND KiedyDodal >= @S AND KiedyDodal < @E
+                ) c");
+
             LoadAllModuleSafe(dt, "Specyfikacja", userID, s, e, @"
                 SELECT CASE WHEN r.ZatwierdzoneByUserID = @UID AND r.Zatwierdzony = 1 AND r.DataZatwierdzenia >= @S AND r.DataZatwierdzenia < @E
                             THEN 'Wprowadzenie' ELSE 'Weryfikacja' END,
@@ -402,7 +544,7 @@ namespace Kalendarz1
             LoadAllModuleSafe(dt, "Hodowcy", userID, s, e, @"
                 SELECT pa.TypAktywnosci, ISNULL(ph.Dostawca,'') + ' ' + ISNULL(LEFT(pa.Tresc,80),''), pa.DataUtworzenia
                 FROM dbo.Pozyskiwanie_Aktywnosci pa LEFT JOIN dbo.Pozyskiwanie_Hodowcy ph ON pa.HodowcaId = ph.Id
-                WHERE pa.UzytkownikId = @UID AND pa.DataUtworzenia >= @S AND pa.DataUtworzenia < @E AND pa.UzytkownikId <> 'IMPORT'");
+                WHERE pa.UzytkownikId = @UID AND pa.TypAktywnosci IN ('Zmiana statusu','Notatka') AND pa.DataUtworzenia >= @S AND pa.DataUtworzenia < @E AND pa.UzytkownikId <> 'IMPORT'");
 
             LoadAllModuleSafe(dt, "Wnioski", userID, s, e, @"
                 SELECT CASE WHEN cr.RequestedBy = @UID THEN 'Zlozyl' ELSE 'Rozpatrzyl' END,

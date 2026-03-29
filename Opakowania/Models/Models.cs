@@ -149,7 +149,8 @@ namespace Kalendarz1.Opakowania.Models
         private bool _jestPotwierdzone;
         private DateTime? _dataOstatniegoDokumentu;
         private string _towarZDokumentu;
-        
+        private string _typOstatniegoDok;
+
         // Dane kontaktowe kontrahenta
         private string _telefon;
         private string _email;
@@ -231,6 +232,17 @@ namespace Kalendarz1.Opakowania.Models
             get => _towarZDokumentu;
             set => SetProperty(ref _towarZDokumentu, value);
         }
+
+        public string TypOstatniegoDok
+        {
+            get => _typOstatniegoDok;
+            set => SetProperty(ref _typOstatniegoDok, value);
+        }
+
+        /// <summary>Kolumna "Ost. dok." — np. "15.03 Wydanie"</summary>
+        public string OstatniDokumentInfo => DataOstatniegoDokumentu.HasValue
+            ? $"{DataOstatniegoDokumentu:dd.MM} {TypOstatniegoDok ?? ""}"
+            : "-";
 
         public string Telefon
         {
@@ -502,6 +514,11 @@ namespace Kalendarz1.Opakowania.Models
         public string RoznicaTekst => FormatujSaldo(Roznica);
         public string DataOstatniegoDokumentuTekst => DataOstatniegoDokumentu?.ToString("dd.MM.yyyy") ?? "-";
         public string DataPotwierdzeniaTekst => DataPotwierdzenia?.ToString("dd.MM.yyyy") ?? "-";
+
+        /// <summary>"15.03 Wydanie" lub "12.03 Przyjecie" — jak we Wszystkie typy</summary>
+        public string OstatniDokumentInfo => DataOstatniegoDokumentu.HasValue
+            ? $"{DataOstatniegoDokumentu:dd.MM} {(TowarZDokumentu ?? "")}"
+            : "-";
 
         private string FormatujSaldo(int saldo)
         {

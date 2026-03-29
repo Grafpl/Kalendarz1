@@ -1,0 +1,139 @@
+<Window x:Class="Kalendarz1.MapaFloty.MonitorKursowWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
+        Title="Monitor i historia kursów" Width="1400" Height="900"
+        MinWidth="1050" MinHeight="600" WindowStartupLocation="CenterScreen" WindowState="Maximized"
+        Background="#f7f8fa">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="340"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- ═══ LEWY PANEL — kursy + przystanki ═══ -->
+        <Border Grid.Column="0" Background="White" BorderBrush="#e4e6ea" BorderThickness="0,0,1,0">
+            <DockPanel>
+                <!-- Header -->
+                <Border DockPanel.Dock="Top" Padding="14,12" BorderBrush="#e4e6ea" BorderThickness="0,0,0,1">
+                    <StackPanel>
+                        <TextBlock Text="Kursy transportowe" FontSize="16" FontWeight="Bold" Foreground="#1a237e"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <DatePicker x:Name="DatePick" Width="130" FontSize="11" SelectedDateChanged="DatePick_Changed"/>
+                            <Button Content="Dziś" Click="BtnToday_Click" Background="#e8eaf6" Foreground="#3949ab"
+                                    BorderThickness="0" Padding="10,5" Margin="4,0,0,0" Cursor="Hand" FontSize="10.5">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="{TemplateBinding Background}" CornerRadius="5" Padding="{TemplateBinding Padding}">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                        </StackPanel>
+                        <!-- Tryb -->
+                        <Border x:Name="ModeBadge" Background="#e8f5e9" CornerRadius="4" Padding="8,3" Margin="0,8,0,0" HorizontalAlignment="Left">
+                            <TextBlock x:Name="ModeText" Text="LIVE — odświeżanie co 30s" FontSize="10" FontWeight="SemiBold" Foreground="#2e7d32"/>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <!-- Lista kursów + przystanki poniżej -->
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <!-- Kursy -->
+                        <StackPanel x:Name="KursyPanel"/>
+                        <!-- Przystanki wybranego kursu -->
+                        <Border x:Name="PrzystankiHeader" Visibility="Collapsed" Background="#f5f6fa" Padding="14,8"
+                                BorderBrush="#e4e6ea" BorderThickness="0,1,0,0">
+                            <TextBlock x:Name="PrzystankiTitle" FontSize="12" FontWeight="Bold" Foreground="#1a237e"/>
+                        </Border>
+                        <StackPanel x:Name="PrzystankiPanel"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+
+        <!-- ═══ PRAWA STRONA — mapa + slider ═══ -->
+        <Grid Grid.Column="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Info bar -->
+            <Border x:Name="InfoBar" Grid.Row="0" Background="White" Padding="16,8" BorderBrush="#e4e6ea" BorderThickness="0,0,0,1" Visibility="Collapsed">
+                <DockPanel>
+                    <StackPanel>
+                        <TextBlock x:Name="InfoTitle" FontSize="14" FontWeight="Bold" Foreground="#1a237e"/>
+                        <TextBlock x:Name="InfoDetail" FontSize="11" Foreground="#78909c" Margin="0,2,0,0"/>
+                    </StackPanel>
+                    <StackPanel DockPanel.Dock="Right" HorizontalAlignment="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock x:Name="InfoPostep" FontSize="14" FontWeight="Bold" Foreground="#2e7d32" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                        <Button Content="Eksport GPX" Click="BtnExportGpx_Click" Background="#e8f5e9" Foreground="#2e7d32"
+                                BorderThickness="0" Padding="10,4" Cursor="Hand" FontSize="10" Visibility="Collapsed" x:Name="BtnGpx">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border Background="{TemplateBinding Background}" CornerRadius="5" Padding="{TemplateBinding Padding}">
+                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                    </StackPanel>
+                </DockPanel>
+            </Border>
+
+            <!-- Mapa -->
+            <wv2:WebView2 x:Name="MapView" Grid.Row="1"/>
+
+            <!-- Slider z osią 24h -->
+            <Border x:Name="SliderBar" Grid.Row="2" Background="White" Padding="16,6,16,8" BorderBrush="#e4e6ea"
+                    BorderThickness="0,1,0,0" Visibility="Collapsed">
+                <StackPanel>
+                    <!-- Kontrolki + info -->
+                    <DockPanel Margin="0,0,0,4">
+                        <StackPanel Orientation="Horizontal">
+                            <Button Content="&#9194;" Click="BtnStep_Back10" Width="28" Height="28" FontSize="11" Background="#e8eaf6" Foreground="#3949ab" BorderThickness="0" Cursor="Hand" Padding="0"/>
+                            <Button Content="&#9664;" Click="BtnStep_Back1" Width="28" Height="28" FontSize="11" Background="#e8eaf6" Foreground="#3949ab" BorderThickness="0" Cursor="Hand" Padding="0" Margin="2,0"/>
+                            <Button x:Name="BtnPlay" Content="&#9654;" Click="BtnPlay_Click" Width="34" Height="34" FontSize="14" Background="#1565c0" Foreground="White" BorderThickness="0" Cursor="Hand" Padding="0"/>
+                            <Button Content="&#9654;" Click="BtnStep_Fwd1" Width="28" Height="28" FontSize="11" Background="#e8eaf6" Foreground="#3949ab" BorderThickness="0" Cursor="Hand" Padding="0" Margin="2,0"/>
+                            <Button Content="&#9193;" Click="BtnStep_Fwd10" Width="28" Height="28" FontSize="11" Background="#e8eaf6" Foreground="#3949ab" BorderThickness="0" Cursor="Hand" Padding="0"/>
+                            <Button x:Name="BtnSpd" Content="x10" Click="BtnSpeed_Click" Width="40" Height="28" FontSize="10" Background="#e8eaf6" Foreground="#3949ab" BorderThickness="0" Cursor="Hand" Padding="0" Margin="6,0,0,0" FontWeight="Bold"/>
+                            <Button x:Name="BtnFollowCam" Content="&#128065; Kamera" Click="BtnFollowCam_Click" Height="28" FontSize="10"
+                                    Background="#e8f5e9" Foreground="#2e7d32" BorderThickness="0" Cursor="Hand" Padding="8,0" Margin="6,0,0,0" FontWeight="SemiBold"
+                                    ToolTip="Kamera podąża za pinezką ON/OFF"/>
+                        </StackPanel>
+                        <TextBlock x:Name="SliderInfo" Text="" Foreground="#263238" FontSize="12" FontWeight="SemiBold"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <Border x:Name="ScoreBadge" DockPanel.Dock="Right" HorizontalAlignment="Right" CornerRadius="6" Padding="8,3" Visibility="Collapsed">
+                            <TextBlock x:Name="ScoreText" FontSize="11" FontWeight="Bold"/>
+                        </Border>
+                    </DockPanel>
+                    <!-- Slider -->
+                    <Slider x:Name="TrackSlider" Minimum="0" Maximum="1440" Value="0" ValueChanged="Slider_Changed" Height="22"
+                            TickFrequency="60" IsSnapToTickEnabled="False"/>
+                    <!-- Zoomowalna oś 24h — scroll myszką = zoom -->
+                    <Border BorderBrush="#e0e0e0" BorderThickness="0,1,0,0" Margin="0,2,0,0">
+                        <ScrollViewer x:Name="AxisScroll" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
+                                      PreviewMouseWheel="AxisScroll_MouseWheel">
+                            <StackPanel x:Name="AxisContainer">
+                                <Canvas x:Name="HourAxis" Height="14" ClipToBounds="True"/>
+                                <Canvas x:Name="TimelineCanvas" Height="18" ClipToBounds="True"/>
+                                <Canvas x:Name="StopMarksCanvas" Height="22" ClipToBounds="True"/>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Border>
+                    <!-- Info zoom -->
+                    <DockPanel Margin="0,2,0,0">
+                        <TextBlock x:Name="ZoomInfo" Text="Zoom: 100% — scroll myszką na osi" Foreground="#b0bec5" FontSize="8.5"/>
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
+                            <Button Content="100%" Click="BtnZoomReset_Click" Background="Transparent" Foreground="#90a4ae" BorderThickness="0" Padding="4,0" Cursor="Hand" FontSize="8.5"/>
+                        </StackPanel>
+                    </DockPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

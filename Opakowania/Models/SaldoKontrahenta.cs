@@ -24,6 +24,7 @@ namespace Kalendarz1.Opakowania.Models
 
         // Daty ostatnich dokumentów
         public DateTime? OstatniDokument { get; set; }
+        public string TypOstatniegoDok { get; set; } // "Wydanie" lub "Przyjecie"
 
         // Potwierdzenia (per typ opakowania)
         public bool E2Potwierdzone { get; set; }
@@ -55,6 +56,7 @@ namespace Kalendarz1.Opakowania.Models
         public string DREWTekst => FormatSaldo(DREW);
 
         public string OstatniDokumentTekst => OstatniDokument?.ToString("dd.MM.yy") ?? "-";
+        public string OstatniDokumentInfo => OstatniDokument.HasValue ? $"{OstatniDokument:dd.MM} {TypOstatniegoDok ?? ""}" : "-";
 
         // Kolory
         public SolidColorBrush E2Kolor => GetKolor(E2);

@@ -1264,7 +1264,10 @@ namespace Kalendarz1
                 [56] = "KartotekaTowarow",
                 [57] = "Flota",
                 [58] = "ListaPartii",
-                [59] = "TransportZmiany"
+                [59] = "TransportZmiany",
+                [60] = "OpakowaniaWinForm",
+                [61] = "UstawieniaZmianZamowien",
+                [62] = "MapaFloty"
             };
 
             for (int i = 0; i < accessString.Length && i < accessMap.Count; i++)
@@ -1279,6 +1282,12 @@ namespace Kalendarz1
             if (userPermissions.ContainsKey("SaldaOdbiorcowOpak") && userPermissions["SaldaOdbiorcowOpak"])
             {
                 userPermissions["PodsumowanieSaldOpak"] = true;
+            }
+
+            // Użytkownicy z uprawnieniem do opakowań WPF widzą też WinForms
+            if (userPermissions.ContainsKey("PodsumowanieSaldOpak") && userPermissions["PodsumowanieSaldOpak"])
+            {
+                userPermissions["OpakowaniaWinForm"] = true;
             }
         }
 
@@ -1358,7 +1367,7 @@ namespace Kalendarz1
                 "DashboardZamowien", "QuizDrobiarstwo",
 
                 // OPAKOWANIA I TRANSPORT
-                "PodsumowanieSaldOpak", "SaldaOdbiorcowOpak", "UstalanieTranportu", "Flota", "TransportZmiany",
+                "PodsumowanieSaldOpak", "SaldaOdbiorcowOpak", "OpakowaniaWinForm", "UstalanieTranportu", "Flota", "TransportZmiany", "MapaFloty",
 
                 // FINANSE I ZARZĄDZANIE
                 "PulpitZarzadu", "DaneFinansowe", "CentrumSpotkan", "NotatkiZeSpotkan",
@@ -1368,7 +1377,7 @@ namespace Kalendarz1
                 "KontrolaGodzin", "WnioskiUrlopowe",
 
                 // ADMINISTRACJA SYSTEMU
-                "ZmianyUHodowcow", "AdminPermissions", "CallReminders", "ProductImages",
+                "ZmianyUHodowcow", "AdminPermissions", "CallReminders", "ProductImages", "UstawieniaZmianZamowien",
 
                 // Nieużywane ale w systemie uprawnień
                 "RezerwacjaKlas", "ReklamacjeJakosc"
@@ -1552,7 +1561,12 @@ namespace Kalendarz1
                     new MenuItemConfig("ProductImages", "Zdjęcia Produktów",
                         "Zarządzanie zdjęciami produktów świeżych i mrożonych - podgląd, dodawanie, usuwanie",
                         Color.FromArgb(198, 40, 40), // Czerwony #C62828
-                        () => new WPF.ProductImageManagerWindow(), "📸", "Zdjęcia")
+                        () => new WPF.ProductImageManagerWindow(), "📸", "Zdjęcia"),
+
+                    new MenuItemConfig("UstawieniaZmianZamowien", "Ustawienia Zmian",
+                        "Konfiguracja godzin, powiadomień i blokad edycji zamówień",
+                        Color.FromArgb(229, 57, 53), // Czerwony #E53935
+                        () => new UstawieniaZmianWindow(), "⚙", "Ust. Zmian")
                 }
             };
 
@@ -1710,6 +1724,11 @@ namespace Kalendarz1
                         Color.FromArgb(0, 172, 193), // #00ACC1
                         () => new OpakowaniaWindow(), "📦", "Opakowania"),
 
+                    new MenuItemConfig("OpakowaniaWinForm", "Opakowania (WinForms)",
+                        "Salda opakowań zwrotnych - wersja WinForms",
+                        Color.FromArgb(128, 222, 234), // #80DEEA
+                        () => new Opakowania.Forms.OpakowaniaForm(), "📦", "Opak. WF"),
+
                     new MenuItemConfig("UstalanieTranportu", "Planowanie Transportu",
                         "Organizacja tras dostaw do klientów z przydziałem pojazdów i kierowców",
                         Color.FromArgb(0, 131, 143), // Turkusowy #00838F
@@ -1722,7 +1741,12 @@ namespace Kalendarz1
                     new MenuItemConfig("Flota", "Flota Pojazdów",
                         "Zarządzanie kierowcami, pojazdami, przypisaniami i serwisem - dokumenty, alerty, historia",
                         Color.FromArgb(0, 96, 100), // Ciemny turkusowy #006064
-                        () => new Flota.Views.FlotaWindow(), "🚛", "Flota")
+                        () => new Flota.Views.FlotaWindow(), "🚛", "Flota"),
+
+                    new MenuItemConfig("MapaFloty", "Mapa Floty",
+                        "Mapa live GPS pojazdów - pozycje, trasy, prędkości, geofence (Webfleet.connect)",
+                        Color.FromArgb(0, 77, 64), // Bardzo ciemny turkusowy #004D40
+                        () => new MapaFloty.MapaFlotyWindow(), "🗺️", "Mapa Floty")
                 },
 
                 // ═══════════════════════════════════════════════════════════════════════════

@@ -2,10 +2,15 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using System.Net.Http;
+using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
+using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using Microsoft.Data.SqlClient;
 
 namespace Kalendarz1.WPF
@@ -15,6 +20,47 @@ namespace Kalendarz1.WPF
         private readonly string _connLibra;
         private readonly string _connHandel;
         private readonly string _connTransport;
+        private readonly System.Text.StringBuilder _debugLog = new();
+        private Dictionary<int, string> _etaCache = new();
+        private static readonly Dictionary<string, string> _osrmCache = new(); // URL → JSON response (trwa przez sesję)
+        private static readonly System.Net.Http.HttpClient _httpEta = new() { Timeout = TimeSpan.FromSeconds(10) };
+        private static Dictionary<string, BitmapSource> _avatarCache = new(StringComparer.OrdinalIgnoreCase);
+        private Dictionary<string, string> _userIdToName = new();
+
+        [DllImport("gdi32.dll")] private static extern bool DeleteObject(IntPtr hObject);
+
+        private BitmapSource GetAvatar(string nameOrId, int size = 28)
+        {
+            if (string.IsNullOrEmpty(nameOrId)) return null;
+            if (_avatarCache.TryGetValue(nameOrId, out var cached)) return cached;
+            try
+            {
+                BitmapSource bmp = null;
+                // Spróbuj załadować z dysku
+                if (UserAvatarManager.HasAvatar(nameOrId))
+                    using (var av = UserAvatarManager.GetAvatarRounded(nameOrId, size))
+                        if (av != null) bmp = BmpToBmpSrc(av);
+                // Fallback — generuj z inicjałów
+                if (bmp == null)
+                {
+                    var displayName = _userIdToName.TryGetValue(nameOrId, out var n) ? n : nameOrId;
+                    using var defAv = UserAvatarManager.GenerateDefaultAvatar(displayName, nameOrId, size);
+                    bmp = BmpToBmpSrc(defAv);
+                }
+                if (bmp != null) { bmp.Freeze(); _avatarCache[nameOrId] = bmp; }
+                return bmp;
+            }
+            catch { return null; }
+        }
+
+        private BitmapSource BmpToBmpSrc(System.Drawing.Image img)
+        {
+            if (img == null) return null;
+            using var bmp = new System.Drawing.Bitmap(img);
+            var hBmp = bmp.GetHbitmap();
+            try { return Imaging.CreateBitmapSourceFromHBitmap(hBmp, IntPtr.Zero, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions()); }
+            finally { DeleteObject(hBmp); }
+        }
         private readonly DataTable _dtTransport = new();
         private DateTime _selectedDate;
         private bool _isLoading;
@@ -70,7 +116,15 @@ namespace Kalendarz1.WPF
             _dtTransport.Columns.Add("GodzWyjazdu", typeof(string));
             _dtTransport.Columns.Add("Trasa", typeof(string));
             _dtTransport.Columns.Add("Status", typeof(string));
-            _dtTransport.Columns.Add("GrupaIndex", typeof(int)); // Do sortowania grup
+            _dtTransport.Columns.Add("GrupaIndex", typeof(int));
+            _dtTransport.Columns.Add("TelefonKierowcy", typeof(string));
+            _dtTransport.Columns.Add("Lokalizacja", typeof(string));
+            _dtTransport.Columns.Add("ETA", typeof(string));
+            _dtTransport.Columns.Add("KursUtworzyl", typeof(string));
+            _dtTransport.Columns.Add("KursUtworzonoUTC", typeof(string));
+            _dtTransport.Columns.Add("Kolejnosc", typeof(int));
+            _dtTransport.Columns.Add("AdresDostawy", typeof(string));
+            _dtTransport.Columns.Add("Awizacja", typeof(string));
 
             dgTransport.ItemsSource = _dtTransport.DefaultView;
             SetupDataGrid();
@@ -91,90 +145,18 @@ namespace Kalendarz1.WPF
         {
             dgTransport.Columns.Clear();
 
-            dgTransport.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Data",
-                Binding = new Binding("DataUboju") { StringFormat = "yyyy-MM-dd" },
-                Width = new DataGridLength(90)
-            });
-
-            dgTransport.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Odbiorca",
-                Binding = new Binding("Odbiorca"),
-                Width = new DataGridLength(200)
-            });
-
-            dgTransport.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Hand",
-                Binding = new Binding("Handlowiec"),
-                Width = new DataGridLength(55),
-                ElementStyle = (Style)FindResource("BoldCellStyle")
-            });
-
-            dgTransport.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Zam.",
-                Binding = new Binding("IloscZamowiona") { StringFormat = "N0" },
-                Width = new DataGridLength(70),
-                ElementStyle = (Style)FindResource("RightAlignedCellStyle")
-            });
-
-            dgTransport.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Wyd.",
-                Binding = new Binding("IloscWydana") { StringFormat = "N0" },
-                Width = new DataGridLength(70),
-                ElementStyle = (Style)FindResource("RightAlignedCellStyle")
-            });
-
-            dgTransport.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Palety",
-                Binding = new Binding("Palety") { StringFormat = "N1" },
-                Width = new DataGridLength(65),
-                ElementStyle = (Style)FindResource("RightAlignedCellStyle")
-            });
-
-            dgTransport.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Kierowca",
-                Binding = new Binding("Kierowca"),
-                Width = new DataGridLength(160)
-            });
-
-            dgTransport.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Pojazd",
-                Binding = new Binding("Pojazd"),
-                Width = new DataGridLength(100),
-                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
-            });
-
-            dgTransport.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Godz",
-                Binding = new Binding("GodzWyjazdu"),
-                Width = new DataGridLength(60),
-                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
-            });
-
-            dgTransport.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Trasa",
-                Binding = new Binding("Trasa"),
-                Width = new DataGridLength(1, DataGridLengthUnitType.Star),
-                MinWidth = 150
-            });
-
-            dgTransport.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Status",
-                Binding = new Binding("Status"),
-                Width = new DataGridLength(90),
-                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
-            });
+            dgTransport.Columns.Add(new DataGridTextColumn { Header = "Odbiorca", Binding = new Binding("Odbiorca"), Width = new DataGridLength(140) });
+            dgTransport.Columns.Add(new DataGridTextColumn { Header = "#", Binding = new Binding("Kolejnosc"), Width = new DataGridLength(28), ElementStyle = (Style)FindResource("CenterAlignedCellStyle") });
+            dgTransport.Columns.Add(new DataGridTextColumn { Header = "Adres dostawy", Binding = new Binding("AdresDostawy"), Width = new DataGridLength(150) });
+            dgTransport.Columns.Add(CreateAvatarColumn("Handlowiec", "Handlowiec", 115));
+            dgTransport.Columns.Add(new DataGridTextColumn { Header = "Kierowca", Binding = new Binding("Kierowca"), Width = new DataGridLength(115) });
+            dgTransport.Columns.Add(new DataGridTextColumn { Header = "Tel.", Binding = new Binding("TelefonKierowcy"), Width = new DataGridLength(85) });
+            dgTransport.Columns.Add(new DataGridTextColumn { Header = "Pojazd", Binding = new Binding("Pojazd"), Width = new DataGridLength(80), ElementStyle = (Style)FindResource("CenterAlignedCellStyle") });
+            dgTransport.Columns.Add(new DataGridTextColumn { Header = "Wyjazd z bazy", Binding = new Binding("GodzWyjazdu"), Width = new DataGridLength(110) });
+            dgTransport.Columns.Add(new DataGridTextColumn { Header = "ETA przyjazdu", Binding = new Binding("ETA"), Width = new DataGridLength(110), ElementStyle = (Style)FindResource("BoldCellStyle") });
+            dgTransport.Columns.Add(new DataGridTextColumn { Header = "Awizacja", Binding = new Binding("Awizacja"), Width = new DataGridLength(105) });
+            dgTransport.Columns.Add(new DataGridTextColumn { Header = "GPS", Binding = new Binding("Lokalizacja"), Width = new DataGridLength(1, DataGridLengthUnitType.Star), MinWidth = 100 });
+            dgTransport.Columns.Add(CreateAvatarColumn("Utworzył kurs", "KursUtworzyl", 120));
 
             dgTransport.LoadingRow += DgTransport_LoadingRow;
         }
@@ -244,6 +226,10 @@ namespace Kalendarz1.WPF
         {
             if (_isLoading) return;
             _isLoading = true;
+            _debugLog.Clear();
+            _sw.Restart();
+            ShowLoader("Pobieranie danych...");
+            Log($"START data={_selectedDate:yyyy-MM-dd}");
             txtStatus.Text = "Ładowanie...";
 
             try
@@ -274,11 +260,11 @@ namespace Kalendarz1.WPF
                 }
 
                 // Pobierz zamówienia TYLKO dla wybranej daty (wg DataUboju)
-                var orders = new List<(int Id, int KlientId, decimal IloscZam, decimal IloscWyd, decimal Palety, long? KursId, DateTime DataUboju)>();
+                var orders = new List<(int Id, int KlientId, decimal IloscZam, decimal IloscWyd, decimal Palety, long? KursId, DateTime DataUboju, DateTime? DataPrzyjazdu)>();
                 await using (var cnLibra = new SqlConnection(_connLibra))
                 {
                     await cnLibra.OpenAsync();
-                    const string sql = @"SELECT Id, KlientId, TransportKursID, DataUboju
+                    const string sql = @"SELECT Id, KlientId, TransportKursID, DataUboju, DataPrzyjazdu
                                          FROM dbo.ZamowieniaMieso
                                          WHERE Status <> 'Anulowane'
                                            AND DataUboju = @SelectedDate
@@ -292,7 +278,8 @@ namespace Kalendarz1.WPF
                         int klientId = rdr.IsDBNull(1) ? 0 : rdr.GetInt32(1);
                         long? kursId = rdr.IsDBNull(2) ? null : rdr.GetInt64(2);
                         DateTime dataUboju = rdr.IsDBNull(3) ? DateTime.MinValue : rdr.GetDateTime(3);
-                        orders.Add((id, klientId, 0m, 0m, 0m, kursId, dataUboju));
+                        DateTime? dataPrzyjazdu = rdr.IsDBNull(4) ? null : rdr.GetDateTime(4);
+                        orders.Add((id, klientId, 0m, 0m, 0m, kursId, dataUboju, dataPrzyjazdu));
                     }
                 }
 
@@ -318,7 +305,9 @@ namespace Kalendarz1.WPF
                 }
 
                 // Pobierz dane transportu
-                var transportDetails = new Dictionary<long, (string Kierowca, string Pojazd, string Trasa, TimeSpan? GodzWyjazdu)>();
+                var transportDetails = new Dictionary<long, (string Kierowca, string Pojazd, string Trasa, TimeSpan? GodzWyjazdu, string TelKierowcy, string Utworzyl, string Utworzono)>();
+                // Kolejność ładunków per zamówienie
+                var orderKolejnosc = new Dictionary<int, int>();
                 var kursIds = orders.Where(o => o.KursId.HasValue).Select(o => o.KursId!.Value).Distinct().ToList();
                 if (kursIds.Any())
                 {
@@ -329,7 +318,8 @@ namespace Kalendarz1.WPF
                         var kursIdsList = string.Join(",", kursIds);
                         var sqlKurs = $@"SELECT k.KursID, k.Trasa, k.GodzWyjazdu,
                                         CONCAT(ki.Imie, ' ', ki.Nazwisko) as Kierowca,
-                                        p.Rejestracja
+                                        p.Rejestracja, ki.Telefon, k.Utworzyl,
+                                        FORMAT(k.UtworzonoUTC, 'dd.MM HH:mm') as Utworzono
                                         FROM dbo.Kurs k
                                         LEFT JOIN dbo.Kierowca ki ON k.KierowcaID = ki.KierowcaID
                                         LEFT JOIN dbo.Pojazd p ON k.PojazdID = p.PojazdID
@@ -343,11 +333,123 @@ namespace Kalendarz1.WPF
                             TimeSpan? godzWyjazdu = rdKurs.IsDBNull(2) ? null : rdKurs.GetTimeSpan(2);
                             string kierowca = rdKurs.IsDBNull(3) ? "" : rdKurs.GetString(3);
                             string pojazd = rdKurs.IsDBNull(4) ? "" : rdKurs.GetString(4);
-                            transportDetails[kursId] = (kierowca, pojazd, trasa, godzWyjazdu);
+                            string telKier = rdKurs.IsDBNull(5) ? "" : rdKurs.GetString(5);
+                            string utworzyl = rdKurs.IsDBNull(6) ? "" : rdKurs.GetString(6);
+                            string utworzono = rdKurs.IsDBNull(7) ? "" : rdKurs.GetString(7);
+                            transportDetails[kursId] = (kierowca, pojazd, trasa, godzWyjazdu, telKier, utworzyl, utworzono);
+                        }
+
+                        // Kolejność ładunków — osobne połączenie (MARS workaround)
+                        await using var cnLad = new SqlConnection(_connTransport);
+                        await cnLad.OpenAsync();
+                        var sqlLad = $@"SELECT KodKlienta, Kolejnosc, KursID FROM dbo.Ladunek
+                            WHERE KursID IN ({kursIdsList}) ORDER BY KursID, Kolejnosc";
+                        await using var cmdLad = new SqlCommand(sqlLad, cnLad);
+                        await using var rdLad = await cmdLad.ExecuteReaderAsync();
+                        while (await rdLad.ReadAsync())
+                        {
+                            var kodKl = rdLad.IsDBNull(0) ? "" : rdLad.GetString(0);
+                            var kol = rdLad.GetInt32(1);
+                            // Mapuj ZAM_xxx → OrderId
+                            if (kodKl.StartsWith("ZAM_") && int.TryParse(kodKl.Substring(4), out var zamId))
+                                orderKolejnosc[zamId] = kol;
+                        }
+                        Log($"Ładunki: {orderKolejnosc.Count} mapowań ZAM→Kolejnosc");
+                        foreach (var kvp in orderKolejnosc.Take(5))
+                            Log($"  ZAM_{kvp.Key} → kolejność {kvp.Value}");
+                    }
+                    catch (Exception ex) { Log($"BŁĄD transport: {ex.Message}"); }
+                }
+                Log($"Kursy: {transportDetails.Count}, Kolejności: {orderKolejnosc.Count}");
+                ShowLoader("Pobieranie GPS...");
+
+                // Pobierz pozycje GPS pojazdów z Webfleet (dla kursów z dzisiaj)
+                // Mapuj: PojazdID → (adres, speed)
+                var pojazdGps = new Dictionary<int, (string addr, int speed)>();
+                // GPS — dla dzisiaj pobierz live, dla przeszłości pokaż "historyczne"
+                Log($"GPS: data={_selectedDate:yyyy-MM-dd}, dziś={DateTime.Today:yyyy-MM-dd}");
+                var isToday = _selectedDate.Date == DateTime.Today;
+                // Pobieramy GPS zawsze (żywe pozycje) — nawet dla przeszłej daty pokaże ostatnią znaną pozycję
+                if (true)
+                {
+                    try
+                    {
+                        var svc = new MapaFloty.KursMonitorService();
+                        await using var cnT2 = new SqlConnection(_connTransport);
+                        await cnT2.OpenAsync();
+
+                        await using var chk = new SqlCommand("SELECT COUNT(*) FROM sys.tables WHERE name='WebfleetVehicleMapping'", cnT2);
+                        var tblExists = Convert.ToInt32(await chk.ExecuteScalarAsync()) > 0;
+                        Log($"GPS: WebfleetVehicleMapping exists={tblExists}");
+
+                        if (tblExists)
+                        {
+                            var pojazdToObj = new Dictionary<int, string>();
+                            await using var cmdMap = new SqlCommand(
+                                "SELECT PojazdID, WebfleetObjectNo FROM WebfleetVehicleMapping WHERE PojazdID IS NOT NULL AND WebfleetObjectNo IS NOT NULL", cnT2);
+                            await using (var rdMap = await cmdMap.ExecuteReaderAsync())
+                                while (await rdMap.ReadAsync())
+                                    pojazdToObj[Convert.ToInt32(rdMap["PojazdID"])] = rdMap["WebfleetObjectNo"]?.ToString() ?? "";
+                            Log($"GPS: {pojazdToObj.Count} mapowań pojazd→webfleet");
+                            foreach (var kvp2 in pojazdToObj)
+                                Log($"  PojazdID={kvp2.Key} → ObjectNo={kvp2.Value}");
+
+                            var kursToPojazdId = new Dictionary<long, int>();
+                            if (kursIds.Any())
+                            {
+                                var sqlKP = $"SELECT KursID, PojazdID FROM Kurs WHERE KursID IN ({string.Join(",", kursIds)}) AND PojazdID IS NOT NULL";
+                                await using var cmdKP = new SqlCommand(sqlKP, cnT2);
+                                await using var rdKP = await cmdKP.ExecuteReaderAsync();
+                                while (await rdKP.ReadAsync())
+                                    kursToPojazdId[rdKP.GetInt64(0)] = rdKP.GetInt32(1);
+                            }
+                            Log($"GPS: {kursToPojazdId.Count} kursów z PojazdID");
+                            foreach (var kvp2 in kursToPojazdId)
+                                Log($"  KursID={kvp2.Key} → PojazdID={kvp2.Value}");
+
+                            // GPS równolegle — wszystkie naraz
+                            var gpsTasks = new List<(int pojazdId, string objNo, Task<(double lat, double lon, int speed, string address)?> task)>();
+                            var queriedObjects = new HashSet<string>();
+                            foreach (var kvp in kursToPojazdId)
+                            {
+                                if (!pojazdToObj.TryGetValue(kvp.Value, out var objNo) || string.IsNullOrEmpty(objNo)) continue;
+                                if (!queriedObjects.Add(objNo)) continue;
+                                gpsTasks.Add((kvp.Value, objNo, svc.PobierzPozycjeAsync(objNo)));
+                            }
+                            Log($"GPS: odpytuję {gpsTasks.Count} pojazdów równolegle...");
+                            try { await Task.WhenAll(gpsTasks.Select(t => t.task)); } catch { }
+                            foreach (var t in gpsTasks)
+                            {
+                                try
+                                {
+                                    var pos = t.task.IsCompletedSuccessfully ? t.task.Result : null;
+                                    if (pos.HasValue)
+                                    {
+                                        pojazdGps[t.pojazdId] = (pos.Value.address, pos.Value.speed);
+                                        Log($"GPS: {t.objNo} → {pos.Value.speed} km/h — {pos.Value.address}");
+                                    }
+                                }
+                                catch { }
+                            }
                         }
                     }
-                    catch { /* Ignoruj błędy transportu */ }
+                    catch { }
                 }
+
+                // Mapuj kursId → pojazdId
+                var kursPojazdMap = new Dictionary<long, int>();
+                try
+                {
+                    await using var cnTP = new SqlConnection(_connTransport);
+                    await cnTP.OpenAsync();
+                    if (kursIds.Any())
+                    {
+                        await using var cmdKPM = new SqlCommand($"SELECT KursID, PojazdID FROM Kurs WHERE KursID IN ({string.Join(",", kursIds)}) AND PojazdID IS NOT NULL", cnTP);
+                        await using var rdKPM = await cmdKPM.ExecuteReaderAsync();
+                        while (await rdKPM.ReadAsync()) kursPojazdMap[rdKPM.GetInt64(0)] = rdKPM.GetInt32(1);
+                    }
+                }
+                catch { }
 
                 // Przypisz indeksy grup do sortowania
                 var kursIdToGroupIndex = new Dictionary<long, int>();
@@ -359,49 +461,192 @@ namespace Kalendarz1.WPF
                     kursIdToGroupIndex[kursId] = groupIdx++;
                 }
 
+                // Pobierz nazwy użytkowników (operators w LibraNet) do zamiany UserID → imię
+                var userNames = new Dictionary<string, string>();
+                try
+                {
+                    await using var cnU = new SqlConnection(_connLibra);
+                    await cnU.OpenAsync();
+                    await using var cmdU = new SqlCommand("SELECT CAST(ID AS varchar), Name FROM operators", cnU);
+                    await using var rdU = await cmdU.ExecuteReaderAsync();
+                    while (await rdU.ReadAsync())
+                    {
+                        userNames[rdU.GetString(0)] = rdU.IsDBNull(1) ? "" : rdU.GetString(1);
+                        _userIdToName[rdU.GetString(0)] = rdU.IsDBNull(1) ? "" : rdU.GetString(1);
+                    }
+                }
+                catch { }
+
+                // Oblicz ETA z OSRM — per kurs, po kolei przystanki
+                _etaCache.Clear();
+                const double bazaLat = 51.86857, bazaLon = 19.79476;
+                var addrSvc = new MapaFloty.WebfleetOrderService();
+                try { await addrSvc.EnsureTablesAsync(); } catch { }
+
+                // Przygotuj dane OSRM per kurs
+                var osrmJobs = new List<(long kursId, int startMin, List<int> orderIds, string url)>();
+                // Pobierz adresy batch — wszystkie zamówienia naraz
+                ShowLoader("Pobieranie adresów klientów...");
+                Log("Adresy: start pobierania...");
+                var allKody = orders.Where(o => o.KursId.HasValue && orderKolejnosc.ContainsKey(o.Id))
+                    .Select(o => $"ZAM_{o.Id}").Distinct().ToList();
+                Log($"Adresy: {allKody.Count} kodów do sprawdzenia");
+                Dictionary<string, MapaFloty.WebfleetOrderService.KlientAdresInfo> allAdresy;
+                try { allAdresy = await addrSvc.PobierzAdresySzybkoAsync(allKody); } catch { allAdresy = new(); }
+                Log($"Adresy: {allAdresy.Count} znalezionych (z cache/Symfonii/geo)");
+
+                foreach (var kursId in kursIds)
+                {
+                    if (!transportDetails.TryGetValue(kursId, out var td2) || td2.GodzWyjazdu == null) continue;
+                    var przystanki = orders.Where(x => x.KursId == kursId && orderKolejnosc.ContainsKey(x.Id))
+                        .Select(o => (o.Id, kol: orderKolejnosc[o.Id], kod: $"ZAM_{o.Id}"))
+                        .OrderBy(x => x.kol).ToList();
+                    if (przystanki.Count == 0) continue;
+
+                    var points = new List<(double lat, double lon)> { (bazaLat, bazaLon) };
+                    var oids = new List<int>();
+                    foreach (var p in przystanki)
+                    {
+                        if (allAdresy.TryGetValue(p.kod, out var a) && a.Lat != 0)
+                        { points.Add((a.Lat, a.Lon)); oids.Add(p.Id); }
+                    }
+                    if (points.Count < 2) continue;
+                    var ci = System.Globalization.CultureInfo.InvariantCulture;
+                    var coords = string.Join(";", points.Select(p => $"{p.lon.ToString("F5", ci)},{p.lat.ToString("F5", ci)}"));
+                    osrmJobs.Add((kursId, (int)td2.GodzWyjazdu.Value.TotalMinutes, oids,
+                        $"https://router.project-osrm.org/route/v1/driving/{coords}?overview=false&steps=false&annotations=duration"));
+                }
+
+                // OSRM — równolegle
+                ShowLoader($"Obliczanie ETA ({osrmJobs.Count} tras)...");
+                Log($"OSRM: {osrmJobs.Count} kursów do obliczenia...");
+                // Sprawdź cache OSRM
+                var osrmTasks = osrmJobs.Select(j =>
+                {
+                    if (_osrmCache.TryGetValue(j.url, out var cached))
+                        return (j, task: Task.FromResult(cached));
+                    return (j, task: _httpEta.GetStringAsync(j.url));
+                }).ToList();
+                try { await Task.WhenAll(osrmTasks.Select(t => t.task)); } catch { }
+                // Zapisz do cache
+                foreach (var (job, task) in osrmTasks)
+                    if (task.IsCompletedSuccessfully && !_osrmCache.ContainsKey(job.url))
+                        _osrmCache[job.url] = task.Result;
+                foreach (var (job, task) in osrmTasks)
+                {
+                    try
+                    {
+                        if (!task.IsCompletedSuccessfully) continue;
+                        var json = Newtonsoft.Json.Linq.JObject.Parse(task.Result);
+                        var legs = json["routes"]?[0]?["legs"];
+                        if (legs == null) continue;
+                        // ETA per przystanek: wyjazd + dojazd leg0 = ETA pkt1
+                        // ETA pkt2 = ETA pkt1 + 50 min rozładunek + dojazd leg1
+                        // ETA pkt3 = ETA pkt2 + 50 min rozładunek + dojazd leg2
+                        double cumMin = job.startMin; // start = godzina wyjazdu z bazy
+                        for (int li = 0; li < legs.Count() && li < job.orderIds.Count; li++)
+                        {
+                            if (li > 0) cumMin += 50; // 50 min rozładunek na poprzednim przystanku
+                            var legDurationMin = (double)(legs[li]?["duration"] ?? 0) / 60.0;
+                            cumMin += legDurationMin; // czas dojazdu z poprzedniego punktu
+
+                            var etaTotalMin = (int)cumMin;
+                            var etaH = etaTotalMin / 60; var etaM = etaTotalMin % 60;
+                            var etaDt = _selectedDate.Date.AddMinutes(etaTotalMin);
+                            var dzEta = etaDt.ToString("ddd", new System.Globalization.CultureInfo("pl-PL")).ToUpper();
+                            if (etaH >= 24)
+                                _etaCache[job.orderIds[li]] = $"{etaDt:dd.MM} {dzEta} {etaH - 24:D2}:{etaM:D2}";
+                            else
+                                _etaCache[job.orderIds[li]] = $"{etaDt:dd.MM} {dzEta} {etaH:D2}:{etaM:D2}";
+                        }
+                    }
+                    catch { }
+                }
+                Log($"ETA: obliczono dla {_etaCache.Count} zamówień");
+                ShowLoader("Budowanie tabeli...");
+
                 // Buduj wiersze
                 foreach (var order in orders)
                 {
                     var (name, salesman) = contractors.TryGetValue(order.KlientId, out var c) ? c : ($"KH {order.KlientId}", "");
                     var (zam, wyd, palety) = orderQuantities.TryGetValue(order.Id, out var q) ? q : (0m, 0m, 0m);
 
-                    string kierowca = "";
-                    string pojazd = "";
-                    string trasa = "";
-                    string godzWyjazdu = "";
+                    string kierowca = "", pojazd = "", trasa = "", godzWyjazdu = "";
+                    string telKier = "", lokalizacja = "", eta = "", utworzyl = "", utworzono = "";
                     string status = "Brak";
-                    int grupaIndex = int.MaxValue; // Bez transportu na końcu
+                    int grupaIndex = int.MaxValue;
+                    int kolejnosc = 0;
 
                     if (order.KursId.HasValue && transportDetails.TryGetValue(order.KursId.Value, out var td))
                     {
                         kierowca = td.Kierowca;
                         pojazd = td.Pojazd;
                         trasa = td.Trasa;
-                        godzWyjazdu = td.GodzWyjazdu?.ToString(@"hh\:mm") ?? "";
+                        if (td.GodzWyjazdu.HasValue)
+                        {
+                            var dzKursu = _selectedDate.ToString("ddd", new System.Globalization.CultureInfo("pl-PL")).ToUpper();
+                            godzWyjazdu = $"{_selectedDate:dd.MM} {dzKursu} {td.GodzWyjazdu.Value:hh\\:mm}";
+                        }
+                        telKier = td.TelKierowcy;
+                        utworzyl = td.Utworzyl;
+                        utworzono = td.Utworzono;
                         status = "Przypisany";
                         grupaIndex = kursIdToGroupIndex.TryGetValue(order.KursId.Value, out var gi) ? gi : int.MaxValue - 1;
                     }
 
+                    // Zamień ID twórcy na nazwę
+                    if (!string.IsNullOrEmpty(utworzyl) && userNames.TryGetValue(utworzyl, out var uName))
+                        utworzyl = uName;
+
+                    // Lokalizacja GPS
+                    if (order.KursId.HasValue)
+                    {
+                        var hasKursMap = kursPojazdMap.TryGetValue(order.KursId.Value, out var pid2);
+                        if (hasKursMap && pojazdGps.TryGetValue(pid2, out var gps))
+                            lokalizacja = gps.speed > 0 ? $"{gps.speed} km/h — {gps.addr}" : $"Postój — {gps.addr}";
+                    }
+
+                    // Kolejność na kursie
+                    orderKolejnosc.TryGetValue(order.Id, out kolejnosc);
+
+                    // ETA — OSRM (czas dojazdu z bazy do klienta wg kolejności + rozładunek)
+                    if (kolejnosc > 0 && !string.IsNullOrEmpty(godzWyjazdu) && _etaCache.TryGetValue(order.Id, out var etaVal))
+                        eta = etaVal;
+
+                    // Adres dostawy (z cache OSRM adresów)
+                    var adresDostawy = "";
+                    if (allAdresy.TryGetValue($"ZAM_{order.Id}", out var addrInfo))
+                        adresDostawy = addrInfo.PelnyAdres;
+
+                    // Awizacja — data + dzień tygodnia + godzina
+                    var awizacja = "";
+                    if (order.DataPrzyjazdu.HasValue)
+                    {
+                        var dp = order.DataPrzyjazdu.Value;
+                        var dzien = dp.ToString("ddd", new System.Globalization.CultureInfo("pl-PL")).ToUpper();
+                        awizacja = dp.Hour > 0 ? $"{dp:dd.MM} {dzien} {dp:HH:mm}" : $"{dp:dd.MM} {dzien}";
+                    }
+
                     _dtTransport.Rows.Add(
-                        order.Id,
-                        order.KlientId,
-                        order.KursId ?? 0L,
-                        order.DataUboju,
-                        name,
-                        salesman,
-                        zam,
-                        wyd,
-                        palety,
-                        kierowca,
-                        pojazd,
-                        godzWyjazdu,
-                        trasa,
-                        status,
-                        grupaIndex);
+                        order.Id, order.KlientId, order.KursId ?? 0L, order.DataUboju,
+                        name, salesman, zam, wyd, palety,
+                        kierowca, pojazd, godzWyjazdu, trasa, status, grupaIndex,
+                        telKier, lokalizacja, eta, utworzyl, utworzono, kolejnosc,
+                        adresDostawy, awizacja);
                 }
 
-                // Sortuj wg grupy (trasy), potem godziny wyjazdu, potem odbiorcy
-                _dtTransport.DefaultView.Sort = "GrupaIndex ASC, GodzWyjazdu ASC, Trasa ASC, Odbiorca ASC";
+                // Podsumowanie (debug)
+                var withGps = 0; var withEta = 0; var withKol = 0;
+                foreach (DataRow row in _dtTransport.Rows)
+                {
+                    if (!string.IsNullOrEmpty(row["Lokalizacja"]?.ToString())) withGps++;
+                    if (!string.IsNullOrEmpty(row["ETA"]?.ToString())) withEta++;
+                    if (row["Kolejnosc"] != DBNull.Value && Convert.ToInt32(row["Kolejnosc"]) > 0) withKol++;
+                }
+                Log($"WYNIK: {_dtTransport.Rows.Count} wierszy, GPS={withGps}, ETA={withEta}, Kolejność={withKol}, pojazdGps={pojazdGps.Count}");
+
+                // Sortuj wg grupy (trasy), kolejności na kursie
+                _dtTransport.DefaultView.Sort = "GrupaIndex ASC, Kolejnosc ASC, GodzWyjazdu ASC, Trasa ASC, Odbiorca ASC";
 
                 // Aktualizuj statystyki
                 UpdateStatistics();
@@ -414,7 +659,10 @@ namespace Kalendarz1.WPF
             finally
             {
                 _isLoading = false;
-                txtStatus.Text = "Gotowy";
+                _sw.Stop();
+                Log($"DONE w {_sw.ElapsedMilliseconds}ms");
+                HideLoader();
+                txtStatus.Text = $"Gotowy ({_sw.ElapsedMilliseconds}ms)";
             }
         }
 
@@ -485,6 +733,101 @@ namespace Kalendarz1.WPF
         private void CmbFilterStatus_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (IsLoaded) ApplyFilters();
+        }
+
+        private DataGridTemplateColumn CreateAvatarColumn(string header, string bindingName, double width)
+        {
+            var col = new DataGridTemplateColumn { Header = header, Width = new DataGridLength(width) };
+
+            var template = new DataTemplate();
+            var stackFactory = new FrameworkElementFactory(typeof(StackPanel));
+            stackFactory.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
+            stackFactory.SetValue(StackPanel.VerticalAlignmentProperty, VerticalAlignment.Center);
+            stackFactory.SetValue(StackPanel.MarginProperty, new Thickness(2));
+
+            // Grid z avatarem (Border z inicjałami + Ellipse na zdjęcie)
+            var gridFactory = new FrameworkElementFactory(typeof(Grid));
+            gridFactory.SetValue(Grid.WidthProperty, 28.0);
+            gridFactory.SetValue(Grid.HeightProperty, 28.0);
+            gridFactory.SetValue(Grid.MarginProperty, new Thickness(0, 0, 5, 0));
+
+            // Border z inicjałami (fallback)
+            var borderFactory = new FrameworkElementFactory(typeof(Border));
+            borderFactory.SetValue(Border.WidthProperty, 28.0);
+            borderFactory.SetValue(Border.HeightProperty, 28.0);
+            borderFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(14));
+            borderFactory.SetValue(Border.BackgroundProperty, new SolidColorBrush(Color.FromRgb(66, 165, 245)));
+
+            var initialsFactory = new FrameworkElementFactory(typeof(TextBlock));
+            initialsFactory.SetValue(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+            initialsFactory.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+            initialsFactory.SetValue(TextBlock.ForegroundProperty, Brushes.White);
+            initialsFactory.SetValue(TextBlock.FontSizeProperty, 10.0);
+            initialsFactory.SetValue(TextBlock.FontWeightProperty, FontWeights.SemiBold);
+            initialsFactory.SetBinding(TextBlock.TextProperty, new Binding(bindingName)
+            {
+                Converter = new InitialsConverter()
+            });
+            borderFactory.AppendChild(initialsFactory);
+            gridFactory.AppendChild(borderFactory);
+
+            // Ellipse na zdjęcie (domyślnie hidden, LoadingRow ustawia)
+            var ellipseFactory = new FrameworkElementFactory(typeof(System.Windows.Shapes.Ellipse));
+            ellipseFactory.SetValue(System.Windows.Shapes.Ellipse.WidthProperty, 28.0);
+            ellipseFactory.SetValue(System.Windows.Shapes.Ellipse.HeightProperty, 28.0);
+            ellipseFactory.SetValue(UIElement.VisibilityProperty, Visibility.Collapsed);
+            ellipseFactory.SetValue(System.Windows.Shapes.Ellipse.NameProperty, $"av_{bindingName}");
+            gridFactory.AppendChild(ellipseFactory);
+
+            stackFactory.AppendChild(gridFactory);
+
+            // Tekst (nazwa)
+            var txtFactory = new FrameworkElementFactory(typeof(TextBlock));
+            txtFactory.SetBinding(TextBlock.TextProperty, new Binding(bindingName));
+            txtFactory.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+            txtFactory.SetValue(TextBlock.FontSizeProperty, 11.0);
+            txtFactory.SetValue(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis);
+            stackFactory.AppendChild(txtFactory);
+
+            template.VisualTree = stackFactory;
+            col.CellTemplate = template;
+
+            // Nie ucinaj avatarów
+            var cellStyle = new Style(typeof(DataGridCell));
+            cellStyle.Setters.Add(new Setter(UIElement.ClipToBoundsProperty, false));
+            col.CellStyle = cellStyle;
+
+            return col;
+        }
+
+        // Converter: nazwa → inicjały (2 litery)
+        private class InitialsConverter : System.Windows.Data.IValueConverter
+        {
+            public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+            {
+                var name = value?.ToString() ?? "";
+                if (string.IsNullOrWhiteSpace(name)) return "?";
+                var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length >= 2) return $"{parts[0][0]}{parts[1][0]}".ToUpper();
+                return name.Length >= 2 ? name[..2].ToUpper() : name.ToUpper();
+            }
+            public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture) => value;
+        }
+
+        private System.Diagnostics.Stopwatch _sw = new();
+        private void Log(string msg) => _debugLog.AppendLine($"[{_sw.ElapsedMilliseconds,5}ms] {msg}");
+
+        private void ShowLoader(string text) => Dispatcher.Invoke(() => { LoaderOverlay.Visibility = Visibility.Visible; LoaderDetail.Text = text; });
+        private void HideLoader() => Dispatcher.Invoke(() => LoaderOverlay.Visibility = Visibility.Collapsed);
+
+        private void BtnDebug_Click(object sender, RoutedEventArgs e)
+        {
+            var text = _debugLog.ToString();
+            if (string.IsNullOrEmpty(text)) text = "Brak logów — załaduj dane najpierw";
+            var result = MessageBox.Show(text + "\n\nSkopiować do schowka?", "Debug — Transport",
+                MessageBoxButton.YesNo, MessageBoxImage.Information);
+            if (result == MessageBoxResult.Yes)
+                Clipboard.SetText(text);
         }
 
         private void BtnClose_Click(object sender, RoutedEventArgs e)

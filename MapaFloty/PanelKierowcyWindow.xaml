@@ -1,0 +1,59 @@
+<Window x:Class="Kalendarz1.MapaFloty.PanelKierowcyWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Panel kierowców — Flota Live"
+        Width="1100" Height="700" MinWidth="800" MinHeight="500"
+        WindowStartupLocation="CenterOwner"
+        Background="#f5f5f8">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Nagłówek -->
+        <DockPanel Grid.Row="0" Margin="0,0,0,16">
+            <StackPanel>
+                <TextBlock Text="Panel kierowców" FontSize="22" FontWeight="Bold" Foreground="#1a237e"/>
+                <TextBlock Text="Przegląd aktywności kierowców na podstawie danych GPS Webfleet" Foreground="#78909c" FontSize="12" Margin="0,4,0,0"/>
+            </StackPanel>
+            <StackPanel DockPanel.Dock="Right" HorizontalAlignment="Right" Orientation="Horizontal">
+                <Button Content="Eksport PDF" Click="BtnExportPdf_Click"
+                        Background="#e3f2fd" Foreground="#1565c0" BorderThickness="0"
+                        Padding="16,8" Cursor="Hand" FontSize="12" Margin="0,0,8,0"/>
+                <Button Content="Zamknij" Click="BtnClose_Click"
+                        Background="#eceff1" Foreground="#546e7a" BorderBrush="#cfd8dc" BorderThickness="1"
+                        Padding="16,8" Cursor="Hand" FontSize="12"/>
+            </StackPanel>
+        </DockPanel>
+
+        <!-- Statystyki zbiorcze -->
+        <Border Grid.Row="1" Background="White" CornerRadius="10" Padding="16" Margin="0,0,0,16"
+                BorderBrush="#e0e0e0" BorderThickness="1">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <StackPanel Margin="0,0,40,0" HorizontalAlignment="Center">
+                    <TextBlock x:Name="TotalDriversText" Text="0" FontSize="28" FontWeight="ExtraBold" Foreground="#1a237e" HorizontalAlignment="Center"/>
+                    <TextBlock Text="Kierowców" FontSize="10" Foreground="#78909c" HorizontalAlignment="Center"/>
+                </StackPanel>
+                <StackPanel Margin="0,0,40,0" HorizontalAlignment="Center">
+                    <TextBlock x:Name="ActiveDriversText" Text="0" FontSize="28" FontWeight="ExtraBold" Foreground="#2e7d32" HorizontalAlignment="Center"/>
+                    <TextBlock Text="Aktywnych" FontSize="10" Foreground="#78909c" HorizontalAlignment="Center"/>
+                </StackPanel>
+                <StackPanel Margin="0,0,40,0" HorizontalAlignment="Center">
+                    <TextBlock x:Name="TotalSpeedText" Text="0" FontSize="28" FontWeight="ExtraBold" Foreground="#5e35b1" HorizontalAlignment="Center"/>
+                    <TextBlock Text="Śr. prędkość" FontSize="10" Foreground="#78909c" HorizontalAlignment="Center"/>
+                </StackPanel>
+                <StackPanel HorizontalAlignment="Center">
+                    <TextBlock x:Name="MaxSpeedText" Text="0" FontSize="28" FontWeight="ExtraBold" Foreground="#c62828" HorizontalAlignment="Center"/>
+                    <TextBlock Text="Max prędkość" FontSize="10" Foreground="#78909c" HorizontalAlignment="Center"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- Lista kierowców -->
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+            <StackPanel x:Name="DriverListPanel"/>
+        </ScrollViewer>
+    </Grid>
+</Window>

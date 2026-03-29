@@ -201,12 +201,13 @@ namespace Kalendarz1
                     // Wstaw nowe rekordy
                     while (data3Value <= data2Value)
                     {
-                        string insertSQL = $"INSERT INTO {tabela} (Lp, Data, Cena) VALUES (@Lp, @Data, @Cena)";
+                        string insertSQL = $"INSERT INTO {tabela} (Lp, Data, Cena, KtoDodal, KiedyDodal) VALUES (@Lp, @Data, @Cena, @KtoDodal, GETDATE())";
                         using (SqlCommand insertCmd = new SqlCommand(insertSQL, cnn))
                         {
                             insertCmd.Parameters.AddWithValue("@Data", data3Value.Date);
                             insertCmd.Parameters.AddWithValue("@Lp", maxLP);
                             insertCmd.Parameters.AddWithValue("@Cena", string.IsNullOrEmpty(Cena.Text) ? (object)DBNull.Value : Convert.ToDecimal(Cena.Text));
+                            insertCmd.Parameters.AddWithValue("@KtoDodal", int.TryParse(App.UserID, out int uid) ? (object)uid : DBNull.Value);
                             insertCmd.ExecuteNonQuery();
                         }
 

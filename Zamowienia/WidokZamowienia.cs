@@ -1129,6 +1129,21 @@ namespace Kalendarz1
 
             // Uruchom pulsowanie wiersza
             TriggerRowPulse(e.RowIndex);
+
+            // Auto-otwórz dialog klas wagowych po wpisaniu ilości Kurczaka A
+            if (changedColumnName is "Ilosc" or "Pojemniki" or "Palety")
+            {
+                string kodUpper = kodTowaru.ToUpper();
+                if (kodUpper.Contains("KURCZAK A") || kodUpper.Contains("TUSZKA"))
+                {
+                    decimal iloscDlaDialogu = ParseDec(row["Ilosc"]);
+                    if (iloscDlaDialogu > 0)
+                    {
+                        // Opóźnienie żeby grid zdążył się odświeżyć
+                        BeginInvoke(new Action(() => PokazDialogKlasWagowych(iloscDlaDialogu)));
+                    }
+                }
+            }
         }
 
         private void TriggerRowPulse(int rowIndex)
@@ -1446,6 +1461,33 @@ namespace Kalendarz1
                 }
             }
 
+            // Sprawdź blokadę edycji z ustawień admina
+            if (_idZamowieniaDoEdycji.HasValue && ZmianyZamowienSettingsService.ShouldBlockEdit(UserID))
+            {
+                var settingsBlk = ZmianyZamowienSettingsService.GetSettingsCached();
+                ShowWarning(
+                    $"Edycja zamówień jest zablokowana po godzinie {settingsBlk.GodzinaBlokadyEdycji:hh\\:mm}.\nSkontaktuj się z administratorem.",
+                    "Blokada edycji");
+                return;
+            }
+
+            // Wymagaj komentarza przy zmianie (jeśli włączone w ustawieniach)
+            string? komentarzZmiany = null;
+            if (_idZamowieniaDoEdycji.HasValue)
+            {
+                var settingsKom = ZmianyZamowienSettingsService.GetSettingsCached();
+                if (settingsKom.CzyWymagacKomentarzaPrzyZmianie)
+                {
+                    using var inputDialog = new InputBoxDialog("Komentarz do zmiany", "Podaj powód zmiany zamówienia:", "");
+                    if (inputDialog.ShowDialog(this) != System.Windows.Forms.DialogResult.OK || string.IsNullOrWhiteSpace(inputDialog.Value))
+                    {
+                        ShowWarning("Komentarz jest wymagany przy zmianie zamówienia.", "Wymagany komentarz");
+                        return;
+                    }
+                    komentarzZmiany = inputDialog.Value;
+                }
+            }
+
             Cursor = Cursors.WaitCursor;
             btnZapisz.Enabled = false;
 
@@ -1454,6 +1496,18 @@ namespace Kalendarz1
                 await SaveOrderAsync();
                 string summary = BuildOrderSummary();
                 bool isEdit = _idZamowieniaDoEdycji.HasValue;
+
+                // Powiadom o zmianach w zamówieniu wg ustawień admina
+                if (isEdit && _oryginalneWartosci != null && ZmianyZamowienSettingsService.ShouldShowNotification(UserID))
+                {
+                    // Sprawdź minimalną zmianę kg
+                    decimal kgDelta = CalculateKgDelta();
+                    var settingsNotif = ZmianyZamowienSettingsService.GetSettingsCached();
+                    if (Math.Abs(kgDelta) >= settingsNotif.MinimalnaZmianaKgDoPowiadomienia)
+                    {
+                        ShowZmianyPo11(summary);
+                    }
+                }
 
                 // Zbuduj mapę kod→zdjęcie dla podsumowania
                 var kodToImage = new Dictionary<string, Image>();
@@ -1989,6 +2043,200 @@ namespace Kalendarz1
                 await HistoriaZmianService.LogujEdycje(orderId, UserID, App.UserFullName,
                     opisDodatkowy: $"Zapisano zamówienie bez wykrytych zmian dla: {odbiorcaNazwa}");
             }
+        }
+
+        /// <summary>
+        /// Po godzinie 11 — wyświetla komunikat ze zmianami zamówienia (kg, palety, pojemniki, awizacja, data produkcji)
+        /// </summary>
+        private void ShowZmianyPo11(string orderSummary)
+        {
+            if (_oryginalneWartosci == null) return;
+
+            var zmiany = new List<string>();
+            var odbiorca = _kontrahenci.FirstOrDefault(k => k.Id == _selectedKlientId);
+            string odbiorcaNazwa = odbiorca?.Nazwa ?? "Nieznany odbiorca";
+
+            // Sumy pojemników i palet
+            decimal nowePojemniki = 0, nowePalety = 0, noweKg = 0;
+            decimal starePojemniki = 0, starePalety = 0, stareKg = 0;
+
+            foreach (DataRow r in _dt.Rows)
+            {
+                decimal ilosc = r.Field<decimal?>("Ilosc") ?? 0m;
+                if (ilosc > 0)
+                {
+                    nowePojemniki += r.Field<decimal?>("Pojemniki") ?? 0m;
+                    nowePalety += r.Field<decimal?>("Palety") ?? 0m;
+                    noweKg += ilosc;
+                }
+            }
+
+            foreach (var orig in _oryginalneWartosci.Towary.Values)
+            {
+                starePojemniki += orig.Pojemniki;
+                starePalety += orig.Palety;
+                stareKg += orig.Ilosc;
+            }
+
+            // Zmiana kg
+            if (stareKg != noweKg)
+                zmiany.Add($"≡  Waga:  {stareKg:N0} kg  →  {noweKg:N0} kg  ({(noweKg - stareKg > 0 ? "+" : "")}{noweKg - stareKg:N0})");
+
+            // Zmiana palet
+            if (starePalety != nowePalety)
+                zmiany.Add($"■  Palety:  {starePalety:N1}  →  {nowePalety:N1}  ({(nowePalety - starePalety > 0 ? "+" : "")}{nowePalety - starePalety:N1})");
+
+            // Zmiana pojemników
+            if (starePojemniki != nowePojemniki)
+                zmiany.Add($"▣  Pojemniki:  {starePojemniki:N0}  →  {nowePojemniki:N0}  ({(nowePojemniki - starePojemniki > 0 ? "+" : "")}{nowePojemniki - starePojemniki:N0})");
+
+            // Zmiana daty awizacji
+            DateTime nowaPrzyjazd = dateTimePickerSprzedaz.Value.Date.Add(dateTimePickerGodzinaPrzyjazdu.Value.TimeOfDay);
+            if (_oryginalneWartosci.DataPrzyjazdu != nowaPrzyjazd)
+                zmiany.Add($"○  Awizacja:  {_oryginalneWartosci.DataPrzyjazdu:yyyy-MM-dd HH:mm}  →  {nowaPrzyjazd:yyyy-MM-dd HH:mm}");
+
+            // Zmiana daty produkcji
+            if (dateTimePickerProdukcji != null && _oryginalneWartosci.DataProdukcji.HasValue)
+            {
+                DateTime nowaDataProd = dateTimePickerProdukcji.Value.Date;
+                if (_oryginalneWartosci.DataProdukcji.Value.Date != nowaDataProd)
+                    zmiany.Add($"⚒  Data produkcji:  {_oryginalneWartosci.DataProdukcji.Value:yyyy-MM-dd}  →  {nowaDataProd:yyyy-MM-dd}");
+            }
+
+            // Zmiany w produktach (dodane, usunięte, zmienione ilości)
+            var noweIlosci = new Dictionary<int, (string nazwa, decimal ilosc)>();
+            foreach (DataRow r in _dt.Rows)
+            {
+                decimal ilosc = r.Field<decimal?>("Ilosc") ?? 0m;
+                if (ilosc > 0)
+                {
+                    int kodTowaru = r.Field<int>("Id");
+                    string nazwa = r.Field<string>("Kod") ?? $"Towar #{kodTowaru}";
+                    noweIlosci[kodTowaru] = (nazwa, ilosc);
+                }
+            }
+
+            foreach (var orig in _oryginalneWartosci.Towary)
+            {
+                if (noweIlosci.TryGetValue(orig.Key, out var nowy))
+                {
+                    if (orig.Value.Ilosc != nowy.ilosc)
+                        zmiany.Add($"    {orig.Value.Nazwa}:  {orig.Value.Ilosc:N0}  →  {nowy.ilosc:N0} kg");
+                }
+                else
+                {
+                    zmiany.Add($"    ✖ Usunięto: {orig.Value.Nazwa} ({orig.Value.Ilosc:N0} kg)");
+                }
+            }
+            foreach (var nowy in noweIlosci)
+            {
+                if (!_oryginalneWartosci.Towary.ContainsKey(nowy.Key))
+                    zmiany.Add($"    ▶ Dodano: {nowy.Value.nazwa} ({nowy.Value.ilosc:N0} kg)");
+            }
+
+            if (zmiany.Count == 0) return;
+
+            var ustawienia = ZmianyZamowienSettingsService.GetSettingsCached();
+            string tytul = $"⚠ Zmiana zamówienia po godz. {ustawienia.GodzinaOdKtorejPowiadamiac:hh\\:mm} — {odbiorcaNazwa}";
+            string tresc =
+                $"Użytkownik: {App.UserFullName ?? UserID}\n" +
+                $"Godzina: {DateTime.Now:HH:mm}\n" +
+                $"Odbiorca: {odbiorcaNazwa}\n\n" +
+                "ZMIANY:\n" +
+                string.Join("\n", zmiany);
+
+            switch (ustawienia.RodzajPowiadomienia)
+            {
+                case "Toast":
+                    string toastMsg = $"Zmiana zamówienia — {odbiorcaNazwa}\n" +
+                        $"{App.UserFullName ?? UserID}  ·  {DateTime.Now:HH:mm}\n" +
+                        string.Join("\n", zmiany.Take(5));
+                    if (zmiany.Count > 5) toastMsg += $"\n… i {zmiany.Count - 5} więcej";
+                    ToastService.Show(toastMsg, ToastType.Warning, 12000);
+                    break;
+
+                case "StatusBar":
+                    // Zmiana koloru tła paska tytułowego na chwilę + tekst w pasku
+                    string statusMsg = $"⚠ {odbiorcaNazwa}: {zmiany.Count} zmian(y)" +
+                        (stareKg != noweKg ? $"  |  Waga: {stareKg:N0}→{noweKg:N0} kg" : "");
+                    ShowStatusBarNotification(statusMsg);
+                    break;
+
+                default: // "MessageBox"
+                    MessageBox.Show(this, tresc, tytul, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    break;
+            }
+        }
+
+        private void ShowStatusBarNotification(string message)
+        {
+            // Tworzy tymczasowy panel na dole formularza z komunikatem
+            var panel = new Panel();
+            panel.Dock = DockStyle.Bottom;
+            panel.Height = 38;
+            panel.BackColor = Color.FromArgb(255, 152, 0); // Amber
+
+            var lbl = new Label();
+            lbl.Text = message;
+            lbl.ForeColor = Color.FromArgb(30, 30, 30);
+            lbl.Font = new Font(Font.FontFamily, 10f, FontStyle.Bold);
+            lbl.Dock = DockStyle.Fill;
+            lbl.TextAlign = ContentAlignment.MiddleLeft;
+            lbl.Padding = new Padding(12, 0, 0, 0);
+
+            var btnClose = new Button();
+            btnClose.Text = "✕";
+            btnClose.Dock = DockStyle.Right;
+            btnClose.Width = 40;
+            btnClose.FlatStyle = FlatStyle.Flat;
+            btnClose.FlatAppearance.BorderSize = 0;
+            btnClose.BackColor = Color.FromArgb(245, 124, 0);
+            btnClose.ForeColor = Color.FromArgb(30, 30, 30);
+            btnClose.Font = new Font(Font.FontFamily, 10f, FontStyle.Bold);
+            btnClose.Cursor = Cursors.Hand;
+            btnClose.Click += (s, e) =>
+            {
+                Controls.Remove(panel);
+                panel.Dispose();
+            };
+
+            panel.Controls.Add(lbl);
+            panel.Controls.Add(btnClose);
+            Controls.Add(panel);
+            panel.BringToFront();
+
+            // Auto-ukryj po 12 sekundach
+            var timer = new System.Windows.Forms.Timer { Interval = 12000 };
+            timer.Tick += (s, e) =>
+            {
+                timer.Stop();
+                timer.Dispose();
+                if (Controls.Contains(panel))
+                {
+                    Controls.Remove(panel);
+                    panel.Dispose();
+                }
+            };
+            timer.Start();
+        }
+
+        private decimal CalculateKgDelta()
+        {
+            if (_oryginalneWartosci == null) return 0;
+
+            decimal noweKg = 0;
+            foreach (DataRow r in _dt.Rows)
+            {
+                noweKg += r.Field<decimal?>("Ilosc") ?? 0m;
+            }
+
+            decimal stareKg = 0;
+            foreach (var orig in _oryginalneWartosci.Towary.Values)
+            {
+                stareKg += orig.Ilosc;
+            }
+
+            return noweKg - stareKg;
         }
         #endregion
 
@@ -3828,8 +4076,10 @@ namespace Kalendarz1
         {
             if (iloscKg <= 0) return;
 
-            // Pobierz datę produkcji
+            // Pobierz datę produkcji — jeśli datepicker produkcji == dziś a data odbioru jest inna, użyj odbioru
             DateTime dataProdukcji = dateTimePickerProdukcji?.Value.Date ?? DateTime.Today;
+            if (dataProdukcji == DateTime.Today && dateTimePickerSprzedaz != null && dateTimePickerSprzedaz.Value.Date != DateTime.Today)
+                dataProdukcji = dateTimePickerSprzedaz.Value.Date;
 
             // Przekaż dane do dialogu
             using var dialog = new KlasyWagoweDialog(

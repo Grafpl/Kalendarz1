@@ -142,69 +142,6 @@ namespace Kalendarz1
         }
     }
 
-    // ==================== KPI Model ====================
-    public class ZakupowiecKpi : INotifyPropertyChanged
-    {
-        public int Pozycja { get; set; }
-        public string Nazwa { get; set; }
-        public string UserID { get; set; }
-        public int Utworzone { get; set; }
-        public int Potwierdzone { get; set; }
-        public double ProcentPotwierdzonych { get; set; }
-        public double SredniCzasPotwGodziny { get; set; }
-        public int LiczbaDostawcow { get; set; }
-        public long Wolumen { get; set; }
-        public double Produktywnosc { get; set; }
-
-        public string Inicjaly
-        {
-            get
-            {
-                if (string.IsNullOrWhiteSpace(Nazwa)) return "?";
-                var parts = Nazwa.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                if (parts.Length >= 2)
-                    return $"{parts[0][0]}{parts[1][0]}".ToUpper();
-                return Nazwa.Length >= 2 ? Nazwa.Substring(0, 2).ToUpper() : Nazwa.ToUpper();
-            }
-        }
-
-        public Brush KolorBrush { get; set; }
-
-        private ImageSource _avatarSource;
-        public ImageSource AvatarSource
-        {
-            get => _avatarSource;
-            set
-            {
-                _avatarSource = value;
-                OnPropertyChanged(nameof(AvatarSource));
-            }
-        }
-
-        public string ProcentPotwTekst => $"{ProcentPotwierdzonych:F0}%";
-        public double ProcentPotwWidth => ProcentPotwierdzonych * 0.6; // max ~60px for 100%
-
-        public string SredniCzasPotwTekst
-        {
-            get
-            {
-                if (SredniCzasPotwGodziny <= 0) return "-";
-                if (SredniCzasPotwGodziny < 1) return $"{SredniCzasPotwGodziny * 60:F0} min";
-                if (SredniCzasPotwGodziny < 24) return $"{SredniCzasPotwGodziny:F1} godz.";
-                return $"{SredniCzasPotwGodziny / 24:F1} dni";
-            }
-        }
-
-        public string WolumenTekst => Wolumen.ToString("N0");
-        public string ProduktywTekst => $"{Produktywnosc:F1}";
-
-        public event PropertyChangedEventHandler PropertyChanged;
-        protected virtual void OnPropertyChanged(string propertyName)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        }
-    }
-
     // ==================== CROSS-MODULE KPI Model ====================
     public class CrossModuleKpi : INotifyPropertyChanged
     {
@@ -240,18 +177,20 @@ namespace Kalendarz1
         public int KalendarzDostawy { get; set; }
         public int KalendarzPotwWagi { get; set; }
         public int KalendarzPotwSztuk { get; set; }
-        public int KalendarzTotal => KalendarzDostawy + KalendarzPotwWagi + KalendarzPotwSztuk;
+        public int KalendarzCeny { get; set; }
+        public int KalendarzEdycje { get; set; }
+        public int KalendarzNotatki { get; set; }
+        public int KalendarzTotal => KalendarzDostawy + KalendarzPotwWagi + KalendarzPotwSztuk + KalendarzCeny + KalendarzEdycje + KalendarzNotatki;
 
         // Specyfikacja (wprowadzenia + weryfikacje z RozliczeniaZatwierdzenia)
         public int SpecWprowadzenia { get; set; }
         public int SpecWeryfikacje { get; set; }
         public int SpecyfikacjaTotal => SpecWprowadzenia + SpecWeryfikacje;
 
-        // Pozyskiwanie Hodowcow (CRM: Pozyskiwanie_Aktywnosci + OcenyDostawcow)
-        public int HodowcyTelefony { get; set; }
+        // Pozyskiwanie Hodowcow (CRM: Pozyskiwanie_Aktywnosci)
+        public int HodowcyZmianyStatusu { get; set; }
         public int HodowcyNotatki { get; set; }
-        public int HodowcyOceny { get; set; }
-        public int HodowcyTotal => HodowcyTelefony + HodowcyNotatki + HodowcyOceny;
+        public int HodowcyTotal => HodowcyZmianyStatusu + HodowcyNotatki;
 
         // Dokumenty
         public int DokumentyUtworzone { get; set; }
@@ -268,13 +207,103 @@ namespace Kalendarz1
         public int SumaAkcji => WstawieniaTotal + KalendarzTotal + SpecyfikacjaTotal
                               + HodowcyTotal + DokumentyTotal + WnioskiTotal;
 
+        // Audyt - analiza wzorcow pracy
+        public int AudytPusteEdycje { get; set; }
+        public int AudytSzybkieSerie { get; set; }
+        public int AudytSamoPotwierdzenia { get; set; }
+        public int AudytOdwrocenia { get; set; }
+        public int AudytPozaGodzinami { get; set; }
+        public int AudytPowtorzoneNotatki { get; set; }
+        public int AudytTotal => AudytPusteEdycje + AudytSzybkieSerie + AudytSamoPotwierdzenia + AudytOdwrocenia + AudytPozaGodzinami + AudytPowtorzoneNotatki;
+
+        // Efektywnosc - stosunek realnych akcji do edycji
+        public double Efektywnosc => SumaAkcji > 0 ? Math.Round((double)(SumaAkcji - KalendarzEdycje) / SumaAkcji * 100, 0) : 0;
+        public string EfektywnoscTekst => $"{Efektywnosc:F0}%";
+
+        // ===== CZAS REAKCJI =====
+        public double CzasPotwWstawienAvgMin { get; set; }
+        public double CzasPotwWagiAvgMin { get; set; }
+        public double LeadTimeDni { get; set; }
+        public double RozpietoscGodzin { get; set; }
+
+        public string CzasPotwWstawienTekst => CzasPotwWstawienAvgMin > 0 ? $"{CzasPotwWstawienAvgMin:F0} min" : "-";
+        public string CzasPotwWagiTekst => CzasPotwWagiAvgMin > 0 ? $"{CzasPotwWagiAvgMin:F0} min" : "-";
+        public string LeadTimeTekst => LeadTimeDni > 0 ? $"{LeadTimeDni:F1} dni" : "-";
+        public string RozpietoscGodzinTekst => RozpietoscGodzin > 0 ? $"{RozpietoscGodzin:F1} h" : "-";
+
+        public string CzasTooltip => $"Sr. czas potw. wstawien: {CzasPotwWstawienTekst}\nSr. czas potw. wagi: {CzasPotwWagiTekst}\nLead time dostaw: {LeadTimeTekst}\nRozpietosc godzin pracy: {RozpietoscGodzinTekst}";
+        public string CzasSummary
+        {
+            get
+            {
+                var parts = new List<string>();
+                if (CzasPotwWstawienAvgMin > 0) parts.Add($"Potw:{CzasPotwWstawienAvgMin:F0}m");
+                if (LeadTimeDni > 0) parts.Add($"Lead:{LeadTimeDni:F1}d");
+                if (RozpietoscGodzin > 0) parts.Add($"{RozpietoscGodzin:F1}h");
+                return parts.Count > 0 ? string.Join(" ", parts) : "-";
+            }
+        }
+
+        // ===== JAKOSC =====
+        public double WstawieniaPotwProc { get; set; }
+        public int UnikatoweDostawcy { get; set; }
+        public long WolumenSzt { get; set; }
+        public double WolumenKg { get; set; }
+
+        public string WstawieniaPotwProcTekst => WstawieniaPotwProc > 0 ? $"{WstawieniaPotwProc:F0}%" : "-";
+        public string UnikatoweDostawcyTekst => UnikatoweDostawcy > 0 ? UnikatoweDostawcy.ToString() : "-";
+        public string WolumenSztTekst => WolumenSzt > 0 ? WolumenSzt.ToString("N0") : "-";
+        public string WolumenKgTekst => WolumenKg > 0 ? $"{WolumenKg:N0} kg" : "-";
+
+        public string JakoscTooltip => $"% potwierdzen wstawien: {WstawieniaPotwProcTekst}\nUnikatowi dostawcy: {UnikatoweDostawcyTekst}\nWolumen sztuk: {WolumenSztTekst}\nWolumen wagi: {WolumenKgTekst}";
+        public string JakoscSummary
+        {
+            get
+            {
+                var parts = new List<string>();
+                if (WstawieniaPotwProc > 0) parts.Add($"{WstawieniaPotwProc:F0}%");
+                if (UnikatoweDostawcy > 0) parts.Add($"{UnikatoweDostawcy}dost.");
+                if (WolumenSzt > 0) parts.Add($"{WolumenSzt:N0}szt");
+                return parts.Count > 0 ? string.Join(" ", parts) : "-";
+            }
+        }
+
+        // ===== REGULARNOSC =====
+        public int DniAktywne { get; set; }
+        public double AktywnoscProc { get; set; }
+        public int NajdluzszaSeria { get; set; }
+        public double SrAkcjiNaDzien { get; set; }
+
+        public string DniAktywneTekst => DniAktywne > 0 ? DniAktywne.ToString() : "-";
+        public string AktywnoscProcTekst => AktywnoscProc > 0 ? $"{AktywnoscProc:F0}%" : "-";
+        public string NajdluzszaSeriaTekst => NajdluzszaSeria > 0 ? $"{NajdluzszaSeria} dni" : "-";
+        public string SrAkcjiNaDzienTekst => SrAkcjiNaDzien > 0 ? $"{SrAkcjiNaDzien:F1}" : "-";
+
+        public string RegularnoscTooltip => $"Dni aktywne: {DniAktywneTekst}\nAktywnosc: {AktywnoscProcTekst}\nNajdluzsza seria: {NajdluzszaSeriaTekst}\nSr. akcji/dzien: {SrAkcjiNaDzienTekst}";
+        public string RegularnoscSummary
+        {
+            get
+            {
+                var parts = new List<string>();
+                if (DniAktywne > 0) parts.Add($"{DniAktywne}dni");
+                if (AktywnoscProc > 0) parts.Add($"{AktywnoscProc:F0}%");
+                if (NajdluzszaSeria > 0) parts.Add($"seria:{NajdluzszaSeria}");
+                return parts.Count > 0 ? string.Join(" ", parts) : "-";
+            }
+        }
+
+        // Audyt procent
+        public double AudytProc => SumaAkcji > 0 ? Math.Round((double)AudytTotal / SumaAkcji * 100, 1) : 0;
+        public string AudytProcTekst => AudytProc > 0 ? $"{AudytProc:F1}%" : "-";
+
         // Tooltips
         public string WstawieniaTooltip => $"Utworzone: {WstawieniaUtworzone}\nPotwierdzone: {WstawieniaPotwierdzone}\n\nZrodlo: WstawieniaKurczakow\nDwuklik = szczegoly";
-        public string KalendarzTooltip => $"Dostawy utworzone: {KalendarzDostawy}\nPotw. wagi: {KalendarzPotwWagi}\nPotw. sztuk: {KalendarzPotwSztuk}\n\nZrodlo: HarmonogramDostaw\nDwuklik = szczegoly";
+        public string KalendarzTooltip => $"Dostawy utworzone: {KalendarzDostawy}\nPotw. wagi: {KalendarzPotwWagi}\nPotw. sztuk: {KalendarzPotwSztuk}\nCeny dodane: {KalendarzCeny}\nEdycje (historia zmian): {KalendarzEdycje}\nNotatki dodane: {KalendarzNotatki}\n\nZrodla: HarmonogramDostaw, AuditLog_Dostawy, Notatki, CenyMinister./Roln./Tuszki\nDwuklik = szczegoly";
         public string SpecyfikacjaTooltip => $"Wprowadzenia: {SpecWprowadzenia}\nWeryfikacje: {SpecWeryfikacje}\n\nZrodlo: RozliczeniaZatwierdzenia\nDwuklik = szczegoly";
-        public string HodowcyTooltip => $"Telefony do hodowcow: {HodowcyTelefony}\nNotatki CRM: {HodowcyNotatki}\nOceny dostawcow: {HodowcyOceny}\n\nZrodlo: Pozyskiwanie_Aktywnosci + OcenyDostawcow\nDwuklik = szczegoly";
+        public string HodowcyTooltip => $"Zmiany statusu: {HodowcyZmianyStatusu}\nNotatki: {HodowcyNotatki}\n\nZrodlo: Pozyskiwanie_Aktywnosci\nDwuklik = szczegoly";
         public string DokumentyTooltip => $"Utworzone: {DokumentyUtworzone}\nWyslane: {DokumentyWyslane}\nOtrzymane: {DokumentyOtrzymane}\n\nZrodlo: HarmonogramDostaw (flagi dok.)\nDwuklik = szczegoly";
         public string WnioskiTooltip => $"Zlozone: {WnioskiZlozone}\nRozpatrzone: {WnioskiRozpatrzone}\n\nZrodlo: DostawcyCR\nDwuklik = szczegoly";
+        public string AudytTooltip => $"Edycje bez zmian: {AudytPusteEdycje}\nWielorazowe edycje: {AudytSzybkieSerie}\nUtw. i potw. ta sama osoba: {AudytSamoPotwierdzenia}\nCofniete do oryginalu: {AudytOdwrocenia}\nPoza godzinami (6-20): {AudytPozaGodzinami}\nPowtorzone notatki: {AudytPowtorzoneNotatki}\n\nDwuklik = szczegoly";
 
         public event PropertyChangedEventHandler PropertyChanged;
         protected virtual void OnPropertyChanged(string propertyName)
@@ -466,7 +495,6 @@ namespace Kalendarz1
                 DrawPieChart(canvasPotwierdzone, potwierdzone);
 
                 LoadDetailsTable();
-                LoadKpiRanking();
                 LoadCrossModuleKpi();
             }
             catch (Exception ex)
@@ -821,153 +849,6 @@ namespace Kalendarz1
             }
         }
 
-        // ==================== KPI RANKING ====================
-
-        private void LoadKpiRanking()
-        {
-            string query = @"
-                SELECT
-                    ISNULL(o.Name, 'Nieznany') AS Nazwa,
-                    CAST(w.KtoStwo AS VARCHAR(20)) AS UserID,
-                    COUNT(*) AS Utworzone,
-                    SUM(CASE WHEN w.isConf = 1 THEN 1 ELSE 0 END) AS Potwierdzone,
-                    AVG(CASE WHEN w.isConf = 1 AND w.DataConf IS NOT NULL AND w.DataUtw IS NOT NULL
-                        THEN DATEDIFF(MINUTE, w.DataUtw, w.DataConf)
-                        ELSE NULL END) AS SrCzasMinut,
-                    COUNT(DISTINCT w.Dostawca) AS LiczbaDostawcow,
-                    ISNULL(SUM(CAST(w.IloscWstawienia AS BIGINT)), 0) AS Wolumen,
-                    DATEDIFF(DAY, @StartDate, @EndDate) AS DniOkresu
-                FROM dbo.WstawieniaKurczakow w
-                LEFT JOIN dbo.operators o ON w.KtoStwo = o.ID
-                WHERE w.DataUtw >= @StartDate AND w.DataUtw < @EndDate
-                    AND w.KtoStwo IS NOT NULL
-                GROUP BY o.Name, w.KtoStwo
-                ORDER BY Utworzone DESC";
-
-            var kpiList = new List<ZakupowiecKpi>();
-
-            using (var connection = new SqlConnection(connectionString))
-            using (var cmd = new SqlCommand(query, connection))
-            {
-                cmd.Parameters.AddWithValue("@StartDate", currentStartDate);
-                cmd.Parameters.AddWithValue("@EndDate", currentEndDate);
-
-                connection.Open();
-                using (var reader = cmd.ExecuteReader())
-                {
-                    int pos = 1;
-                    while (reader.Read())
-                    {
-                        int utworzone = Convert.ToInt32(reader["Utworzone"]);
-                        int potwierdzone = Convert.ToInt32(reader["Potwierdzone"]);
-                        double srCzasMinut = reader["SrCzasMinut"] != DBNull.Value ? Convert.ToDouble(reader["SrCzasMinut"]) : 0;
-                        int dniOkresu = Math.Max(1, Convert.ToInt32(reader["DniOkresu"]));
-                        // Estimate working days as ~5/7 of calendar days, minimum 1
-                        int dniRobocze = Math.Max(1, (int)Math.Ceiling(dniOkresu * 5.0 / 7.0));
-
-                        string nazwa = reader["Nazwa"].ToString();
-                        var kpi = new ZakupowiecKpi
-                        {
-                            Pozycja = pos++,
-                            Nazwa = nazwa,
-                            UserID = reader["UserID"]?.ToString(),
-                            Utworzone = utworzone,
-                            Potwierdzone = potwierdzone,
-                            ProcentPotwierdzonych = utworzone > 0 ? (double)potwierdzone / utworzone * 100 : 0,
-                            SredniCzasPotwGodziny = srCzasMinut / 60.0,
-                            LiczbaDostawcow = Convert.ToInt32(reader["LiczbaDostawcow"]),
-                            Wolumen = Convert.ToInt64(reader["Wolumen"]),
-                            Produktywnosc = (double)utworzone / dniRobocze,
-                            KolorBrush = new SolidColorBrush(GetColorForUser(nazwa))
-                        };
-
-                        kpiList.Add(kpi);
-                    }
-                }
-            }
-
-            dgKpiRanking.ItemsSource = kpiList;
-
-            // Load avatars
-            foreach (var kpi in kpiList)
-            {
-                if (!string.IsNullOrEmpty(kpi.UserID))
-                {
-                    string userId = kpi.UserID;
-                    Task.Run(() =>
-                    {
-                        var avatarBitmap = UserAvatarManager.GetAvatar(userId);
-                        if (avatarBitmap != null)
-                        {
-                            Application.Current.Dispatcher.Invoke(() =>
-                            {
-                                kpi.AvatarSource = ConvertToImageSource(avatarBitmap);
-                            });
-                        }
-                    });
-                }
-            }
-
-            // Update top performer cards
-            UpdateTopPerformers(kpiList);
-        }
-
-        private void UpdateTopPerformers(List<ZakupowiecKpi> kpiList)
-        {
-            if (kpiList.Count == 0)
-            {
-                txtTopWolumen.Text = "-";
-                txtTopWolumenVal.Text = "";
-                txtTopCzas.Text = "-";
-                txtTopCzasVal.Text = "";
-                txtTopProcent.Text = "-";
-                txtTopProcentVal.Text = "";
-                txtTopDostawcy.Text = "-";
-                txtTopDostawcyVal.Text = "";
-                return;
-            }
-
-            // Najwyzszy wolumen
-            var topWol = kpiList.OrderByDescending(k => k.Wolumen).First();
-            txtTopWolumen.Text = topWol.Nazwa;
-            txtTopWolumenVal.Text = $"{topWol.WolumenTekst} szt.";
-
-            // Najszybsze potwierdzenie (lowest avg time, excluding 0)
-            var withTime = kpiList.Where(k => k.SredniCzasPotwGodziny > 0).ToList();
-            if (withTime.Count > 0)
-            {
-                var topCzas = withTime.OrderBy(k => k.SredniCzasPotwGodziny).First();
-                txtTopCzas.Text = topCzas.Nazwa;
-                txtTopCzasVal.Text = topCzas.SredniCzasPotwTekst;
-            }
-            else
-            {
-                txtTopCzas.Text = "-";
-                txtTopCzasVal.Text = "brak danych";
-            }
-
-            // Najwyzszy % potwierdzonych (min 5 wstawien)
-            var withEnough = kpiList.Where(k => k.Utworzone >= 5).ToList();
-            if (withEnough.Count > 0)
-            {
-                var topProc = withEnough.OrderByDescending(k => k.ProcentPotwierdzonych).First();
-                txtTopProcent.Text = topProc.Nazwa;
-                txtTopProcentVal.Text = $"{topProc.ProcentPotwierdzonych:F0}%";
-            }
-            else
-            {
-                // Fall back to all
-                var topProc = kpiList.OrderByDescending(k => k.ProcentPotwierdzonych).First();
-                txtTopProcent.Text = topProc.Nazwa;
-                txtTopProcentVal.Text = $"{topProc.ProcentPotwierdzonych:F0}%";
-            }
-
-            // Najwiecej dostawcow
-            var topDost = kpiList.OrderByDescending(k => k.LiczbaDostawcow).First();
-            txtTopDostawcy.Text = topDost.Nazwa;
-            txtTopDostawcyVal.Text = $"{topDost.LiczbaDostawcow} dostawcow";
-        }
-
         private void BtnPracownikDetails_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -1042,7 +923,38 @@ namespace Kalendarz1
                     GROUP BY o.Name, h.KtoSztuki",
                     (kpi, cnt) => kpi.KalendarzPotwSztuk += cnt);
 
-                // 6. Specyfikacja - wprowadzenia (zatwierdzenia)
+                // 6. Kalendarz - ceny dodane (CenaMinisterialna + CenaRolnicza + CenaTuszki)
+                RunModuleQuerySafe(conn, userMap, @"
+                    SELECT ISNULL(o.Name, 'Nieznany') AS UserName, CAST(c.KtoDodal AS VARCHAR(20)) AS UserID, COUNT(*) AS Cnt
+                    FROM (
+                        SELECT KtoDodal, KiedyDodal FROM dbo.CenaMinisterialna WHERE KtoDodal IS NOT NULL AND KiedyDodal >= @S AND KiedyDodal < @E
+                        UNION ALL
+                        SELECT KtoDodal, KiedyDodal FROM dbo.CenaRolnicza WHERE KtoDodal IS NOT NULL AND KiedyDodal >= @S AND KiedyDodal < @E
+                        UNION ALL
+                        SELECT KtoDodal, KiedyDodal FROM dbo.CenaTuszki WHERE KtoDodal IS NOT NULL AND KiedyDodal >= @S AND KiedyDodal < @E
+                    ) c
+                    LEFT JOIN dbo.operators o ON c.KtoDodal = o.ID
+                    GROUP BY o.Name, c.KtoDodal",
+                    (kpi, cnt) => kpi.KalendarzCeny += cnt);
+
+                // 7. Kalendarz - edycje z historii zmian (AuditLog_Dostawy)
+                RunModuleQuerySafe(conn, userMap, @"
+                    SELECT ISNULL(a.UserName, a.UserID) AS UserName, a.UserID, COUNT(*) AS Cnt
+                    FROM dbo.AuditLog_Dostawy a
+                    WHERE a.TypOperacji = 'UPDATE' AND a.DataZmiany >= @S AND a.DataZmiany < @E AND a.UserID IS NOT NULL
+                    GROUP BY a.UserName, a.UserID",
+                    (kpi, cnt) => kpi.KalendarzEdycje += cnt);
+
+                // 8. Kalendarz - notatki dodane
+                RunModuleQuerySafe(conn, userMap, @"
+                    SELECT ISNULL(o.Name, 'Nieznany') AS UserName, CAST(n.KtoStworzyl AS VARCHAR(20)) AS UserID, COUNT(*) AS Cnt
+                    FROM dbo.Notatki n
+                    LEFT JOIN dbo.operators o ON n.KtoStworzyl = o.ID
+                    WHERE n.DataUtworzenia >= @S AND n.DataUtworzenia < @E AND n.KtoStworzyl IS NOT NULL
+                    GROUP BY o.Name, n.KtoStworzyl",
+                    (kpi, cnt) => kpi.KalendarzNotatki += cnt);
+
+                // 9. Specyfikacja - wprowadzenia (zatwierdzenia)
                 RunModuleQuerySafe(conn, userMap, @"
                     SELECT ISNULL(ZatwierdzonePrzez, 'Nieznany') AS UserName, ISNULL(ZatwierdzoneByUserID, '') AS UserID, COUNT(*) AS Cnt
                     FROM dbo.RozliczeniaZatwierdzenia
@@ -1058,30 +970,21 @@ namespace Kalendarz1
                     GROUP BY ZweryfikowanePrzez, ZweryfikowaneByUserID",
                     (kpi, cnt) => kpi.SpecWeryfikacje += cnt);
 
-                // 8. Hodowcy - telefony
+                // 8. Hodowcy - zmiany statusu
                 RunModuleQuerySafe(conn, userMap, @"
                     SELECT ISNULL(UzytkownikNazwa, 'Nieznany') AS UserName, ISNULL(UzytkownikId, '') AS UserID, COUNT(*) AS Cnt
                     FROM dbo.Pozyskiwanie_Aktywnosci
-                    WHERE TypAktywnosci = 'Telefon' AND DataUtworzenia >= @S AND DataUtworzenia < @E AND UzytkownikId IS NOT NULL AND UzytkownikId <> 'IMPORT'
+                    WHERE TypAktywnosci = 'Zmiana statusu' AND DataUtworzenia >= @S AND DataUtworzenia < @E AND UzytkownikId IS NOT NULL AND UzytkownikId <> 'IMPORT'
                     GROUP BY UzytkownikNazwa, UzytkownikId",
-                    (kpi, cnt) => kpi.HodowcyTelefony += cnt);
+                    (kpi, cnt) => kpi.HodowcyZmianyStatusu += cnt);
 
-                // 12. Hodowcy - notatki
+                // 9. Hodowcy - notatki
                 RunModuleQuerySafe(conn, userMap, @"
                     SELECT ISNULL(UzytkownikNazwa, 'Nieznany') AS UserName, ISNULL(UzytkownikId, '') AS UserID, COUNT(*) AS Cnt
                     FROM dbo.Pozyskiwanie_Aktywnosci
                     WHERE TypAktywnosci = 'Notatka' AND DataUtworzenia >= @S AND DataUtworzenia < @E AND UzytkownikId IS NOT NULL AND UzytkownikId <> 'IMPORT'
                     GROUP BY UzytkownikNazwa, UzytkownikId",
                     (kpi, cnt) => kpi.HodowcyNotatki += cnt);
-
-                // 13. Hodowcy - oceny dostawcow
-                RunModuleQuerySafe(conn, userMap, @"
-                    SELECT ISNULL(o.Name, 'Nieznany') AS UserName, oc.OceniajacyUserID AS UserID, COUNT(*) AS Cnt
-                    FROM dbo.OcenyDostawcow oc
-                    LEFT JOIN dbo.operators o ON TRY_CAST(oc.OceniajacyUserID AS INT) = o.ID
-                    WHERE oc.DataUtworzenia >= @S AND oc.DataUtworzenia < @E AND oc.OceniajacyUserID IS NOT NULL
-                    GROUP BY o.Name, oc.OceniajacyUserID",
-                    (kpi, cnt) => kpi.HodowcyOceny += cnt);
 
                 // 14. Dokumenty - utworzone
                 RunModuleQuerySafe(conn, userMap, @"
@@ -1127,7 +1030,201 @@ namespace Kalendarz1
                     WHERE cr.DecyzjaKiedyUTC >= @S AND cr.DecyzjaKiedyUTC < @E AND cr.DecyzjaKto IS NOT NULL
                     GROUP BY o.Name, cr.DecyzjaKto",
                     (kpi, cnt) => kpi.WnioskiRozpatrzone += cnt);
+
+                // ========== PODEJRZANE AKTYWNOSCI ==========
+
+                // P1. Puste edycje - stara wartosc = nowa wartosc w AuditLog
+                RunModuleQuerySafe(conn, userMap, @"
+                    SELECT ISNULL(a.UserName, a.UserID) AS UserName, a.UserID, COUNT(*) AS Cnt
+                    FROM dbo.AuditLog_Dostawy a
+                    WHERE a.TypOperacji = 'UPDATE'
+                      AND a.DataZmiany >= @S AND a.DataZmiany < @E
+                      AND a.UserID IS NOT NULL
+                      AND ISNULL(a.StaraWartosc, '') = ISNULL(a.NowaWartosc, '')
+                    GROUP BY a.UserName, a.UserID",
+                    (kpi, cnt) => kpi.AudytPusteEdycje += cnt);
+
+                // P2. Szybkie serie - ten sam user, ten sam rekord+pole, >3 edycji w ciagu 2 minut
+                RunModuleQuerySafe(conn, userMap, @"
+                    SELECT UserName, UserID, SUM(Cnt) AS Cnt FROM (
+                        SELECT ISNULL(a.UserName, a.UserID) AS UserName, a.UserID,
+                               COUNT(*) - 1 AS Cnt
+                        FROM dbo.AuditLog_Dostawy a
+                        WHERE a.TypOperacji = 'UPDATE'
+                          AND a.DataZmiany >= @S AND a.DataZmiany < @E
+                          AND a.UserID IS NOT NULL
+                        GROUP BY a.UserName, a.UserID, a.RekordID, a.NazwaPola,
+                                 DATEADD(MINUTE, DATEDIFF(MINUTE, 0, a.DataZmiany) / 2 * 2, 0)
+                        HAVING COUNT(*) > 3
+                    ) sub
+                    GROUP BY UserName, UserID",
+                    (kpi, cnt) => kpi.AudytSzybkieSerie += cnt);
+
+                // P3. Samo-potwierdzenia wstawien - KtoStwo = KtoConf
+                RunModuleQuerySafe(conn, userMap, @"
+                    SELECT ISNULL(o.Name, 'Nieznany') AS UserName, CAST(w.KtoStwo AS VARCHAR(20)) AS UserID, COUNT(*) AS Cnt
+                    FROM dbo.WstawieniaKurczakow w
+                    LEFT JOIN dbo.operators o ON w.KtoStwo = o.ID
+                    WHERE w.isConf = 1
+                      AND w.KtoStwo = w.KtoConf
+                      AND w.DataUtw >= @S AND w.DataUtw < @E
+                      AND w.KtoStwo IS NOT NULL
+                    GROUP BY o.Name, w.KtoStwo",
+                    (kpi, cnt) => kpi.AudytSamoPotwierdzenia += cnt);
+
+                // P4. Odwrocone zmiany - A->B potem B->A w ciagu 10 min (ten sam user+rekord+pole)
+                RunModuleQuerySafe(conn, userMap, @"
+                    SELECT UserName, UserID, COUNT(*) AS Cnt FROM (
+                        SELECT ISNULL(a1.UserName, a1.UserID) AS UserName, a1.UserID
+                        FROM dbo.AuditLog_Dostawy a1
+                        INNER JOIN dbo.AuditLog_Dostawy a2
+                            ON a1.UserID = a2.UserID
+                            AND a1.RekordID = a2.RekordID
+                            AND a1.NazwaPola = a2.NazwaPola
+                            AND a2.DataZmiany > a1.DataZmiany
+                            AND DATEDIFF(MINUTE, a1.DataZmiany, a2.DataZmiany) <= 10
+                            AND ISNULL(a1.StaraWartosc,'') = ISNULL(a2.NowaWartosc,'')
+                            AND ISNULL(a1.NowaWartosc,'') = ISNULL(a2.StaraWartosc,'')
+                        WHERE a1.TypOperacji = 'UPDATE'
+                          AND a1.DataZmiany >= @S AND a1.DataZmiany < @E
+                    ) sub
+                    GROUP BY UserName, UserID",
+                    (kpi, cnt) => kpi.AudytOdwrocenia += cnt);
+
+                // P5. Edycje poza godzinami pracy (przed 6:00 lub po 20:00)
+                RunModuleQuerySafe(conn, userMap, @"
+                    SELECT ISNULL(a.UserName, a.UserID) AS UserName, a.UserID, COUNT(*) AS Cnt
+                    FROM dbo.AuditLog_Dostawy a
+                    WHERE a.DataZmiany >= @S AND a.DataZmiany < @E
+                      AND a.UserID IS NOT NULL
+                      AND (DATEPART(HOUR, a.DataZmiany) < 6 OR DATEPART(HOUR, a.DataZmiany) >= 20)
+                    GROUP BY a.UserName, a.UserID",
+                    (kpi, cnt) => kpi.AudytPozaGodzinami += cnt);
+
+                // P6. Powtorzone notatki (ta sama tresc tego samego usera w tym samym dniu)
+                RunModuleQuerySafe(conn, userMap, @"
+                    SELECT UserName, UserID, SUM(Cnt) AS Cnt FROM (
+                        SELECT ISNULL(UzytkownikNazwa, 'Nieznany') AS UserName, UzytkownikId AS UserID,
+                               COUNT(*) - 1 AS Cnt
+                        FROM dbo.Pozyskiwanie_Aktywnosci
+                        WHERE TypAktywnosci = 'Notatka'
+                          AND DataUtworzenia >= @S AND DataUtworzenia < @E
+                          AND UzytkownikId IS NOT NULL AND UzytkownikId <> 'IMPORT'
+                        GROUP BY UzytkownikNazwa, UzytkownikId, LEFT(Tresc, 50), CAST(DataUtworzenia AS DATE)
+                        HAVING COUNT(*) > 1
+                    ) sub
+                    GROUP BY UserName, UserID",
+                    (kpi, cnt) => kpi.AudytPowtorzoneNotatki += cnt);
+
+                // ========== CZAS REAKCJI ==========
+
+                // A1. Sr. czas potwierdzenia wstawienia (minuty)
+                RunModuleQueryDouble(conn, userMap, @"
+                    SELECT ISNULL(o.Name, 'Nieznany') AS UserName, CAST(w.KtoConf AS VARCHAR(20)) AS UserID,
+                           AVG(CAST(DATEDIFF(MINUTE, w.DataUtw, w.DataConf) AS FLOAT)) AS Val
+                    FROM dbo.WstawieniaKurczakow w
+                    LEFT JOIN dbo.operators o ON w.KtoConf = o.ID
+                    WHERE w.isConf = 1 AND w.DataConf >= @S AND w.DataConf < @E
+                      AND w.KtoConf IS NOT NULL AND w.DataUtw IS NOT NULL AND w.DataConf > w.DataUtw
+                    GROUP BY o.Name, w.KtoConf",
+                    (kpi, val) => kpi.CzasPotwWstawienAvgMin = val);
+
+                // A2. Sr. czas potwierdzenia wagi (minuty)
+                RunModuleQueryDouble(conn, userMap, @"
+                    SELECT ISNULL(o.Name, 'Nieznany') AS UserName, CAST(h.KtoWaga AS VARCHAR(20)) AS UserID,
+                           AVG(CAST(DATEDIFF(MINUTE, h.DataUtw, h.KiedyWaga) AS FLOAT)) AS Val
+                    FROM dbo.HarmonogramDostaw h
+                    LEFT JOIN dbo.operators o ON h.KtoWaga = o.ID
+                    WHERE h.PotwWaga = 1 AND h.KiedyWaga >= @S AND h.KiedyWaga < @E
+                      AND h.KtoWaga IS NOT NULL AND h.DataUtw IS NOT NULL AND h.KiedyWaga > h.DataUtw
+                    GROUP BY o.Name, h.KtoWaga",
+                    (kpi, val) => kpi.CzasPotwWagiAvgMin = val);
+
+                // A3. Lead time - ile dni wczesniej planuje dostawy
+                RunModuleQueryDouble(conn, userMap, @"
+                    SELECT ISNULL(o.Name, 'Nieznany') AS UserName, CAST(h.ktoStwo AS VARCHAR(20)) AS UserID,
+                           AVG(CAST(DATEDIFF(DAY, h.DataUtw, h.DataOdbioru) AS FLOAT)) AS Val
+                    FROM dbo.HarmonogramDostaw h
+                    LEFT JOIN dbo.operators o ON h.ktoStwo = o.ID
+                    WHERE h.DataUtw >= @S AND h.DataUtw < @E
+                      AND h.ktoStwo IS NOT NULL AND h.DataOdbioru IS NOT NULL AND h.DataOdbioru >= h.DataUtw
+                    GROUP BY o.Name, h.ktoStwo",
+                    (kpi, val) => kpi.LeadTimeDni = val);
+
+                // A4. Rozpietosc godzin pracy (sr. roznica max-min godziny z AuditLog per dzien)
+                RunModuleQueryDouble(conn, userMap, @"
+                    SELECT UserName, UserID, AVG(Rozpietosc) AS Val FROM (
+                        SELECT ISNULL(a.UserName, a.UserID) AS UserName, a.UserID,
+                               CAST(MAX(DATEPART(HOUR, a.DataZmiany)) - MIN(DATEPART(HOUR, a.DataZmiany)) AS FLOAT) AS Rozpietosc
+                        FROM dbo.AuditLog_Dostawy a
+                        WHERE a.DataZmiany >= @S AND a.DataZmiany < @E AND a.UserID IS NOT NULL
+                        GROUP BY a.UserName, a.UserID, CAST(a.DataZmiany AS DATE)
+                        HAVING COUNT(*) >= 2
+                    ) sub
+                    GROUP BY UserName, UserID",
+                    (kpi, val) => kpi.RozpietoscGodzin = val);
+
+                // ========== JAKOSC ==========
+
+                // B1. % wstawien potwierdzonych (per tworca)
+                RunModuleQueryDouble(conn, userMap, @"
+                    SELECT ISNULL(o.Name, 'Nieznany') AS UserName, CAST(w.KtoStwo AS VARCHAR(20)) AS UserID,
+                           CASE WHEN COUNT(*) > 0
+                                THEN CAST(SUM(CASE WHEN w.isConf = 1 THEN 1 ELSE 0 END) AS FLOAT) / COUNT(*) * 100
+                                ELSE 0 END AS Val
+                    FROM dbo.WstawieniaKurczakow w
+                    LEFT JOIN dbo.operators o ON w.KtoStwo = o.ID
+                    WHERE w.DataUtw >= @S AND w.DataUtw < @E AND w.KtoStwo IS NOT NULL
+                    GROUP BY o.Name, w.KtoStwo",
+                    (kpi, val) => kpi.WstawieniaPotwProc = val);
+
+                // B2. Unikatowi dostawcy (UNION wstawien + harmonogram)
+                RunModuleQueryInt(conn, userMap, @"
+                    SELECT UserName, UserID, COUNT(DISTINCT Dostawca) AS Val FROM (
+                        SELECT ISNULL(o.Name, 'Nieznany') AS UserName, CAST(w.KtoStwo AS VARCHAR(20)) AS UserID, w.Dostawca
+                        FROM dbo.WstawieniaKurczakow w
+                        LEFT JOIN dbo.operators o ON w.KtoStwo = o.ID
+                        WHERE w.DataUtw >= @S AND w.DataUtw < @E AND w.KtoStwo IS NOT NULL
+                        UNION
+                        SELECT ISNULL(o.Name, 'Nieznany'), CAST(h.ktoStwo AS VARCHAR(20)), h.Dostawca
+                        FROM dbo.HarmonogramDostaw h
+                        LEFT JOIN dbo.operators o ON h.ktoStwo = o.ID
+                        WHERE h.DataUtw >= @S AND h.DataUtw < @E AND h.ktoStwo IS NOT NULL
+                    ) sub
+                    GROUP BY UserName, UserID",
+                    (kpi, val) => kpi.UnikatoweDostawcy = val);
+
+                // B3. Wolumen sztuk (suma wstawien + harmonogram)
+                RunModuleQueryDouble(conn, userMap, @"
+                    SELECT UserName, UserID, SUM(Szt) AS Val FROM (
+                        SELECT ISNULL(o.Name, 'Nieznany') AS UserName, CAST(w.KtoStwo AS VARCHAR(20)) AS UserID,
+                               CAST(ISNULL(w.IloscWstawienia, 0) AS FLOAT) AS Szt
+                        FROM dbo.WstawieniaKurczakow w
+                        LEFT JOIN dbo.operators o ON w.KtoStwo = o.ID
+                        WHERE w.DataUtw >= @S AND w.DataUtw < @E AND w.KtoStwo IS NOT NULL
+                        UNION ALL
+                        SELECT ISNULL(o.Name, 'Nieznany'), CAST(h.ktoStwo AS VARCHAR(20)),
+                               CAST(ISNULL(h.SztukiDek, 0) AS FLOAT)
+                        FROM dbo.HarmonogramDostaw h
+                        LEFT JOIN dbo.operators o ON h.ktoStwo = o.ID
+                        WHERE h.DataUtw >= @S AND h.DataUtw < @E AND h.ktoStwo IS NOT NULL
+                    ) sub
+                    GROUP BY UserName, UserID",
+                    (kpi, val) => kpi.WolumenSzt = (long)val);
+
+                // B4. Wolumen wagi (kg z harmonogramu)
+                RunModuleQueryDouble(conn, userMap, @"
+                    SELECT ISNULL(o.Name, 'Nieznany') AS UserName, CAST(h.ktoStwo AS VARCHAR(20)) AS UserID,
+                           SUM(CAST(ISNULL(h.WagaDek, 0) AS FLOAT)) AS Val
+                    FROM dbo.HarmonogramDostaw h
+                    LEFT JOIN dbo.operators o ON h.ktoStwo = o.ID
+                    WHERE h.DataUtw >= @S AND h.DataUtw < @E AND h.ktoStwo IS NOT NULL
+                    GROUP BY o.Name, h.ktoStwo",
+                    (kpi, val) => kpi.WolumenKg = val);
             }
+
+            // ========== REGULARNOSC (C) - obliczane z AllActions CTE ==========
+            LoadConsistencyMetrics(userMap);
 
             // Build sorted list
             var list = userMap.Values
@@ -1167,6 +1264,14 @@ namespace Kalendarz1
 
             // Update leader cards
             UpdateCrossModuleLeaders(list);
+
+            // Update alert cards
+            txtAlertPuste.Text = list.Sum(k => k.AudytPusteEdycje).ToString();
+            txtAlertSerie.Text = list.Sum(k => k.AudytSzybkieSerie).ToString();
+            txtAlertSamo.Text = list.Sum(k => k.AudytSamoPotwierdzenia).ToString();
+            txtAlertOdwrocone.Text = list.Sum(k => k.AudytOdwrocenia).ToString();
+            txtAlertPozaGodz.Text = list.Sum(k => k.AudytPozaGodzinami).ToString();
+            txtAlertPowtNotatki.Text = list.Sum(k => k.AudytPowtorzoneNotatki).ToString();
         }
 
         private void RunModuleQuery(SqlConnection conn, Dictionary<string, CrossModuleKpi> map,
@@ -1210,6 +1315,168 @@ namespace Kalendarz1
             }
         }
 
+        private void RunModuleQueryDouble(SqlConnection conn, Dictionary<string, CrossModuleKpi> map,
+            string sql, Action<CrossModuleKpi, double> assignAction)
+        {
+            try
+            {
+                using (var cmd = new SqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@S", currentStartDate);
+                    cmd.Parameters.AddWithValue("@E", currentEndDate);
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            string name = reader["UserName"]?.ToString() ?? "Nieznany";
+                            string userId = reader["UserID"]?.ToString() ?? "";
+                            double val = reader["Val"] != DBNull.Value ? Convert.ToDouble(reader["Val"]) : 0;
+
+                            if (!map.ContainsKey(name))
+                                map[name] = new CrossModuleKpi { Nazwa = name, UserID = userId };
+
+                            if (string.IsNullOrEmpty(map[name].UserID) && !string.IsNullOrEmpty(userId))
+                                map[name].UserID = userId;
+
+                            assignAction(map[name], val);
+                        }
+                    }
+                }
+            }
+            catch { }
+        }
+
+        private void RunModuleQueryInt(SqlConnection conn, Dictionary<string, CrossModuleKpi> map,
+            string sql, Action<CrossModuleKpi, int> assignInt)
+        {
+            try
+            {
+                using (var cmd = new SqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@S", currentStartDate);
+                    cmd.Parameters.AddWithValue("@E", currentEndDate);
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            string name = reader["UserName"]?.ToString() ?? "Nieznany";
+                            string userId = reader["UserID"]?.ToString() ?? "";
+                            int val = reader["Val"] != DBNull.Value ? Convert.ToInt32(reader["Val"]) : 0;
+
+                            if (!map.ContainsKey(name))
+                                map[name] = new CrossModuleKpi { Nazwa = name, UserID = userId };
+
+                            if (string.IsNullOrEmpty(map[name].UserID) && !string.IsNullOrEmpty(userId))
+                                map[name].UserID = userId;
+
+                            assignInt(map[name], val);
+                        }
+                    }
+                }
+            }
+            catch { }
+        }
+
+        private void LoadConsistencyMetrics(Dictionary<string, CrossModuleKpi> userMap)
+        {
+            try
+            {
+                // Get all action dates per user via AllActions CTE
+                var userDates = new Dictionary<string, List<DateTime>>();
+
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    string sql = @"
+                        ;WITH AllActions AS (
+                            SELECT ISNULL(o.Name, 'Nieznany') AS UserName, CAST(w.KtoStwo AS VARCHAR(20)) AS UserID, w.DataUtw AS ActionTime
+                            FROM dbo.WstawieniaKurczakow w LEFT JOIN dbo.operators o ON w.KtoStwo = o.ID
+                            WHERE w.DataUtw >= @S AND w.DataUtw < @E AND w.KtoStwo IS NOT NULL
+                            UNION ALL
+                            SELECT ISNULL(o.Name, 'Nieznany'), CAST(w.KtoConf AS VARCHAR(20)), w.DataConf
+                            FROM dbo.WstawieniaKurczakow w LEFT JOIN dbo.operators o ON w.KtoConf = o.ID
+                            WHERE w.isConf = 1 AND w.DataConf >= @S AND w.DataConf < @E AND w.KtoConf IS NOT NULL
+                            UNION ALL
+                            SELECT ISNULL(o.Name, 'Nieznany'), CAST(h.ktoStwo AS VARCHAR(20)), h.DataUtw
+                            FROM dbo.HarmonogramDostaw h LEFT JOIN dbo.operators o ON h.ktoStwo = o.ID
+                            WHERE h.DataUtw >= @S AND h.DataUtw < @E AND h.ktoStwo IS NOT NULL
+                            UNION ALL
+                            SELECT ISNULL(o.Name, 'Nieznany'), CAST(h.KtoWaga AS VARCHAR(20)), h.KiedyWaga
+                            FROM dbo.HarmonogramDostaw h LEFT JOIN dbo.operators o ON h.KtoWaga = o.ID
+                            WHERE h.PotwWaga = 1 AND h.KiedyWaga >= @S AND h.KiedyWaga < @E AND h.KtoWaga IS NOT NULL
+                            UNION ALL
+                            SELECT ISNULL(a.UserName, a.UserID), a.UserID, a.DataZmiany
+                            FROM dbo.AuditLog_Dostawy a
+                            WHERE a.DataZmiany >= @S AND a.DataZmiany < @E AND a.UserID IS NOT NULL
+                        )
+                        SELECT UserName, UserID, CAST(ActionTime AS DATE) AS ActionDate
+                        FROM AllActions
+                        GROUP BY UserName, UserID, CAST(ActionTime AS DATE)
+                        ORDER BY UserName, ActionDate";
+
+                    using (var cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@S", currentStartDate);
+                        cmd.Parameters.AddWithValue("@E", currentEndDate);
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                string name = reader["UserName"]?.ToString() ?? "Nieznany";
+                                DateTime date = Convert.ToDateTime(reader["ActionDate"]);
+
+                                if (!userDates.ContainsKey(name))
+                                    userDates[name] = new List<DateTime>();
+                                userDates[name].Add(date);
+                            }
+                        }
+                    }
+                }
+
+                int dniRobocze = CountWorkingDays(currentStartDate, currentEndDate);
+
+                foreach (var kvp in userDates)
+                {
+                    if (!userMap.ContainsKey(kvp.Key)) continue;
+                    var kpi = userMap[kvp.Key];
+                    var dates = kvp.Value.Distinct().OrderBy(d => d).ToList();
+
+                    kpi.DniAktywne = dates.Count;
+                    kpi.AktywnoscProc = dniRobocze > 0 ? Math.Round((double)dates.Count / dniRobocze * 100, 1) : 0;
+                    kpi.NajdluzszaSeria = ComputeLongestStreak(dates);
+                    kpi.SrAkcjiNaDzien = dates.Count > 0 ? Math.Round((double)kpi.SumaAkcji / dates.Count, 1) : 0;
+                }
+            }
+            catch { }
+        }
+
+        private int ComputeLongestStreak(List<DateTime> sortedDates)
+        {
+            if (sortedDates.Count == 0) return 0;
+            int maxStreak = 1, currentStreak = 1;
+            for (int i = 1; i < sortedDates.Count; i++)
+            {
+                if ((sortedDates[i] - sortedDates[i - 1]).TotalDays == 1)
+                    currentStreak++;
+                else
+                    currentStreak = 1;
+
+                if (currentStreak > maxStreak) maxStreak = currentStreak;
+            }
+            return maxStreak;
+        }
+
+        private int CountWorkingDays(DateTime start, DateTime end)
+        {
+            int count = 0;
+            for (var d = start; d < end; d = d.AddDays(1))
+            {
+                if (d.DayOfWeek != DayOfWeek.Saturday && d.DayOfWeek != DayOfWeek.Sunday)
+                    count++;
+            }
+            return count > 0 ? count : 1;
+        }
+
         private void UpdateCrossModuleLeaders(List<CrossModuleKpi> list)
         {
             if (list.Count == 0)
@@ -1240,12 +1507,37 @@ namespace Kalendarz1
             // Lider Hodowcow
             top = list.Where(k => k.HodowcyTotal > 0).OrderByDescending(k => k.HodowcyTotal).FirstOrDefault();
             txtCmLiderHodowcy.Text = top?.Nazwa ?? "-";
-            txtCmLiderHodowcyVal.Text = top != null ? $"{top.HodowcyTotal} aktywnosci" : "";
+            txtCmLiderHodowcyVal.Text = top != null ? $"{top.HodowcyZmianyStatusu} zmian + {top.HodowcyNotatki} notatek" : "";
 
             // Lider Ogolny
             var topAll = list.First();
             txtCmLiderOgolny.Text = topAll.Nazwa;
             txtCmLiderOgolnyVal.Text = $"{topAll.SumaAkcji} akcji lacznie";
+
+            // Najszybszy (najnizszy czas potw. wstawien)
+            var fastest = list.Where(k => k.CzasPotwWstawienAvgMin > 0).OrderBy(k => k.CzasPotwWstawienAvgMin).FirstOrDefault();
+            txtCmLiderNajszybszy.Text = fastest?.Nazwa ?? "-";
+            txtCmLiderNajszybszyVal.Text = fastest != null ? $"Sr. {fastest.CzasPotwWstawienAvgMin:F0} min potw." : "";
+
+            // Najaktywniejszy (najwiecej dni aktywnych)
+            var mostActive = list.Where(k => k.DniAktywne > 0).OrderByDescending(k => k.DniAktywne).FirstOrDefault();
+            txtCmLiderNajaktywniejszy.Text = mostActive?.Nazwa ?? "-";
+            txtCmLiderNajaktywniejszyVal.Text = mostActive != null ? $"{mostActive.DniAktywne} dni ({mostActive.AktywnoscProcTekst})" : "";
+
+            // Najwiekszy wolumen
+            var topVolume = list.Where(k => k.WolumenSzt > 0).OrderByDescending(k => k.WolumenSzt).FirstOrDefault();
+            txtCmLiderWolumen.Text = topVolume?.Nazwa ?? "-";
+            txtCmLiderWolumenVal.Text = topVolume != null ? $"{topVolume.WolumenSzt:N0} szt + {topVolume.WolumenKg:N0} kg" : "";
+
+            // Najlepsza jakosc (% potwierdzen)
+            var topQuality = list.Where(k => k.WstawieniaPotwProc > 0 && k.WstawieniaUtworzone >= 3).OrderByDescending(k => k.WstawieniaPotwProc).FirstOrDefault();
+            txtCmLiderJakosc.Text = topQuality?.Nazwa ?? "-";
+            txtCmLiderJakoscVal.Text = topQuality != null ? $"{topQuality.WstawieniaPotwProc:F0}% potwierdzen" : "";
+
+            // Najdluzsza seria
+            var topStreak = list.Where(k => k.NajdluzszaSeria > 0).OrderByDescending(k => k.NajdluzszaSeria).FirstOrDefault();
+            txtCmLiderSeria.Text = topStreak?.Nazwa ?? "-";
+            txtCmLiderSeriaVal.Text = topStreak != null ? $"{topStreak.NajdluzszaSeria} dni z rzedu" : "";
         }
 
         // ==================== DRILL-DOWN ====================
@@ -1267,17 +1559,20 @@ namespace Kalendarz1
                 int colIndex = cell.Column.DisplayIndex;
 
                 // Map column index to module name
-                // 0=#, 1=Zakupowiec, 2=Wstaw., 3=Kalend., 4=Specyf., 5=Hodowcy, 6=Dok., 7=Wnioski, 8=SUMA
+                // 0=#, 1=Zakupowiec, 2=Wstawienia, 3=Potwierdzenia, 4=Kalend., 5=Specyf., 6=Hodowcy, 7=Dok., 8=Wnioski, 9=SUMA, 10=Efektywn., 11=Audyt
                 string moduleName;
                 switch (colIndex)
                 {
                     case 2: moduleName = "Wstawienia"; break;
-                    case 3: moduleName = "Kalendarz"; break;
-                    case 4: moduleName = "Specyfikacja"; break;
-                    case 5: moduleName = "Hodowcy"; break;
-                    case 6: moduleName = "Dokumenty"; break;
-                    case 7: moduleName = "Wnioski"; break;
-                    case 8: moduleName = "SUMA"; break;
+                    case 3: moduleName = "Wstawienia"; break;
+                    case 4: moduleName = "Kalendarz"; break;
+                    case 5: moduleName = "Specyfikacja"; break;
+                    case 6: moduleName = "Hodowcy"; break;
+                    case 7: moduleName = "Dokumenty"; break;
+                    case 8: moduleName = "Wnioski"; break;
+                    case 9: moduleName = "SUMA"; break;
+                    case 10: moduleName = "Efektywnosc"; break;
+                    case 11: moduleName = "Audyt"; break;
                     default: moduleName = "SUMA"; break;
                 }
 

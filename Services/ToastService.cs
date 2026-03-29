@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -18,6 +19,13 @@ namespace Kalendarz1.Services
 
     public static class ToastService
     {
+        private static ToastWindow? _toastWindow;
+        private static readonly object _lock = new();
+
+        /// <summary>
+        /// Pokazuje toast — zawsze na wierzchu ekranu (prawy-dolny róg).
+        /// Działa zarówno z WPF jak i WinForms.
+        /// </summary>
         public static void Show(string message, ToastType type = ToastType.Info, int durationMs = 4000)
         {
             if (Application.Current?.Dispatcher == null) return;
@@ -30,193 +38,243 @@ namespace Kalendarz1.Services
 
             try
             {
-                var window = Application.Current.Windows.Count > 0
-                    ? GetActiveWindow()
-                    : null;
+                lock (_lock)
+                {
+                    if (_toastWindow == null || !_toastWindow.IsLoaded)
+                    {
+                        _toastWindow = new ToastWindow();
+                        _toastWindow.Show();
+                    }
+                }
 
-                if (window == null) return;
-
-                var adornerLayer = FindOrCreateToastLayer(window);
-                if (adornerLayer == null) return;
-
-                ShowToastInLayer(adornerLayer, message, type, durationMs);
+                _toastWindow.AddToast(message, type, durationMs);
             }
             catch
             {
                 // Fallback: nie blokuj aplikacji jeśli toast się nie wyświetli
             }
         }
+    }
 
-        private static Window GetActiveWindow()
+    /// <summary>
+    /// Bezramkowe, przezroczyste okno Topmost przyklejone do prawego-dolnego rogu ekranu.
+    /// Służy jako kontener na stackowane toasty.
+    /// </summary>
+    internal class ToastWindow : Window
+    {
+        private readonly StackPanel _stack;
+        private const double WINDOW_WIDTH = 420;
+        private const double MARGIN_RIGHT = 24;
+        private const double MARGIN_BOTTOM = 24;
+
+        public ToastWindow()
         {
-            foreach (Window w in Application.Current.Windows)
+            WindowStyle = WindowStyle.None;
+            AllowsTransparency = true;
+            Background = Brushes.Transparent;
+            Topmost = true;
+            ShowInTaskbar = false;
+            ShowActivated = false;
+            Width = WINDOW_WIDTH;
+            SizeToContent = SizeToContent.Height;
+            MaxHeight = SystemParameters.WorkArea.Height - 40;
+            ResizeMode = ResizeMode.NoResize;
+            IsHitTestVisible = true;
+            Focusable = false;
+
+            _stack = new StackPanel
             {
-                if (w.IsActive) return w;
-            }
-            return Application.Current.MainWindow;
-        }
-
-        private static Panel FindOrCreateToastLayer(Window window)
-        {
-            if (window.Content is Grid rootGrid)
-            {
-                foreach (var child in rootGrid.Children)
-                {
-                    if (child is StackPanel sp && sp.Tag as string == "ToastLayer")
-                        return sp;
-                }
-
-                var toastLayer = CreateToastPanel();
-                rootGrid.Children.Add(toastLayer);
-                return toastLayer;
-            }
-
-            if (window.Content is UIElement existingContent)
-            {
-                var newGrid = new Grid();
-                window.Content = null;
-                newGrid.Children.Add(existingContent);
-                var toastLayer = CreateToastPanel();
-                newGrid.Children.Add(toastLayer);
-                window.Content = newGrid;
-                return toastLayer;
-            }
-
-            return null;
-        }
-
-        private static StackPanel CreateToastPanel()
-        {
-            return new StackPanel
-            {
-                Tag = "ToastLayer",
-                HorizontalAlignment = HorizontalAlignment.Right,
                 VerticalAlignment = VerticalAlignment.Bottom,
-                Margin = new Thickness(0, 0, 20, 20),
-                IsHitTestVisible = true
+                Margin = new Thickness(0)
             };
+
+            Content = _stack;
+            PositionBottomRight();
+
+            // Reposition when resolution changes
+            SystemParameters.StaticPropertyChanged += (_, _) => PositionBottomRight();
         }
 
-        private static void ShowToastInLayer(Panel layer, string message, ToastType type, int durationMs)
+        private void PositionBottomRight()
         {
-            var (gradStart, gradEnd, borderAccent, iconText) = type switch
+            var workArea = SystemParameters.WorkArea;
+            Left = workArea.Right - WINDOW_WIDTH - MARGIN_RIGHT;
+            Top = workArea.Top;
+            Height = workArea.Height - MARGIN_BOTTOM;
+        }
+
+        protected override void OnMouseDown(System.Windows.Input.MouseButtonEventArgs e)
+        {
+            // Prevent activation / focus stealing
+            e.Handled = true;
+        }
+
+        public void AddToast(string message, ToastType type, int durationMs)
+        {
+            var (bgStart, bgEnd, accentHex, iconChar) = type switch
             {
-                ToastType.Success => ("#2D6A3E", "#1E4D2B", "#4CAF50", "\u2713"),
-                ToastType.Error   => ("#6A2D2D", "#4D1E1E", "#E74C3C", "\u2717"),
-                ToastType.Warning => ("#6A5A2D", "#4D3F1E", "#F39C12", "\u26A0"),
-                ToastType.Info    => ("#2D4A6A", "#1E334D", "#3498DB", "\u2139"),
-                _                 => ("#2D4A6A", "#1E334D", "#3498DB", "\u2139")
+                ToastType.Success => ("#1a3d25", "#14301d", "#4ADE80", "\u2713"),
+                ToastType.Error   => ("#3d1a1a", "#301414", "#F87171", "\u2717"),
+                ToastType.Warning => ("#3d3219", "#302714", "#FBBF24", "\u26A0"),
+                ToastType.Info    => ("#19283d", "#142030", "#60A5FA", "\u2139"),
+                _                 => ("#19283d", "#142030", "#60A5FA", "\u2139")
             };
 
-            var accentColor = (Color)ColorConverter.ConvertFromString(borderAccent);
+            var accentColor = (Color)ColorConverter.ConvertFromString(accentHex);
 
-            var border = new Border
+            // ── Karta toasta ──
+            var card = new Border
             {
                 Background = new LinearGradientBrush(
-                    (Color)ColorConverter.ConvertFromString(gradStart),
-                    (Color)ColorConverter.ConvertFromString(gradEnd),
-                    0),
-                CornerRadius = new CornerRadius(12),
-                BorderBrush = new SolidColorBrush(Color.FromArgb(77, accentColor.R, accentColor.G, accentColor.B)),
-                BorderThickness = new Thickness(1),
-                Padding = new Thickness(14, 12, 14, 12),
-                Margin = new Thickness(0, 6, 0, 0),
-                MinWidth = 280,
-                MaxWidth = 420,
+                    (Color)ColorConverter.ConvertFromString(bgStart),
+                    (Color)ColorConverter.ConvertFromString(bgEnd),
+                    new Point(0, 0), new Point(1, 1)),
+                CornerRadius = new CornerRadius(10),
+                BorderBrush = new SolidColorBrush(Color.FromArgb(120, accentColor.R, accentColor.G, accentColor.B)),
+                BorderThickness = new Thickness(1.5),
+                Padding = new Thickness(16, 14, 14, 14),
+                Margin = new Thickness(0, 8, 0, 0),
+                MinWidth = 320,
+                MaxWidth = WINDOW_WIDTH - 8,
                 Opacity = 0,
-                IsHitTestVisible = true,
-                RenderTransform = new TranslateTransform(50, 0),
+                RenderTransform = new TranslateTransform(60, 0),
                 Effect = new DropShadowEffect
                 {
-                    ShadowDepth = 4,
-                    Opacity = 0.4,
-                    BlurRadius = 16,
-                    Color = Colors.Black
+                    ShadowDepth = 6,
+                    Opacity = 0.55,
+                    BlurRadius = 24,
+                    Color = Colors.Black,
+                    Direction = 270
                 }
             };
 
-            var stack = new StackPanel { Orientation = Orientation.Horizontal };
+            // ── Lewy pasek akcentowy ──
+            var accentBar = new Border
+            {
+                Width = 4,
+                CornerRadius = new CornerRadius(2),
+                Background = new SolidColorBrush(accentColor),
+                Margin = new Thickness(0, 0, 14, 0),
+                VerticalAlignment = VerticalAlignment.Stretch
+            };
 
-            // Icon in semi-transparent circle
+            // ── Ikona ──
             var iconCircle = new Border
             {
-                Width = 26,
-                Height = 26,
-                CornerRadius = new CornerRadius(13),
-                Background = new SolidColorBrush(Color.FromArgb(60, 255, 255, 255)),
-                Margin = new Thickness(0, 0, 10, 0),
-                VerticalAlignment = VerticalAlignment.Center
+                Width = 34,
+                Height = 34,
+                CornerRadius = new CornerRadius(17),
+                Background = new SolidColorBrush(Color.FromArgb(40, accentColor.R, accentColor.G, accentColor.B)),
+                Margin = new Thickness(0, 0, 12, 0),
+                VerticalAlignment = VerticalAlignment.Top,
+                Child = new TextBlock
+                {
+                    Text = iconChar,
+                    Foreground = new SolidColorBrush(accentColor),
+                    FontSize = 17,
+                    FontWeight = FontWeights.Bold,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center
+                }
             };
-            iconCircle.Child = new TextBlock
-            {
-                Text = iconText,
-                Foreground = Brushes.White,
-                FontSize = 14,
-                FontWeight = FontWeights.Bold,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            stack.Children.Add(iconCircle);
 
-            stack.Children.Add(new TextBlock
+            // ── Tekst ──
+            var textBlock = new TextBlock
             {
                 Text = message,
-                Foreground = Brushes.White,
-                FontSize = 13,
-                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Color.FromArgb(240, 255, 255, 255)),
+                FontSize = 13.5,
+                FontWeight = FontWeights.Medium,
                 TextWrapping = TextWrapping.Wrap,
-                VerticalAlignment = VerticalAlignment.Center,
-                MaxWidth = 320
-            });
+                LineHeight = 20,
+                MaxWidth = WINDOW_WIDTH - 120,
+                VerticalAlignment = VerticalAlignment.Center
+            };
 
-            // Close button
+            // ── Przycisk zamknij ──
             var closeBtn = new Button
             {
                 Content = "\u2715",
-                Foreground = new SolidColorBrush(Color.FromArgb(180, 255, 255, 255)),
+                Foreground = new SolidColorBrush(Color.FromArgb(120, 255, 255, 255)),
                 Background = Brushes.Transparent,
                 BorderThickness = new Thickness(0),
-                FontSize = 12,
+                FontSize = 13,
                 Cursor = System.Windows.Input.Cursors.Hand,
                 VerticalAlignment = VerticalAlignment.Top,
-                Margin = new Thickness(8, -2, 0, 0),
-                Padding = new Thickness(4, 2, 4, 2)
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(6, -2, 0, 0),
+                Padding = new Thickness(6, 3, 6, 3),
+                Width = 28,
+                Height = 28
             };
 
-            var outerGrid = new Grid();
-            outerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            outerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            Grid.SetColumn(stack, 0);
-            Grid.SetColumn(closeBtn, 1);
-            outerGrid.Children.Add(stack);
-            outerGrid.Children.Add(closeBtn);
+            // ── Pasek postępu (countdown) ──
+            var progressTrack = new Border
+            {
+                Height = 3,
+                CornerRadius = new CornerRadius(1.5),
+                Background = new SolidColorBrush(Color.FromArgb(30, 255, 255, 255)),
+                Margin = new Thickness(0, 10, 0, 0),
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                ClipToBounds = true
+            };
+            var progressBar = new Border
+            {
+                Height = 3,
+                CornerRadius = new CornerRadius(1.5),
+                Background = new SolidColorBrush(Color.FromArgb(160, accentColor.R, accentColor.G, accentColor.B)),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Width = WINDOW_WIDTH - 60
+            };
+            progressTrack.Child = progressBar;
 
-            border.Child = outerGrid;
-            layer.Children.Add(border);
+            // ── Layout ──
+            var contentRow = new DockPanel();
+            DockPanel.SetDock(accentBar, Dock.Left);
+            DockPanel.SetDock(closeBtn, Dock.Right);
+            DockPanel.SetDock(iconCircle, Dock.Left);
+            contentRow.Children.Add(accentBar);
+            contentRow.Children.Add(closeBtn);
+            contentRow.Children.Add(iconCircle);
+            contentRow.Children.Add(textBlock);
 
-            // Entry animation: slide-in from right + fade-in
-            var translateTransform = (TranslateTransform)border.RenderTransform;
+            var outerStack = new StackPanel();
+            outerStack.Children.Add(contentRow);
+            outerStack.Children.Add(progressTrack);
 
-            var slideIn = new DoubleAnimation(50, 0, TimeSpan.FromMilliseconds(350))
+            card.Child = outerStack;
+            _stack.Children.Add(card);
+
+            // ── ANIMACJA WEJŚCIA ──
+            var tt = (TranslateTransform)card.RenderTransform;
+
+            var slideIn = new DoubleAnimation(60, 0, TimeSpan.FromMilliseconds(400))
             {
                 EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
             };
-            translateTransform.BeginAnimation(TranslateTransform.XProperty, slideIn);
+            tt.BeginAnimation(TranslateTransform.XProperty, slideIn);
 
-            var fadeIn = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(300))
+            var fadeIn = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(350))
             {
                 EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
             };
-            border.BeginAnimation(UIElement.OpacityProperty, fadeIn);
+            card.BeginAnimation(OpacityProperty, fadeIn);
 
-            // Dismiss action
-            DispatcherTimer timer = null;
-            Action dismiss = null;
-            dismiss = () =>
+            // ── PROGRESS BAR COUNTDOWN ──
+            var progressShrink = new DoubleAnimation(WINDOW_WIDTH - 60, 0, TimeSpan.FromMilliseconds(durationMs));
+            progressBar.BeginAnimation(WidthProperty, progressShrink);
+
+            // ── DISMISS LOGIC ──
+            DispatcherTimer? timer = null;
+            bool dismissed = false;
+
+            void Dismiss()
             {
+                if (dismissed) return;
+                dismissed = true;
                 timer?.Stop();
 
-                var slideOut = new DoubleAnimation(0, 60, TimeSpan.FromMilliseconds(300))
+                var slideOut = new DoubleAnimation(0, 80, TimeSpan.FromMilliseconds(300))
                 {
                     EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
                 };
@@ -225,22 +283,35 @@ namespace Kalendarz1.Services
                 {
                     EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
                 };
-                fadeOut.Completed += (s2, e2) =>
+                fadeOut.Completed += (_, _) =>
                 {
-                    layer.Children.Remove(border);
+                    _stack.Children.Remove(card);
+                    // Zamknij okno toastów jeśli puste
+                    if (_stack.Children.Count == 0)
+                    {
+                        Close();
+                    }
                 };
 
-                translateTransform.BeginAnimation(TranslateTransform.XProperty, slideOut);
-                border.BeginAnimation(UIElement.OpacityProperty, fadeOut);
-            };
+                tt.BeginAnimation(TranslateTransform.XProperty, slideOut);
+                card.BeginAnimation(OpacityProperty, fadeOut);
+            }
 
-            // Close button click
-            closeBtn.Click += (s, e) => dismiss();
+            closeBtn.Click += (_, _) => Dismiss();
 
-            // Auto-dismiss timer
             timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(durationMs) };
-            timer.Tick += (s, e) => dismiss();
+            timer.Tick += (_, _) => Dismiss();
             timer.Start();
+
+            // ── Hover: pauza timera ──
+            card.MouseEnter += (_, _) => timer?.Stop();
+            card.MouseLeave += (_, _) =>
+            {
+                if (!dismissed)
+                {
+                    timer?.Start();
+                }
+            };
         }
     }
 }

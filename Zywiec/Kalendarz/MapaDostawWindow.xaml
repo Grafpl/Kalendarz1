@@ -6,181 +6,111 @@
         Width="1500" Height="950"
         WindowStartupLocation="CenterScreen"
         WindowState="Maximized"
-        Background="#0F172A"
+        Background="#F1F5F9"
         FontFamily="Segoe UI">
-
-    <Window.Resources>
-        <SolidColorBrush x:Key="BgSecondary" Color="#1E293B"/>
-        <SolidColorBrush x:Key="TextMuted" Color="#64748B"/>
-        <SolidColorBrush x:Key="BorderColor" Color="#334155"/>
-
-        <Style x:Key="KpiBorder" TargetType="Border">
-            <Setter Property="Background" Value="#15FFFFFF"/>
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Padding" Value="10,6"/>
-            <Setter Property="Margin" Value="0,0,6,0"/>
-            <Setter Property="BorderBrush" Value="#30FFFFFF"/>
-            <Setter Property="BorderThickness" Value="1"/>
-        </Style>
-        <Style x:Key="KpiLabel" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="9"/>
-            <Setter Property="Foreground" Value="#86EFAC"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-        </Style>
-        <Style x:Key="KpiValue" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="16"/>
-            <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="Foreground" Value="White"/>
-        </Style>
-
-        <Style x:Key="PeriodToggleStyle" TargetType="ToggleButton">
-            <Setter Property="Background" Value="#334155"/>
-            <Setter Property="Foreground" Value="#94A3B8"/>
-            <Setter Property="FontSize" Value="11"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Padding" Value="12,6"/>
-            <Setter Property="Margin" Value="0,0,4,0"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ToggleButton">
-                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="#22C55E"/>
-                                <Setter Property="Foreground" Value="White"/>
-                            </Trigger>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="#475569"/>
-                            </Trigger>
-                            <MultiTrigger>
-                                <MultiTrigger.Conditions>
-                                    <Condition Property="IsChecked" Value="True"/>
-                                    <Condition Property="IsMouseOver" Value="True"/>
-                                </MultiTrigger.Conditions>
-                                <Setter TargetName="bd" Property="Background" Value="#16A34A"/>
-                            </MultiTrigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-    </Window.Resources>
 
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="290"/>
+            <ColumnDefinition Width="300"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
-        <!-- LEFT SIDEBAR -->
-        <Border Grid.Column="0" Background="{StaticResource BgSecondary}" BorderBrush="{StaticResource BorderColor}" BorderThickness="0,0,1,0">
+        <!-- LEFT PANEL -->
+        <Border Grid.Column="0" Background="White" BorderBrush="#E2E8F0" BorderThickness="0,0,1,0">
             <DockPanel>
                 <!-- Header -->
-                <Border DockPanel.Dock="Top" Padding="12,8">
-                    <StackPanel>
-                        <TextBlock Text="MAPA DOSTAW ZYWCA" FontSize="13" FontWeight="Bold" Foreground="#86EFAC"/>
-                        <TextBlock Text="Wizualizacja lokalizacji hodowcow" FontSize="9" Foreground="{StaticResource TextMuted}" Margin="0,2,0,0"/>
-                    </StackPanel>
-                </Border>
-
-                <!-- Debug panel -->
-                <Border DockPanel.Dock="Top" Padding="8,4" Background="#1A1A2E" BorderBrush="#334155" BorderThickness="0,1,0,1">
+                <Border DockPanel.Dock="Top" Background="#1E293B" Padding="12,10">
                     <DockPanel>
-                        <Button DockPanel.Dock="Right" Content="DIAGNOSTYKA" Click="BtnDiagnostyka_Click" Margin="6,0,0,0"
-                                Background="#B45309" Foreground="White" FontSize="9" FontWeight="Bold" Padding="8,2"
-                                BorderThickness="0" Cursor="Hand"/>
-                        <TextBlock x:Name="txtDebug" Text="Ladowanie..." FontSize="9" Foreground="#F59E0B" FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                            <Button Content="UZUPELNIJ GEO" Click="BtnUzupelnijGeo_Click" Margin="0,0,4,0"
+                                    Background="#16A34A" Foreground="White" FontSize="9" FontWeight="Bold"
+                                    Padding="6,3" BorderThickness="0" Cursor="Hand" VerticalAlignment="Top"/>
+                            <Button Content="DIAGNOSTYKA" Click="BtnDiagnostyka_Click"
+                                    Background="#B45309" Foreground="White" FontSize="9" FontWeight="Bold"
+                                    Padding="6,3" BorderThickness="0" Cursor="Hand" VerticalAlignment="Top"/>
+                        </StackPanel>
+                        <StackPanel>
+                            <TextBlock Text="MAPA DOSTAW" FontSize="14" FontWeight="Bold" Foreground="White"/>
+                            <TextBlock x:Name="txtDebug" Text="" FontSize="9" Foreground="#F59E0B" Margin="0,2,0,0"/>
+                        </StackPanel>
                     </DockPanel>
                 </Border>
 
-                <!-- Period -->
-                <Border DockPanel.Dock="Top" Padding="10,6" BorderBrush="{StaticResource BorderColor}" BorderThickness="0,0,0,1">
+                <!-- Period buttons -->
+                <Border DockPanel.Dock="Top" Padding="10,8" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1">
                     <StackPanel>
-                        <TextBlock Text="OKRES" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextMuted}" Margin="0,0,0,4"/>
-                        <WrapPanel>
-                            <ToggleButton x:Name="btnDzien" Content="Dzis" Style="{StaticResource PeriodToggleStyle}" Click="BtnPeriod_Click" Tag="day"/>
-                            <ToggleButton x:Name="btnTydzien" Content="Tydzien" Style="{StaticResource PeriodToggleStyle}" IsChecked="True" Click="BtnPeriod_Click" Tag="week"/>
-                            <ToggleButton x:Name="btn2Tygodnie" Content="2 Tygodnie" Style="{StaticResource PeriodToggleStyle}" Click="BtnPeriod_Click" Tag="2weeks"/>
-                        </WrapPanel>
-                        <TextBlock x:Name="txtOkres" FontSize="9" Foreground="#64748B" Margin="0,3,0,0"/>
+                        <UniformGrid Columns="3" Margin="0,0,0,4">
+                            <Button x:Name="btnDzien" Content="DZIS" Click="BtnPeriod_Click" Tag="day" Margin="0,0,3,0" Padding="0,6" FontSize="10" FontWeight="Bold" Background="#F1F5F9" Foreground="#64748B" BorderBrush="#E2E8F0" BorderThickness="1" Cursor="Hand"/>
+                            <Button x:Name="btnTydzien" Content="TYDZIEN" Click="BtnPeriod_Click" Tag="week" Margin="0,0,3,0" Padding="0,6" FontSize="10" FontWeight="Bold" Background="#1E40AF" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                            <Button x:Name="btn2Tygodnie" Content="2 TYGODN." Click="BtnPeriod_Click" Tag="2weeks" Padding="0,6" FontSize="10" FontWeight="Bold" Background="#F1F5F9" Foreground="#64748B" BorderBrush="#E2E8F0" BorderThickness="1" Cursor="Hand"/>
+                        </UniformGrid>
+                        <TextBlock x:Name="txtOkres" FontSize="10" Foreground="#64748B" HorizontalAlignment="Center"/>
                     </StackPanel>
                 </Border>
 
                 <!-- Day checkboxes -->
-                <Border DockPanel.Dock="Top" Padding="10,5" BorderBrush="{StaticResource BorderColor}" BorderThickness="0,0,0,1">
-                    <StackPanel>
-                        <TextBlock Text="DNI" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextMuted}" Margin="0,0,0,3"/>
-                        <WrapPanel x:Name="panelDniFiltr"/>
-                    </StackPanel>
+                <Border DockPanel.Dock="Top" Padding="10,6" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1">
+                    <WrapPanel x:Name="panelDniFiltr"/>
                 </Border>
 
-                <!-- Status checkboxes - ALL statuses -->
-                <Border DockPanel.Dock="Top" Padding="10,5" BorderBrush="{StaticResource BorderColor}" BorderThickness="0,0,0,1">
-                    <StackPanel>
-                        <TextBlock Text="STATUS" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextMuted}" Margin="0,0,0,3"/>
-                        <WrapPanel>
-                            <CheckBox x:Name="chkPotwierdzony" Content="Potwierdzony" Foreground="#86EFAC" IsChecked="True" Margin="0,0,8,2" Click="Filter_Changed" FontSize="10"/>
-                            <CheckBox x:Name="chkDoWykupienia" Content="Do wykupienia" Foreground="#A78BFA" IsChecked="True" Margin="0,0,8,2" Click="Filter_Changed" FontSize="10"/>
-                            <CheckBox x:Name="chkInne" Content="B.Wolny/B.Kontr/Inne" Foreground="#FBBF24" IsChecked="True" Margin="0,0,8,2" Click="Filter_Changed" FontSize="10"/>
-                            <CheckBox x:Name="chkAnulowany" Content="Anulowany" Foreground="#F87171" IsChecked="False" Margin="0,0,8,2" Click="Filter_Changed" FontSize="10"/>
-                            <CheckBox x:Name="chkSprzedany" Content="Sprzedany" Foreground="#60A5FA" IsChecked="False" Margin="0,0,8,2" Click="Filter_Changed" FontSize="10"/>
-                        </WrapPanel>
-                    </StackPanel>
+                <!-- Status checkboxes -->
+                <Border DockPanel.Dock="Top" Padding="10,6" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1">
+                    <WrapPanel>
+                        <CheckBox x:Name="chkPotwierdzony" Content="Potwierdzony" Foreground="#16A34A" IsChecked="True" Margin="0,0,10,3" Click="Filter_Changed" FontSize="10" FontWeight="SemiBold"/>
+                        <CheckBox x:Name="chkDoWykupienia" Content="Do wykupienia" Foreground="#7C3AED" IsChecked="True" Margin="0,0,10,3" Click="Filter_Changed" FontSize="10" FontWeight="SemiBold"/>
+                        <CheckBox x:Name="chkInne" Content="Inne" Foreground="#D97706" IsChecked="True" Margin="0,0,10,3" Click="Filter_Changed" FontSize="10" FontWeight="SemiBold"/>
+                        <CheckBox x:Name="chkAnulowany" Content="Anulowany" Foreground="#DC2626" IsChecked="False" Margin="0,0,10,3" Click="Filter_Changed" FontSize="10"/>
+                        <CheckBox x:Name="chkSprzedany" Content="Sprzedany" Foreground="#2563EB" IsChecked="False" Margin="0,0,10,3" Click="Filter_Changed" FontSize="10"/>
+                    </WrapPanel>
                 </Border>
 
                 <!-- Search -->
-                <Border DockPanel.Dock="Top" Padding="10,5" BorderBrush="{StaticResource BorderColor}" BorderThickness="0,0,0,1">
+                <Border DockPanel.Dock="Top" Padding="10,6" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1">
                     <TextBox x:Name="txtSzukaj" TextChanged="TxtSzukaj_TextChanged"
-                             Background="#334155" Foreground="White" BorderBrush="#475569" BorderThickness="1"
+                             Background="#F8FAFC" Foreground="#1E293B" BorderBrush="#CBD5E1" BorderThickness="1"
                              Padding="8,5" FontSize="11" VerticalContentAlignment="Center"/>
                 </Border>
 
                 <!-- KPIs -->
-                <Border DockPanel.Dock="Top" Padding="6,5" BorderBrush="{StaticResource BorderColor}" BorderThickness="0,0,0,1">
+                <Border DockPanel.Dock="Top" Padding="8,6" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1">
                     <UniformGrid Columns="3">
-                        <Border Style="{StaticResource KpiBorder}">
-                            <StackPanel>
-                                <TextBlock Text="DOSTAWY" Style="{StaticResource KpiLabel}"/>
-                                <TextBlock x:Name="txtKpiDostawy" Text="0" Style="{StaticResource KpiValue}"/>
+                        <Border Background="#F0FDF4" CornerRadius="6" Padding="8,4" Margin="0,0,4,0">
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock x:Name="txtKpiDostawy" Text="0" FontSize="18" FontWeight="Bold" Foreground="#16A34A" HorizontalAlignment="Center"/>
+                                <TextBlock Text="dostaw" FontSize="8" Foreground="#64748B" HorizontalAlignment="Center"/>
                             </StackPanel>
                         </Border>
-                        <Border Style="{StaticResource KpiBorder}">
-                            <StackPanel>
-                                <TextBlock Text="HODOWCY" Style="{StaticResource KpiLabel}"/>
-                                <TextBlock x:Name="txtKpiHodowcy" Text="0" Style="{StaticResource KpiValue}"/>
+                        <Border Background="#EFF6FF" CornerRadius="6" Padding="8,4" Margin="0,0,4,0">
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock x:Name="txtKpiHodowcy" Text="0" FontSize="18" FontWeight="Bold" Foreground="#2563EB" HorizontalAlignment="Center"/>
+                                <TextBlock Text="hodowcow" FontSize="8" Foreground="#64748B" HorizontalAlignment="Center"/>
                             </StackPanel>
                         </Border>
-                        <Border Style="{StaticResource KpiBorder}">
-                            <StackPanel>
-                                <TextBlock Text="AUTA" Style="{StaticResource KpiLabel}"/>
-                                <TextBlock x:Name="txtKpiAuta" Text="0" Style="{StaticResource KpiValue}"/>
+                        <Border Background="#FFF7ED" CornerRadius="6" Padding="8,4">
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock x:Name="txtKpiAuta" Text="0" FontSize="18" FontWeight="Bold" Foreground="#EA580C" HorizontalAlignment="Center"/>
+                                <TextBlock Text="aut" FontSize="8" Foreground="#64748B" HorizontalAlignment="Center"/>
                             </StackPanel>
                         </Border>
                     </UniformGrid>
                 </Border>
 
                 <!-- Delivery list -->
-                <Border Padding="4,3">
-                    <DockPanel>
-                        <TextBlock DockPanel.Dock="Top" x:Name="txtLiczbaLista" FontSize="9" Foreground="{StaticResource TextMuted}" Margin="8,2,0,3"/>
-                        <ScrollViewer VerticalScrollBarVisibility="Auto">
-                            <StackPanel x:Name="panelDostawy"/>
-                        </ScrollViewer>
-                    </DockPanel>
-                </Border>
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top" x:Name="txtLiczbaLista" FontSize="9" Foreground="#94A3B8" Margin="10,4,0,2"/>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="4,0">
+                        <StackPanel x:Name="panelDostawy"/>
+                    </ScrollViewer>
+                </DockPanel>
             </DockPanel>
         </Border>
 
         <!-- MAP -->
         <Grid Grid.Column="1">
             <wv2:WebView2 x:Name="webView"/>
-            <Border x:Name="loadingOverlay" Background="#CC0F172A" Visibility="Visible">
+            <Border x:Name="loadingOverlay" Background="#E0F1F5F9" Visibility="Visible">
                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                    <TextBlock x:Name="txtLoadingStatus" Text="Ladowanie mapy..." FontSize="14" Foreground="White" HorizontalAlignment="Center"/>
+                    <TextBlock x:Name="txtLoadingStatus" Text="Ladowanie..." FontSize="13" Foreground="#64748B" HorizontalAlignment="Center"/>
                 </StackPanel>
             </Border>
         </Grid>

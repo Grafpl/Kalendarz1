@@ -4,12 +4,12 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 
@@ -19,291 +19,137 @@ namespace Kalendarz1.Zywiec.Kalendarz
     {
         private const double BazaLat = 51.907335;
         private const double BazaLng = 19.678605;
-
-        private static readonly string ConnectionString =
-            "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True;Connection Timeout=15;Command Timeout=15";
+        private static readonly string ConnStr = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True;Connection Timeout=15;Command Timeout=15";
 
         private DateTime _weekStart;
         private string _period = "week";
-        private List<MapDostawa> _allPoints = new();
-        private List<MapDostawa> _filteredPoints = new();
-        private List<MapDostawa> _noGeoPoints = new(); // dostawy bez geokodu
-        private bool _isWebViewReady;
-        private HashSet<string> _selectedDays = new();
+        private List<Dost> _all = new();
+        private List<Dost> _noGeo = new();
+        private List<Dost> _filtered = new();
+        private bool _ready;
+        private HashSet<string> _days = new();
 
-        private static readonly Dictionary<DayOfWeek, string> DayColors = new()
+        // diagnostics
+        private int _dbTotal, _geoCount;
+        private DateTime _sqlStart, _sqlEnd;
+
+        static readonly Dictionary<DayOfWeek, string> DC = new()
         {
-            { DayOfWeek.Monday, "#3B82F6" },
-            { DayOfWeek.Tuesday, "#22C55E" },
-            { DayOfWeek.Wednesday, "#F59E0B" },
-            { DayOfWeek.Thursday, "#EF4444" },
-            { DayOfWeek.Friday, "#8B5CF6" },
-            { DayOfWeek.Saturday, "#06B6D4" },
-            { DayOfWeek.Sunday, "#EC4899" }
+            {DayOfWeek.Monday,"#3B82F6"},{DayOfWeek.Tuesday,"#22C55E"},{DayOfWeek.Wednesday,"#F59E0B"},
+            {DayOfWeek.Thursday,"#EF4444"},{DayOfWeek.Friday,"#8B5CF6"},{DayOfWeek.Saturday,"#06B6D4"},{DayOfWeek.Sunday,"#EC4899"}
         };
-
-        private static readonly string[] DniSkrot = { "niedz", "pon", "wt", "sr", "czw", "pt", "sob" };
-        private static readonly string[] DniPelne = { "Niedziela", "Poniedzialek", "Wtorek", "Sroda", "Czwartek", "Piatek", "Sobota" };
+        static readonly string[] DN = {"niedz","pon","wt","sr","czw","pt","sob"};
+        static readonly string[] DF = {"Niedziela","Poniedzialek","Wtorek","Sroda","Czwartek","Piatek","Sobota"};
 
         public MapaDostawWindow(DateTime weekStart)
         {
             InitializeComponent();
             WindowIconHelper.SetIcon(this);
             _weekStart = weekStart;
-            Loaded += Window_Loaded;
+            Loaded += async (s, e) => await InitAsync();
         }
 
-        private async void Window_Loaded(object sender, RoutedEventArgs e)
+        async Task InitAsync()
         {
             try
             {
-                txtLoadingStatus.Text = "Pobieranie dostaw z bazy...";
+                txtLoadingStatus.Text = "Pobieranie danych...";
                 await LoadDataAsync();
                 BuildDayFilters();
+                SetPeriodButton(_period);
 
-                txtLoadingStatus.Text = "Inicjalizacja WebView2...";
+                txtLoadingStatus.Text = "Uruchamianie mapy...";
                 await webView.EnsureCoreWebView2Async();
-                webView.CoreWebView2.WebMessageReceived += (s2, args) =>
+                webView.CoreWebView2.WebMessageReceived += (s, a) =>
                 {
                     try
                     {
-                        using var doc = JsonDocument.Parse(args.WebMessageAsJson);
-                        string action = doc.RootElement.GetProperty("action").GetString();
-                        if (action == "select")
-                        {
-                            string lp = doc.RootElement.GetProperty("lp").GetString();
-                            Dispatcher.Invoke(() => ScrollToCard(lp));
-                        }
+                        using var doc = JsonDocument.Parse(a.WebMessageAsJson);
+                        if (doc.RootElement.GetProperty("action").GetString() == "select")
+                            Dispatcher.Invoke(() => ScrollTo(doc.RootElement.GetProperty("lp").GetString()));
                     }
                     catch { }
                 };
-                _isWebViewReady = true;
-
-                txtLoadingStatus.Text = "Generowanie mapy...";
-                await Task.Delay(100);
+                _ready = true;
                 RenderMap();
             }
             catch (Exception ex)
             {
                 loadingOverlay.Visibility = Visibility.Collapsed;
-                MessageBox.Show($"Blad inicjalizacji mapy:\n{ex.Message}\n\n{ex.StackTrace}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Blad:\n{ex.Message}\n\n{ex.StackTrace}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
+        #region Data
 
-
-        #region Data Loading
-
-        private async Task LoadDataAsync()
+        async Task LoadDataAsync()
         {
-            var geoMap = new Dictionary<string, (double lat, double lng)>();
-            var points = new List<MapDostawa>();
-            var noGeo = new List<MapDostawa>();
-            int totalFromDb = 0;
-            var rangeStart = _weekStart.AddDays(-7);
-            var rangeEnd = _weekStart.AddDays(21);
+            var geo = new Dictionary<string, (double lat, double lng)>();
+            var pts = new List<Dost>();
+            var noG = new List<Dost>();
+            int total = 0;
+            _sqlStart = _weekStart.AddDays(-7);
+            _sqlEnd = _weekStart.AddDays(21);
 
             await Task.Run(() =>
             {
-                using var conn = new SqlConnection(ConnectionString);
+                using var conn = new SqlConnection(ConnStr);
                 conn.Open();
 
-                // Kody pocztowe
                 using (var cmd = new SqlCommand("SELECT Kod, Latitude, Longitude FROM KodyPocztowe WHERE Latitude IS NOT NULL AND Longitude IS NOT NULL", conn))
-                using (var reader = cmd.ExecuteReader())
-                {
-                    while (reader.Read())
+                using (var r = cmd.ExecuteReader())
+                    while (r.Read())
                     {
-                        string kod = reader["Kod"]?.ToString()?.Trim();
-                        if (string.IsNullOrEmpty(kod)) continue;
-                        double lat = Convert.ToDouble(reader["Latitude"]);
-                        double lng = Convert.ToDouble(reader["Longitude"]);
-                        if (Math.Abs(lat) > 0.001 && Math.Abs(lng) > 0.001)
-                            geoMap[kod.Replace("-", "")] = (lat, lng);
+                        string k = r["Kod"]?.ToString()?.Trim() ?? "";
+                        if (k == "") continue;
+                        double la = Convert.ToDouble(r["Latitude"]), lo = Convert.ToDouble(r["Longitude"]);
+                        if (Math.Abs(la) > 0.001) geo[k.Replace("-", "")] = (la, lo);
                     }
-                }
 
-                // Dostawy - BEZ filtra na Halt, BEZ filtra na status
-                string sql = @"SELECT HD.LP, HD.DataOdbioru, HD.Dostawca, HD.Auta, HD.SztukiDek, HD.WagaDek, HD.bufor,
-                               HD.TypCeny, HD.Cena, D.PostalCode, D.City, D.Address, D.Distance, D.Phone1
-                               FROM HarmonogramDostaw HD
-                               LEFT JOIN Dostawcy D ON HD.Dostawca = D.Name
-                               WHERE HD.DataOdbioru >= @start AND HD.DataOdbioru < @end
-                               ORDER BY HD.DataOdbioru, HD.Dostawca";
-
-                using (var cmd = new SqlCommand(sql, conn))
+                using (var cmd = new SqlCommand(@"SELECT HD.LP, HD.DataOdbioru, HD.Dostawca, HD.Auta, HD.SztukiDek, HD.WagaDek, HD.bufor,
+                    HD.TypCeny, HD.Cena, D.PostalCode, D.City, D.Address, D.Distance, D.Phone1
+                    FROM HarmonogramDostaw HD LEFT JOIN Dostawcy D ON HD.Dostawca = D.Name
+                    WHERE HD.DataOdbioru >= @s AND HD.DataOdbioru < @e ORDER BY HD.DataOdbioru, HD.Dostawca", conn))
                 {
-                    cmd.Parameters.AddWithValue("@start", rangeStart);
-                    cmd.Parameters.AddWithValue("@end", rangeEnd);
-                    using var reader = cmd.ExecuteReader();
-                    while (reader.Read())
+                    cmd.Parameters.AddWithValue("@s", _sqlStart);
+                    cmd.Parameters.AddWithValue("@e", _sqlEnd);
+                    using var r = cmd.ExecuteReader();
+                    while (r.Read())
                     {
-                        totalFromDb++;
-                        string postalCode = reader["PostalCode"]?.ToString()?.Replace("-", "")?.Trim() ?? "";
-
-                        var item = new MapDostawa
+                        total++;
+                        string pc = r["PostalCode"]?.ToString()?.Replace("-", "")?.Trim() ?? "";
+                        var d = new Dost
                         {
-                            LP = reader["LP"]?.ToString() ?? "",
-                            DataOdbioru = Convert.ToDateTime(reader["DataOdbioru"]),
-                            Dostawca = reader["Dostawca"]?.ToString() ?? "",
-                            Auta = reader["Auta"] != DBNull.Value ? Convert.ToInt32(reader["Auta"]) : 0,
-                            SztukiDek = reader["SztukiDek"] != DBNull.Value ? Convert.ToDouble(reader["SztukiDek"]) : 0,
-                            WagaDek = reader["WagaDek"] != DBNull.Value ? Convert.ToDecimal(reader["WagaDek"]) : 0,
-                            Status = reader["bufor"]?.ToString() ?? "",
-                            Cena = reader["Cena"] != DBNull.Value ? Convert.ToDecimal(reader["Cena"]) : 0,
-                            TypCeny = reader["TypCeny"]?.ToString() ?? "",
-                            Miasto = reader["City"]?.ToString() ?? "",
-                            Adres = reader["Address"]?.ToString() ?? "",
-                            KodPocztowy = reader["PostalCode"]?.ToString() ?? "",
-                            Distance = reader["Distance"] != DBNull.Value ? Convert.ToInt32(reader["Distance"]) : 0,
-                            Telefon = reader["Phone1"]?.ToString() ?? ""
+                            LP = r["LP"]?.ToString() ?? "",
+                            Data = Convert.ToDateTime(r["DataOdbioru"]),
+                            Nazwa = r["Dostawca"]?.ToString() ?? "",
+                            Auta = r["Auta"] != DBNull.Value ? Convert.ToInt32(r["Auta"]) : 0,
+                            Szt = r["SztukiDek"] != DBNull.Value ? Convert.ToDouble(r["SztukiDek"]) : 0,
+                            Waga = r["WagaDek"] != DBNull.Value ? Convert.ToDecimal(r["WagaDek"]) : 0,
+                            Status = r["bufor"]?.ToString() ?? "",
+                            Cena = r["Cena"] != DBNull.Value ? Convert.ToDecimal(r["Cena"]) : 0,
+                            TypCeny = r["TypCeny"]?.ToString() ?? "",
+                            Miasto = r["City"]?.ToString() ?? "",
+                            Adres = r["Address"]?.ToString() ?? "",
+                            Kod = r["PostalCode"]?.ToString() ?? "",
+                            Km = r["Distance"] != DBNull.Value ? Convert.ToInt32(r["Distance"]) : 0,
+                            Tel = r["Phone1"]?.ToString() ?? ""
                         };
-
-                        if (geoMap.TryGetValue(postalCode, out var coords))
-                        {
-                            item.Lat = coords.lat;
-                            item.Lng = coords.lng;
-                            points.Add(item);
-                        }
-                        else
-                        {
-                            noGeo.Add(item);
-                        }
+                        if (geo.TryGetValue(pc, out var c)) { d.Lat = c.lat; d.Lng = c.lng; pts.Add(d); }
+                        else noG.Add(d);
                     }
                 }
             });
 
-            _allPoints = points;
-            _noGeoPoints = noGeo;
-            _diagTotalDb = totalFromDb;
-            _diagGeoMapCount = geoMap.Count;
-            _diagRangeStart = rangeStart;
-            _diagRangeEnd = rangeEnd;
-
-            txtDebug.Text = $"DB: {totalFromDb} | Mapa: {points.Count} | Brak geo: {noGeo.Count}";
-        }
-
-        // Diagnostics data
-        private int _diagTotalDb;
-        private int _diagGeoMapCount;
-        private DateTime _diagRangeStart;
-        private DateTime _diagRangeEnd;
-
-        private void BtnDiagnostyka_Click(object sender, RoutedEventArgs e)
-        {
-            var sb = new StringBuilder();
-            sb.AppendLine("=== DIAGNOSTYKA MAPY DOSTAW ===");
-            sb.AppendLine($"Data generowania: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-            sb.AppendLine($"WeekStart: {_weekStart:yyyy-MM-dd} ({_weekStart.DayOfWeek})");
-            sb.AppendLine($"Okres: {_period}");
-            var (ps, pe) = GetPeriodRange();
-            sb.AppendLine($"Filtr okresu: {ps:yyyy-MM-dd} do {pe:yyyy-MM-dd}");
-            sb.AppendLine($"Zakres SQL: {_diagRangeStart:yyyy-MM-dd} do {_diagRangeEnd:yyyy-MM-dd}");
-            sb.AppendLine();
-
-            sb.AppendLine("=== DANE Z BAZY ===");
-            sb.AppendLine($"KodyPocztowe z koordynatami: {_diagGeoMapCount}");
-            sb.AppendLine($"Dostawy z SQL (total): {_diagTotalDb}");
-            sb.AppendLine($"Dostawy z geokod (na mapie): {_allPoints.Count}");
-            sb.AppendLine($"Dostawy BEZ geokod: {_noGeoPoints.Count}");
-            sb.AppendLine();
-
-            sb.AppendLine("=== FILTRY ===");
-            sb.AppendLine($"Zaznaczone dni: {_selectedDays.Count} [{string.Join(", ", _selectedDays.OrderBy(x => x))}]");
-            sb.AppendLine($"chkPotwierdzony: {chkPotwierdzony.IsChecked}");
-            sb.AppendLine($"chkDoWykupienia: {chkDoWykupienia.IsChecked}");
-            sb.AppendLine($"chkInne: {chkInne.IsChecked}");
-            sb.AppendLine($"chkAnulowany: {chkAnulowany.IsChecked}");
-            sb.AppendLine($"chkSprzedany: {chkSprzedany.IsChecked}");
-            sb.AppendLine($"Szukaj: '{txtSzukaj.Text}'");
-            sb.AppendLine($"Po filtrach na mapie: {_filteredPoints.Count}");
-            sb.AppendLine();
-
-            // Statusy w danych
-            sb.AppendLine("=== STATUSY (wszystkie dane w zakresie) ===");
-            var statusGroups = _allPoints.GroupBy(d => string.IsNullOrEmpty(d.Status) ? "(pusty)" : d.Status)
-                .OrderByDescending(g => g.Count());
-            foreach (var g in statusGroups)
-                sb.AppendLine($"  {g.Key}: {g.Count()}");
-            sb.AppendLine();
-
-            // Statusy w okresie
-            sb.AppendLine("=== STATUSY (w wybranym okresie) ===");
-            var inPeriod = _allPoints.Where(d => d.DataOdbioru >= ps && d.DataOdbioru < pe);
-            var periodStatusGroups = inPeriod.GroupBy(d => string.IsNullOrEmpty(d.Status) ? "(pusty)" : d.Status)
-                .OrderByDescending(g => g.Count());
-            foreach (var g in periodStatusGroups)
-                sb.AppendLine($"  {g.Key}: {g.Count()}");
-            sb.AppendLine($"  RAZEM w okresie: {inPeriod.Count()}");
-            sb.AppendLine();
-
-            // Dostawy bez geokod - pogrupowane po kodzie
-            if (_noGeoPoints.Count > 0)
-            {
-                sb.AppendLine("=== DOSTAWY BEZ GEOKODU (brak w KodyPocztowe) ===");
-                var noGeoInPeriod = _noGeoPoints.Where(d => d.DataOdbioru >= ps && d.DataOdbioru < pe).ToList();
-                sb.AppendLine($"W wybranym okresie: {noGeoInPeriod.Count}");
-
-                var byPostal = noGeoInPeriod.GroupBy(d => string.IsNullOrEmpty(d.KodPocztowy) ? "(brak kodu)" : d.KodPocztowy)
-                    .OrderByDescending(g => g.Count());
-                foreach (var g in byPostal.Take(30))
-                {
-                    var names = string.Join(", ", g.Select(d => d.Dostawca).Distinct().Take(3));
-                    sb.AppendLine($"  Kod: {g.Key} ({g.Count()} dostaw) - {names}");
-                }
-                sb.AppendLine();
-            }
-
-            // Dostawy po dniach w okresie
-            sb.AppendLine("=== DOSTAWY WG DNI (w okresie, z geokod) ===");
-            var byDay = _allPoints.Where(d => d.DataOdbioru >= ps && d.DataOdbioru < pe)
-                .GroupBy(d => d.DataOdbioru.Date).OrderBy(g => g.Key);
-            foreach (var g in byDay)
-            {
-                string dayName = DniSkrot[(int)g.Key.DayOfWeek];
-                bool isSelected = _selectedDays.Contains(g.Key.ToString("yyyy-MM-dd"));
-                sb.AppendLine($"  {dayName} {g.Key:dd.MM}: {g.Count()} dostaw, {g.Sum(d => d.Auta)} aut {(isSelected ? "[V]" : "[X - odfiltrowane]")}");
-            }
-
-            string report = sb.ToString();
-            Clipboard.SetText(report);
-            MessageBox.Show(report + "\n\n--- Skopiowano do schowka ---", "Diagnostyka Mapy Dostaw", MessageBoxButton.OK, MessageBoxImage.Information);
+            _all = pts; _noGeo = noG; _dbTotal = total; _geoCount = geo.Count;
+            txtDebug.Text = $"SQL: {total} | Mapa: {pts.Count} | Brak geo: {noG.Count}";
         }
 
         #endregion
 
         #region Filters
 
-        private void BuildDayFilters()
-        {
-            panelDniFiltr.Children.Clear();
-            _selectedDays.Clear();
-
-            var (start, end) = GetPeriodRange();
-            for (var d = start; d < end; d = d.AddDays(1))
-            {
-                string label = $"{DniSkrot[(int)d.DayOfWeek]} {d:dd.MM}";
-                string color = DayColors.GetValueOrDefault(d.DayOfWeek, "#6B7280");
-                string tag = d.ToString("yyyy-MM-dd");
-
-                var cb = new CheckBox
-                {
-                    Content = label,
-                    Tag = tag,
-                    IsChecked = true,
-                    Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(color)),
-                    FontSize = 10,
-                    FontWeight = FontWeights.SemiBold,
-                    Margin = new Thickness(0, 0, 8, 3),
-                    Cursor = Cursors.Hand
-                };
-                cb.Click += DayFilter_Changed;
-                panelDniFiltr.Children.Add(cb);
-                _selectedDays.Add(tag);
-            }
-        }
-
-        private (DateTime start, DateTime end) GetPeriodRange()
+        (DateTime s, DateTime e) Range()
         {
             return _period switch
             {
@@ -313,403 +159,461 @@ namespace Kalendarz1.Zywiec.Kalendarz
             };
         }
 
-        private void BtnPeriod_Click(object sender, RoutedEventArgs e)
+        void BuildDayFilters()
         {
-            if (sender is not ToggleButton clicked) return;
-            btnDzien.IsChecked = false;
-            btnTydzien.IsChecked = false;
-            btn2Tygodnie.IsChecked = false;
-            clicked.IsChecked = true;
-
-            _period = clicked.Tag?.ToString() ?? "week";
-            if (_period == "day") _weekStart = DateTime.Today;
-
-            BuildDayFilters();
-            ApplyFilterAndRefresh();
-        }
-
-        private void DayFilter_Changed(object sender, RoutedEventArgs e)
-        {
-            if (sender is CheckBox cb && cb.Tag is string tag)
+            panelDniFiltr.Children.Clear();
+            _days.Clear();
+            var (s, e) = Range();
+            for (var d = s; d < e; d = d.AddDays(1))
             {
-                if (cb.IsChecked == true) _selectedDays.Add(tag);
-                else _selectedDays.Remove(tag);
+                string tag = d.ToString("yyyy-MM-dd");
+                string col = DC.GetValueOrDefault(d.DayOfWeek, "#6B7280");
+                var cb = new CheckBox
+                {
+                    Content = $"{DN[(int)d.DayOfWeek]} {d:dd.MM}", Tag = tag, IsChecked = true,
+                    Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(col)),
+                    FontSize = 10, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 8, 2), Cursor = Cursors.Hand
+                };
+                cb.Click += (s2, e2) =>
+                {
+                    if (cb.IsChecked == true) _days.Add(tag); else _days.Remove(tag);
+                    Refresh();
+                };
+                panelDniFiltr.Children.Add(cb);
+                _days.Add(tag);
             }
-            ApplyFilterAndRefresh();
         }
 
-        private void Filter_Changed(object sender, RoutedEventArgs e)
+        void SetPeriodButton(string p)
         {
-            if (!_isWebViewReady) return;
-            ApplyFilterAndRefresh();
+            _period = p;
+            btnDzien.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(p == "day" ? "#1E40AF" : "#F1F5F9"));
+            btnDzien.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(p == "day" ? "#FFFFFF" : "#64748B"));
+            btnTydzien.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(p == "week" ? "#1E40AF" : "#F1F5F9"));
+            btnTydzien.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(p == "week" ? "#FFFFFF" : "#64748B"));
+            btn2Tygodnie.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(p == "2weeks" ? "#1E40AF" : "#F1F5F9"));
+            btn2Tygodnie.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(p == "2weeks" ? "#FFFFFF" : "#64748B"));
         }
 
-        private void TxtSzukaj_TextChanged(object sender, TextChangedEventArgs e)
+        void BtnPeriod_Click(object sender, RoutedEventArgs e)
         {
-            if (!_isWebViewReady) return;
-            ApplyFilterAndRefresh();
+            if (sender is not Button b) return;
+            string p = b.Tag?.ToString() ?? "week";
+            if (p == "day") _weekStart = DateTime.Today;
+            SetPeriodButton(p);
+            BuildDayFilters();
+            Refresh();
         }
 
-        private List<MapDostawa> ApplyFilter(List<MapDostawa> source)
+        void Filter_Changed(object sender, RoutedEventArgs e) { if (_ready) Refresh(); }
+        void TxtSzukaj_TextChanged(object sender, TextChangedEventArgs e) { if (_ready) Refresh(); }
+
+        List<Dost> Apply()
         {
-            var result = source.AsEnumerable();
-            var (start, end) = GetPeriodRange();
-            result = result.Where(d => d.DataOdbioru >= start && d.DataOdbioru < end);
+            var (s, e) = Range();
+            var r = _all.Where(d => d.Data >= s && d.Data < e);
+            if (_days.Count > 0) r = r.Where(d => _days.Contains(d.Data.ToString("yyyy-MM-dd")));
+            else return new();
 
-            if (_selectedDays.Count > 0)
-                result = result.Where(d => _selectedDays.Contains(d.DataOdbioru.ToString("yyyy-MM-dd")));
-            else
-                return new List<MapDostawa>();
-
-            // Status - wszystkie statusy z checkboxami
-            result = result.Where(d =>
+            r = r.Where(d =>
             {
-                string s = (d.Status ?? "").ToLower();
-                if (s == "anulowany") return chkAnulowany.IsChecked == true;
-                if (s == "sprzedany") return chkSprzedany.IsChecked == true;
-                if (s == "potwierdzony") return chkPotwierdzony.IsChecked == true;
-                if (s == "do wykupienia") return chkDoWykupienia.IsChecked == true;
-                // B.Wolny., B.Kontr., inne
+                string st = (d.Status ?? "").ToLower();
+                if (st == "anulowany") return chkAnulowany.IsChecked == true;
+                if (st == "sprzedany") return chkSprzedany.IsChecked == true;
+                if (st == "potwierdzony") return chkPotwierdzony.IsChecked == true;
+                if (st == "do wykupienia") return chkDoWykupienia.IsChecked == true;
                 return chkInne.IsChecked == true;
             });
 
-            string search = txtSzukaj.Text?.Trim().ToLowerInvariant();
-            if (!string.IsNullOrEmpty(search))
-                result = result.Where(d =>
-                    d.Dostawca.ToLowerInvariant().Contains(search) ||
-                    d.Miasto.ToLowerInvariant().Contains(search));
-
-            return result.ToList();
+            string q = txtSzukaj.Text?.Trim().ToLowerInvariant();
+            if (!string.IsNullOrEmpty(q))
+                r = r.Where(d => d.Nazwa.ToLowerInvariant().Contains(q) || d.Miasto.ToLowerInvariant().Contains(q));
+            return r.ToList();
         }
 
         #endregion
 
-        #region Rendering
+        #region Render
 
-        private void RenderMap()
+        void RenderMap()
         {
-            _filteredPoints = ApplyFilter(_allPoints);
-            UpdateKpis();
-            UpdateSidebar();
-            UpdatePeriodLabel();
-
-            string json = SerializePoints(_filteredPoints);
-            string html = BuildMapHtml(json);
-            string tempPath = Path.Combine(Path.GetTempPath(), "mapa_dostaw_zywca.html");
-            File.WriteAllText(tempPath, html, Encoding.UTF8);
-            webView.CoreWebView2.Navigate(tempPath);
-
+            _filtered = Apply();
+            UpdateUI();
+            string json = Ser(_filtered);
+            string html = Html(json);
+            string path = Path.Combine(Path.GetTempPath(), "mapa_dostaw_zywca.html");
+            File.WriteAllText(path, html, Encoding.UTF8);
+            webView.CoreWebView2.Navigate(path);
             loadingOverlay.Visibility = Visibility.Collapsed;
         }
 
-        private async void ApplyFilterAndRefresh()
+        async void Refresh()
         {
-            _filteredPoints = ApplyFilter(_allPoints);
-            UpdateKpis();
-            UpdateSidebar();
-            UpdatePeriodLabel();
-
-            if (!_isWebViewReady) return;
-            try
-            {
-                string json = SerializePoints(_filteredPoints);
-                await webView.CoreWebView2.ExecuteScriptAsync("updateMarkers(" + json + ")");
-            }
+            _filtered = Apply();
+            UpdateUI();
+            if (!_ready) return;
+            try { await webView.CoreWebView2.ExecuteScriptAsync("updateMarkers(" + Ser(_filtered) + ")"); }
             catch { }
         }
 
-        private void UpdatePeriodLabel()
+        void UpdateUI()
         {
-            var (start, end) = GetPeriodRange();
-            txtOkres.Text = $"{start:dd.MM} - {end.AddDays(-1):dd.MM.yyyy}";
-        }
+            var (s, e) = Range();
+            txtOkres.Text = $"{s:dd.MM} - {e.AddDays(-1):dd.MM.yyyy}";
+            txtKpiDostawy.Text = _filtered.Count.ToString();
+            txtKpiHodowcy.Text = _filtered.Select(d => d.Nazwa).Distinct().Count().ToString();
+            txtKpiAuta.Text = _filtered.Sum(d => d.Auta).ToString();
 
-        private void UpdateKpis()
-        {
-            txtKpiDostawy.Text = _filteredPoints.Count.ToString();
-            txtKpiHodowcy.Text = _filteredPoints.Select(d => d.Dostawca).Distinct().Count().ToString();
-            txtKpiAuta.Text = _filteredPoints.Sum(d => d.Auta).ToString();
-        }
-
-        private void UpdateSidebar()
-        {
             panelDostawy.Children.Clear();
-            var grouped = _filteredPoints.GroupBy(d => d.DataOdbioru.Date).OrderBy(g => g.Key);
-            int total = 0;
-
-            foreach (var dayGroup in grouped)
+            int n = 0;
+            foreach (var g in _filtered.GroupBy(d => d.Data.Date).OrderBy(g => g.Key))
             {
-                string color = DayColors.GetValueOrDefault(dayGroup.Key.DayOfWeek, "#6B7280");
-
+                string col = DC.GetValueOrDefault(g.Key.DayOfWeek, "#6B7280");
                 // Day header
-                var dayHeader = new Border
-                {
-                    Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(color + "33")),
-                    CornerRadius = new CornerRadius(6),
-                    Padding = new Thickness(10, 4, 10, 4),
-                    Margin = new Thickness(4, 6, 4, 2)
-                };
-                var hs = new StackPanel { Orientation = Orientation.Horizontal };
-                hs.Children.Add(new TextBlock { Text = $"{DniPelne[(int)dayGroup.Key.DayOfWeek]} {dayGroup.Key:dd.MM}", FontSize = 11, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(color)) });
-                hs.Children.Add(new TextBlock { Text = $"  ({dayGroup.Count()} dostaw, {dayGroup.Sum(d => d.Auta)} aut)", FontSize = 9, Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#64748B")), VerticalAlignment = VerticalAlignment.Center });
-                dayHeader.Child = hs;
-                panelDostawy.Children.Add(dayHeader);
+                var hdr = new Border { Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(col + "22")), CornerRadius = new CornerRadius(4), Padding = new Thickness(8, 3, 8, 3), Margin = new Thickness(2, 5, 2, 1) };
+                hdr.Child = new TextBlock { Text = $"{DF[(int)g.Key.DayOfWeek]} {g.Key:dd.MM}  -  {g.Count()} dostaw, {g.Sum(d => d.Auta)} aut", FontSize = 10, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(col)) };
+                panelDostawy.Children.Add(hdr);
 
-                foreach (var d in dayGroup.OrderBy(x => x.Dostawca))
+                foreach (var d in g.OrderBy(x => x.Nazwa))
                 {
-                    panelDostawy.Children.Add(CreateCard(d, color));
-                    total++;
+                    panelDostawy.Children.Add(Card(d, col));
+                    n++;
                 }
             }
-            txtLiczbaLista.Text = $"{total} dostaw na mapie";
+            txtLiczbaLista.Text = $"{n} dostaw na mapie";
         }
 
-        private Border CreateCard(MapDostawa d, string dayColor)
+        Border Card(Dost d, string col)
         {
-            var card = new Border
+            var c = new Border
             {
-                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1E293B")),
-                CornerRadius = new CornerRadius(6), Padding = new Thickness(8, 5, 8, 5),
-                Margin = new Thickness(4, 1, 4, 1), Cursor = Cursors.Hand,
-                BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#334155")),
-                BorderThickness = new Thickness(1), Tag = d.LP
+                Background = Brushes.White, CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(6, 4, 6, 4), Margin = new Thickness(2, 1, 2, 1),
+                BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E2E8F0")),
+                BorderThickness = new Thickness(1), Cursor = Cursors.Hand, Tag = d.LP
             };
-            card.MouseLeftButtonUp += Card_Click;
-            card.MouseEnter += (s, e) => ((Border)s).Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#334155"));
-            card.MouseLeave += (s, e) => ((Border)s).Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1E293B"));
-
-            var grid = new Grid();
-            grid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
-            grid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            grid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
-
-            var dot = new System.Windows.Shapes.Ellipse { Width = 8, Height = 8, Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString(dayColor)), VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 4, 8, 0) };
-            Grid.SetColumn(dot, 0); grid.Children.Add(dot);
-
-            var stack = new StackPanel(); Grid.SetColumn(stack, 1);
-            stack.Children.Add(new TextBlock { Text = d.Dostawca, FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E2E8F0")), TextTrimming = TextTrimming.CharacterEllipsis });
-            stack.Children.Add(new TextBlock { Text = $"{d.Auta} aut | {d.SztukiDek:#,0} szt | {d.WagaDek:0.00} kg", FontSize = 9, Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#94A3B8")), Margin = new Thickness(0, 1, 0, 0) });
-            if (!string.IsNullOrWhiteSpace(d.Miasto))
-                stack.Children.Add(new TextBlock { Text = $"{d.Miasto} | {d.Distance} km", FontSize = 9, Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#64748B")), Margin = new Thickness(0, 1, 0, 0) });
-            grid.Children.Add(stack);
-
-            string sc = GetStatusColor(d.Status);
-            var badge = new Border { Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(sc + "33")), CornerRadius = new CornerRadius(4), Padding = new Thickness(4, 1, 4, 1), VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(4, 0, 0, 0) };
-            string shortStatus = (d.Status ?? "").Length > 6 ? (d.Status ?? "").Substring(0, 6) + "." : d.Status ?? "";
-            badge.Child = new TextBlock { Text = shortStatus, FontSize = 8, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(sc)) };
-            Grid.SetColumn(badge, 2); grid.Children.Add(badge);
-
-            card.Child = grid;
-            return card;
-        }
-
-        private static string GetStatusColor(string status)
-        {
-            return (status ?? "").ToLower() switch
+            c.MouseLeftButtonUp += async (s, e) =>
             {
-                "potwierdzony" => "#22C55E",
-                "anulowany" => "#EF4444",
-                "sprzedany" => "#3B82F6",
-                "do wykupienia" => "#A855F7",
-                "b.wolny." => "#FBBF24",
-                "b.kontr." => "#7C3AED",
-                _ => "#F59E0B"
+                if (_ready) try { await webView.CoreWebView2.ExecuteScriptAsync($"focusMarker(\"{d.LP}\")"); } catch { }
             };
+            c.MouseEnter += (s, e) => c.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F8FAFC"));
+            c.MouseLeave += (s, e) => c.Background = Brushes.White;
+
+            var g = new Grid();
+            g.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
+            g.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            var dot = new System.Windows.Shapes.Ellipse { Width = 8, Height = 8, Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString(col)), VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 4, 6, 0) };
+            Grid.SetColumn(dot, 0); g.Children.Add(dot);
+
+            string sc = SC(d.Status);
+            var sp = new StackPanel(); Grid.SetColumn(sp, 1);
+            var row1 = new DockPanel();
+            row1.Children.Add(new TextBlock { Text = d.Nazwa, FontSize = 10, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1E293B")), TextTrimming = TextTrimming.CharacterEllipsis });
+            var badge = new Border { Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(sc + "22")), CornerRadius = new CornerRadius(3), Padding = new Thickness(4, 0, 4, 0), HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(4, 0, 0, 0) };
+            string shortS = d.Status ?? "";
+            if (shortS.Length > 7) shortS = shortS.Substring(0, 7) + ".";
+            badge.Child = new TextBlock { Text = shortS, FontSize = 8, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(sc)) };
+            DockPanel.SetDock(badge, Dock.Right);
+            row1.Children.Insert(0, badge);
+            sp.Children.Add(row1);
+            sp.Children.Add(new TextBlock { Text = $"{d.Auta} aut | {d.Szt:#,0} szt | {d.Waga:0.00}kg | {d.Km}km", FontSize = 9, Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#94A3B8")) });
+            g.Children.Add(sp);
+            c.Child = g;
+            return c;
         }
 
-        private async void Card_Click(object sender, MouseButtonEventArgs e)
+        void ScrollTo(string lp)
         {
-            if (sender is Border border && border.Tag is string lp && _isWebViewReady)
-            {
-                try
+            foreach (var ch in panelDostawy.Children)
+                if (ch is Border b && b.Tag is string t && t == lp)
                 {
-                    string safe = lp.Replace("\\", "\\\\").Replace("\"", "");
-                    await webView.CoreWebView2.ExecuteScriptAsync($"focusMarker(\"{safe}\")");
+                    b.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#DBEAFE"));
+                    b.BringIntoView();
+                    var tm = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+                    tm.Tick += (s, e) => { b.Background = Brushes.White; tm.Stop(); };
+                    tm.Start();
                 }
-                catch { }
+        }
+
+        static string SC(string s) => (s ?? "").ToLower() switch
+        {
+            "potwierdzony" => "#16A34A", "anulowany" => "#DC2626", "sprzedany" => "#2563EB",
+            "do wykupienia" => "#7C3AED", "b.wolny." => "#D97706", "b.kontr." => "#7C3AED", _ => "#D97706"
+        };
+
+        #endregion
+
+        #region Diagnostyka
+
+        void BtnDiagnostyka_Click(object sender, RoutedEventArgs e)
+        {
+            var sb = new StringBuilder();
+            var (ps, pe) = Range();
+
+            sb.AppendLine("=== DIAGNOSTYKA MAPY DOSTAW ===");
+            sb.AppendLine($"Czas: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+            sb.AppendLine($"WeekStart: {_weekStart:yyyy-MM-dd} | Okres: {_period} | Filtr: {ps:yyyy-MM-dd} - {pe:yyyy-MM-dd}");
+            sb.AppendLine($"SQL zakres: {_sqlStart:yyyy-MM-dd} - {_sqlEnd:yyyy-MM-dd}");
+            sb.AppendLine($"KodyPocztowe: {_geoCount} | SQL total: {_dbTotal} | Z geo: {_all.Count} | Bez geo: {_noGeo.Count}");
+            sb.AppendLine($"Filtry - Potw:{chkPotwierdzony.IsChecked} DoWyk:{chkDoWykupienia.IsChecked} Inne:{chkInne.IsChecked} Anul:{chkAnulowany.IsChecked} Sprz:{chkSprzedany.IsChecked}");
+            sb.AppendLine($"Szukaj: '{txtSzukaj.Text}' | Po filtrach: {_filtered.Count}");
+            sb.AppendLine();
+
+            // Wszystkie dostawy w okresie (z geo + bez geo) pogrupowane po dniach
+            var allInPeriod = _all.Where(d => d.Data >= ps && d.Data < pe).ToList();
+            var noGeoInPeriod = _noGeo.Where(d => d.Data >= ps && d.Data < pe).ToList();
+            var combined = allInPeriod.Select(d => (d, hasGeo: true))
+                .Concat(noGeoInPeriod.Select(d => (d, hasGeo: false)))
+                .OrderBy(x => x.d.Data).ThenBy(x => x.d.Nazwa)
+                .ToList();
+
+            sb.AppendLine($"=== WSZYSTKIE DOSTAWY W OKRESIE: {combined.Count} (mapa: {allInPeriod.Count}, brak geo: {noGeoInPeriod.Count}) ===");
+            sb.AppendLine();
+
+            foreach (var dayGroup in combined.GroupBy(x => x.d.Data.Date).OrderBy(g => g.Key))
+            {
+                string dayTag = dayGroup.Key.ToString("yyyy-MM-dd");
+                bool dayChecked = _days.Contains(dayTag);
+                int onMap = dayGroup.Count(x => x.hasGeo);
+                int noGeoDay = dayGroup.Count(x => !x.hasGeo);
+
+                sb.AppendLine($"--- {DN[(int)dayGroup.Key.DayOfWeek].ToUpper()} {dayGroup.Key:dd.MM.yyyy} --- razem: {dayGroup.Count()}, mapa: {onMap}, brak geo: {noGeoDay} {(dayChecked ? "" : "[DZIEN ODFILTROWANY]")}");
+
+                foreach (var (d, hasGeo) in dayGroup.OrderBy(x => x.d.Nazwa))
+                {
+                    // Sprawdz czy przeszla filtr statusu
+                    string st = (d.Status ?? "").ToLower();
+                    bool statusOk;
+                    string statusFilter;
+                    if (st == "anulowany") { statusOk = chkAnulowany.IsChecked == true; statusFilter = "chkAnulowany"; }
+                    else if (st == "sprzedany") { statusOk = chkSprzedany.IsChecked == true; statusFilter = "chkSprzedany"; }
+                    else if (st == "potwierdzony") { statusOk = chkPotwierdzony.IsChecked == true; statusFilter = "chkPotwierdzony"; }
+                    else if (st == "do wykupienia") { statusOk = chkDoWykupienia.IsChecked == true; statusFilter = "chkDoWykupienia"; }
+                    else { statusOk = chkInne.IsChecked == true; statusFilter = "chkInne"; }
+
+                    // Buduj info o widocznosci
+                    string vis;
+                    if (!hasGeo) vis = $"BRAK GEO (kod: {(string.IsNullOrEmpty(d.Kod) ? "PUSTY" : d.Kod)})";
+                    else if (!dayChecked) vis = "DZIEN ODFILTROWANY";
+                    else if (!statusOk) vis = $"STATUS ODFILTROWANY ({statusFilter}=False)";
+                    else vis = "OK - na mapie";
+
+                    sb.AppendLine($"  LP:{d.LP} | {d.Nazwa,-25} | {d.Auta}aut | {d.Status,-15} | kod:{d.Kod,-8} | {d.Miasto,-15} | {vis}");
+                }
+                sb.AppendLine();
             }
+
+            // Podsumowanie statusow
+            sb.AppendLine("=== STATUSY W OKRESIE ===");
+            foreach (var g in combined.GroupBy(x => string.IsNullOrEmpty(x.d.Status) ? "(pusty)" : x.d.Status).OrderByDescending(g => g.Count()))
+                sb.AppendLine($"  {g.Key}: {g.Count()} (geo: {g.Count(x => x.hasGeo)}, brak: {g.Count(x => !x.hasGeo)})");
+
+            string report = sb.ToString();
+            Clipboard.SetText(report);
+            MessageBox.Show("Diagnostyka skopiowana do schowka!\n\nWklej w wiadomosc (Ctrl+V).\n\nRozmiar: " + report.Length + " znakow, " + combined.Count + " dostaw w okresie.",
+                "Diagnostyka", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
-        private void ScrollToCard(string lp)
+        async void BtnUzupelnijGeo_Click(object sender, RoutedEventArgs e)
         {
-            foreach (var child in panelDostawy.Children)
+            // Zbierz brakujace kody
+            var missing = _noGeo.Select(d => d.Kod?.Replace("-", "")?.Trim() ?? "")
+                .Where(k => k.Length >= 5)
+                .Distinct()
+                .ToList();
+
+            if (missing.Count == 0)
             {
-                if (child is Border border && border.Tag is string cardLp && cardLp == lp)
+                MessageBox.Show("Brak kodow pocztowych do uzupelnienia.\nDostawy bez geo maja pusty kod pocztowy w tabeli Dostawcy.", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var result = MessageBox.Show($"Znaleziono {missing.Count} brakujacych kodow pocztowych:\n{string.Join(", ", missing.Take(15))}{(missing.Count > 15 ? "..." : "")}\n\nPobrac koordynaty z Nominatim (OpenStreetMap) i zapisac do KodyPocztowe?\n(~1 sekunda na kod)", "Uzupelnij geokody", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (result != MessageBoxResult.Yes) return;
+
+            txtDebug.Text = "Geokodowanie...";
+            int ok = 0, fail = 0;
+            var log = new StringBuilder();
+
+            try
+            {
+                using var http = new HttpClient();
+                http.DefaultRequestHeaders.Add("User-Agent", "Kalendarz1-MapaDostaw/1.0");
+
+                foreach (var kod in missing)
                 {
-                    border.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#22C55E"));
-                    border.BringIntoView();
-                    var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
-                    timer.Tick += (s, ev) => { border.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1E293B")); timer.Stop(); };
-                    timer.Start();
+                    string kodFormatted = kod.Length >= 5 ? kod.Insert(2, "-") : kod;
+                    txtDebug.Text = $"Geokodowanie {kodFormatted} ({ok + fail + 1}/{missing.Count})...";
+                    await Task.Delay(1100); // Nominatim rate limit: 1 req/sec
+
+                    try
+                    {
+                        string url = $"https://nominatim.openstreetmap.org/search?postalcode={kodFormatted}&country=Poland&format=json&limit=1";
+                        string resp = await http.GetStringAsync(url);
+                        using var doc = JsonDocument.Parse(resp);
+                        var arr = doc.RootElement;
+
+                        if (arr.GetArrayLength() > 0)
+                        {
+                            var item = arr[0];
+                            double lat = double.Parse(item.GetProperty("lat").GetString(), CultureInfo.InvariantCulture);
+                            double lng = double.Parse(item.GetProperty("lon").GetString(), CultureInfo.InvariantCulture);
+
+                            using var conn = new SqlConnection(ConnStr);
+                            await conn.OpenAsync();
+
+                            // Sprawdz czy juz istnieje
+                            using (var cmd = new SqlCommand("SELECT COUNT(*) FROM KodyPocztowe WHERE Kod = @kod", conn))
+                            {
+                                cmd.Parameters.AddWithValue("@kod", kodFormatted);
+                                int cnt = (int)await cmd.ExecuteScalarAsync();
+                                if (cnt > 0)
+                                {
+                                    // Update
+                                    using var upd = new SqlCommand("UPDATE KodyPocztowe SET Latitude = @lat, Longitude = @lng WHERE Kod = @kod", conn);
+                                    upd.Parameters.AddWithValue("@lat", lat);
+                                    upd.Parameters.AddWithValue("@lng", lng);
+                                    upd.Parameters.AddWithValue("@kod", kodFormatted);
+                                    await upd.ExecuteNonQueryAsync();
+                                }
+                                else
+                                {
+                                    // Insert
+                                    using var ins = new SqlCommand("INSERT INTO KodyPocztowe (Kod, Latitude, Longitude) VALUES (@kod, @lat, @lng)", conn);
+                                    ins.Parameters.AddWithValue("@kod", kodFormatted);
+                                    ins.Parameters.AddWithValue("@lat", lat);
+                                    ins.Parameters.AddWithValue("@lng", lng);
+                                    await ins.ExecuteNonQueryAsync();
+                                }
+                            }
+
+                            log.AppendLine($"OK: {kodFormatted} -> {lat}, {lng}");
+                            ok++;
+                        }
+                        else
+                        {
+                            log.AppendLine($"NIE ZNALEZIONO: {kodFormatted}");
+                            fail++;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        log.AppendLine($"BLAD: {kodFormatted} -> {ex.Message}");
+                        fail++;
+                    }
                 }
+
+                // Przeladuj dane
+                txtDebug.Text = "Przeladowywanie danych...";
+                await LoadDataAsync();
+                BuildDayFilters();
+                Refresh();
+
+                MessageBox.Show($"Gotowe!\n\nDodano: {ok}\nNie znaleziono: {fail}\n\n{log}", "Geokodowanie", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Blad: {ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
         #endregion
 
-        #region Map HTML
+        #region HTML
 
-        private static string SerializePoints(List<MapDostawa> points)
+        static string Ser(List<Dost> pts)
         {
-            var data = points.Select(p => new
-            {
-                lp = p.LP, n = p.Dostawca, m = p.Miasto, a = p.Adres,
-                au = p.Auta, sz = p.SztukiDek, w = p.WagaDek, s = p.Status,
-                c = p.Cena, tc = p.TypCeny, km = p.Distance, tel = p.Telefon,
-                dt = p.DataOdbioru.ToString("yyyy-MM-dd"), dw = (int)p.DataOdbioru.DayOfWeek,
-                lat = p.Lat, lng = p.Lng
-            });
-            return JsonSerializer.Serialize(data, new JsonSerializerOptions
-            {
-                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-            });
+            var d = pts.Select(p => new { lp = p.LP, n = p.Nazwa, m = p.Miasto, a = p.Adres, au = p.Auta, sz = p.Szt, w = p.Waga, s = p.Status, c = p.Cena, tc = p.TypCeny, km = p.Km, tel = p.Tel, dt = p.Data.ToString("yyyy-MM-dd"), dw = (int)p.Data.DayOfWeek, lat = p.Lat, lng = p.Lng });
+            return JsonSerializer.Serialize(d, new JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
         }
 
-        private string BuildMapHtml(string json)
+        string Html(string json)
         {
-            // Use StringBuilder to avoid C# verbatim string escaping issues
-            var sb = new StringBuilder();
+            var sb = new StringBuilder(16000);
             string bLat = BazaLat.ToString(CultureInfo.InvariantCulture);
             string bLng = BazaLng.ToString(CultureInfo.InvariantCulture);
 
-            sb.AppendLine("<!DOCTYPE html><html><head><meta charset='utf-8'/>");
-            sb.AppendLine("<link rel='stylesheet' href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'/>");
-            sb.AppendLine("<link rel='stylesheet' href='https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css'/>");
-            sb.AppendLine("<link rel='stylesheet' href='https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css'/>");
-            sb.AppendLine("<script src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'></script>");
-            sb.AppendLine("<script src='https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js'></script>");
-            sb.AppendLine("<style>");
-            sb.AppendLine("*{margin:0;padding:0;box-sizing:border-box;}");
-            sb.AppendLine("html,body{height:100%;font-family:'Segoe UI',sans-serif;}");
-            sb.AppendLine("#map{height:100%;}");
-            sb.AppendLine(".pn{font-size:14px;font-weight:700;margin-bottom:4px;color:#1e293b;}");
-            sb.AppendLine(".pr{font-size:12px;color:#555;margin:2px 0;}");
-            sb.AppendLine(".pd{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;color:#fff;margin-bottom:6px;}");
-            sb.AppendLine(".pp{font-size:13px;color:#22c55e;font-weight:700;margin-top:4px;}");
-            sb.AppendLine(".ps{display:flex;gap:8px;margin:6px 0;}");
-            sb.AppendLine(".psi{background:#f1f5f9;border-radius:4px;padding:3px 8px;font-size:11px;font-weight:600;color:#334155;}");
-            sb.AppendLine(".sb{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;color:#fff;}");
-            sb.AppendLine(".rb{display:inline-block;margin-top:6px;padding:4px 12px;background:#22C55E;color:#fff;font-size:11px;font-weight:700;border:none;border-radius:6px;cursor:pointer;}");
-            sb.AppendLine(".rb:hover{background:#16A34A;}");
-            sb.AppendLine(".ri{position:fixed;bottom:20px;right:20px;background:#1e293b;border-radius:10px;padding:14px 18px;box-shadow:0 4px 20px rgba(0,0,0,.6);z-index:9999;font-size:12px;color:#e2e8f0;min-width:220px;display:none;border:1px solid #334155;}");
-            sb.AppendLine(".ri-t{font-weight:700;font-size:13px;color:#86efac;margin-bottom:6px;}");
-            sb.AppendLine(".ri-r{margin:3px 0;color:#94a3b8;} .ri-r b{color:#e2e8f0;}");
-            sb.AppendLine(".ri-c{position:absolute;top:6px;right:10px;cursor:pointer;color:#94a3b8;font-size:16px;font-weight:700;}");
-            sb.AppendLine(".ri-c:hover{color:#ef4444;}");
-            sb.AppendLine(".lg{position:fixed;bottom:20px;left:20px;background:#1e293b;border-radius:10px;padding:12px 16px;box-shadow:0 2px 12px rgba(0,0,0,.5);z-index:9999;font-size:12px;color:#e2e8f0;}");
-            sb.AppendLine(".lg-t{font-weight:700;margin-bottom:6px;font-size:13px;color:#86efac;}");
-            sb.AppendLine(".lg-i{display:flex;align-items:center;margin:3px 0;}");
-            sb.AppendLine(".lg-d{width:12px;height:12px;border-radius:50%;margin-right:8px;border:2px solid #334155;}");
-            sb.AppendLine("</style></head><body>");
-            sb.AppendLine("<div id='map'></div>");
+            sb.Append("<!DOCTYPE html><html><head><meta charset='utf-8'/>");
+            sb.Append("<link rel='stylesheet' href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'/>");
+            sb.Append("<link rel='stylesheet' href='https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css'/>");
+            sb.Append("<link rel='stylesheet' href='https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css'/>");
+            sb.Append("<script src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'></script>");
+            sb.Append("<script src='https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js'></script>");
+            sb.Append(@"<style>
+*{margin:0;padding:0;box-sizing:border-box}html,body{height:100%;font-family:'Segoe UI',sans-serif}#map{height:100%}
+.lg{position:fixed;bottom:16px;left:16px;background:#fff;border-radius:8px;padding:10px 14px;box-shadow:0 2px 8px rgba(0,0,0,.15);z-index:9999;font-size:11px;color:#334155}
+.lg b{display:block;margin-bottom:4px;font-size:12px;color:#1e293b}
+.lg-i{display:flex;align-items:center;margin:2px 0}.lg-d{width:10px;height:10px;border-radius:50%;margin-right:6px;border:2px solid #fff;box-shadow:0 0 2px rgba(0,0,0,.3)}
+.ri{position:fixed;bottom:16px;right:16px;background:#fff;border-radius:8px;padding:12px 16px;box-shadow:0 2px 12px rgba(0,0,0,.2);z-index:9999;font-size:12px;color:#334155;min-width:200px;display:none}
+.ri b{color:#1e293b}.ri-t{font-weight:700;font-size:13px;color:#1e293b;margin-bottom:4px}
+.ri-c{position:absolute;top:4px;right:8px;cursor:pointer;color:#94a3b8;font-size:18px;font-weight:700}.ri-c:hover{color:#ef4444}
+</style></head><body><div id='map'></div>");
 
-            // Legend
-            sb.AppendLine("<div class='lg'>");
-            sb.AppendLine("<div class='lg-t'>Kolor = dzien tygodnia</div>");
-            sb.AppendLine("<div class='lg-i'><div class='lg-d' style='background:#3B82F6'></div>Poniedzialek</div>");
-            sb.AppendLine("<div class='lg-i'><div class='lg-d' style='background:#22C55E'></div>Wtorek</div>");
-            sb.AppendLine("<div class='lg-i'><div class='lg-d' style='background:#F59E0B'></div>Sroda</div>");
-            sb.AppendLine("<div class='lg-i'><div class='lg-d' style='background:#EF4444'></div>Czwartek</div>");
-            sb.AppendLine("<div class='lg-i'><div class='lg-d' style='background:#8B5CF6'></div>Piatek</div>");
-            sb.AppendLine("<div class='lg-i'><div class='lg-d' style='background:#06B6D4'></div>Sobota</div>");
-            sb.AppendLine("</div>");
+            sb.Append("<div class='lg'><b>Dzien tygodnia</b>");
+            sb.Append("<div class='lg-i'><div class='lg-d' style='background:#3B82F6'></div>Pon</div>");
+            sb.Append("<div class='lg-i'><div class='lg-d' style='background:#22C55E'></div>Wt</div>");
+            sb.Append("<div class='lg-i'><div class='lg-d' style='background:#F59E0B'></div>Sr</div>");
+            sb.Append("<div class='lg-i'><div class='lg-d' style='background:#EF4444'></div>Czw</div>");
+            sb.Append("<div class='lg-i'><div class='lg-d' style='background:#8B5CF6'></div>Pt</div>");
+            sb.Append("<div class='lg-i'><div class='lg-d' style='background:#06B6D4'></div>Sob</div>");
+            sb.Append("</div>");
 
-            // Route info
-            sb.AppendLine("<div id='routeInfo' class='ri'>");
-            sb.AppendLine("<span class='ri-c' onclick='clearRoute()'>X</span>");
-            sb.AppendLine("<div id='routeTitle' class='ri-t'></div>");
-            sb.AppendLine("<div id='routeDistance' class='ri-r'></div>");
-            sb.AppendLine("<div id='routeDuration' class='ri-r'></div>");
-            sb.AppendLine("</div>");
+            sb.Append("<div id='ri' class='ri'><span class='ri-c' onclick='clearRoute()'>x</span><div id='rt' class='ri-t'></div><div id='rd'></div><div id='rdu'></div></div>");
 
-            // JavaScript - using single quotes in HTML attributes to avoid escaping issues
-            sb.AppendLine("<script>");
-            sb.AppendLine($"var BAZA_LAT={bLat};");
-            sb.AppendLine($"var BAZA_LNG={bLng};");
-            sb.AppendLine("var DAY_COLORS={0:'#EC4899',1:'#3B82F6',2:'#22C55E',3:'#F59E0B',4:'#EF4444',5:'#8B5CF6',6:'#06B6D4'};");
-            sb.AppendLine("var DAY_NAMES=['niedz','pon','wt','sr','czw','pt','sob'];");
-            sb.AppendLine("var STATUS_COLORS={'potwierdzony':'#22c55e','anulowany':'#ef4444','sprzedany':'#3b82f6','do wykupienia':'#a855f7','b.wolny.':'#fbbf24','b.kontr.':'#7c3aed'};");
-            sb.AppendLine("");
-            sb.AppendLine("var map=L.map('map').setView([52.0,19.5],7);");
-            sb.AppendLine("L.tileLayer('https://mt1.google.com/vt/lyrs=m&hl=pl&x={x}&y={y}&z={z}',{attribution:'Google',maxZoom:20}).addTo(map);");
-            sb.AppendLine("");
+            sb.Append("<script>");
+            sb.Append($"var BL={bLat},BN={bLng};");
+            sb.Append("var DC={0:'#EC4899',1:'#3B82F6',2:'#22C55E',3:'#F59E0B',4:'#EF4444',5:'#8B5CF6',6:'#06B6D4'};");
+            sb.Append("var DN=['niedz','pon','wt','sr','czw','pt','sob'];");
+            sb.Append("var SC={'potwierdzony':'#16a34a','anulowany':'#dc2626','sprzedany':'#2563eb','do wykupienia':'#7c3aed','b.wolny.':'#d97706','b.kontr.':'#7c3aed'};");
 
-            // Base marker
-            sb.AppendLine("var bazaIcon=L.divIcon({className:'',html:'<div style=\"width:28px;height:28px;border-radius:50%;background:#22C55E;border:3px solid #fff;box-shadow:0 0 12px rgba(34,197,94,.7);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:bold;color:#fff\">B</div>',iconSize:[28,28],iconAnchor:[14,14]});");
-            sb.AppendLine($"L.marker([BAZA_LAT,BAZA_LNG],{{icon:bazaIcon,zIndexOffset:1000}}).addTo(map).bindPopup('<div class=pn style=color:#22C55E>BAZA - Ubojnia Drobiu Piorkowscy</div><div class=pr>Koziolki 40, 95-061 Dmosin</div>');");
-            sb.AppendLine("");
-            sb.AppendLine("var markers={};var markerData={};");
-            sb.AppendLine("var markersLayer=L.markerClusterGroup({maxClusterRadius:40,spiderfyOnMaxZoom:true,showCoverageOnHover:false,zoomToBoundsOnClick:true,disableClusteringAtZoom:14}).addTo(map);");
-            sb.AppendLine("var currentRoute=null;");
-            sb.AppendLine("");
-            sb.AppendLine("function clearRoute(){if(currentRoute){map.removeLayer(currentRoute);currentRoute=null;}document.getElementById('routeInfo').style.display='none';}");
-            sb.AppendLine("");
+            sb.Append("var map=L.map('map').setView([52,19.5],7);");
+            sb.Append("L.tileLayer('https://mt1.google.com/vt/lyrs=m&hl=pl&x={x}&y={y}&z={z}',{maxZoom:20}).addTo(map);");
 
-            // showRoute
-            sb.AppendLine("function showRoute(lp){");
-            sb.AppendLine("  clearRoute();var d=markerData[lp];if(!d)return;");
-            sb.AppendLine("  var url='https://router.project-osrm.org/route/v1/driving/'+BAZA_LNG+','+BAZA_LAT+';'+d.lng+','+d.lat+'?overview=full&geometries=geojson';");
-            sb.AppendLine("  fetch(url).then(function(r){return r.json();}).then(function(data){");
-            sb.AppendLine("    if(!data.routes||data.routes.length===0)return;");
-            sb.AppendLine("    var route=data.routes[0];var coords=route.geometry.coordinates.map(function(c){return[c[1],c[0]];});");
-            sb.AppendLine("    var color=DAY_COLORS[d.dw]||'#22C55E';");
-            sb.AppendLine("    currentRoute=L.polyline(coords,{color:color,weight:4,opacity:0.8,dashArray:'10,8',lineCap:'round'}).addTo(map);");
-            sb.AppendLine("    var distKm=(route.distance/1000).toFixed(1);var durMin=Math.round(route.duration/60);");
-            sb.AppendLine("    var hours=Math.floor(durMin/60);var mins=durMin%60;");
-            sb.AppendLine("    var durStr=hours>0?hours+'h '+mins+'min':mins+' min';");
-            sb.AppendLine("    document.getElementById('routeTitle').textContent=d.n+' ('+DAY_NAMES[d.dw]+' '+d.dt.substring(5)+')';");
-            sb.AppendLine("    document.getElementById('routeDistance').innerHTML='Dystans: <b>'+distKm+' km</b> (baza: '+d.km+' km)';");
-            sb.AppendLine("    document.getElementById('routeDuration').innerHTML='Czas jazdy: <b>'+durStr+'</b>';");
-            sb.AppendLine("    document.getElementById('routeInfo').style.display='block';");
-            sb.AppendLine("  }).catch(function(err){console.error(err);});");
-            sb.AppendLine("}");
-            sb.AppendLine("");
+            // Baza marker
+            sb.Append("L.marker([BL,BN],{icon:L.divIcon({className:'',html:'<div style=\"width:26px;height:26px;border-radius:50%;background:#16A34A;border:3px solid #fff;box-shadow:0 0 10px rgba(22,163,74,.6);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:bold;font-size:12px\">B</div>',iconSize:[26,26],iconAnchor:[13,13]}),zIndexOffset:1000}).addTo(map).bindPopup('<b>BAZA - Ubojnia Drobiu Piorkowscy</b><br>Koziolki 40, 95-061 Dmosin');");
 
-            // spreadOverlapping
-            sb.AppendLine("function spreadOverlapping(data){");
-            sb.AppendLine("  var groups={};data.forEach(function(d){var key=d.lat.toFixed(5)+','+d.lng.toFixed(5);if(!groups[key])groups[key]=[];groups[key].push(d);});");
-            sb.AppendLine("  Object.keys(groups).forEach(function(key){var g=groups[key];if(g.length<=1)return;for(var i=0;i<g.length;i++){var angle=(2*Math.PI*i)/g.length;var r=0.0008*(1+Math.floor(i/8)*0.5);g[i].lat+=Math.cos(angle)*r;g[i].lng+=Math.sin(angle)*r;}});");
-            sb.AppendLine("}");
-            sb.AppendLine("");
+            sb.Append("var MK={},MD={},ML=L.markerClusterGroup({maxClusterRadius:40,spiderfyOnMaxZoom:true,showCoverageOnHover:false,zoomToBoundsOnClick:true,disableClusteringAtZoom:14}).addTo(map),CR=null;");
 
-            // addMarkers - using backtick template literals for popup HTML
-            sb.AppendLine("function addMarkers(data){");
-            sb.AppendLine("  map.removeLayer(markersLayer);");
-            sb.AppendLine("  markersLayer=L.markerClusterGroup({maxClusterRadius:35,spiderfyOnMaxZoom:true,showCoverageOnHover:false,zoomToBoundsOnClick:true,disableClusteringAtZoom:14});");
-            sb.AppendLine("  markers={};markerData={};spreadOverlapping(data);");
-            sb.AppendLine("  data.forEach(function(d){");
-            sb.AppendLine("    markerData[d.lp]=d;");
-            sb.AppendLine("    var color=DAY_COLORS[d.dw]||'#6b7280';");
-            sb.AppendLine("    var conf=(d.s||'').toLowerCase()==='potwierdzony';");
-            sb.AppendLine("    var sz=conf?16:12;var bw=conf?3:2;");
-            sb.AppendLine("    var shadow=conf?'0 0 8px '+color:'0 0 4px rgba(0,0,0,.4)';");
-            sb.AppendLine("    var icon=L.divIcon({className:'',html:'<div style=\"width:'+sz+'px;height:'+sz+'px;border-radius:50%;background:'+color+';border:'+bw+'px solid #fff;box-shadow:'+shadow+'\"></div>',iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]});");
-            sb.AppendLine("    var sc=STATUS_COLORS[(d.s||'').toLowerCase()]||'#f59e0b';");
-            sb.AppendLine("    var dayLabel=DAY_NAMES[d.dw]+' '+d.dt.substring(5);");
-            // Build popup with backtick template literal
-            sb.AppendLine("    var popup=`<div class=pd style=background:${color}>${dayLabel}</div>`");
-            sb.AppendLine("      +`<div class=pn>${d.n}</div>`");
-            sb.AppendLine("      +`<div class=pr><span class=sb style=background:${sc}>${d.s}</span></div>`");
-            sb.AppendLine("      +`<div class=ps><span class=psi>${d.au} aut</span><span class=psi>${Math.round(d.sz).toLocaleString()} szt</span><span class=psi>${Number(d.w).toFixed(2)} kg</span></div>`");
-            sb.AppendLine("      +(d.a?`<div class=pr>${d.a}</div>`:'')+`<div class=pr>${d.m} | ${d.km} km</div>`");
-            sb.AppendLine("      +(d.c>0?`<div class=pr>${Number(d.c).toFixed(2)} zl (${d.tc})</div>`:'')+");
-            sb.AppendLine("      (d.tel?`<div class=pp>${d.tel}</div>`:'')+");
-            sb.AppendLine("      `<div><button class=rb onclick=\"showRoute('${d.lp}')\">Pokaz trase z bazy</button></div>`;");
-            sb.AppendLine("    var marker=L.marker([d.lat,d.lng],{icon:icon}).bindPopup(popup);");
-            sb.AppendLine("    marker.on('click',function(){window.chrome.webview.postMessage(JSON.stringify({action:'select',lp:d.lp}));});");
-            sb.AppendLine("    markers[d.lp]=marker;markersLayer.addLayer(marker);");
-            sb.AppendLine("  });");
-            sb.AppendLine("  map.addLayer(markersLayer);");
-            sb.AppendLine("  if(data.length>0){var bounds=L.latLngBounds(data.map(function(d){return[d.lat,d.lng];}));bounds.extend([BAZA_LAT,BAZA_LNG]);if(bounds.isValid())map.fitBounds(bounds,{padding:[40,40]});}");
-            sb.AppendLine("}");
-            sb.AppendLine("");
-            sb.AppendLine("function focusMarker(lp){var m=markers[lp];if(m){clearRoute();markersLayer.zoomToShowLayer(m,function(){m.openPopup();showRoute(lp);});}}");
-            sb.AppendLine("function updateMarkers(data){try{clearRoute();addMarkers(data);}catch(e){console.error(e);}}");
-            sb.AppendLine("");
-            sb.AppendLine($"var initialData={json};");
-            sb.AppendLine("addMarkers(initialData);");
-            sb.AppendLine("</script></body></html>");
+            sb.Append("function clearRoute(){if(CR){map.removeLayer(CR);CR=null}document.getElementById('ri').style.display='none'}");
 
+            sb.Append(@"function showRoute(lp){clearRoute();var d=MD[lp];if(!d)return;
+fetch('https://router.project-osrm.org/route/v1/driving/'+BN+','+BL+';'+d.lng+','+d.lat+'?overview=full&geometries=geojson')
+.then(r=>r.json()).then(j=>{if(!j.routes||!j.routes.length)return;var rt=j.routes[0];
+var co=rt.geometry.coordinates.map(c=>[c[1],c[0]]);
+CR=L.polyline(co,{color:DC[d.dw]||'#22C55E',weight:4,opacity:.8,dashArray:'8,6'}).addTo(map);
+var km=(rt.distance/1000).toFixed(1),mn=Math.round(rt.duration/60),h=Math.floor(mn/60),m=mn%60;
+document.getElementById('rt').textContent=d.n+' ('+DN[d.dw]+' '+d.dt.substring(5)+')';
+document.getElementById('rd').innerHTML='Dystans: <b>'+km+' km</b>';
+document.getElementById('rdu').innerHTML='Czas: <b>'+(h>0?h+'h '+m+'min':m+' min')+'</b>';
+document.getElementById('ri').style.display='block'}).catch(e=>console.error(e))}");
+
+            sb.Append(@"function spread(data){var g={};data.forEach(d=>{var k=d.lat.toFixed(5)+','+d.lng.toFixed(5);(g[k]=g[k]||[]).push(d)});
+Object.values(g).forEach(a=>{if(a.length<2)return;a.forEach((d,i)=>{var an=2*Math.PI*i/a.length,r=.0008*(1+Math.floor(i/8)*.5);d.lat+=Math.cos(an)*r;d.lng+=Math.sin(an)*r})})}");
+
+            sb.Append(@"function addMarkers(data){map.removeLayer(ML);ML=L.markerClusterGroup({maxClusterRadius:35,spiderfyOnMaxZoom:true,showCoverageOnHover:false,zoomToBoundsOnClick:true,disableClusteringAtZoom:14});
+MK={};MD={};spread(data);data.forEach(d=>{MD[d.lp]=d;var co=DC[d.dw]||'#888',cf=(d.s||'').toLowerCase()==='potwierdzony',sz=cf?16:11,bw=cf?3:2;
+var ic=L.divIcon({className:'',html:'<div style=""width:'+sz+'px;height:'+sz+'px;border-radius:50%;background:'+co+';border:'+bw+'px solid #fff;box-shadow:0 0 '+(cf?8:3)+'px '+co+'""></div>',iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]});
+var sc=SC[(d.s||'').toLowerCase()]||'#d97706';
+var p=`<div style='font-size:11px;font-weight:700;color:#fff;background:${co};padding:2px 8px;border-radius:4px;display:inline-block;margin-bottom:6px'>${DN[d.dw]} ${d.dt.substring(5)}</div>`
++`<div style='font-size:14px;font-weight:700;margin-bottom:4px'>${d.n}</div>`
++`<span style='display:inline-block;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:700;color:#fff;background:${sc}'>${d.s}</span>`
++`<div style='display:flex;gap:6px;margin:6px 0;font-size:11px;font-weight:600;color:#334155'><span style='background:#f1f5f9;padding:2px 6px;border-radius:3px'>${d.au} aut</span><span style='background:#f1f5f9;padding:2px 6px;border-radius:3px'>${Math.round(d.sz)} szt</span><span style='background:#f1f5f9;padding:2px 6px;border-radius:3px'>${Number(d.w).toFixed(2)} kg</span></div>`
++(d.a?`<div style='font-size:11px;color:#555'>${d.a}</div>`:'')+`<div style='font-size:11px;color:#555'>${d.m} | ${d.km} km</div>`
++(d.c>0?`<div style='font-size:11px;color:#555'>${Number(d.c).toFixed(2)} zl (${d.tc})</div>`:'')+");
+
+            // telefon i przycisk trasy - osobno bo zawiera onclick z apostrofami
+            sb.Append(@"(d.tel?`<div style='font-size:12px;color:#16a34a;font-weight:700;margin-top:4px'>${d.tel}</div>`:'')+`<div style='margin-top:6px'><button style='padding:4px 12px;background:#16A34A;color:#fff;font-size:11px;font-weight:700;border:none;border-radius:6px;cursor:pointer' onclick=""showRoute('${d.lp}')"">Pokaz trase</button></div>`;");
+
+            sb.Append(@"var mk=L.marker([d.lat,d.lng],{icon:ic}).bindPopup(p,{maxWidth:280});
+mk.on('click',()=>window.chrome.webview.postMessage(JSON.stringify({action:'select',lp:d.lp})));
+MK[d.lp]=mk;ML.addLayer(mk)});map.addLayer(ML);
+if(data.length){var b=L.latLngBounds(data.map(d=>[d.lat,d.lng]));b.extend([BL,BN]);if(b.isValid())map.fitBounds(b,{padding:[40,40]})}}");
+
+            sb.Append("function focusMarker(lp){var m=MK[lp];if(m){clearRoute();ML.zoomToShowLayer(m,()=>{m.openPopup();showRoute(lp)})}}");
+            sb.Append("function updateMarkers(data){try{clearRoute();addMarkers(data)}catch(e){console.error(e)}}");
+            sb.Append($"addMarkers({json});");
+            sb.Append("</script></body></html>");
             return sb.ToString();
         }
 
@@ -717,22 +621,22 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
         #region Model
 
-        private class MapDostawa
+        class Dost
         {
             public string LP { get; set; }
-            public DateTime DataOdbioru { get; set; }
-            public string Dostawca { get; set; }
+            public DateTime Data { get; set; }
+            public string Nazwa { get; set; }
             public int Auta { get; set; }
-            public double SztukiDek { get; set; }
-            public decimal WagaDek { get; set; }
+            public double Szt { get; set; }
+            public decimal Waga { get; set; }
             public string Status { get; set; }
             public decimal Cena { get; set; }
             public string TypCeny { get; set; }
             public string Miasto { get; set; }
             public string Adres { get; set; }
-            public string KodPocztowy { get; set; }
-            public int Distance { get; set; }
-            public string Telefon { get; set; }
+            public string Kod { get; set; }
+            public int Km { get; set; }
+            public string Tel { get; set; }
             public double Lat { get; set; }
             public double Lng { get; set; }
         }

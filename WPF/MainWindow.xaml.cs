@@ -710,9 +710,19 @@ namespace Kalendarz1.WPF
             ApplyFilters();
         }
 
-        private async void AutoRefreshTimer_Tick(object sender, EventArgs e)
+        private async void AutoRefreshTimer_Tick(object? sender, EventArgs e)
         {
-            await RefreshAllDataAsync();
+            // Pomiń jeśli już trwa odświeżanie
+            if (_isRefreshing) return;
+            _autoRefreshTimer.Stop();
+            try
+            {
+                await RefreshAllDataAsync();
+            }
+            finally
+            {
+                _autoRefreshTimer.Start();
+            }
         }
 
         private async void BtnRefresh_Click(object sender, RoutedEventArgs e)
@@ -3037,8 +3047,8 @@ namespace Kalendarz1.WPF
                     _showLoadingDiagnostics = false;
                 }
 
-                // ✅ PRELOAD: Załaduj dane dla sąsiednich dat w tle
-                _ = PreloadAdjacentDatesAsync(_selectedDate);
+                // PRELOAD wyłączony — powodował dodatkowe obciążenie connection pool
+                // _ = PreloadAdjacentDatesAsync(_selectedDate);
             }
         }
 
@@ -3286,7 +3296,7 @@ WHERE {dateColumnZm} = @Day " +
      zm.LiczbaPojemnikow, zm.LiczbaPalet, zm.TrybE2, zm.Uwagi, zm.TransportKursID, zm.CzyZrealizowane, zm.DataWydania{slaughterDateGroupBy}
 ORDER BY zm.Id";
 
-                    await using var cmd = new SqlCommand(sql, cn);
+                    await using var cmd = new SqlCommand(sql, cn) { CommandTimeout = 15 };
                     cmd.Parameters.AddWithValue("@Day", day);
                     if (selectedProductId.HasValue)
                         cmd.Parameters.AddWithValue("@ProductId", selectedProductId.Value);
@@ -5745,7 +5755,7 @@ ORDER BY zm.Id";
                 await cn.OpenAsync();
                 const string sql = @"SELECT WagaDek, SztukiDek FROM dbo.HarmonogramDostaw
             WHERE DataOdbioru = @Day AND Bufor IN ('B.Wolny', 'B.Kontr.', 'Potwierdzony')";
-                await using var cmd = new SqlCommand(sql, cn);
+                await using var cmd = new SqlCommand(sql, cn) { CommandTimeout = 10 };
                 cmd.Parameters.AddWithValue("@Day", day.Date);
                 await using var rdr = await cmd.ExecuteReaderAsync();
                 while (await rdr.ReadAsync())
@@ -5901,6 +5911,9 @@ ORDER BY zm.Id";
             }
             diagTimes.Add(("PrzychZam" + (przychodyFromCache ? "©" : "(||)"), diagSw.ElapsedMilliseconds));
 
+            // ✅ Rezerwacje klas wagowych na dany dzień (z RezerwacjeKlasWagowych)
+            var taskRezerwacje = RezerwacjeKlasManager.PobierzZajetoscAsync(_connLibra, day);
+
             // ✅ OPTYMALIZACJA: Wydania + Stany równolegle
             diagSw.Restart();
             bool wydaniaFromCache = _cachedWydaniaDate == day.Date;
@@ -5951,10 +5964,11 @@ ORDER BY zm.Id";
                 return result;
             });
 
-            await Task.WhenAll(taskWydaniaAgg, taskStanyMag);
+            await Task.WhenAll(taskWydaniaAgg, taskStanyMag, taskRezerwacje);
             var wydaniaSum = await taskWydaniaAgg;
             var stanyMagazynowe = await taskStanyMag;
-            diagTimes.Add(("WydStany(||)" + (wydaniaFromCache ? "©" : ""), diagSw.ElapsedMilliseconds));
+            var rezerwacjeKlas = await taskRezerwacje; // Dict<int,int>: klasa → zajęte pojemniki
+            diagTimes.Add(("WydStanyRez(||)" + (wydaniaFromCache ? "©" : ""), diagSw.ElapsedMilliseconds));
 
             diagSw.Restart();
             var kurczakA = _productCatalogCache.FirstOrDefault(p =>
@@ -6192,7 +6206,7 @@ ORDER BY zm.Id";
                 wpProductCards.Children.Add(CreateKurczakACard(
                     kurczakAName, planA, factA, wartoscA, balanceA, stanMagA,
                     colors[colorIdx % colors.Length], kurczakAName, kurczakA.Key,
-                    _pojemnikiKlasyPrognoza, uzywajWydan));
+                    _pojemnikiKlasyPrognoza, uzywajWydan, rezerwacjeKlas));
                 colorIdx++;
 
                 // 2. Separator po Kurczaku A
@@ -6243,7 +6257,7 @@ ORDER BY zm.Id";
                     Color.FromRgb(76, 175, 80), true));
                 wpProductCards.Children.Add(CreateKurczakACard("Kurczak A", planA, factA, zamWydA, balanceA, stanMagA,
                     Color.FromRgb(102, 187, 106), "Kurczak A", kurczakA.Key,
-                    _pojemnikiKlasyPrognoza, uzywajWydan));
+                    _pojemnikiKlasyPrognoza, uzywajWydan, rezerwacjeKlas));
                 wpProductCards.Children.Add(CreateDashboardCard("Kurczak B", sumaPlanB, sumaFaktB, zamWydB, bilansB, sumaStanB,
                     Color.FromRgb(66, 165, 245), true));
             }
@@ -6655,7 +6669,8 @@ ORDER BY zm.Id";
         /// </summary>
         private Border CreateKurczakACard(string nazwa, decimal plan, decimal fakt,
             decimal zamLubWyd, decimal bilans, decimal stan, Color barColor,
-            string tooltip, int towarId, int[] pojemnikiKlasy, bool uzywajWydan)
+            string tooltip, int towarId, int[] pojemnikiKlasy, bool uzywajWydan,
+            Dictionary<int, int>? rezerwacjeKlas = null)
         {
             bool uzytoFakt = fakt > 0;
             string zamWydLabel = uzywajWydan ? "wyd" : "zam";
@@ -6670,8 +6685,8 @@ ORDER BY zm.Id";
                 Padding = new Thickness(10),
                 BorderBrush = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
                 BorderThickness = new Thickness(1),
-                Width = 420, // Powiększona karta (standardowa = 200)
-                ToolTip = tooltip,
+                Width = 450, // Powiększona karta (standardowa = 200)
+                ToolTip = "Kliknij 2x aby otworzyć klasy wagowe dnia",
                 Tag = new { TowarId = towarId, Nazwa = nazwa },
                 Cursor = System.Windows.Input.Cursors.Hand
             };
@@ -6679,8 +6694,38 @@ ORDER BY zm.Id";
             if (towarId > 0)
                 card.MouseLeftButtonUp += (s, e) => FilterOrdersByProduct(towarId, nazwa);
 
+            // Double-click → WidokKlasWagowychDnia
+            card.MouseLeftButtonDown += (s, e) =>
+            {
+                if (e.ClickCount == 2)
+                {
+                    e.Handled = true;
+                    var prognozaDict = new Dictionary<int, int>();
+                    for (int k = 5; k <= 12; k++)
+                        prognozaDict[k] = pojemnikiKlasy[k];
+                    var widok = new WidokKlasWagowychDnia(_selectedDate, _connLibra, prognozaDict);
+                    widok.Show();
+                }
+            };
+
             // Menu kontekstowe
             var contextMenu = new ContextMenu();
+            var menuKlasy = new MenuItem { Header = "Pokaż klasy wagowe dnia" };
+            menuKlasy.Click += (s, e) =>
+            {
+                var prognozaDict = new Dictionary<int, int>();
+                for (int k = 5; k <= 12; k++)
+                    prognozaDict[k] = pojemnikiKlasy[k];
+                var widok = new WidokKlasWagowychDnia(_selectedDate, _connLibra, prognozaDict);
+                widok.Show();
+            };
+            contextMenu.Items.Add(menuKlasy);
+
+            var menuKtoZamowil = new MenuItem { Header = "Kto zamówił Kurczak A?" };
+            menuKtoZamowil.Click += async (s, e) => await PokazKtoZamowilKurczakAAsync();
+            contextMenu.Items.Add(menuKtoZamowil);
+
+            contextMenu.Items.Add(new Separator());
             var menuPowieksz = new MenuItem { Header = "Powiększ do nowego okna" };
             menuPowieksz.Click += async (s, e) =>
                 await DashboardWindow.OpenProductDetailDirectlyAsync(_connLibra, _connHandel, nazwa, _selectedDate);
@@ -6832,19 +6877,26 @@ ORDER BY zm.Id";
             decimal kgMaly = pojMaly * 15m;
             decimal sumaKg = kgDuzy + kgMaly;
 
-            // Helper: tworzy wiersz klasy wagowej
-            void DodajWierszKlasy(StackPanel parent, int kl, int poj, decimal maxKg)
+            // Rezerwacje per klasa (pojemniki → kg)
+            var rezKlas = rezerwacjeKlas ?? new Dictionary<int, int>();
+
+            // Helper: wiersz klasy wagowej — Plan / Zamów. / Wolne
+            void DodajWierszKlasy(StackPanel parent, int kl, int poj)
             {
-                if (poj == 0) return;
-                decimal kg = poj * 15m;
+                int rezPoj = rezKlas.TryGetValue(kl, out var rp) ? rp : 0;
+                if (poj == 0 && rezPoj == 0) return;
+                decimal planKg = poj * 15m;
+                decimal zamKg = rezPoj * 15m;
+                decimal wolneKg = planKg - zamKg;
                 var klColor = klasaKolory.TryGetValue(kl, out var cc) ? cc : Color.FromRgb(128, 128, 128);
 
-                var row = new Grid { Margin = new Thickness(0, 0, 0, 1), Height = 16 };
-                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(44) });
-                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
+                var row = new Grid { Margin = new Thickness(0, 1, 0, 1), Height = 16 };
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(38) });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(55) });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(55) });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(55) });
 
-                // Kółko + etykieta
+                // Kółko + klasa
                 var lbl = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
                 lbl.Children.Add(new Border
                 {
@@ -6861,86 +6913,108 @@ ORDER BY zm.Id";
                 Grid.SetColumn(lbl, 0);
                 row.Children.Add(lbl);
 
-                // Pasek
-                double barMax = 90;
-                double barW = maxKg > 0 ? (double)(kg / maxKg) * barMax : 3;
-                var bar = new Border
+                // Plan
+                var vPlan = new TextBlock
                 {
-                    Height = 11, Width = Math.Max(barW, 4),
-                    HorizontalAlignment = HorizontalAlignment.Left,
-                    CornerRadius = new CornerRadius(3),
-                    Background = new SolidColorBrush(klColor),
-                    Opacity = 0.75,
-                    VerticalAlignment = VerticalAlignment.Center
+                    Text = poj > 0 ? $"{planKg:N0}" : "-",
+                    FontSize = 9, Foreground = new SolidColorBrush(poj > 0 ? Color.FromRgb(44, 62, 80) : Color.FromRgb(180, 180, 180)),
+                    VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right
                 };
-                Grid.SetColumn(bar, 1);
-                row.Children.Add(bar);
+                Grid.SetColumn(vPlan, 1);
+                row.Children.Add(vPlan);
 
-                // Wartość kg
-                var val = new TextBlock
+                // Zamówione
+                var vZam = new TextBlock
                 {
-                    Text = $"{kg:N0} kg",
-                    FontSize = 9, FontWeight = FontWeights.Bold,
-                    Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
-                    VerticalAlignment = VerticalAlignment.Center,
-                    HorizontalAlignment = HorizontalAlignment.Right,
-                    TextAlignment = TextAlignment.Right
+                    Text = rezPoj > 0 ? $"{zamKg:N0}" : "-",
+                    FontSize = 9, Foreground = new SolidColorBrush(rezPoj > 0 ? Color.FromRgb(52, 152, 219) : Color.FromRgb(180, 180, 180)),
+                    VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right
                 };
-                Grid.SetColumn(val, 2);
-                row.Children.Add(val);
+                Grid.SetColumn(vZam, 2);
+                row.Children.Add(vZam);
+
+                // Wolne — zielony jeśli > 0, czerwony jeśli < 0, szary jeśli 0
+                var wolneColor = wolneKg > 0 ? Color.FromRgb(22, 163, 74)
+                    : wolneKg < 0 ? Color.FromRgb(220, 38, 38)
+                    : Color.FromRgb(150, 150, 150);
+                string wolnePrefix = wolneKg > 0 ? "+" : "";
+                var vWolne = new TextBlock
+                {
+                    Text = (poj > 0 || rezPoj > 0) ? $"{wolnePrefix}{wolneKg:N0}" : "-",
+                    FontSize = 9, FontWeight = FontWeights.Bold,
+                    Foreground = new SolidColorBrush(wolneColor),
+                    VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right
+                };
+                Grid.SetColumn(vWolne, 3);
+                row.Children.Add(vWolne);
 
                 parent.Children.Add(row);
             }
 
-            // Helper: nagłówek sekcji (DUŻY / MAŁY)
-            void DodajNaglowekSekcji(StackPanel parent, string tekst, Color kolor, decimal kgSekcji, int pojSekcji)
+            // Helper: nagłówek sekcji
+            int RezSekcji(int od, int doo) { int s = 0; for (int k = od; k <= doo; k++) s += rezKlas.TryGetValue(k, out var v) ? v : 0; return s; }
+
+            void DodajNaglowekSekcji(StackPanel parent, string tekst, Color kolor, decimal kgPlan, int klOd, int klDo)
             {
+                decimal kgZam = RezSekcji(klOd, klDo) * 15m;
+                decimal kgWolne = kgPlan - kgZam;
                 var hdr = new Border
                 {
-                    Background = new SolidColorBrush(Color.FromArgb(25, kolor.R, kolor.G, kolor.B)),
+                    Background = new SolidColorBrush(Color.FromArgb(30, kolor.R, kolor.G, kolor.B)),
                     CornerRadius = new CornerRadius(3),
                     Padding = new Thickness(5, 2, 5, 2),
-                    Margin = new Thickness(0, 1, 0, 1)
+                    Margin = new Thickness(0, 2, 0, 1)
                 };
-                var hdrGrid = new Grid();
-                hdrGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                hdrGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                var g = new Grid();
+                g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(38) });
+                g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(55) });
+                g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(55) });
+                g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(55) });
 
-                var hdrLabel = new TextBlock
-                {
-                    FontSize = 9, FontWeight = FontWeights.Bold,
-                    Foreground = new SolidColorBrush(kolor),
-                    VerticalAlignment = VerticalAlignment.Center
-                };
-                hdrLabel.Inlines.Add(new Run(tekst));
-                Grid.SetColumn(hdrLabel, 0);
-                hdrGrid.Children.Add(hdrLabel);
+                var tLabel = new TextBlock { Text = tekst, FontSize = 9, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(kolor), VerticalAlignment = VerticalAlignment.Center };
+                Grid.SetColumn(tLabel, 0); g.Children.Add(tLabel);
 
-                var hdrVal = new TextBlock
-                {
-                    FontSize = 9, FontWeight = FontWeights.Bold,
-                    Foreground = new SolidColorBrush(kolor),
-                    VerticalAlignment = VerticalAlignment.Center
-                };
-                hdrVal.Inlines.Add(new Run($"{kgSekcji:N0} kg"));
-                Grid.SetColumn(hdrVal, 1);
-                hdrGrid.Children.Add(hdrVal);
+                var tPlan = new TextBlock { Text = $"{kgPlan:N0}", FontSize = 9, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(kolor), HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
+                Grid.SetColumn(tPlan, 1); g.Children.Add(tPlan);
 
-                hdr.Child = hdrGrid;
+                var tZam = new TextBlock { Text = kgZam > 0 ? $"{kgZam:N0}" : "-", FontSize = 9, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(kgZam > 0 ? Color.FromRgb(52, 152, 219) : Color.FromRgb(180, 180, 180)), HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
+                Grid.SetColumn(tZam, 2); g.Children.Add(tZam);
+
+                var wolneColor = kgWolne > 0 ? Color.FromRgb(22, 163, 74) : kgWolne < 0 ? Color.FromRgb(220, 38, 38) : Color.FromRgb(150, 150, 150);
+                string wp = kgWolne > 0 ? "+" : "";
+                var tWolne = new TextBlock { Text = $"{wp}{kgWolne:N0}", FontSize = 9, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(wolneColor), HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
+                Grid.SetColumn(tWolne, 3); g.Children.Add(tWolne);
+
+                hdr.Child = g;
                 parent.Children.Add(hdr);
             }
 
-            if (sumaPoj > 0)
+            if (sumaPoj > 0 || rezKlas.Values.Sum() > 0)
             {
-                // === SEKCJA DUŻY (Kl. 5-8) ===
-                DodajNaglowekSekcji(rightStack, "DUŻY (Kl.5-8)", Color.FromRgb(220, 80, 20), kgDuzy, pojDuzy);
-                for (int kl = 5; kl <= 8; kl++)
-                    DodajWierszKlasy(rightStack, kl, pojemnikiKlasy[kl], sumaKg);
+                // Nagłówki kolumn
+                var colHdr = new Grid { Margin = new Thickness(0, 0, 0, 1) };
+                colHdr.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(38) });
+                colHdr.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(55) });
+                colHdr.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(55) });
+                colHdr.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(55) });
+                var gray = new SolidColorBrush(Color.FromRgb(127, 140, 141));
+                var h1 = new TextBlock { Text = "Plan", FontSize = 8, Foreground = gray, HorizontalAlignment = HorizontalAlignment.Right };
+                Grid.SetColumn(h1, 1); colHdr.Children.Add(h1);
+                var h2 = new TextBlock { Text = "Zamów.", FontSize = 8, Foreground = gray, HorizontalAlignment = HorizontalAlignment.Right };
+                Grid.SetColumn(h2, 2); colHdr.Children.Add(h2);
+                var h3 = new TextBlock { Text = "Wolne", FontSize = 8, Foreground = gray, HorizontalAlignment = HorizontalAlignment.Right };
+                Grid.SetColumn(h3, 3); colHdr.Children.Add(h3);
+                rightStack.Children.Add(colHdr);
 
-                // === SEKCJA MAŁY (Kl. 9-12) ===
-                DodajNaglowekSekcji(rightStack, "MAŁY (Kl.9-12)", Color.FromRgb(22, 120, 180), kgMaly, pojMaly);
+                // === DUŻY (Kl.5-8) ===
+                DodajNaglowekSekcji(rightStack, "DUŻY", Color.FromRgb(220, 80, 20), kgDuzy, 5, 8);
+                for (int kl = 5; kl <= 8; kl++)
+                    DodajWierszKlasy(rightStack, kl, pojemnikiKlasy[kl]);
+
+                // === MAŁY (Kl.9-12) ===
+                DodajNaglowekSekcji(rightStack, "MAŁY", Color.FromRgb(22, 120, 180), kgMaly, 9, 12);
                 for (int kl = 9; kl <= 12; kl++)
-                    DodajWierszKlasy(rightStack, kl, pojemnikiKlasy[kl], sumaKg);
+                    DodajWierszKlasy(rightStack, kl, pojemnikiKlasy[kl]);
             }
             else
             {
@@ -7163,6 +7237,257 @@ ORDER BY zm.Id";
 
             card.Child = stack;
             return card;
+        }
+
+        /// <summary>
+        /// Pokazuje okno "Kto zamówił Kurczak A" — zamówienia pogrupowane per handlowiec,
+        /// z oznaczeniem które mają/nie mają rezerwacji klas wagowych.
+        /// </summary>
+        private async Task PokazKtoZamowilKurczakAAsync()
+        {
+            try
+            {
+                string dateCol = (_showBySlaughterDate && _slaughterDateColumnExists) ? "DataUboju" : "DataZamowienia";
+
+                // 1. Znajdź ID produktu Kurczak A z cache
+                var kurczakAIds = _productCatalogCache
+                    .Where(p => p.Value.Contains("Kurczak A", StringComparison.OrdinalIgnoreCase))
+                    .Select(p => p.Key).ToList();
+
+                if (!kurczakAIds.Any())
+                {
+                    MessageBox.Show("Nie znaleziono produktu Kurczak A w katalogu.", "Informacja",
+                        MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                // 2. Pobierz zamówienia z tym produktem na wybrany dzień (KlientId → nazwa z cache)
+                var kontrahenci = _cachedKontrahenci.Count > 0 ? _cachedKontrahenci : new Dictionary<int, (string Name, string Salesman)>();
+                var zamowienia = new List<(int Id, string Odbiorca, string Handlowiec, decimal Kg)>();
+                await using (var cn = new SqlConnection(_connLibra))
+                {
+                    await cn.OpenAsync();
+                    var idList = string.Join(",", kurczakAIds);
+                    var sql = $@"SELECT z.Id, z.KlientId, ISNULL(SUM(t.Ilosc),0) AS Kg
+                                FROM [dbo].[ZamowieniaMieso] z
+                                JOIN [dbo].[ZamowieniaMiesoTowar] t ON z.Id = t.ZamowienieId
+                                WHERE z.{dateCol} = @Data AND z.Status <> 'Anulowane'
+                                  AND t.KodTowaru IN ({idList})
+                                GROUP BY z.Id, z.KlientId
+                                ORDER BY z.KlientId";
+                    await using var cmd = new SqlCommand(sql, cn);
+                    cmd.Parameters.AddWithValue("@Data", _selectedDate.Date);
+                    await using var rdr = await cmd.ExecuteReaderAsync();
+                    while (await rdr.ReadAsync())
+                    {
+                        int id = rdr.GetInt32(0);
+                        int klientId = rdr.IsDBNull(1) ? 0 : rdr.GetInt32(1);
+                        decimal kg = rdr.IsDBNull(2) ? 0m : Convert.ToDecimal(rdr.GetValue(2));
+                        var (nazwa, handlowiec) = kontrahenci.TryGetValue(klientId, out var kh)
+                            ? kh : ($"Klient {klientId}", "?");
+                        zamowienia.Add((id, nazwa, handlowiec, kg));
+                    }
+                }
+
+                // 2. Pobierz rezerwacje klas dla tych zamówień
+                var zamIdList = zamowienia.Select(z => z.Id).ToList();
+                var maRezerwacje = new HashSet<int>();
+                if (zamIdList.Any())
+                {
+                    await using var cn2 = new SqlConnection(_connLibra);
+                    await cn2.OpenAsync();
+                    var sqlR = $@"SELECT DISTINCT ZamowienieId FROM [dbo].[RezerwacjeKlasWagowych]
+                                  WHERE ZamowienieId IN ({string.Join(",", zamIdList)}) AND Status = 'Aktywna'";
+                    await using var cmdR = new SqlCommand(sqlR, cn2);
+                    await using var rdR = await cmdR.ExecuteReaderAsync();
+                    while (await rdR.ReadAsync())
+                        maRezerwacje.Add(rdR.GetInt32(0));
+                }
+
+                // 3. Zbuduj okno WPF
+                var win = new Window
+                {
+                    Title = $"Kurczak A — Zamówienia na {_selectedDate:dd.MM.yyyy}",
+                    Width = 650, Height = 550, WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                    Owner = this, Background = new SolidColorBrush(Color.FromRgb(245, 247, 250)),
+                    FontFamily = new System.Windows.Media.FontFamily("Segoe UI")
+                };
+                WindowIconHelper.SetIcon(win);
+
+                var mainStack = new StackPanel { Margin = new Thickness(15) };
+                var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = mainStack };
+                win.Content = scroll;
+
+                // Podsumowanie
+                int total = zamowienia.Count;
+                int bezKlas = zamowienia.Count(z => !maRezerwacje.Contains(z.Id));
+                decimal totalKg = zamowienia.Sum(z => z.Kg);
+                var summaryColor = bezKlas == 0 ? Color.FromRgb(22, 163, 74) : Color.FromRgb(220, 80, 20);
+
+                var summaryBorder = new Border
+                {
+                    Background = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
+                    CornerRadius = new CornerRadius(6), Padding = new Thickness(15, 10, 15, 10),
+                    Margin = new Thickness(0, 0, 0, 12)
+                };
+                var summaryGrid = new Grid();
+                summaryGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                summaryGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                summaryGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+                var sumText = new TextBlock { FontSize = 13, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center };
+                sumText.Inlines.Add(new Run($"{total} zamówień") { FontWeight = FontWeights.Bold });
+                sumText.Inlines.Add(new Run($"  |  {totalKg:N0} kg") { Foreground = new SolidColorBrush(Color.FromRgb(189, 195, 199)) });
+                Grid.SetColumn(sumText, 0);
+                summaryGrid.Children.Add(sumText);
+
+                var bezKlasText = new TextBlock
+                {
+                    Text = bezKlas == 0 ? "Wszystkie mają klasy" : $"{bezKlas} bez klas!",
+                    FontSize = 12, FontWeight = FontWeights.Bold,
+                    Foreground = new SolidColorBrush(summaryColor),
+                    VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(15, 0, 0, 0)
+                };
+                Grid.SetColumn(bezKlasText, 1);
+                summaryGrid.Children.Add(bezKlasText);
+                summaryBorder.Child = summaryGrid;
+                mainStack.Children.Add(summaryBorder);
+
+                // Grupowanie per handlowiec
+                var grupy = zamowienia.GroupBy(z => z.Handlowiec).OrderBy(g => g.Key);
+                foreach (var grupa in grupy)
+                {
+                    decimal kgGrupy = grupa.Sum(z => z.Kg);
+                    int bezKlasGrupy = grupa.Count(z => !maRezerwacje.Contains(z.Id));
+
+                    // Nagłówek handlowca
+                    var hdrBorder = new Border
+                    {
+                        Background = new SolidColorBrush(Color.FromRgb(52, 73, 94)),
+                        CornerRadius = new CornerRadius(4), Padding = new Thickness(10, 5, 10, 5),
+                        Margin = new Thickness(0, 6, 0, 2)
+                    };
+                    var hdrGrid = new Grid();
+                    hdrGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    hdrGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                    hdrGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+                    var hdrName = new TextBlock
+                    {
+                        Text = grupa.Key, FontSize = 12, FontWeight = FontWeights.Bold,
+                        Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center
+                    };
+                    Grid.SetColumn(hdrName, 0);
+                    hdrGrid.Children.Add(hdrName);
+
+                    var hdrKg = new TextBlock
+                    {
+                        Text = $"{kgGrupy:N0} kg", FontSize = 11,
+                        Foreground = new SolidColorBrush(Color.FromRgb(189, 195, 199)),
+                        VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 0, 0)
+                    };
+                    Grid.SetColumn(hdrKg, 1);
+                    hdrGrid.Children.Add(hdrKg);
+
+                    if (bezKlasGrupy > 0)
+                    {
+                        var hdrWarn = new TextBlock
+                        {
+                            Text = $"  {bezKlasGrupy} bez klas",
+                            FontSize = 10, FontWeight = FontWeights.Bold,
+                            Foreground = new SolidColorBrush(Color.FromRgb(231, 76, 60)),
+                            VerticalAlignment = VerticalAlignment.Center
+                        };
+                        Grid.SetColumn(hdrWarn, 2);
+                        hdrGrid.Children.Add(hdrWarn);
+                    }
+                    hdrBorder.Child = hdrGrid;
+                    mainStack.Children.Add(hdrBorder);
+
+                    // Wiersze zamówień
+                    foreach (var zam in grupa.OrderByDescending(z => z.Kg))
+                    {
+                        bool maKlasy = maRezerwacje.Contains(zam.Id);
+                        var rowBorder = new Border
+                        {
+                            Background = Brushes.White,
+                            CornerRadius = new CornerRadius(3),
+                            BorderBrush = new SolidColorBrush(maKlasy ? Color.FromRgb(200, 230, 200) : Color.FromRgb(255, 220, 220)),
+                            BorderThickness = new Thickness(0, 0, 0, 1),
+                            Padding = new Thickness(10, 4, 10, 4),
+                            Margin = new Thickness(0, 1, 0, 0)
+                        };
+
+                        var rowGrid = new Grid();
+                        rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(30) });   // status
+                        rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // odbiorca
+                        rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });   // kg
+                        rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });   // klasy status
+
+                        // Status ikona
+                        var statusText = new TextBlock
+                        {
+                            Text = maKlasy ? "\u2705" : "\u274C",
+                            FontSize = 12, VerticalAlignment = VerticalAlignment.Center
+                        };
+                        Grid.SetColumn(statusText, 0);
+                        rowGrid.Children.Add(statusText);
+
+                        // Odbiorca
+                        var odbText = new TextBlock
+                        {
+                            Text = zam.Odbiorca, FontSize = 11,
+                            Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
+                            VerticalAlignment = VerticalAlignment.Center,
+                            TextTrimming = TextTrimming.CharacterEllipsis
+                        };
+                        Grid.SetColumn(odbText, 1);
+                        rowGrid.Children.Add(odbText);
+
+                        // Kg
+                        var kgText = new TextBlock
+                        {
+                            Text = $"{zam.Kg:N0} kg", FontSize = 11, FontWeight = FontWeights.SemiBold,
+                            Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
+                            VerticalAlignment = VerticalAlignment.Center,
+                            HorizontalAlignment = HorizontalAlignment.Right
+                        };
+                        Grid.SetColumn(kgText, 2);
+                        rowGrid.Children.Add(kgText);
+
+                        // Status klas
+                        var klasText = new TextBlock
+                        {
+                            Text = maKlasy ? "Przypisane" : "BRAK KLAS",
+                            FontSize = 10, FontWeight = maKlasy ? FontWeights.Normal : FontWeights.Bold,
+                            Foreground = new SolidColorBrush(maKlasy ? Color.FromRgb(22, 163, 74) : Color.FromRgb(220, 38, 38)),
+                            VerticalAlignment = VerticalAlignment.Center,
+                            HorizontalAlignment = HorizontalAlignment.Right
+                        };
+                        Grid.SetColumn(klasText, 3);
+                        rowGrid.Children.Add(klasText);
+
+                        rowBorder.Child = rowGrid;
+                        mainStack.Children.Add(rowBorder);
+                    }
+                }
+
+                if (!zamowienia.Any())
+                {
+                    mainStack.Children.Add(new TextBlock
+                    {
+                        Text = "Brak zamówień na Kurczak A w tym dniu.",
+                        FontSize = 13, Foreground = new SolidColorBrush(Color.FromRgb(150, 150, 150)),
+                        HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 30, 0, 0)
+                    });
+                }
+
+                win.Show();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         /// <summary>

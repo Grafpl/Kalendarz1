@@ -51,13 +51,25 @@ namespace Kalendarz1
 
     public static class RezerwacjeKlasManager
     {
+        // Cache: tabela istnieje — sprawdzamy raz, nie przy każdym wywołaniu
+        private static bool _tableExistsChecked = false;
+        private static bool _tableExists = false;
+
         public static async Task UtwsorzTabeleJesliNieIstniejeAsync(string connectionString)
         {
+            if (_tableExistsChecked && _tableExists) return;
+
             await using var cn = new SqlConnection(connectionString);
             await cn.OpenAsync();
-            var checkSql = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'RezerwacjeKlasWagowych'";
-            await using var checkCmd = new SqlCommand(checkSql, cn);
-            if ((int)await checkCmd.ExecuteScalarAsync() > 0) return;
+            var checkSql = "SELECT OBJECT_ID('dbo.RezerwacjeKlasWagowych', 'U')";
+            await using var checkCmd = new SqlCommand(checkSql, cn) { CommandTimeout = 5 };
+            var result = await checkCmd.ExecuteScalarAsync();
+            if (result != null && result != DBNull.Value)
+            {
+                _tableExistsChecked = true;
+                _tableExists = true;
+                return;
+            }
 
             var createSql = @"CREATE TABLE [dbo].[RezerwacjeKlasWagowych] (
                 [ID] INT IDENTITY(1,1) PRIMARY KEY, [ZamowienieId] INT NOT NULL,
@@ -68,6 +80,8 @@ namespace Kalendarz1
                 CREATE INDEX [IX_RezKlas_ZamId] ON [dbo].[RezerwacjeKlasWagowych] ([ZamowienieId]);";
             await using var createCmd = new SqlCommand(createSql, cn);
             await createCmd.ExecuteNonQueryAsync();
+            _tableExistsChecked = true;
+            _tableExists = true;
         }
 
         public static async Task<Dictionary<int, int>> PobierzZajetoscAsync(string connectionString, DateTime dataProdukcji, int? wykluczonaZamowienieId = null)
@@ -76,15 +90,24 @@ namespace Kalendarz1
             for (int i = 5; i <= 12; i++) zajete[i] = 0;
             try
             {
+                // Szybkie sprawdzenie czy tabela istnieje (cache)
+                if (_tableExistsChecked && !_tableExists) return zajete;
+
                 await using var cn = new SqlConnection(connectionString);
                 await cn.OpenAsync();
-                var checkSql = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'RezerwacjeKlasWagowych'";
-                await using var checkCmd = new SqlCommand(checkSql, cn);
-                if ((int)await checkCmd.ExecuteScalarAsync() == 0) return zajete;
+
+                if (!_tableExistsChecked)
+                {
+                    var checkCmd = new SqlCommand("SELECT OBJECT_ID('dbo.RezerwacjeKlasWagowych', 'U')", cn) { CommandTimeout = 5 };
+                    var result = await checkCmd.ExecuteScalarAsync();
+                    _tableExists = result != null && result != DBNull.Value;
+                    _tableExistsChecked = true;
+                    if (!_tableExists) return zajete;
+                }
 
                 var sql = @"SELECT Klasa, SUM(IloscPojemnikow) AS Zajete FROM [dbo].[RezerwacjeKlasWagowych]
                     WHERE DataProdukcji = @Data AND Status = 'Aktywna' AND (@WyklId IS NULL OR ZamowienieId != @WyklId) GROUP BY Klasa";
-                await using var cmd = new SqlCommand(sql, cn);
+                await using var cmd = new SqlCommand(sql, cn) { CommandTimeout = 10 };
                 cmd.Parameters.AddWithValue("@Data", dataProdukcji.Date);
                 cmd.Parameters.AddWithValue("@WyklId", wykluczonaZamowienieId.HasValue ? wykluczonaZamowienieId.Value : (object)DBNull.Value);
                 await using var rd = await cmd.ExecuteReaderAsync();
@@ -314,8 +337,60 @@ namespace Kalendarz1
         private void BuildKlasyRows()
         {
             if (_pnlKlasyContainer == null) return;
+            _pnlKlasyContainer.Controls.Clear();
+            _suwaki.Clear(); _txtProcent.Clear(); _txtPojemniki.Clear();
+            _txtPalety.Clear(); _lblWolne.Clear(); _pnlPasekZajete.Clear(); _pnlPasekTwoje.Clear();
+
+            // Filtruj klasy: pokaż tylko te z prognozą > 0, rezerwacją lub istniejącym rozkładem
+            var klasyDoPokazania = KLASY.Keys.OrderBy(k => k)
+                .Where(k => _prognozaPojemnikow.GetValueOrDefault(k, 0) > 0
+                         || _zajetePojemnikow.GetValueOrDefault(k, 0) > 0
+                         || Rozklad.KlasyPojemniki.GetValueOrDefault(k, 0) > 0)
+                .ToList();
+
+            // Jeśli brak danych — pokaż wszystkie (tryb ręczny)
+            if (!klasyDoPokazania.Any())
+                klasyDoPokazania = KLASY.Keys.OrderBy(k => k).ToList();
+
             int y = 5;
-            foreach (int klasa in KLASY.Keys.OrderBy(k => k)) { _pnlKlasyContainer.Controls.Add(CreateKlasaRow(klasa, y)); y += 70; }
+            foreach (int klasa in klasyDoPokazania)
+            {
+                // Separator między dużym (5-8) a małym (9-12)
+                if (klasa == 9 && klasyDoPokazania.Any(k => k <= 8))
+                {
+                    var sep = new Panel { Location = new Point(5, y), Size = new Size(950, 20), BackColor = Color.Transparent };
+                    var lblSep = new Label
+                    {
+                        Text = "── MAŁY KURCZAK ──",
+                        Font = new Font("Segoe UI", 8f, FontStyle.Bold),
+                        ForeColor = Color.FromArgb(22, 120, 180),
+                        AutoSize = false, Size = new Size(950, 18),
+                        TextAlign = ContentAlignment.MiddleCenter
+                    };
+                    sep.Controls.Add(lblSep);
+                    _pnlKlasyContainer.Controls.Add(sep);
+                    y += 22;
+                }
+                else if (klasa == klasyDoPokazania.First() && klasa <= 8 && klasyDoPokazania.Any(k => k >= 9))
+                {
+                    // Nagłówek "DUŻY" na początku jeśli są obie grupy
+                    var sepD = new Panel { Location = new Point(5, y), Size = new Size(950, 20), BackColor = Color.Transparent };
+                    var lblD = new Label
+                    {
+                        Text = "── DUŻY KURCZAK ──",
+                        Font = new Font("Segoe UI", 8f, FontStyle.Bold),
+                        ForeColor = Color.FromArgb(220, 80, 20),
+                        AutoSize = false, Size = new Size(950, 18),
+                        TextAlign = ContentAlignment.MiddleCenter
+                    };
+                    sepD.Controls.Add(lblD);
+                    _pnlKlasyContainer.Controls.Add(sepD);
+                    y += 22;
+                }
+
+                _pnlKlasyContainer.Controls.Add(CreateKlasaRow(klasa, y));
+                y += 70;
+            }
         }
 
         private Panel CreateKlasaRow(int klasa, int y)
@@ -381,6 +456,26 @@ namespace Kalendarz1
 
         private void TxtNumeric_KeyPress(object? sender, KeyPressEventArgs e) { if (!char.IsControl(e.KeyChar) && !char.IsDigit(e.KeyChar) && e.KeyChar != ',' && e.KeyChar != '.') e.Handled = true; }
 
+        // Oblicza sumę % wszystkich klas oprócz podanej
+        private int SumaProcentBezKlasy(int bezKlasy)
+        {
+            int suma = 0;
+            foreach (var kv in _suwaki)
+                if (kv.Key != bezKlasy) suma += kv.Value.Value;
+            return suma;
+        }
+
+        // Aktualizuje Maximum każdego suwaka aby suma nie przekroczyła 100%
+        private void AktualizujLimitySuwakow()
+        {
+            int sumaWszystkich = _suwaki.Values.Sum(s => s.Value);
+            foreach (var kv in _suwaki)
+            {
+                int reszta = 100 - (sumaWszystkich - kv.Value.Value);
+                kv.Value.Maximum = Math.Max(kv.Value.Value, Math.Max(0, reszta));
+            }
+        }
+
         private void OnSuwakChanged(int klasa)
         {
             if (_blokujZmiany) return;
@@ -396,6 +491,7 @@ namespace Kalendarz1
                 _txtPojemniki[klasa].Text = pojemniki.ToString();
                 _txtPalety[klasa].Text = palety.ToString("N2");
                 AktualizujPasek(klasa);
+                AktualizujLimitySuwakow();
                 AktualizujSume();
             }
             finally { _blokujZmiany = false; }
@@ -409,15 +505,18 @@ namespace Kalendarz1
             {
                 if (int.TryParse(_txtProcent[klasa].Text, out int procent))
                 {
-                    procent = Math.Max(0, Math.Min(100, procent));
+                    int maxDostepny = 100 - SumaProcentBezKlasy(klasa);
+                    procent = Math.Max(0, Math.Min(maxDostepny, procent));
                     int pojemniki = (int)Math.Round(_zamowionePojemnikow * procent / 100m);
                     decimal palety = pojemniki / (decimal)POJEMNIKOW_NA_PALECIE;
                     Rozklad.KlasyProcent[klasa] = procent;
                     Rozklad.KlasyPojemniki[klasa] = pojemniki;
-                    _suwaki[klasa].Value = procent;
+                    _suwaki[klasa].Value = Math.Min(procent, 100);
+                    _txtProcent[klasa].Text = procent.ToString();
                     _txtPojemniki[klasa].Text = pojemniki.ToString();
                     _txtPalety[klasa].Text = palety.ToString("N2");
                     AktualizujPasek(klasa);
+                    AktualizujLimitySuwakow();
                     AktualizujSume();
                 }
             }
@@ -433,14 +532,19 @@ namespace Kalendarz1
                 if (int.TryParse(_txtPojemniki[klasa].Text, out int pojemniki))
                 {
                     pojemniki = Math.Max(0, pojemniki);
+                    int maxDostepnyProc = 100 - SumaProcentBezKlasy(klasa);
+                    int maxPoj = (int)Math.Round(_zamowionePojemnikow * maxDostepnyProc / 100m);
+                    if (pojemniki > maxPoj) pojemniki = maxPoj;
                     int procent = _zamowionePojemnikow > 0 ? (int)Math.Round(pojemniki * 100m / _zamowionePojemnikow) : 0;
                     decimal palety = pojemniki / (decimal)POJEMNIKOW_NA_PALECIE;
                     Rozklad.KlasyProcent[klasa] = procent;
                     Rozklad.KlasyPojemniki[klasa] = pojemniki;
                     _suwaki[klasa].Value = Math.Min(procent, 100);
                     _txtProcent[klasa].Text = procent.ToString();
+                    _txtPojemniki[klasa].Text = pojemniki.ToString();
                     _txtPalety[klasa].Text = palety.ToString("N2");
                     AktualizujPasek(klasa);
+                    AktualizujLimitySuwakow();
                     AktualizujSume();
                 }
             }
@@ -458,13 +562,19 @@ namespace Kalendarz1
                 {
                     palety = Math.Max(0, palety);
                     int pojemniki = (int)Math.Round(palety * POJEMNIKOW_NA_PALECIE);
+                    int maxDostepnyProc = 100 - SumaProcentBezKlasy(klasa);
+                    int maxPoj = (int)Math.Round(_zamowionePojemnikow * maxDostepnyProc / 100m);
+                    if (pojemniki > maxPoj) pojemniki = maxPoj;
                     int procent = _zamowionePojemnikow > 0 ? (int)Math.Round(pojemniki * 100m / _zamowionePojemnikow) : 0;
+                    palety = pojemniki / (decimal)POJEMNIKOW_NA_PALECIE;
                     Rozklad.KlasyProcent[klasa] = procent;
                     Rozklad.KlasyPojemniki[klasa] = pojemniki;
                     _suwaki[klasa].Value = Math.Min(procent, 100);
                     _txtProcent[klasa].Text = procent.ToString();
                     _txtPojemniki[klasa].Text = pojemniki.ToString();
+                    _txtPalety[klasa].Text = palety.ToString("N2");
                     AktualizujPasek(klasa);
+                    AktualizujLimitySuwakow();
                     AktualizujSume();
                 }
             }
@@ -526,14 +636,20 @@ namespace Kalendarz1
             if (_btnOK != null) { _btnOK.Enabled = sumaPoj > 0; _btnOK.BackColor = sumaPoj > 0 ? COLOR_PRIMARY : COLOR_TEXT_LIGHT; }
         }
 
-        private void RozdzielRowno() { int naKlase = 100 / 8; int reszta = 100 % 8; int i = 0; foreach (int k in KLASY.Keys.OrderBy(k => k)) _suwaki[k].Value = naKlase + (i++ < reszta ? 1 : 0); }
-        private void RozdzielGrupa(int od, int doK) { WyczyscWszystko(); int ileKlas = doK - od + 1; int naKlase = 100 / ileKlas; int reszta = 100 % ileKlas; int i = 0; for (int k = od; k <= doK; k++) if (_suwaki.TryGetValue(k, out var s)) s.Value = naKlase + (i++ < reszta ? 1 : 0); }
+        private void RozdzielRowno()
+        {
+            var aktywne = _suwaki.Keys.OrderBy(k => k).ToList();
+            if (!aktywne.Any()) return;
+            int naKlase = 100 / aktywne.Count; int reszta = 100 % aktywne.Count; int i = 0;
+            foreach (int k in aktywne) _suwaki[k].Value = naKlase + (i++ < reszta ? 1 : 0);
+        }
+        private void RozdzielGrupa(int od, int doK) { WyczyscWszystko(); var wGrupie = _suwaki.Keys.Where(k => k >= od && k <= doK).OrderBy(k => k).ToList(); if (!wGrupie.Any()) return; int naKlase = 100 / wGrupie.Count; int reszta = 100 % wGrupie.Count; int i = 0; foreach (int k in wGrupie) _suwaki[k].Value = naKlase + (i++ < reszta ? 1 : 0); }
         private void RozdzielWgDostepnosci()
         {
             WyczyscWszystko();
             var wolne = new Dictionary<int, int>();
             int sumaWolne = 0;
-            foreach (int k in KLASY.Keys) { int w = Math.Max(0, _prognozaPojemnikow.GetValueOrDefault(k, 0) - _zajetePojemnikow.GetValueOrDefault(k, 0)); wolne[k] = w; sumaWolne += w; }
+            foreach (int k in _suwaki.Keys) { int w = Math.Max(0, _prognozaPojemnikow.GetValueOrDefault(k, 0) - _zajetePojemnikow.GetValueOrDefault(k, 0)); wolne[k] = w; sumaWolne += w; }
             if (sumaWolne == 0) { MessageBox.Show(this, "Brak wolnych miejsc!", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
             foreach (var kvp in wolne) { int procent = (int)Math.Round(kvp.Value * 100m / sumaWolne); if (_suwaki.TryGetValue(kvp.Key, out var s)) s.Value = Math.Min(100, procent); }
         }
@@ -542,7 +658,7 @@ namespace Kalendarz1
             WyczyscWszystko();
             int pojemniki = (int)Math.Round(ilePalet * POJEMNIKOW_NA_PALECIE);
             int procent = _zamowionePojemnikow > 0 ? (int)Math.Round(pojemniki * 100m / _zamowionePojemnikow) : 0;
-            foreach (int k in KLASY.Keys.OrderBy(k => k)) { int wolne = Math.Max(0, _prognozaPojemnikow.GetValueOrDefault(k, 0) - _zajetePojemnikow.GetValueOrDefault(k, 0)); if (wolne >= pojemniki || wolne > 0) { _suwaki[k].Value = Math.Min(100, procent); break; } }
+            foreach (int k in _suwaki.Keys.OrderBy(k => k)) { int wolne = Math.Max(0, _prognozaPojemnikow.GetValueOrDefault(k, 0) - _zajetePojemnikow.GetValueOrDefault(k, 0)); if (wolne >= pojemniki || wolne > 0) { _suwaki[k].Value = Math.Min(100, procent); break; } }
         }
         private void WyczyscWszystko()
         {
@@ -551,8 +667,9 @@ namespace Kalendarz1
             foreach (var t in _txtProcent.Values) t.Text = "0";
             foreach (var t in _txtPojemniki.Values) t.Text = "0";
             foreach (var t in _txtPalety.Values) t.Text = "0,00";
-            foreach (int k in KLASY.Keys) { Rozklad.KlasyProcent[k] = 0; Rozklad.KlasyPojemniki[k] = 0; AktualizujPasek(k); }
+            foreach (int k in _suwaki.Keys) { Rozklad.KlasyProcent[k] = 0; Rozklad.KlasyPojemniki[k] = 0; }
             _blokujZmiany = false;
+            AktualizujLimitySuwakow();
             AktualizujSume();
         }
 
@@ -578,28 +695,82 @@ namespace Kalendarz1
                     int wolne = sumaPrognoza - sumaZajete;
                     if (sumaPrognoza > 0) { _lblHeaderInfo!.Text = $"Prognoza: {sumaPrognoza} poj. ({sumaPrognoza / 36m:N1} pal)  |  Zajęte: {sumaZajete}  |  Wolne: {wolne}"; _lblHeaderInfo.ForeColor = wolne >= _zamowionePojemnikow ? Color.FromArgb(200, 255, 200) : Color.FromArgb(255, 220, 180); }
                     else { _lblHeaderInfo!.Text = "Brak danych prognozy - wprowadź ręcznie"; _lblHeaderInfo.ForeColor = Color.FromArgb(255, 220, 180); }
-                    foreach (int k in KLASY.Keys) AktualizujPasek(k);
+
+                    // Przebuduj wiersze — teraz znamy prognozę, pokaż tylko aktywne klasy
+                    BuildKlasyRows();
+                    AktualizujLimitySuwakow();
+
+                    foreach (int k in _suwaki.Keys) AktualizujPasek(k);
                     AktualizujSume();
                 });
             }
             catch (Exception ex) { this.Invoke(() => { _lblHeaderInfo!.Text = $"Błąd: {ex.Message.Substring(0, Math.Min(60, ex.Message.Length))}"; _lblHeaderInfo.ForeColor = Color.FromArgb(255, 200, 200); }); }
         }
 
+        /// <summary>
+        /// Prognoza pojemników z HarmonogramDostaw (aktualny plan produkcji, nie historyczne In0E)
+        /// </summary>
         private async Task LoadPrognozaAsync()
         {
             try
             {
                 await using var cn = new SqlConnection(_connLibra);
                 await cn.OpenAsync();
-                var checkSql = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'In0E'";
-                await using var checkCmd = new SqlCommand(checkSql, cn);
-                if ((int)await checkCmd.ExecuteScalarAsync() == 0) return;
 
-                var sql = @"SELECT QntInCont AS Klasa, SUM(Quantity) / 3 AS Srednia FROM [dbo].[In0E] WHERE ArticleID = 40 AND QntInCont BETWEEN 5 AND 12 AND CreateData >= DATEADD(week, -3, @Data) AND CreateData < @Data AND DATEPART(WEEKDAY, CreateData) = DATEPART(WEEKDAY, @Data) GROUP BY QntInCont";
-                await using var cmd = new SqlCommand(sql, cn);
-                cmd.Parameters.AddWithValue("@Data", _dataProdukcji.Date);
-                await using var rd = await cmd.ExecuteReaderAsync();
-                while (await rd.ReadAsync()) { int klasa = Convert.ToInt32(rd["Klasa"]); int srednia = rd.IsDBNull(1) ? 0 : Convert.ToInt32(rd["Srednia"]); _prognozaPojemnikow[klasa] = srednia; }
+                // Konfiguracja wydajności
+                decimal wspTuszki = 78m, procA = 80m;
+                try
+                {
+                    var sqlW = @"SELECT TOP 1 WspolczynnikTuszki, ProcentTuszkaA
+                                 FROM KonfiguracjaWydajnosci WHERE DataOd <= @Data AND Aktywny = 1
+                                 ORDER BY DataOd DESC";
+                    await using var cmdW = new SqlCommand(sqlW, cn);
+                    cmdW.Parameters.AddWithValue("@Data", _dataProdukcji.Date);
+                    await using var rdW = await cmdW.ExecuteReaderAsync();
+                    if (await rdW.ReadAsync())
+                    {
+                        wspTuszki = rdW.IsDBNull(0) ? 78m : Convert.ToDecimal(rdW.GetValue(0));
+                        procA = rdW.IsDBNull(1) ? 80m : Convert.ToDecimal(rdW.GetValue(1));
+                    }
+                }
+                catch { }
+
+                // Dostawy z HarmonogramDostaw
+                var sqlH = @"SELECT WagaDek, SztukiDek FROM dbo.HarmonogramDostaw
+                             WHERE DataOdbioru = @Data AND Bufor IN ('B.Wolny','B.Kontr.','Potwierdzony')";
+                await using var cmdH = new SqlCommand(sqlH, cn);
+                cmdH.Parameters.AddWithValue("@Data", _dataProdukcji.Date);
+                await using var rdH = await cmdH.ExecuteReaderAsync();
+                while (await rdH.ReadAsync())
+                {
+                    decimal wagaDek = rdH.IsDBNull(0) ? 0m : Convert.ToDecimal(rdH.GetValue(0));
+                    decimal sztuki = rdH.IsDBNull(1) ? 0m : Convert.ToDecimal(rdH.GetValue(1));
+                    if (wagaDek <= 0 || sztuki <= 0) continue;
+
+                    decimal zywiecKg = wagaDek * sztuki;
+                    decimal tuszkaASzt = wagaDek * (wspTuszki / 100m);
+                    decimal tuszkaAKg = zywiecKg * (wspTuszki / 100m) * (procA / 100m);
+                    if (tuszkaASzt <= 0) continue;
+
+                    decimal sztWPoj = 15m / tuszkaASzt;
+                    decimal liczbaPoj = tuszkaAKg / 15m;
+                    int dolny = (int)Math.Floor(sztWPoj);
+                    int gorny = (int)Math.Ceiling(sztWPoj);
+                    decimal frac = sztWPoj - dolny;
+
+                    int pojDolne, pojGorne = 0;
+                    if (dolny == gorny)
+                        pojDolne = (int)Math.Ceiling(liczbaPoj);
+                    else
+                    {
+                        pojGorne = (int)Math.Round(liczbaPoj * frac);
+                        pojDolne = (int)Math.Ceiling(liczbaPoj) - pojGorne;
+                    }
+
+                    _prognozaPojemnikow[Math.Clamp(dolny, 5, 12)] += pojDolne;
+                    if (pojGorne > 0)
+                        _prognozaPojemnikow[Math.Clamp(gorny, 5, 12)] += pojGorne;
+                }
             }
             catch { }
         }

@@ -439,13 +439,20 @@ namespace Kalendarz1.Transport.Formularze
             btnPojazdy = CreateActionButton("POJAZDY", colorZasoby, 100);
             btnPojazdy.Click += SafeBtnPojazdy_Click;
 
-            btnPrzydziel = CreateActionButton("⚡ PRZYDZIEL", Color.FromArgb(217, 119, 6), 120);
+            btnPrzydziel = CreateActionButton("�� PRZYDZIEL", Color.FromArgb(217, 119, 6), 120);
             btnPrzydziel.Click += BtnPrzydziel_Click;
             btnPrzydziel.Enabled = false;
 
+            // Separator 3
+            var sep3 = new Panel { Width = 2, Height = 30, BackColor = Color.FromArgb(70, 75, 85), Margin = new Padding(8, 10, 8, 2) };
+
+            // Webfleet sync
+            var btnWebfleet = CreateActionButton("📡 WEBFLEET", Color.FromArgb(21, 101, 192), 120);
+            btnWebfleet.Click += BtnWebfleetSync_Click;
+
             // Dodanie wszystkich przycisków z separatorami (RightToLeft)
             panelButtons.Controls.AddRange(new Control[] {
-                btnUsun, btnDebug, sep1, btnMapa, btnStatystyki, btnRaport, sep2, btnKierowcy, btnPojazdy, btnPrzydziel, btnEdytuj, btnNowyKurs
+                btnUsun, btnDebug, sep1, btnMapa, btnStatystyki, btnRaport, sep2, btnKierowcy, btnPojazdy, btnPrzydziel, btnEdytuj, btnNowyKurs, sep3, btnWebfleet
             });
 
             panelHeader.Controls.Add(panelDate);
@@ -993,8 +1000,12 @@ namespace Kalendarz1.Transport.Formularze
             var menuEdytuj = new ToolStripMenuItem("✏️ Edytuj kurs", null, (s, e) => BtnEdytujKurs_Click(s, e));
             var menuUsun = new ToolStripMenuItem("🗑️ Usuń kurs", null, (s, e) => BtnUsunKurs_Click(s, e));
 
+            var menuSeparator2 = new ToolStripSeparator();
+            var menuWebfleet = new ToolStripMenuItem("📡 Wyślij do Webfleet", null, MenuWebfleetWyslij_Click);
+            menuWebfleet.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+
             contextMenuKurs.Items.AddRange(new ToolStripItem[] {
-                menuPodglad, menuHistoria, menuSeparator, menuEdytuj, menuUsun
+                menuPodglad, menuHistoria, menuSeparator, menuEdytuj, menuUsun, menuSeparator2, menuWebfleet
             });
         }
 
@@ -4245,6 +4256,70 @@ namespace Kalendarz1.Transport.Formularze
         }
 
         #endregion
+
+        // ══════════════════════════════════════════════════════════════════
+        // Webfleet — wysyłanie kursów na nawigacje TomTom
+        // ══════════════════════════════════════════════════════════════════
+
+        private void BtnWebfleetSync_Click(object? sender, EventArgs e)
+        {
+            var win = new Kalendarz1.MapaFloty.SyncKursowWindow();
+            win.Show();
+        }
+
+        private async void MenuWebfleetWyslij_Click(object? sender, EventArgs e)
+        {
+            if (dgvKursy.CurrentRow == null) { MessageBox.Show("Zaznacz kurs do wysłania.", "Webfleet"); return; }
+            try
+            {
+                var kursId = Convert.ToInt64(dgvKursy.CurrentRow.Cells["KursID"].Value);
+                var trasa = dgvKursy.CurrentRow.Cells["Trasa"]?.Value?.ToString() ?? "";
+
+                var confirm = MessageBox.Show(
+                    $"Wysłać kurs do nawigacji Webfleet?\n\nKurs ID: {kursId}\nTrasa: {trasa}\n\nKierowca dostanie zlecenie na nawigację TomTom.",
+                    "Wyślij do Webfleet", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                if (confirm != DialogResult.Yes) return;
+
+                var svc = new Kalendarz1.MapaFloty.WebfleetOrderService();
+                var result = await svc.WyslijKursAsync(kursId, App.UserFullName ?? "system");
+
+                if (result.Success)
+                {
+                    MessageBox.Show($"Kurs wysłany do Webfleet!\n\nOrder ID: {result.OrderId}\nPrzystanki: {result.StopsCount}\n\nZlecenie widoczne w panelu Webfleet.",
+                        "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                else
+                {
+                    var errDetail = $"Błąd wysyłania kursu {kursId} do Webfleet\n\n" +
+                        $"Kod błędu: {result.ErrorCode}\n" +
+                        $"Komunikat: {result.ErrorMessage}\n" +
+                        $"Order ID: {result.OrderId}\n" +
+                        $"Trasa: {trasa}\n" +
+                        $"Czas: {DateTime.Now:yyyy-MM-dd HH:mm:ss}";
+                    var resp2 = MessageBox.Show(errDetail + "\n\nSkopiować szczegóły do schowka?",
+                        "Błąd Webfleet", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+                    if (resp2 == DialogResult.Yes)
+                        System.Windows.Forms.Clipboard.SetText(errDetail);
+                }
+            }
+            catch (Kalendarz1.MapaFloty.WebfleetOrderService.NeedAddressException nae)
+            {
+                var resp = MessageBox.Show(
+                    "Brak adresów klientów:\n\n" +
+                    string.Join("\n", nae.BrakujaceKody.Select(k => $"  • {k}")) +
+                    "\n\nCzy chcesz teraz uzupełnić adresy?",
+                    "Brak adresów", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+                if (resp == DialogResult.Yes)
+                {
+                    var dlg = new Kalendarz1.MapaFloty.AdresyKlientowWindow(nae.BrakujaceKody);
+                    dlg.ShowDialog();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd:\n{ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
     }
 
     /// <summary>

@@ -189,7 +189,7 @@ namespace Kalendarz1
                                                UwagiWydania = @Uwagi
                                            WHERE Id = @Id", cn);
                 cmd.Parameters.AddWithValue("@Id", selected.Info.Id);
-                cmd.Parameters.AddWithValue("@UserID", UserID);
+                cmd.Parameters.AddWithValue("@UserID", !string.IsNullOrEmpty(App.UserFullName) ? App.UserFullName : UserID);
                 cmd.Parameters.AddWithValue("@CzyWszystko", dialog.WszystkoWydane);
                 cmd.Parameters.AddWithValue("@Uwagi", string.IsNullOrEmpty(dialog.UwagiWydania) ? DBNull.Value : dialog.UwagiWydania);
 

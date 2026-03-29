@@ -130,6 +130,9 @@ namespace Kalendarz1
             }
         }
 
+        /// <summary>
+        /// Prognoza pojemników z HarmonogramDostaw (ta sama logika co Plan Tygodniowy i karta Kurczak A)
+        /// </summary>
         private async Task<Dictionary<int, int>> PobierzPrognozePojemnikowAsync()
         {
             var prognoza = new Dictionary<int, int>();
@@ -137,89 +140,140 @@ namespace Kalendarz1
 
             try
             {
+                // Pobierz konfigurację wydajności
+                decimal wspTuszki = 78m, procA = 80m;
                 await using var cn = new SqlConnection(CONN_LIBRA);
                 await cn.OpenAsync();
 
-                var checkSql = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'In0E'";
-                await using var checkCmd = new SqlCommand(checkSql, cn);
-                if ((int)await checkCmd.ExecuteScalarAsync() == 0)
+                try
                 {
-                    return GetDefaultPrognoza();
+                    var sqlWyd = @"SELECT TOP 1 WspolczynnikTuszki, ProcentTuszkaA
+                                   FROM KonfiguracjaWydajnosci
+                                   WHERE DataOd <= @Data AND Aktywny = 1
+                                   ORDER BY DataOd DESC";
+                    await using var cmdW = new SqlCommand(sqlWyd, cn);
+                    cmdW.Parameters.AddWithValue("@Data", _dataProdukcji.Date);
+                    await using var rdW = await cmdW.ExecuteReaderAsync();
+                    if (await rdW.ReadAsync())
+                    {
+                        wspTuszki = rdW.IsDBNull(0) ? 78m : Convert.ToDecimal(rdW.GetValue(0));
+                        procA = rdW.IsDBNull(1) ? 80m : Convert.ToDecimal(rdW.GetValue(1));
+                    }
                 }
+                catch { /* domyślne wartości */ }
 
-                int dayOfWeek = (int)_dataProdukcji.DayOfWeek;
-
-                var sql = @"
-                    SELECT Klasa, AVG(Ilosc) as SredniaIlosc
-                    FROM (
-                        SELECT 
-                            CASE 
-                                WHEN ArticleID = 40 THEN 7
-                                WHEN ArticleID BETWEEN 41 AND 48 THEN ArticleID - 34
-                                ELSE 0
-                            END as Klasa,
-                            Quantity as Ilosc
-                        FROM In0E
-                        WHERE ArticleID BETWEEN 40 AND 48
-                        AND Data >= DATEADD(day, -21, @Data)
-                        AND Data < @Data
-                        AND DATEPART(dw, Data) = @DayOfWeek
-                    ) sub
-                    WHERE Klasa BETWEEN 5 AND 12
-                    GROUP BY Klasa";
-
-                await using var cmd = new SqlCommand(sql, cn);
-                cmd.Parameters.AddWithValue("@Data", _dataProdukcji.Date);
-                cmd.Parameters.AddWithValue("@DayOfWeek", dayOfWeek == 0 ? 7 : dayOfWeek);
-
-                await using var rd = await cmd.ExecuteReaderAsync();
-                while (await rd.ReadAsync())
+                // Pobierz dostawy z HarmonogramDostaw
+                var sqlH = @"SELECT WagaDek, SztukiDek FROM dbo.HarmonogramDostaw
+                             WHERE DataOdbioru = @Data AND Bufor IN ('B.Wolny','B.Kontr.','Potwierdzony')";
+                await using var cmdH = new SqlCommand(sqlH, cn);
+                cmdH.Parameters.AddWithValue("@Data", _dataProdukcji.Date);
+                await using var rdH = await cmdH.ExecuteReaderAsync();
+                while (await rdH.ReadAsync())
                 {
-                    int klasa = rd.GetInt32(0);
-                    int ilosc = rd.IsDBNull(1) ? 0 : Convert.ToInt32(rd.GetDouble(1));
-                    if (klasa >= 5 && klasa <= 12)
-                        prognoza[klasa] = ilosc;
-                }
+                    decimal wagaDek = rdH.IsDBNull(0) ? 0m : Convert.ToDecimal(rdH.GetValue(0));
+                    decimal sztuki = rdH.IsDBNull(1) ? 0m : Convert.ToDecimal(rdH.GetValue(1));
+                    if (wagaDek <= 0 || sztuki <= 0) continue;
 
-                if (prognoza.Values.Sum() == 0)
-                    return GetDefaultPrognoza();
+                    decimal zywiecKg = wagaDek * sztuki;
+                    decimal tuszkaASzt = wagaDek * (wspTuszki / 100m);
+                    decimal tuszkaAKg = zywiecKg * (wspTuszki / 100m) * (procA / 100m);
+                    if (tuszkaASzt <= 0) continue;
+
+                    decimal sztWPoj = 15m / tuszkaASzt;
+                    decimal liczbaPoj = tuszkaAKg / 15m;
+                    int dolny = (int)Math.Floor(sztWPoj);
+                    int gorny = (int)Math.Ceiling(sztWPoj);
+                    decimal frac = sztWPoj - dolny;
+
+                    int pojDolne, pojGorne = 0;
+                    if (dolny == gorny)
+                        pojDolne = (int)Math.Ceiling(liczbaPoj);
+                    else
+                    {
+                        pojGorne = (int)Math.Round(liczbaPoj * frac);
+                        pojDolne = (int)Math.Ceiling(liczbaPoj) - pojGorne;
+                    }
+
+                    prognoza[Math.Clamp(dolny, 5, 12)] += pojDolne;
+                    if (pojGorne > 0)
+                        prognoza[Math.Clamp(gorny, 5, 12)] += pojGorne;
+                }
             }
-            catch
-            {
-                return GetDefaultPrognoza();
-            }
+            catch { /* zwróć puste prognozy */ }
 
             return prognoza;
         }
 
-        private Dictionary<int, int> GetDefaultPrognoza() => new() {
-            { 5, 158 }, { 6, 3413 }, { 7, 1254 }, { 8, 733 },
-            { 9, 1025 }, { 10, 298 }, { 11, 14 }, { 12, 0 }
-        };
-
+        /// <summary>
+        /// Pobiera zamówienia Kurczak A na wybrany dzień. Używa KlientId + Handel do pobrania nazw.
+        /// </summary>
         private async Task<List<ZamowienieKlasy>> PobierzZamowieniaNaDzienAsync()
         {
             var lista = new List<ZamowienieKlasy>();
 
             try
             {
+                // Pobierz nazwy kontrahentów z Handel
+                var kontrahenci = new Dictionary<int, (string Nazwa, string Handlowiec)>();
+                try
+                {
+                    var connHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
+                    await using var cnH = new SqlConnection(connHandel);
+                    await cnH.OpenAsync();
+                    var sqlK = @"SELECT c.Id, c.Shortcut, wym.CDim_Handlowiec_Val
+                                 FROM [HANDEL].[SSCommon].[STContractors] c
+                                 LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] wym ON c.Id = wym.ElementId";
+                    await using var cmdK = new SqlCommand(sqlK, cnH);
+                    await using var rdK = await cmdK.ExecuteReaderAsync();
+                    while (await rdK.ReadAsync())
+                    {
+                        int id = rdK.GetInt32(0);
+                        string shortcut = rdK.IsDBNull(1) ? "" : rdK.GetString(1);
+                        string handl = rdK.IsDBNull(2) ? "" : rdK.GetString(2);
+                        kontrahenci[id] = (string.IsNullOrWhiteSpace(shortcut) ? $"Klient {id}" : shortcut, handl);
+                    }
+                }
+                catch { /* kontrahenci puste — użyjemy KlientId */ }
+
+                // Znajdź ID produktów "Kurczak A" z katalogu
+                var kurczakAIds = new List<int>();
                 await using var cn = new SqlConnection(CONN_LIBRA);
                 await cn.OpenAsync();
 
-                var sql = @"
-                    SELECT DISTINCT 
-                        z.Id as ZamowienieId,
-                        z.Odbiorca,
-                        z.Handlowiec,
-                        ISNULL(SUM(t.Ilosc), 0) as IloscKg
-                    FROM ZamowieniaMieso z
-                    LEFT JOIN ZamowieniaMiesoTowar t ON z.Id = t.ZamowienieId
-                    WHERE z.DataOdbioru = @Data
-                    AND z.Status != 'Anulowane'
-                    AND t.IdKatalog = 67095
-                    GROUP BY z.Id, z.Odbiorca, z.Handlowiec
-                    HAVING SUM(t.Ilosc) > 0
-                    ORDER BY z.Odbiorca";
+                try
+                {
+                    var connHandel2 = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
+                    await using var cnH2 = new SqlConnection(connHandel2);
+                    await cnH2.OpenAsync();
+                    var sqlTw = "SELECT idtw FROM [HANDEL].[HM].[TW] WHERE katalog LIKE '%Kurczak A%'";
+                    await using var cmdTw = new SqlCommand(sqlTw, cnH2);
+                    await using var rdTw = await cmdTw.ExecuteReaderAsync();
+                    while (await rdTw.ReadAsync()) kurczakAIds.Add(rdTw.GetInt32(0));
+                }
+                catch { /* fallback poniżej */ }
+
+                if (!kurczakAIds.Any()) return lista;
+
+                var idList = string.Join(",", kurczakAIds);
+                // Sprawdź czy DataUboju istnieje, jeśli tak — użyj jej, inaczej DataZamowienia
+                string dateCol = "DataZamowienia";
+                try
+                {
+                    var sqlCheck = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='ZamowieniaMieso' AND COLUMN_NAME='DataUboju'";
+                    await using var cmdCheck = new SqlCommand(sqlCheck, cn);
+                    if ((int)await cmdCheck.ExecuteScalarAsync() > 0)
+                        dateCol = "DataUboju";
+                }
+                catch { }
+
+                var sql = $@"SELECT z.Id, z.KlientId, ISNULL(SUM(t.Ilosc), 0) AS IloscKg
+                             FROM [dbo].[ZamowieniaMieso] z
+                             JOIN [dbo].[ZamowieniaMiesoTowar] t ON z.Id = t.ZamowienieId
+                             WHERE z.{dateCol} = @Data AND z.Status <> 'Anulowane'
+                               AND t.KodTowaru IN ({idList})
+                             GROUP BY z.Id, z.KlientId
+                             HAVING SUM(t.Ilosc) > 0
+                             ORDER BY z.KlientId";
 
                 await using var cmd = new SqlCommand(sql, cn);
                 cmd.Parameters.AddWithValue("@Data", _dataProdukcji.Date);
@@ -227,53 +281,31 @@ namespace Kalendarz1
                 await using var rd = await cmd.ExecuteReaderAsync();
                 while (await rd.ReadAsync())
                 {
-                    decimal iloscKg = rd.IsDBNull(3) ? 0 : rd.GetDecimal(3);
+                    int zamId = rd.GetInt32(0);
+                    int klientId = rd.IsDBNull(1) ? 0 : rd.GetInt32(1);
+                    decimal iloscKg = rd.IsDBNull(2) ? 0m : Convert.ToDecimal(rd.GetValue(2));
                     int pojemniki = (int)Math.Ceiling(iloscKg / KG_NA_POJEMNIK);
 
-                    lista.Add(new ZamowienieKlasy {
-                        ZamowienieId = rd.GetInt32(0),
-                        Odbiorca = rd.IsDBNull(1) ? "Nieznany" : rd.GetString(1),
-                        Handlowiec = rd.IsDBNull(2) ? "" : rd.GetString(2),
+                    var (nazwa, handlowiec) = kontrahenci.TryGetValue(klientId, out var kh)
+                        ? kh : ($"Klient {klientId}", "?");
+
+                    lista.Add(new ZamowienieKlasy
+                    {
+                        ZamowienieId = zamId,
+                        Odbiorca = nazwa,
+                        Handlowiec = handlowiec,
                         IloscKg = iloscKg,
                         IloscPojemnikow = pojemniki,
                         RozkladKlas = new Dictionary<int, int> {
                             { 5, 0 }, { 6, 0 }, { 7, 0 }, { 8, 0 },
-                            { 9, 0 }, { 10, 0 }, { 11, 0 }, { 12, 0 }
-                        }
+                            { 9, 0 }, { 10, 0 }, { 11, 0 }, { 12, 0 } }
                     });
                 }
-
-                // Dane testowe jeśli pusta lista
-                if (lista.Count == 0)
-                {
-                    lista = GetTestData();
-                }
             }
-            catch
-            {
-                lista = GetTestData();
-            }
+            catch { /* pusta lista */ }
 
             return lista;
         }
-
-        private List<ZamowienieKlasy> GetTestData() => new() {
-            new ZamowienieKlasy {
-                ZamowienieId = 1, Odbiorca = "Damak", Handlowiec = "MK",
-                IloscKg = 19800, IloscPojemnikow = 1320,
-                RozkladKlas = new() { { 5, 0 }, { 6, 1320 }, { 7, 0 }, { 8, 0 }, { 9, 0 }, { 10, 0 }, { 11, 0 }, { 12, 0 } }
-            },
-            new ZamowienieKlasy {
-                ZamowienieId = 2, Odbiorca = "Destan", Handlowiec = "PW",
-                IloscKg = 4800, IloscPojemnikow = 320,
-                RozkladKlas = new() { { 5, 0 }, { 6, 0 }, { 7, 22 }, { 8, 0 }, { 9, 0 }, { 10, 298 }, { 11, 0 }, { 12, 0 } }
-            },
-            new ZamowienieKlasy {
-                ZamowienieId = 3, Odbiorca = "EUREKA S.C. HURTOWNIA DROBIU", Handlowiec = "KN",
-                IloscKg = 2100, IloscPojemnikow = 140,
-                RozkladKlas = new() { { 5, 0 }, { 6, 70 }, { 7, 70 }, { 8, 0 }, { 9, 0 }, { 10, 0 }, { 11, 0 }, { 12, 0 } }
-            }
-        };
 
         private async Task PobierzIstniejaceRezerwacjeAsync()
         {
@@ -476,30 +508,68 @@ namespace Kalendarz1
         {
             // Usuń stare wiersze (zostaw nagłówek)
             while (pnlZamowienia.Children.Count > 1)
-            {
                 pnlZamowienia.Children.RemoveAt(1);
-            }
 
             _textBoxy.Clear();
             _sumyLabels.Clear();
 
             if (_zamowienia.Count == 0)
             {
-                var lblEmpty = new TextBlock {
-                    Text = "Brak zamówień kurczaka świeżego na ten dzień",
-                    FontSize = 14,
-                    FontStyle = FontStyles.Italic,
-                    Foreground = Brushes.Gray,
-                    Margin = new Thickness(20)
-                };
-                pnlZamowienia.Children.Add(lblEmpty);
+                pnlZamowienia.Children.Add(new TextBlock
+                {
+                    Text = "Brak zamówień Kurczak A na ten dzień",
+                    FontSize = 14, FontStyle = FontStyles.Italic,
+                    Foreground = Brushes.Gray, Margin = new Thickness(20)
+                });
                 return;
             }
 
-            foreach (var zam in _zamowienia)
+            // Grupuj per handlowiec
+            var grupy = _zamowienia
+                .GroupBy(z => string.IsNullOrWhiteSpace(z.Handlowiec) ? "BRAK" : z.Handlowiec)
+                .OrderBy(g => g.Key);
+
+            foreach (var grupa in grupy)
             {
-                var row = CreateZamowienieRow(zam);
-                pnlZamowienia.Children.Add(row);
+                decimal kgGrupy = grupa.Sum(z => z.IloscKg);
+                int pojGrupy = grupa.Sum(z => z.IloscPojemnikow);
+                int bezKlas = grupa.Count(z => z.RozkladKlas.Values.Sum() == 0);
+
+                // Nagłówek handlowca
+                var hdrBorder = new Border
+                {
+                    Background = new SolidColorBrush(Color.FromArgb(255, 52, 73, 94)),
+                    Padding = new Thickness(15, 6, 15, 6),
+                    Margin = new Thickness(0, 8, 0, 2)
+                };
+                var hdrStack = new StackPanel { Orientation = Orientation.Horizontal };
+                hdrStack.Children.Add(new TextBlock
+                {
+                    Text = grupa.Key, FontSize = 13, FontWeight = FontWeights.Bold,
+                    Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center
+                });
+                hdrStack.Children.Add(new TextBlock
+                {
+                    Text = $"  —  {grupa.Count()} zam.  |  {kgGrupy:N0} kg  |  {pojGrupy} poj.",
+                    FontSize = 11, Foreground = new SolidColorBrush(Color.FromArgb(255, 189, 195, 199)),
+                    VerticalAlignment = VerticalAlignment.Center
+                });
+                if (bezKlas > 0)
+                {
+                    hdrStack.Children.Add(new TextBlock
+                    {
+                        Text = $"  |  {bezKlas} bez klas!",
+                        FontSize = 11, FontWeight = FontWeights.Bold,
+                        Foreground = new SolidColorBrush(Color.FromArgb(255, 231, 76, 60)),
+                        VerticalAlignment = VerticalAlignment.Center
+                    });
+                }
+                hdrBorder.Child = hdrStack;
+                pnlZamowienia.Children.Add(hdrBorder);
+
+                // Wiersze zamówień
+                foreach (var zam in grupa.OrderByDescending(z => z.IloscKg))
+                    pnlZamowienia.Children.Add(CreateZamowienieRow(zam));
             }
         }
 
