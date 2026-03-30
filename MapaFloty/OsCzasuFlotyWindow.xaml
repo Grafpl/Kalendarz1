@@ -1,0 +1,104 @@
+<Window x:Class="Kalendarz1.MapaFloty.OsCzasuFlotyWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Oś czasu floty — gotowość pojazdów" Width="1400" Height="800"
+        MinWidth="1000" MinHeight="500" WindowStartupLocation="CenterScreen" WindowState="Maximized"
+        Background="#f7f8fa">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Toolbar -->
+        <Border Grid.Row="0" Background="White" Padding="16,10" BorderBrush="#e4e6ea" BorderThickness="0,0,0,1">
+            <DockPanel>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Oś czasu floty" FontSize="18" FontWeight="Bold" Foreground="#1a237e" VerticalAlignment="Center" Margin="0,0,16,0"/>
+                    <TextBlock Text="Od:" Foreground="#546e7a" FontSize="12" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                    <DatePicker x:Name="DateFrom" Width="120" FontSize="11"/>
+                    <TextBlock Text="Do:" Foreground="#546e7a" FontSize="12" VerticalAlignment="Center" Margin="10,0,4,0"/>
+                    <DatePicker x:Name="DateTo" Width="120" FontSize="11"/>
+                    <Button Content="Dziś" Click="BtnToday_Click" Background="#e8eaf6" Foreground="#3949ab"
+                            BorderThickness="0" Padding="10,5" Margin="6,0,0,0" Cursor="Hand" FontSize="11">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{TemplateBinding Background}" CornerRadius="5" Padding="{TemplateBinding Padding}">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                    <Button Content="Tydzień" Click="BtnWeek_Click" Background="#e8eaf6" Foreground="#3949ab"
+                            BorderThickness="0" Padding="10,5" Margin="4,0,0,0" Cursor="Hand" FontSize="11">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{TemplateBinding Background}" CornerRadius="5" Padding="{TemplateBinding Padding}">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                    <Button Content="Załaduj" Click="BtnLoad_Click" Background="#1565c0" Foreground="White"
+                            BorderThickness="0" Padding="14,5" Margin="8,0,0,0" Cursor="Hand" FontSize="11" FontWeight="SemiBold">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{TemplateBinding Background}" CornerRadius="5" Padding="{TemplateBinding Padding}">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                </StackPanel>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <Button Content="Debug" Click="BtnDebug_Click" Background="#37474F" Foreground="White"
+                            BorderThickness="0" Padding="10,5" Margin="0,0,6,0" Cursor="Hand" FontSize="10">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{TemplateBinding Background}" CornerRadius="5" Padding="{TemplateBinding Padding}">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                    <TextBlock x:Name="StatusText" Text="" Foreground="#90a4ae" FontSize="11" VerticalAlignment="Center"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- Panel dostępności + sugestie -->
+        <Border x:Name="AvailPanel" Grid.Row="1" Background="White" Padding="16,10" BorderBrush="#e4e6ea"
+                BorderThickness="0,0,0,1" Visibility="Collapsed">
+            <StackPanel>
+                <DockPanel Margin="0,0,0,8">
+                    <TextBlock Text="Dostępność floty TERAZ" FontSize="14" FontWeight="Bold" Foreground="#1a237e"/>
+                    <TextBlock x:Name="AvailTime" Text="" FontSize="11" Foreground="#90a4ae" VerticalAlignment="Center"
+                               DockPanel.Dock="Right" HorizontalAlignment="Right"/>
+                </DockPanel>
+                <StackPanel x:Name="AvailStats" Orientation="Horizontal" Margin="0,0,0,8"/>
+                <StackPanel x:Name="AvailList"/>
+                <Border x:Name="SuggestionBox" Background="#FFF8E1" CornerRadius="6" Padding="12,8" Margin="0,6,0,0" Visibility="Collapsed">
+                    <StackPanel>
+                        <TextBlock Text="Sugestie" FontSize="11" FontWeight="Bold" Foreground="#F57C00" Margin="0,0,0,4"/>
+                        <TextBlock x:Name="SuggestionText" FontSize="11" Foreground="#795548" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Border>
+
+        <!-- Oś czasu -->
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel x:Name="TimelinePanel" Margin="16,8,16,8"/>
+        </ScrollViewer>
+
+        <!-- Szczegóły (kliknięty pojazd/dzień) -->
+        <Border x:Name="DetailPanel" Grid.Row="3" Background="White" MaxHeight="200"
+                BorderBrush="#e4e6ea" BorderThickness="0,1,0,0" Visibility="Collapsed">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel x:Name="DetailList" Margin="16,8"/>
+            </ScrollViewer>
+        </Border>
+    </Grid>
+</Window>

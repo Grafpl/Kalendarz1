@@ -147,11 +147,12 @@ namespace Kalendarz1.Opakowania.Forms
             _lblSaldoEnd = new Label { Dock = DockStyle.Fill, Text = "", ForeColor = CSlate, Font = new Font("Segoe UI", 9, FontStyle.Bold), TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(12, 0, 0, 0) };
 
             var flow = new FlowLayoutPanel { Dock = DockStyle.Right, AutoSize = true, FlowDirection = FlowDirection.LeftToRight, BackColor = Color.Transparent, WrapContents = false, Padding = new Padding(0, 3, 8, 0) };
+            var btnPotw = MkBtn("Potwierdz saldo", Color.FromArgb(22, 163, 74)); btnPotw.Click += (_, __) => DodajPotwierdzenie();
             _btnCopy = MkBtn("Kopiuj saldo", Color.FromArgb(99, 102, 241)); _btnCopy.Click += (_, __) => CopySaldo();
             _btnPdf = MkBtn("PDF", Color.FromArgb(37, 99, 235)); _btnPdf.Click += async (_, __) => await ExportPdfAsync();
             _btnEmail = MkBtn("Email", Color.FromArgb(5, 150, 105)); _btnEmail.Click += (_, __) => SendEmail();
             var btnClose = MkBtn("Zamknij", Color.FromArgb(100, 116, 139)); btnClose.Click += (_, __) => Close();
-            flow.Controls.AddRange(new Control[] { _btnCopy, _btnPdf, _btnEmail, btnClose });
+            flow.Controls.AddRange(new Control[] { btnPotw, _btnCopy, _btnPdf, _btnEmail, btnClose });
 
             _bottomBar.Controls.Add(_lblSaldoEnd);
             _bottomBar.Controls.Add(flow);
@@ -225,7 +226,7 @@ namespace Kalendarz1.Opakowania.Forms
             return host;
         }
 
-        DataGridViewTextBoxColumn RCol(string name, int w) => new() { Name = name, HeaderText = name, DataPropertyName = name, Width = w, DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleRight, Font = new Font("Segoe UI", 9.5f, FontStyle.Bold) }, SortMode = DataGridViewColumnSortMode.Automatic };
+        DataGridViewTextBoxColumn RCol(string name, int w) => new() { Name = name, HeaderText = name, DataPropertyName = name, AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells, MinimumWidth = w, DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleRight, Font = new Font("Segoe UI", 9.5f, FontStyle.Bold) }, SortMode = DataGridViewColumnSortMode.Automatic };
 
         DataGridView MkGrid()
         {
@@ -233,25 +234,41 @@ namespace Kalendarz1.Opakowania.Forms
             {
                 Dock = DockStyle.Fill, ReadOnly = true, AllowUserToAddRows = false, AllowUserToDeleteRows = false, AllowUserToResizeRows = false,
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect, MultiSelect = false, AutoGenerateColumns = false, RowHeadersVisible = false,
-                BackgroundColor = Color.White, GridColor = Color.FromArgb(243, 244, 246), BorderStyle = BorderStyle.None,
-                CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal, ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.None,
-                ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle { BackColor = Color.FromArgb(249, 250, 251), ForeColor = Color.FromArgb(107, 114, 128), Font = new Font("Segoe UI", 8, FontStyle.Bold), SelectionBackColor = Color.FromArgb(249, 250, 251) },
-                ColumnHeadersHeight = 32, ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing,
-                DefaultCellStyle = new DataGridViewCellStyle { Font = new Font("Segoe UI", 9.5f), Padding = new Padding(4, 2, 4, 2), SelectionBackColor = Color.FromArgb(220, 252, 231), SelectionForeColor = CSlate },
-                AlternatingRowsDefaultCellStyle = new DataGridViewCellStyle { BackColor = Color.FromArgb(249, 250, 251) },
-                RowTemplate = { Height = 32 }, EnableHeadersVisualStyles = false
+                BackgroundColor = Color.White, GridColor = Color.FromArgb(180, 180, 180), BorderStyle = BorderStyle.FixedSingle,
+                CellBorderStyle = DataGridViewCellBorderStyle.Single, ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.Single,
+                ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle { BackColor = Color.FromArgb(240, 240, 240), ForeColor = Color.FromArgb(30, 30, 30), Font = new Font("Segoe UI", 8.5f, FontStyle.Bold), SelectionBackColor = Color.FromArgb(240, 240, 240) },
+                ColumnHeadersHeight = 34, ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing,
+                DefaultCellStyle = new DataGridViewCellStyle { Font = new Font("Segoe UI", 9.5f), Padding = new Padding(4, 2, 4, 2), SelectionBackColor = Color.FromArgb(255, 255, 220), SelectionForeColor = CSlate },
+                AlternatingRowsDefaultCellStyle = new DataGridViewCellStyle { BackColor = Color.FromArgb(250, 250, 250) },
+                RowTemplate = { Height = 34 }, EnableHeadersVisualStyles = false
             };
             typeof(DataGridView).GetProperty("DoubleBuffered", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)?.SetValue(g, true);
             int hov = -1;
             g.CellMouseEnter += (_, e) => { if (e.RowIndex >= 0) { hov = e.RowIndex; g.InvalidateRow(e.RowIndex); } };
             g.CellMouseLeave += (_, e) => { if (e.RowIndex >= 0) { var p = hov; hov = -1; if (p >= 0 && p < g.Rows.Count) g.InvalidateRow(p); } };
-            g.RowPrePaint += (_, e) => { if (e.RowIndex == hov && !e.State.HasFlag(DataGridViewElementStates.Selected)) { using var br = new SolidBrush(Color.FromArgb(236, 253, 245)); e.Graphics.FillRectangle(br, e.RowBounds); } };
+            g.RowPostPaint += (_, e) =>
+            {
+                if (g.Rows[e.RowIndex].Selected)
+                {
+                    var rect = new Rectangle(e.RowBounds.X, e.RowBounds.Y, e.RowBounds.Width - 1, e.RowBounds.Height - 1);
+                    using var pen = new Pen(Color.FromArgb(250, 204, 21), 2);
+                    e.Graphics.DrawRectangle(pen, rect);
+                }
+                if (e.RowIndex == hov && !g.Rows[e.RowIndex].Selected)
+                {
+                    var rect = new Rectangle(e.RowBounds.X, e.RowBounds.Y, e.RowBounds.Width - 1, e.RowBounds.Height - 1);
+                    using var pen = new Pen(Color.FromArgb(209, 213, 219), 1);
+                    e.Graphics.DrawRectangle(pen, rect);
+                }
+            };
             return g;
         }
 
         ContextMenuStrip BuildCtxMenu()
         {
             var m = new ContextMenuStrip { Font = new Font("Segoe UI", 9.5f) };
+            m.Items.Add("Potwierdz saldo", null, (_, __) => DodajPotwierdzenie());
+            m.Items.Add(new ToolStripSeparator());
             m.Items.Add("Kopiuj wiersz", null, (_, __) => CopyRow());
             m.Items.Add("Kopiuj saldo do schowka", null, (_, __) => CopySaldo());
             m.Items.Add(new ToolStripSeparator());
@@ -300,13 +317,27 @@ namespace Kalendarz1.Opakowania.Forms
             }
         }
 
+        static string FmtSaldo(int v, string unit = "")
+        {
+            var num = Math.Abs(v).ToString("N0");
+            if (v < 0) return $"Winny {num}{unit}";
+            if (v > 0) return $"Wisimy {num}{unit}";
+            return "-";
+        }
+
         void FmtGrid(object sender, DataGridViewCellFormattingEventArgs e)
         {
             var cn = _grid.Columns[e.ColumnIndex].Name;
             if (cn is "E2" or "H1" or "EURO" or "PCV" or "DREW" && e.Value is int v)
             {
-                e.CellStyle.ForeColor = v > 0 ? CRed : v < 0 ? CGreen : Color.FromArgb(200, 200, 200);
-                if (v == 0) e.Value = "-";
+                e.CellStyle.ForeColor = v < 0 ? CRed : v > 0 ? CGreen : Color.FromArgb(200, 200, 200);
+                if (v == 0) { e.Value = "-"; e.FormattingApplied = true; }
+                else
+                {
+                    var unit = cn == "E2" ? " poj." : " pal.";
+                    e.Value = FmtSaldo(v, unit);
+                    e.FormattingApplied = true;
+                }
             }
             if (_grid.Rows[e.RowIndex].DataBoundItem is DokumentOpakowania d)
             {
@@ -315,7 +346,6 @@ namespace Kalendarz1.Opakowania.Forms
                     e.CellStyle.BackColor = Color.FromArgb(255, 251, 235);
                     e.CellStyle.Font = new Font("Segoe UI", 9.5f, FontStyle.Bold);
                 }
-                // Caly wiersz wydania lekko czerwony, przyjecia lekko zielony
                 else if (cn is "NrDok" or "Data" or "Dzien")
                 {
                     if (d.TypDokumentu == "MW1") e.CellStyle.ForeColor = Color.FromArgb(153, 27, 27);
@@ -340,11 +370,13 @@ namespace Kalendarz1.Opakowania.Forms
                 if (_saldo != null)
                 {
                     int[] v = { _saldo.SaldoE2, _saldo.SaldoH1, _saldo.SaldoEURO, _saldo.SaldoPCV, _saldo.SaldoDREW };
+                    string[] units = { " poj.", " pal.", " pal.", " pal.", " pal." };
                     for (int i = 0; i < 5; i++)
                     {
-                        _crdVal[i].Text = v[i].ToString();
+                        var num = Math.Abs(v[i]).ToString("N0");
+                        _crdVal[i].Text = v[i] == 0 ? "0" : num;
                         _crdVal[i].ForeColor = VCol(v[i]);
-                        _crdDelta[i].Text = v[i] > 0 ? "winni" : v[i] < 0 ? "zwrot" : "OK";
+                        _crdDelta[i].Text = v[i] < 0 ? $"Winny{units[i]}" : v[i] > 0 ? $"Wisimy{units[i]}" : "";
                         _crdDelta[i].ForeColor = VCol(v[i]);
                     }
                     _lblInfoEmail.Text = _saldo.Email ?? "-";
@@ -365,15 +397,16 @@ namespace Kalendarz1.Opakowania.Forms
 
                 var lastSaldo = _docs.FirstOrDefault(d => d.JestSaldem);
                 if (lastSaldo != null)
-                    _lblSaldoEnd.Text = $"  Saldo:  E2={lastSaldo.E2}   H1={lastSaldo.H1}   EURO={lastSaldo.EURO}   PCV={lastSaldo.PCV}   DREW={lastSaldo.DREW}";
+                    _lblSaldoEnd.Text = $"  Saldo:  E2={FmtSaldo(lastSaldo.E2, " poj.")}   H1={FmtSaldo(lastSaldo.H1, " pal.")}   EURO={FmtSaldo(lastSaldo.EURO, " pal.")}   PCV={FmtSaldo(lastSaldo.PCV, " pal.")}   DREW={FmtSaldo(lastSaldo.DREW, " pal.")}";
 
                 _lblStatWyd.Text = $"Wydania: {wydania} dok.";
                 _lblStatPrzyj.Text = $"Przyjecia: {przyjecia} dok.";
 
-                int sumWyd = _docs.Where(d => !d.JestSaldem && d.TypDokumentu == "MW1").Sum(d => d.E2 + d.H1 + d.EURO + d.PCV + d.DREW);
+                int sumWyd = _docs.Where(d => !d.JestSaldem && d.TypDokumentu == "MW1").Sum(d => Math.Abs(d.E2 + d.H1 + d.EURO + d.PCV + d.DREW));
                 int sumPrzyj = _docs.Where(d => !d.JestSaldem && d.TypDokumentu == "MP").Sum(d => Math.Abs(d.E2 + d.H1 + d.EURO + d.PCV + d.DREW));
-                _lblStatBilans.Text = $"Bilans: {sumWyd - sumPrzyj:+#;-#;0} szt.";
-                _lblStatBilans.ForeColor = sumWyd > sumPrzyj ? CRed : CGreen;
+                int bilans = sumWyd - sumPrzyj;
+                _lblStatBilans.Text = $"Bilans: {(bilans > 0 ? "Winny" : bilans < 0 ? "Wisimy" : "")} {Math.Abs(bilans).ToString("N0")} szt.";
+                _lblStatBilans.ForeColor = bilans > 0 ? CRed : bilans < 0 ? CGreen : CGray;
                 _lblStatZwrot.Text = sumWyd > 0 ? $"Zwrot: {sumPrzyj * 100.0 / sumWyd:F0}%" : "Zwrot: -";
 
                 var lastDoc = _docs.Where(d => !d.JestSaldem).FirstOrDefault();
@@ -412,6 +445,38 @@ namespace Kalendarz1.Opakowania.Forms
 
         #region Actions
 
+        void DodajPotwierdzenie()
+        {
+            if (_saldo == null) return;
+
+            // Pokaz menu z wyborem typu opakowania
+            var menu = new ContextMenuStrip { Font = new Font("Segoe UI", 10) };
+            var typy = new[] { ("E2", _saldo.SaldoE2), ("H1", _saldo.SaldoH1), ("EURO", _saldo.SaldoEURO), ("PCV", _saldo.SaldoPCV), ("DREW", _saldo.SaldoDREW) };
+
+            foreach (var (kod, saldo) in typy)
+            {
+                if (saldo == 0) continue; // pomijaj zerowe
+                var typ = TypOpakowania.WszystkieTypy.FirstOrDefault(t => t.Kod == kod);
+                if (typ == null) continue;
+                var txt = $"{kod}: {Math.Abs(saldo)} ({(saldo < 0 ? "winny" : "wisimy")})";
+                var k = kod; var s = saldo; var tp = typ;
+                menu.Items.Add(txt, null, (_, __) =>
+                {
+                    var okno = new Views.DodajPotwierdzenieWindow(_id, _nazwa, _nazwa, tp, s, _userId);
+                    if (okno.ShowDialog() == true)
+                        _ = LoadAsync(); // odswiez po dodaniu
+                });
+            }
+
+            if (menu.Items.Count == 0)
+            {
+                MessageBox.Show("Brak sald do potwierdzenia (wszystkie zerowe).", "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            menu.Show(Cursor.Position);
+        }
+
         void CopySaldo()
         {
             if (_saldo == null) return;
@@ -420,12 +485,11 @@ namespace Kalendarz1.Opakowania.Forms
             sb.AppendLine($"Data: {DateTime.Today:dd.MM.yyyy}");
             sb.AppendLine($"Handlowiec: {_handlowiec}");
             sb.AppendLine();
-            sb.AppendLine($"E2 Pojemnik:     {_saldo.SaldoE2}");
-            sb.AppendLine($"H1 Paleta:       {_saldo.SaldoH1}");
-            sb.AppendLine($"EURO Paleta:     {_saldo.SaldoEURO}");
-            sb.AppendLine($"PCV Plastikowa:  {_saldo.SaldoPCV}");
-            sb.AppendLine($"DREW Drewniana:  {_saldo.SaldoDREW}");
-            sb.AppendLine($"RAZEM:           {_saldo.SaldoCalkowite}");
+            sb.AppendLine($"E2 Pojemnik:     {FmtSaldo(_saldo.SaldoE2, " pojemnikow")}");
+            sb.AppendLine($"H1 Paleta:       {FmtSaldo(_saldo.SaldoH1, " palet")}");
+            sb.AppendLine($"EURO Paleta:     {FmtSaldo(_saldo.SaldoEURO, " palet")}");
+            sb.AppendLine($"PCV Plastikowa:  {FmtSaldo(_saldo.SaldoPCV, " palet")}");
+            sb.AppendLine($"DREW Drewniana:  {FmtSaldo(_saldo.SaldoDREW, " palet")}");
             Clipboard.SetText(sb.ToString());
             _lblSaldoEnd.Text = "  Skopiowano do schowka!";
         }
@@ -467,7 +531,7 @@ namespace Kalendarz1.Opakowania.Forms
 
         #region Helpers
 
-        static Color VCol(int v) => v > 0 ? CRed : v < 0 ? CGreen : CGray;
+        static Color VCol(int v) => v < 0 ? CRed : v > 0 ? CGreen : CGray;
         static readonly Color[] _ac = { Color.FromArgb(59,130,246), Color.FromArgb(249,115,22), Color.FromArgb(16,185,129), Color.FromArgb(139,92,246), Color.FromArgb(236,72,153), Color.FromArgb(245,158,11) };
         static Color AvCol(string n) => _ac[Math.Abs((n ?? "").GetHashCode()) % _ac.Length];
         static string Ini(string n) { if (string.IsNullOrWhiteSpace(n) || n == "-") return "?"; var p = n.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries); return p.Length >= 2 ? $"{p[0][0]}{p[1][0]}".ToUpper() : n[..Math.Min(2, n.Length)].ToUpper(); }

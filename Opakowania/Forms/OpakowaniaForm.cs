@@ -384,12 +384,12 @@ namespace Kalendarz1.Opakowania.Forms
             _gridAll.CellDoubleClick += (_, e) => { if (e.RowIndex >= 0) OpenAll(); };
             _gridAll.ContextMenuStrip = CtxMenu(true);
             _gridAll.Columns.Add(new DataGridViewTextBoxColumn { Name = "Kontrahent", HeaderText = "Kontrahent", DataPropertyName = "Kontrahent", MinimumWidth = 150, AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill, DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleRight }, SortMode = DataGridViewColumnSortMode.Automatic });
-            _gridAll.Columns.Add(new DataGridViewTextBoxColumn { Name = "Handlowiec", HeaderText = "Handlowiec", DataPropertyName = "Handlowiec", Width = 160, SortMode = DataGridViewColumnSortMode.Automatic });
+            _gridAll.Columns.Add(new DataGridViewTextBoxColumn { Name = "Handlowiec", HeaderText = "Handlowiec", DataPropertyName = "Handlowiec", AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells, MinimumWidth = 120, SortMode = DataGridViewColumnSortMode.Automatic });
             foreach (var (n, p) in new[] { ("E2", "SaldoE2"), ("H1", "SaldoH1"), ("EURO", "SaldoEURO"), ("PCV", "SaldoPCV"), ("DREW", "SaldoDREW") })
-                _gridAll.Columns.Add(new DataGridViewTextBoxColumn { Name = n, HeaderText = n, DataPropertyName = p, Width = 70, DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleRight, Font = new Font("Segoe UI", 10, FontStyle.Bold) }, SortMode = DataGridViewColumnSortMode.Automatic });
-            _gridAll.Columns.Add(new DataGridViewTextBoxColumn { Name = "Razem", HeaderText = "RAZEM", DataPropertyName = "SaldoCalkowite", Width = 85, DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleRight, Font = new Font("Segoe UI", 10, FontStyle.Bold) }, SortMode = DataGridViewColumnSortMode.Automatic });
-            _gridAll.Columns.Add(new DataGridViewTextBoxColumn { Name = "OstDok", HeaderText = "Ost. dok.", DataPropertyName = "OstatniDokumentInfo", Width = 105, SortMode = DataGridViewColumnSortMode.Automatic });
-            _gridAll.Columns.Add(new DataGridViewTextBoxColumn { Name = "OstPotw", HeaderText = "Ost. potw.", DataPropertyName = "OstatniePotwierdzenieText", Width = 90, SortMode = DataGridViewColumnSortMode.Automatic });
+                _gridAll.Columns.Add(new DataGridViewTextBoxColumn { Name = n, HeaderText = n, DataPropertyName = p, AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells, MinimumWidth = 60, DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleRight, Font = new Font("Segoe UI", 10, FontStyle.Bold) }, SortMode = DataGridViewColumnSortMode.Automatic });
+            _gridAll.Columns.Add(new DataGridViewTextBoxColumn { Name = "Razem", HeaderText = "RAZEM", DataPropertyName = "SaldoCalkowite", AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells, MinimumWidth = 60, DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleRight, Font = new Font("Segoe UI", 10, FontStyle.Bold) }, SortMode = DataGridViewColumnSortMode.Automatic });
+            _gridAll.Columns.Add(new DataGridViewTextBoxColumn { Name = "OstDok", HeaderText = "Ost. dok.", DataPropertyName = "OstatniDokumentInfo", AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells, MinimumWidth = 80, SortMode = DataGridViewColumnSortMode.Automatic });
+            _gridAll.Columns.Add(new DataGridViewTextBoxColumn { Name = "OstPotw", HeaderText = "Ost. potw.", DataPropertyName = "OstatniePotwierdzenieText", AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells, MinimumWidth = 70, SortMode = DataGridViewColumnSortMode.Automatic });
             _gridAll.CellFormatting += FmtAll;
             _gridAll.CellPainting += (_, e) => { if (e.ColumnIndex >= 0 && e.RowIndex >= 0 && _gridAll.Columns[e.ColumnIndex].Name == "Handlowiec" && _gridAll.Rows[e.RowIndex].DataBoundItem is SaldoOpakowania r) PaintAvatar(e, r.Handlowiec); };
 
@@ -397,12 +397,12 @@ namespace Kalendarz1.Opakowania.Forms
             _gridTyp.CellDoubleClick += (_, e) => { if (e.RowIndex >= 0) OpenTyp(); };
             _gridTyp.ContextMenuStrip = CtxMenu(false);
             _gridTyp.Columns.Add(new DataGridViewTextBoxColumn { Name = "Kontrahent", HeaderText = "Kontrahent", DataPropertyName = "Kontrahent", MinimumWidth = 150, AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill, DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleRight }, SortMode = DataGridViewColumnSortMode.Automatic });
-            _gridTyp.Columns.Add(new DataGridViewTextBoxColumn { Name = "Handlowiec", HeaderText = "Handlowiec", DataPropertyName = "Handlowiec", Width = 160, SortMode = DataGridViewColumnSortMode.Automatic });
-            _gridTyp.Columns.Add(new DataGridViewTextBoxColumn { Name = "Saldo3tyg", HeaderText = "Saldo (3 tyg.)", DataPropertyName = "IloscPierwszyZakres", Width = 100, DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleRight, Font = new Font("Segoe UI", 9.5f) }, SortMode = DataGridViewColumnSortMode.Automatic });
-            _gridTyp.Columns.Add(new DataGridViewTextBoxColumn { Name = "SaldoAkt", HeaderText = "Saldo akt.", DataPropertyName = "IloscDrugiZakres", Width = 90, DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleRight, Font = new Font("Segoe UI", 10, FontStyle.Bold) }, SortMode = DataGridViewColumnSortMode.Automatic });
-            _gridTyp.Columns.Add(new DataGridViewTextBoxColumn { Name = "Zmiana", HeaderText = "Zmiana", DataPropertyName = "Roznica", Width = 80, DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleRight, Font = new Font("Segoe UI", 9.5f, FontStyle.Bold) }, SortMode = DataGridViewColumnSortMode.Automatic });
-            _gridTyp.Columns.Add(new DataGridViewTextBoxColumn { Name = "OstDok", HeaderText = "Ost. dok.", DataPropertyName = "OstatniDokumentInfo", Width = 105, SortMode = DataGridViewColumnSortMode.Automatic });
-            _gridTyp.Columns.Add(new DataGridViewTextBoxColumn { Name = "Potw", HeaderText = "Potwierdzone", DataPropertyName = "DataPotwierdzeniaTekst", Width = 100, SortMode = DataGridViewColumnSortMode.Automatic });
+            _gridTyp.Columns.Add(new DataGridViewTextBoxColumn { Name = "Handlowiec", HeaderText = "Handlowiec", DataPropertyName = "Handlowiec", AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells, MinimumWidth = 120, SortMode = DataGridViewColumnSortMode.Automatic });
+            _gridTyp.Columns.Add(new DataGridViewTextBoxColumn { Name = "Saldo3tyg", HeaderText = "Saldo (3 tyg.)", DataPropertyName = "IloscPierwszyZakres", AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells, MinimumWidth = 80, DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleRight, Font = new Font("Segoe UI", 9.5f) }, SortMode = DataGridViewColumnSortMode.Automatic });
+            _gridTyp.Columns.Add(new DataGridViewTextBoxColumn { Name = "SaldoAkt", HeaderText = "Saldo akt.", DataPropertyName = "IloscDrugiZakres", AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells, MinimumWidth = 80, DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleRight, Font = new Font("Segoe UI", 10, FontStyle.Bold) }, SortMode = DataGridViewColumnSortMode.Automatic });
+            _gridTyp.Columns.Add(new DataGridViewTextBoxColumn { Name = "Zmiana", HeaderText = "Zmiana", DataPropertyName = "Roznica", AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells, MinimumWidth = 60, DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleRight, Font = new Font("Segoe UI", 9.5f, FontStyle.Bold) }, SortMode = DataGridViewColumnSortMode.Automatic });
+            _gridTyp.Columns.Add(new DataGridViewTextBoxColumn { Name = "OstDok", HeaderText = "Ost. dok.", DataPropertyName = "OstatniDokumentInfo", AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells, MinimumWidth = 80, SortMode = DataGridViewColumnSortMode.Automatic });
+            _gridTyp.Columns.Add(new DataGridViewTextBoxColumn { Name = "Potw", HeaderText = "Potwierdzone", DataPropertyName = "DataPotwierdzeniaTekst", AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells, MinimumWidth = 70, SortMode = DataGridViewColumnSortMode.Automatic });
             _gridTyp.CellFormatting += FmtTyp;
             _gridTyp.CellPainting += (_, e) => { if (e.ColumnIndex >= 0 && e.RowIndex >= 0 && _gridTyp.Columns[e.ColumnIndex].Name == "Handlowiec" && _gridTyp.Rows[e.RowIndex].DataBoundItem is ZestawienieSalda r) PaintAvatar(e, r.Handlowiec); };
         }
@@ -422,18 +422,33 @@ namespace Kalendarz1.Opakowania.Forms
                 ReadOnly = true, AllowUserToAddRows = false, AllowUserToDeleteRows = false, AllowUserToResizeRows = false,
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect, MultiSelect = false,
                 AutoGenerateColumns = false, RowHeadersVisible = false,
-                BackgroundColor = Color.White, GridColor = Color.FromArgb(243, 244, 246),
-                BorderStyle = BorderStyle.None, CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal,
-                ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.None,
-                ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle { BackColor = Color.FromArgb(249, 250, 251), ForeColor = Color.FromArgb(107, 114, 128), Font = new Font("Segoe UI", 8, FontStyle.Bold), SelectionBackColor = Color.FromArgb(249, 250, 251), Padding = new Padding(6, 0, 0, 0) },
-                ColumnHeadersHeight = 34, ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing,
-                DefaultCellStyle = new DataGridViewCellStyle { Font = new Font("Segoe UI", 9.5f), Padding = new Padding(6, 2, 4, 2), SelectionBackColor = Color.FromArgb(220, 252, 231), SelectionForeColor = Color.FromArgb(15, 23, 42) },
-                AlternatingRowsDefaultCellStyle = new DataGridViewCellStyle { BackColor = Color.FromArgb(249, 250, 251) },
+                BackgroundColor = Color.White, GridColor = Color.FromArgb(180, 180, 180),
+                BorderStyle = BorderStyle.FixedSingle, CellBorderStyle = DataGridViewCellBorderStyle.Single,
+                ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.Single,
+                ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle { BackColor = Color.FromArgb(240, 240, 240), ForeColor = Color.FromArgb(30, 30, 30), Font = new Font("Segoe UI", 8.5f, FontStyle.Bold), SelectionBackColor = Color.FromArgb(240, 240, 240), Padding = new Padding(6, 0, 0, 0) },
+                ColumnHeadersHeight = 36, ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing,
+                DefaultCellStyle = new DataGridViewCellStyle { Font = new Font("Segoe UI", 9.5f), Padding = new Padding(6, 2, 4, 2), SelectionBackColor = Color.FromArgb(255, 255, 220), SelectionForeColor = Color.FromArgb(15, 23, 42) },
+                AlternatingRowsDefaultCellStyle = new DataGridViewCellStyle { BackColor = Color.FromArgb(250, 250, 250) },
                 RowTemplate = { Height = 36 }, EnableHeadersVisualStyles = false
             };
             g.CellMouseEnter += (_, e) => { if (e.RowIndex >= 0) { _hover = e.RowIndex; g.InvalidateRow(e.RowIndex); } };
             g.CellMouseLeave += (_, e) => { if (e.RowIndex >= 0) { var p = _hover; _hover = -1; if (p >= 0 && p < g.Rows.Count) g.InvalidateRow(p); } };
-            g.RowPrePaint += (_, e) => { if (e.RowIndex == _hover && !e.State.HasFlag(DataGridViewElementStates.Selected)) { using var br = new SolidBrush(Color.FromArgb(236, 253, 245)); e.Graphics.FillRectangle(br, e.RowBounds); } };
+            // Zolta ramka wokol zaznaczonego wiersza (zamiast zmiany koloru czcionki/tla)
+            g.RowPostPaint += (_, e) =>
+            {
+                if (g.Rows[e.RowIndex].Selected)
+                {
+                    var rect = new Rectangle(e.RowBounds.X, e.RowBounds.Y, e.RowBounds.Width - 1, e.RowBounds.Height - 1);
+                    using var pen = new Pen(Color.FromArgb(250, 204, 21), 2); // zolty
+                    e.Graphics.DrawRectangle(pen, rect);
+                }
+                if (e.RowIndex == _hover && !g.Rows[e.RowIndex].Selected)
+                {
+                    var rect = new Rectangle(e.RowBounds.X, e.RowBounds.Y, e.RowBounds.Width - 1, e.RowBounds.Height - 1);
+                    using var pen = new Pen(Color.FromArgb(209, 213, 219), 1); // szary hover
+                    e.Graphics.DrawRectangle(pen, rect);
+                }
+            };
             EnableDoubleBuffering(g);
             return g;
         }
@@ -449,11 +464,26 @@ namespace Kalendarz1.Opakowania.Forms
             return m;
         }
 
+        static string FmtSaldo(int v, string unit = "")
+        {
+            // Wartosci jak Symfonia: ujemne = kontrahent winien nam, dodatnie = my winni
+            var num = Math.Abs(v).ToString("N0");
+            if (v < 0) return $"Winny {num}{unit}";
+            if (v > 0) return $"Wisimy {num}{unit}";
+            return "0";
+        }
+
         void FmtAll(object s, DataGridViewCellFormattingEventArgs e)
         {
             var cn = _gridAll.Columns[e.ColumnIndex].Name;
             if (cn is "E2" or "H1" or "EURO" or "PCV" or "DREW" or "Razem" && e.Value is int v)
-                e.CellStyle.ForeColor = v > 0 ? Color.FromArgb(220, 38, 38) : v < 0 ? Color.FromArgb(22, 163, 74) : Color.FromArgb(180, 180, 180);
+            {
+                // Symfonia: ujemne = winny (czerwone), dodatnie = wisimy (zielone)
+                e.CellStyle.ForeColor = v < 0 ? Color.FromArgb(220, 38, 38) : v > 0 ? Color.FromArgb(22, 163, 74) : Color.FromArgb(180, 180, 180);
+                var unit = cn == "E2" ? " pojemnikow" : cn == "Razem" ? "" : " palet";
+                e.Value = FmtSaldo(v, unit);
+                e.FormattingApplied = true;
+            }
             if (cn == "OstDok" && e.Value is string dok)
             {
                 if (dok.Contains("Wydanie")) e.CellStyle.ForeColor = Color.FromArgb(220, 38, 38);
@@ -469,11 +499,18 @@ namespace Kalendarz1.Opakowania.Forms
         {
             var cn = _gridTyp.Columns[e.ColumnIndex].Name;
             if (cn is "SaldoAkt" or "Saldo3tyg" && e.Value is int v)
-                e.CellStyle.ForeColor = v > 0 ? Color.FromArgb(220, 38, 38) : v < 0 ? Color.FromArgb(22, 163, 74) : Color.FromArgb(180, 180, 180);
+            {
+                e.CellStyle.ForeColor = v < 0 ? Color.FromArgb(220, 38, 38) : v > 0 ? Color.FromArgb(22, 163, 74) : Color.FromArgb(180, 180, 180);
+                var unit = _selType == "E2" ? " pojemnikow" : " palet";
+                e.Value = FmtSaldo(v, unit);
+                e.FormattingApplied = true;
+            }
             if (cn == "Zmiana" && e.Value is int z2)
             {
-                e.CellStyle.ForeColor = z2 > 0 ? Color.FromArgb(220, 38, 38) : z2 < 0 ? Color.FromArgb(22, 163, 74) : Color.FromArgb(180, 180, 180);
-                if (z2 > 0) e.Value = $"+{z2}";
+                e.CellStyle.ForeColor = z2 < 0 ? Color.FromArgb(220, 38, 38) : z2 > 0 ? Color.FromArgb(22, 163, 74) : Color.FromArgb(180, 180, 180);
+                var num = Math.Abs(z2).ToString("N0");
+                e.Value = z2 > 0 ? $"+{num}" : z2 < 0 ? $"-{num}" : "0";
+                e.FormattingApplied = true;
             }
             if (cn == "OstDok" && e.Value is string dok)
             {

@@ -187,11 +187,11 @@ namespace Kalendarz1.Opakowania.Services
 SaldaKontrahentow AS (
     SELECT
         KontrahentId,
-        CAST(ISNULL(SUM(CASE WHEN TowarNazwa = 'Pojemnik Drobiowy E2' THEN Ilosc ELSE 0 END), 0) AS INT) AS E2,
-        CAST(ISNULL(SUM(CASE WHEN TowarNazwa = 'Paleta H1' THEN Ilosc ELSE 0 END), 0) AS INT) AS H1,
-        CAST(ISNULL(SUM(CASE WHEN TowarNazwa = 'Paleta EURO' THEN Ilosc ELSE 0 END), 0) AS INT) AS EURO,
-        CAST(ISNULL(SUM(CASE WHEN TowarNazwa = 'Paleta plastikowa' THEN Ilosc ELSE 0 END), 0) AS INT) AS PCV,
-        CAST(ISNULL(SUM(CASE WHEN TowarNazwa = 'Paleta Drewniana' THEN Ilosc ELSE 0 END), 0) AS INT) AS DREW,
+        -CAST(ISNULL(SUM(CASE WHEN TowarNazwa = 'Pojemnik Drobiowy E2' THEN Ilosc ELSE 0 END), 0) AS INT) AS E2,
+        -CAST(ISNULL(SUM(CASE WHEN TowarNazwa = 'Paleta H1' THEN Ilosc ELSE 0 END), 0) AS INT) AS H1,
+        -CAST(ISNULL(SUM(CASE WHEN TowarNazwa = 'Paleta EURO' THEN Ilosc ELSE 0 END), 0) AS INT) AS EURO,
+        -CAST(ISNULL(SUM(CASE WHEN TowarNazwa = 'Paleta plastikowa' THEN Ilosc ELSE 0 END), 0) AS INT) AS PCV,
+        -CAST(ISNULL(SUM(CASE WHEN TowarNazwa = 'Paleta Drewniana' THEN Ilosc ELSE 0 END), 0) AS INT) AS DREW,
         MAX(Data) AS OstatniDokument
     FROM DokumentyOpakowan
     GROUP BY KontrahentId
@@ -239,11 +239,11 @@ OPTION (RECOMPILE, MAXDOP 4)";
 SaldaKontrahentow AS (
     SELECT
         KontrahentId,
-        CAST(ISNULL(SUM(CASE WHEN TowarNazwa = 'Pojemnik Drobiowy E2' THEN Ilosc ELSE 0 END), 0) AS INT) AS E2,
-        CAST(ISNULL(SUM(CASE WHEN TowarNazwa = 'Paleta H1' THEN Ilosc ELSE 0 END), 0) AS INT) AS H1,
-        CAST(ISNULL(SUM(CASE WHEN TowarNazwa = 'Paleta EURO' THEN Ilosc ELSE 0 END), 0) AS INT) AS EURO,
-        CAST(ISNULL(SUM(CASE WHEN TowarNazwa = 'Paleta plastikowa' THEN Ilosc ELSE 0 END), 0) AS INT) AS PCV,
-        CAST(ISNULL(SUM(CASE WHEN TowarNazwa = 'Paleta Drewniana' THEN Ilosc ELSE 0 END), 0) AS INT) AS DREW,
+        -CAST(ISNULL(SUM(CASE WHEN TowarNazwa = 'Pojemnik Drobiowy E2' THEN Ilosc ELSE 0 END), 0) AS INT) AS E2,
+        -CAST(ISNULL(SUM(CASE WHEN TowarNazwa = 'Paleta H1' THEN Ilosc ELSE 0 END), 0) AS INT) AS H1,
+        -CAST(ISNULL(SUM(CASE WHEN TowarNazwa = 'Paleta EURO' THEN Ilosc ELSE 0 END), 0) AS INT) AS EURO,
+        -CAST(ISNULL(SUM(CASE WHEN TowarNazwa = 'Paleta plastikowa' THEN Ilosc ELSE 0 END), 0) AS INT) AS PCV,
+        -CAST(ISNULL(SUM(CASE WHEN TowarNazwa = 'Paleta Drewniana' THEN Ilosc ELSE 0 END), 0) AS INT) AS DREW,
         MAX(Data) AS OstatniDokument
     FROM DokumentyOpakowan
     GROUP BY KontrahentId
@@ -280,11 +280,11 @@ GROUP BY KontrahentId, KodOpakowania";
 
         private static readonly string QuerySaldoPoczatkowe = @"
 SELECT
-    CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Pojemnik Drobiowy E2' THEN MZ.Ilosc ELSE 0 END), 0) AS INT) AS E2,
-    CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Paleta H1' THEN MZ.Ilosc ELSE 0 END), 0) AS INT) AS H1,
-    CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Paleta EURO' THEN MZ.Ilosc ELSE 0 END), 0) AS INT) AS EURO,
-    CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Paleta plastikowa' THEN MZ.Ilosc ELSE 0 END), 0) AS INT) AS PCV,
-    CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Paleta Drewniana' THEN MZ.Ilosc ELSE 0 END), 0) AS INT) AS DREW
+    -CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Pojemnik Drobiowy E2' THEN MZ.Ilosc ELSE 0 END), 0) AS INT) AS E2,
+    -CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Paleta H1' THEN MZ.Ilosc ELSE 0 END), 0) AS INT) AS H1,
+    -CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Paleta EURO' THEN MZ.Ilosc ELSE 0 END), 0) AS INT) AS EURO,
+    -CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Paleta plastikowa' THEN MZ.Ilosc ELSE 0 END), 0) AS INT) AS PCV,
+    -CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Paleta Drewniana' THEN MZ.Ilosc ELSE 0 END), 0) AS INT) AS DREW
 FROM [HANDEL].[HM].[MG] MG WITH (NOLOCK)
 INNER JOIN [HANDEL].[HM].[MZ] MZ WITH (NOLOCK) ON MZ.super = MG.id
 INNER JOIN [HANDEL].[HM].[TW] TW WITH (NOLOCK) ON MZ.idtw = TW.id
@@ -302,11 +302,11 @@ SELECT
     MG.kod AS NrDokumentu,
     MG.data AS Data,
     MG.opis AS Opis,
-    CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Pojemnik Drobiowy E2' THEN MZ.Ilosc ELSE 0 END), 0) AS INT) AS E2,
-    CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Paleta H1' THEN MZ.Ilosc ELSE 0 END), 0) AS INT) AS H1,
-    CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Paleta EURO' THEN MZ.Ilosc ELSE 0 END), 0) AS INT) AS EURO,
-    CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Paleta plastikowa' THEN MZ.Ilosc ELSE 0 END), 0) AS INT) AS PCV,
-    CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Paleta Drewniana' THEN MZ.Ilosc ELSE 0 END), 0) AS INT) AS DREW
+    -CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Pojemnik Drobiowy E2' THEN MZ.Ilosc ELSE 0 END), 0) AS INT) AS E2,
+    -CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Paleta H1' THEN MZ.Ilosc ELSE 0 END), 0) AS INT) AS H1,
+    -CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Paleta EURO' THEN MZ.Ilosc ELSE 0 END), 0) AS INT) AS EURO,
+    -CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Paleta plastikowa' THEN MZ.Ilosc ELSE 0 END), 0) AS INT) AS PCV,
+    -CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Paleta Drewniana' THEN MZ.Ilosc ELSE 0 END), 0) AS INT) AS DREW
 FROM [HANDEL].[HM].[MG] MG WITH (NOLOCK)
 INNER JOIN [HANDEL].[HM].[MZ] MZ WITH (NOLOCK) ON MZ.super = MG.id
 INNER JOIN [HANDEL].[HM].[TW] TW WITH (NOLOCK) ON MZ.idtw = TW.id

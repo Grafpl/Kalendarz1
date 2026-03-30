@@ -321,95 +321,20 @@ namespace Kalendarz1.WPF
                     catch (Exception ex) { Log($"BŁĄD transport: {ex.Message}"); }
                 }
                 Log($"Kursy: {transportDetails.Count}, Kolejności: {orderKolejnosc.Count}");
-                ShowLoader("Pobieranie GPS...");
 
-                // Pobierz pozycje GPS pojazdów z Webfleet (dla kursów z dzisiaj)
-                // Mapuj: PojazdID → (adres, speed)
+                // ═══ BUDUJ TABELĘ NATYCHMIAST (bez GPS/ETA) ═══
                 var pojazdGps = new Dictionary<int, (string addr, int speed)>();
-                // GPS — dla dzisiaj pobierz live, dla przeszłości pokaż "historyczne"
-                Log($"GPS: data={_selectedDate:yyyy-MM-dd}, dziś={DateTime.Today:yyyy-MM-dd}");
-                var isToday = _selectedDate.Date == DateTime.Today;
-                // Pobieramy GPS zawsze (żywe pozycje) — nawet dla przeszłej daty pokaże ostatnią znaną pozycję
-                if (true)
-                {
-                    try
-                    {
-                        var svc = new MapaFloty.KursMonitorService();
-                        await using var cnT2 = new SqlConnection(_connTransport);
-                        await cnT2.OpenAsync();
-
-                        await using var chk = new SqlCommand("SELECT COUNT(*) FROM sys.tables WHERE name='WebfleetVehicleMapping'", cnT2);
-                        var tblExists = Convert.ToInt32(await chk.ExecuteScalarAsync()) > 0;
-                        Log($"GPS: WebfleetVehicleMapping exists={tblExists}");
-
-                        if (tblExists)
-                        {
-                            var pojazdToObj = new Dictionary<int, string>();
-                            await using var cmdMap = new SqlCommand(
-                                "SELECT PojazdID, WebfleetObjectNo FROM WebfleetVehicleMapping WHERE PojazdID IS NOT NULL AND WebfleetObjectNo IS NOT NULL", cnT2);
-                            await using (var rdMap = await cmdMap.ExecuteReaderAsync())
-                                while (await rdMap.ReadAsync())
-                                    pojazdToObj[Convert.ToInt32(rdMap["PojazdID"])] = rdMap["WebfleetObjectNo"]?.ToString() ?? "";
-                            Log($"GPS: {pojazdToObj.Count} mapowań pojazd→webfleet");
-                            foreach (var kvp2 in pojazdToObj)
-                                Log($"  PojazdID={kvp2.Key} → ObjectNo={kvp2.Value}");
-
-                            var kursToPojazdId = new Dictionary<long, int>();
-                            if (kursIds.Any())
-                            {
-                                var sqlKP = $"SELECT KursID, PojazdID FROM Kurs WHERE KursID IN ({string.Join(",", kursIds)}) AND PojazdID IS NOT NULL";
-                                await using var cmdKP = new SqlCommand(sqlKP, cnT2);
-                                await using var rdKP = await cmdKP.ExecuteReaderAsync();
-                                while (await rdKP.ReadAsync())
-                                    kursToPojazdId[rdKP.GetInt64(0)] = rdKP.GetInt32(1);
-                            }
-                            Log($"GPS: {kursToPojazdId.Count} kursów z PojazdID");
-                            foreach (var kvp2 in kursToPojazdId)
-                                Log($"  KursID={kvp2.Key} → PojazdID={kvp2.Value}");
-
-                            // GPS równolegle — wszystkie naraz
-                            var gpsTasks = new List<(int pojazdId, string objNo, Task<(double lat, double lon, int speed, string address)?> task)>();
-                            var queriedObjects = new HashSet<string>();
-                            foreach (var kvp in kursToPojazdId)
-                            {
-                                if (!pojazdToObj.TryGetValue(kvp.Value, out var objNo) || string.IsNullOrEmpty(objNo)) continue;
-                                if (!queriedObjects.Add(objNo)) continue;
-                                gpsTasks.Add((kvp.Value, objNo, svc.PobierzPozycjeAsync(objNo)));
-                            }
-                            Log($"GPS: odpytuję {gpsTasks.Count} pojazdów równolegle...");
-                            try { await Task.WhenAll(gpsTasks.Select(t => t.task)); } catch { }
-                            foreach (var t in gpsTasks)
-                            {
-                                try
-                                {
-                                    var pos = t.task.IsCompletedSuccessfully ? t.task.Result : null;
-                                    if (pos.HasValue)
-                                    {
-                                        pojazdGps[t.pojazdId] = (pos.Value.address, pos.Value.speed);
-                                        Log($"GPS: {t.objNo} → {pos.Value.speed} km/h — {pos.Value.address}");
-                                    }
-                                }
-                                catch { }
-                            }
-                        }
-                    }
-                    catch { }
-                }
-
-                // Mapuj kursId → pojazdId
                 var kursPojazdMap = new Dictionary<long, int>();
-                try
-                {
-                    await using var cnTP = new SqlConnection(_connTransport);
-                    await cnTP.OpenAsync();
-                    if (kursIds.Any())
-                    {
-                        await using var cmdKPM = new SqlCommand($"SELECT KursID, PojazdID FROM Kurs WHERE KursID IN ({string.Join(",", kursIds)}) AND PojazdID IS NOT NULL", cnTP);
-                        await using var rdKPM = await cmdKPM.ExecuteReaderAsync();
-                        while (await rdKPM.ReadAsync()) kursPojazdMap[rdKPM.GetInt64(0)] = rdKPM.GetInt32(1);
-                    }
-                }
-                catch { }
+                var allAdresy = new Dictionary<string, MapaFloty.WebfleetOrderService.KlientAdresInfo>();
+
+                // Pobierz TYLKO adresy z cache (szybkie ~100ms, bez Nominatim/OSRM)
+                var addrSvc = new MapaFloty.WebfleetOrderService();
+                try { await addrSvc.EnsureTablesAsync(); } catch { }
+                var allKody = orders.Where(o => o.KursId.HasValue && orderKolejnosc.ContainsKey(o.Id))
+                    .Select(o => $"ZAM_{o.Id}").Distinct().ToList();
+                try { allAdresy = await addrSvc.PobierzAdresySzybkoAsync(allKody); } catch { }
+                Log($"Adresy (szybkie): {allAdresy.Count}");
+                // GPS i ETA będą doładowane w tle po wyświetleniu tabeli
 
                 // Przypisz indeksy grup do sortowania
                 var kursIdToGroupIndex = new Dictionary<long, int>();
@@ -448,93 +373,8 @@ namespace Kalendarz1.WPF
                 }
                 catch (Exception ex) { Log($"UserHandlowcy err: {ex.Message}"); }
 
-                // Oblicz ETA z OSRM — per kurs, po kolei przystanki
                 _etaCache.Clear();
-                const double bazaLat = 51.86857, bazaLon = 19.79476;
-                var addrSvc = new MapaFloty.WebfleetOrderService();
-                try { await addrSvc.EnsureTablesAsync(); } catch { }
-
-                // Przygotuj dane OSRM per kurs
-                var osrmJobs = new List<(long kursId, int startMin, List<int> orderIds, string url)>();
-                // Pobierz adresy batch — wszystkie zamówienia naraz
-                ShowLoader("Pobieranie adresów klientów...");
-                Log("Adresy: start pobierania...");
-                var allKody = orders.Where(o => o.KursId.HasValue && orderKolejnosc.ContainsKey(o.Id))
-                    .Select(o => $"ZAM_{o.Id}").Distinct().ToList();
-                Log($"Adresy: {allKody.Count} kodów do sprawdzenia");
-                Dictionary<string, MapaFloty.WebfleetOrderService.KlientAdresInfo> allAdresy;
-                try { allAdresy = await addrSvc.PobierzAdresySzybkoAsync(allKody); } catch { allAdresy = new(); }
-                Log($"Adresy: {allAdresy.Count} znalezionych (z cache/Symfonii/geo)");
-
-                foreach (var kursId in kursIds)
-                {
-                    if (!transportDetails.TryGetValue(kursId, out var td2) || td2.GodzWyjazdu == null) continue;
-                    var przystanki = orders.Where(x => x.KursId == kursId && orderKolejnosc.ContainsKey(x.Id))
-                        .Select(o => (o.Id, kol: orderKolejnosc[o.Id], kod: $"ZAM_{o.Id}"))
-                        .OrderBy(x => x.kol).ToList();
-                    if (przystanki.Count == 0) continue;
-
-                    var points = new List<(double lat, double lon)> { (bazaLat, bazaLon) };
-                    var oids = new List<int>();
-                    foreach (var p in przystanki)
-                    {
-                        if (allAdresy.TryGetValue(p.kod, out var a) && a.Lat != 0)
-                        { points.Add((a.Lat, a.Lon)); oids.Add(p.Id); }
-                    }
-                    if (points.Count < 2) continue;
-                    var ci = System.Globalization.CultureInfo.InvariantCulture;
-                    var coords = string.Join(";", points.Select(p => $"{p.lon.ToString("F5", ci)},{p.lat.ToString("F5", ci)}"));
-                    osrmJobs.Add((kursId, (int)td2.GodzWyjazdu.Value.TotalMinutes, oids,
-                        $"https://router.project-osrm.org/route/v1/driving/{coords}?overview=false&steps=false&annotations=duration"));
-                }
-
-                // OSRM — równolegle
-                ShowLoader($"Obliczanie ETA ({osrmJobs.Count} tras)...");
-                Log($"OSRM: {osrmJobs.Count} kursów do obliczenia...");
-                // Sprawdź cache OSRM
-                var osrmTasks = osrmJobs.Select(j =>
-                {
-                    if (_osrmCache.TryGetValue(j.url, out var cached))
-                        return (j, task: Task.FromResult(cached));
-                    return (j, task: _httpEta.GetStringAsync(j.url));
-                }).ToList();
-                try { await Task.WhenAll(osrmTasks.Select(t => t.task)); } catch { }
-                // Zapisz do cache
-                foreach (var (job, task) in osrmTasks)
-                    if (task.IsCompletedSuccessfully && !_osrmCache.ContainsKey(job.url))
-                        _osrmCache[job.url] = task.Result;
-                foreach (var (job, task) in osrmTasks)
-                {
-                    try
-                    {
-                        if (!task.IsCompletedSuccessfully) continue;
-                        var json = Newtonsoft.Json.Linq.JObject.Parse(task.Result);
-                        var legs = json["routes"]?[0]?["legs"];
-                        if (legs == null) continue;
-                        // ETA per przystanek: wyjazd + dojazd leg0 = ETA pkt1
-                        // ETA pkt2 = ETA pkt1 + 50 min rozładunek + dojazd leg1
-                        // ETA pkt3 = ETA pkt2 + 50 min rozładunek + dojazd leg2
-                        double cumMin = job.startMin; // start = godzina wyjazdu z bazy
-                        for (int li = 0; li < legs.Count() && li < job.orderIds.Count; li++)
-                        {
-                            if (li > 0) cumMin += 50; // 50 min rozładunek na poprzednim przystanku
-                            var legDurationMin = (double)(legs[li]?["duration"] ?? 0) / 60.0;
-                            cumMin += legDurationMin; // czas dojazdu z poprzedniego punktu
-
-                            var etaTotalMin = (int)cumMin;
-                            var etaH = etaTotalMin / 60; var etaM = etaTotalMin % 60;
-                            var etaDt = _selectedDate.Date.AddMinutes(etaTotalMin);
-                            var dzEta = etaDt.ToString("ddd", new System.Globalization.CultureInfo("pl-PL")).ToUpper();
-                            if (etaH >= 24)
-                                _etaCache[job.orderIds[li]] = $"{etaDt:dd.MM} {dzEta} {etaH - 24:D2}:{etaM:D2}";
-                            else
-                                _etaCache[job.orderIds[li]] = $"{etaDt:dd.MM} {dzEta} {etaH:D2}:{etaM:D2}";
-                        }
-                    }
-                    catch { }
-                }
-                Log($"ETA: obliczono dla {_etaCache.Count} zamówień");
-                ShowLoader("Budowanie tabeli...");
+                Log($"Tabela: budowanie {orders.Count} wierszy...");
 
                 // Buduj wiersze
                 foreach (var order in orders)
@@ -621,19 +461,24 @@ namespace Kalendarz1.WPF
 
                 // Aktualizuj statystyki
                 UpdateStatistics();
+
+                _sw.Stop();
+                Log($"Tabela gotowa w {_sw.ElapsedMilliseconds}ms");
+                HideLoader();
+                txtStatus.Text = $"Gotowy ({_sw.ElapsedMilliseconds}ms) — GPS/ETA ładuje się...";
+
+                // Doładuj GPS i ETA w tle (nie blokuje UI)
+                _ = LoadGpsAndEtaInBackground(orders, transportDetails, orderKolejnosc, kursIds, allAdresy);
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Błąd podczas ładowania danych: {ex.Message}", "Błąd",
                     MessageBoxButton.OK, MessageBoxImage.Error);
+                HideLoader();
             }
             finally
             {
                 _isLoading = false;
-                _sw.Stop();
-                Log($"DONE w {_sw.ElapsedMilliseconds}ms");
-                HideLoader();
-                txtStatus.Text = $"Gotowy ({_sw.ElapsedMilliseconds}ms)";
             }
         }
 
@@ -807,6 +652,170 @@ namespace Kalendarz1.WPF
                 MessageBoxButton.YesNo, MessageBoxImage.Information);
             if (result == MessageBoxResult.Yes)
                 Clipboard.SetText(text);
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        // Doładowanie GPS i ETA w tle — po wyświetleniu tabeli
+        // ══════════════════════════════════════════════════════════════════
+
+        private async Task LoadGpsAndEtaInBackground(
+            List<(int Id, int KlientId, decimal IloscZam, decimal IloscWyd, decimal Palety, long? KursId, DateTime DataUboju, DateTime? DataPrzyjazdu)> orders,
+            Dictionary<long, (string Kierowca, string Pojazd, string Trasa, TimeSpan? GodzWyjazdu, string TelKierowcy, string Utworzyl, string Utworzono)> transportDetails,
+            Dictionary<int, int> orderKolejnosc,
+            List<long> kursIds,
+            Dictionary<string, MapaFloty.WebfleetOrderService.KlientAdresInfo> allAdresy)
+        {
+            try
+            {
+                var bgSw = System.Diagnostics.Stopwatch.StartNew();
+
+                // 1. GPS — równolegle
+                var pojazdGps = new Dictionary<int, (string addr, int speed)>();
+                var kursPojazdMap = new Dictionary<long, int>();
+                try
+                {
+                    var svc = new MapaFloty.KursMonitorService();
+                    await using var cnT = new SqlConnection(_connTransport);
+                    await cnT.OpenAsync();
+                    await using var chk = new SqlCommand("SELECT COUNT(*) FROM sys.tables WHERE name='WebfleetVehicleMapping'", cnT);
+                    if (Convert.ToInt32(await chk.ExecuteScalarAsync()) > 0)
+                    {
+                        var pojazdToObj = new Dictionary<int, string>();
+                        await using var cmdM = new SqlCommand("SELECT PojazdID, WebfleetObjectNo FROM WebfleetVehicleMapping WHERE PojazdID IS NOT NULL AND WebfleetObjectNo IS NOT NULL", cnT);
+                        await using (var rdM = await cmdM.ExecuteReaderAsync())
+                            while (await rdM.ReadAsync()) pojazdToObj[Convert.ToInt32(rdM["PojazdID"])] = rdM["WebfleetObjectNo"]?.ToString() ?? "";
+
+                        if (kursIds.Any())
+                        {
+                            await using var cnT2 = new SqlConnection(_connTransport);
+                            await cnT2.OpenAsync();
+                            await using var cmdK = new SqlCommand($"SELECT KursID, PojazdID FROM Kurs WHERE KursID IN ({string.Join(",", kursIds)}) AND PojazdID IS NOT NULL", cnT2);
+                            await using var rdK = await cmdK.ExecuteReaderAsync();
+                            while (await rdK.ReadAsync()) kursPojazdMap[rdK.GetInt64(0)] = rdK.GetInt32(1);
+                        }
+
+                        var gpsTasks = new List<(int pid, string obj, Task<(double lat, double lon, int speed, string address)?> t)>();
+                        var seen = new HashSet<string>();
+                        foreach (var kv in kursPojazdMap)
+                        {
+                            if (!pojazdToObj.TryGetValue(kv.Value, out var obj) || string.IsNullOrEmpty(obj) || !seen.Add(obj)) continue;
+                            gpsTasks.Add((kv.Value, obj, svc.PobierzPozycjeAsync(obj)));
+                        }
+                        try { await Task.WhenAll(gpsTasks.Select(t => t.t)); } catch { }
+                        foreach (var gt in gpsTasks)
+                        {
+                            try { var p = gt.t.IsCompletedSuccessfully ? gt.t.Result : null;
+                                if (p.HasValue) pojazdGps[gt.pid] = (p.Value.address, p.Value.speed); } catch { }
+                        }
+                    }
+                }
+                catch { }
+                Log($"BG GPS: {pojazdGps.Count} pojazdów, {bgSw.ElapsedMilliseconds}ms");
+
+                // 2. OSRM ETA — równolegle
+                const double bazaLat = 51.86857, bazaLon = 19.79476;
+                var ci = System.Globalization.CultureInfo.InvariantCulture;
+                var adresyWithGps = allAdresy.Count(a => a.Value.Lat != 0);
+                Log($"BG Adresy: {allAdresy.Count} total, {adresyWithGps} z GPS");
+
+                // Geokoduj adresy bez GPS (Nominatim — w tle, nie blokuje)
+                if (adresyWithGps < allAdresy.Count)
+                {
+                    var addrSvc2 = new MapaFloty.WebfleetOrderService();
+                    foreach (var kv in allAdresy.Where(a => a.Value.Lat == 0 && !string.IsNullOrEmpty(a.Value.Miasto)).ToList())
+                    {
+                        try
+                        {
+                            var (lat, lon) = await addrSvc2.GeokodujAdresAsync(kv.Value.Ulica ?? "", kv.Value.Miasto, kv.Value.KodPocztowy);
+                            if (lat != 0)
+                            {
+                                kv.Value.Lat = lat; kv.Value.Lon = lon;
+                                await addrSvc2.ZapiszAdresAsync(kv.Value, "auto-bg");
+                                Log($"BG GEO: {kv.Key} → {lat:F4},{lon:F4} ({kv.Value.Miasto})");
+                            }
+                            await Task.Delay(1100); // Nominatim rate limit
+                        }
+                        catch { }
+                    }
+                    adresyWithGps = allAdresy.Count(a => a.Value.Lat != 0);
+                    Log($"BG Adresy po geo: {adresyWithGps} z GPS");
+                }
+
+                var osrmJobs = new List<(long kursId, int startMin, List<int> orderIds, string url)>();
+                foreach (var kursId in kursIds)
+                {
+                    if (!transportDetails.TryGetValue(kursId, out var td) || td.GodzWyjazdu == null) continue;
+                    var przyst = orders.Where(x => x.KursId == kursId && orderKolejnosc.ContainsKey(x.Id))
+                        .Select(o => (o.Id, kol: orderKolejnosc[o.Id], kod: $"ZAM_{o.Id}")).OrderBy(x => x.kol).ToList();
+                    if (przyst.Count == 0) continue;
+                    var points = new List<(double lat, double lon)> { (bazaLat, bazaLon) };
+                    var oids = new List<int>();
+                    foreach (var p in przyst)
+                        if (allAdresy.TryGetValue(p.kod, out var a) && a.Lat != 0) { points.Add((a.Lat, a.Lon)); oids.Add(p.Id); }
+                    if (points.Count < 2) continue;
+                    var coords = string.Join(";", points.Select(p => $"{p.lon.ToString("F5", ci)},{p.lat.ToString("F5", ci)}"));
+                    osrmJobs.Add((kursId, (int)td.GodzWyjazdu.Value.TotalMinutes, oids,
+                        $"https://router.project-osrm.org/route/v1/driving/{coords}?overview=false&steps=false&annotations=duration"));
+                }
+                var osrmTasks2 = osrmJobs.Select(j => _osrmCache.TryGetValue(j.url, out var c)
+                    ? (j, task: Task.FromResult(c)) : (j, task: _httpEta.GetStringAsync(j.url))).ToList();
+                try { await Task.WhenAll(osrmTasks2.Select(t => t.task)); } catch { }
+                foreach (var (job, task) in osrmTasks2)
+                    if (task.IsCompletedSuccessfully && !_osrmCache.ContainsKey(job.url)) _osrmCache[job.url] = task.Result;
+                foreach (var (job, task) in osrmTasks2)
+                {
+                    try
+                    {
+                        if (!task.IsCompletedSuccessfully) continue;
+                        var json = Newtonsoft.Json.Linq.JObject.Parse(task.Result);
+                        var legs = json["routes"]?[0]?["legs"]; if (legs == null) continue;
+                        double cumMin = job.startMin;
+                        for (int li = 0; li < legs.Count() && li < job.orderIds.Count; li++)
+                        {
+                            if (li > 0) cumMin += 50;
+                            cumMin += (double)(legs[li]?["duration"] ?? 0) / 60.0;
+                            var etaDt = _selectedDate.Date.AddMinutes((int)cumMin);
+                            var dzE = etaDt.ToString("ddd", new System.Globalization.CultureInfo("pl-PL")).ToUpper();
+                            _etaCache[job.orderIds[li]] = $"{etaDt:dd.MM} {dzE} {etaDt:HH:mm}";
+                        }
+                    }
+                    catch { }
+                }
+                Log($"BG ETA: {_etaCache.Count} zamówień, {bgSw.ElapsedMilliseconds}ms");
+
+                // Debug: co jest w etaCache
+                foreach (var kv in _etaCache.Take(5))
+                    Log($"  etaCache[{kv.Key}] = {kv.Value}");
+
+                // Debug: co jest w wierszach
+                if (_dtTransport.Rows.Count > 0)
+                {
+                    var firstRow = _dtTransport.Rows[0];
+                    Log($"  Row[0] Id={(int)firstRow["Id"]}, KursId={firstRow["KursId"]}");
+                }
+
+                // 3. Aktualizuj wiersze w DataTable (UI thread)
+                var gpsUpdated = 0; var etaUpdated = 0;
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    foreach (DataRow row in _dtTransport.Rows)
+                    {
+                        var orderId = (int)row["Id"];
+                        var kursId = row.IsNull("KursId") ? 0L : (long)row["KursId"];
+                        // GPS
+                        if (kursId > 0 && kursPojazdMap.TryGetValue(kursId, out var pid) && pojazdGps.TryGetValue(pid, out var gps))
+                        { row["Lokalizacja"] = gps.speed > 0 ? $"{gps.speed} km/h — {gps.addr}" : $"Postój — {gps.addr}"; gpsUpdated++; }
+                        // ETA
+                        if (_etaCache.TryGetValue(orderId, out var eta))
+                        { row["ETA"] = eta; etaUpdated++; }
+                    }
+                    dgTransport.Items.Refresh();
+                    txtStatus.Text = $"Gotowy — GPS: {gpsUpdated}, ETA: {etaUpdated} ({bgSw.ElapsedMilliseconds}ms)";
+                    Log($"BG UPDATE: GPS={gpsUpdated}, ETA={etaUpdated}");
+                    Log($"BG DONE w {bgSw.ElapsedMilliseconds}ms");
+                });
+            }
+            catch (Exception ex) { Log($"BG ERR: {ex.Message}"); }
         }
 
         private void DgTransport_LoadingRow(object sender, DataGridRowEventArgs e)

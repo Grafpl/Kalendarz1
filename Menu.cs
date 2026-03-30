@@ -1267,7 +1267,8 @@ namespace Kalendarz1
                 [59] = "TransportZmiany",
                 [60] = "OpakowaniaWinForm",
                 [61] = "UstawieniaZmianZamowien",
-                [62] = "MapaFloty"
+                [62] = "MapaFloty",
+                [63] = "OsCzasuFloty"
             };
 
             for (int i = 0; i < accessString.Length && i < accessMap.Count; i++)
@@ -1367,7 +1368,7 @@ namespace Kalendarz1
                 "DashboardZamowien", "QuizDrobiarstwo",
 
                 // OPAKOWANIA I TRANSPORT
-                "PodsumowanieSaldOpak", "SaldaOdbiorcowOpak", "OpakowaniaWinForm", "UstalanieTranportu", "Flota", "TransportZmiany", "MapaFloty",
+                "PodsumowanieSaldOpak", "SaldaOdbiorcowOpak", "OpakowaniaWinForm", "UstalanieTranportu", "Flota", "TransportZmiany", "MapaFloty", "OsCzasuFloty",
 
                 // FINANSE I ZARZĄDZANIE
                 "PulpitZarzadu", "DaneFinansowe", "CentrumSpotkan", "NotatkiZeSpotkan",
@@ -1745,8 +1746,13 @@ namespace Kalendarz1
 
                     new MenuItemConfig("MapaFloty", "Mapa Floty",
                         "Mapa live GPS pojazdów - pozycje, trasy, prędkości, geofence (Webfleet.connect)",
-                        Color.FromArgb(0, 77, 64), // Bardzo ciemny turkusowy #004D40
-                        () => new MapaFloty.MapaFlotyWindow(), "🗺️", "Mapa Floty")
+                        Color.FromArgb(0, 77, 64),
+                        () => new MapaFloty.MapaFlotyWindow(), "🗺️", "Mapa Floty"),
+
+                    new MenuItemConfig("OsCzasuFloty", "Oś czasu floty",
+                        "Oś czasu 24h wszystkich pojazdów - kto był w trasie, kto na bazie, od kiedy do kiedy",
+                        Color.FromArgb(0, 60, 80),
+                        () => new MapaFloty.OsCzasuFlotyWindow(), "📊", "Oś czasu")
                 },
 
                 // ═══════════════════════════════════════════════════════════════════════════
