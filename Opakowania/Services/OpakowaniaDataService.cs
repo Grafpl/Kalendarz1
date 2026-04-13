@@ -1241,6 +1241,7 @@ WHERE Id = @Id";
             // Invaliduj też lokalne cache'e
             InvalidateZestawieniaCache();
             InvalidateWszystkieSaldaCache();
+            InvalidateDokumentyBatchCache();
 
             return result;
         }
@@ -1260,6 +1261,158 @@ WHERE Id = @Id";
         public async Task<string> PobierzHandlowcaSaldaAsync(string userId)
         {
             return await _saldaService.PobierzHandlowcaAsync(userId);
+        }
+
+        #endregion
+
+        #region Batch-cache dokumentow wszystkich kontrahentow (dla master-detail)
+
+        // Jedna tabela dokumentow dla WSZYSTKICH kontrahentow z ostatnich N miesiecy.
+        // Wypelniana raz po glownym ladowaniu listy sald — kazdy klik na kontrahencie
+        // w panelu szczegolow czyta z pamieci zamiast odpytywac SQL.
+        private static readonly ConcurrentDictionary<int, List<DokumentSalda>> _cacheDokumentyBatch = new();
+        private static DateTime _cacheDokumentyBatchTime;
+        private static string _cacheDokumentyBatchKey;
+        private static readonly SemaphoreSlim _lockDokBatch = new(1, 1);
+        private static readonly TimeSpan CacheDokumentyBatchLifetime = TimeSpan.FromHours(8);
+        private const int DokumentyBatchMiesiace = 6;
+
+        public static string GetDokumentyBatchStatus()
+        {
+            if (_cacheDokumentyBatch.IsEmpty) return "Batch dokumentow: pusty";
+            var age = DateTime.Now - _cacheDokumentyBatchTime;
+            var total = _cacheDokumentyBatch.Values.Sum(v => v.Count);
+            return $"Batch dokumentow: {_cacheDokumentyBatch.Count} kontrahentow / {total} rekordow, wiek: {age:hh\\:mm\\:ss}";
+        }
+
+        public static void InvalidateDokumentyBatchCache()
+        {
+            _cacheDokumentyBatch.Clear();
+            _cacheDokumentyBatchKey = null;
+            Debug.WriteLine("[CACHE] Dokumenty batch cache invalidated");
+        }
+
+        /// <summary>
+        /// Zwraca z cache dokumenty kontrahenta (ostatnie N mies) jesli batch zaladowany.
+        /// Null gdy batch pusty/nieaktualny — wowczas caller musi uzyc metody per-kontrahent.
+        /// </summary>
+        public List<DokumentSalda> TryGetDokumentyZBatch(int kontrahentId, DateTime dataDo, string handlowiecFilter)
+        {
+            var key = $"{dataDo:yyyyMMdd}_{handlowiecFilter ?? "ALL"}";
+            if (_cacheDokumentyBatchKey != key) return null;
+            if (DateTime.Now - _cacheDokumentyBatchTime > CacheDokumentyBatchLifetime) return null;
+            return _cacheDokumentyBatch.TryGetValue(kontrahentId, out var list) ? list : new List<DokumentSalda>();
+        }
+
+        /// <summary>
+        /// Jedno zapytanie SQL: pobiera dokumenty salda dla WSZYSTKICH kontrahentow z ostatnich
+        /// N miesiecy w jednym skanie i grupuje po stronie klienta. Wypelnia cache na 8h.
+        /// Idempotentne — powtorne wolania z tym samym kluczem sa no-op.
+        /// </summary>
+        public async Task PreloadDokumentyBatchAsync(DateTime dataDo, string handlowiecFilter = null)
+        {
+            var key = $"{dataDo:yyyyMMdd}_{handlowiecFilter ?? "ALL"}";
+            if (_cacheDokumentyBatchKey == key && DateTime.Now - _cacheDokumentyBatchTime <= CacheDokumentyBatchLifetime)
+            {
+                Debug.WriteLine($"[BATCH] Cache hit ({_cacheDokumentyBatch.Count} kontr.)");
+                return;
+            }
+
+            await _lockDokBatch.WaitAsync();
+            try
+            {
+                // Double-check
+                if (_cacheDokumentyBatchKey == key && DateTime.Now - _cacheDokumentyBatchTime <= CacheDokumentyBatchLifetime) return;
+
+                var sw = Stopwatch.StartNew();
+                var query = @"
+;WITH Dane AS (
+    SELECT
+        MG.id AS MgId,
+        MG.khid AS KontrahentId,
+        MG.kod AS NrDokumentu,
+        MG.Data,
+        MG.opis AS Opis,
+        TW.nazwa AS Towar,
+        MZ.Ilosc
+    FROM [HANDEL].[HM].[MG] MG WITH (NOLOCK)
+    INNER JOIN [HANDEL].[HM].[MZ] MZ WITH (NOLOCK) ON MZ.super = MG.id
+    INNER JOIN [HANDEL].[HM].[TW] TW WITH (NOLOCK) ON MZ.idtw = TW.id
+    WHERE MG.anulowany = 0
+      AND MG.magazyn = 65559
+      AND MG.typ_dk IN ('MW1','MP')
+      AND MG.Data <= @DataDo
+      AND MG.Data >= DATEADD(MONTH, -@Miesiace, @DataDo)
+      AND TW.nazwa IN ('Pojemnik Drobiowy E2','Paleta H1','Paleta EURO','Paleta plastikowa','Paleta Drewniana')
+)
+SELECT
+    KontrahentId,
+    MgId AS Id,
+    NrDokumentu,
+    Data,
+    MAX(Opis) AS Opis,
+    -CAST(ISNULL(SUM(CASE WHEN Towar = 'Pojemnik Drobiowy E2' THEN Ilosc ELSE 0 END), 0) AS INT) AS E2,
+    -CAST(ISNULL(SUM(CASE WHEN Towar = 'Paleta H1' THEN Ilosc ELSE 0 END), 0) AS INT) AS H1,
+    -CAST(ISNULL(SUM(CASE WHEN Towar = 'Paleta EURO' THEN Ilosc ELSE 0 END), 0) AS INT) AS EURO,
+    -CAST(ISNULL(SUM(CASE WHEN Towar = 'Paleta plastikowa' THEN Ilosc ELSE 0 END), 0) AS INT) AS PCV,
+    -CAST(ISNULL(SUM(CASE WHEN Towar = 'Paleta Drewniana' THEN Ilosc ELSE 0 END), 0) AS INT) AS DREW
+FROM Dane
+GROUP BY KontrahentId, MgId, NrDokumentu, Data
+ORDER BY KontrahentId, Data DESC
+OPTION (RECOMPILE, MAXDOP 4)";
+
+                var tempDict = new Dictionary<int, List<DokumentSalda>>(512);
+
+                using (var cn = new SqlConnection(_connectionStringHandel))
+                {
+                    await cn.OpenAsync().ConfigureAwait(false);
+                    using var cmd = new SqlCommand(query, cn);
+                    cmd.CommandTimeout = 180;
+                    cmd.Parameters.AddWithValue("@DataDo", dataDo);
+                    cmd.Parameters.AddWithValue("@Miesiace", DokumentyBatchMiesiace);
+                    using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
+                    while (await reader.ReadAsync().ConfigureAwait(false))
+                    {
+                        var khid = reader.GetInt32(0);
+                        var doc = new DokumentSalda
+                        {
+                            Id = reader.GetInt32(1),
+                            NrDokumentu = reader.IsDBNull(2) ? "" : reader.GetString(2),
+                            Data = reader.GetDateTime(3),
+                            Opis = reader.IsDBNull(4) ? "" : reader.GetString(4),
+                            E2 = reader.GetInt32(5),
+                            H1 = reader.GetInt32(6),
+                            EURO = reader.GetInt32(7),
+                            PCV = reader.GetInt32(8),
+                            DREW = reader.GetInt32(9)
+                        };
+                        doc.JestSaldem = doc.E2 != 0 || doc.H1 != 0 || doc.EURO != 0 || doc.PCV != 0 || doc.DREW != 0;
+                        if (!tempDict.TryGetValue(khid, out var list))
+                        {
+                            list = new List<DokumentSalda>(16);
+                            tempDict[khid] = list;
+                        }
+                        list.Add(doc);
+                    }
+                }
+
+                // Atomowe zastapienie cache
+                _cacheDokumentyBatch.Clear();
+                foreach (var kv in tempDict) _cacheDokumentyBatch[kv.Key] = kv.Value;
+                _cacheDokumentyBatchTime = DateTime.Now;
+                _cacheDokumentyBatchKey = key;
+
+                sw.Stop();
+                Debug.WriteLine($"[BATCH] Loaded {tempDict.Count} kontrahentow / {tempDict.Values.Sum(v => v.Count)} dokumentow in {sw.ElapsedMilliseconds}ms");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[BATCH] BLAD: {ex.Message}");
+            }
+            finally
+            {
+                _lockDokBatch.Release();
+            }
         }
 
         #endregion

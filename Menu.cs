@@ -13,6 +13,7 @@ using Kalendarz1.PulpitZarzadu.Views;
 using Kalendarz1.Komunikator.Services;
 using Kalendarz1.Komunikator.Views;
 using Microsoft.Data.SqlClient;
+using System.Threading.Tasks;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -46,7 +47,10 @@ namespace Kalendarz1
         private Label _transportFreeBadge;
         private System.Windows.Forms.Timer _transportBadgeTimer;
         private Label _reklamacjeBadgeLabel;
+        private Label _reklamacjeOczekBadgeLabel;
         private System.Windows.Forms.Timer _reklamacjeBadgeTimer;
+        private Label _wstawieniaBadgeLabel;
+        private System.Windows.Forms.Timer _wstawieniaBadgeTimer;
 
         public MENU()
         {
@@ -60,6 +64,7 @@ namespace Kalendarz1
             StartCrBadgeTimer();
             StartTransportBadgeTimer();
             StartReklamacjeBadgeTimer();
+            StartWstawieniaBadgeTimer();
         }
 
         private void StartTaskNotifications()
@@ -272,7 +277,7 @@ namespace Kalendarz1
             {
                 if (pendingCount > 0)
                 {
-                    _transportPendingBadge.Text = pendingCount > 99 ? "99+" : pendingCount.ToString();
+                    _transportPendingBadge.Text = $"{pendingCount} do akc.";
                     _transportPendingBadge.Visible = true;
                 }
                 else
@@ -296,6 +301,55 @@ namespace Kalendarz1
         }
 
         // ═══════════════════════════════════════════════════════════════
+        // WSTAWIENIA BADGE - ile telefonów do wykonania
+        // ═══════════════════════════════════════════════════════════════
+
+        private void StartWstawieniaBadgeTimer()
+        {
+            _wstawieniaBadgeTimer = new System.Windows.Forms.Timer();
+            _wstawieniaBadgeTimer.Interval = 30000;
+            _wstawieniaBadgeTimer.Tick += (s, e) => UpdateWstawieniaBadge();
+            _wstawieniaBadgeTimer.Start();
+            UpdateWstawieniaBadge();
+        }
+
+        private void UpdateWstawieniaBadge()
+        {
+            if (_wstawieniaBadgeLabel == null) return;
+            try
+            {
+                int count = 0;
+                using (var conn = new Microsoft.Data.SqlClient.SqlConnection("Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True"))
+                {
+                    conn.Open();
+                    using (var cmd = new Microsoft.Data.SqlClient.SqlCommand("SELECT COUNT(*) FROM dbo.v_WstawieniaDoKontaktu", conn))
+                    {
+                        count = Convert.ToInt32(cmd.ExecuteScalar());
+                    }
+                }
+                if (InvokeRequired)
+                    Invoke(new Action(() => UpdateWstawieniaBadgeUI(count)));
+                else
+                    UpdateWstawieniaBadgeUI(count);
+            }
+            catch { }
+        }
+
+        private void UpdateWstawieniaBadgeUI(int count)
+        {
+            if (_wstawieniaBadgeLabel == null) return;
+            if (count > 0)
+            {
+                _wstawieniaBadgeLabel.Text = count > 99 ? "99+" : $"{count} tel";
+                _wstawieniaBadgeLabel.Visible = true;
+            }
+            else
+            {
+                _wstawieniaBadgeLabel.Visible = false;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
         // REKLAMACJE BADGE - nowe reklamacje
         // ═══════════════════════════════════════════════════════════════
 
@@ -313,44 +367,88 @@ namespace Kalendarz1
             if (_reklamacjeBadgeLabel == null) return;
             try
             {
-                int count = GetNoweReklamacjeCount();
+                var (nowe, oczekujace) = GetReklamacjeCounts();
                 if (InvokeRequired)
-                    Invoke(new Action(() => UpdateReklamacjeBadgeUI(count)));
+                    Invoke(new Action(() => UpdateReklamacjeBadgeUI(nowe, oczekujace)));
                 else
-                    UpdateReklamacjeBadgeUI(count);
+                    UpdateReklamacjeBadgeUI(nowe, oczekujace);
             }
             catch { }
         }
 
-        private void UpdateReklamacjeBadgeUI(int count)
+        private void UpdateReklamacjeBadgeUI(int nowe, int oczekujace)
         {
-            if (_reklamacjeBadgeLabel == null) return;
-            if (count > 0)
+            if (_reklamacjeBadgeLabel != null)
             {
-                _reklamacjeBadgeLabel.Text = count > 99 ? "99+" : count.ToString();
-                _reklamacjeBadgeLabel.Visible = true;
+                if (nowe > 0)
+                {
+                    _reklamacjeBadgeLabel.Text = nowe > 99 ? "99+ Now." : $"{nowe} Now.";
+                    _reklamacjeBadgeLabel.Visible = true;
+                }
+                else
+                {
+                    _reklamacjeBadgeLabel.Visible = false;
+                }
             }
-            else
+            if (_reklamacjeOczekBadgeLabel != null)
             {
-                _reklamacjeBadgeLabel.Visible = false;
+                if (oczekujace > 0)
+                {
+                    _reklamacjeOczekBadgeLabel.Text = oczekujace > 99 ? "99+ oczek." : $"{oczekujace} oczek.";
+                    _reklamacjeOczekBadgeLabel.Visible = true;
+                }
+                else
+                {
+                    _reklamacjeOczekBadgeLabel.Visible = false;
+                }
             }
         }
 
-        private int GetNoweReklamacjeCount()
+        private (int nowe, int oczekujace) GetReklamacjeCounts()
         {
             try
             {
                 using (var conn = new Microsoft.Data.SqlClient.SqlConnection(connectionString))
                 {
                     conn.Open();
-                    using (var cmd = new Microsoft.Data.SqlClient.SqlCommand(
-                        "SELECT COUNT(*) FROM [dbo].[Reklamacje] WHERE Status IN ('Nowa', 'Przyjeta')", conn))
+
+                    DateTime dataOd = DateTime.Now.AddMonths(-6);
+                    try
                     {
-                        return Convert.ToInt32(cmd.ExecuteScalar());
+                        using (var cmdDate = new Microsoft.Data.SqlClient.SqlCommand(
+                            "SELECT Wartosc FROM [dbo].[ReklamacjeUstawienia] WHERE Klucz = 'DataOdKorekt'", conn))
+                        {
+                            var result = cmdDate.ExecuteScalar();
+                            if (result != null && result != DBNull.Value && DateTime.TryParse(result.ToString(), out DateTime dt))
+                                dataOd = dt;
+                        }
                     }
+                    catch { }
+
+                    int nowe = 0, oczek = 0;
+                    using (var cmd = new Microsoft.Data.SqlClient.SqlCommand(@"
+                        SELECT ISNULL(StatusV2, 'ZGLOSZONA') AS SV2, COUNT(*) AS Cnt
+                        FROM [dbo].[Reklamacje]
+                        WHERE ISNULL(StatusV2, 'ZGLOSZONA') IN ('ZGLOSZONA', 'W_ANALIZIE')
+                          AND (TypReklamacji <> 'Faktura korygujaca' OR DataZgloszenia >= @DataOd)
+                        GROUP BY ISNULL(StatusV2, 'ZGLOSZONA')", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@DataOd", dataOd);
+                        using (var r = cmd.ExecuteReader())
+                        {
+                            while (r.Read())
+                            {
+                                string sv2 = r.GetString(0);
+                                int cnt = r.GetInt32(1);
+                                if (sv2 == "ZGLOSZONA") nowe = cnt;
+                                else if (sv2 == "W_ANALIZIE") oczek = cnt;
+                            }
+                        }
+                    }
+                    return (nowe, oczek);
                 }
             }
-            catch { return 0; }
+            catch { return (0, 0); }
         }
 
         private ChatMainWindow _chatWindow;
@@ -1268,7 +1366,8 @@ namespace Kalendarz1
                 [60] = "OpakowaniaWinForm",
                 [61] = "UstawieniaZmianZamowien",
                 [62] = "MapaFloty",
-                [63] = "OsCzasuFloty"
+                [63] = "OsCzasuFloty",
+                [64] = "RaportFloty"
             };
 
             for (int i = 0; i < accessString.Length && i < accessMap.Count; i++)
@@ -1368,7 +1467,7 @@ namespace Kalendarz1
                 "DashboardZamowien", "QuizDrobiarstwo",
 
                 // OPAKOWANIA I TRANSPORT
-                "PodsumowanieSaldOpak", "SaldaOdbiorcowOpak", "OpakowaniaWinForm", "UstalanieTranportu", "Flota", "TransportZmiany", "MapaFloty", "OsCzasuFloty",
+                "PodsumowanieSaldOpak", "SaldaOdbiorcowOpak", "OpakowaniaWinForm", "UstalanieTranportu", "Flota", "TransportZmiany", "MapaFloty", "OsCzasuFloty", "RaportFloty",
 
                 // FINANSE I ZARZĄDZANIE
                 "PulpitZarzadu", "DaneFinansowe", "CentrumSpotkan", "NotatkiZeSpotkan",
@@ -1720,15 +1819,10 @@ namespace Kalendarz1
                 // ═══════════════════════════════════════════════════════════════════════════
                 ["OPAKOWANIA I TRANSPORT"] = new List<MenuItemConfig>
                 {
-                    new MenuItemConfig("PodsumowanieSaldOpak", "Opakowania Zwrotne",
-                        "Salda opakowań zwrotnych - widok zbiorczy i per typ z eksportem",
+                    new MenuItemConfig("OpakowaniaWinForm", "Opakowania Zwrotne",
+                        "Salda opakowań zwrotnych kontrahentów z wykresami, dokumentami i eksportem",
                         Color.FromArgb(0, 172, 193), // #00ACC1
-                        () => new OpakowaniaWindow(), "📦", "Opakowania"),
-
-                    new MenuItemConfig("OpakowaniaWinForm", "Opakowania (WinForms)",
-                        "Salda opakowań zwrotnych - wersja WinForms",
-                        Color.FromArgb(128, 222, 234), // #80DEEA
-                        () => new Opakowania.Forms.OpakowaniaForm(), "📦", "Opak. WF"),
+                        () => new Opakowania.Forms.OpakowaniaForm(), "📦", "Opakowania"),
 
                     new MenuItemConfig("UstalanieTranportu", "Planowanie Transportu",
                         "Organizacja tras dostaw do klientów z przydziałem pojazdów i kierowców",
@@ -1752,7 +1846,12 @@ namespace Kalendarz1
                     new MenuItemConfig("OsCzasuFloty", "Oś czasu floty",
                         "Oś czasu 24h wszystkich pojazdów - kto był w trasie, kto na bazie, od kiedy do kiedy",
                         Color.FromArgb(0, 60, 80),
-                        () => new MapaFloty.OsCzasuFlotyWindow(), "📊", "Oś czasu")
+                        () => new MapaFloty.OsCzasuFlotyWindow(), "📊", "Oś czasu"),
+
+                    new MenuItemConfig("RaportFloty", "Raport floty",
+                        "Raport efektywności - km, czas jazdy, paliwo, trasy per pojazd z Webfleet",
+                        Color.FromArgb(0, 50, 70),
+                        () => new MapaFloty.RaportEfektywnosciWindow(), "📈", "Raport")
                 },
 
                 // ═══════════════════════════════════════════════════════════════════════════
@@ -1986,13 +2085,14 @@ namespace Kalendarz1
             // Badge na kafelku Planowanie Transportu - lewa: oczekujace zmiany, prawa: wolne zamowienia
             if (config.ModuleName == "UstalanieTranportu")
             {
-                // Lewa - oczekujace zmiany (amber)
+                // Lewa - oczekujace zmiany (amber, zaokraglony prostokat jak reklamacje)
                 var pendingBadge = new Label
                 {
-                    Text = "0",
-                    Font = new Font("Segoe UI", 8, FontStyle.Bold),
-                    Size = new Size(26, 26),
-                    Location = new Point(8, 8),
+                    Text = "0 do akc.",
+                    Font = new Font("Segoe UI", 7.5f, FontStyle.Bold),
+                    AutoSize = false,
+                    Size = new Size(76, 18),
+                    Location = new Point(6, 6),
                     ForeColor = Color.White,
                     BackColor = Color.FromArgb(245, 158, 11), // Amber #F59E0B
                     TextAlign = ContentAlignment.MiddleCenter,
@@ -2004,7 +2104,12 @@ namespace Kalendarz1
                     e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
                     using (var path = new System.Drawing.Drawing2D.GraphicsPath())
                     {
-                        path.AddEllipse(0, 0, pendingBadge.Width - 1, pendingBadge.Height - 1);
+                        int r = 9;
+                        path.AddArc(0, 0, r * 2, r * 2, 180, 90);
+                        path.AddArc(pendingBadge.Width - r * 2 - 1, 0, r * 2, r * 2, 270, 90);
+                        path.AddArc(pendingBadge.Width - r * 2 - 1, pendingBadge.Height - r * 2 - 1, r * 2, r * 2, 0, 90);
+                        path.AddArc(0, pendingBadge.Height - r * 2 - 1, r * 2, r * 2, 90, 90);
+                        path.CloseFigure();
                         pendingBadge.Region = new Region(path);
                     }
                 };
@@ -2039,18 +2144,20 @@ namespace Kalendarz1
                 _transportFreeBadge = freeBadge;
             }
 
-            // Badge na kafelku Reklamacje - nowe reklamacje
+            // Badge na kafelku Reklamacje - nowe + oczekujace
             if (config.ModuleName == "PanelReklamacji")
             {
+                // Czerwony badge — nowe (prawy gorny)
                 var rekBadge = new Label
                 {
-                    Text = "0",
-                    Font = new Font("Segoe UI", 8, FontStyle.Bold),
+                    Text = "0 Now.",
+                    Font = new Font("Segoe UI", 7.5f, FontStyle.Bold),
                     ForeColor = Color.White,
-                    BackColor = Color.FromArgb(231, 76, 60), // czerwony
-                    Size = new Size(22, 22),
+                    BackColor = Color.FromArgb(231, 76, 60),
+                    AutoSize = false,
+                    Size = new Size(60, 18),
                     TextAlign = ContentAlignment.MiddleCenter,
-                    Location = new Point(tile.Width - 28, 6),
+                    Location = new Point(tile.Width - 66, 6),
                     Anchor = AnchorStyles.Top | AnchorStyles.Right,
                     Visible = false,
                     Cursor = Cursors.Hand
@@ -2060,13 +2167,82 @@ namespace Kalendarz1
                     e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
                     using (var path = new System.Drawing.Drawing2D.GraphicsPath())
                     {
-                        path.AddEllipse(0, 0, rekBadge.Width - 1, rekBadge.Height - 1);
+                        int r = 9;
+                        path.AddArc(0, 0, r * 2, r * 2, 180, 90);
+                        path.AddArc(rekBadge.Width - r * 2 - 1, 0, r * 2, r * 2, 270, 90);
+                        path.AddArc(rekBadge.Width - r * 2 - 1, rekBadge.Height - r * 2 - 1, r * 2, r * 2, 0, 90);
+                        path.AddArc(0, rekBadge.Height - r * 2 - 1, r * 2, r * 2, 90, 90);
+                        path.CloseFigure();
                         rekBadge.Region = new Region(path);
                     }
                 };
                 tile.Controls.Add(rekBadge);
                 rekBadge.BringToFront();
                 _reklamacjeBadgeLabel = rekBadge;
+
+                // Zolty badge — oczekujace (pod czerwonym)
+                var oczekBadge = new Label
+                {
+                    Text = "0 oczek.",
+                    Font = new Font("Segoe UI", 7.5f, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(120, 80, 0),
+                    BackColor = Color.FromArgb(255, 193, 7),
+                    AutoSize = false,
+                    Size = new Size(60, 18),
+                    TextAlign = ContentAlignment.MiddleCenter,
+                    Location = new Point(tile.Width - 66, 27),
+                    Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                    Visible = false,
+                    Cursor = Cursors.Hand
+                };
+                oczekBadge.Paint += (s, e) =>
+                {
+                    e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                    using (var path = new System.Drawing.Drawing2D.GraphicsPath())
+                    {
+                        int r = 9;
+                        path.AddArc(0, 0, r * 2, r * 2, 180, 90);
+                        path.AddArc(oczekBadge.Width - r * 2 - 1, 0, r * 2, r * 2, 270, 90);
+                        path.AddArc(oczekBadge.Width - r * 2 - 1, oczekBadge.Height - r * 2 - 1, r * 2, r * 2, 0, 90);
+                        path.AddArc(0, oczekBadge.Height - r * 2 - 1, r * 2, r * 2, 90, 90);
+                        path.CloseFigure();
+                        oczekBadge.Region = new Region(path);
+                    }
+                };
+                tile.Controls.Add(oczekBadge);
+                oczekBadge.BringToFront();
+                _reklamacjeOczekBadgeLabel = oczekBadge;
+            }
+
+            // Badge na kafelku Cykle Wstawień — ile telefonów do wykonania
+            if (config.ModuleName == "WstawieniaHodowcy")
+            {
+                var wstBadge = new Label
+                {
+                    Text = "0 tel",
+                    Font = new Font("Segoe UI", 7, FontStyle.Bold),
+                    Size = new Size(38, 20),
+                    Location = new Point(tile.Width - 46, 6),
+                    ForeColor = Color.White,
+                    BackColor = Color.FromArgb(220, 53, 69), // Czerwony
+                    TextAlign = ContentAlignment.MiddleCenter,
+                    Visible = false,
+                    Cursor = Cursors.Hand
+                };
+                wstBadge.Paint += (s, e) =>
+                {
+                    e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                    using (var path = new System.Drawing.Drawing2D.GraphicsPath())
+                    {
+                        path.AddArc(0, 0, wstBadge.Height, wstBadge.Height, 90, 180);
+                        path.AddArc(wstBadge.Width - wstBadge.Height - 1, 0, wstBadge.Height, wstBadge.Height, 270, 180);
+                        path.CloseFigure();
+                        wstBadge.Region = new Region(path);
+                    }
+                };
+                tile.Controls.Add(wstBadge);
+                wstBadge.BringToFront();
+                _wstawieniaBadgeLabel = wstBadge;
             }
 
             // Podłącz ikonę do efektu bounce

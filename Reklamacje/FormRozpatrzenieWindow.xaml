@@ -2,21 +2,12 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Rozpatrzenie reklamacji"
-        Width="560" Height="580"
-        MinWidth="480" MinHeight="480"
+        Width="640" Height="680"
+        MinWidth="540" MinHeight="500"
         WindowStartupLocation="CenterOwner"
         ResizeMode="CanResizeWithGrip"
         Background="#F5F6FA"
         FontFamily="Segoe UI">
-
-    <Window.Resources>
-        <Style x:Key="FormLabel" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="10.5"/>
-            <Setter Property="Foreground" Value="#95A5A6"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Margin" Value="0,0,0,4"/>
-        </Style>
-    </Window.Resources>
 
     <Grid>
         <Grid.RowDefinitions>
@@ -27,7 +18,13 @@
         </Grid.RowDefinitions>
 
         <!-- HEADER -->
-        <Border Grid.Row="0" Padding="18,12" Background="#8E44AD">
+        <Border Grid.Row="0" Padding="22,16,22,16">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0.3">
+                    <GradientStop Color="#8E44AD" Offset="0"/>
+                    <GradientStop Color="#9B59B6" Offset="1"/>
+                </LinearGradientBrush>
+            </Border.Background>
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -35,137 +32,60 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel VerticalAlignment="Center">
                     <TextBlock x:Name="txtHeader" Text="ROZPATRZENIE #0"
-                               FontSize="15" FontWeight="Bold" Foreground="White"/>
+                               FontSize="17" FontWeight="Bold" Foreground="White"/>
                     <TextBlock x:Name="txtSubheader" Text=""
-                               FontSize="10.5" Foreground="#D7BDE2" Margin="0,2,0,0"/>
+                               FontSize="11" Foreground="#D7BDE2" Margin="0,3,0,0"/>
                 </StackPanel>
                 <StackPanel Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center">
-                    <Grid Width="36" Height="36" HorizontalAlignment="Center">
-                        <Border x:Name="avatarRozpatrujacy" Width="36" Height="36" CornerRadius="18"
+                    <Grid Width="40" Height="40" HorizontalAlignment="Center">
+                        <Border x:Name="avatarRozpatrujacy" Width="40" Height="40" CornerRadius="20"
                                 Background="#D7BDE2">
                             <TextBlock x:Name="txtAvatarRozpatrujacy" Text="?"
-                                       Foreground="White" FontWeight="Bold" FontSize="13"
+                                       Foreground="White" FontWeight="Bold" FontSize="14"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
-                        <Ellipse x:Name="ellipseAvatarRozpatrujacy" Width="36" Height="36" Visibility="Collapsed">
+                        <Ellipse x:Name="ellipseAvatarRozpatrujacy" Width="40" Height="40" Visibility="Collapsed">
                             <Ellipse.Fill>
                                 <ImageBrush x:Name="imgBrushAvatarRozpatrujacy" Stretch="UniformToFill"/>
                             </Ellipse.Fill>
                         </Ellipse>
                     </Grid>
-                    <TextBlock x:Name="txtRozpatrujacyNazwa" Text="" FontSize="8.5"
-                               Foreground="#E8DAEF" HorizontalAlignment="Center" Margin="0,2,0,0"
-                               MaxWidth="90" TextTrimming="CharacterEllipsis"/>
+                    <TextBlock x:Name="txtRozpatrujacyNazwa" Text="" FontSize="9"
+                               Foreground="#E8DAEF" HorizontalAlignment="Center" Margin="0,3,0,0"
+                               MaxWidth="100" TextTrimming="CharacterEllipsis"/>
                 </StackPanel>
             </Grid>
         </Border>
 
         <!-- STATUS PIPELINE -->
-        <Border Grid.Row="1" Padding="14,8" Background="White" BorderThickness="0,0,0,1" BorderBrush="#E8E8E8">
+        <Border Grid.Row="1" Padding="16,10" Background="White" BorderThickness="0,0,0,1" BorderBrush="#E8E8E8">
             <WrapPanel x:Name="pipelinePanel" Orientation="Horizontal"/>
         </Border>
 
-        <!-- CONTENT -->
-        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Padding="0">
-            <StackPanel Margin="18,12,18,6">
-
-                <!-- Status -->
-                <TextBlock Text="NOWY STATUS" Style="{StaticResource FormLabel}"/>
-                <Border Background="White" CornerRadius="6" BorderBrush="#E8E8E8" BorderThickness="1" Margin="0,0,0,10">
-                    <ComboBox x:Name="cmbStatus" FontSize="13" Padding="8,6"
-                              BorderThickness="0" SelectionChanged="CmbStatus_SelectionChanged"/>
-                </Border>
-
-                <!-- Przyczyna glowna -->
-                <TextBlock Text="PRZYCZYNA GLOWNA" Style="{StaticResource FormLabel}"/>
-                <Border Background="White" CornerRadius="6" BorderBrush="#E8E8E8" BorderThickness="1" Margin="0,0,0,10">
-                    <TextBox x:Name="txtPrzyczyna" AcceptsReturn="True" TextWrapping="Wrap"
-                             MinHeight="54" MaxHeight="100" FontSize="12" Padding="8,6"
-                             BorderThickness="0" VerticalScrollBarVisibility="Auto"/>
-                </Border>
-
-                <!-- Akcje naprawcze -->
-                <TextBlock Text="AKCJE NAPRAWCZE" Style="{StaticResource FormLabel}"/>
-                <Border Background="White" CornerRadius="6" BorderBrush="#E8E8E8" BorderThickness="1" Margin="0,0,0,10">
-                    <TextBox x:Name="txtAkcje" AcceptsReturn="True" TextWrapping="Wrap"
-                             MinHeight="54" MaxHeight="100" FontSize="12" Padding="8,6"
-                             BorderThickness="0" VerticalScrollBarVisibility="Auto"/>
-                </Border>
-
-                <!-- Komentarz (optional) -->
-                <TextBlock Style="{StaticResource FormLabel}">
-                    <Run Text="KOMENTARZ"/>
-                    <Run Text="(opcjonalny)" FontWeight="Normal" FontSize="9.5" Foreground="#BDC3C7"/>
-                </TextBlock>
-                <Border Background="White" CornerRadius="6" BorderBrush="#E8E8E8" BorderThickness="1" Margin="0,0,0,10">
-                    <TextBox x:Name="txtKomentarz" AcceptsReturn="True" TextWrapping="Wrap"
-                             MinHeight="40" MaxHeight="80" FontSize="12" Padding="8,6"
-                             BorderThickness="0" VerticalScrollBarVisibility="Auto"/>
-                </Border>
-
-                <!-- Historia (compact) -->
-                <TextBlock Text="OSTATNIE ZMIANY" Style="{StaticResource FormLabel}" Margin="0,4,0,4"/>
-                <Border Background="White" CornerRadius="6" BorderBrush="#E8E8E8" BorderThickness="1"
-                        Padding="4" MaxHeight="120" Margin="0,0,0,6">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto">
-                        <ItemsControl x:Name="icHistoria">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Border Padding="6,4" Margin="0,0,0,1" Background="#FAFAFA" CornerRadius="3">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                            <Ellipse Width="7" Height="7" Fill="{Binding Kolor}"
-                                                     VerticalAlignment="Center" Margin="0,0,5,0"/>
-                                            <StackPanel Grid.Column="1">
-                                                <TextBlock FontSize="10">
-                                                    <Run Text="{Binding PoprzedniStatus}" Foreground="#95A5A6"/>
-                                                    <Run Text=" &#x25B6; " Foreground="#BDC3C7"/>
-                                                    <Run Text="{Binding StatusNowy}" FontWeight="SemiBold"
-                                                         Foreground="{Binding Kolor}"/>
-                                                </TextBlock>
-                                                <TextBlock Text="{Binding Uzytkownik}" FontSize="8.5"
-                                                           Foreground="#BDC3C7"/>
-                                            </StackPanel>
-                                            <TextBlock Grid.Column="2" Text="{Binding Data}"
-                                                       FontSize="8.5" Foreground="#BDC3C7"
-                                                       VerticalAlignment="Center"/>
-                                        </Grid>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </ScrollViewer>
-                </Border>
-
-            </StackPanel>
+        <!-- CONTENT — dynamiczna tresc -->
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+            <StackPanel x:Name="panelContent" Margin="22,18,22,10"/>
         </ScrollViewer>
 
         <!-- FOOTER -->
-        <Border Grid.Row="3" Padding="18,10" Background="#F0F0F5" BorderThickness="0,1,0,0" BorderBrush="#E0E0E0">
+        <Border Grid.Row="3" Padding="22,12" Background="#F0F0F5" BorderThickness="0,1,0,0" BorderBrush="#E0E0E0">
             <Grid>
                 <TextBlock x:Name="txtError" Foreground="#E74C3C" FontSize="11" VerticalAlignment="Center"
-                           TextWrapping="Wrap" MaxWidth="300" Visibility="Collapsed"/>
+                           TextWrapping="Wrap" MaxWidth="360" Visibility="Collapsed"/>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                    <Button Content="Zapisz" x:Name="btnZapisz" Click="BtnZapisz_Click"
-                            Width="110" Height="34" FontSize="12" FontWeight="SemiBold"
+                    <Button x:Name="btnZapisz" Click="BtnZapisz_Click" Visibility="Collapsed"
+                            Width="140" Height="40" FontSize="13" FontWeight="Bold"
                             Foreground="White" Background="#8E44AD" BorderThickness="0" Cursor="Hand"
-                            Margin="0,0,8,0">
+                            Margin="0,0,10,0">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
                                 <Border x:Name="bd" Background="{TemplateBinding Background}"
-                                        CornerRadius="7" Padding="12,6">
+                                        CornerRadius="8" Padding="14,8">
                                     <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Border>
                                 <ControlTemplate.Triggers>
                                     <Trigger Property="IsMouseOver" Value="True">
                                         <Setter TargetName="bd" Property="Opacity" Value="0.85"/>
-                                    </Trigger>
-                                    <Trigger Property="IsPressed" Value="True">
-                                        <Setter TargetName="bd" Property="Opacity" Value="0.7"/>
                                     </Trigger>
                                     <Trigger Property="IsEnabled" Value="False">
                                         <Setter TargetName="bd" Property="Opacity" Value="0.5"/>
@@ -174,13 +94,13 @@
                             </ControlTemplate>
                         </Button.Template>
                     </Button>
-                    <Button Content="Anuluj" Click="BtnAnuluj_Click"
-                            Width="80" Height="34" FontSize="12" FontWeight="SemiBold"
+                    <Button Content="Zamknij" Click="BtnAnuluj_Click"
+                            Width="90" Height="40" FontSize="13" FontWeight="SemiBold"
                             Foreground="White" Background="#95A5A6" BorderThickness="0" Cursor="Hand">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
                                 <Border x:Name="bd" Background="{TemplateBinding Background}"
-                                        CornerRadius="7" Padding="12,6">
+                                        CornerRadius="8" Padding="14,8">
                                     <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Border>
                                 <ControlTemplate.Triggers>

@@ -25,9 +25,15 @@ namespace Kalendarz1.Opakowania.Forms
         List<PotwierdzenieSalda> _potw = new();
 
         // Layout
-        Panel _header, _cardStrip, _infoPanel, _bottomBar;
+        Panel _header, _cardStrip, _infoPanel, _bottomBar, _chartHost;
+        Panel _chartE2, _chartH1;
         Label[] _crdVal = new Label[5], _crdDelta = new Label[5];
         DataGridView _grid;
+        List<HistoriaSaldaPunkt> _historia;
+        Dictionary<string, List<HistoriaSaldaPunkt>> _historiaAll = new();
+        ToolTip _chartTip;
+        Panel _dateToolbar;
+        DateTimePicker _dtOd, _dtDo;
         Label _lblCount, _lblSaldoEnd;
 
         // Info sidebar
@@ -61,8 +67,9 @@ namespace Kalendarz1.Opakowania.Forms
             Text = $"{_nazwa} — Opakowania";
             Size = new Size(1300, 820);
             MinimumSize = new Size(950, 550);
-            StartPosition = FormStartPosition.CenterParent;
+            StartPosition = FormStartPosition.CenterScreen;
             FormBorderStyle = FormBorderStyle.Sizable;
+            WindowState = FormWindowState.Maximized;
             BackColor = Color.FromArgb(246, 248, 250);
             Font = new Font("Segoe UI", 9.5f);
             KeyPreview = true;
@@ -72,6 +79,7 @@ namespace Kalendarz1.Opakowania.Forms
             BuildHeader();
             BuildCardStrip();
             BuildBottom();
+            BuildDateToolbar();
             BuildInfoPanel();
             var gridHost = BuildGridHost();
 
@@ -79,7 +87,8 @@ namespace Kalendarz1.Opakowania.Forms
             Controls.Add(gridHost);
             Controls.Add(_infoPanel);
             Controls.Add(_bottomBar);
-            Controls.Add(_cardStrip);
+            Controls.Add(_chartHost);
+            Controls.Add(_dateToolbar);
             Controls.Add(_header);
         }
 
@@ -139,8 +148,73 @@ namespace Kalendarz1.Opakowania.Forms
             _cardStrip.Resize += (_, __) => { var cs = _cardStrip.Controls.OfType<Panel>().ToArray(); int w = (_cardStrip.ClientSize.Width - 10) / 5; for (int j = 0; j < cs.Length; j++) cs[j].SetBounds(j * w, 0, w, _cardStrip.Height - 1); };
         }
 
+        void BuildDateToolbar()
+        {
+            _dateToolbar = new Panel { Dock = DockStyle.Top, Height = 40, BackColor = CBg };
+            _dateToolbar.Paint += (_, e) => { using var p = new Pen(CBorder); e.Graphics.DrawLine(p, 0, _dateToolbar.Height - 1, _dateToolbar.Width, _dateToolbar.Height - 1); };
+            var flow = new FlowLayoutPanel { Dock = DockStyle.Left, AutoSize = true, FlowDirection = FlowDirection.LeftToRight, BackColor = Color.Transparent, WrapContents = false, Padding = new Padding(14, 6, 0, 0) };
+            var lblOd = new Label { Text = "Od:", AutoSize = true, ForeColor = CMuted, Font = new Font("Segoe UI Semibold", 9), Margin = new Padding(0, 5, 4, 0) };
+            _dtOd = new DateTimePicker { Format = DateTimePickerFormat.Short, Width = 110, Font = new Font("Segoe UI", 9), Value = DateTime.Today.AddMonths(-3), Margin = new Padding(0, 1, 10, 0) };
+            var lblDo = new Label { Text = "Do:", AutoSize = true, ForeColor = CMuted, Font = new Font("Segoe UI Semibold", 9), Margin = new Padding(0, 5, 4, 0) };
+            _dtDo = new DateTimePicker { Format = DateTimePickerFormat.Short, Width = 110, Font = new Font("Segoe UI", 9), Value = DateTime.Today, Margin = new Padding(0, 1, 10, 0) };
+            var btnRefresh = new Button { Text = "Odswież", AutoSize = true, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(59, 130, 246), ForeColor = Color.White, Font = new Font("Segoe UI", 8.5f, FontStyle.Bold), Cursor = Cursors.Hand, Margin = new Padding(6, 1, 0, 0), Padding = new Padding(10, 2, 10, 2) };
+            btnRefresh.FlatAppearance.BorderSize = 0;
+            btnRefresh.Click += async (_, __) => await ReloadRangeAsync();
+            _dtOd.ValueChanged += async (_, __) => await ReloadRangeAsync();
+            _dtDo.ValueChanged += async (_, __) => await ReloadRangeAsync();
+            // Najpierw DatePickery
+            flow.Controls.AddRange(new Control[] { lblOd, _dtOd, lblDo, _dtDo, btnRefresh });
+
+            // Separator
+            var sep = new Panel { Size = new Size(1, 26), Margin = new Padding(10, 4, 6, 0), BackColor = CBorder };
+            flow.Controls.Add(sep);
+
+            // Szybkie przyciski zakresow
+            foreach (var (label, days) in new[] { ("1 tyg", 7), ("1 mies", 30), ("3 mies", 91), ("6 mies", 182), ("1 rok", 365) })
+            {
+                var d = days;
+                var qb = new Button
+                {
+                    Text = label, AutoSize = false, Size = new Size(55, 26),
+                    FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 7.5f, FontStyle.Bold),
+                    Margin = new Padding(2, 2, 0, 0), Cursor = Cursors.Hand,
+                    BackColor = Color.White, ForeColor = CMuted
+                };
+                qb.FlatAppearance.BorderColor = CBorder; qb.FlatAppearance.BorderSize = 1;
+                qb.Click += async (_, __) =>
+                {
+                    _dtOd.Value = DateTime.Today.AddDays(-d);
+                    _dtDo.Value = DateTime.Today;
+                    await ReloadRangeAsync();
+                };
+                flow.Controls.Add(qb);
+            }
+
+            _dateToolbar.Controls.Add(flow);
+        }
+
         void BuildBottom()
         {
+            // Dwa wykresy obok siebie: E2 (czerwony) i H1 (szary)
+            _chartHost = new Panel { Dock = DockStyle.Top, Height = 280, BackColor = Color.White };
+            _chartHost.Paint += (_, e) => { using var p = new Pen(CBorder); e.Graphics.DrawLine(p, 0, _chartHost.Height - 1, _chartHost.Width, _chartHost.Height - 1); };
+
+            _chartE2 = new Panel { Dock = DockStyle.Left, BackColor = Color.White, Cursor = Cursors.Cross };
+            _chartE2.Paint += (_, e) => PaintSingleChart(e.Graphics, _chartE2.Width, _chartE2.Height, "E2 — Pojemniki", CRed, Color.FromArgb(254, 226, 226), _historiaAll.GetValueOrDefault("E2"));
+            _chartE2.MouseMove += (s, e) => ChartPanelMouseMove(_chartE2, "E2", e);
+
+            _chartH1 = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Cursor = Cursors.Cross };
+            _chartH1.Paint += (_, e) => PaintSingleChart(e.Graphics, _chartH1.Width, _chartH1.Height, "H1 — Palety", CMuted, Color.FromArgb(229, 231, 235), _historiaAll.GetValueOrDefault("H1"));
+            _chartH1.MouseMove += (s, e) => ChartPanelMouseMove(_chartH1, "H1", e);
+
+            // Separator pionowy miedzy wykresami
+            var chartSep = new Panel { Dock = DockStyle.Left, Width = 1, BackColor = CBorder };
+
+            _chartHost.Controls.Add(_chartH1);   // Fill
+            _chartHost.Controls.Add(chartSep);    // Left (separator)
+            _chartHost.Controls.Add(_chartE2);    // Left
+            _chartHost.Resize += (_, __) => { _chartE2.Width = (_chartHost.Width - 1) / 2; };
+
             _bottomBar = new Panel { Dock = DockStyle.Bottom, Height = 34, BackColor = Color.FromArgb(249, 250, 251) };
             _bottomBar.Paint += (_, e) => { using var p = new Pen(CBorder); e.Graphics.DrawLine(p, 0, 0, _bottomBar.Width, 0); };
 
@@ -151,8 +225,9 @@ namespace Kalendarz1.Opakowania.Forms
             _btnCopy = MkBtn("Kopiuj saldo", Color.FromArgb(99, 102, 241)); _btnCopy.Click += (_, __) => CopySaldo();
             _btnPdf = MkBtn("PDF", Color.FromArgb(37, 99, 235)); _btnPdf.Click += async (_, __) => await ExportPdfAsync();
             _btnEmail = MkBtn("Email", Color.FromArgb(5, 150, 105)); _btnEmail.Click += (_, __) => SendEmail();
+            var btnPrint = MkBtn("Drukuj", Color.FromArgb(107, 114, 128)); btnPrint.Click += (_, __) => DoPrint();
             var btnClose = MkBtn("Zamknij", Color.FromArgb(100, 116, 139)); btnClose.Click += (_, __) => Close();
-            flow.Controls.AddRange(new Control[] { btnPotw, _btnCopy, _btnPdf, _btnEmail, btnClose });
+            flow.Controls.AddRange(new Control[] { btnPotw, _btnCopy, _btnPdf, _btnEmail, btnPrint, btnClose });
 
             _bottomBar.Controls.Add(_lblSaldoEnd);
             _bottomBar.Controls.Add(flow);
@@ -214,7 +289,7 @@ namespace Kalendarz1.Opakowania.Forms
                 new DataGridViewTextBoxColumn { Name = "TypTxt", HeaderText = "Typ", Width = 65 },
                 new DataGridViewTextBoxColumn { Name = "NrDok", HeaderText = "Dokument", DataPropertyName = "NrDok", AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill, MinimumWidth = 100 },
                 new DataGridViewTextBoxColumn { Name = "Data", HeaderText = "Data", DataPropertyName = "DataText", Width = 82 },
-                new DataGridViewTextBoxColumn { Name = "Dzien", HeaderText = "Dzien", DataPropertyName = "DzienTyg", Width = 45 },
+                new DataGridViewTextBoxColumn { Name = "Dzien", HeaderText = "Dzien tyg.", DataPropertyName = "DzienTyg", Width = 90 },
                 RCol("E2", 60), RCol("H1", 60), RCol("EURO", 60), RCol("PCV", 60), RCol("DREW", 60),
             });
             _grid.CellFormatting += FmtGrid;
@@ -291,21 +366,25 @@ namespace Kalendarz1.Opakowania.Forms
             if (cn == "Bar")
             {
                 e.Handled = true;
-                Color bar = d.JestSaldem ? CYellow : d.TypDokumentu == "MW1" ? CRed : CGreen;
+                Color bar = d.TypDokumentu == "GRP" ? Color.FromArgb(99, 102, 241) : d.JestSaldem ? CYellow : d.TypDokumentu == "MW1" ? CRed : CGreen;
                 bool sel = e.State.HasFlag(DataGridViewElementStates.Selected);
                 using (var bg = new SolidBrush(sel ? e.CellStyle.SelectionBackColor : e.CellStyle.BackColor)) e.Graphics.FillRectangle(bg, e.CellBounds);
                 using (var br = new SolidBrush(bar)) e.Graphics.FillRectangle(br, e.CellBounds.X, e.CellBounds.Y + 2, 4, e.CellBounds.Height - 4);
             }
 
-            // Kolumna Typ — "Wydanie" czerwone, "Przyjecie" zielone, "SALDO" zolte
+            // Kolumna Typ — "Wydanie" czerwone, "Przyjecie" zielone, "SALDO" zolte, "SUMA" niebieskie
             if (cn == "TypTxt")
             {
                 e.Handled = true;
                 bool sel = e.State.HasFlag(DataGridViewElementStates.Selected);
-                using (var bg = new SolidBrush(sel ? e.CellStyle.SelectionBackColor : (d.JestSaldem ? Color.FromArgb(255, 251, 235) : e.CellStyle.BackColor))) e.Graphics.FillRectangle(bg, e.CellBounds);
+                Color cellBg = d.JestSaldem ? Color.FromArgb(255, 251, 235)
+                    : d.TypDokumentu == "GRP" ? Color.FromArgb(238, 242, 255)
+                    : e.CellStyle.BackColor;
+                using (var bg = new SolidBrush(sel ? e.CellStyle.SelectionBackColor : cellBg)) e.Graphics.FillRectangle(bg, e.CellBounds);
 
                 string txt; Color col; Font fnt;
-                if (d.JestSaldem) { txt = "SALDO"; col = Color.FromArgb(161, 98, 7); fnt = new Font("Segoe UI", 8, FontStyle.Bold); }
+                if (d.TypDokumentu == "GRP") { txt = "SUMA"; col = Color.FromArgb(67, 56, 202); fnt = new Font("Segoe UI", 8, FontStyle.Bold); }
+                else if (d.JestSaldem) { txt = "SALDO"; col = Color.FromArgb(161, 98, 7); fnt = new Font("Segoe UI", 8, FontStyle.Bold); }
                 else if (d.TypDokumentu == "MW1") { txt = "Wydanie"; col = CRed; fnt = new Font("Segoe UI", 8.5f, FontStyle.Bold); }
                 else { txt = "Przyjecie"; col = CGreen; fnt = new Font("Segoe UI", 8.5f, FontStyle.Bold); }
 
@@ -320,35 +399,57 @@ namespace Kalendarz1.Opakowania.Forms
         static string FmtSaldo(int v, string unit = "")
         {
             var num = Math.Abs(v).ToString("N0");
-            if (v < 0) return $"Winny {num}{unit}";
-            if (v > 0) return $"Wisimy {num}{unit}";
-            return "-";
+            if (v < 0) return $"Wisi {num}{unit}";
+            if (v > 0) return $"My winni {num}{unit}";
+            return "0";
+        }
+
+        static string FmtDoc(int v, string unit = "")
+        {
+            var num = Math.Abs(v).ToString("N0");
+            if (v < 0) return $"Wydaliśmy {num}{unit}";
+            if (v > 0) return $"Oddał {num}{unit}";
+            return "0";
         }
 
         void FmtGrid(object sender, DataGridViewCellFormattingEventArgs e)
         {
             var cn = _grid.Columns[e.ColumnIndex].Name;
+            var dok = _grid.Rows[e.RowIndex].DataBoundItem as DokumentOpakowania;
+
+            // Kolumny numeryczne — kolor + tekst zalezny od typu wiersza
             if (cn is "E2" or "H1" or "EURO" or "PCV" or "DREW" && e.Value is int v)
             {
-                e.CellStyle.ForeColor = v < 0 ? CRed : v > 0 ? CGreen : Color.FromArgb(200, 200, 200);
-                if (v == 0) { e.Value = "-"; e.FormattingApplied = true; }
+                if (v == 0) { e.Value = "0"; e.CellStyle.ForeColor = Color.FromArgb(200, 200, 200); }
                 else
                 {
+                    e.CellStyle.ForeColor = v < 0 ? CRed : CGreen;
                     var unit = cn == "E2" ? " poj." : " pal.";
-                    e.Value = FmtSaldo(v, unit);
-                    e.FormattingApplied = true;
+                    // Salda: "Wisi"/"My winni"; dokumenty i sumy dnia: "Wydalismy"/"Oddal"
+                    e.Value = (dok != null && dok.JestSaldem) ? FmtSaldo(v, unit) : FmtDoc(v, unit);
                 }
+                e.FormattingApplied = true;
             }
-            if (_grid.Rows[e.RowIndex].DataBoundItem is DokumentOpakowania d)
+
+            // Stylowanie wierszy
+            if (dok != null)
             {
-                if (d.JestSaldem)
+                if (dok.TypDokumentu == "GRP")
+                {
+                    e.CellStyle.BackColor = Color.FromArgb(238, 242, 255);
+                    e.CellStyle.Font = new Font("Segoe UI", 9.5f, FontStyle.Bold);
+                    // Numeryczne zachowuja czerwony/zielony; reszta indigo
+                    if (cn is not "E2" and not "H1" and not "EURO" and not "PCV" and not "DREW")
+                        e.CellStyle.ForeColor = Color.FromArgb(67, 56, 202);
+                }
+                else if (dok.JestSaldem)
                 {
                     e.CellStyle.BackColor = Color.FromArgb(255, 251, 235);
                     e.CellStyle.Font = new Font("Segoe UI", 9.5f, FontStyle.Bold);
                 }
                 else if (cn is "NrDok" or "Data" or "Dzien")
                 {
-                    if (d.TypDokumentu == "MW1") e.CellStyle.ForeColor = Color.FromArgb(153, 27, 27);
+                    if (dok.TypDokumentu == "MW1") e.CellStyle.ForeColor = Color.FromArgb(153, 27, 27);
                     else e.CellStyle.ForeColor = Color.FromArgb(20, 83, 45);
                 }
             }
@@ -376,43 +477,15 @@ namespace Kalendarz1.Opakowania.Forms
                         var num = Math.Abs(v[i]).ToString("N0");
                         _crdVal[i].Text = v[i] == 0 ? "0" : num;
                         _crdVal[i].ForeColor = VCol(v[i]);
-                        _crdDelta[i].Text = v[i] < 0 ? $"Winny{units[i]}" : v[i] > 0 ? $"Wisimy{units[i]}" : "";
+                        _crdDelta[i].Text = v[i] < 0 ? $"Wisi{units[i]}" : v[i] > 0 ? $"My winni{units[i]}" : "";
                         _crdDelta[i].ForeColor = VCol(v[i]);
                     }
                     _lblInfoEmail.Text = _saldo.Email ?? "-";
                     _lblInfoTel.Text = _saldo.Telefon ?? "-";
                 }
 
-                // Dokumenty (3 miesiace)
-                _docs = await _ds.PobierzSaldoKontrahentaAsync(_id, DateTime.Today.AddMonths(-3), DateTime.Today);
-                _grid.SuspendLayout();
-                _grid.DataSource = new SortableBindingList<DokumentOpakowania>(_docs);
-                _grid.ResumeLayout();
-
-                // Statystyki
-                int wydania = _docs.Count(d => !d.JestSaldem && d.TypDokumentu == "MW1");
-                int przyjecia = _docs.Count(d => !d.JestSaldem && d.TypDokumentu == "MP");
-                int docCount = _docs.Count(d => !d.JestSaldem);
-                _lblCount.Text = $"  Dokumenty ({docCount})   |   Wydania: {wydania}   Przyjecia: {przyjecia}";
-
-                var lastSaldo = _docs.FirstOrDefault(d => d.JestSaldem);
-                if (lastSaldo != null)
-                    _lblSaldoEnd.Text = $"  Saldo:  E2={FmtSaldo(lastSaldo.E2, " poj.")}   H1={FmtSaldo(lastSaldo.H1, " pal.")}   EURO={FmtSaldo(lastSaldo.EURO, " pal.")}   PCV={FmtSaldo(lastSaldo.PCV, " pal.")}   DREW={FmtSaldo(lastSaldo.DREW, " pal.")}";
-
-                _lblStatWyd.Text = $"Wydania: {wydania} dok.";
-                _lblStatPrzyj.Text = $"Przyjecia: {przyjecia} dok.";
-
-                int sumWyd = _docs.Where(d => !d.JestSaldem && d.TypDokumentu == "MW1").Sum(d => Math.Abs(d.E2 + d.H1 + d.EURO + d.PCV + d.DREW));
-                int sumPrzyj = _docs.Where(d => !d.JestSaldem && d.TypDokumentu == "MP").Sum(d => Math.Abs(d.E2 + d.H1 + d.EURO + d.PCV + d.DREW));
-                int bilans = sumWyd - sumPrzyj;
-                _lblStatBilans.Text = $"Bilans: {(bilans > 0 ? "Winny" : bilans < 0 ? "Wisimy" : "")} {Math.Abs(bilans).ToString("N0")} szt.";
-                _lblStatBilans.ForeColor = bilans > 0 ? CRed : bilans < 0 ? CGreen : CGray;
-                _lblStatZwrot.Text = sumWyd > 0 ? $"Zwrot: {sumPrzyj * 100.0 / sumWyd:F0}%" : "Zwrot: -";
-
-                var lastDoc = _docs.Where(d => !d.JestSaldem).FirstOrDefault();
-                int dniOd = lastDoc?.Data != null ? (DateTime.Today - lastDoc.Data.Value).Days : -1;
-                _lblStatDni.Text = dniOd >= 0 ? $"Ost. dokument: {dniOd} dni temu" : "Ost. dokument: -";
-                _lblStatDni.ForeColor = dniOd > 30 ? CRed : dniOd > 14 ? Color.FromArgb(245, 158, 11) : CGreen;
+                // Dokumenty, statystyki, wykresy — zakres dat
+                await ReloadRangeAsync();
 
                 // Potwierdzenia
                 _potw = await _ds.PobierzPotwierdzeniaDlaKontrahentaAsync(_id);
@@ -422,6 +495,62 @@ namespace Kalendarz1.Opakowania.Forms
             }
             catch (Exception ex) { MessageBox.Show(ex.Message, "Blad", MessageBoxButtons.OK, MessageBoxIcon.Error); }
             finally { Cursor = Cursors.Default; }
+        }
+
+        async Task ReloadRangeAsync()
+        {
+            var od = _dtOd?.Value.Date ?? DateTime.Today.AddMonths(-3);
+            var doo = _dtDo?.Value.Date ?? DateTime.Today;
+
+            // Dokumenty — pogrupowane po datach
+            _docs = await _ds.PobierzSaldoKontrahentaAsync(_id, od, doo);
+            var saldoRows = _docs.Where(d => d.JestSaldem).ToList();
+            var docRows = _docs.Where(d => !d.JestSaldem).OrderByDescending(d => d.Data).ToList();
+            var allRows = new List<DokumentOpakowania>();
+            allRows.AddRange(saldoRows);
+            allRows.AddRange(docRows);
+            _grid.SuspendLayout();
+            _grid.DataSource = new SortableBindingList<DokumentOpakowania>(allRows);
+            _grid.ResumeLayout();
+
+            // Statystyki
+            int wydania = _docs.Count(d => !d.JestSaldem && d.TypDokumentu == "MW1");
+            int przyjecia = _docs.Count(d => !d.JestSaldem && d.TypDokumentu == "MP");
+            int docCount = _docs.Count(d => !d.JestSaldem);
+            _lblCount.Text = $"  Dokumenty ({docCount})   |   Wydania: {wydania}   Przyjecia: {przyjecia}";
+
+            var lastSaldo = _docs.FirstOrDefault(d => d.JestSaldem);
+            if (lastSaldo != null)
+                _lblSaldoEnd.Text = $"  Saldo:  E2={FmtSaldo(lastSaldo.E2, " poj.")}   H1={FmtSaldo(lastSaldo.H1, " pal.")}   EURO={FmtSaldo(lastSaldo.EURO, " pal.")}   PCV={FmtSaldo(lastSaldo.PCV, " pal.")}   DREW={FmtSaldo(lastSaldo.DREW, " pal.")}";
+
+            _lblStatWyd.Text = $"Wydania: {wydania} dok.";
+            _lblStatPrzyj.Text = $"Przyjecia: {przyjecia} dok.";
+
+            int sumWyd = _docs.Where(d => !d.JestSaldem && d.TypDokumentu == "MW1").Sum(d => Math.Abs(d.E2 + d.H1 + d.EURO + d.PCV + d.DREW));
+            int sumPrzyj = _docs.Where(d => !d.JestSaldem && d.TypDokumentu == "MP").Sum(d => Math.Abs(d.E2 + d.H1 + d.EURO + d.PCV + d.DREW));
+            int bilans = sumWyd - sumPrzyj;
+            _lblStatBilans.Text = $"Bilans: {(bilans > 0 ? "Wisi" : bilans < 0 ? "My winni" : "")} {Math.Abs(bilans).ToString("N0")} szt.";
+            _lblStatBilans.ForeColor = bilans > 0 ? CRed : bilans < 0 ? CGreen : CGray;
+            _lblStatZwrot.Text = sumWyd > 0 ? $"Zwrot: {sumPrzyj * 100.0 / sumWyd:F0}%" : "Zwrot: -";
+
+            var lastDoc = _docs.Where(d => !d.JestSaldem).FirstOrDefault();
+            int dniOd = lastDoc?.Data != null ? (DateTime.Today - lastDoc.Data.Value).Days : -1;
+            _lblStatDni.Text = dniOd >= 0 ? $"Ost. dokument: {dniOd} dni temu" : "Ost. dokument: -";
+            _lblStatDni.ForeColor = dniOd > 30 ? CRed : dniOd > 14 ? Color.FromArgb(245, 158, 11) : CGreen;
+
+            // Wykresy — zakres dat
+            try
+            {
+                var typy = new[] { "E2", "H1", "EURO", "PCV", "DREW" };
+                var histTasks = typy.Select(t => _ds.PobierzHistorieSaldaAsync(_id, t, od, doo)).ToArray();
+                var histResults = await Task.WhenAll(histTasks);
+                _historiaAll.Clear();
+                for (int hi = 0; hi < typy.Length; hi++) _historiaAll[typy[hi]] = histResults[hi] ?? new();
+                _historia = _historiaAll.GetValueOrDefault("E2");
+                _chartE2?.Invalidate();
+                _chartH1?.Invalidate();
+            }
+            catch { }
         }
 
         async Task LoadAvatarAsync()
@@ -458,7 +587,7 @@ namespace Kalendarz1.Opakowania.Forms
                 if (saldo == 0) continue; // pomijaj zerowe
                 var typ = TypOpakowania.WszystkieTypy.FirstOrDefault(t => t.Kod == kod);
                 if (typ == null) continue;
-                var txt = $"{kod}: {Math.Abs(saldo)} ({(saldo < 0 ? "winny" : "wisimy")})";
+                var txt = $"{kod}: {Math.Abs(saldo)} ({(saldo < 0 ? "wisi" : "my winni")})";
                 var k = kod; var s = saldo; var tp = typ;
                 menu.Items.Add(txt, null, (_, __) =>
                 {
@@ -475,6 +604,32 @@ namespace Kalendarz1.Opakowania.Forms
             }
 
             menu.Show(Cursor.Position);
+        }
+
+        void DoPrint()
+        {
+            try
+            {
+                var bmp = new Bitmap(_grid.Width, _grid.Height);
+                _grid.DrawToBitmap(bmp, new Rectangle(0, 0, _grid.Width, _grid.Height));
+                var doc = new System.Drawing.Printing.PrintDocument();
+                doc.PrintPage += (_, e) =>
+                {
+                    // Naglowek
+                    using var f = new Font("Segoe UI", 14, FontStyle.Bold);
+                    e.Graphics.DrawString($"Opakowania: {_nazwa}", f, Brushes.Black, 50, 30);
+                    using var f2 = new Font("Segoe UI", 10);
+                    e.Graphics.DrawString($"Handlowiec: {_handlowiec}  |  Data: {DateTime.Today:dd.MM.yyyy}", f2, Brushes.Gray, 50, 55);
+                    // Grid
+                    var imgW = e.MarginBounds.Width;
+                    var imgH = (int)(bmp.Height * ((float)imgW / bmp.Width));
+                    e.Graphics.DrawImage(bmp, 50, 85, imgW, imgH);
+                };
+                var dlg = new PrintPreviewDialog { Document = doc, Width = 900, Height = 700 };
+                dlg.ShowDialog(this);
+                bmp.Dispose();
+            }
+            catch (Exception ex) { MessageBox.Show(ex.Message); }
         }
 
         void CopySaldo()
@@ -530,6 +685,148 @@ namespace Kalendarz1.Opakowania.Forms
         #endregion
 
         #region Helpers
+
+        void PaintSingleChart(Graphics g, int w, int h, string title, Color lineCol, Color areaBgCol, List<HistoriaSaldaPunkt> data)
+        {
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+            g.Clear(Color.White);
+            using (var borderPen = new Pen(CBorder)) g.DrawRectangle(borderPen, 0, 0, w - 1, h - 1);
+
+            using (var titleFont = new Font("Segoe UI Semibold", 10))
+                g.DrawString(title, titleFont, new SolidBrush(lineCol), 14, 8);
+
+            if (data == null || data.Count < 2)
+            {
+                using var loadFont = new Font("Segoe UI", 9);
+                g.DrawString("Ladowanie...", loadFont, new SolidBrush(CMuted), 14, h / 2 - 8);
+                return;
+            }
+
+            // Ostatnia wartosc w naglowku — surowa liczba
+            var lastVal = data[data.Count - 1].Saldo;
+            using (var valFont = new Font("Segoe UI", 12, FontStyle.Bold))
+            {
+                string valTxt = lastVal.ToString("N0");
+                var valSz = g.MeasureString(valTxt, valFont);
+                using var valBr = new SolidBrush(lastVal < 0 ? CRed : lastVal > 0 ? CGreen : CGray);
+                g.DrawString(valTxt, valFont, valBr, w - valSz.Width - 14, 6);
+            }
+
+            // Zakres Y dopasowany do danych (nie symetryczny)
+            int dataMin = data.Min(p => p.Saldo);
+            int dataMax = data.Max(p => p.Saldo);
+            int yMin = Math.Min(dataMin, 0);
+            int yMax = Math.Max(dataMax, 0);
+            int range = Math.Max(yMax - yMin, 1);
+            int yPad = Math.Max(range / 8, 1);
+            yMin -= yPad;
+            yMax += yPad;
+            int totalRange = Math.Max(yMax - yMin, 1);
+
+            int padL = 60, padR = 14, padT = 34, padB = 36;
+            int gw = w - padL - padR, gh = h - padT - padB;
+            if (gw < 40 || gh < 20) return;
+
+            // Mapowanie wartosci na piksel Y
+            float YFor(int val) => padT + (yMax - val) * (float)gh / totalRange;
+
+            // Siatka Y — 5 krokow dopasowanych do zakresu
+            using (var gridPen = new Pen(Color.FromArgb(242, 242, 242), 1))
+            using (var axFont = new Font("Segoe UI", 7))
+            using (var axBr = new SolidBrush(CMuted))
+            {
+                for (int i = 0; i <= 5; i++)
+                {
+                    int val = yMin + (int)((long)totalRange * i / 5);
+                    float y = YFor(val);
+                    g.DrawLine(gridPen, padL, y, w - padR, y);
+                    var lbl = val.ToString("N0");
+                    var sz = g.MeasureString(lbl, axFont);
+                    g.DrawString(lbl, axFont, axBr, padL - sz.Width - 4, y - sz.Height / 2);
+                }
+            }
+
+            // Linia zera (jesli widoczna w zakresie)
+            float zeroY = YFor(0);
+            if (zeroY >= padT && zeroY <= padT + gh)
+                using (var zp = new Pen(Color.FromArgb(160, 160, 160), 1.5f)) g.DrawLine(zp, padL, zeroY, w - padR, zeroY);
+
+            // Punkty wykresu
+            var pts = new PointF[data.Count];
+            for (int i = 0; i < data.Count; i++)
+            {
+                float x = padL + (float)i / (data.Count - 1) * gw;
+                float y = YFor(data[i].Saldo);
+                pts[i] = new PointF(x, Math.Max(padT, Math.Min(padT + gh, y)));
+            }
+
+            // Area fill do linii zera
+            float areaBase = Math.Max(padT, Math.Min(padT + gh, zeroY));
+            using (var areaPath = new GraphicsPath())
+            {
+                areaPath.AddLines(pts);
+                areaPath.AddLine(pts[pts.Length - 1].X, pts[pts.Length - 1].Y, pts[pts.Length - 1].X, areaBase);
+                areaPath.AddLine(pts[0].X, areaBase, pts[0].X, pts[0].Y);
+                areaPath.CloseFigure();
+                using var areaBr = new SolidBrush(Color.FromArgb(30, lineCol));
+                g.FillPath(areaBr, areaPath);
+            }
+
+            // Linia wykresu
+            using (var lp = new Pen(lineCol, 2.5f) { LineJoin = LineJoin.Round }) g.DrawLines(lp, pts);
+
+            // Etykiety dat (os X) + wartosci na niedzielach
+            using var dateFont = new Font("Segoe UI", 7);
+            using var dateBr = new SolidBrush(CMuted);
+            using var sunFont = new Font("Segoe UI", 7, FontStyle.Bold);
+            using var sunBr = new SolidBrush(lineCol);
+            for (int i = 0; i < data.Count; i++)
+            {
+                float x = pts[i].X;
+                if (data[i].Data.DayOfWeek == DayOfWeek.Sunday)
+                {
+                    // Data na osi X
+                    var dtLbl = data[i].Data.ToString("dd.MM");
+                    var sz = g.MeasureString(dtLbl, dateFont);
+                    g.DrawString(dtLbl, dateFont, dateBr, x - sz.Width / 2, h - padB + 6);
+                    using var tickPen = new Pen(Color.FromArgb(220, 220, 220));
+                    g.DrawLine(tickPen, x, h - padB, x, h - padB + 3);
+
+                    // Wartosc — surowa liczba (pasuje do pozycji linii)
+                    var vTxt = data[i].Saldo.ToString("N0");
+                    var vSz = g.MeasureString(vTxt, sunFont);
+                    float vy = pts[i].Y - vSz.Height - 3;
+                    if (vy < padT) vy = pts[i].Y + 4;
+                    g.DrawString(vTxt, sunFont, sunBr, x - vSz.Width / 2, vy);
+
+                    // Punkt
+                    using (var db = new SolidBrush(lineCol)) g.FillEllipse(db, x - 3.5f, pts[i].Y - 3.5f, 7, 7);
+                    using (var wp = new Pen(Color.White, 1.5f)) g.DrawEllipse(wp, x - 3.5f, pts[i].Y - 3.5f, 7, 7);
+                }
+            }
+
+            // Punkt koncowy
+            var lastPt = pts[pts.Length - 1];
+            using (var db2 = new SolidBrush(lineCol)) g.FillEllipse(db2, lastPt.X - 4, lastPt.Y - 4, 8, 8);
+            using (var wp2 = new Pen(Color.White, 2)) g.DrawEllipse(wp2, lastPt.X - 4, lastPt.Y - 4, 8, 8);
+        }
+
+        void ChartPanelMouseMove(Panel panel, string seriesKey, MouseEventArgs e)
+        {
+            _chartTip ??= new ToolTip { InitialDelay = 0, ReshowDelay = 0, AutoPopDelay = 5000, BackColor = Color.FromArgb(15, 23, 42), ForeColor = Color.White };
+            var data = _historiaAll.GetValueOrDefault(seriesKey);
+            if (data == null || data.Count < 2) { _chartTip.Hide(panel); return; }
+            int w = panel.Width, padL = 60, padR = 14;
+            int gw = w - padL - padR;
+            if (gw < 10 || e.X < padL || e.X > w - padR) { _chartTip.Hide(panel); return; }
+
+            float relX = (float)(e.X - padL) / gw;
+            int idx = Math.Clamp((int)(relX * (data.Count - 1) + 0.5f), 0, data.Count - 1);
+            var p = data[idx];
+            var txt = $"{p.Data:dd.MM.yyyy} ({p.Data.ToString("ddd")})\n{seriesKey}: {FmtSaldo(p.Saldo)}";
+            _chartTip.Show(txt, panel, e.X + 12, e.Y - 25, 3000);
+        }
 
         static Color VCol(int v) => v < 0 ? CRed : v > 0 ? CGreen : CGray;
         static readonly Color[] _ac = { Color.FromArgb(59,130,246), Color.FromArgb(249,115,22), Color.FromArgb(16,185,129), Color.FromArgb(139,92,246), Color.FromArgb(236,72,153), Color.FromArgb(245,158,11) };

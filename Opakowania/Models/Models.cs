@@ -271,10 +271,10 @@ namespace Kalendarz1.Opakowania.Models
         // Suma wszystkich sald (do sortowania)
         public int SaldoCalkowite => Math.Abs(SaldoE2) + Math.Abs(SaldoH1) + Math.Abs(SaldoEURO) + Math.Abs(SaldoPCV) + Math.Abs(SaldoDREW);
         
-        // Maksymalne saldo dodatnie (kontrahent winny)
-        public int MaxSaldoDodatnie => Math.Max(0, Math.Max(SaldoE2, Math.Max(SaldoH1, Math.Max(SaldoEURO, Math.Max(SaldoPCV, SaldoDREW)))));
+        // Maksymalne saldo ujemne (kontrahent winny — znaki Symfonia)
+        public int MaxSaldoDodatnie => Math.Max(0, Math.Max(-SaldoE2, Math.Max(-SaldoH1, Math.Max(-SaldoEURO, Math.Max(-SaldoPCV, -SaldoDREW)))));
 
-        // Właściwości tekstowe - format: "150 (wydane)" lub "-50 (zwrot)"
+        // Właściwości tekstowe — logika Symfonia: ujemne = winny, dodatnie = wisimy
         public string SaldoE2Tekst => FormatujSaldo(_saldoE2);
         public string SaldoH1Tekst => FormatujSaldo(_saldoH1);
         public string SaldoEUROTekst => FormatujSaldo(_saldoEURO);
@@ -286,8 +286,9 @@ namespace Kalendarz1.Opakowania.Models
         private string FormatujSaldo(int saldo)
         {
             if (saldo == 0) return "0";
-            if (saldo > 0) return $"{saldo} (wydane)";
-            return $"{Math.Abs(saldo)} (zwrot)";
+            var num = Math.Abs(saldo).ToString("N0");
+            if (saldo < 0) return $"Winny {num}";
+            return $"Wisimy {num}";
         }
 
         // Kolor tła wiersza na podstawie progu
@@ -305,8 +306,8 @@ namespace Kalendarz1.Opakowania.Models
 
         public SolidColorBrush GetKolorSalda(int saldo)
         {
-            if (saldo > 0) return new SolidColorBrush(Color.FromRgb(244, 67, 54)); // Czerwony - kontrahent winny
-            if (saldo < 0) return new SolidColorBrush(Color.FromRgb(76, 175, 80)); // Zielony - my winni
+            if (saldo < 0) return new SolidColorBrush(Color.FromRgb(220, 38, 38)); // Czerwony - kontrahent winny (ujemne = Symfonia)
+            if (saldo > 0) return new SolidColorBrush(Color.FromRgb(22, 163, 74)); // Zielony - my winni
             return new SolidColorBrush(Color.FromRgb(158, 158, 158)); // Szary - zero
         }
     }

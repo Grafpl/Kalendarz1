@@ -19,11 +19,17 @@ namespace Kalendarz1.Reklamacje
         private string connectionString;
         private string userId;
         private ObservableCollection<ReklamacjaItem> reklamacje = new ObservableCollection<ReklamacjaItem>();
+        private System.ComponentModel.ICollectionView reklamacjeView;
+        private string aktywnaZakladka = "DO_AKCJI";
         private bool isInitialized = false;
         private bool isJakosc = false;
         private DispatcherTimer searchDebounceTimer;
 
-        private const string HandelConnString = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
+        private const string HandelConnString = ReklamacjeConnectionStrings.Handel;
+
+        // Mapowanie handlowiec name -> UserID (ladowane raz)
+        private Dictionary<string, string> _handlowiecMapowanie;
+        private Dictionary<string, ImageSource> _handlowiecAvatarCache = new Dictionary<string, ImageSource>();
 
         // Dozwolone przejscia statusow - delegacja do centralnej definicji
         private static Dictionary<string, List<string>> dozwolonePrzejscia => FormRozpatrzenieWindow.dozwolonePrzejscia;
@@ -43,7 +49,14 @@ namespace Kalendarz1.Reklamacje
             dpDataOd.SelectedDate = DateTime.Now.AddMonths(-1);
             dpDataDo.SelectedDate = DateTime.Now;
 
-            dgReklamacje.ItemsSource = reklamacje;
+            // Workflow V2: DataGrid pokazuje przefiltrowany widok
+            reklamacjeView = System.Windows.Data.CollectionViewSource.GetDefaultView(reklamacje);
+            reklamacjeView.Filter = obj =>
+            {
+                if (!(obj is ReklamacjaItem r)) return false;
+                return r.KategoriaZakladki == aktywnaZakladka;
+            };
+            dgReklamacje.ItemsSource = reklamacjeView;
 
             // Debounce timer dla wyszukiwania (300ms)
             searchDebounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
@@ -91,24 +104,288 @@ namespace Kalendarz1.Reklamacje
 
         private void UstawWidocznoscKontrolek()
         {
-            // Przyciski zmiany statusu - tylko dla jakosci
-            if (btnZmienStatus != null) btnZmienStatus.Visibility = isJakosc ? Visibility.Visible : Visibility.Collapsed;
-            if (btnZaakceptuj != null) btnZaakceptuj.Visibility = isJakosc ? Visibility.Visible : Visibility.Collapsed;
-            if (btnOdrzuc != null) btnOdrzuc.Visibility = isJakosc ? Visibility.Visible : Visibility.Collapsed;
+            // Workflow V2: widocznosc przyciskow zalezy od zaznaczonej reklamacji + isJakosc
+            // (UstawKontekstoweAkcje woli wlasciwe przyciski w SelectionChanged)
 
             // Statystyki - tylko dla jakosci
             if (btnStatystyki != null) btnStatystyki.Visibility = isJakosc ? Visibility.Visible : Visibility.Collapsed;
 
-            // Usuwanie + debug - tylko admin
+            // Usuwanie + debug + ustawienia sync - tylko admin
             if (btnUsun != null) btnUsun.Visibility = userId == "11111" ? Visibility.Visible : Visibility.Collapsed;
             if (btnDebugSync != null) btnDebugSync.Visibility = userId == "11111" ? Visibility.Visible : Visibility.Collapsed;
+            if (btnUstawieniaSync != null) btnUstawieniaSync.Visibility = userId == "11111" ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
+            MigracjaBazy();
+            WczytajMapowanieHandlowcow();
+            WczytajHandlowcow();
             try { SyncFakturyKorygujace(); } catch { }
             WczytajReklamacje();
             WczytajStatystyki();
+            PrzelaczZakladke("DO_AKCJI");
+        }
+
+        private void WczytajMapowanieHandlowcow()
+        {
+            _handlowiecMapowanie = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    using (var cmd = new SqlCommand("SELECT HandlowiecName, UserID FROM [dbo].[UserHandlowcy]", conn))
+                    using (var r = cmd.ExecuteReader())
+                    {
+                        while (r.Read())
+                        {
+                            string name = r.GetString(0);
+                            string uid = r.GetString(1);
+                            _handlowiecMapowanie[name] = uid;
+                        }
+                    }
+                }
+            }
+            catch { }
+        }
+
+        private void WczytajHandlowcow()
+        {
+            try
+            {
+                using (var conn = new SqlConnection(HandelConnString))
+                {
+                    conn.Open();
+                    using (var cmd = new SqlCommand(@"
+                        SELECT DISTINCT CDim_Handlowiec_Val
+                        FROM [HANDEL].[SSCommon].[ContractorClassification]
+                        WHERE CDim_Handlowiec_Val IS NOT NULL AND CDim_Handlowiec_Val <> '' AND CDim_Handlowiec_Val <> '-'
+                        ORDER BY CDim_Handlowiec_Val", conn))
+                    using (var r = cmd.ExecuteReader())
+                    {
+                        while (r.Read())
+                        {
+                            cmbHandlowiec.Items.Add(new ComboBoxItem { Content = r.GetString(0) });
+                        }
+                    }
+                }
+            }
+            catch { }
+        }
+
+        private void CmbHandlowiec_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (IsLoaded) WczytajReklamacje();
+        }
+
+        private void MigracjaBazy()
+        {
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+
+                    // Etap 0: PowiazanaReklamacjaId (stara migracja)
+                    using (var cmd = new SqlCommand(@"
+                        IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Reklamacje') AND name = 'PowiazanaReklamacjaId')
+                            ALTER TABLE [dbo].[Reklamacje] ADD [PowiazanaReklamacjaId] INT NULL", conn))
+                    {
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    // Usun reklamacje kontrahentow SD/* (wewnetrzne)
+                    using (var cmd = new SqlCommand(@"
+                        DECLARE @ids TABLE(Id INT);
+                        INSERT INTO @ids SELECT Id FROM [dbo].[Reklamacje]
+                            WHERE NazwaKontrahenta LIKE 'SD/%' AND TypReklamacji = 'Faktura korygujaca';
+                        DELETE FROM [dbo].[ReklamacjeTowary] WHERE IdReklamacji IN (SELECT Id FROM @ids);
+                        DELETE FROM [dbo].[ReklamacjeHistoria] WHERE IdReklamacji IN (SELECT Id FROM @ids);
+                        DELETE FROM [dbo].[Reklamacje] WHERE Id IN (SELECT Id FROM @ids);", conn))
+                    {
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    // ======================================================
+                    // ETAP 1: Workflow V2 - nowe kolumny
+                    // ======================================================
+                    string[] kolumnyDoDodania = new[]
+                    {
+                        "StatusV2 NVARCHAR(30) NULL",
+                        "ZrodloZgloszenia NVARCHAR(30) NULL",
+                        "NumerFakturyOryginalnej NVARCHAR(50) NULL",
+                        "IdFakturyOryginalnej INT NULL",
+                        "DecyzjaJakosci NVARCHAR(20) NULL",
+                        "NotatkaJakosci NVARCHAR(MAX) NULL",
+                        "DataAnalizy DATETIME NULL",
+                        "UserAnalizy NVARCHAR(50) NULL",
+                        "DataPowiazania DATETIME NULL",
+                        "UserPowiazania NVARCHAR(50) NULL",
+                        "WymagaUzupelnienia BIT NOT NULL DEFAULT 0",
+                        // Etap 2.5: kategoryzacja przyczyn
+                        "KategoriaPrzyczyny NVARCHAR(50) NULL",
+                        "PodkategoriaPrzyczyny NVARCHAR(100) NULL",
+                        // Handlowiec przypisany do kontrahenta
+                        "Handlowiec NVARCHAR(100) NULL"
+                    };
+
+                    foreach (var def in kolumnyDoDodania)
+                    {
+                        string nazwa = def.Split(' ')[0];
+                        string sql = $@"
+                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Reklamacje') AND name = '{nazwa}')
+                                ALTER TABLE [dbo].[Reklamacje] ADD [{nazwa}] {def.Substring(nazwa.Length + 1)}";
+                        using (var cmd = new SqlCommand(sql, conn))
+                        {
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+
+                    // Mapowanie starych statusow na StatusV2 (tylko dla rekordow bez StatusV2)
+                    // Stare -> Nowe:
+                    //   Nowa                   -> ZGLOSZONA
+                    //   Przyjeta               -> W_ANALIZIE
+                    //   W trakcie              -> W_ANALIZIE
+                    //   W analizie             -> W_ANALIZIE
+                    //   W trakcie realizacji   -> W_ANALIZIE
+                    //   Oczekuje na dostawce   -> W_ANALIZIE
+                    //   Zaakceptowana          -> ZASADNA
+                    //   Odrzucona              -> ODRZUCONA
+                    //   Zamknieta              -> ZAMKNIETA
+                    using (var cmd = new SqlCommand(@"
+                        UPDATE [dbo].[Reklamacje]
+                        SET StatusV2 = CASE
+                            WHEN Status = 'Nowa' THEN 'ZGLOSZONA'
+                            WHEN Status IN ('Przyjeta','W trakcie','W analizie','W trakcie realizacji','Oczekuje na dostawce') THEN 'W_ANALIZIE'
+                            WHEN Status = 'Zaakceptowana' THEN 'ZASADNA'
+                            WHEN Status = 'Odrzucona' THEN 'ODRZUCONA'
+                            WHEN Status = 'Zamknieta' THEN 'ZAMKNIETA'
+                            ELSE 'ZGLOSZONA'
+                        END
+                        WHERE StatusV2 IS NULL;
+
+                        -- Oznacz istniejace korekty z Symfonii jako wymagajace uzupelnienia (jesli nie sa powiazane)
+                        UPDATE [dbo].[Reklamacje]
+                        SET WymagaUzupelnienia = 1
+                        WHERE TypReklamacji = 'Faktura korygujaca'
+                          AND (PowiazanaReklamacjaId IS NULL OR PowiazanaReklamacjaId = 0)
+                          AND WymagaUzupelnienia = 0
+                          AND StatusV2 NOT IN ('ZAMKNIETA','ODRZUCONA');
+
+                        -- Powiazane = POWIAZANA
+                        UPDATE [dbo].[Reklamacje]
+                        SET StatusV2 = 'POWIAZANA'
+                        WHERE PowiazanaReklamacjaId IS NOT NULL
+                          AND PowiazanaReklamacjaId > 0
+                          AND StatusV2 NOT IN ('ZAMKNIETA','ODRZUCONA');
+
+                        -- Ustaw zrodlo zgloszenia dla istniejacych rekordow
+                        UPDATE [dbo].[Reklamacje]
+                        SET ZrodloZgloszenia = CASE
+                            WHEN TypReklamacji = 'Faktura korygujaca' THEN 'Symfonia'
+                            ELSE 'Handlowiec'
+                        END
+                        WHERE ZrodloZgloszenia IS NULL;", conn))
+                    {
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    // Uzupelnij kolumne Handlowiec z HANDEL dla istniejacych rekordow
+                    try
+                    {
+                        using (var connH = new SqlConnection(HandelConnString))
+                        {
+                            connH.Open();
+                            // Pobierz mapowanie khid -> handlowiec
+                            var mapa = new Dictionary<int, string>();
+                            using (var cmdH = new SqlCommand(@"
+                                SELECT ElementId, CDim_Handlowiec_Val
+                                FROM [HANDEL].[SSCommon].[ContractorClassification]
+                                WHERE CDim_Handlowiec_Val IS NOT NULL AND CDim_Handlowiec_Val <> '' AND CDim_Handlowiec_Val <> '-'", connH))
+                            using (var rdr = cmdH.ExecuteReader())
+                            {
+                                while (rdr.Read())
+                                    mapa[rdr.GetInt32(0)] = rdr.GetString(1);
+                            }
+
+                            // Zaktualizuj reklamacje bez handlowca
+                            using (var cmdR = new SqlCommand(@"
+                                SELECT Id, IdKontrahenta FROM [dbo].[Reklamacje]
+                                WHERE Handlowiec IS NULL AND IdKontrahenta IS NOT NULL AND IdKontrahenta > 0", conn))
+                            using (var rdr = cmdR.ExecuteReader())
+                            {
+                                var doAktualizacji = new List<(int id, string handl)>();
+                                while (rdr.Read())
+                                {
+                                    int khid = rdr.IsDBNull(1) ? 0 : rdr.GetInt32(1);
+                                    if (khid > 0 && mapa.TryGetValue(khid, out string handl))
+                                        doAktualizacji.Add((rdr.GetInt32(0), handl));
+                                }
+                                rdr.Close();
+
+                                foreach (var (id, handl) in doAktualizacji)
+                                {
+                                    using (var cmdU = new SqlCommand("UPDATE [dbo].[Reklamacje] SET Handlowiec = @H WHERE Id = @Id", conn))
+                                    {
+                                        cmdU.Parameters.AddWithValue("@H", handl);
+                                        cmdU.Parameters.AddWithValue("@Id", id);
+                                        cmdU.ExecuteNonQuery();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    catch { /* HANDEL niedostepny — nie blokuj startu */ }
+
+                    // ======================================================
+                    // Tabela zalacznikow (zdjecia, pdf, skany)
+                    // ======================================================
+                    using (var cmd = new SqlCommand(@"
+                        IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'ReklamacjeZalaczniki')
+                        BEGIN
+                            CREATE TABLE [dbo].[ReklamacjeZalaczniki] (
+                                [Id] INT IDENTITY(1,1) PRIMARY KEY,
+                                [IdReklamacji] INT NOT NULL,
+                                [NazwaPliku] NVARCHAR(260) NOT NULL,
+                                [TypMime] NVARCHAR(100) NULL,
+                                [Rozmiar] BIGINT NOT NULL DEFAULT 0,
+                                [Dane] VARBINARY(MAX) NULL,
+                                [UserID] NVARCHAR(50) NULL,
+                                [DataDodania] DATETIME NOT NULL DEFAULT GETDATE(),
+                                [Opis] NVARCHAR(500) NULL
+                            );
+                            CREATE INDEX IX_ReklamacjeZalaczniki_IdReklamacji
+                                ON [dbo].[ReklamacjeZalaczniki]([IdReklamacji]);
+                        END", conn))
+                    {
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    // Tabela komentarzy wewnetrznych
+                    using (var cmd = new SqlCommand(@"
+                        IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'ReklamacjeKomentarze')
+                        BEGIN
+                            CREATE TABLE [dbo].[ReklamacjeKomentarze] (
+                                [Id] INT IDENTITY(1,1) PRIMARY KEY,
+                                [IdReklamacji] INT NOT NULL,
+                                [UserID] NVARCHAR(50) NOT NULL,
+                                [Tresc] NVARCHAR(MAX) NOT NULL,
+                                [DataDodania] DATETIME NOT NULL DEFAULT GETDATE()
+                            );
+                            CREATE INDEX IX_ReklamacjeKomentarze_IdReklamacji
+                                ON [dbo].[ReklamacjeKomentarze]([IdReklamacji]);
+                        END", conn))
+                    {
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Loguj tylko do Debug - migracja nie powinna blokowac okna
+                System.Diagnostics.Debug.WriteLine($"MigracjaBazy blad: {ex.Message}");
+            }
         }
 
         private void WczytajReklamacje()
@@ -122,6 +399,9 @@ namespace Kalendarz1.Reklamacje
                 using (SqlConnection conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
+
+                    // Pobierz date od korekt (admin moze ja zmienic)
+                    DateTime dataOdKorekt = PobierzDataOdKorekt();
 
                     string query = @"
                         SELECT
@@ -137,11 +417,19 @@ namespace Kalendarz1.Reklamacje
                             ISNULL(r.TypReklamacji, 'Inne') AS TypReklamacji,
                             ISNULL(r.Priorytet, 'Normalny') AS Priorytet,
                             r.UserID AS ZglaszajacyId,
-                            ISNULL(r.OsobaRozpatrujaca, '') AS RozpatrujacyId
+                            ISNULL(r.OsobaRozpatrujaca, '') AS RozpatrujacyId,
+                            r.PowiazanaReklamacjaId,
+                            ISNULL(r.StatusV2, 'ZGLOSZONA') AS StatusV2,
+                            ISNULL(r.ZrodloZgloszenia, 'Handlowiec') AS ZrodloZgloszenia,
+                            r.NumerFakturyOryginalnej,
+                            r.IdFakturyOryginalnej,
+                            r.DecyzjaJakosci,
+                            ISNULL(r.WymagaUzupelnienia, 0) AS WymagaUzupelnienia,
+                            ISNULL(r.Handlowiec, '') AS Handlowiec
                         FROM [dbo].[Reklamacje] r
                         LEFT JOIN [dbo].[operators] o ON r.UserID = o.ID
                         LEFT JOIN [dbo].[operators] o2 ON r.OsobaRozpatrujaca = o2.ID
-                        WHERE 1=1";
+                        WHERE (r.TypReklamacji <> 'Faktura korygujaca' OR r.DataZgloszenia >= @DataOdKorekt)";
 
                     string statusFilter = (cmbStatus.SelectedItem as ComboBoxItem)?.Content?.ToString();
                     if (!string.IsNullOrEmpty(statusFilter) && statusFilter != "Wszystkie")
@@ -161,6 +449,12 @@ namespace Kalendarz1.Reklamacje
                         query += " AND r.Priorytet = @Priorytet";
                     }
 
+                    string handlowiecFilter = (cmbHandlowiec?.SelectedItem as ComboBoxItem)?.Content?.ToString();
+                    if (!string.IsNullOrEmpty(handlowiecFilter) && handlowiecFilter != "Wszyscy")
+                    {
+                        query += " AND r.Opis LIKE @Handlowiec";
+                    }
+
                     string szukaj = txtSzukaj?.Text?.Trim();
                     if (!string.IsNullOrEmpty(szukaj))
                     {
@@ -171,6 +465,8 @@ namespace Kalendarz1.Reklamacje
 
                     using (SqlCommand cmd = new SqlCommand(query, conn))
                     {
+                        cmd.Parameters.AddWithValue("@DataOdKorekt", dataOdKorekt);
+
                         if (!string.IsNullOrEmpty(statusFilter) && statusFilter != "Wszystkie")
                         {
                             cmd.Parameters.AddWithValue("@Status", statusFilter);
@@ -191,6 +487,11 @@ namespace Kalendarz1.Reklamacje
                             cmd.Parameters.AddWithValue("@Szukaj", $"%{szukaj}%");
                         }
 
+                        if (!string.IsNullOrEmpty(handlowiecFilter) && handlowiecFilter != "Wszyscy")
+                        {
+                            cmd.Parameters.AddWithValue("@Handlowiec", $"%{handlowiecFilter}%");
+                        }
+
                         using (SqlDataReader reader = cmd.ExecuteReader())
                         {
                             while (reader.Read())
@@ -209,22 +510,35 @@ namespace Kalendarz1.Reklamacje
                                     TypReklamacji = reader.IsDBNull(9) ? "Inne" : reader.GetString(9),
                                     Priorytet = reader.IsDBNull(10) ? "Normalny" : reader.GetString(10),
                                     ZglaszajacyId = reader.IsDBNull(11) ? "" : reader.GetString(11),
-                                    RozpatrujacyId = reader.IsDBNull(12) ? "" : reader.GetString(12)
+                                    RozpatrujacyId = reader.IsDBNull(12) ? "" : reader.GetString(12),
+                                    PowiazanaReklamacjaId = reader.IsDBNull(13) ? (int?)null : reader.GetInt32(13),
+                                    StatusV2 = reader.IsDBNull(14) ? StatusyV2.ZGLOSZONA : reader.GetString(14),
+                                    ZrodloZgloszenia = reader.IsDBNull(15) ? "Handlowiec" : reader.GetString(15),
+                                    NumerFakturyOryginalnej = reader.IsDBNull(16) ? null : reader.GetString(16),
+                                    IdFakturyOryginalnej = reader.IsDBNull(17) ? (int?)null : reader.GetInt32(17),
+                                    DecyzjaJakosci = reader.IsDBNull(18) ? null : reader.GetString(18),
+                                    WymagaUzupelnienia = !reader.IsDBNull(19) && reader.GetBoolean(19),
+                                    Handlowiec = reader.IsDBNull(20) ? "" : reader.GetString(20)
                                 };
                                 item2.ZglaszajacyAvatar = GetCachedAvatar(item2.ZglaszajacyId, item2.Zglaszajacy);
                                 item2.RozpatrujacyAvatar = GetCachedAvatar(item2.RozpatrujacyId, item2.OsobaRozpatrujaca);
+                                if (!string.IsNullOrEmpty(item2.Handlowiec) && item2.Handlowiec != "-")
+                                {
+                                    item2.HandlowiecAvatar = GetHandlowiecAvatar(item2.Handlowiec);
+                                }
                                 reklamacje.Add(item2);
                             }
                         }
                     }
                 }
 
-                txtLiczbaReklamacji.Text = reklamacje.Count.ToString();
+                reklamacjeView?.Refresh();
+                AktualizujLicznikiZakladek();
+                AktualizujLicznikZaznaczenia();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Blad podczas wczytywania reklamacji:\n{ex.Message}",
-                    "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
+                FriendlyError.Pokaz(ex, "Nie udalo sie zaladowac listy reklamacji.", this);
             }
         }
 
@@ -238,15 +552,19 @@ namespace Kalendarz1.Reklamacje
                 {
                     conn.Open();
 
+                    DateTime dataOdKorekt = PobierzDataOdKorekt();
+
                     string query = @"
                         SELECT
                             ISNULL(Status, 'Nowa') AS Status,
                             COUNT(*) AS Liczba
                         FROM [dbo].[Reklamacje]
+                        WHERE (TypReklamacji <> 'Faktura korygujaca' OR DataZgloszenia >= @DataOdKorekt)
                         GROUP BY Status";
 
                     using (SqlCommand cmd = new SqlCommand(query, conn))
                     {
+                        cmd.Parameters.AddWithValue("@DataOdKorekt", dataOdKorekt);
                         using (SqlDataReader reader = cmd.ExecuteReader())
                         {
                             int nowe = 0, wTrakcie = 0, zaakceptowane = 0, odrzucone = 0, zamkniete = 0;
@@ -318,18 +636,81 @@ namespace Kalendarz1.Reklamacje
             bool selected = dgReklamacje.SelectedItem != null;
             btnUzupelnij.IsEnabled = selected;
             btnSzczegoly.IsEnabled = selected;
-            btnZmienStatus.IsEnabled = selected;
-            btnZaakceptuj.IsEnabled = selected;
-            btnOdrzuc.IsEnabled = selected;
             btnUsun.IsEnabled = selected;
+
+            // Workflow V2: kontekstowa widocznosc przyciskow
+            UstawKontekstoweAkcje(dgReklamacje.SelectedItem as ReklamacjaItem);
 
             if (selected && dgReklamacje.SelectedItem is ReklamacjaItem item)
             {
-                txtZaznaczenie.Text = $"Wybrano: #{item.Id} - {item.NazwaKontrahenta} ({item.Status})";
+                string etykieta = StatusyV2.Etykieta(item.StatusV2);
+                txtZaznaczenie.Text = $"Wybrano: #{item.Id} - {item.NazwaKontrahenta} ({etykieta})";
             }
             else
             {
                 txtZaznaczenie.Text = "Wybierz reklamacje z listy";
+            }
+        }
+
+        // Pokazuje tylko te przyciski ktore maja sens dla biezacego StatusV2.
+        // Przyciski decyzyjne tylko dla dzialu jakosci.
+        private void UstawKontekstoweAkcje(ReklamacjaItem item)
+        {
+            btnPrzekazAnaliza.Visibility = Visibility.Collapsed;
+            btnZasadna.Visibility = Visibility.Collapsed;
+            btnNiezasadna.Visibility = Visibility.Collapsed;
+            btnPowiaz.Visibility = Visibility.Collapsed;
+            btnZamknij.Visibility = Visibility.Collapsed;
+            if (sepWorkflow != null) sepWorkflow.Visibility = Visibility.Collapsed;
+
+            if (item == null) return;
+            if (!isJakosc) return;
+
+            string s = item.StatusV2 ?? StatusyV2.ZGLOSZONA;
+            bool jestKorekta = item.TypReklamacji == "Faktura korygujaca" || item.WymagaUzupelnienia;
+
+            switch (s)
+            {
+                case StatusyV2.ZGLOSZONA:
+                    // Nowe zgloszenie - jakosc przyjmuje do rozpatrzenia
+                    btnPrzekazAnaliza.Visibility = Visibility.Visible;
+                    btnNiezasadna.Visibility = Visibility.Visible;
+                    if (jestKorekta)
+                    {
+                        if (sepWorkflow != null) sepWorkflow.Visibility = Visibility.Visible;
+                        btnPowiaz.Visibility = Visibility.Visible;
+                    }
+                    break;
+
+                case StatusyV2.W_ANALIZIE:
+                    // W trakcie analizy - decyzja zaakceptowana lub odrzucona
+                    btnZasadna.Visibility = Visibility.Visible;
+                    btnNiezasadna.Visibility = Visibility.Visible;
+                    if (jestKorekta)
+                    {
+                        if (sepWorkflow != null) sepWorkflow.Visibility = Visibility.Visible;
+                        btnPowiaz.Visibility = Visibility.Visible;
+                    }
+                    break;
+
+                case StatusyV2.ZASADNA:
+                    // Czeka na korekte -> powiazanie lub odrzucenie
+                    btnNiezasadna.Visibility = Visibility.Visible;
+                    if (sepWorkflow != null) sepWorkflow.Visibility = Visibility.Visible;
+                    btnPowiaz.Visibility = Visibility.Visible;
+                    break;
+
+                case StatusyV2.POWIAZANA:
+                    // Powiazana - mozna zamknac (lub odlaczyc)
+                    if (sepWorkflow != null) sepWorkflow.Visibility = Visibility.Visible;
+                    btnPowiaz.Visibility = Visibility.Visible; // do odlaczenia
+                    btnZamknij.Visibility = Visibility.Visible;
+                    break;
+
+                case StatusyV2.ZAMKNIETA:
+                case StatusyV2.ODRZUCONA:
+                    // Finalne - tylko podglad
+                    break;
             }
         }
 
@@ -523,6 +904,460 @@ namespace Kalendarz1.Reklamacje
             }
         }
 
+        // ========================================
+        // WORKFLOW V2 — 3 przyciski decyzyjne jakosci
+        // ========================================
+
+        // PRZYJETE - jakosc przyjmuje do rozpatrzenia, bez komentarza
+        private void BtnPrzekazAnaliza_Click(object sender, RoutedEventArgs e)
+        {
+            if (!(dgReklamacje.SelectedItem is ReklamacjaItem item)) return;
+            if (!isJakosc) { BrakUprawnien(); return; }
+
+            if (MessageBox.Show(
+                $"Przyjac reklamacje #{item.Id} do rozpatrzenia?\n\nStatus zmieni sie na 'W analizie'. Pozniej bedziesz mogl zdecydowac o akceptacji lub odrzuceniu.",
+                "Przyjecie do rozpatrzenia", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+
+            UstawStatusV2Workflow(item.Id, StatusyV2.W_ANALIZIE,
+                decyzja: null, notatka: null,
+                przyczynaGlowna: null, akcjeNaprawcze: null,
+                ustawDataAnalizy: true);
+
+            WczytajReklamacje();
+            WczytajStatystyki();
+        }
+
+        // ZAAKCEPTOWANA - dwa pola: przyczyna + akcje naprawcze
+        private void BtnZasadna_Click(object sender, RoutedEventArgs e)
+        {
+            if (!(dgReklamacje.SelectedItem is ReklamacjaItem item)) return;
+            if (!isJakosc) { BrakUprawnien(); return; }
+
+            var (ok, przyczyna, akcje) = PokazDialogZaakceptowana(item);
+            if (!ok) return;
+
+            UstawStatusV2Workflow(item.Id, StatusyV2.ZASADNA,
+                decyzja: "Zasadna", notatka: null,
+                przyczynaGlowna: przyczyna, akcjeNaprawcze: akcje,
+                ustawDataAnalizy: true);
+
+            WczytajReklamacje();
+            WczytajStatystyki();
+        }
+
+        // ODRZUCONA - jedno pole: powod odrzucenia
+        private void BtnNiezasadna_Click(object sender, RoutedEventArgs e)
+        {
+            if (!(dgReklamacje.SelectedItem is ReklamacjaItem item)) return;
+            if (!isJakosc) { BrakUprawnien(); return; }
+
+            var (ok, powod) = PokazDialogOdrzucona(item);
+            if (!ok) return;
+
+            UstawStatusV2Workflow(item.Id, StatusyV2.ODRZUCONA,
+                decyzja: "Niezasadna", notatka: powod,
+                przyczynaGlowna: null, akcjeNaprawcze: null,
+                ustawDataAnalizy: true);
+
+            WczytajReklamacje();
+            WczytajStatystyki();
+        }
+
+        // ZAMKNIJ - bez dialogu
+        private void BtnZamknij_Click(object sender, RoutedEventArgs e)
+        {
+            if (!(dgReklamacje.SelectedItem is ReklamacjaItem item)) return;
+            if (!isJakosc) { BrakUprawnien(); return; }
+
+            if (MessageBox.Show($"Zamknac reklamacje #{item.Id}?\n\nStatus zostanie zmieniony na ZAMKNIETA.",
+                "Potwierdzenie", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+
+            UstawStatusV2Workflow(item.Id, StatusyV2.ZAMKNIETA,
+                decyzja: null, notatka: null,
+                przyczynaGlowna: null, akcjeNaprawcze: null,
+                ustawDataAnalizy: false);
+
+            WczytajReklamacje();
+            WczytajStatystyki();
+        }
+
+        private void BrakUprawnien()
+        {
+            MessageBox.Show("Brak uprawnien. Ta operacja jest dostepna tylko dla dzialu jakosci.",
+                "Brak uprawnien", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+
+        private void UstawStatusV2Workflow(int idReklamacji, string nowyStatusV2,
+            string decyzja, string notatka,
+            string przyczynaGlowna, string akcjeNaprawcze,
+            bool ustawDataAnalizy)
+        {
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    using (var cmd = new SqlCommand(@"
+                        UPDATE [dbo].[Reklamacje]
+                        SET StatusV2 = @StatusV2,
+                            Status = CASE @StatusV2
+                                WHEN 'ZGLOSZONA' THEN 'Nowa'
+                                WHEN 'W_ANALIZIE' THEN 'W analizie'
+                                WHEN 'ZASADNA' THEN 'Zaakceptowana'
+                                WHEN 'POWIAZANA' THEN 'Zaakceptowana'
+                                WHEN 'ZAMKNIETA' THEN 'Zamknieta'
+                                WHEN 'ODRZUCONA' THEN 'Odrzucona'
+                                ELSE Status
+                            END,
+                            DecyzjaJakosci = COALESCE(@Decyzja, DecyzjaJakosci),
+                            NotatkaJakosci = CASE
+                                WHEN @Notatka IS NOT NULL AND LEN(@Notatka) > 0
+                                THEN ISNULL(NotatkaJakosci + CHAR(13) + CHAR(10), '') + @Stempel + @Notatka
+                                ELSE NotatkaJakosci
+                            END,
+                            PrzyczynaGlowna = COALESCE(@PrzyczynaGlowna, PrzyczynaGlowna),
+                            AkcjeNaprawcze = COALESCE(@AkcjeNaprawcze, AkcjeNaprawcze),
+                            DataAnalizy = CASE WHEN @UstawDataAnalizy = 1 AND DataAnalizy IS NULL THEN GETDATE() ELSE DataAnalizy END,
+                            UserAnalizy = CASE WHEN @UstawDataAnalizy = 1 AND UserAnalizy IS NULL THEN @User ELSE UserAnalizy END,
+                            WymagaUzupelnienia = CASE WHEN @StatusV2 IN ('W_ANALIZIE','ZASADNA','POWIAZANA','ZAMKNIETA','ODRZUCONA') THEN 0 ELSE WymagaUzupelnienia END
+                        WHERE Id = @Id;", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Id", idReklamacji);
+                        cmd.Parameters.AddWithValue("@StatusV2", nowyStatusV2);
+                        cmd.Parameters.AddWithValue("@Decyzja", (object)decyzja ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@Notatka", (object)notatka ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@PrzyczynaGlowna", (object)przyczynaGlowna ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@AkcjeNaprawcze", (object)akcjeNaprawcze ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@Stempel", $"[{DateTime.Now:yyyy-MM-dd HH:mm} {userId}] ");
+                        cmd.Parameters.AddWithValue("@UstawDataAnalizy", ustawDataAnalizy ? 1 : 0);
+                        cmd.Parameters.AddWithValue("@User", userId ?? "");
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                FriendlyError.Pokaz(ex, "Nie udalo sie zmienic statusu reklamacji.", this);
+            }
+        }
+
+        // ========================================
+        // DIALOG: ZAAKCEPTOWANA (przyczyna + akcje naprawcze)
+        // ========================================
+        private (bool ok, string przyczyna, string akcje) PokazDialogZaakceptowana(ReklamacjaItem item)
+        {
+            var dialog = new Window
+            {
+                Title = "Akceptacja reklamacji jako zasadna",
+                Width = 680, Height = 620,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                ResizeMode = ResizeMode.NoResize,
+                Background = Brushes.White,
+                FontFamily = new FontFamily("Segoe UI")
+            };
+            WindowIconHelper.SetIcon(dialog);
+
+            var root = new Grid();
+            root.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto });
+            root.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            root.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto });
+
+            // Header zielony
+            var hdr = new Border
+            {
+                Padding = new Thickness(26, 18, 26, 18),
+                Background = new LinearGradientBrush(
+                    (Color)ColorConverter.ConvertFromString("#27AE60"),
+                    (Color)ColorConverter.ConvertFromString("#229954"),
+                    new System.Windows.Point(0, 0), new System.Windows.Point(1, 0))
+            };
+            var hdrStack = new StackPanel();
+            hdrStack.Children.Add(new TextBlock
+            {
+                Text = "REKLAMACJA ZASADNA",
+                FontSize = 17, FontWeight = FontWeights.Bold, Foreground = Brushes.White
+            });
+            hdrStack.Children.Add(new TextBlock
+            {
+                Text = $"#{item.Id}   |   {item.NumerDokumentu}   |   {item.NazwaKontrahenta}",
+                FontSize = 12,
+                Foreground = new SolidColorBrush(Color.FromArgb(220, 255, 255, 255)),
+                Margin = new Thickness(0, 4, 0, 0)
+            });
+            hdr.Child = hdrStack;
+            Grid.SetRow(hdr, 0);
+            root.Children.Add(hdr);
+
+            // Body
+            var body = new StackPanel { Margin = new Thickness(26, 20, 26, 14) };
+
+            TextBlock L(string text, string kolor = "#27AE60") => new TextBlock
+            {
+                Text = text,
+                FontSize = 11.5, FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(kolor)),
+                Margin = new Thickness(0, 0, 0, 6)
+            };
+
+            body.Children.Add(L("PRZYCZYNA GLOWNA *"));
+            body.Children.Add(new TextBlock
+            {
+                Text = "Co bylo przyczyna problemu? (np. uszkodzona partia, bled pracownika, awaria urzadzenia)",
+                FontSize = 10.5, FontStyle = FontStyles.Italic,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#95A5A6")),
+                Margin = new Thickness(0, 0, 0, 6),
+                TextWrapping = TextWrapping.Wrap
+            });
+            var txtPrzyczyna = new TextBox
+            {
+                FontSize = 13,
+                Padding = new Thickness(12, 10, 12, 10),
+                AcceptsReturn = true,
+                TextWrapping = TextWrapping.Wrap,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                MinHeight = 90,
+                BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#A5D6A7")),
+                BorderThickness = new Thickness(1.5),
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F8FFF8")),
+                Margin = new Thickness(0, 0, 0, 18)
+            };
+            body.Children.Add(txtPrzyczyna);
+
+            body.Children.Add(L("AKCJE NAPRAWCZE *"));
+            body.Children.Add(new TextBlock
+            {
+                Text = "Co robimy aby naprawic sytuacje? (np. zwrot towaru, korekta faktury, wymiana partii, zmiana procedury)",
+                FontSize = 10.5, FontStyle = FontStyles.Italic,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#95A5A6")),
+                Margin = new Thickness(0, 0, 0, 6),
+                TextWrapping = TextWrapping.Wrap
+            });
+            var txtAkcje = new TextBox
+            {
+                FontSize = 13,
+                Padding = new Thickness(12, 10, 12, 10),
+                AcceptsReturn = true,
+                TextWrapping = TextWrapping.Wrap,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                MinHeight = 90,
+                BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#A5D6A7")),
+                BorderThickness = new Thickness(1.5),
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F8FFF8"))
+            };
+            body.Children.Add(txtAkcje);
+
+            Grid.SetRow(body, 1);
+            root.Children.Add(body);
+
+            // Footer
+            var footer = new Border
+            {
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F8F9FA")),
+                Padding = new Thickness(26, 14, 26, 14),
+                BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E5E8EB")),
+                BorderThickness = new Thickness(0, 1, 0, 0)
+            };
+            var footerStack = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+            var btnAnuluj = new Button
+            {
+                Content = "Anuluj",
+                Padding = new Thickness(22, 10, 22, 10),
+                FontSize = 12.5,
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#ECF0F1")),
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#7F8C8D")),
+                BorderThickness = new Thickness(0),
+                Cursor = Cursors.Hand,
+                Margin = new Thickness(0, 0, 10, 0),
+                IsCancel = true
+            };
+            var btnOk = new Button
+            {
+                Content = "Potwierdz akceptacje",
+                Padding = new Thickness(26, 10, 26, 10),
+                FontSize = 12.5, FontWeight = FontWeights.Bold,
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#27AE60")),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Cursor = Cursors.Hand,
+                IsDefault = true
+            };
+            footerStack.Children.Add(btnAnuluj);
+            footerStack.Children.Add(btnOk);
+            footer.Child = footerStack;
+            Grid.SetRow(footer, 2);
+            root.Children.Add(footer);
+
+            dialog.Content = root;
+
+            bool wynik = false;
+            btnAnuluj.Click += (s, ev) => { wynik = false; dialog.Close(); };
+            btnOk.Click += (s, ev) =>
+            {
+                if (string.IsNullOrWhiteSpace(txtPrzyczyna.Text))
+                {
+                    MessageBox.Show("Podaj przyczyne glowna.", "Brak danych", MessageBoxButton.OK, MessageBoxImage.Information);
+                    txtPrzyczyna.Focus();
+                    return;
+                }
+                if (string.IsNullOrWhiteSpace(txtAkcje.Text))
+                {
+                    MessageBox.Show("Podaj akcje naprawcze.", "Brak danych", MessageBoxButton.OK, MessageBoxImage.Information);
+                    txtAkcje.Focus();
+                    return;
+                }
+                wynik = true;
+                dialog.Close();
+            };
+
+            dialog.Loaded += (s, ev) => txtPrzyczyna.Focus();
+            dialog.ShowDialog();
+
+            return (wynik, txtPrzyczyna.Text?.Trim() ?? "", txtAkcje.Text?.Trim() ?? "");
+        }
+
+        // ========================================
+        // DIALOG: ODRZUCONA (powod odrzucenia)
+        // ========================================
+        private (bool ok, string powod) PokazDialogOdrzucona(ReklamacjaItem item)
+        {
+            var dialog = new Window
+            {
+                Title = "Odrzucenie reklamacji",
+                Width = 620, Height = 480,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                ResizeMode = ResizeMode.NoResize,
+                Background = Brushes.White,
+                FontFamily = new FontFamily("Segoe UI")
+            };
+            WindowIconHelper.SetIcon(dialog);
+
+            var root = new Grid();
+            root.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto });
+            root.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            root.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto });
+
+            // Header czerwony
+            var hdr = new Border
+            {
+                Padding = new Thickness(26, 18, 26, 18),
+                Background = new LinearGradientBrush(
+                    (Color)ColorConverter.ConvertFromString("#E74C3C"),
+                    (Color)ColorConverter.ConvertFromString("#C0392B"),
+                    new System.Windows.Point(0, 0), new System.Windows.Point(1, 0))
+            };
+            var hdrStack = new StackPanel();
+            hdrStack.Children.Add(new TextBlock
+            {
+                Text = "REKLAMACJA ODRZUCONA",
+                FontSize = 17, FontWeight = FontWeights.Bold, Foreground = Brushes.White
+            });
+            hdrStack.Children.Add(new TextBlock
+            {
+                Text = $"#{item.Id}   |   {item.NumerDokumentu}   |   {item.NazwaKontrahenta}",
+                FontSize = 12,
+                Foreground = new SolidColorBrush(Color.FromArgb(220, 255, 255, 255)),
+                Margin = new Thickness(0, 4, 0, 0)
+            });
+            hdr.Child = hdrStack;
+            Grid.SetRow(hdr, 0);
+            root.Children.Add(hdr);
+
+            // Body
+            var body = new StackPanel { Margin = new Thickness(26, 20, 26, 14) };
+            body.Children.Add(new TextBlock
+            {
+                Text = "POWOD ODRZUCENIA *",
+                FontSize = 11.5, FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#C0392B")),
+                Margin = new Thickness(0, 0, 0, 6)
+            });
+            body.Children.Add(new TextBlock
+            {
+                Text = "Dlaczego reklamacja jest odrzucana? (np. brak dowodu, niewlasciwy typ problemu, minimal nie spelnia kryteriow)",
+                FontSize = 10.5, FontStyle = FontStyles.Italic,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#95A5A6")),
+                Margin = new Thickness(0, 0, 0, 6),
+                TextWrapping = TextWrapping.Wrap
+            });
+            var txtPowod = new TextBox
+            {
+                FontSize = 13,
+                Padding = new Thickness(12, 10, 12, 10),
+                AcceptsReturn = true,
+                TextWrapping = TextWrapping.Wrap,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                MinHeight = 160,
+                BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F5B7B1")),
+                BorderThickness = new Thickness(1.5),
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFF8F7"))
+            };
+            body.Children.Add(txtPowod);
+            Grid.SetRow(body, 1);
+            root.Children.Add(body);
+
+            // Footer
+            var footer = new Border
+            {
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F8F9FA")),
+                Padding = new Thickness(26, 14, 26, 14),
+                BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E5E8EB")),
+                BorderThickness = new Thickness(0, 1, 0, 0)
+            };
+            var footerStack = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+            var btnAnuluj = new Button
+            {
+                Content = "Anuluj",
+                Padding = new Thickness(22, 10, 22, 10),
+                FontSize = 12.5,
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#ECF0F1")),
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#7F8C8D")),
+                BorderThickness = new Thickness(0),
+                Cursor = Cursors.Hand,
+                Margin = new Thickness(0, 0, 10, 0),
+                IsCancel = true
+            };
+            var btnOk = new Button
+            {
+                Content = "Potwierdz odrzucenie",
+                Padding = new Thickness(26, 10, 26, 10),
+                FontSize = 12.5, FontWeight = FontWeights.Bold,
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E74C3C")),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Cursor = Cursors.Hand,
+                IsDefault = true
+            };
+            footerStack.Children.Add(btnAnuluj);
+            footerStack.Children.Add(btnOk);
+            footer.Child = footerStack;
+            Grid.SetRow(footer, 2);
+            root.Children.Add(footer);
+
+            dialog.Content = root;
+
+            bool wynik = false;
+            btnAnuluj.Click += (s, ev) => { wynik = false; dialog.Close(); };
+            btnOk.Click += (s, ev) =>
+            {
+                if (string.IsNullOrWhiteSpace(txtPowod.Text))
+                {
+                    MessageBox.Show("Podaj powod odrzucenia.", "Brak danych", MessageBoxButton.OK, MessageBoxImage.Information);
+                    txtPowod.Focus();
+                    return;
+                }
+                wynik = true;
+                dialog.Close();
+            };
+
+            dialog.Loaded += (s, ev) => txtPowod.Focus();
+            dialog.ShowDialog();
+
+            return (wynik, txtPowod.Text?.Trim() ?? "");
+        }
+
+        // Maly dialog z polem notatki, zwraca (ok, tekst)
         private void ZmienStatus(int idReklamacji, string nowyStatus)
         {
             try
@@ -543,18 +1378,34 @@ namespace Kalendarz1.Reklamacje
                                 poprzedniStatus = cmdGet.ExecuteScalar()?.ToString() ?? "";
                             }
 
+                            // Mapowanie Status -> StatusV2
+                            string nowyStatusV2 = nowyStatus switch
+                            {
+                                "Przyjeta" => StatusyV2.W_ANALIZIE,
+                                "Zaakceptowana" => StatusyV2.ZASADNA,
+                                "Odrzucona" => StatusyV2.ODRZUCONA,
+                                "Zamknieta" => StatusyV2.ZAMKNIETA,
+                                "Nowa" => StatusyV2.ZGLOSZONA,
+                                _ => StatusyV2.ZGLOSZONA
+                            };
+
                             // Aktualizuj reklamacje
                             string query = @"
                                 UPDATE [dbo].[Reklamacje]
                                 SET Status = @Status,
+                                    StatusV2 = @StatusV2,
                                     OsobaRozpatrujaca = @Osoba,
                                     DataModyfikacji = GETDATE(),
+                                    WymagaUzupelnienia = CASE WHEN @StatusV2 IN ('ZASADNA','ODRZUCONA','ZAMKNIETA') THEN 0 ELSE WymagaUzupelnienia END,
+                                    DataAnalizy = CASE WHEN DataAnalizy IS NULL THEN GETDATE() ELSE DataAnalizy END,
+                                    UserAnalizy = CASE WHEN UserAnalizy IS NULL THEN @Osoba ELSE UserAnalizy END,
                                     DataZamkniecia = CASE WHEN @Status = 'Zamknieta' THEN GETDATE() ELSE DataZamkniecia END
                                 WHERE Id = @Id";
 
                             using (SqlCommand cmd = new SqlCommand(query, conn, transaction))
                             {
                                 cmd.Parameters.AddWithValue("@Status", nowyStatus);
+                                cmd.Parameters.AddWithValue("@StatusV2", nowyStatusV2);
                                 cmd.Parameters.AddWithValue("@Osoba", userId);
                                 cmd.Parameters.AddWithValue("@Id", idReklamacji);
                                 cmd.ExecuteNonQuery();
@@ -658,6 +1509,74 @@ namespace Kalendarz1.Reklamacje
             return avatar;
         }
 
+        // Avatar handlowca — wzorzec z HandlowiecDashboardWindow
+        [System.Runtime.InteropServices.DllImport("gdi32.dll")]
+        private static extern bool DeleteObject(IntPtr hObject);
+
+        private ImageSource GetHandlowiecAvatar(string handlowiec)
+        {
+            if (string.IsNullOrEmpty(handlowiec) || handlowiec == "-") return null;
+            if (_handlowiecAvatarCache.TryGetValue(handlowiec, out var cached)) return cached;
+            if (_handlowiecMapowanie == null) return null;
+
+            ImageSource result = null;
+
+            // 1) Sprawdz mapowanie name -> UserID
+            if (_handlowiecMapowanie.TryGetValue(handlowiec, out var uid))
+            {
+                try
+                {
+                    // 2) Prawdziwy avatar z udzialu sieciowego
+                    if (UserAvatarManager.HasAvatar(uid))
+                    {
+                        using (var av = UserAvatarManager.GetAvatarRounded(uid, 64))
+                            if (av != null) result = BitmapToWpf(av);
+                    }
+                    // 3) Fallback: wygenerowany avatar z inicjalami (kolor wg uid)
+                    if (result == null)
+                    {
+                        using (var defAv = UserAvatarManager.GenerateDefaultAvatar(handlowiec, uid, 64))
+                            result = BitmapToWpf(defAv);
+                    }
+                }
+                catch { }
+            }
+
+            // 4) Brak w mapowaniu — generuj z samej nazwy
+            if (result == null)
+            {
+                try
+                {
+                    using (var defAv = UserAvatarManager.GenerateDefaultAvatar(handlowiec, handlowiec, 64))
+                        result = BitmapToWpf(defAv);
+                }
+                catch { }
+            }
+
+            if (result != null)
+                _handlowiecAvatarCache[handlowiec] = result;
+
+            return result;
+        }
+
+        private static ImageSource BitmapToWpf(System.Drawing.Image image)
+        {
+            if (image == null) return null;
+            using (var bmp = new System.Drawing.Bitmap(image))
+            {
+                var hBitmap = bmp.GetHbitmap();
+                try
+                {
+                    var source = System.Windows.Interop.Imaging.CreateBitmapSourceFromHBitmap(
+                        hBitmap, IntPtr.Zero, System.Windows.Int32Rect.Empty,
+                        BitmapSizeOptions.FromEmptyOptions());
+                    source.Freeze();
+                    return source;
+                }
+                finally { DeleteObject(hBitmap); }
+            }
+        }
+
         private bool CzyPrzejscieDozwolone(string obecnyStatus, string nowyStatus)
         {
             if (userId == "11111") return true; // Admin
@@ -669,47 +1588,576 @@ namespace Kalendarz1.Reklamacje
         {
             try
             {
-                var stats = new System.Text.StringBuilder();
-                stats.AppendLine("=== STATYSTYKI REKLAMACJI ===\n");
+                // Pobierz statystyki z bazy (nie tylko z aktualnie zaladowanych)
+                var statRows = new List<(string kontrahent, int ile, decimal kg, decimal wartosc, int zasadne, int odrzucone, double srDni)>();
+                int ogolneLaczna = 0, ogolneZasadne = 0, ogolneOdrzucone = 0;
+                decimal ogolneKg = 0;
+                double ogolneSrDni = 0;
 
-                // Statystyki ogolne
-                stats.AppendLine($"Liczba reklamacji: {reklamacje.Count}");
-                stats.AppendLine($"Suma kg: {reklamacje.Sum(r => r.SumaKg):N2} kg\n");
-
-                // Wg statusu
-                stats.AppendLine("--- WG STATUSU ---");
-                foreach (var group in reklamacje.GroupBy(r => r.Status).OrderByDescending(g => g.Count()))
+                using (var conn = new SqlConnection(connectionString))
                 {
-                    stats.AppendLine($"  {group.Key}: {group.Count()} ({group.Sum(r => r.SumaKg):N2} kg)");
+                    conn.Open();
+                    using (var cmd = new SqlCommand(@"
+                        SELECT
+                            NazwaKontrahenta,
+                            COUNT(*) AS Ile,
+                            SUM(ISNULL(SumaKg,0)) AS Kg,
+                            SUM(ISNULL(SumaWartosc,0)) AS Wartosc,
+                            SUM(CASE WHEN StatusV2 = 'ZASADNA' OR StatusV2 = 'POWIAZANA' OR StatusV2 = 'ZAMKNIETA' THEN 1 ELSE 0 END) AS Zasadne,
+                            SUM(CASE WHEN StatusV2 = 'ODRZUCONA' THEN 1 ELSE 0 END) AS Odrzucone,
+                            AVG(CAST(DATEDIFF(DAY, DataZgloszenia, ISNULL(DataAnalizy, GETDATE())) AS FLOAT)) AS SrDni
+                        FROM [dbo].[Reklamacje]
+                        WHERE TypReklamacji <> 'Faktura korygujaca'
+                        GROUP BY NazwaKontrahenta
+                        HAVING COUNT(*) >= 2
+                        ORDER BY COUNT(*) DESC", conn))
+                    using (var r = cmd.ExecuteReader())
+                    {
+                        while (r.Read())
+                        {
+                            statRows.Add((
+                                r.IsDBNull(0) ? "" : r.GetString(0),
+                                r.GetInt32(1),
+                                r.IsDBNull(2) ? 0m : Convert.ToDecimal(r.GetValue(2)),
+                                r.IsDBNull(3) ? 0m : Convert.ToDecimal(r.GetValue(3)),
+                                r.GetInt32(4),
+                                r.GetInt32(5),
+                                r.IsDBNull(6) ? 0 : r.GetDouble(6)
+                            ));
+                        }
+                    }
+
+                    using (var cmd = new SqlCommand(@"
+                        SELECT COUNT(*),
+                            SUM(CASE WHEN StatusV2 IN ('ZASADNA','POWIAZANA','ZAMKNIETA') THEN 1 ELSE 0 END),
+                            SUM(CASE WHEN StatusV2 = 'ODRZUCONA' THEN 1 ELSE 0 END),
+                            SUM(ISNULL(SumaKg,0)),
+                            AVG(CAST(DATEDIFF(DAY, DataZgloszenia, ISNULL(DataAnalizy, GETDATE())) AS FLOAT))
+                        FROM [dbo].[Reklamacje]
+                        WHERE TypReklamacji <> 'Faktura korygujaca'", conn))
+                    using (var r = cmd.ExecuteReader())
+                    {
+                        if (r.Read())
+                        {
+                            ogolneLaczna = r.GetInt32(0);
+                            ogolneZasadne = r.GetInt32(1);
+                            ogolneOdrzucone = r.GetInt32(2);
+                            ogolneKg = r.IsDBNull(3) ? 0m : Convert.ToDecimal(r.GetValue(3));
+                            ogolneSrDni = r.IsDBNull(4) ? 0 : r.GetDouble(4);
+                        }
+                    }
                 }
 
-                // Wg typu
-                stats.AppendLine("\n--- WG TYPU ---");
-                foreach (var group in reklamacje.GroupBy(r => r.TypReklamacji).OrderByDescending(g => g.Count()))
+                // Pokaz dialog statystyk
+                var dialog = new Window
                 {
-                    stats.AppendLine($"  {group.Key}: {group.Count()} ({group.Sum(r => r.SumaKg):N2} kg)");
-                }
+                    Title = "Statystyki reklamacji",
+                    Width = 1000, Height = 700,
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                    Owner = this,
+                    Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F4F6F8")),
+                    FontFamily = new FontFamily("Segoe UI")
+                };
+                WindowIconHelper.SetIcon(dialog);
 
-                // Wg priorytetu
-                stats.AppendLine("\n--- WG PRIORYTETU ---");
-                foreach (var group in reklamacje.GroupBy(r => r.Priorytet).OrderByDescending(g => g.Count()))
+                var root = new Grid();
+                root.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto });
+                root.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto });
+                root.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+
+                // Header
+                var hdr = new Border
                 {
-                    stats.AppendLine($"  {group.Key}: {group.Count()}");
-                }
+                    Padding = new Thickness(24, 18, 24, 18),
+                    Background = new LinearGradientBrush(
+                        (Color)ColorConverter.ConvertFromString("#9B59B6"),
+                        (Color)ColorConverter.ConvertFromString("#8E44AD"),
+                        new System.Windows.Point(0, 0), new System.Windows.Point(1, 0))
+                };
+                var hdrStack = new StackPanel();
+                hdrStack.Children.Add(new TextBlock { Text = "STATYSTYKI REKLAMACJI", FontSize = 18, FontWeight = FontWeights.Bold, Foreground = Brushes.White });
+                hdrStack.Children.Add(new TextBlock { Text = "Analiza wg kontrahentow — ranking problematycznych odbiorcow", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(200, 255, 255, 255)), Margin = new Thickness(0, 4, 0, 0) });
+                hdr.Child = hdrStack;
+                Grid.SetRow(hdr, 0);
+                root.Children.Add(hdr);
 
-                // Top kontrahenci
-                stats.AppendLine("\n--- TOP 5 KONTRAHENTOW ---");
-                int i = 1;
-                foreach (var group in reklamacje.GroupBy(r => r.NazwaKontrahenta).OrderByDescending(g => g.Count()).Take(5))
+                // Kafelki ogolne
+                var statsPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(20, 16, 20, 0) };
+                void DodajKafelek(string tytul, string wartosc, string kolor)
                 {
-                    stats.AppendLine($"  {i++}. {group.Key}: {group.Count()} reklamacji ({group.Sum(r => r.SumaKg):N2} kg)");
+                    var card = new Border
+                    {
+                        Background = Brushes.White,
+                        CornerRadius = new CornerRadius(10),
+                        Padding = new Thickness(20, 14, 20, 14),
+                        Margin = new Thickness(0, 0, 12, 0),
+                        MinWidth = 140,
+                        Effect = new System.Windows.Media.Effects.DropShadowEffect { ShadowDepth = 1, Opacity = 0.08, BlurRadius = 8 }
+                    };
+                    var sp = new StackPanel();
+                    sp.Children.Add(new TextBlock { Text = tytul, FontSize = 10, Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#7F8C8D")), FontWeight = FontWeights.SemiBold });
+                    sp.Children.Add(new TextBlock { Text = wartosc, FontSize = 22, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(kolor)), Margin = new Thickness(0, 4, 0, 0) });
+                    card.Child = sp;
+                    statsPanel.Children.Add(card);
                 }
+                DodajKafelek("LACZNIE", ogolneLaczna.ToString(), "#2C3E50");
+                DodajKafelek("ZASADNE", ogolneZasadne.ToString(), "#27AE60");
+                DodajKafelek("ODRZUCONE", ogolneOdrzucone.ToString(), "#E74C3C");
+                double pctZasadne = ogolneLaczna > 0 ? (double)ogolneZasadne / ogolneLaczna * 100 : 0;
+                DodajKafelek("% ZASADNYCH", $"{pctZasadne:F0}%", "#8E44AD");
+                DodajKafelek("SR. CZAS (dni)", $"{ogolneSrDni:F1}", "#F39C12");
+                DodajKafelek("SUMA KG", $"{ogolneKg:#,##0}", "#3498DB");
+                Grid.SetRow(statsPanel, 1);
+                root.Children.Add(statsPanel);
 
-                MessageBox.Show(stats.ToString(), "Statystyki reklamacji", MessageBoxButton.OK, MessageBoxImage.Information);
+                // DataGrid ranking
+                var dgStats = new DataGrid
+                {
+                    AutoGenerateColumns = false,
+                    IsReadOnly = true,
+                    HeadersVisibility = DataGridHeadersVisibility.Column,
+                    GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
+                    HorizontalGridLinesBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F0F0F0")),
+                    BorderThickness = new Thickness(0),
+                    RowHeight = 36,
+                    FontSize = 12,
+                    Background = Brushes.White,
+                    RowBackground = Brushes.White,
+                    AlternatingRowBackground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FAFBFC")),
+                    Margin = new Thickness(20, 14, 20, 20),
+                    ItemsSource = statRows.Select((s, idx) => new { Lp = idx + 1, s.kontrahent, s.ile, s.kg, s.wartosc, s.zasadne, s.odrzucone, s.srDni }).ToList()
+                };
+                dgStats.Columns.Add(new DataGridTextColumn { Header = "#", Binding = new System.Windows.Data.Binding("Lp"), Width = new DataGridLength(40) });
+                dgStats.Columns.Add(new DataGridTextColumn { Header = "KONTRAHENT", Binding = new System.Windows.Data.Binding("kontrahent"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                dgStats.Columns.Add(new DataGridTextColumn { Header = "REKLAMACJI", Binding = new System.Windows.Data.Binding("ile"), Width = new DataGridLength(100) });
+                dgStats.Columns.Add(new DataGridTextColumn { Header = "KG", Binding = new System.Windows.Data.Binding("kg") { StringFormat = "#,##0.00" }, Width = new DataGridLength(100) });
+                dgStats.Columns.Add(new DataGridTextColumn { Header = "WARTOSC", Binding = new System.Windows.Data.Binding("wartosc") { StringFormat = "#,##0.00 zl" }, Width = new DataGridLength(120) });
+                dgStats.Columns.Add(new DataGridTextColumn { Header = "ZASADNE", Binding = new System.Windows.Data.Binding("zasadne"), Width = new DataGridLength(80) });
+                dgStats.Columns.Add(new DataGridTextColumn { Header = "ODRZUCONE", Binding = new System.Windows.Data.Binding("odrzucone"), Width = new DataGridLength(90) });
+                dgStats.Columns.Add(new DataGridTextColumn { Header = "SR. DNI", Binding = new System.Windows.Data.Binding("srDni") { StringFormat = "F1" }, Width = new DataGridLength(80) });
+                Grid.SetRow(dgStats, 2);
+                root.Children.Add(dgStats);
+
+                dialog.Content = root;
+                dialog.ShowDialog();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Blad: {ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
+                FriendlyError.Pokaz(ex, "Nie udalo sie wygenerowac statystyk.", this);
+            }
+        }
+
+        // ========================================
+        // POWIAZYWANIE REKLAMACJI
+        // ========================================
+
+        private void BtnPowiaz_Click(object sender, RoutedEventArgs e)
+        {
+            if (!(dgReklamacje.SelectedItem is ReklamacjaItem item)) return;
+
+            // Jesli juz powiazana - pytaj czy odlaczyc
+            if (item.MaPowiazanie)
+            {
+                var wynik = MessageBox.Show(
+                    $"Reklamacja #{item.Id} jest powiazana z #{item.PowiazanaReklamacjaId}.\n\nCzy chcesz odlaczyc powiazanie?",
+                    "Powiazanie", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                if (wynik == MessageBoxResult.Yes)
+                {
+                    OdlaczPowiazanie(item.Id, item.PowiazanaReklamacjaId.Value);
+                    WczytajReklamacje();
+                }
+                return;
+            }
+
+            // Okresl typ przeciwny
+            bool jestKorekta = item.TypReklamacji == "Faktura korygujaca";
+            string szukanyTyp = jestKorekta ? "Faktura korygujaca" : "Faktura korygujaca";
+            string tytulOkna = jestKorekta
+                ? $"Powiaz korekter #{item.Id} z reklamacja handlowca"
+                : $"Powiaz reklamacje #{item.Id} z korekta z Symfonii";
+
+            // Pobierz niepowiazane reklamacje przeciwnego typu
+            var kandydaci = new List<ReklamacjaItem>();
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    string query = jestKorekta
+                        ? @"SELECT Id, DataZgloszenia, NumerDokumentu, NazwaKontrahenta, ISNULL(Opis,'') AS Opis,
+                                   ISNULL(SumaKg,0) AS SumaKg, ISNULL(TypReklamacji,'Inne') AS TypReklamacji
+                            FROM [dbo].[Reklamacje]
+                            WHERE TypReklamacji <> 'Faktura korygujaca'
+                              AND (PowiazanaReklamacjaId IS NULL OR PowiazanaReklamacjaId = 0)
+                            ORDER BY DataZgloszenia DESC"
+                        : @"SELECT Id, DataZgloszenia, NumerDokumentu, NazwaKontrahenta, ISNULL(Opis,'') AS Opis,
+                                   ISNULL(SumaKg,0) AS SumaKg, ISNULL(TypReklamacji,'Inne') AS TypReklamacji
+                            FROM [dbo].[Reklamacje]
+                            WHERE TypReklamacji = 'Faktura korygujaca'
+                              AND (PowiazanaReklamacjaId IS NULL OR PowiazanaReklamacjaId = 0)
+                            ORDER BY DataZgloszenia DESC";
+
+                    using (var cmd = new SqlCommand(query, conn))
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            kandydaci.Add(new ReklamacjaItem
+                            {
+                                Id = reader.GetInt32(0),
+                                DataZgloszenia = reader.IsDBNull(1) ? DateTime.MinValue : reader.GetDateTime(1),
+                                NumerDokumentu = reader.IsDBNull(2) ? "" : reader.GetString(2),
+                                NazwaKontrahenta = reader.IsDBNull(3) ? "" : reader.GetString(3),
+                                Opis = reader.IsDBNull(4) ? "" : reader.GetString(4),
+                                SumaKg = reader.IsDBNull(5) ? 0 : reader.GetDecimal(5),
+                                TypReklamacji = reader.IsDBNull(6) ? "" : reader.GetString(6)
+                            });
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                FriendlyError.Pokaz(ex, "Nie udalo sie pobrac kandydatow do powiazania.", this);
+                return;
+            }
+
+            if (kandydaci.Count == 0)
+            {
+                MessageBox.Show(
+                    jestKorekta
+                        ? "Nie ma niepowiazanych reklamacji od handlowcow."
+                        : "Nie ma niepowiazanych korekt z Symfonii.",
+                    "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            // Przygotuj fraze wstepna - pierwsze 7 znakow nazwy kontrahenta
+            string frazaWstepna = "";
+            if (!string.IsNullOrEmpty(item.NazwaKontrahenta))
+                frazaWstepna = item.NazwaKontrahenta.Length > 7
+                    ? item.NazwaKontrahenta.Substring(0, 7)
+                    : item.NazwaKontrahenta;
+
+            // Dialog wyboru
+            var dialog = new Window
+            {
+                Title = tytulOkna,
+                Width = 950,
+                Height = 620,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F5F6FA")),
+                FontFamily = new FontFamily("Segoe UI")
+            };
+            WindowIconHelper.SetIcon(dialog);
+
+            var mainGrid = new Grid();
+            mainGrid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto });
+            mainGrid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto });
+            mainGrid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            mainGrid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto });
+
+            // === ROW 0: Header z info o biezacej reklamacji ===
+            var headerBorder = new Border
+            {
+                Padding = new Thickness(20, 14, 20, 14)
+            };
+            headerBorder.Background = new LinearGradientBrush(
+                (Color)ColorConverter.ConvertFromString("#8E44AD"),
+                (Color)ColorConverter.ConvertFromString("#9B59B6"),
+                0);
+            var headerGrid = new Grid();
+            headerGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            headerGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
+
+            var headerLeft = new StackPanel();
+            headerLeft.Children.Add(new TextBlock
+            {
+                Text = jestKorekta ? "POWIAZ KOREKTER Z REKLAMACJA HANDLOWCA" : "POWIAZ REKLAMACJE Z KOREKTA Z SYMFONII",
+                FontSize = 14, FontWeight = FontWeights.Bold, Foreground = Brushes.White
+            });
+            var subInfo = new TextBlock { FontSize = 11.5, Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#D7BDE2")), Margin = new Thickness(0, 4, 0, 0) };
+            subInfo.Inlines.Add(new System.Windows.Documents.Run($"#{item.Id}") { FontWeight = FontWeights.Bold, Foreground = Brushes.White });
+            subInfo.Inlines.Add(new System.Windows.Documents.Run($"  |  {item.NumerDokumentu}  |  {item.NazwaKontrahenta}  |  {item.SumaKg:#,##0.00} kg  |  {item.DataZgloszenia:dd.MM.yyyy}"));
+            headerLeft.Children.Add(subInfo);
+            Grid.SetColumn(headerLeft, 0);
+            headerGrid.Children.Add(headerLeft);
+
+            var headerRight = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            var badgeTyp = new Border
+            {
+                Background = new SolidColorBrush(Color.FromArgb(60, 255, 255, 255)),
+                CornerRadius = new CornerRadius(12),
+                Padding = new Thickness(12, 4, 12, 4)
+            };
+            badgeTyp.Child = new TextBlock
+            {
+                Text = item.TypReklamacji,
+                Foreground = Brushes.White,
+                FontWeight = FontWeights.SemiBold,
+                FontSize = 11
+            };
+            headerRight.Children.Add(badgeTyp);
+            Grid.SetColumn(headerRight, 1);
+            headerGrid.Children.Add(headerRight);
+
+            headerBorder.Child = headerGrid;
+            Grid.SetRow(headerBorder, 0);
+            mainGrid.Children.Add(headerBorder);
+
+            // === ROW 1: Filtr + licznik ===
+            var filterBorder = new Border
+            {
+                Background = Brushes.White,
+                Padding = new Thickness(20, 10, 20, 10),
+                BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E8E8E8")),
+                BorderThickness = new Thickness(0, 0, 0, 1)
+            };
+            var filterGrid = new Grid();
+            filterGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
+            filterGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            filterGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
+            filterGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
+
+            filterGrid.Children.Add(new TextBlock
+            {
+                Text = "Szukaj:",
+                FontSize = 11,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#7F8C8D")),
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 8, 0)
+            });
+
+            var txtFiltr = new TextBox
+            {
+                Text = frazaWstepna,
+                FontSize = 12,
+                Padding = new Thickness(10, 6, 10, 6),
+                MinWidth = 250,
+                BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#BDC3C7")),
+                BorderThickness = new Thickness(1),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(txtFiltr, 1);
+            filterGrid.Children.Add(txtFiltr);
+
+            var btnWyczysc = new Button
+            {
+                Content = "Wyczysc",
+                Padding = new Thickness(10, 6, 10, 6),
+                FontSize = 11,
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#ECF0F1")),
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#7F8C8D")),
+                BorderThickness = new Thickness(0),
+                Cursor = Cursors.Hand,
+                Margin = new Thickness(8, 0, 0, 0),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(btnWyczysc, 2);
+            filterGrid.Children.Add(btnWyczysc);
+
+            var txtLicznik = new TextBlock
+            {
+                FontSize = 11,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#7F8C8D")),
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(16, 0, 0, 0)
+            };
+            Grid.SetColumn(txtLicznik, 3);
+            filterGrid.Children.Add(txtLicznik);
+
+            filterBorder.Child = filterGrid;
+            Grid.SetRow(filterBorder, 1);
+            mainGrid.Children.Add(filterBorder);
+
+            // === ROW 2: DataGrid ===
+            var dgKandydaci = new DataGrid
+            {
+                AutoGenerateColumns = false,
+                IsReadOnly = true,
+                SelectionMode = DataGridSelectionMode.Single,
+                HeadersVisibility = DataGridHeadersVisibility.Column,
+                GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
+                HorizontalGridLinesBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F0F0F0")),
+                BorderThickness = new Thickness(0),
+                RowHeight = 32,
+                FontSize = 11.5,
+                Margin = new Thickness(16, 8, 16, 0),
+                Background = Brushes.White,
+                RowBackground = Brushes.White,
+                AlternatingRowBackground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FAFBFC"))
+            };
+            dgKandydaci.Columns.Add(new DataGridTextColumn { Header = "ID", Binding = new System.Windows.Data.Binding("Id"), Width = new DataGridLength(50) });
+            dgKandydaci.Columns.Add(new DataGridTextColumn { Header = "Data", Binding = new System.Windows.Data.Binding("DataZgloszenia") { StringFormat = "dd.MM.yyyy" }, Width = new DataGridLength(90) });
+            dgKandydaci.Columns.Add(new DataGridTextColumn { Header = "Nr dokumentu", Binding = new System.Windows.Data.Binding("NumerDokumentu"), Width = new DataGridLength(140) });
+            dgKandydaci.Columns.Add(new DataGridTextColumn { Header = "Kontrahent", Binding = new System.Windows.Data.Binding("NazwaKontrahenta"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+            dgKandydaci.Columns.Add(new DataGridTextColumn { Header = "Kg", Binding = new System.Windows.Data.Binding("SumaKg") { StringFormat = "#,##0.00" }, Width = new DataGridLength(90) });
+            dgKandydaci.Columns.Add(new DataGridTextColumn { Header = "Typ", Binding = new System.Windows.Data.Binding("TypReklamacji"), Width = new DataGridLength(130) });
+            dgKandydaci.Columns.Add(new DataGridTextColumn { Header = "Opis", Binding = new System.Windows.Data.Binding("Opis"), Width = new DataGridLength(200) });
+            Grid.SetRow(dgKandydaci, 2);
+            mainGrid.Children.Add(dgKandydaci);
+
+            // Filtrowanie
+            var wszystkieKandydaci = new List<ReklamacjaItem>(kandydaci);
+
+            Action filtruj = () =>
+            {
+                string fraza = txtFiltr.Text.Trim().ToLower();
+                var przefiltrowane = string.IsNullOrEmpty(fraza)
+                    ? wszystkieKandydaci
+                    : wszystkieKandydaci.Where(k =>
+                        (k.NazwaKontrahenta ?? "").ToLower().Contains(fraza) ||
+                        (k.NumerDokumentu ?? "").ToLower().Contains(fraza) ||
+                        (k.Opis ?? "").ToLower().Contains(fraza) ||
+                        k.Id.ToString().Contains(fraza)
+                    ).ToList();
+
+                dgKandydaci.ItemsSource = przefiltrowane;
+                txtLicznik.Text = $"{przefiltrowane.Count} / {wszystkieKandydaci.Count}";
+            };
+
+            // Debounce timer
+            var filterTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
+            filterTimer.Tick += (s2, e2) => { filterTimer.Stop(); filtruj(); };
+            txtFiltr.TextChanged += (s2, e2) => { filterTimer.Stop(); filterTimer.Start(); };
+            btnWyczysc.Click += (s2, e2) => { txtFiltr.Text = ""; filtruj(); };
+
+            // Zastosuj filtr wstepny
+            filtruj();
+
+            // === ROW 3: Stopka z przyciskami ===
+            var footerBorder = new Border
+            {
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F0F0F5")),
+                Padding = new Thickness(20, 10, 20, 10),
+                BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E0E0E0")),
+                BorderThickness = new Thickness(0, 1, 0, 0)
+            };
+            var footerGrid = new Grid();
+            footerGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            footerGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
+
+            var footerInfo = new TextBlock
+            {
+                Text = "Kliknij dwukrotnie wiersz lub wybierz i kliknij 'Powiaz'",
+                FontSize = 10.5,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#95A5A6")),
+                VerticalAlignment = VerticalAlignment.Center,
+                FontStyle = FontStyles.Italic
+            };
+            Grid.SetColumn(footerInfo, 0);
+            footerGrid.Children.Add(footerInfo);
+
+            var btnPanel = new StackPanel { Orientation = Orientation.Horizontal };
+
+            var btnPowiazAction = new Button
+            {
+                Content = "Powiaz wybrana",
+                Width = 140, Height = 36,
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#8E44AD")),
+                Foreground = Brushes.White, FontWeight = FontWeights.SemiBold, FontSize = 12,
+                BorderThickness = new Thickness(0), Cursor = Cursors.Hand,
+                Margin = new Thickness(0, 0, 8, 0)
+            };
+
+            Action wykonajPowiazanie = () =>
+            {
+                if (dgKandydaci.SelectedItem is ReklamacjaItem wybrany)
+                {
+                    UtworzPowiazanie(item.Id, wybrany.Id);
+                    dialog.Close();
+                    WczytajReklamacje();
+                    WczytajStatystyki();
+                }
+                else
+                {
+                    MessageBox.Show("Wybierz reklamacje z listy.", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+            };
+
+            btnPowiazAction.Click += (s, args) => wykonajPowiazanie();
+            btnPanel.Children.Add(btnPowiazAction);
+
+            // Double-click na wierszu tez powiazuje
+            dgKandydaci.MouseDoubleClick += (s, args) =>
+            {
+                if (dgKandydaci.SelectedItem != null) wykonajPowiazanie();
+            };
+
+            var btnAnuluj = new Button
+            {
+                Content = "Anuluj",
+                Width = 80, Height = 36,
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#95A5A6")),
+                Foreground = Brushes.White, FontWeight = FontWeights.SemiBold, FontSize = 12,
+                BorderThickness = new Thickness(0), Cursor = Cursors.Hand
+            };
+            btnAnuluj.Click += (s, args) => dialog.Close();
+            btnPanel.Children.Add(btnAnuluj);
+
+            Grid.SetColumn(btnPanel, 1);
+            footerGrid.Children.Add(btnPanel);
+            footerBorder.Child = footerGrid;
+            Grid.SetRow(footerBorder, 3);
+            mainGrid.Children.Add(footerBorder);
+
+            dialog.Content = mainGrid;
+
+            // Focus na pole szukania po otwarciu
+            dialog.ContentRendered += (s, args) =>
+            {
+                txtFiltr.Focus();
+                txtFiltr.SelectAll();
+            };
+
+            dialog.ShowDialog();
+        }
+
+        private void UtworzPowiazanie(int id1, int id2)
+        {
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    // Powiaz obustronie
+                    using (var cmd = new SqlCommand(@"
+                        UPDATE [dbo].[Reklamacje] SET PowiazanaReklamacjaId = @Id2 WHERE Id = @Id1;
+                        UPDATE [dbo].[Reklamacje] SET PowiazanaReklamacjaId = @Id1 WHERE Id = @Id2;", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Id1", id1);
+                        cmd.Parameters.AddWithValue("@Id2", id2);
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Blad powiazywania:\n{ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void OdlaczPowiazanie(int id1, int id2)
+        {
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    using (var cmd = new SqlCommand(@"
+                        UPDATE [dbo].[Reklamacje] SET PowiazanaReklamacjaId = NULL WHERE Id = @Id1;
+                        UPDATE [dbo].[Reklamacje] SET PowiazanaReklamacjaId = NULL WHERE Id = @Id2;", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Id1", id1);
+                        cmd.Parameters.AddWithValue("@Id2", id2);
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Blad odlaczania:\n{ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -719,16 +2167,324 @@ namespace Kalendarz1.Reklamacje
 
         private void BtnUzupelnij_Click(object sender, RoutedEventArgs e)
         {
-            if (dgReklamacje.SelectedItem is ReklamacjaItem item)
+            if (!(dgReklamacje.SelectedItem is ReklamacjaItem item)) return;
+
+            // Korekta z Symfonii — otwieramy picker faktur bazowych jak "Nowa reklamacja"
+            if (item.TypReklamacji == "Faktura korygujaca" || item.WymagaUzupelnienia)
             {
-                var window = new UzupelnijReklamacjeWindow(connectionString, item.Id, userId);
-                window.Owner = this;
-                if (window.ShowDialog() == true)
+                UzupelnijKorektePickerem(item);
+                return;
+            }
+
+            // Zwykla reklamacja — stare okno uzupelniania
+            var window = new UzupelnijReklamacjeWindow(connectionString, item.Id, userId);
+            window.Owner = this;
+            if (window.ShowDialog() == true)
+            {
+                WczytajReklamacje();
+                WczytajStatystyki();
+            }
+        }
+
+        // Uzupelnienie korekty — picker faktur bazowych kontrahenta
+        private void UzupelnijKorektePickerem(ReklamacjaItem korekta)
+        {
+            // Pobierz khid kontrahenta z reklamacji
+            int khid = 0;
+            string kontrahentNazwa = korekta.NazwaKontrahenta;
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
                 {
+                    conn.Open();
+                    using (var cmd = new SqlCommand("SELECT IdKontrahenta FROM [dbo].[Reklamacje] WHERE Id = @Id", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Id", korekta.Id);
+                        var result = cmd.ExecuteScalar();
+                        if (result != null && result != DBNull.Value) khid = Convert.ToInt32(result);
+                    }
+                }
+            }
+            catch { }
+
+            if (khid == 0)
+            {
+                MessageBox.Show("Nie mozna pobrac danych kontrahenta dla tej korekty.", "Blad", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            // Pobierz faktury bazowe tego kontrahenta z HANDEL
+            var faktury = new List<FakturaSprzedazyItem>();
+            try
+            {
+                using (var connH = new SqlConnection(HandelConnString))
+                {
+                    connH.Open();
+                    using (var cmd = new SqlCommand(@"
+                        SELECT TOP 50
+                               DK.id, DK.kod, DK.data,
+                               ABS(ISNULL(DK.walNetto, 0)) AS Wartosc,
+                               ABS(ISNULL((SELECT SUM(DP.ilosc) FROM [HANDEL].[HM].[DP] DP WHERE DP.super = DK.id), 0)) AS SumaKg,
+                               ISNULL(WYM.CDim_Handlowiec_Val, '-') AS Handlowiec
+                        FROM [HANDEL].[HM].[DK] DK
+                        LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
+                        WHERE DK.khid = @Khid
+                          AND DK.seria NOT IN ('sFKS', 'sFKSB', 'sFWK')
+                          AND DK.anulowany = 0
+                        ORDER BY DK.data DESC, DK.id DESC", connH))
+                    {
+                        cmd.Parameters.AddWithValue("@Khid", khid);
+                        using (var r = cmd.ExecuteReader())
+                        {
+                            while (r.Read())
+                            {
+                                var data = r.GetDateTime(2);
+                                int dniTemu = (int)Math.Floor((DateTime.Today - data.Date).TotalDays);
+                                faktury.Add(new FakturaSprzedazyItem
+                                {
+                                    Id = r.GetInt32(0),
+                                    NumerDokumentu = r.IsDBNull(1) ? "" : r.GetString(1),
+                                    Data = data,
+                                    IdKontrahenta = khid,
+                                    NazwaKontrahenta = kontrahentNazwa,
+                                    Wartosc = r.IsDBNull(3) ? 0m : Convert.ToDecimal(r.GetValue(3)),
+                                    SumaKg = r.IsDBNull(4) ? 0m : Convert.ToDecimal(r.GetValue(4)),
+                                    Handlowiec = r.IsDBNull(5) ? "-" : r.GetString(5),
+                                    DniTemu = dniTemu,
+                                    EtykietaCzasu = dniTemu == 0 ? "DZIS" : dniTemu == 1 ? "WCZORAJ" : $"{dniTemu} dni"
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                FriendlyError.Pokaz(ex, "Nie udalo sie pobrac faktur kontrahenta.", this);
+                return;
+            }
+
+            if (faktury.Count == 0)
+            {
+                MessageBox.Show($"Brak faktur sprzedazy dla kontrahenta {kontrahentNazwa}.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            // Kolory etykiet czasu
+            var brushDzisBg = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E8F8EF"));
+            var brushDzis = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#27AE60"));
+            var brushTydzienBg = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EAF2FB"));
+            var brushTydzien = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2980B9"));
+            var brushStaryBg = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F0F3F5"));
+            var brushStary = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#7F8C8D"));
+            foreach (var f in faktury)
+            {
+                if (f.DniTemu <= 1) { f.EtykietaTloKolor = brushDzisBg; f.EtykietaTekstKolor = brushDzis; }
+                else if (f.DniTemu <= 7) { f.EtykietaTloKolor = brushTydzienBg; f.EtykietaTekstKolor = brushTydzien; }
+                else { f.EtykietaTloKolor = brushStaryBg; f.EtykietaTekstKolor = brushStary; }
+            }
+
+            // === DIALOG FULLSCREEN ===
+            var dialog = new Window
+            {
+                Title = $"Uzupelnienie korekty #{korekta.Id} — wybierz fakture bazowa",
+                WindowState = WindowState.Maximized,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F4F6F8")),
+                FontFamily = new FontFamily("Segoe UI")
+            };
+            WindowIconHelper.SetIcon(dialog);
+
+            var root = new Grid();
+            root.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto });
+            root.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto });
+            root.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            root.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto });
+
+            // HEADER
+            var header = new Border
+            {
+                Padding = new Thickness(28, 16, 28, 16),
+                Background = new LinearGradientBrush(
+                    (Color)ColorConverter.ConvertFromString("#F39C12"),
+                    (Color)ColorConverter.ConvertFromString("#E67E22"),
+                    new System.Windows.Point(0, 0), new System.Windows.Point(1, 0))
+            };
+            var headerGrid = new Grid();
+            headerGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            headerGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
+
+            var headerLeft = new StackPanel();
+            headerLeft.Children.Add(new TextBlock
+            {
+                Text = $"UZUPELNIENIE KOREKTY #{korekta.Id}",
+                FontSize = 18, FontWeight = FontWeights.Bold, Foreground = Brushes.White
+            });
+            headerLeft.Children.Add(new TextBlock
+            {
+                Text = $"{korekta.NumerDokumentu}  |  {kontrahentNazwa}  |  {korekta.SumaKg:#,##0.00} kg  |  Wybierz fakture bazowa i zglos reklamacje",
+                FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(220, 255, 255, 255)),
+                Margin = new Thickness(0, 4, 0, 0)
+            });
+            headerGrid.Children.Add(headerLeft);
+            header.Child = headerGrid;
+            Grid.SetRow(header, 0);
+            root.Children.Add(header);
+
+            // FILTR
+            var filterCard = new Border
+            {
+                Background = Brushes.White,
+                Margin = new Thickness(20, 14, 20, 0),
+                CornerRadius = new CornerRadius(10),
+                Padding = new Thickness(20, 14, 20, 14),
+                Effect = new System.Windows.Media.Effects.DropShadowEffect { ShadowDepth = 1, Opacity = 0.06, BlurRadius = 10 }
+            };
+            var searchGrid = new Grid();
+            searchGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
+            searchGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            searchGrid.Children.Add(new TextBlock { Text = "Szukaj", FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#7F8C8D")), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 14, 0) });
+            var txtFiltr = new TextBox { FontSize = 14, Padding = new Thickness(12, 8, 12, 8), BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#DDE2E6")), BorderThickness = new Thickness(1.5), Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F8F9FA")) };
+            Grid.SetColumn(txtFiltr, 1);
+            searchGrid.Children.Add(txtFiltr);
+            filterCard.Child = searchGrid;
+            Grid.SetRow(filterCard, 1);
+            root.Children.Add(filterCard);
+
+            // DATAGRID
+            var gridCard = new Border
+            {
+                Background = Brushes.White,
+                Margin = new Thickness(20, 10, 20, 0),
+                CornerRadius = new CornerRadius(10),
+                ClipToBounds = true,
+                Effect = new System.Windows.Media.Effects.DropShadowEffect { ShadowDepth = 1, Opacity = 0.06, BlurRadius = 10 }
+            };
+            var dgFaktury = new DataGrid
+            {
+                AutoGenerateColumns = false, IsReadOnly = true, SelectionMode = DataGridSelectionMode.Single,
+                HeadersVisibility = DataGridHeadersVisibility.Column,
+                GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
+                HorizontalGridLinesBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EFF2F5")),
+                BorderThickness = new Thickness(0), RowHeight = 42, FontSize = 13,
+                Background = Brushes.White, RowBackground = Brushes.White,
+                AlternatingRowBackground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FAFBFC")),
+                ColumnHeaderHeight = 40
+            };
+
+            dgFaktury.Columns.Add(new DataGridTextColumn { Header = "DATA", Binding = new System.Windows.Data.Binding("Data") { StringFormat = "dd.MM.yyyy" }, Width = new DataGridLength(105) });
+            dgFaktury.Columns.Add(new DataGridTextColumn { Header = "NR FAKTURY", Binding = new System.Windows.Data.Binding("NumerDokumentu"), Width = new DataGridLength(180) });
+            dgFaktury.Columns.Add(new DataGridTextColumn { Header = "HANDLOWIEC", Binding = new System.Windows.Data.Binding("Handlowiec"), Width = new DataGridLength(160) });
+            dgFaktury.Columns.Add(new DataGridTextColumn { Header = "KG", Binding = new System.Windows.Data.Binding("SumaKg") { StringFormat = "#,##0.00" }, Width = new DataGridLength(120) });
+            dgFaktury.Columns.Add(new DataGridTextColumn { Header = "WARTOSC NETTO", Binding = new System.Windows.Data.Binding("Wartosc") { StringFormat = "#,##0.00 zl" }, Width = new DataGridLength(160) });
+
+            gridCard.Child = dgFaktury;
+            Grid.SetRow(gridCard, 2);
+            root.Children.Add(gridCard);
+
+            // STOPKA
+            var footer = new Border
+            {
+                Background = Brushes.White,
+                BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E5E8EB")),
+                BorderThickness = new Thickness(0, 1, 0, 0),
+                Padding = new Thickness(28, 14, 28, 14)
+            };
+            var footerGrid = new Grid();
+            footerGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            footerGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
+
+            var txtLicznik = new TextBlock { FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2C3E50")), VerticalAlignment = VerticalAlignment.Center };
+            footerGrid.Children.Add(txtLicznik);
+
+            var footerBtns = new StackPanel { Orientation = Orientation.Horizontal };
+            var btnAnuluj = new Button { Content = "Anuluj", Padding = new Thickness(22, 10, 22, 10), FontSize = 12.5, Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#ECF0F1")), Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#7F8C8D")), BorderThickness = new Thickness(0), Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 10, 0), IsCancel = true };
+            btnAnuluj.Click += (s, ev) => dialog.Close();
+            footerBtns.Children.Add(btnAnuluj);
+
+            var btnOk = new Button { Content = "Zglos reklamacje  →", Padding = new Thickness(24, 10, 24, 10), FontSize = 12.5, FontWeight = FontWeights.Bold, Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F39C12")), Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = Cursors.Hand, IsDefault = true, IsEnabled = false };
+            footerBtns.Children.Add(btnOk);
+            Grid.SetColumn(footerBtns, 1);
+            footerGrid.Children.Add(footerBtns);
+            footer.Child = footerGrid;
+            Grid.SetRow(footer, 3);
+            root.Children.Add(footer);
+
+            dialog.Content = root;
+
+            // LOGIKA
+            Action filtruj = () =>
+            {
+                string fraza = txtFiltr.Text.Trim().ToLower();
+                var przefiltrowane = string.IsNullOrEmpty(fraza) ? faktury
+                    : faktury.Where(f => (f.NumerDokumentu ?? "").ToLower().Contains(fraza) || (f.Handlowiec ?? "").ToLower().Contains(fraza)).ToList();
+                dgFaktury.ItemsSource = przefiltrowane;
+                txtLicznik.Text = $"{przefiltrowane.Count} z {faktury.Count} faktur";
+            };
+
+            var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(180) };
+            timer.Tick += (s, ev) => { timer.Stop(); filtruj(); };
+            txtFiltr.TextChanged += (s, ev) => { timer.Stop(); timer.Start(); };
+
+            filtruj();
+
+            dgFaktury.SelectionChanged += (s, ev) =>
+            {
+                btnOk.IsEnabled = dgFaktury.SelectedItem != null;
+                btnOk.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(dgFaktury.SelectedItem != null ? "#F39C12" : "#F5CBA7"));
+            };
+
+            Action wykonaj = () =>
+            {
+                if (!(dgFaktury.SelectedItem is FakturaSprzedazyItem wybrana)) return;
+                dialog.Close();
+
+                // Otwieramy FormReklamacjaWindow z wybrana faktura bazowa
+                var okno = new FormReklamacjaWindow(
+                    HandelConnString, wybrana.Id, wybrana.IdKontrahenta,
+                    wybrana.NumerDokumentu, wybrana.NazwaKontrahenta,
+                    userId, connectionString);
+                okno.Owner = this;
+                if (okno.ShowDialog() == true)
+                {
+                    // Powiaz nowa reklamacje z korekta
+                    try
+                    {
+                        using (var conn = new SqlConnection(connectionString))
+                        {
+                            conn.Open();
+                            // Znajdz ID nowo utworzonej reklamacji (najnowsza dla tego usera)
+                            int nowaId = 0;
+                            using (var cmd = new SqlCommand("SELECT TOP 1 Id FROM [dbo].[Reklamacje] WHERE UserID = @U ORDER BY Id DESC", conn))
+                            {
+                                cmd.Parameters.AddWithValue("@U", userId);
+                                nowaId = Convert.ToInt32(cmd.ExecuteScalar());
+                            }
+                            if (nowaId > 0)
+                            {
+                                UtworzPowiazanie(korekta.Id, nowaId);
+                                // Zdejmij flage WymagaUzupelnienia z korekty
+                                using (var cmd = new SqlCommand("UPDATE [dbo].[Reklamacje] SET WymagaUzupelnienia = 0, StatusV2 = 'POWIAZANA' WHERE Id = @Id", conn))
+                                {
+                                    cmd.Parameters.AddWithValue("@Id", korekta.Id);
+                                    cmd.ExecuteNonQuery();
+                                }
+                            }
+                        }
+                    }
+                    catch { }
+
                     WczytajReklamacje();
                     WczytajStatystyki();
                 }
-            }
+            };
+
+            btnOk.Click += (s, ev) => wykonaj();
+            dgFaktury.MouseDoubleClick += (s, ev) => { if (dgFaktury.SelectedItem != null) wykonaj(); };
+            dgFaktury.KeyDown += (s, ev) => { if (ev.Key == Key.Enter && dgFaktury.SelectedItem != null) { wykonaj(); ev.Handled = true; } };
+
+            dialog.Loaded += (s, ev) => txtFiltr.Focus();
+            dialog.ShowDialog();
         }
 
         // ========================================
@@ -790,6 +2546,1690 @@ namespace Kalendarz1.Reklamacje
                     MessageBox.Show($"Blad usuwania: {ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
+        }
+
+        // ========================================
+        // USTAWIENIA SYNC (Admin)
+        // ========================================
+
+        private void UpewnijSieZeTabeUstawienIstnieje(SqlConnection conn)
+        {
+            using (var cmd = new SqlCommand(@"
+                IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'ReklamacjeUstawienia')
+                BEGIN
+                    CREATE TABLE [dbo].[ReklamacjeUstawienia] (
+                        [Id] INT IDENTITY(1,1) PRIMARY KEY,
+                        [Klucz] NVARCHAR(100) NOT NULL UNIQUE,
+                        [Wartosc] NVARCHAR(500) NULL,
+                        [DataModyfikacji] DATETIME DEFAULT GETDATE(),
+                        [ZmodyfikowalUser] NVARCHAR(50) NULL
+                    );
+                    INSERT INTO [dbo].[ReklamacjeUstawienia] (Klucz, Wartosc)
+                    VALUES ('DataOdKorekt', CONVERT(NVARCHAR, DATEADD(MONTH, -6, GETDATE()), 23));
+                END", conn))
+            {
+                cmd.ExecuteNonQuery();
+            }
+        }
+
+        private DateTime PobierzDataOdKorekt()
+        {
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    UpewnijSieZeTabeUstawienIstnieje(conn);
+                    using (var cmd = new SqlCommand(
+                        "SELECT Wartosc FROM [dbo].[ReklamacjeUstawienia] WHERE Klucz = 'DataOdKorekt'", conn))
+                    {
+                        var result = cmd.ExecuteScalar();
+                        if (result != null && result != DBNull.Value && DateTime.TryParse(result.ToString(), out DateTime dt))
+                            return dt;
+                    }
+                }
+            }
+            catch { }
+            return DateTime.Now.AddMonths(-6);
+        }
+
+        private void ZapiszDataOdKorekt(DateTime data)
+        {
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    UpewnijSieZeTabeUstawienIstnieje(conn);
+                    using (var cmd = new SqlCommand(@"
+                        UPDATE [dbo].[ReklamacjeUstawienia]
+                        SET Wartosc = @Wartosc, DataModyfikacji = GETDATE(), ZmodyfikowalUser = @User
+                        WHERE Klucz = 'DataOdKorekt';
+                        IF @@ROWCOUNT = 0
+                            INSERT INTO [dbo].[ReklamacjeUstawienia] (Klucz, Wartosc, ZmodyfikowalUser)
+                            VALUES ('DataOdKorekt', @Wartosc, @User);", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Wartosc", data.ToString("yyyy-MM-dd"));
+                        cmd.Parameters.AddWithValue("@User", userId);
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Blad zapisu ustawienia:\n{ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private int UsunKorektySprzedDaty(DateTime dataOd)
+        {
+            int usunieto = 0;
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+
+                    // Pobierz ID reklamacji korygujacych sprzed daty
+                    var ids = new List<int>();
+                    using (var cmd = new SqlCommand(@"
+                        SELECT Id FROM [dbo].[Reklamacje]
+                        WHERE TypReklamacji = 'Faktura korygujaca'
+                          AND DataZgloszenia < @DataOd", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@DataOd", dataOd);
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                                ids.Add(reader.GetInt32(0));
+                        }
+                    }
+
+                    if (ids.Count == 0) return 0;
+
+                    // Usun powiazane dane i reklamacje
+                    string idList = string.Join(",", ids);
+                    string[] tabele = { "ReklamacjeTowary", "ReklamacjePartie", "ReklamacjeZdjecia", "ReklamacjeHistoria" };
+                    foreach (var tabela in tabele)
+                    {
+                        try
+                        {
+                            using (var cmd = new SqlCommand(
+                                $"DELETE FROM [dbo].[{tabela}] WHERE IdReklamacji IN ({idList})", conn))
+                            {
+                                cmd.ExecuteNonQuery();
+                            }
+                        }
+                        catch { }
+                    }
+
+                    using (var cmd = new SqlCommand(
+                        $"DELETE FROM [dbo].[Reklamacje] WHERE Id IN ({idList})", conn))
+                    {
+                        usunieto = cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Blad usuwania starych korekt:\n{ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            return usunieto;
+        }
+
+        // ========================================
+        // ZAKLADKI WORKFLOW V2
+        // ========================================
+        private void TabDoAkcji_Click(object sender, RoutedEventArgs e) => PrzelaczZakladke("DO_AKCJI");
+        private void TabWToku_Click(object sender, RoutedEventArgs e) => PrzelaczZakladke("W_TOKU");
+        private void TabZamkniete_Click(object sender, RoutedEventArgs e) => PrzelaczZakladke("ZAMKNIETE");
+
+        private void PrzelaczZakladke(string kategoria)
+        {
+            aktywnaZakladka = kategoria;
+            reklamacjeView?.Refresh();
+
+            var doAkcji = (Color)ColorConverter.ConvertFromString("#E74C3C");
+            var wToku = (Color)ColorConverter.ConvertFromString("#F39C12");
+            var zamkn = (Color)ColorConverter.ConvertFromString("#27AE60");
+            var nieaktywne = (Color)ColorConverter.ConvertFromString("#ECEFF1");
+            var nieaktywneFg = (Color)ColorConverter.ConvertFromString("#546E7A");
+
+            void Odcien(Button btn, Color aktywneTlo, Color aktywnyBadgeTlo, Color aktywnyBadgeFg)
+            {
+                var border = FindTemplateBorder(btn);
+                if (border == null) return;
+                bool aktywna = (btn == tabDoAkcji && kategoria == "DO_AKCJI")
+                            || (btn == tabWToku && kategoria == "W_TOKU")
+                            || (btn == tabZamkniete && kategoria == "ZAMKNIETE");
+                if (aktywna)
+                {
+                    border.Background = new SolidColorBrush(aktywneTlo);
+                    UstawKolorZakladki(border, aktywnyBadgeTlo, aktywnyBadgeFg, Brushes.White);
+                }
+                else
+                {
+                    border.Background = new SolidColorBrush(nieaktywne);
+                    UstawKolorZakladki(border, new SolidColorBrush(nieaktywneFg).Color, Colors.White, new SolidColorBrush(nieaktywneFg));
+                }
+            }
+
+            Odcien(tabDoAkcji, doAkcji, Colors.White, doAkcji);
+            Odcien(tabWToku, wToku, Colors.White, wToku);
+            Odcien(tabZamkniete, zamkn, Colors.White, zamkn);
+
+            txtOpisZakladki.Text = kategoria switch
+            {
+                "DO_AKCJI" => "Nowe zgloszenia + korekty bez reklamacji — wymagaja decyzji",
+                "W_TOKU" => "Przyjete do rozpatrzenia przez dzial jakosci",
+                "ZAMKNIETE" => "Zaakceptowane, odrzucone, powiazane lub zamkniete",
+                _ => ""
+            };
+
+            txtTytulListy.Text = kategoria switch
+            {
+                "DO_AKCJI" => "DO AKCJI - wymagaja decyzji",
+                "W_TOKU" => "PRZYJETE - w trakcie rozpatrywania",
+                "ZAMKNIETE" => "ZAMKNIETE",
+                _ => "Lista reklamacji"
+            };
+
+            AktualizujLicznikZaznaczenia();
+        }
+
+        private Border FindTemplateBorder(Button btn)
+        {
+            if (btn?.Template == null) return null;
+            btn.ApplyTemplate();
+            return btn.Template.FindName("tabBorder", btn) as Border;
+        }
+
+        private void UstawKolorZakladki(Border tabBorder, Color badgeTlo, Color badgeFg, Brush txtKolor)
+        {
+            // Znajdz TextBlock tytulu (pierwsze dziecko StackPanel) + badge Border z liczba
+            if (!(tabBorder.Child is StackPanel sp)) return;
+            if (sp.Children.Count < 2) return;
+            if (sp.Children[0] is TextBlock tbTytul) tbTytul.Foreground = txtKolor;
+            if (sp.Children[1] is Border badgeBorder)
+            {
+                badgeBorder.Background = new SolidColorBrush(badgeTlo);
+                if (badgeBorder.Child is TextBlock tbBadge) tbBadge.Foreground = new SolidColorBrush(badgeFg);
+            }
+        }
+
+        private void AktualizujLicznikiZakladek()
+        {
+            int cntDoAkcji = 0, cntWToku = 0, cntZamkniete = 0;
+            foreach (var r in reklamacje)
+            {
+                switch (r.KategoriaZakladki)
+                {
+                    case "DO_AKCJI": cntDoAkcji++; break;
+                    case "W_TOKU": cntWToku++; break;
+                    case "ZAMKNIETE": cntZamkniete++; break;
+                }
+            }
+
+            var bDoAkcji = FindTemplateBorder(tabDoAkcji);
+            if (bDoAkcji?.Child is StackPanel sp1 && sp1.Children.Count >= 2 && sp1.Children[1] is Border bd1 && bd1.Child is TextBlock tb1)
+                tb1.Text = cntDoAkcji.ToString();
+
+            var bWToku = FindTemplateBorder(tabWToku);
+            if (bWToku?.Child is StackPanel sp2 && sp2.Children.Count >= 2 && sp2.Children[1] is Border bd2 && bd2.Child is TextBlock tb2)
+                tb2.Text = cntWToku.ToString();
+
+            var bZamkn = FindTemplateBorder(tabZamkniete);
+            if (bZamkn?.Child is StackPanel sp3 && sp3.Children.Count >= 2 && sp3.Children[1] is Border bd3 && bd3.Child is TextBlock tb3)
+                tb3.Text = cntZamkniete.ToString();
+        }
+
+        private void AktualizujLicznikZaznaczenia()
+        {
+            if (txtLiczbaReklamacji == null) return;
+            int widoczne = 0;
+            if (reklamacjeView != null)
+                foreach (var _ in reklamacjeView) widoczne++;
+            txtLiczbaReklamacji.Text = widoczne.ToString();
+        }
+
+        // ========================================
+        // ETAP 3: Zgloszenie BEZ faktury korygujacej
+        // Flow: wybierz kontrahenta -> pokaz jego 15 ostatnich faktur -> wybierz
+        // fakture bazowa -> otworz ten sam FormReklamacjaWindow co przy "+ Nowa reklamacja"
+        // ========================================
+        private void BtnNowaBezFaktury_Click(object sender, RoutedEventArgs e)
+        {
+            // Pobierz liste kontrahentow z HANDEL (dla autocomplete)
+            var kontrahenci = new List<KontrahentItem>();
+            try
+            {
+                using (var connH = new SqlConnection(HandelConnString))
+                {
+                    connH.Open();
+                    using (var cmd = new SqlCommand(@"
+                        SELECT TOP 2000 id, shortcut, ISNULL(name, shortcut) AS name
+                        FROM [HANDEL].[SSCommon].[STContractors]
+                        WHERE shortcut NOT LIKE 'SD/%'
+                        ORDER BY shortcut", connH))
+                    using (var r = cmd.ExecuteReader())
+                    {
+                        while (r.Read())
+                        {
+                            kontrahenci.Add(new KontrahentItem
+                            {
+                                Id = r.GetInt32(0),
+                                Shortcut = r.IsDBNull(1) ? "" : r.GetString(1),
+                                Name = r.IsDBNull(2) ? "" : r.GetString(2)
+                            });
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                FriendlyError.Pokaz(ex, "Nie udalo sie pobrac kontrahentow z Symfonii.", this);
+                return;
+            }
+
+            // ====== DIALOG ======
+            var dialog = new Window
+            {
+                Title = "Nowa reklamacja - wybierz kontrahenta",
+                Width = 820, Height = 680,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                ResizeMode = ResizeMode.CanResize,
+                MinWidth = 700, MinHeight = 560,
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F4F6F8")),
+                FontFamily = new FontFamily("Segoe UI")
+            };
+            WindowIconHelper.SetIcon(dialog);
+
+            var root = new Grid();
+            root.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto });
+            root.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            root.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto });
+
+            // Header
+            var hdr = new Border
+            {
+                Padding = new Thickness(24, 18, 24, 18),
+                Background = new LinearGradientBrush(
+                    (Color)ColorConverter.ConvertFromString("#3498DB"),
+                    (Color)ColorConverter.ConvertFromString("#2980B9"),
+                    new System.Windows.Point(0, 0), new System.Windows.Point(1, 0))
+            };
+            var hdrStack = new StackPanel();
+            hdrStack.Children.Add(new TextBlock
+            {
+                Text = "NOWA REKLAMACJA - BEZ FAKTURY KORYGUJACEJ",
+                FontSize = 16, FontWeight = FontWeights.Bold, Foreground = Brushes.White
+            });
+            hdrStack.Children.Add(new TextBlock
+            {
+                Text = "1) Wybierz kontrahenta   2) Wybierz fakture bazowa z jego 15 ostatnich   3) Wypelnij reklamacje",
+                FontSize = 11.5,
+                Foreground = new SolidColorBrush(Color.FromArgb(220, 255, 255, 255)),
+                Margin = new Thickness(0, 4, 0, 0)
+            });
+            hdr.Child = hdrStack;
+            Grid.SetRow(hdr, 0);
+            root.Children.Add(hdr);
+
+            // Body — pionowy grid zeby DataGrid z towarami mogl rozciagac sie na *
+            var form = new Grid { Margin = new Thickness(28, 20, 28, 14) };
+            form.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto });
+            form.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto });
+            form.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto });
+            form.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto });
+            form.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto });
+            form.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+
+            TextBlock Label(string text) => new TextBlock
+            {
+                Text = text,
+                FontSize = 11, FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#546E7A")),
+                Margin = new Thickness(0, 0, 0, 6)
+            };
+
+            // KONTRAHENT
+            var lblKontr = Label("KONTRAHENT *");
+            Grid.SetRow(lblKontr, 0);
+            form.Children.Add(lblKontr);
+
+            var cbKontrahent = new ComboBox
+            {
+                IsEditable = true,
+                IsTextSearchEnabled = true,
+                StaysOpenOnEdit = true,
+                FontSize = 14,
+                Padding = new Thickness(12, 10, 12, 10),
+                Margin = new Thickness(0, 0, 0, 16),
+                ItemsSource = kontrahenci,
+                DisplayMemberPath = "Shortcut",
+                BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#DDE2E6")),
+                BorderThickness = new Thickness(1.5)
+            };
+            Grid.SetRow(cbKontrahent, 1);
+            form.Children.Add(cbKontrahent);
+
+            // FAKTURA
+            var lblFakt = Label("FAKTURA BAZOWA * (15 ostatnich dla wybranego kontrahenta)");
+            Grid.SetRow(lblFakt, 2);
+            form.Children.Add(lblFakt);
+
+            var cbFaktura = new ComboBox
+            {
+                FontSize = 13,
+                Padding = new Thickness(12, 10, 12, 10),
+                Margin = new Thickness(0, 0, 0, 8),
+                BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#DDE2E6")),
+                BorderThickness = new Thickness(1.5),
+                IsEnabled = false
+            };
+            Grid.SetRow(cbFaktura, 3);
+            form.Children.Add(cbFaktura);
+
+            var txtStatus = new TextBlock
+            {
+                Text = "Wybierz kontrahenta aby zobaczyc jego ostatnie faktury",
+                FontSize = 11,
+                FontStyle = FontStyles.Italic,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#95A5A6")),
+                Margin = new Thickness(2, 0, 0, 12)
+            };
+            Grid.SetRow(txtStatus, 4);
+            form.Children.Add(txtStatus);
+
+            // SEKCJA TOWARÓW (pojawia się po wyborze faktury)
+            var towaryCard = new Border
+            {
+                Background = Brushes.White,
+                BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E5E8EB")),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(0),
+                ClipToBounds = true
+            };
+            var towaryRoot = new Grid();
+            towaryRoot.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto });
+            towaryRoot.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            towaryRoot.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto });
+
+            var towaryHeader = new Border
+            {
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F8F9FA")),
+                Padding = new Thickness(14, 9, 14, 9),
+                BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E5E8EB")),
+                BorderThickness = new Thickness(0, 0, 0, 1)
+            };
+            var txtTowaryNaglowek = new TextBlock
+            {
+                Text = "TOWARY NA FAKTURZE",
+                FontSize = 10.5, FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#546E7A"))
+            };
+            towaryHeader.Child = txtTowaryNaglowek;
+            Grid.SetRow(towaryHeader, 0);
+            towaryRoot.Children.Add(towaryHeader);
+
+            var dgTowary = new DataGrid
+            {
+                AutoGenerateColumns = false,
+                IsReadOnly = true,
+                HeadersVisibility = DataGridHeadersVisibility.Column,
+                GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
+                HorizontalGridLinesBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F0F3F5")),
+                BorderThickness = new Thickness(0),
+                RowHeight = 28,
+                FontSize = 11.5,
+                Background = Brushes.White,
+                RowBackground = Brushes.White,
+                AlternatingRowBackground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FAFBFC")),
+                ColumnHeaderHeight = 30,
+                CanUserAddRows = false,
+                CanUserDeleteRows = false
+            };
+            var thStyle = new Style(typeof(System.Windows.Controls.Primitives.DataGridColumnHeader));
+            thStyle.Setters.Add(new Setter(System.Windows.Controls.Primitives.DataGridColumnHeader.BackgroundProperty,
+                new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F8F9FA"))));
+            thStyle.Setters.Add(new Setter(System.Windows.Controls.Primitives.DataGridColumnHeader.ForegroundProperty,
+                new SolidColorBrush((Color)ColorConverter.ConvertFromString("#7F8C8D"))));
+            thStyle.Setters.Add(new Setter(System.Windows.Controls.Primitives.DataGridColumnHeader.FontWeightProperty, FontWeights.SemiBold));
+            thStyle.Setters.Add(new Setter(System.Windows.Controls.Primitives.DataGridColumnHeader.FontSizeProperty, 10.0));
+            thStyle.Setters.Add(new Setter(System.Windows.Controls.Primitives.DataGridColumnHeader.PaddingProperty, new Thickness(10, 0, 10, 0)));
+            dgTowary.ColumnHeaderStyle = thStyle;
+
+            var cStyle = new Style(typeof(DataGridCell));
+            cStyle.Setters.Add(new Setter(DataGridCell.PaddingProperty, new Thickness(10, 0, 10, 0)));
+            cStyle.Setters.Add(new Setter(DataGridCell.BorderThicknessProperty, new Thickness(0)));
+            dgTowary.CellStyle = cStyle;
+
+            dgTowary.Columns.Add(new DataGridTextColumn { Header = "SYMBOL", Binding = new System.Windows.Data.Binding("Symbol"), Width = new DataGridLength(95) });
+            var colNazwa = new DataGridTextColumn { Header = "NAZWA", Binding = new System.Windows.Data.Binding("Nazwa"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) };
+            var stNazwa = new Style(typeof(TextBlock));
+            stNazwa.Setters.Add(new Setter(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center));
+            stNazwa.Setters.Add(new Setter(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis));
+            colNazwa.ElementStyle = stNazwa;
+            dgTowary.Columns.Add(colNazwa);
+
+            var colWaga = new DataGridTextColumn { Header = "KG", Binding = new System.Windows.Data.Binding("Waga") { StringFormat = "#,##0.00" }, Width = new DataGridLength(95) };
+            var stWaga = new Style(typeof(TextBlock));
+            stWaga.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Right));
+            stWaga.Setters.Add(new Setter(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center));
+            colWaga.ElementStyle = stWaga;
+            dgTowary.Columns.Add(colWaga);
+
+            var colCena = new DataGridTextColumn { Header = "CENA", Binding = new System.Windows.Data.Binding("Cena") { StringFormat = "#,##0.00" }, Width = new DataGridLength(95) };
+            colCena.ElementStyle = stWaga;
+            dgTowary.Columns.Add(colCena);
+
+            var colWart = new DataGridTextColumn { Header = "WARTOSC", Binding = new System.Windows.Data.Binding("Wartosc") { StringFormat = "#,##0.00 zl" }, Width = new DataGridLength(115) };
+            var stWart = new Style(typeof(TextBlock));
+            stWart.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Right));
+            stWart.Setters.Add(new Setter(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center));
+            stWart.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.SemiBold));
+            stWart.Setters.Add(new Setter(TextBlock.ForegroundProperty, new SolidColorBrush((Color)ColorConverter.ConvertFromString("#27AE60"))));
+            colWart.ElementStyle = stWart;
+            dgTowary.Columns.Add(colWart);
+
+            Grid.SetRow(dgTowary, 1);
+            towaryRoot.Children.Add(dgTowary);
+
+            // Pasek podsumowania pod DataGrid
+            var towaryFooter = new Border
+            {
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFFBEA")),
+                BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E5E8EB")),
+                BorderThickness = new Thickness(0, 1, 0, 0),
+                Padding = new Thickness(14, 8, 14, 8)
+            };
+            var txtTowarySuma = new TextBlock
+            {
+                FontSize = 11.5,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#5D6D7E"))
+            };
+            towaryFooter.Child = txtTowarySuma;
+            Grid.SetRow(towaryFooter, 2);
+            towaryRoot.Children.Add(towaryFooter);
+
+            towaryCard.Child = towaryRoot;
+            Grid.SetRow(towaryCard, 5);
+            form.Children.Add(towaryCard);
+
+            // Empty state - pokazywany gdy nic nie wybrano
+            var towaryEmpty = new TextBlock
+            {
+                Text = "Wybierz fakture aby zobaczyc jej towary",
+                FontSize = 12,
+                FontStyle = FontStyles.Italic,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#B0B7BD")),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Visibility = Visibility.Visible
+            };
+            Grid.SetRow(towaryEmpty, 5);
+            form.Children.Add(towaryEmpty);
+
+            Grid.SetRow(form, 1);
+            root.Children.Add(form);
+
+            // Stopka
+            var footer = new Border
+            {
+                Background = Brushes.White,
+                BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E5E8EB")),
+                BorderThickness = new Thickness(0, 1, 0, 0),
+                Padding = new Thickness(24, 14, 24, 14)
+            };
+            var footerGrid = new Grid();
+            footerGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            footerGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
+
+            var hint = new TextBlock
+            {
+                Text = "Dalej otwiera ten sam formularz co przy '+ Nowa reklamacja'",
+                FontSize = 10.5,
+                FontStyle = FontStyles.Italic,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#BDC3C7")),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(hint, 0);
+            footerGrid.Children.Add(hint);
+
+            var footerStack = new StackPanel { Orientation = Orientation.Horizontal };
+            var btnAnuluj = new Button
+            {
+                Content = "Anuluj",
+                Padding = new Thickness(22, 10, 22, 10),
+                FontSize = 12.5,
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#ECF0F1")),
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#7F8C8D")),
+                BorderThickness = new Thickness(0),
+                Cursor = Cursors.Hand,
+                Margin = new Thickness(0, 0, 10, 0),
+                IsCancel = true
+            };
+            var btnDalej = new Button
+            {
+                Content = "Dalej  →",
+                Padding = new Thickness(26, 10, 26, 10),
+                FontSize = 12.5, FontWeight = FontWeights.Bold,
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#BDC3C7")),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Cursor = Cursors.Hand,
+                IsDefault = true,
+                IsEnabled = false
+            };
+            footerStack.Children.Add(btnAnuluj);
+            footerStack.Children.Add(btnDalej);
+            Grid.SetColumn(footerStack, 1);
+            footerGrid.Children.Add(footerStack);
+
+            footer.Child = footerGrid;
+            Grid.SetRow(footer, 2);
+            root.Children.Add(footer);
+
+            dialog.Content = root;
+
+            // ====== LOGIKA ======
+            // Ladowanie faktur po wyborze kontrahenta
+            Action<KontrahentItem> zaladujFaktury = (kontr) =>
+            {
+                cbFaktura.ItemsSource = null;
+                cbFaktura.IsEnabled = false;
+                btnDalej.IsEnabled = false;
+                btnDalej.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#BDC3C7"));
+
+                if (kontr == null)
+                {
+                    txtStatus.Text = "Wybierz kontrahenta aby zobaczyc jego ostatnie faktury";
+                    return;
+                }
+
+                var faktury = new List<FakturaSprzedazyItem>();
+                try
+                {
+                    using (var connH = new SqlConnection(HandelConnString))
+                    {
+                        connH.Open();
+                        using (var cmd = new SqlCommand(@"
+                            SELECT TOP 15
+                                   DK.id, DK.kod, DK.data,
+                                   ABS(ISNULL(DK.walNetto, 0)) AS Wartosc,
+                                   ABS(ISNULL((SELECT SUM(DP.ilosc) FROM [HANDEL].[HM].[DP] DP WHERE DP.super = DK.id), 0)) AS SumaKg
+                            FROM [HANDEL].[HM].[DK] DK
+                            WHERE DK.khid = @Khid
+                              AND DK.seria NOT IN ('sFKS', 'sFKSB', 'sFWK')
+                              AND DK.anulowany = 0
+                            ORDER BY DK.data DESC, DK.id DESC", connH))
+                        {
+                            cmd.Parameters.AddWithValue("@Khid", kontr.Id);
+                            using (var r = cmd.ExecuteReader())
+                            {
+                                while (r.Read())
+                                {
+                                    faktury.Add(new FakturaSprzedazyItem
+                                    {
+                                        Id = r.GetInt32(0),
+                                        NumerDokumentu = r.IsDBNull(1) ? "" : r.GetString(1),
+                                        Data = r.GetDateTime(2),
+                                        IdKontrahenta = kontr.Id,
+                                        NazwaKontrahenta = kontr.Shortcut,
+                                        Wartosc = r.IsDBNull(3) ? 0m : Convert.ToDecimal(r.GetValue(3)),
+                                        SumaKg = r.IsDBNull(4) ? 0m : Convert.ToDecimal(r.GetValue(4))
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    txtStatus.Text = $"Blad: {ex.Message}";
+                    return;
+                }
+
+                if (faktury.Count == 0)
+                {
+                    txtStatus.Text = "Brak faktur sprzedazy dla tego kontrahenta";
+                    return;
+                }
+
+                cbFaktura.ItemsSource = faktury;
+                cbFaktura.DisplayMemberPath = "OpisDoCombobox";
+                cbFaktura.IsEnabled = true;
+                cbFaktura.SelectedIndex = 0;
+                txtStatus.Text = $"Zaladowano {faktury.Count} ostatnich faktur. Wybierz z listy.";
+            };
+
+            cbKontrahent.SelectionChanged += (s, ev) =>
+            {
+                if (cbKontrahent.SelectedItem is KontrahentItem k) zaladujFaktury(k);
+            };
+            // Pozwalamy tez na zatwierdzenie po wyszukaniu przez text (edit box)
+            cbKontrahent.LostFocus += (s, ev) =>
+            {
+                if (cbKontrahent.SelectedItem == null && !string.IsNullOrWhiteSpace(cbKontrahent.Text))
+                {
+                    string tekst = cbKontrahent.Text.Trim();
+                    var dopasowany = kontrahenci.FirstOrDefault(x => x.Shortcut != null && x.Shortcut.Equals(tekst, StringComparison.OrdinalIgnoreCase))
+                                  ?? kontrahenci.FirstOrDefault(x => x.Shortcut != null && x.Shortcut.StartsWith(tekst, StringComparison.OrdinalIgnoreCase));
+                    if (dopasowany != null)
+                    {
+                        cbKontrahent.SelectedItem = dopasowany;
+                    }
+                }
+            };
+
+            Action<FakturaSprzedazyItem> zaladujTowary = (fakt) =>
+            {
+                dgTowary.ItemsSource = null;
+                txtTowarySuma.Text = "";
+
+                if (fakt == null)
+                {
+                    towaryCard.Visibility = Visibility.Collapsed;
+                    towaryEmpty.Visibility = Visibility.Visible;
+                    return;
+                }
+
+                var pozycje = new List<TowarFaktury>();
+                try
+                {
+                    using (var connH = new SqlConnection(HandelConnString))
+                    {
+                        connH.Open();
+                        using (var cmd = new SqlCommand(@"
+                            SELECT DP.kod AS Symbol,
+                                   ISNULL(TW.nazwa, TW.kod) AS Nazwa,
+                                   ABS(SUM(ISNULL(DP.ilosc, 0))) AS Waga,
+                                   MAX(ABS(ISNULL(DP.cena, 0))) AS Cena,
+                                   ABS(SUM(ISNULL(DP.ilosc, 0) * ISNULL(DP.cena, 0))) AS Wartosc
+                            FROM [HANDEL].[HM].[DP] DP
+                            LEFT JOIN [HANDEL].[HM].[TW] TW ON DP.idtw = TW.ID
+                            WHERE DP.super = @IdDok
+                            GROUP BY DP.kod, TW.nazwa, TW.kod
+                            HAVING ABS(SUM(ISNULL(DP.ilosc, 0))) > 0.01
+                            ORDER BY MIN(DP.lp)", connH))
+                        {
+                            cmd.Parameters.AddWithValue("@IdDok", fakt.Id);
+                            using (var r = cmd.ExecuteReader())
+                            {
+                                while (r.Read())
+                                {
+                                    pozycje.Add(new TowarFaktury
+                                    {
+                                        Symbol = r.IsDBNull(0) ? "" : r.GetString(0),
+                                        Nazwa = r.IsDBNull(1) ? "" : r.GetString(1),
+                                        Waga = r.IsDBNull(2) ? 0m : Convert.ToDecimal(r.GetValue(2)),
+                                        Cena = r.IsDBNull(3) ? 0m : Convert.ToDecimal(r.GetValue(3)),
+                                        Wartosc = r.IsDBNull(4) ? 0m : Convert.ToDecimal(r.GetValue(4))
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    txtTowarySuma.Text = $"Blad: {ex.Message}";
+                    towaryCard.Visibility = Visibility.Visible;
+                    towaryEmpty.Visibility = Visibility.Collapsed;
+                    return;
+                }
+
+                dgTowary.ItemsSource = pozycje;
+                decimal sWaga = 0, sWart = 0;
+                foreach (var p in pozycje) { sWaga += p.Waga; sWart += p.Wartosc; }
+                txtTowarySuma.Text = $"{pozycje.Count} pozycji   |   Razem: {sWaga:#,##0.00} kg   |   {sWart:#,##0.00} zl";
+
+                towaryCard.Visibility = Visibility.Visible;
+                towaryEmpty.Visibility = Visibility.Collapsed;
+            };
+
+            cbFaktura.SelectionChanged += (s, ev) =>
+            {
+                var wybrana = cbFaktura.SelectedItem as FakturaSprzedazyItem;
+                bool ok = wybrana != null;
+                btnDalej.IsEnabled = ok;
+                btnDalej.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(ok ? "#3498DB" : "#BDC3C7"));
+                zaladujTowary(wybrana);
+            };
+
+            // Empty state domyslnie widoczny, karta ukryta
+            towaryCard.Visibility = Visibility.Collapsed;
+
+            btnAnuluj.Click += (s, ev) => dialog.Close();
+            btnDalej.Click += (s, ev) =>
+            {
+                if (!(cbFaktura.SelectedItem is FakturaSprzedazyItem wybrana))
+                {
+                    MessageBox.Show("Wybierz fakture z listy.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+                dialog.Close();
+
+                // Otworz ten sam formularz co przy "+ Nowa reklamacja"
+                var okno = new FormReklamacjaWindow(
+                    HandelConnString,
+                    wybrana.Id,
+                    wybrana.IdKontrahenta,
+                    wybrana.NumerDokumentu,
+                    wybrana.NazwaKontrahenta,
+                    userId,
+                    connectionString);
+                okno.Owner = this;
+                if (okno.ShowDialog() == true)
+                {
+                    WczytajReklamacje();
+                    WczytajStatystyki();
+                }
+            };
+
+            dialog.Loaded += (s, ev) => cbKontrahent.Focus();
+            dialog.ShowDialog();
+        }
+
+
+        private void BtnNowaReklamacja_Click(object sender, RoutedEventArgs e)
+        {
+            // Pobierz faktury sprzedazy z HANDEL (180 dni wstecz)
+            var faktury = new List<FakturaSprzedazyItem>();
+            try
+            {
+                using (var connHandel = new SqlConnection(HandelConnString))
+                {
+                    connHandel.Open();
+                    using (var cmd = new SqlCommand(@"
+                        SELECT TOP 1000
+                               DK.id, DK.kod, DK.data, DK.khid,
+                               C.shortcut AS NazwaKontrahenta,
+                               ABS(ISNULL(DK.walNetto, 0)) AS Wartosc,
+                               ABS(ISNULL((SELECT SUM(DP.ilosc) FROM [HANDEL].[HM].[DP] DP WHERE DP.super = DK.id), 0)) AS SumaKg,
+                               ISNULL(WYM.CDim_Handlowiec_Val, '-') AS Handlowiec
+                        FROM [HANDEL].[HM].[DK] DK
+                        INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
+                        LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
+                        WHERE DK.seria NOT IN ('sFKS', 'sFKSB', 'sFWK')
+                          AND DK.anulowany = 0
+                          AND DK.data >= DATEADD(DAY, -180, GETDATE())
+                          AND C.shortcut NOT LIKE 'SD/%'
+                        ORDER BY DK.data DESC, DK.id DESC", connHandel))
+                    {
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                var data = reader.GetDateTime(2);
+                                int dniTemu = (int)Math.Floor((DateTime.Today - data.Date).TotalDays);
+                                faktury.Add(new FakturaSprzedazyItem
+                                {
+                                    Id = reader.GetInt32(0),
+                                    NumerDokumentu = reader.IsDBNull(1) ? "" : reader.GetString(1),
+                                    Data = data,
+                                    IdKontrahenta = reader.GetInt32(3),
+                                    NazwaKontrahenta = reader.IsDBNull(4) ? "" : reader.GetString(4),
+                                    Wartosc = reader.IsDBNull(5) ? 0m : Convert.ToDecimal(reader.GetValue(5)),
+                                    SumaKg = reader.IsDBNull(6) ? 0m : Convert.ToDecimal(reader.GetValue(6)),
+                                    Handlowiec = reader.IsDBNull(7) ? "-" : reader.GetString(7),
+                                    DniTemu = dniTemu,
+                                    EtykietaCzasu = dniTemu == 0 ? "DZIS"
+                                                  : dniTemu == 1 ? "WCZORAJ"
+                                                  : $"{dniTemu} dni"
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                FriendlyError.Pokaz(ex, "Nie udalo sie pobrac faktur z Symfonii.", this);
+                return;
+            }
+
+            if (faktury.Count == 0)
+            {
+                MessageBox.Show("Nie znaleziono faktur sprzedazy z ostatnich 180 dni.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            // ====== DIALOG ======
+            var dialogPick = new Window
+            {
+                Title = "Nowa reklamacja",
+                WindowState = WindowState.Maximized,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F4F6F8")),
+                FontFamily = new FontFamily("Segoe UI")
+            };
+            WindowIconHelper.SetIcon(dialogPick);
+
+            var root = new Grid();
+            root.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto });
+            root.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto });
+            root.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            root.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto });
+
+            // ===== HEADER =====
+            var header = new Border
+            {
+                Padding = new Thickness(28, 18, 28, 18),
+                Background = new LinearGradientBrush(
+                    (Color)ColorConverter.ConvertFromString("#E74C3C"),
+                    (Color)ColorConverter.ConvertFromString("#C0392B"),
+                    new System.Windows.Point(0, 0), new System.Windows.Point(1, 0))
+            };
+            var headerGrid = new Grid();
+            headerGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
+            headerGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            headerGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
+
+            // Ikona
+            var iconCircle = new Border
+            {
+                Width = 52, Height = 52,
+                CornerRadius = new CornerRadius(26),
+                Background = new SolidColorBrush(Color.FromArgb(60, 255, 255, 255)),
+                Margin = new Thickness(0, 0, 16, 0),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            iconCircle.Child = new TextBlock
+            {
+                Text = "+",
+                FontSize = 32, FontWeight = FontWeights.Bold,
+                Foreground = Brushes.White,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, -4, 0, 0)
+            };
+            Grid.SetColumn(iconCircle, 0);
+            headerGrid.Children.Add(iconCircle);
+
+            var headerText = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            headerText.Children.Add(new TextBlock
+            {
+                Text = "Nowa reklamacja",
+                FontSize = 20, FontWeight = FontWeights.Bold,
+                Foreground = Brushes.White
+            });
+            headerText.Children.Add(new TextBlock
+            {
+                Text = "Wybierz fakture sprzedazy, aby zglosic reklamacje",
+                FontSize = 12.5,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FADBD8")),
+                Margin = new Thickness(0, 4, 0, 0)
+            });
+            Grid.SetColumn(headerText, 1);
+            headerGrid.Children.Add(headerText);
+
+            // Statystyki w headerze
+            var statBox = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            Grid.SetColumn(statBox, 2);
+
+            var statBorder = new Border
+            {
+                Background = new SolidColorBrush(Color.FromArgb(45, 255, 255, 255)),
+                CornerRadius = new CornerRadius(10),
+                Padding = new Thickness(16, 10, 16, 10)
+            };
+            var statPanel = new StackPanel { Orientation = Orientation.Horizontal };
+            var statLiczba = new TextBlock
+            {
+                Text = faktury.Count.ToString(),
+                FontSize = 22, FontWeight = FontWeights.Bold,
+                Foreground = Brushes.White,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            statPanel.Children.Add(statLiczba);
+            statPanel.Children.Add(new TextBlock
+            {
+                Text = "  faktur dostepnych",
+                FontSize = 11,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FADBD8")),
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(4, 0, 0, 0)
+            });
+            statBorder.Child = statPanel;
+            statBox.Children.Add(statBorder);
+            headerGrid.Children.Add(statBox);
+
+            header.Child = headerGrid;
+            Grid.SetRow(header, 0);
+            root.Children.Add(header);
+
+            // ===== PASEK FILTRA =====
+            var filterCard = new Border
+            {
+                Background = Brushes.White,
+                Margin = new Thickness(20, 18, 20, 0),
+                CornerRadius = new CornerRadius(12),
+                Padding = new Thickness(20, 16, 20, 16),
+                Effect = new System.Windows.Media.Effects.DropShadowEffect
+                {
+                    Color = Colors.Black, Opacity = 0.06, BlurRadius = 14, ShadowDepth = 2, Direction = 270
+                }
+            };
+            var filterStack = new StackPanel();
+
+            // Linia 1: szukanie
+            var searchRow = new Grid();
+            searchRow.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
+            searchRow.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            searchRow.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
+
+            searchRow.Children.Add(new TextBlock
+            {
+                Text = "Szukaj",
+                FontSize = 11, FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#7F8C8D")),
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 14, 0)
+            });
+
+            // TextBox + watermark via Grid
+            var searchBoxGrid = new Grid();
+            Grid.SetColumn(searchBoxGrid, 1);
+
+            var txtPickFiltr = new TextBox
+            {
+                FontSize = 14,
+                Padding = new Thickness(14, 10, 14, 10),
+                BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#DDE2E6")),
+                BorderThickness = new Thickness(1.5),
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F8F9FA")),
+                VerticalContentAlignment = VerticalAlignment.Center
+            };
+            var watermark = new TextBlock
+            {
+                Text = "Wpisz nazwe kontrahenta, numer faktury lub handlowca...",
+                FontSize = 13,
+                FontStyle = FontStyles.Italic,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#B0B7BD")),
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(18, 0, 0, 0),
+                IsHitTestVisible = false
+            };
+            searchBoxGrid.Children.Add(txtPickFiltr);
+            searchBoxGrid.Children.Add(watermark);
+            searchRow.Children.Add(searchBoxGrid);
+
+            var btnPickWyczysc = new Button
+            {
+                Content = "Wyczysc",
+                Padding = new Thickness(14, 9, 14, 9),
+                FontSize = 11.5,
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#ECF0F1")),
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#7F8C8D")),
+                BorderThickness = new Thickness(0),
+                Cursor = Cursors.Hand,
+                Margin = new Thickness(10, 0, 0, 0),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(btnPickWyczysc, 2);
+            searchRow.Children.Add(btnPickWyczysc);
+
+            filterStack.Children.Add(searchRow);
+
+            // Linia 2: szybkie filtry zakresu czasu
+            var rangeRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 14, 0, 0) };
+            rangeRow.Children.Add(new TextBlock
+            {
+                Text = "Zakres",
+                FontSize = 11, FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#7F8C8D")),
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 14, 0)
+            });
+
+            var rangeButtons = new List<(string label, int dni, Button btn)>();
+            int aktywnyZakres = 30;
+            Button MakeRangeButton(string label, int dni)
+            {
+                var b = new Button
+                {
+                    Content = label,
+                    Padding = new Thickness(16, 8, 16, 8),
+                    FontSize = 11.5, FontWeight = FontWeights.SemiBold,
+                    Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F0F3F5")),
+                    Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#7F8C8D")),
+                    BorderThickness = new Thickness(0),
+                    Cursor = Cursors.Hand,
+                    Margin = new Thickness(0, 0, 8, 0)
+                };
+                return b;
+            }
+
+            var bD = MakeRangeButton("Dzisiaj", 0);
+            var b7 = MakeRangeButton("7 dni", 7);
+            var b30 = MakeRangeButton("30 dni", 30);
+            var b90 = MakeRangeButton("90 dni", 90);
+            var bAll = MakeRangeButton("Wszystkie", 999);
+            rangeButtons.Add(("Dzisiaj", 0, bD));
+            rangeButtons.Add(("7 dni", 7, b7));
+            rangeButtons.Add(("30 dni", 30, b30));
+            rangeButtons.Add(("90 dni", 90, b90));
+            rangeButtons.Add(("Wszystkie", 999, bAll));
+            foreach (var (_, _, btn) in rangeButtons) rangeRow.Children.Add(btn);
+
+            filterStack.Children.Add(rangeRow);
+
+            filterCard.Child = filterStack;
+            Grid.SetRow(filterCard, 1);
+            root.Children.Add(filterCard);
+
+            // ===== DATAGRID =====
+            var gridCard = new Border
+            {
+                Background = Brushes.White,
+                Margin = new Thickness(20, 14, 20, 0),
+                CornerRadius = new CornerRadius(12),
+                ClipToBounds = true,
+                Effect = new System.Windows.Media.Effects.DropShadowEffect
+                {
+                    Color = Colors.Black, Opacity = 0.06, BlurRadius = 14, ShadowDepth = 2, Direction = 270
+                }
+            };
+
+            var gridRoot = new Grid();
+            gridRoot.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+
+            var dgFaktury = new DataGrid
+            {
+                AutoGenerateColumns = false,
+                IsReadOnly = true,
+                SelectionMode = DataGridSelectionMode.Single,
+                HeadersVisibility = DataGridHeadersVisibility.Column,
+                GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
+                HorizontalGridLinesBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EFF2F5")),
+                BorderThickness = new Thickness(0),
+                RowHeight = 44,
+                FontSize = 13,
+                Background = Brushes.White,
+                RowBackground = Brushes.White,
+                AlternatingRowBackground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FAFBFC")),
+                ColumnHeaderHeight = 42
+            };
+
+            // Header style
+            var headerStyle = new Style(typeof(System.Windows.Controls.Primitives.DataGridColumnHeader));
+            headerStyle.Setters.Add(new Setter(System.Windows.Controls.Primitives.DataGridColumnHeader.BackgroundProperty,
+                new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F8F9FA"))));
+            headerStyle.Setters.Add(new Setter(System.Windows.Controls.Primitives.DataGridColumnHeader.ForegroundProperty,
+                new SolidColorBrush((Color)ColorConverter.ConvertFromString("#5D6D7E"))));
+            headerStyle.Setters.Add(new Setter(System.Windows.Controls.Primitives.DataGridColumnHeader.FontWeightProperty, FontWeights.Bold));
+            headerStyle.Setters.Add(new Setter(System.Windows.Controls.Primitives.DataGridColumnHeader.FontSizeProperty, 11.0));
+            headerStyle.Setters.Add(new Setter(System.Windows.Controls.Primitives.DataGridColumnHeader.PaddingProperty, new Thickness(12, 0, 12, 0)));
+            headerStyle.Setters.Add(new Setter(System.Windows.Controls.Primitives.DataGridColumnHeader.BorderBrushProperty,
+                new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E5E8EB"))));
+            headerStyle.Setters.Add(new Setter(System.Windows.Controls.Primitives.DataGridColumnHeader.BorderThicknessProperty, new Thickness(0, 0, 0, 1)));
+            dgFaktury.ColumnHeaderStyle = headerStyle;
+
+            // Cell padding
+            var cellStyle = new Style(typeof(DataGridCell));
+            cellStyle.Setters.Add(new Setter(DataGridCell.PaddingProperty, new Thickness(12, 0, 12, 0)));
+            cellStyle.Setters.Add(new Setter(DataGridCell.BorderThicknessProperty, new Thickness(0)));
+            cellStyle.Setters.Add(new Setter(DataGridCell.FocusVisualStyleProperty, null));
+            var cellTrigger = new Trigger { Property = DataGridCell.IsSelectedProperty, Value = true };
+            cellTrigger.Setters.Add(new Setter(DataGridCell.BackgroundProperty,
+                new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FDEDEC"))));
+            cellTrigger.Setters.Add(new Setter(DataGridCell.ForegroundProperty,
+                new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2C3E50"))));
+            cellStyle.Triggers.Add(cellTrigger);
+            dgFaktury.CellStyle = cellStyle;
+
+            // Row hover
+            var rowStyle = new Style(typeof(DataGridRow));
+            rowStyle.Setters.Add(new Setter(DataGridRow.VerticalContentAlignmentProperty, VerticalAlignment.Center));
+            var rowHover = new Trigger { Property = DataGridRow.IsMouseOverProperty, Value = true };
+            rowHover.Setters.Add(new Setter(DataGridRow.BackgroundProperty,
+                new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFF5F4"))));
+            rowStyle.Triggers.Add(rowHover);
+            dgFaktury.RowStyle = rowStyle;
+
+            // KOLUMNY
+            // Data
+            dgFaktury.Columns.Add(new DataGridTextColumn
+            {
+                Header = "DATA",
+                Binding = new System.Windows.Data.Binding("Data") { StringFormat = "dd.MM.yyyy" },
+                Width = new DataGridLength(105)
+            });
+
+            // Etykieta czasu - chip
+            var colCzas = new DataGridTemplateColumn { Header = "KIEDY", Width = new DataGridLength(95), SortMemberPath = "DniTemu" };
+            var dtCzas = new DataTemplate();
+            var fefCzas = new FrameworkElementFactory(typeof(Border));
+            fefCzas.SetValue(Border.CornerRadiusProperty, new CornerRadius(10));
+            fefCzas.SetValue(Border.PaddingProperty, new Thickness(10, 3, 10, 3));
+            fefCzas.SetValue(Border.HorizontalAlignmentProperty, HorizontalAlignment.Left);
+            fefCzas.SetBinding(Border.BackgroundProperty, new System.Windows.Data.Binding("EtykietaTloKolor"));
+            var fefCzasText = new FrameworkElementFactory(typeof(TextBlock));
+            fefCzasText.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("EtykietaCzasu"));
+            fefCzasText.SetValue(TextBlock.FontSizeProperty, 10.0);
+            fefCzasText.SetValue(TextBlock.FontWeightProperty, FontWeights.Bold);
+            fefCzasText.SetBinding(TextBlock.ForegroundProperty, new System.Windows.Data.Binding("EtykietaTekstKolor"));
+            fefCzas.AppendChild(fefCzasText);
+            dtCzas.VisualTree = fefCzas;
+            colCzas.CellTemplate = dtCzas;
+            dgFaktury.Columns.Add(colCzas);
+
+            // Numer faktury
+            var colNr = new DataGridTextColumn
+            {
+                Header = "NR FAKTURY",
+                Binding = new System.Windows.Data.Binding("NumerDokumentu"),
+                Width = new DataGridLength(165)
+            };
+            var nrStyle = new Style(typeof(TextBlock));
+            nrStyle.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.SemiBold));
+            nrStyle.Setters.Add(new Setter(TextBlock.ForegroundProperty,
+                new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2C3E50"))));
+            nrStyle.Setters.Add(new Setter(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center));
+            colNr.ElementStyle = nrStyle;
+            dgFaktury.Columns.Add(colNr);
+
+            // Kontrahent
+            var colKontr = new DataGridTextColumn
+            {
+                Header = "KONTRAHENT",
+                Binding = new System.Windows.Data.Binding("NazwaKontrahenta"),
+                Width = new DataGridLength(1, DataGridLengthUnitType.Star)
+            };
+            var kontrStyle = new Style(typeof(TextBlock));
+            kontrStyle.Setters.Add(new Setter(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center));
+            kontrStyle.Setters.Add(new Setter(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis));
+            colKontr.ElementStyle = kontrStyle;
+            dgFaktury.Columns.Add(colKontr);
+
+            // Handlowiec
+            var colHandl = new DataGridTextColumn
+            {
+                Header = "HANDLOWIEC",
+                Binding = new System.Windows.Data.Binding("Handlowiec"),
+                Width = new DataGridLength(150)
+            };
+            var handlStyle = new Style(typeof(TextBlock));
+            handlStyle.Setters.Add(new Setter(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center));
+            handlStyle.Setters.Add(new Setter(TextBlock.ForegroundProperty,
+                new SolidColorBrush((Color)ColorConverter.ConvertFromString("#7F8C8D"))));
+            handlStyle.Setters.Add(new Setter(TextBlock.FontSizeProperty, 12.0));
+            colHandl.ElementStyle = handlStyle;
+            dgFaktury.Columns.Add(colHandl);
+
+            // Kg
+            var colKg = new DataGridTextColumn
+            {
+                Header = "KG",
+                Binding = new System.Windows.Data.Binding("SumaKg") { StringFormat = "#,##0.00" },
+                Width = new DataGridLength(110)
+            };
+            var kgStyle = new Style(typeof(TextBlock));
+            kgStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Right));
+            kgStyle.Setters.Add(new Setter(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center));
+            kgStyle.Setters.Add(new Setter(TextBlock.ForegroundProperty,
+                new SolidColorBrush((Color)ColorConverter.ConvertFromString("#5D6D7E"))));
+            colKg.ElementStyle = kgStyle;
+            dgFaktury.Columns.Add(colKg);
+
+            // Wartosc
+            var colWart = new DataGridTextColumn
+            {
+                Header = "WARTOSC NETTO",
+                Binding = new System.Windows.Data.Binding("Wartosc") { StringFormat = "#,##0.00 zl" },
+                Width = new DataGridLength(150)
+            };
+            var wartStyle = new Style(typeof(TextBlock));
+            wartStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Right));
+            wartStyle.Setters.Add(new Setter(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center));
+            wartStyle.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.Bold));
+            wartStyle.Setters.Add(new Setter(TextBlock.ForegroundProperty,
+                new SolidColorBrush((Color)ColorConverter.ConvertFromString("#27AE60"))));
+            colWart.ElementStyle = wartStyle;
+            dgFaktury.Columns.Add(colWart);
+
+            Grid.SetRow(dgFaktury, 0);
+            gridRoot.Children.Add(dgFaktury);
+
+            // Empty state overlay
+            var emptyState = new StackPanel
+            {
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Visibility = Visibility.Collapsed
+            };
+            emptyState.Children.Add(new TextBlock
+            {
+                Text = "Brak wynikow",
+                FontSize = 18, FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#95A5A6")),
+                HorizontalAlignment = HorizontalAlignment.Center
+            });
+            emptyState.Children.Add(new TextBlock
+            {
+                Text = "Zmien zakres czasu lub fraze wyszukiwania",
+                FontSize = 12,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#BDC3C7")),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 8, 0, 0)
+            });
+            Grid.SetRow(emptyState, 0);
+            gridRoot.Children.Add(emptyState);
+
+            gridCard.Child = gridRoot;
+            Grid.SetRow(gridCard, 2);
+            root.Children.Add(gridCard);
+
+            // ===== STOPKA =====
+            var footer = new Border
+            {
+                Background = Brushes.White,
+                BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E5E8EB")),
+                BorderThickness = new Thickness(0, 1, 0, 0),
+                Padding = new Thickness(28, 16, 28, 16),
+                Margin = new Thickness(0, 14, 0, 0)
+            };
+            var footerGrid = new Grid();
+            footerGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
+            footerGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            footerGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = GridLength.Auto });
+
+            // Lewa: licznik + suma
+            var footerLeft = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            var txtPickLicznik = new TextBlock
+            {
+                FontSize = 13,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2C3E50")),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            footerLeft.Children.Add(txtPickLicznik);
+
+            var sep1 = new Border
+            {
+                Width = 1, Height = 22,
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E5E8EB")),
+                Margin = new Thickness(16, 0, 16, 0),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            footerLeft.Children.Add(sep1);
+
+            var txtPickSuma = new TextBlock
+            {
+                FontSize = 13,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#7F8C8D")),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            footerLeft.Children.Add(txtPickSuma);
+
+            Grid.SetColumn(footerLeft, 0);
+            footerGrid.Children.Add(footerLeft);
+
+            // Srodek: hint
+            var hint = new TextBlock
+            {
+                Text = "Enter = wybierz   |   Esc = anuluj   |   Dwuklik na wierszu",
+                FontSize = 11,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#BDC3C7")),
+                FontStyle = FontStyles.Italic,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(hint, 1);
+            footerGrid.Children.Add(hint);
+
+            // Prawa: przyciski
+            var footerBtns = new StackPanel { Orientation = Orientation.Horizontal };
+            var btnPickAnuluj = new Button
+            {
+                Content = "Anuluj",
+                Padding = new Thickness(22, 11, 22, 11),
+                FontSize = 12.5,
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#ECF0F1")),
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#7F8C8D")),
+                BorderThickness = new Thickness(0),
+                Cursor = Cursors.Hand,
+                Margin = new Thickness(0, 0, 10, 0),
+                IsCancel = true
+            };
+            btnPickAnuluj.Click += (s2, e2) => dialogPick.Close();
+            footerBtns.Children.Add(btnPickAnuluj);
+
+            var btnPickOk = new Button
+            {
+                Content = "Zglos reklamacje  →",
+                Padding = new Thickness(24, 11, 24, 11),
+                FontSize = 12.5, FontWeight = FontWeights.Bold,
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E74C3C")),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Cursor = Cursors.Hand,
+                IsDefault = true,
+                IsEnabled = false
+            };
+            footerBtns.Children.Add(btnPickOk);
+
+            Grid.SetColumn(footerBtns, 2);
+            footerGrid.Children.Add(footerBtns);
+
+            footer.Child = footerGrid;
+            Grid.SetRow(footer, 3);
+            root.Children.Add(footer);
+
+            dialogPick.Content = root;
+
+            // ===== LOGIKA =====
+            // Kolory etykiet czasu
+            var brushDzis = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#27AE60"));
+            var brushDzisBg = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E8F8EF"));
+            var brushTydzien = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2980B9"));
+            var brushTydzienBg = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EAF2FB"));
+            var brushStary = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#7F8C8D"));
+            var brushStaryBg = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F0F3F5"));
+
+            foreach (var f in faktury)
+            {
+                if (f.DniTemu <= 1) { f.EtykietaTloKolor = brushDzisBg; f.EtykietaTekstKolor = brushDzis; }
+                else if (f.DniTemu <= 7) { f.EtykietaTloKolor = brushTydzienBg; f.EtykietaTekstKolor = brushTydzien; }
+                else { f.EtykietaTloKolor = brushStaryBg; f.EtykietaTekstKolor = brushStary; }
+            }
+
+            // Filtrowanie
+            Action<int> ustawAktywnyZakres = (dni) =>
+            {
+                aktywnyZakres = dni;
+                foreach (var (lbl, d, btn) in rangeButtons)
+                {
+                    if (d == dni)
+                    {
+                        btn.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E74C3C"));
+                        btn.Foreground = Brushes.White;
+                    }
+                    else
+                    {
+                        btn.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F0F3F5"));
+                        btn.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#7F8C8D"));
+                    }
+                }
+            };
+
+            Action filtrujPick = () =>
+            {
+                string fraza = txtPickFiltr.Text.Trim().ToLower();
+                watermark.Visibility = string.IsNullOrEmpty(txtPickFiltr.Text) ? Visibility.Visible : Visibility.Collapsed;
+
+                var przefiltrowane = faktury.Where(f =>
+                {
+                    if (aktywnyZakres < 999 && f.DniTemu > aktywnyZakres) return false;
+                    if (string.IsNullOrEmpty(fraza)) return true;
+                    return (f.NazwaKontrahenta ?? "").ToLower().Contains(fraza)
+                        || (f.NumerDokumentu ?? "").ToLower().Contains(fraza)
+                        || (f.Handlowiec ?? "").ToLower().Contains(fraza);
+                }).ToList();
+
+                dgFaktury.ItemsSource = przefiltrowane;
+
+                txtPickLicznik.Text = $"{przefiltrowane.Count} z {faktury.Count} faktur";
+                decimal sumaWart = przefiltrowane.Sum(x => x.Wartosc);
+                decimal sumaKgF = przefiltrowane.Sum(x => x.SumaKg);
+                txtPickSuma.Text = $"Suma: {sumaWart:#,##0.00} zl   |   {sumaKgF:#,##0.00} kg";
+
+                emptyState.Visibility = przefiltrowane.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            };
+
+            var pickTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(180) };
+            pickTimer.Tick += (s2, e2) => { pickTimer.Stop(); filtrujPick(); };
+            txtPickFiltr.TextChanged += (s2, e2) =>
+            {
+                watermark.Visibility = string.IsNullOrEmpty(txtPickFiltr.Text) ? Visibility.Visible : Visibility.Collapsed;
+                pickTimer.Stop();
+                pickTimer.Start();
+            };
+            btnPickWyczysc.Click += (s2, e2) => { txtPickFiltr.Text = ""; filtrujPick(); txtPickFiltr.Focus(); };
+
+            foreach (var (lbl, d, btn) in rangeButtons)
+            {
+                int captured = d;
+                btn.Click += (s2, e2) => { ustawAktywnyZakres(captured); filtrujPick(); };
+            }
+
+            ustawAktywnyZakres(30);
+            filtrujPick();
+
+            // Selection -> enable button
+            dgFaktury.SelectionChanged += (s2, e2) =>
+            {
+                btnPickOk.IsEnabled = dgFaktury.SelectedItem != null;
+                btnPickOk.Background = new SolidColorBrush(
+                    (Color)ColorConverter.ConvertFromString(dgFaktury.SelectedItem != null ? "#E74C3C" : "#F5B7B1"));
+            };
+
+            Action uruchomReklamacje = () =>
+            {
+                if (!(dgFaktury.SelectedItem is FakturaSprzedazyItem wybrana)) return;
+                dialogPick.Close();
+
+                var okno = new FormReklamacjaWindow(
+                    HandelConnString,
+                    wybrana.Id,
+                    wybrana.IdKontrahenta,
+                    wybrana.NumerDokumentu,
+                    wybrana.NazwaKontrahenta,
+                    userId,
+                    connectionString);
+                okno.Owner = this;
+                if (okno.ShowDialog() == true)
+                {
+                    WczytajReklamacje();
+                    WczytajStatystyki();
+                }
+            };
+
+            btnPickOk.Click += (s2, e2) =>
+            {
+                if (dgFaktury.SelectedItem == null)
+                {
+                    MessageBox.Show("Wybierz fakture z listy.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+                uruchomReklamacje();
+            };
+            dgFaktury.MouseDoubleClick += (s2, e2) =>
+            {
+                if (dgFaktury.SelectedItem != null) uruchomReklamacje();
+            };
+
+            // Enter w textboxie -> jesli jest 1 wynik, wybierz, inaczej skocz na grid
+            txtPickFiltr.KeyDown += (s2, e2) =>
+            {
+                if (e2.Key == Key.Enter)
+                {
+                    if (dgFaktury.Items.Count == 1)
+                    {
+                        dgFaktury.SelectedIndex = 0;
+                        uruchomReklamacje();
+                    }
+                    else if (dgFaktury.Items.Count > 0)
+                    {
+                        dgFaktury.Focus();
+                        dgFaktury.SelectedIndex = 0;
+                    }
+                    e2.Handled = true;
+                }
+                else if (e2.Key == Key.Down && dgFaktury.Items.Count > 0)
+                {
+                    dgFaktury.Focus();
+                    dgFaktury.SelectedIndex = 0;
+                    e2.Handled = true;
+                }
+            };
+
+            dgFaktury.KeyDown += (s2, e2) =>
+            {
+                if (e2.Key == Key.Enter && dgFaktury.SelectedItem != null)
+                {
+                    uruchomReklamacje();
+                    e2.Handled = true;
+                }
+            };
+
+            dialogPick.Loaded += (s2, e2) => { txtPickFiltr.Focus(); };
+            dialogPick.ShowDialog();
+        }
+
+
+        private void BtnUstawieniaSync_Click(object sender, RoutedEventArgs e)
+        {
+            DateTime obecnaData = PobierzDataOdKorekt();
+
+            var dialog = new Window
+            {
+                Title = "Ustawienia synchronizacji korekt",
+                Width = 480,
+                Height = 320,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                ResizeMode = ResizeMode.NoResize,
+                Background = Brushes.White
+            };
+            WindowIconHelper.SetIcon(dialog);
+
+            var mainPanel = new StackPanel { Margin = new Thickness(24) };
+
+            // Header
+            var headerPanel = new StackPanel { Margin = new Thickness(0, 0, 0, 16) };
+            headerPanel.Children.Add(new TextBlock
+            {
+                Text = "USTAWIENIA SYNC KOREKT",
+                FontSize = 15,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#8E44AD"))
+            });
+            headerPanel.Children.Add(new TextBlock
+            {
+                Text = "Ustaw date od kiedy pobierac faktury korygujace z Symfonii",
+                FontSize = 11,
+                Foreground = Brushes.Gray,
+                Margin = new Thickness(0, 4, 0, 0)
+            });
+            mainPanel.Children.Add(headerPanel);
+
+            // Aktualna wartosc
+            var infoPanel = new Border
+            {
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F3E5F5")),
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(12, 8, 12, 8),
+                Margin = new Thickness(0, 0, 0, 16)
+            };
+            var infoText = new TextBlock
+            {
+                FontSize = 11.5,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4A148C"))
+            };
+            infoText.Inlines.Add(new System.Windows.Documents.Run("Aktualna data od: ") { FontWeight = FontWeights.Normal });
+            infoText.Inlines.Add(new System.Windows.Documents.Run(obecnaData.ToString("dd.MM.yyyy")) { FontWeight = FontWeights.Bold });
+            infoPanel.Child = infoText;
+            mainPanel.Children.Add(infoPanel);
+
+            // DatePicker
+            mainPanel.Children.Add(new TextBlock
+            {
+                Text = "Nowa data poczatkowa:",
+                FontSize = 11,
+                Foreground = Brushes.Gray,
+                Margin = new Thickness(0, 0, 0, 4)
+            });
+
+            var datePicker = new DatePicker
+            {
+                SelectedDate = obecnaData,
+                FontSize = 13,
+                Padding = new Thickness(6, 4, 6, 4),
+                Margin = new Thickness(0, 0, 0, 8),
+                DisplayDateStart = new DateTime(2020, 1, 1),
+                DisplayDateEnd = DateTime.Now
+            };
+            mainPanel.Children.Add(datePicker);
+
+            mainPanel.Children.Add(new TextBlock
+            {
+                Text = "Korekty z Symfonii starsze niz ta data nie beda synchronizowane.",
+                FontSize = 10,
+                Foreground = Brushes.Gray,
+                FontStyle = FontStyles.Italic,
+                Margin = new Thickness(0, 0, 0, 16)
+            });
+
+            // Buttons
+            var btnPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+
+            var btnZapisz = new Button
+            {
+                Content = "Zapisz i sync",
+                Width = 120,
+                Height = 36,
+                Margin = new Thickness(0, 0, 8, 0),
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#8E44AD")),
+                Foreground = Brushes.White,
+                FontWeight = FontWeights.SemiBold,
+                FontSize = 12,
+                BorderThickness = new Thickness(0),
+                Cursor = Cursors.Hand
+            };
+            btnZapisz.Click += (s, args) =>
+            {
+                if (!datePicker.SelectedDate.HasValue)
+                {
+                    MessageBox.Show("Wybierz date.", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+                DateTime nowaData = datePicker.SelectedDate.Value;
+
+                var potwierdzenie = MessageBox.Show(
+                    $"Zmienic date synchronizacji korekt na:\n{nowaData:dd.MM.yyyy}\n\nKorekty starsze niz ta data nie beda pobierane.\nPo zapisaniu zostanie uruchomiona ponowna synchronizacja.",
+                    "Potwierdzenie", MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+                if (potwierdzenie == MessageBoxResult.Yes)
+                {
+                    ZapiszDataOdKorekt(nowaData);
+                    int usunieto = UsunKorektySprzedDaty(nowaData);
+                    dialog.Close();
+
+                    // Re-sync
+                    try { SyncFakturyKorygujace(); } catch { }
+                    WczytajReklamacje();
+                    WczytajStatystyki();
+
+                    MessageBox.Show(
+                        $"Ustawienie zapisane.\nData od korekt: {nowaData:dd.MM.yyyy}\nUsunieto starych korekt: {usunieto}\nSynchronizacja wykonana.",
+                        "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            };
+            btnPanel.Children.Add(btnZapisz);
+
+            var btnAnuluj = new Button
+            {
+                Content = "Anuluj",
+                Width = 80,
+                Height = 36,
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#95A5A6")),
+                Foreground = Brushes.White,
+                FontWeight = FontWeights.SemiBold,
+                FontSize = 12,
+                BorderThickness = new Thickness(0),
+                Cursor = Cursors.Hand
+            };
+            btnAnuluj.Click += (s, args) => dialog.Close();
+            btnPanel.Children.Add(btnAnuluj);
+
+            mainPanel.Children.Add(btnPanel);
+            dialog.Content = mainPanel;
+            dialog.ShowDialog();
         }
 
         // ========================================
@@ -965,6 +4405,9 @@ namespace Kalendarz1.Reklamacje
         {
             try
             {
+                // Pobierz date poczatkowa z ustawien (admin moze ja zmienic)
+                DateTime dataOdKorekt = PobierzDataOdKorekt();
+
                 // Pobierz faktury korygujace z HANDEL
                 var korygujace = new List<(int id, string kod, DateTime data, decimal wartosc, int khid, string kontrahent, string handlowiec, decimal sumaKg)>();
 
@@ -983,8 +4426,10 @@ namespace Kalendarz1.Reklamacje
                         LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
                         WHERE DK.seria IN ('sFKS', 'sFKSB', 'sFWK')
                           AND DK.anulowany = 0
-                          AND DK.data >= DATEADD(MONTH, -6, GETDATE())", connHandel))
+                          AND DK.data >= @DataOd
+                          AND C.shortcut NOT LIKE 'SD/%'", connHandel))
                     {
+                        cmd.Parameters.AddWithValue("@DataOd", dataOdKorekt);
                         using (var reader = cmd.ExecuteReader())
                         {
                             while (reader.Read())
@@ -1021,15 +4466,17 @@ namespace Kalendarz1.Reklamacje
                             if (Convert.ToInt32(cmdCheck.ExecuteScalar()) > 0) continue;
                         }
 
-                        // Wstaw nowa reklamacje
+                        // Wstaw nowa reklamacje (z polami Workflow V2)
                         int noweIdReklamacji = 0;
                         using (var cmdInsert = new SqlCommand(@"
                             INSERT INTO [dbo].[Reklamacje]
                             (DataZgloszenia, UserID, IdDokumentu, NumerDokumentu, IdKontrahenta, NazwaKontrahenta,
-                             Opis, SumaKg, SumaWartosc, Status, TypReklamacji, Priorytet)
+                             Opis, SumaKg, SumaWartosc, Status, TypReklamacji, Priorytet,
+                             StatusV2, ZrodloZgloszenia, WymagaUzupelnienia, Handlowiec)
                             VALUES
                             (@Data, '', @IdDok, @NrDok, @IdKontr, @Kontrahent,
-                             @Opis, @SumaKg, @Wartosc, 'Nowa', 'Faktura korygujaca', 'Normalny');
+                             @Opis, @SumaKg, @Wartosc, 'Nowa', 'Faktura korygujaca', 'Normalny',
+                             'ZGLOSZONA', 'Symfonia', 1, @Handlowiec);
                             SELECT SCOPE_IDENTITY();", conn))
                         {
                             cmdInsert.Parameters.AddWithValue("@Data", fk.data);
@@ -1040,9 +4487,16 @@ namespace Kalendarz1.Reklamacje
                             cmdInsert.Parameters.AddWithValue("@Opis", $"Faktura korygujaca {fk.kod} | Handlowiec: {fk.handlowiec}");
                             cmdInsert.Parameters.AddWithValue("@SumaKg", fk.sumaKg);
                             cmdInsert.Parameters.AddWithValue("@Wartosc", fk.wartosc);
+                            cmdInsert.Parameters.AddWithValue("@Handlowiec", fk.handlowiec ?? "-");
                             var result = cmdInsert.ExecuteScalar();
                             if (result != null && result != DBNull.Value)
                                 noweIdReklamacji = Convert.ToInt32(result);
+                        }
+
+                        // AUTO-MATCHING: sprobuj znalezc dokladnie 1 pasujaca reklamacje handlowca
+                        if (noweIdReklamacji > 0)
+                        {
+                            try { ProbujAutoMatch(conn, noweIdReklamacji, fk.khid, fk.data); } catch { }
                         }
 
                         // Wstaw towary z faktury korygujuacej z HANDEL
@@ -1113,49 +4567,61 @@ namespace Kalendarz1.Reklamacje
                 throw; // rethrow aby BtnDebugSync_Click mógł złapać
             }
         }
+
+        // ========================================
+        // AUTO-MATCHING (Workflow V2)
+        // ========================================
+        // Wolane po utworzeniu korekty z Symfonii. Szuka niepowiazanych reklamacji
+        // handlowca dla tego samego kontrahenta, w oknie ±14 dni od daty korekty,
+        // w statusach W_ANALIZIE lub ZASADNA. Jesli dokladnie 1 kandydat pasuje =>
+        // laczymy bidirectional + zdejmujemy flage WymagaUzupelnienia.
+        private void ProbujAutoMatch(SqlConnection conn, int idKorekty, int khid, DateTime dataKorekty)
+        {
+            var kandydaci = new List<int>();
+            using (var cmd = new SqlCommand(@"
+                SELECT Id
+                FROM [dbo].[Reklamacje]
+                WHERE IdKontrahenta = @Khid
+                  AND TypReklamacji <> 'Faktura korygujaca'
+                  AND (PowiazanaReklamacjaId IS NULL OR PowiazanaReklamacjaId = 0)
+                  AND ISNULL(StatusV2, 'ZGLOSZONA') IN ('ZGLOSZONA','W_ANALIZIE','ZASADNA')
+                  AND DataZgloszenia BETWEEN @DataOd AND @DataDo", conn))
+            {
+                cmd.Parameters.AddWithValue("@Khid", khid);
+                cmd.Parameters.AddWithValue("@DataOd", dataKorekty.AddDays(-14));
+                cmd.Parameters.AddWithValue("@DataDo", dataKorekty.AddDays(14));
+                using (var rdr = cmd.ExecuteReader())
+                {
+                    while (rdr.Read()) kandydaci.Add(rdr.GetInt32(0));
+                }
+            }
+
+            // Tylko dokladne dopasowanie (1 kandydat) laczymy automatycznie
+            if (kandydaci.Count != 1) return;
+
+            int idRekl = kandydaci[0];
+            using (var cmd = new SqlCommand(@"
+                UPDATE [dbo].[Reklamacje]
+                SET PowiazanaReklamacjaId = @B,
+                    StatusV2 = 'POWIAZANA',
+                    WymagaUzupelnienia = 0,
+                    DataPowiazania = GETDATE(),
+                    UserPowiazania = 'AUTO'
+                WHERE Id = @A;
+
+                UPDATE [dbo].[Reklamacje]
+                SET PowiazanaReklamacjaId = @A,
+                    StatusV2 = 'POWIAZANA',
+                    WymagaUzupelnienia = 0,
+                    DataPowiazania = GETDATE(),
+                    UserPowiazania = 'AUTO'
+                WHERE Id = @B;", conn))
+            {
+                cmd.Parameters.AddWithValue("@A", idKorekty);
+                cmd.Parameters.AddWithValue("@B", idRekl);
+                cmd.ExecuteNonQuery();
+            }
+        }
     }
 
-    public class ReklamacjaItem : INotifyPropertyChanged
-    {
-        private int _id;
-        private DateTime _dataZgloszenia;
-        private string _numerDokumentu;
-        private string _nazwaKontrahenta;
-        private string _opis;
-        private decimal _sumaKg;
-        private string _status;
-        private string _zglaszajacy;
-        private string _osobaRozpatrujaca;
-        private string _typReklamacji;
-        private string _priorytet;
-
-        public int Id { get => _id; set { _id = value; OnPropertyChanged(nameof(Id)); } }
-        public DateTime DataZgloszenia { get => _dataZgloszenia; set { _dataZgloszenia = value; OnPropertyChanged(nameof(DataZgloszenia)); } }
-        public string NumerDokumentu { get => _numerDokumentu; set { _numerDokumentu = value; OnPropertyChanged(nameof(NumerDokumentu)); } }
-        public string NazwaKontrahenta { get => _nazwaKontrahenta; set { _nazwaKontrahenta = value; OnPropertyChanged(nameof(NazwaKontrahenta)); } }
-        public string Opis { get => _opis; set { _opis = value; OnPropertyChanged(nameof(Opis)); } }
-        public decimal SumaKg { get => _sumaKg; set { _sumaKg = value; OnPropertyChanged(nameof(SumaKg)); } }
-        public string Status { get => _status; set { _status = value; OnPropertyChanged(nameof(Status)); } }
-        public string Zglaszajacy { get => _zglaszajacy; set { _zglaszajacy = value; OnPropertyChanged(nameof(Zglaszajacy)); } }
-        public string OsobaRozpatrujaca { get => _osobaRozpatrujaca; set { _osobaRozpatrujaca = value; OnPropertyChanged(nameof(OsobaRozpatrujaca)); } }
-        public string TypReklamacji { get => _typReklamacji; set { _typReklamacji = value; OnPropertyChanged(nameof(TypReklamacji)); } }
-        public string Priorytet { get => _priorytet; set { _priorytet = value; OnPropertyChanged(nameof(Priorytet)); } }
-
-        // Avatar support
-        public string ZglaszajacyId { get; set; }
-        public string RozpatrujacyId { get; set; }
-        public ImageSource ZglaszajacyAvatar { get; set; }
-        public ImageSource RozpatrujacyAvatar { get; set; }
-        public string ZglaszajacyInitials => FormRozpatrzenieWindow.GetInitials(Zglaszajacy);
-        public SolidColorBrush ZglaszajacyAvatarBrush => FormRozpatrzenieWindow.GetAvatarBrush(Zglaszajacy);
-        public string RozpatrujacyInitials => FormRozpatrzenieWindow.GetInitials(OsobaRozpatrujaca);
-        public SolidColorBrush RozpatrujacyAvatarBrush => FormRozpatrzenieWindow.GetAvatarBrush(OsobaRozpatrujaca);
-        public Visibility ZglaszajacyAvatarPhotoVis => ZglaszajacyAvatar != null ? Visibility.Visible : Visibility.Collapsed;
-        public Visibility RozpatrujacyAvatarPhotoVis => RozpatrujacyAvatar != null ? Visibility.Visible : Visibility.Collapsed;
-        public Visibility RozpatrujacyVis => string.IsNullOrEmpty(OsobaRozpatrujaca) ? Visibility.Collapsed : Visibility.Visible;
-
-        public event PropertyChangedEventHandler PropertyChanged;
-        private void OnPropertyChanged(string propertyName) =>
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-    }
 }

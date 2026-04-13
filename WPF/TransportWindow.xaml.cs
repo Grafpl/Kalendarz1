@@ -23,7 +23,22 @@ namespace Kalendarz1.WPF
         private readonly System.Text.StringBuilder _debugLog = new();
         private Dictionary<int, string> _etaCache = new();
         private static readonly Dictionary<string, string> _osrmCache = new(); // URL → JSON response (trwa przez sesję)
-        private static readonly System.Net.Http.HttpClient _httpEta = new() { Timeout = TimeSpan.FromSeconds(10) };
+        private static readonly System.Net.Http.HttpClient _httpEta = CreateOsrmHttpClient();
+
+        private static System.Net.Http.HttpClient CreateOsrmHttpClient()
+        {
+            var handler = new System.Net.Http.SocketsHttpHandler
+            {
+                PooledConnectionLifetime = TimeSpan.FromMinutes(10),
+                PooledConnectionIdleTimeout = TimeSpan.FromMinutes(5),
+                MaxConnectionsPerServer = 8,
+                AutomaticDecompression = System.Net.DecompressionMethods.All
+            };
+            var client = new System.Net.Http.HttpClient(handler) { Timeout = TimeSpan.FromSeconds(10) };
+            client.DefaultRequestHeaders.ConnectionClose = false;
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("Kalendarz1-Transport/1.0");
+            return client;
+        }
         private static Dictionary<string, BitmapSource> _avatarCache = new(StringComparer.OrdinalIgnoreCase);
         private Dictionary<string, string> _userIdToName = new();
         private Dictionary<string, string> _handlowiecToUserId = new(StringComparer.OrdinalIgnoreCase);
@@ -126,6 +141,8 @@ namespace Kalendarz1.WPF
             _dtTransport.Columns.Add("Kolejnosc", typeof(int));
             _dtTransport.Columns.Add("AdresDostawy", typeof(string));
             _dtTransport.Columns.Add("Awizacja", typeof(string));
+            _dtTransport.Columns.Add("PorownanieETA", typeof(string));
+            _dtTransport.Columns.Add("PorownanieETADiff", typeof(int)); // minuty różnicy (ujemne = szybciej, dodatnie = opóźnienie)
 
             dgTransport.ItemsSource = _dtTransport.DefaultView;
             SetupDataGrid();
@@ -146,20 +163,42 @@ namespace Kalendarz1.WPF
         {
             dgTransport.Columns.Clear();
 
-            dgTransport.Columns.Add(new DataGridTextColumn { Header = "Odbiorca", Binding = new Binding("Odbiorca"), Width = new DataGridLength(140) });
+            // Styl zawijania tekstu dla kolumn wielowierszowych
+            var wrapStyle = new Style(typeof(TextBlock));
+            wrapStyle.Setters.Add(new Setter(TextBlock.TextWrappingProperty, TextWrapping.Wrap));
+            wrapStyle.Setters.Add(new Setter(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center));
+            wrapStyle.Setters.Add(new Setter(TextBlock.PaddingProperty, new Thickness(4, 2, 4, 2)));
+
+            dgTransport.Columns.Add(CreateOdbiorcaColumnZBadge());
             dgTransport.Columns.Add(new DataGridTextColumn { Header = "#", Binding = new Binding("Kolejnosc"), Width = new DataGridLength(28), ElementStyle = (Style)FindResource("CenterAlignedCellStyle") });
-            dgTransport.Columns.Add(new DataGridTextColumn { Header = "Adres dostawy", Binding = new Binding("AdresDostawy"), Width = new DataGridLength(150) });
+            dgTransport.Columns.Add(new DataGridTextColumn { Header = "Adres dostawy", Binding = new Binding("AdresDostawy"), Width = new DataGridLength(150), ElementStyle = wrapStyle });
             dgTransport.Columns.Add(CreateAvatarColumn("Handlowiec", "Handlowiec", 115));
-            dgTransport.Columns.Add(new DataGridTextColumn { Header = "Kierowca", Binding = new Binding("Kierowca"), Width = new DataGridLength(115) });
+            dgTransport.Columns.Add(new DataGridTextColumn { Header = "Kierowca", Binding = new Binding("Kierowca"), Width = new DataGridLength(115), ElementStyle = wrapStyle });
             dgTransport.Columns.Add(new DataGridTextColumn { Header = "Tel.", Binding = new Binding("TelefonKierowcy"), Width = new DataGridLength(85) });
             dgTransport.Columns.Add(new DataGridTextColumn { Header = "Pojazd", Binding = new Binding("Pojazd"), Width = new DataGridLength(80), ElementStyle = (Style)FindResource("CenterAlignedCellStyle") });
             dgTransport.Columns.Add(new DataGridTextColumn { Header = "Wyjazd z bazy", Binding = new Binding("GodzWyjazdu"), Width = new DataGridLength(110) });
             dgTransport.Columns.Add(new DataGridTextColumn { Header = "ETA przyjazdu", Binding = new Binding("ETA"), Width = new DataGridLength(110), ElementStyle = (Style)FindResource("BoldCellStyle") });
+            dgTransport.Columns.Add(CreatePorownanieColumn());
             dgTransport.Columns.Add(new DataGridTextColumn { Header = "Awizacja", Binding = new Binding("Awizacja"), Width = new DataGridLength(105) });
             dgTransport.Columns.Add(new DataGridTextColumn { Header = "GPS", Binding = new Binding("Lokalizacja"), Width = new DataGridLength(1, DataGridLengthUnitType.Star), MinWidth = 100 });
-            dgTransport.Columns.Add(CreateAvatarColumn("Utworzył kurs", "KursUtworzyl", 120));
+            dgTransport.Columns.Add(CreateAvatarColumnWrap("Utworzył kurs", "KursUtworzyl", 120));
 
+            dgTransport.RowHeight = double.NaN; // auto height dla wrapowania
             dgTransport.LoadingRow += DgTransport_LoadingRow;
+
+            // Menu kontekstowe — prawy przycisk na wierszu
+            var ctxMenu = new ContextMenu();
+            var miGoogleMaps = new MenuItem { Header = "🗺️ Mapa Google — trasa z lokalizacji GPS do klienta" };
+            miGoogleMaps.Click += MiGoogleMaps_Click;
+            ctxMenu.Items.Add(miGoogleMaps);
+            var miGoogleMapsBaza = new MenuItem { Header = "🏭 Mapa Google — trasa z bazy do klienta" };
+            miGoogleMapsBaza.Click += MiGoogleMapsBaza_Click;
+            ctxMenu.Items.Add(miGoogleMapsBaza);
+            ctxMenu.Items.Add(new Separator());
+            var miGoogleMapsKlient = new MenuItem { Header = "📍 Otwórz klienta w Google Maps" };
+            miGoogleMapsKlient.Click += MiGoogleMapsKlient_Click;
+            ctxMenu.Items.Add(miGoogleMapsKlient);
+            dgTransport.ContextMenu = ctxMenu;
         }
 
         private Color GetColorForRoute(long kursId)
@@ -173,6 +212,46 @@ namespace Kalendarz1.WPF
                 _colorIndex++;
             }
             return color;
+        }
+
+        // Oblicza tekst porównania ETA vs Awizacja + liczbę minut różnicy (ujemne = szybciej)
+        private (string tekst, int diffMin) ObliczPorownanieETA(string etaText, DateTime? dataAwizacji)
+        {
+            if (string.IsNullOrEmpty(etaText) || etaText == "Czekanie..." || !dataAwizacji.HasValue)
+                return ("", 0);
+
+            // Awizacja bez godziny = brak porównania
+            if (dataAwizacji.Value.Hour == 0 && dataAwizacji.Value.Minute == 0)
+                return ("", 0);
+
+            // Parsuj ETA z formatu "09.04 CZW. 14:15"
+            try
+            {
+                var parts = etaText.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length < 3) return ("", 0);
+                var datePart = parts[0]; // "09.04"
+                var timePart = parts[2]; // "14:15"
+                var dateBits = datePart.Split('.');
+                var timeBits = timePart.Split(':');
+                if (dateBits.Length != 2 || timeBits.Length != 2) return ("", 0);
+
+                int day = int.Parse(dateBits[0]);
+                int month = int.Parse(dateBits[1]);
+                int hour = int.Parse(timeBits[0]);
+                int min = int.Parse(timeBits[1]);
+                var etaDt = new DateTime(dataAwizacji.Value.Year, month, day, hour, min, 0);
+
+                var diff = (etaDt - dataAwizacji.Value).TotalMinutes;
+                int diffMin = (int)Math.Round(diff);
+
+                if (diffMin == 0) return ("Na czas", 0);
+                if (diffMin < 0) return ($"Będzie {-diffMin} min szybciej", diffMin);
+                return ($"Będzie {diffMin} min opóźnienia", diffMin);
+            }
+            catch
+            {
+                return ("", 0);
+            }
         }
 
         private void InitializeDate()
@@ -409,20 +488,27 @@ namespace Kalendarz1.WPF
                     if (!string.IsNullOrEmpty(utworzyl) && userNames.TryGetValue(utworzyl, out var uName))
                         utworzyl = uName;
 
-                    // Lokalizacja GPS
+                    // Lokalizacja GPS — placeholder jeśli kurs istnieje ale brak danych
                     if (order.KursId.HasValue)
                     {
                         var hasKursMap = kursPojazdMap.TryGetValue(order.KursId.Value, out var pid2);
                         if (hasKursMap && pojazdGps.TryGetValue(pid2, out var gps))
                             lokalizacja = gps.speed > 0 ? $"{gps.speed} km/h — {gps.addr}" : $"Postój — {gps.addr}";
+                        else
+                            lokalizacja = "Czekanie...";
                     }
 
                     // Kolejność na kursie
                     orderKolejnosc.TryGetValue(order.Id, out kolejnosc);
 
                     // ETA — OSRM (czas dojazdu z bazy do klienta wg kolejności + rozładunek)
-                    if (kolejnosc > 0 && !string.IsNullOrEmpty(godzWyjazdu) && _etaCache.TryGetValue(order.Id, out var etaVal))
-                        eta = etaVal;
+                    if (kolejnosc > 0 && !string.IsNullOrEmpty(godzWyjazdu))
+                    {
+                        if (_etaCache.TryGetValue(order.Id, out var etaVal))
+                            eta = etaVal;
+                        else
+                            eta = "Czekanie...";
+                    }
 
                     // Adres dostawy (z cache OSRM adresów)
                     var adresDostawy = "";
@@ -438,12 +524,15 @@ namespace Kalendarz1.WPF
                         awizacja = dp.Hour > 0 ? $"{dp:dd.MM} {dzien} {dp:HH:mm}" : $"{dp:dd.MM} {dzien}";
                     }
 
+                    // Porównanie ETA vs Awizacja
+                    var (porownanieTxt, porownanieDiff) = ObliczPorownanieETA(eta, order.DataPrzyjazdu);
+
                     _dtTransport.Rows.Add(
                         order.Id, order.KlientId, order.KursId ?? 0L, order.DataUboju,
                         name, salesman, zam, wyd, palety,
                         kierowca, pojazd, godzWyjazdu, trasa, status, grupaIndex,
                         telKier, lokalizacja, eta, utworzyl, utworzono, kolejnosc,
-                        adresDostawy, awizacja);
+                        adresDostawy, awizacja, porownanieTxt, porownanieDiff);
                 }
 
                 // Podsumowanie (debug)
@@ -624,6 +713,160 @@ namespace Kalendarz1.WPF
             return col;
         }
 
+        // Wersja kolumny z avatarem i zawijaniem tekstu (dla "Utworzył kurs")
+        private DataGridTemplateColumn CreateAvatarColumnWrap(string header, string bindingName, double width)
+        {
+            var col = CreateAvatarColumn(header, bindingName, width);
+            // Zmień szablon — podmień TextTrimming na TextWrapping
+            var template = new DataTemplate();
+            var stackFactory = new FrameworkElementFactory(typeof(StackPanel));
+            stackFactory.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
+            stackFactory.SetValue(StackPanel.VerticalAlignmentProperty, VerticalAlignment.Center);
+            stackFactory.SetValue(StackPanel.MarginProperty, new Thickness(2));
+
+            var gridFactory = new FrameworkElementFactory(typeof(Grid));
+            gridFactory.SetValue(Grid.WidthProperty, 34.0);
+            gridFactory.SetValue(Grid.HeightProperty, 34.0);
+            gridFactory.SetValue(Grid.MarginProperty, new Thickness(0, 0, 6, 0));
+
+            var borderFactory = new FrameworkElementFactory(typeof(Border));
+            borderFactory.SetValue(Border.WidthProperty, 34.0);
+            borderFactory.SetValue(Border.HeightProperty, 34.0);
+            borderFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(17));
+            borderFactory.SetValue(Border.BackgroundProperty, new SolidColorBrush(Color.FromRgb(144, 202, 249)));
+            borderFactory.SetValue(Border.BorderBrushProperty, new SolidColorBrush(Color.FromRgb(224, 238, 252)));
+            borderFactory.SetValue(Border.BorderThicknessProperty, new Thickness(1.5));
+
+            var initialsFactory = new FrameworkElementFactory(typeof(TextBlock));
+            initialsFactory.SetValue(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+            initialsFactory.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+            initialsFactory.SetValue(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(21, 101, 192)));
+            initialsFactory.SetValue(TextBlock.FontSizeProperty, 12.0);
+            initialsFactory.SetValue(TextBlock.FontWeightProperty, FontWeights.Bold);
+            initialsFactory.SetBinding(TextBlock.TextProperty, new Binding(bindingName) { Converter = new InitialsConverter() });
+            borderFactory.AppendChild(initialsFactory);
+            gridFactory.AppendChild(borderFactory);
+
+            var ellipseFactory = new FrameworkElementFactory(typeof(System.Windows.Shapes.Ellipse));
+            ellipseFactory.SetValue(System.Windows.Shapes.Ellipse.WidthProperty, 34.0);
+            ellipseFactory.SetValue(System.Windows.Shapes.Ellipse.HeightProperty, 34.0);
+            ellipseFactory.SetValue(System.Windows.Shapes.Ellipse.StrokeProperty, new SolidColorBrush(Color.FromRgb(224, 238, 252)));
+            ellipseFactory.SetValue(System.Windows.Shapes.Ellipse.StrokeThicknessProperty, 1.5);
+            ellipseFactory.SetValue(UIElement.VisibilityProperty, Visibility.Collapsed);
+            ellipseFactory.SetValue(System.Windows.Shapes.Ellipse.NameProperty, $"av_{bindingName}");
+            gridFactory.AppendChild(ellipseFactory);
+
+            stackFactory.AppendChild(gridFactory);
+
+            // Tekst z zawijaniem zamiast ellipsis
+            var txtFactory = new FrameworkElementFactory(typeof(TextBlock));
+            txtFactory.SetBinding(TextBlock.TextProperty, new Binding(bindingName));
+            txtFactory.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+            txtFactory.SetValue(TextBlock.FontSizeProperty, 11.0);
+            txtFactory.SetValue(TextBlock.TextWrappingProperty, TextWrapping.Wrap);
+            txtFactory.SetValue(TextBlock.MaxWidthProperty, width - 50);
+            stackFactory.AppendChild(txtFactory);
+
+            template.VisualTree = stackFactory;
+            col.CellTemplate = template;
+            return col;
+        }
+
+        // Kolumna porównania ETA vs Awizacja — kolorowa (zielony/czerwony)
+        private DataGridTemplateColumn CreatePorownanieColumn()
+        {
+            var col = new DataGridTemplateColumn { Header = "Różnica", Width = new DataGridLength(130) };
+
+            var template = new DataTemplate();
+            var txtFactory = new FrameworkElementFactory(typeof(TextBlock));
+            txtFactory.SetBinding(TextBlock.TextProperty, new Binding("PorownanieETA"));
+            txtFactory.SetValue(TextBlock.FontSizeProperty, 11.0);
+            txtFactory.SetValue(TextBlock.FontWeightProperty, FontWeights.SemiBold);
+            txtFactory.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+            txtFactory.SetValue(TextBlock.PaddingProperty, new Thickness(6, 0, 6, 0));
+            txtFactory.SetValue(TextBlock.TextWrappingProperty, TextWrapping.Wrap);
+
+            // Kolor na podstawie PorownanieETADiff (ujemne = zielony, dodatnie = czerwony)
+            var binding = new Binding("PorownanieETADiff") { Converter = new PorownanieColorConverter() };
+            txtFactory.SetBinding(TextBlock.ForegroundProperty, binding);
+
+            template.VisualTree = txtFactory;
+            col.CellTemplate = template;
+            return col;
+        }
+
+        // Kolumna Odbiorca z kolorowym kółkiem (kolor trasy) + pełna nazwa
+        private DataGridTemplateColumn CreateOdbiorcaColumnZBadge()
+        {
+            var col = new DataGridTemplateColumn { Header = "Odbiorca", Width = new DataGridLength(150) };
+            var template = new DataTemplate();
+
+            var stackFactory = new FrameworkElementFactory(typeof(StackPanel));
+            stackFactory.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
+            stackFactory.SetValue(StackPanel.VerticalAlignmentProperty, VerticalAlignment.Center);
+
+            // Kolorowe kółko — kolor trasy
+            var dotFactory = new FrameworkElementFactory(typeof(Border));
+            dotFactory.SetValue(Border.WidthProperty, 10.0);
+            dotFactory.SetValue(Border.HeightProperty, 10.0);
+            dotFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(5));
+            dotFactory.SetValue(Border.MarginProperty, new Thickness(0, 0, 6, 0));
+            dotFactory.SetValue(Border.VerticalAlignmentProperty, VerticalAlignment.Center);
+            dotFactory.SetValue(Border.BorderBrushProperty, new SolidColorBrush(Color.FromRgb(180, 180, 180)));
+            dotFactory.SetValue(Border.BorderThicknessProperty, new Thickness(0.5));
+            dotFactory.SetBinding(Border.BackgroundProperty, new Binding("KursId") { Converter = new KursIdToColorConverter(this) });
+            stackFactory.AppendChild(dotFactory);
+
+            var txtFactory = new FrameworkElementFactory(typeof(TextBlock));
+            txtFactory.SetBinding(TextBlock.TextProperty, new Binding("Odbiorca"));
+            txtFactory.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+            txtFactory.SetValue(TextBlock.TextWrappingProperty, TextWrapping.Wrap);
+            txtFactory.SetValue(TextBlock.FontSizeProperty, 11.0);
+            stackFactory.AppendChild(txtFactory);
+
+            template.VisualTree = stackFactory;
+            col.CellTemplate = template;
+            return col;
+        }
+
+        // Converter: KursId → kolor trasy (używa _routeColors z TransportWindow)
+        private class KursIdToColorConverter : System.Windows.Data.IValueConverter
+        {
+            private readonly TransportWindow _window;
+            public KursIdToColorConverter(TransportWindow window) { _window = window; }
+            public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+            {
+                if (value == null || value == DBNull.Value) return new SolidColorBrush(Colors.Transparent);
+                try
+                {
+                    long kid = System.Convert.ToInt64(value);
+                    if (kid == 0) return new SolidColorBrush(Color.FromRgb(200, 200, 200));
+                    var c = _window.GetColorForRoute(kid);
+                    // Pełny nasycony kolor (GetColorForRoute zwraca pastelowy — zrób mocniejszy)
+                    byte r = (byte)Math.Max(0, c.R - 60);
+                    byte g = (byte)Math.Max(0, c.G - 60);
+                    byte b = (byte)Math.Max(0, c.B - 60);
+                    return new SolidColorBrush(Color.FromRgb(r, g, b));
+                }
+                catch { return new SolidColorBrush(Colors.Gray); }
+            }
+            public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture) => value;
+        }
+
+        // Converter: int minuty → Brush (ujemne = zielony, dodatnie = czerwony, 0 = szary)
+        private class PorownanieColorConverter : System.Windows.Data.IValueConverter
+        {
+            public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+            {
+                if (value == null || value == DBNull.Value) return new SolidColorBrush(Color.FromRgb(150, 150, 150));
+                int diff = System.Convert.ToInt32(value);
+                if (diff < 0) return new SolidColorBrush(Color.FromRgb(22, 163, 74));   // zielony — szybciej
+                if (diff > 0) return new SolidColorBrush(Color.FromRgb(220, 38, 38));   // czerwony — opóźnienie
+                return new SolidColorBrush(Color.FromRgb(100, 116, 139));               // szary — na czas
+            }
+            public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture) => value;
+        }
+
         // Converter: nazwa → inicjały (2 litery)
         private class InitialsConverter : System.Windows.Data.IValueConverter
         {
@@ -712,20 +955,44 @@ namespace Kalendarz1.WPF
                 catch { }
                 Log($"BG GPS: {pojazdGps.Count} pojazdów, {bgSw.ElapsedMilliseconds}ms");
 
+                // ETAP 1: Zaktualizuj GPS w wierszach od razu (nie czekaj na ETA)
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    int updated = 0;
+                    foreach (DataRow row in _dtTransport.Rows)
+                    {
+                        var kursId = row.IsNull("KursId") ? 0L : (long)row["KursId"];
+                        if (kursId > 0 && kursPojazdMap.TryGetValue(kursId, out var pid) && pojazdGps.TryGetValue(pid, out var gps))
+                        {
+                            row["Lokalizacja"] = gps.speed > 0 ? $"{gps.speed} km/h — {gps.addr}" : $"Postój — {gps.addr}";
+                            updated++;
+                        }
+                        else if (kursId > 0 && row["Lokalizacja"]?.ToString() == "Czekanie...")
+                        {
+                            row["Lokalizacja"] = "Brak GPS";
+                        }
+                    }
+                    dgTransport.Items.Refresh();
+                    txtStatus.Text = $"GPS gotowy ({updated}) — ETA ładuje się...";
+                });
+
                 // 2. OSRM ETA — równolegle
                 const double bazaLat = 51.86857, bazaLon = 19.79476;
                 var ci = System.Globalization.CultureInfo.InvariantCulture;
                 var adresyWithGps = allAdresy.Count(a => a.Value.Lat != 0);
                 Log($"BG Adresy: {allAdresy.Count} total, {adresyWithGps} z GPS");
 
-                // Geokoduj adresy bez GPS (Nominatim — w tle, nie blokuje)
+                // Geokoduj adresy bez GPS (Nominatim — równolegle, max 2 na raz)
                 if (adresyWithGps < allAdresy.Count)
                 {
-                    var addrSvc2 = new MapaFloty.WebfleetOrderService();
-                    foreach (var kv in allAdresy.Where(a => a.Value.Lat == 0 && !string.IsNullOrEmpty(a.Value.Miasto)).ToList())
+                    var doGeokodowania = allAdresy.Where(a => a.Value.Lat == 0 && !string.IsNullOrEmpty(a.Value.Miasto)).ToList();
+                    var semaphore = new System.Threading.SemaphoreSlim(2);
+                    var geoTasks = doGeokodowania.Select(async kv =>
                     {
+                        await semaphore.WaitAsync();
                         try
                         {
+                            var addrSvc2 = new MapaFloty.WebfleetOrderService();
                             var (lat, lon) = await addrSvc2.GeokodujAdresAsync(kv.Value.Ulica ?? "", kv.Value.Miasto, kv.Value.KodPocztowy);
                             if (lat != 0)
                             {
@@ -733,10 +1000,12 @@ namespace Kalendarz1.WPF
                                 await addrSvc2.ZapiszAdresAsync(kv.Value, "auto-bg");
                                 Log($"BG GEO: {kv.Key} → {lat:F4},{lon:F4} ({kv.Value.Miasto})");
                             }
-                            await Task.Delay(1100); // Nominatim rate limit
+                            await Task.Delay(550); // Nominatim rate limit (2 równoległe = 1 req/s)
                         }
                         catch { }
-                    }
+                        finally { semaphore.Release(); }
+                    });
+                    await Task.WhenAll(geoTasks);
                     adresyWithGps = allAdresy.Count(a => a.Value.Lat != 0);
                     Log($"BG Adresy po geo: {adresyWithGps} z GPS");
                 }
@@ -757,29 +1026,79 @@ namespace Kalendarz1.WPF
                     osrmJobs.Add((kursId, (int)td.GodzWyjazdu.Value.TotalMinutes, oids,
                         $"https://router.project-osrm.org/route/v1/driving/{coords}?overview=false&steps=false&annotations=duration"));
                 }
-                var osrmTasks2 = osrmJobs.Select(j => _osrmCache.TryGetValue(j.url, out var c)
-                    ? (j, task: Task.FromResult(c)) : (j, task: _httpEta.GetStringAsync(j.url))).ToList();
-                try { await Task.WhenAll(osrmTasks2.Select(t => t.task)); } catch { }
-                foreach (var (job, task) in osrmTasks2)
-                    if (task.IsCompletedSuccessfully && !_osrmCache.ContainsKey(job.url)) _osrmCache[job.url] = task.Result;
-                foreach (var (job, task) in osrmTasks2)
+
+                int totalJobs = osrmJobs.Count;
+                int doneJobs = 0;
+                var ordersMap = orders.ToDictionary(o => o.Id, o => o.DataPrzyjazdu);
+
+                // Przetwarzaj kursy BATCHAMI po 3 równolegle — po każdym batchu aktualizuj UI
+                const int BATCH_SIZE = 3;
+                for (int batchStart = 0; batchStart < osrmJobs.Count; batchStart += BATCH_SIZE)
                 {
-                    try
+                    var batch = osrmJobs.Skip(batchStart).Take(BATCH_SIZE).ToList();
+
+                    // Pobierz wszystkie w batchu równolegle
+                    var batchResults = await Task.WhenAll(batch.Select(async job =>
                     {
-                        if (!task.IsCompletedSuccessfully) continue;
-                        var json = Newtonsoft.Json.Linq.JObject.Parse(task.Result);
-                        var legs = json["routes"]?[0]?["legs"]; if (legs == null) continue;
-                        double cumMin = job.startMin;
-                        for (int li = 0; li < legs.Count() && li < job.orderIds.Count; li++)
+                        try
                         {
-                            if (li > 0) cumMin += 50;
-                            cumMin += (double)(legs[li]?["duration"] ?? 0) / 60.0;
-                            var etaDt = _selectedDate.Date.AddMinutes((int)cumMin);
-                            var dzE = etaDt.ToString("ddd", new System.Globalization.CultureInfo("pl-PL")).ToUpper();
-                            _etaCache[job.orderIds[li]] = $"{etaDt:dd.MM} {dzE} {etaDt:HH:mm}";
+                            if (_osrmCache.TryGetValue(job.url, out var cached))
+                                return (job, json: cached);
+                            var json = await _httpEta.GetStringAsync(job.url);
+                            _osrmCache[job.url] = json;
+                            return (job, json);
                         }
+                        catch { return (job, json: (string?)null); }
+                    }));
+
+                    var updatedOrderIds = new List<int>();
+                    foreach (var (job, jsonResult) in batchResults)
+                    {
+                        doneJobs++;
+                        if (string.IsNullOrEmpty(jsonResult)) continue;
+                        try
+                        {
+                            var json = Newtonsoft.Json.Linq.JObject.Parse(jsonResult);
+                            var legs = json["routes"]?[0]?["legs"];
+                            if (legs == null) continue;
+                            double cumMin = job.startMin;
+                            for (int li = 0; li < legs.Count() && li < job.orderIds.Count; li++)
+                            {
+                                if (li > 0) cumMin += 50;
+                                cumMin += (double)(legs[li]?["duration"] ?? 0) / 60.0;
+                                var etaDt = _selectedDate.Date.AddMinutes((int)cumMin);
+                                var dzE = etaDt.ToString("ddd", new System.Globalization.CultureInfo("pl-PL")).ToUpper();
+                                _etaCache[job.orderIds[li]] = $"{etaDt:dd.MM} {dzE} {etaDt:HH:mm}";
+                                updatedOrderIds.Add(job.orderIds[li]);
+                            }
+                        }
+                        catch { }
                     }
-                    catch { }
+
+                    if (updatedOrderIds.Count > 0)
+                    {
+                        int jobsSoFar = doneJobs;
+                        int totalSoFar = totalJobs;
+                        await Dispatcher.InvokeAsync(() =>
+                        {
+                            foreach (DataRow row in _dtTransport.Rows)
+                            {
+                                var oid = (int)row["Id"];
+                                if (updatedOrderIds.Contains(oid) && _etaCache.TryGetValue(oid, out var eta))
+                                {
+                                    row["ETA"] = eta;
+                                    if (ordersMap.TryGetValue(oid, out var dp))
+                                    {
+                                        var (txt, diff) = ObliczPorownanieETA(eta, dp);
+                                        row["PorownanieETA"] = txt;
+                                        row["PorownanieETADiff"] = diff;
+                                    }
+                                }
+                            }
+                            dgTransport.Items.Refresh();
+                            txtStatus.Text = $"ETA: {jobsSoFar}/{totalSoFar} kursów — {_etaCache.Count} zamówień";
+                        });
+                    }
                 }
                 Log($"BG ETA: {_etaCache.Count} zamówień, {bgSw.ElapsedMilliseconds}ms");
 
@@ -794,28 +1113,99 @@ namespace Kalendarz1.WPF
                     Log($"  Row[0] Id={(int)firstRow["Id"]}, KursId={firstRow["KursId"]}");
                 }
 
-                // 3. Aktualizuj wiersze w DataTable (UI thread)
-                var gpsUpdated = 0; var etaUpdated = 0;
+                // ETAP 2 FINAL: wyczyść pozostałe "Czekanie..." i ustaw status końcowy
                 await Dispatcher.InvokeAsync(() =>
                 {
                     foreach (DataRow row in _dtTransport.Rows)
                     {
-                        var orderId = (int)row["Id"];
-                        var kursId = row.IsNull("KursId") ? 0L : (long)row["KursId"];
-                        // GPS
-                        if (kursId > 0 && kursPojazdMap.TryGetValue(kursId, out var pid) && pojazdGps.TryGetValue(pid, out var gps))
-                        { row["Lokalizacja"] = gps.speed > 0 ? $"{gps.speed} km/h — {gps.addr}" : $"Postój — {gps.addr}"; gpsUpdated++; }
-                        // ETA
-                        if (_etaCache.TryGetValue(orderId, out var eta))
-                        { row["ETA"] = eta; etaUpdated++; }
+                        if (row["ETA"]?.ToString() == "Czekanie...")
+                            row["ETA"] = "";
                     }
                     dgTransport.Items.Refresh();
-                    txtStatus.Text = $"Gotowy — GPS: {gpsUpdated}, ETA: {etaUpdated} ({bgSw.ElapsedMilliseconds}ms)";
-                    Log($"BG UPDATE: GPS={gpsUpdated}, ETA={etaUpdated}");
+                    txtStatus.Text = $"Gotowy — ETA: {_etaCache.Count} ({bgSw.ElapsedMilliseconds}ms)";
+                    Log($"BG UPDATE: ETA={_etaCache.Count}");
                     Log($"BG DONE w {bgSw.ElapsedMilliseconds}ms");
                 });
             }
             catch (Exception ex) { Log($"BG ERR: {ex.Message}"); }
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        // Menu kontekstowe — Google Maps
+        // ══════════════════════════════════════════════════════════════════
+
+        private DataRowView? GetSelectedRow()
+        {
+            if (dgTransport.SelectedItem is DataRowView drv) return drv;
+            return null;
+        }
+
+        private string? ExtractGpsAdres(string lokalizacja)
+        {
+            // Format: "50 km/h — ul. Przykładowa 10, Warszawa" lub "Postój — ul. X, Y"
+            if (string.IsNullOrWhiteSpace(lokalizacja) || lokalizacja == "Czekanie..." || lokalizacja == "Brak GPS") return null;
+            var idx = lokalizacja.IndexOf('—');
+            if (idx < 0) return null;
+            var adres = lokalizacja.Substring(idx + 1).Trim();
+            return string.IsNullOrWhiteSpace(adres) ? null : adres;
+        }
+
+        private void OtworzGoogleMaps(string? from, string to)
+        {
+            if (string.IsNullOrWhiteSpace(to))
+            {
+                MessageBox.Show("Brak adresu docelowego klienta.", "Mapa Google", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            string url;
+            if (string.IsNullOrWhiteSpace(from))
+                url = $"https://www.google.com/maps/search/?api=1&query={Uri.EscapeDataString(to)}";
+            else
+                url = $"https://www.google.com/maps/dir/?api=1&origin={Uri.EscapeDataString(from)}&destination={Uri.EscapeDataString(to)}&travelmode=driving";
+
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = url, UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Nie można otworzyć przeglądarki: {ex.Message}", "Mapa Google", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void MiGoogleMaps_Click(object sender, RoutedEventArgs e)
+        {
+            var row = GetSelectedRow();
+            if (row == null) { MessageBox.Show("Zaznacz wiersz.", "Mapa Google"); return; }
+            var lokalizacja = row["Lokalizacja"]?.ToString() ?? "";
+            var adresDostawy = row["AdresDostawy"]?.ToString() ?? "";
+            var gpsAdres = ExtractGpsAdres(lokalizacja);
+            if (gpsAdres == null)
+            {
+                MessageBox.Show("Brak aktualnej lokalizacji GPS pojazdu — użyję bazy jako punktu startowego.", "Mapa Google", MessageBoxButton.OK, MessageBoxImage.Information);
+                OtworzGoogleMaps("Dębowa 32A, 99-322 Żychlin", adresDostawy);
+                return;
+            }
+            OtworzGoogleMaps(gpsAdres, adresDostawy);
+        }
+
+        private void MiGoogleMapsBaza_Click(object sender, RoutedEventArgs e)
+        {
+            var row = GetSelectedRow();
+            if (row == null) { MessageBox.Show("Zaznacz wiersz.", "Mapa Google"); return; }
+            var adresDostawy = row["AdresDostawy"]?.ToString() ?? "";
+            OtworzGoogleMaps("Dębowa 32A, 99-322 Żychlin", adresDostawy);
+        }
+
+        private void MiGoogleMapsKlient_Click(object sender, RoutedEventArgs e)
+        {
+            var row = GetSelectedRow();
+            if (row == null) { MessageBox.Show("Zaznacz wiersz.", "Mapa Google"); return; }
+            var adresDostawy = row["AdresDostawy"]?.ToString() ?? "";
+            OtworzGoogleMaps(null, adresDostawy);
         }
 
         private void DgTransport_LoadingRow(object sender, DataGridRowEventArgs e)

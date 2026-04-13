@@ -559,6 +559,122 @@
             </StackPanel>
         </Border>
 
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- POWIADOMIENIA O ZMIANACH: teraz jako osobne okno popup (ChangeNotificationPopup.xaml) -->
+
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- OVERLAY POTWIERDZENIA DRAG-DROP (zamiast MessageBox) -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <Grid x:Name="dragDropConfirmOverlay" Panel.ZIndex="1500" Grid.ColumnSpan="2"
+              Visibility="Collapsed">
+            <!-- Tło półprzezroczyste -->
+            <Border Background="#60000000" MouseDown="DdcBackdrop_MouseDown"/>
+
+            <!-- Karta potwierdzenia -->
+            <Border HorizontalAlignment="Center" VerticalAlignment="Center"
+                    MaxWidth="440" CornerRadius="12" Background="White"
+                    Padding="0" Margin="40">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="30" Opacity="0.25" ShadowDepth="6" Color="#000000"/>
+                </Border.Effect>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Nagłówek -->
+                    <Border Grid.Row="0" Background="#3B82F6" CornerRadius="12,12,0,0" Padding="20,14">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="📦" FontSize="22" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <TextBlock Text="Przeniesienie dostawy" FontSize="17" FontWeight="Bold"
+                                       Foreground="White" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Szczegóły -->
+                    <Border Grid.Row="1" Background="#F0F9FF" Margin="16,14,16,6" CornerRadius="8" Padding="16">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="8"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Hodowca:" FontSize="12"
+                                       Foreground="#64748B" VerticalAlignment="Center" Margin="0,0,12,4"/>
+                            <TextBlock x:Name="ddcDostawca" Grid.Row="0" Grid.Column="1" Text=""
+                                       FontSize="13" FontWeight="Bold" Foreground="#1E293B" Margin="0,0,0,4"/>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Auta:" FontSize="12"
+                                       Foreground="#64748B" VerticalAlignment="Center" Margin="0,0,12,4"/>
+                            <TextBlock x:Name="ddcAuta" Grid.Row="1" Grid.Column="1" Text=""
+                                       FontSize="12" Foreground="#1E293B" Margin="0,0,0,4"/>
+
+                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Z dnia:" FontSize="12"
+                                       Foreground="#64748B" VerticalAlignment="Center" Margin="0,0,12,4"/>
+                            <TextBlock x:Name="ddcOldDate" Grid.Row="3" Grid.Column="1" Text=""
+                                       FontSize="13" Foreground="#EF4444" FontWeight="SemiBold"
+                                       TextDecorations="Strikethrough" Margin="0,0,0,4"/>
+
+                            <TextBlock Grid.Row="4" Grid.Column="0" Text="Na dzień:" FontSize="12"
+                                       Foreground="#64748B" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                            <TextBlock x:Name="ddcNewDate" Grid.Row="4" Grid.Column="1" Text=""
+                                       FontSize="13" Foreground="#16A34A" FontWeight="Bold"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- Przyciski -->
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right"
+                                Margin="16,8,16,16">
+                        <Button x:Name="btnDdcCancel" Click="BtnDdcCancel_Click"
+                                Content="Anuluj" MinWidth="90" Height="34" FontSize="13"
+                                Cursor="Hand" Margin="0,0,8,0">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="cancelBorder" Background="#F1F5F9" CornerRadius="6"
+                                            Padding="16,6" BorderBrush="#CBD5E1" BorderThickness="1">
+                                        <TextBlock Text="{TemplateBinding Content}" Foreground="#64748B"
+                                                   FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="cancelBorder" Property="Background" Value="#E2E8F0"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                        <Button x:Name="btnDdcConfirm" Click="BtnDdcConfirm_Click"
+                                Content="Przenieś" MinWidth="110" Height="34" FontSize="13"
+                                Cursor="Hand">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="confirmBorder" Background="#3B82F6" CornerRadius="6" Padding="16,6">
+                                        <TextBlock Text="{TemplateBinding Content}" Foreground="White"
+                                                   FontSize="13" FontWeight="Bold"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="confirmBorder" Property="Background" Value="#2563EB"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+
         <!-- ==================== LEWA STRONA - TABELE DOSTAW ==================== -->
         <Grid Grid.Column="0">
             <!-- TABELE DOSTAW -->
@@ -631,6 +747,12 @@
                                             <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
                                             <Setter Property="ToolTip" Value="{Binding DostawcaDisplay}"/>
                                             <Setter Property="FontSize" Value="11"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsSimulationMoved}" Value="True">
+                                                    <Setter Property="Foreground" Value="#D32F2F"/>
+                                                    <Setter Property="FontWeight" Value="Bold"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
@@ -984,6 +1106,12 @@
                                         <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
                                         <Setter Property="ToolTip" Value="{Binding DostawcaDisplay}"/>
                                         <Setter Property="FontSize" Value="11"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsSimulationMoved}" Value="True">
+                                                <Setter Property="Foreground" Value="#D32F2F"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
@@ -1571,6 +1699,31 @@
                                     </Button.Style>
                                 </Button>
                                 <TextBlock x:Name="txtRefreshCountdown" Text="10:00" Foreground="#64748B" FontSize="8" FontWeight="SemiBold" VerticalAlignment="Center" Margin="2,0,0,0"/>
+                                <!-- LIVE indicator — zielona kropka + etykieta, pulsująca gdy polling aktywny -->
+                                <Border x:Name="borderLiveIndicator" Background="#DCFCE7" CornerRadius="8" Padding="4,1" Margin="4,0,0,0" VerticalAlignment="Center" ToolTip="Live refresh — kalendarz sam pobiera zmiany z serwera">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Ellipse x:Name="ellipseLiveDot" Width="6" Height="6" Fill="#22C55E" VerticalAlignment="Center"/>
+                                        <TextBlock Text="LIVE" FontSize="7" FontWeight="Bold" Foreground="#166534" VerticalAlignment="Center" Margin="3,0,0,0"/>
+                                    </StackPanel>
+                                </Border>
+                                <!-- Badge nieprzeczytanych zmian od innych użytkowników -->
+                                <Button x:Name="btnUnreadBadge" Click="BtnUnreadBadge_Click" Margin="4,0,0,0" Padding="0" BorderThickness="0" Background="Transparent" Cursor="Hand" ToolTip="Zmiany od innych użytkowników — kliknij aby odświeżyć" Visibility="Collapsed">
+                                    <Border Background="#DBEAFE" CornerRadius="8" Padding="5,1" BorderBrush="#3B82F6" BorderThickness="1">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="✏" FontSize="9" VerticalAlignment="Center"/>
+                                            <TextBlock x:Name="txtUnreadCount" Text="0" FontSize="8" FontWeight="Bold" Foreground="#1E40AF" VerticalAlignment="Center" Margin="3,0,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                </Button>
+                                <!-- #27 Badge @mentions — klikalny, otwiera listę nieprzeczytanych wzmianek -->
+                                <Button x:Name="btnMentionsBadge" Click="BtnMentionsBadge_Click" Margin="4,0,0,0" Padding="0" BorderThickness="0" Background="Transparent" Cursor="Hand" ToolTip="Nieprzeczytane wzmianki (@mentions)" Visibility="Collapsed">
+                                    <Border Background="#FEE2E2" CornerRadius="8" Padding="5,1" BorderBrush="#EF4444" BorderThickness="1">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="🔔" FontSize="9" VerticalAlignment="Center"/>
+                                            <TextBlock x:Name="txtMentionsCount" Text="0" FontSize="8" FontWeight="Bold" Foreground="#991B1B" VerticalAlignment="Center" Margin="3,0,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                </Button>
                             </StackPanel>
                         </Border>
                     </StackPanel>
@@ -2439,6 +2592,196 @@
                                             </StackPanel>
                                         </Border>
                                     </Expander>
+
+                                    <!-- ==================== ZMIANY W SYMULACJI ==================== -->
+                                    <Border x:Name="borderSimulationChanges" Margin="0,8,0,0" Background="#FFF7ED" BorderBrush="#FB923C" BorderThickness="1" CornerRadius="6" Padding="8" Visibility="Collapsed">
+                                        <StackPanel>
+                                            <!-- Nagłówek: ikona + tytuł + badge licznika + przyciski akcji -->
+                                            <Grid Margin="0,0,0,4">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Orientation="Horizontal" Grid.Column="0">
+                                                    <TextBlock Text="🔴" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                                    <TextBlock Text="Symulacja — przeniesienia" FontWeight="Bold" FontSize="11" Foreground="#9A3412" VerticalAlignment="Center"/>
+                                                    <Border Background="#FB923C" CornerRadius="9" Padding="6,1" Margin="6,0,0,0" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding ElementName=lstSimulationChanges, Path=Items.Count}" Foreground="White" FontSize="10" FontWeight="Bold"/>
+                                                    </Border>
+                                                </StackPanel>
+                                                <!-- Przycisk: Cofnij wszystko -->
+                                                <Button Grid.Column="1" x:Name="btnRevertAllSimulation" Click="BtnRevertAllSimulation_Click"
+                                                        ToolTip="Cofnij wszystkie przeniesienia symulacji" Cursor="Hand" Padding="6,3" Margin="0,0,4,0" BorderThickness="0" Background="Transparent">
+                                                    <Button.Template>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="bd" Property="Background" Value="#FECACA"/>
+                                                                </Trigger>
+                                                                <Trigger Property="IsPressed" Value="True">
+                                                                    <Setter TargetName="bd" Property="Background" Value="#FCA5A5"/>
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Button.Template>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="↶" FontSize="13" VerticalAlignment="Center" Foreground="#991B1B"/>
+                                                        <TextBlock Text="Cofnij" FontSize="10" Foreground="#991B1B" FontWeight="SemiBold" VerticalAlignment="Center" Margin="3,0,0,0"/>
+                                                    </StackPanel>
+                                                </Button>
+                                                <!-- Przycisk: Kopiuj -->
+                                                <Button x:Name="btnCopySimulationChanges" Grid.Column="2" Click="BtnCopySimulationChanges_Click"
+                                                        ToolTip="Kopiuj wszystkie zmiany do schowka" Cursor="Hand" Padding="6,3" BorderThickness="0" Background="Transparent">
+                                                    <Button.Template>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="bd" Property="Background" Value="#FED7AA"/>
+                                                                </Trigger>
+                                                                <Trigger Property="IsPressed" Value="True">
+                                                                    <Setter TargetName="bd" Property="Background" Value="#FDBA74"/>
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Button.Template>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="📋" FontSize="12" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="Kopiuj" FontSize="10" Foreground="#9A3412" FontWeight="SemiBold" VerticalAlignment="Center" Margin="3,0,0,0"/>
+                                                    </StackPanel>
+                                                </Button>
+                                            </Grid>
+
+                                            <!-- Statystyki: w przód / w tył -->
+                                            <StackPanel x:Name="panelSimulationStats" Orientation="Horizontal" Margin="0,0,0,6">
+                                                <Border Background="#DBEAFE" CornerRadius="4" Padding="5,2" Margin="0,0,4,0">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="↑ w przód: " FontSize="9" Foreground="#1E40AF"/>
+                                                        <TextBlock x:Name="txtSimForward" Text="0" FontSize="9" FontWeight="Bold" Foreground="#1E40AF"/>
+                                                    </StackPanel>
+                                                </Border>
+                                                <Border Background="#FEE2E2" CornerRadius="4" Padding="5,2">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="↓ w tył: " FontSize="9" Foreground="#991B1B"/>
+                                                        <TextBlock x:Name="txtSimBackward" Text="0" FontSize="9" FontWeight="Bold" Foreground="#991B1B"/>
+                                                    </StackPanel>
+                                                </Border>
+                                            </StackPanel>
+
+                                            <!-- ListBox: 2 kolumny, kompaktowe karty, klikalny, X na karcie -->
+                                            <ListBox x:Name="lstSimulationChanges" MaxHeight="260" Background="White" BorderBrush="#FED7AA" BorderThickness="1"
+                                                     HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                                     SelectionChanged="LstSimulationChanges_SelectionChanged">
+                                                <ListBox.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <UniformGrid Columns="2"/>
+                                                    </ItemsPanelTemplate>
+                                                </ListBox.ItemsPanel>
+                                                <ListBox.ItemContainerStyle>
+                                                    <Style TargetType="ListBoxItem">
+                                                        <Setter Property="Padding" Value="6,4"/>
+                                                        <Setter Property="Margin" Value="2"/>
+                                                        <Setter Property="BorderBrush" Value="#FED7AA"/>
+                                                        <Setter Property="BorderThickness" Value="1"/>
+                                                        <Setter Property="Background" Value="#FFFBF5"/>
+                                                        <Setter Property="Cursor" Value="Hand"/>
+                                                        <Setter Property="ToolTip" Value="Kliknij aby przejść do dostawy w tabeli"/>
+                                                        <Style.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter Property="Background" Value="#FFF7ED"/>
+                                                                <Setter Property="BorderBrush" Value="#FB923C"/>
+                                                            </Trigger>
+                                                            <Trigger Property="IsSelected" Value="True">
+                                                                <Setter Property="Background" Value="#FED7AA"/>
+                                                                <Setter Property="BorderBrush" Value="#EA580C"/>
+                                                            </Trigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </ListBox.ItemContainerStyle>
+                                                <ListBox.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Grid>
+                                                            <Grid.RowDefinitions>
+                                                                <RowDefinition Height="Auto"/>
+                                                                <RowDefinition Height="Auto"/>
+                                                                <RowDefinition Height="Auto"/>
+                                                            </Grid.RowDefinitions>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                            </Grid.ColumnDefinitions>
+
+                                                            <!-- Nazwa dostawcy -->
+                                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding Dostawca}"
+                                                                       FontWeight="Bold" FontSize="11" Foreground="#9A3412"
+                                                                       TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+
+                                                            <!-- Przycisk X (cofnij pojedynczą zmianę) -->
+                                                            <Button Grid.Row="0" Grid.Column="1" Click="BtnRevertSimulationChange_Click"
+                                                                    Tag="{Binding}" Cursor="Hand" Padding="4,0" BorderThickness="0"
+                                                                    Background="Transparent" ToolTip="Cofnij tę zmianę">
+                                                                <Button.Template>
+                                                                    <ControlTemplate TargetType="Button">
+                                                                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="3" Width="18" Height="18">
+                                                                            <TextBlock Text="✕" FontSize="11" Foreground="#991B1B"
+                                                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                        </Border>
+                                                                        <ControlTemplate.Triggers>
+                                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                                <Setter TargetName="bd" Property="Background" Value="#FECACA"/>
+                                                                            </Trigger>
+                                                                        </ControlTemplate.Triggers>
+                                                                    </ControlTemplate>
+                                                                </Button.Template>
+                                                            </Button>
+
+                                                            <!-- Linia: stara data → nowa data + delta -->
+                                                            <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,2,0,0">
+                                                                <TextBlock Text="{Binding OldDateShort}" FontSize="10" Foreground="#7C2D12" FontWeight="SemiBold"/>
+                                                                <TextBlock Text=" → " FontSize="10" Foreground="#DC2626" FontWeight="Bold" Margin="2,0"/>
+                                                                <TextBlock Text="{Binding NewDateShort}" FontSize="10" Foreground="#166534" FontWeight="SemiBold"/>
+                                                                <Border CornerRadius="3" Padding="3,0" Margin="4,0,0,0">
+                                                                    <Border.Style>
+                                                                        <Style TargetType="Border">
+                                                                            <Setter Property="Background" Value="#FEE2E2"/>
+                                                                            <Style.Triggers>
+                                                                                <DataTrigger Binding="{Binding IsForward}" Value="True">
+                                                                                    <Setter Property="Background" Value="#DBEAFE"/>
+                                                                                </DataTrigger>
+                                                                            </Style.Triggers>
+                                                                        </Style>
+                                                                    </Border.Style>
+                                                                    <TextBlock Text="{Binding DayDeltaDisplay}" FontSize="9" FontWeight="Bold">
+                                                                        <TextBlock.Style>
+                                                                            <Style TargetType="TextBlock">
+                                                                                <Setter Property="Foreground" Value="#991B1B"/>
+                                                                                <Style.Triggers>
+                                                                                    <DataTrigger Binding="{Binding IsForward}" Value="True">
+                                                                                        <Setter Property="Foreground" Value="#1E40AF"/>
+                                                                                    </DataTrigger>
+                                                                                </Style.Triggers>
+                                                                            </Style>
+                                                                        </TextBlock.Style>
+                                                                    </TextBlock>
+                                                                </Border>
+                                                            </StackPanel>
+
+                                                            <!-- Czas -->
+                                                            <TextBlock Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+                                                                       Text="{Binding TimeShort}" FontSize="9" Foreground="#A3A3A3" Margin="0,1,0,0"/>
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ListBox.ItemTemplate>
+                                            </ListBox>
+                                        </StackPanel>
+                                    </Border>
                                 </StackPanel>
                             </ScrollViewer>
 
@@ -2572,6 +2915,11 @@
                                     </Grid.RowDefinitions>
                                     <TextBlock Grid.Row="0" Text="📝 NOTATKI DOSTAWY" FontWeight="Bold" FontSize="10" Foreground="#1E293B" Margin="2,0,0,4"/>
                                     <DataGrid Grid.Row="1" x:Name="dgNotatki" Style="{StaticResource SmallDataGridStyle}" LoadingRow="DgNotatki_LoadingRow">
+                                        <DataGrid.ContextMenu>
+                                            <ContextMenu>
+                                                <MenuItem Header="💬 Odpowiedz na notatkę" Click="MenuReplyToNote_Click"/>
+                                            </ContextMenu>
+                                        </DataGrid.ContextMenu>
                                         <DataGrid.RowStyle>
                                             <Style TargetType="DataGridRow">
                                                 <Setter Property="MinHeight" Value="28"/>
@@ -2598,14 +2946,21 @@
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>
                                             </DataGridTemplateColumn>
-                                            <DataGridTextColumn Header="Treść" Binding="{Binding Tresc}" Width="*">
-                                                <DataGridTextColumn.ElementStyle>
-                                                    <Style TargetType="TextBlock">
-                                                        <Setter Property="TextWrapping" Value="Wrap"/>
-                                                        <Setter Property="Padding" Value="2"/>
-                                                    </Style>
-                                                </DataGridTextColumn.ElementStyle>
-                                            </DataGridTextColumn>
+                                            <DataGridTemplateColumn Header="Treść" Width="*">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <StackPanel>
+                                                            <!-- Belka "↳ odp. do..." dla odpowiedzi -->
+                                                            <Border Background="#FEF3C7" CornerRadius="3" Padding="4,1" Margin="0,0,0,2"
+                                                                    BorderBrush="#F59E0B" BorderThickness="0,0,0,1"
+                                                                    Visibility="{Binding IsReply, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                                <TextBlock Text="{Binding ReplyHeaderDisplay}" FontSize="9" Foreground="#92400E" FontStyle="Italic" TextTrimming="CharacterEllipsis"/>
+                                                            </Border>
+                                                            <TextBlock Text="{Binding Tresc}" TextWrapping="Wrap" Padding="2"/>
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
                                         </DataGrid.Columns>
                                     </DataGrid>
                                 </Grid>

@@ -164,6 +164,7 @@ namespace Kalendarz1.MapaFloty
             else
             {
                 BtnGpx.Visibility = Visibility.Visible;
+                BtnCompare.Visibility = Visibility.Visible;
                 await LoadHistory();
             }
         }
@@ -395,6 +396,48 @@ namespace Kalendarz1.MapaFloty
         // ══════════════════════════════════════════════════════════════════
         // GPX Export
         // ══════════════════════════════════════════════════════════════════
+
+        private async void BtnPlanVsFakt_Click(object sender, RoutedEventArgs e)
+        {
+            if (_kurs == null || _histPts.Count < 2) return;
+            // Buduj planowaną trasę z OSRM (baza → klient1 → klient2 → ...)
+            var ci = System.Globalization.CultureInfo.InvariantCulture;
+            var points = new List<(double lat, double lon)> { (51.86857, 19.79476) }; // baza
+            foreach (var p in _kurs.Przystanki.OrderBy(x => x.Kolejnosc))
+                if (p.Lat != 0) points.Add((p.Lat, p.Lon));
+            points.Add((51.86857, 19.79476)); // powrót do bazy
+
+            if (points.Count < 3) return;
+            var coords = string.Join(";", points.Select(p => $"{p.lon.ToString("F5", ci)},{p.lat.ToString("F5", ci)}"));
+            try
+            {
+                var url = $"https://router.project-osrm.org/route/v1/driving/{coords}?overview=full&geometries=geojson";
+                var resp = await new System.Net.Http.HttpClient().GetStringAsync(url);
+                var json = Newtonsoft.Json.Linq.JObject.Parse(resp);
+                var geom = json["routes"]?[0]?["geometry"]?["coordinates"];
+                if (geom == null) return;
+
+                var planPts = new List<(double lat, double lng)>();
+                foreach (var c in geom) planPts.Add(((double)c[1], (double)c[0]));
+
+                // Wyślij do JS — niebieska (plan) + czerwona (fakt)
+                var planJson = Newtonsoft.Json.JsonConvert.SerializeObject(planPts.Select(p => new { Lat = p.lat, Lng = p.lng }));
+                var faktJson = Newtonsoft.Json.JsonConvert.SerializeObject(_histPts.Select(p => new { p.Lat, p.Lng }));
+
+                var planKm = 0.0;
+                for (int i = 1; i < planPts.Count; i++)
+                    planKm += HavM(planPts[i - 1].lat, planPts[i - 1].lng, planPts[i].lat, planPts[i].lng) / 1000.0;
+                var faktKm = 0.0;
+                for (int i = 1; i < _histPts.Count; i++)
+                    faktKm += HavM(_histPts[i - 1].Lat, _histPts[i - 1].Lng, _histPts[i].Lat, _histPts[i].Lng) / 1000.0;
+                var diff = faktKm - planKm;
+                var diffPct = planKm > 0 ? diff / planKm * 100 : 0;
+
+                await Js($"showPlanVsFakt({planJson},{faktJson})");
+                SliderInfo.Text = $"Plan: {planKm:F0} km | Fakt: {faktKm:F0} km | Różnica: {(diff > 0 ? "+" : "")}{diff:F0} km ({diffPct:F0}%)";
+            }
+            catch (Exception ex) { SliderInfo.Text = $"Błąd: {ex.Message}"; }
+        }
 
         private void BtnExportGpx_Click(object sender, RoutedEventArgs e)
         {
@@ -960,6 +1003,24 @@ function showHistory(stops,pts,standStills){
     map.fitBounds(layer.getBounds().pad(.06));
     setTimeout(function(){map.invalidateSize()},200);
     moveCursor(0);
+}
+
+var planLine=null,faktLine=null;
+function showPlanVsFakt(plan,fakt){
+    if(planLine){map.removeLayer(planLine);planLine=null}
+    if(faktLine){map.removeLayer(faktLine);faktLine=null}
+    if(plan&&plan.length>1){
+        planLine=L.polyline(plan.map(function(p){return[p.Lat,p.Lng]}),{color:'#1565c0',weight:4,opacity:.7,dashArray:'8,6'}).addTo(map);
+        planLine.bindTooltip('Trasa planowana (OSRM)',{sticky:true});
+    }
+    if(fakt&&fakt.length>1){
+        faktLine=L.polyline(fakt.map(function(p){return[p.Lat,p.Lng]}),{color:'#c62828',weight:3,opacity:.6}).addTo(map);
+        faktLine.bindTooltip('Trasa faktyczna (GPS)',{sticky:true});
+    }
+    if(planLine&&faktLine){
+        var b=L.featureGroup([planLine,faktLine]);
+        map.fitBounds(b.getBounds().pad(.08));
+    }
 }
 
 function moveCursor(idx,follow){

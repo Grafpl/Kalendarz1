@@ -16,6 +16,13 @@ namespace Kalendarz1.MapaFloty
 
         public ObservableCollection<InternalDriver> InternalDrivers { get; } = new();
         private readonly List<DriverMappingRow> _rows = new();
+        private static readonly string WfAccount = "942879", WfUser = "Administrator", WfPass = "kaazZVY5";
+        private static readonly string WfKey = "7a538868-96cf-4149-a9db-6e090de7276c";
+        private static readonly string WfUrl = "https://csv.webfleet.com/extern";
+        private static readonly string _auth = Convert.ToBase64String(
+            System.Text.Encoding.UTF8.GetBytes($"{WfUser}:{WfPass}"));
+        private static readonly System.Net.Http.HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(20) };
+
         private readonly List<MapaFlotyView.VehiclePosition> _webfleetVehicles;
 
         public MapowanieKierowcowWindow(List<MapaFlotyView.VehiclePosition> webfleetVehicles)
@@ -88,6 +95,7 @@ namespace Kalendarz1.MapaFloty
 
         private async Task LoadExistingMappings()
         {
+            // Istniejące mapowania
             var existing = new Dictionary<string, int?>();
             using (var conn = new SqlConnection(_conn))
             {
@@ -103,13 +111,47 @@ namespace Kalendarz1.MapaFloty
                 }
             }
 
-            // Zbierz unikalnych kierowców z Webfleet (po driver ID)
             _rows.Clear();
             var seen = new HashSet<string>();
+
+            // 1. Pobierz WSZYSTKICH kierowców z Webfleet API (showDriverReportExtern)
+            try
+            {
+                var url = $"{WfUrl}?account={Uri.EscapeDataString(WfAccount)}&apikey={Uri.EscapeDataString(WfKey)}" +
+                    "&lang=pl&outputformat=json&action=showDriverReportExtern";
+                using var req = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Get, url);
+                req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", _auth);
+                using var res = await _http.SendAsync(req);
+                var body = await res.Content.ReadAsStringAsync();
+
+                if (body.TrimStart().StartsWith("["))
+                {
+                    var arr = Newtonsoft.Json.Linq.JArray.Parse(body);
+                    foreach (var o in arr)
+                    {
+                        var driverId = o["driverno"]?.ToString() ?? "";
+                        var driverName = o["driver_name"]?.ToString() ?? o["driverno"]?.ToString() ?? "";
+                        var vehicle = o["objectname"]?.ToString() ?? "";
+                        if (string.IsNullOrEmpty(driverId) || !seen.Add(driverId)) continue;
+
+                        existing.TryGetValue(driverId, out var mappedId);
+                        _rows.Add(new DriverMappingRow
+                        {
+                            WebfleetDriverId = driverId,
+                            WebfleetDriverName = driverName,
+                            WebfleetVehicle = vehicle,
+                            KierowcaID = mappedId.HasValue && mappedId > 0 ? mappedId.Value : -1
+                        });
+                    }
+                }
+            }
+            catch { }
+
+            // 2. Fallback — dodaj kierowców z aktualnych pojazdów (jeśli nie były w showDriverReport)
             foreach (var wf in _webfleetVehicles.OrderBy(v => v.Driver))
             {
                 var driverId = wf.WebfleetDriverId;
-                if (string.IsNullOrEmpty(driverId) || !seen.Add(driverId)) continue;
+                if (string.IsNullOrEmpty(driverId) || driverId == "—" || !seen.Add(driverId)) continue;
                 existing.TryGetValue(driverId, out var mappedId);
                 _rows.Add(new DriverMappingRow
                 {
@@ -119,6 +161,7 @@ namespace Kalendarz1.MapaFloty
                     KierowcaID = mappedId.HasValue && mappedId > 0 ? mappedId.Value : -1
                 });
             }
+
             MappingGrid.ItemsSource = _rows;
         }
 

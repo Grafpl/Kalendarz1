@@ -136,6 +136,25 @@ namespace Kalendarz1.WPF
             InitializeComponent();
             WindowIconHelper.SetIcon(this);
             Loaded += MainWindow_Loaded;
+            Closed += MainWindow_Closed;
+        }
+
+        private void MainWindow_Closed(object? sender, EventArgs e)
+        {
+            // Zatrzymaj timer auto-refresh
+            _autoRefreshTimer?.Stop();
+
+            // Wyczyść statyczne cache obrazków (memory leak prevention)
+            _productImages.Clear();
+            _handlowiecAvatarCache.Clear();
+
+            // Wyczyść cache danych
+            _cachedWydaniaSum.Clear();
+            _cachedPrzychodyTuszkaA.Clear();
+            _cachedPrzychodyElementy.Clear();
+            _cachedKontrahenci.Clear();
+            _kategorieOdbiorcow.Clear();
+            _cachedKonfiguracjaProduktow.Clear();
         }
         private void ApplyResponsiveLayout()
         {
@@ -2021,6 +2040,12 @@ namespace Kalendarz1.WPF
 
                 menuUsun.Visibility = (UserID == "11111") ? Visibility.Visible : Visibility.Collapsed;
 
+                // Pokaż menu cyklu jeśli zamówienie ma CyklGroupId
+                string cyklId = rowView.Row.Field<string>("CyklGroupId") ?? "";
+                bool hasCykl = !string.IsNullOrEmpty(cyklId);
+                menuPokazCykl.Visibility = hasCykl ? Visibility.Visible : Visibility.Collapsed;
+                menuAnulujCykl.Visibility = hasCykl ? Visibility.Visible : Visibility.Collapsed;
+
                 dgOrders.SelectedItem = rowView;
             }
             else
@@ -2042,37 +2067,83 @@ namespace Kalendarz1.WPF
                 return;
             }
 
+            // Zbierz info o źródle dla historii
+            string odbiorca = _contextMenuSelectedRow.Row.Field<string>("Odbiorca") ?? "Nieznany";
+            decimal iloscKg = 0m;
+            try { iloscKg = _contextMenuSelectedRow.Row.Field<decimal>("IloscZamowiona"); } catch { }
+            string produktyInfo = "";
+            try
+            {
+                await using var cnInfo = new SqlConnection(_connLibra);
+                await cnInfo.OpenAsync();
+                var cmdP = new SqlCommand(
+                    "SELECT KodTowaru, SUM(Ilosc) FROM ZamowieniaMiesoTowar WHERE ZamowienieId = @Id GROUP BY KodTowaru", cnInfo);
+                cmdP.Parameters.AddWithValue("@Id", id);
+                var parts = new List<string>();
+                using var rdr = await cmdP.ExecuteReaderAsync();
+                while (await rdr.ReadAsync())
+                {
+                    int kod = rdr.GetInt32(0);
+                    decimal kg = rdr.GetDecimal(1);
+                    string nazwa = _productCatalogCache.TryGetValue(kod, out var n) ? n : $"#{kod}";
+                    parts.Add($"{nazwa} {kg:N0}kg");
+                }
+                produktyInfo = string.Join(", ", parts);
+            }
+            catch { }
+
             _currentOrderId = id;
             await DisplayOrderDetailsAsync(id);
 
             var dlg = new MultipleDatePickerWindow("Wybierz dni dla duplikatu zamówienia");
             dlg.DatesSelected += async (s, ev) =>
             {
-                if (dlg.SelectedDates.Any())
+                if (!dlg.SelectedDates.Any()) return;
+
+                int created = 0;
+                var errors = new List<string>();
+                bool copyNotes = dlg.CopyNotes;
+
+                foreach (var date in dlg.SelectedDates)
                 {
                     try
                     {
-                        int created = 0;
-                        foreach (var date in dlg.SelectedDates)
-                        {
-                            await DuplicateOrderAsync(_currentOrderId.Value, date, dlg.CopyNotes);
-                            created++;
-                    }
+                        int newId = await DuplicateOrderAsync(_currentOrderId.Value, date, copyNotes: copyNotes);
+                        created++;
 
-                        MessageBox.Show($"Zamówienie zostało zduplikowane na {created} dni.\n" +
-                                      $"Od {dlg.SelectedDates.Min():yyyy-MM-dd} do {dlg.SelectedDates.Max():yyyy-MM-dd}",
-                            "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
-
-                        _selectedDate = dlg.SelectedDates.First();
-                        UpdateDayButtonDates();
-                        await RefreshAllDataAsync();
+                        // Historia — bogaty opis
+                        var opis = $"Duplikat zamówienia #{_currentOrderId.Value} → #{newId}\n" +
+                                   $"Odbiorca: {odbiorca}\n" +
+                                   $"Data docelowa: {date:yyyy-MM-dd}\n" +
+                                   $"Produkty: {produktyInfo}\n" +
+                                   $"Ilość: {iloscKg:N0} kg\n" +
+                                   $"Kopiowano: produkty, ceny, klasy wagowe, data produkcji, waluta" +
+                                   (copyNotes ? ", notatki" : "");
+                        _ = HistoriaZmianService.LogujUtworzenie(newId, UserID, App.UserFullName, opis);
                     }
                     catch (Exception ex)
                     {
-                        MessageBox.Show($"Błąd podczas duplikowania: {ex.Message}",
-                            "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                        errors.Add($"{date:yyyy-MM-dd}: {ex.Message}");
                     }
                 }
+
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine($"Zduplikowano {created} z {dlg.SelectedDates.Count} zamówień");
+                sb.AppendLine($"Odbiorca: {odbiorca}");
+                sb.AppendLine($"Od {dlg.SelectedDates.Min():yyyy-MM-dd} do {dlg.SelectedDates.Max():yyyy-MM-dd}");
+                if (errors.Any())
+                {
+                    sb.AppendLine();
+                    sb.AppendLine($"Błędów: {errors.Count}");
+                    foreach (var err in errors.Take(5))
+                        sb.AppendLine($"  • {err}");
+                }
+                MessageBox.Show(sb.ToString(), "Duplikowanie",
+                    MessageBoxButton.OK, errors.Any() ? MessageBoxImage.Warning : MessageBoxImage.Information);
+
+                _selectedDate = dlg.SelectedDates.First();
+                UpdateDayButtonDates();
+                await RefreshAllDataAsync();
             };
             dlg.Show();
         }
@@ -2092,29 +2163,294 @@ namespace Kalendarz1.WPF
             _currentOrderId = id;
             await DisplayOrderDetailsAsync(id);
 
-            var dlg = new CyclicOrdersWindow();
-            if (dlg.ShowDialog() == true)
+            // Pobierz pełne dane zamówienia źródłowego do wyświetlenia w dialogu
+            var sourceInfo = new SourceOrderInfo { Id = id };
+            try
             {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                // Nagłówek zamówienia
+                string dataProdCol = _dataProdukcjiColumnExists ? ", DataProdukcji" : "";
+                var cmdHeader = new SqlCommand(
+                    $"SELECT KlientId, DataZamowienia, DataPrzyjazdu, Uwagi{dataProdCol} FROM ZamowieniaMieso WHERE Id = @Id", cn);
+                cmdHeader.Parameters.AddWithValue("@Id", id);
+                using (var rdr = await cmdHeader.ExecuteReaderAsync())
+                {
+                    if (await rdr.ReadAsync())
+                    {
+                        int klientId = rdr.GetInt32(0);
+                        sourceInfo.KlientId = klientId;
+                        sourceInfo.DataZamowienia = rdr.GetDateTime(1);
+                        sourceInfo.DataPrzyjazdu = rdr.IsDBNull(2) ? sourceInfo.DataZamowienia.AddHours(8) : rdr.GetDateTime(2);
+                        if (_dataProdukcjiColumnExists && !rdr.IsDBNull(rdr.GetOrdinal("DataProdukcji")))
+                            sourceInfo.DataProdukcji = rdr.GetDateTime(rdr.GetOrdinal("DataProdukcji"));
+
+                        if (_cachedKontrahenci.TryGetValue(klientId, out var kInfo))
+                            sourceInfo.Odbiorca = kInfo.Name;
+                        else
+                            sourceInfo.Odbiorca = $"Klient #{klientId}";
+                    }
+                }
+
+                // Istniejące zamówienia klienta (do wykrywania kolizji)
+                if (sourceInfo.KlientId > 0)
+                {
+                    string dateCol = (_showBySlaughterDate && _slaughterDateColumnExists) ? "DataUboju" : "DataZamowienia";
+                    var cmdExist = new SqlCommand(
+                        $"SELECT DISTINCT CAST({dateCol} AS DATE) FROM ZamowieniaMieso WHERE KlientId = @kid AND ISNULL(Status,'') != 'Anulowane' AND {dateCol} >= @from AND {dateCol} <= @to", cn);
+                    cmdExist.Parameters.AddWithValue("@kid", sourceInfo.KlientId);
+                    cmdExist.Parameters.AddWithValue("@from", DateTime.Today.AddDays(-7));
+                    cmdExist.Parameters.AddWithValue("@to", DateTime.Today.AddDays(120));
+                    using var rdrE = await cmdExist.ExecuteReaderAsync();
+                    while (await rdrE.ReadAsync())
+                    {
+                        if (!rdrE.IsDBNull(0))
+                            sourceInfo.ExistingOrderDates.Add(rdrE.GetDateTime(0).Date);
+                    }
+                }
+
+                sourceInfo.ConnString = _connLibra;
+
+                // Produkty zamówienia — lista z ilościami
+                string strefaSel = _strefaColumnExists ? ", MAX(CAST(ISNULL(Strefa,0) AS INT))" : "";
+                var cmdProd = new SqlCommand(
+                    $"SELECT KodTowaru, SUM(Ilosc){strefaSel} FROM ZamowieniaMiesoTowar WHERE ZamowienieId = @Id GROUP BY KodTowaru", cn);
+                cmdProd.Parameters.AddWithValue("@Id", id);
+                var produkty = new List<string>();
+                using (var rdr2 = await cmdProd.ExecuteReaderAsync())
+                {
+                    while (await rdr2.ReadAsync())
+                    {
+                        int kodTow = rdr2.GetInt32(0);
+                        decimal ilosc = rdr2.GetDecimal(1);
+                        sourceInfo.IloscKg += ilosc;
+                        if (_strefaColumnExists && !rdr2.IsDBNull(2) && rdr2.GetInt32(2) > 0)
+                            sourceInfo.MaStrefe = true;
+
+                        string nazwaP = _productCatalogCache.TryGetValue(kodTow, out var pNazwa) ? pNazwa : $"#{kodTow}";
+                        produkty.Add($"{nazwaP} {ilosc:N0} kg");
+                    }
+                }
+                sourceInfo.Produkty = string.Join(", ", produkty);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"MenuCykliczne: read source failed: {ex.Message}");
+                sourceInfo.Odbiorca = _contextMenuSelectedRow.Row.Field<string>("Odbiorca") ?? "Nieznany";
+            }
+
+            var dlg = new CyclicOrdersWindow(sourceInfo);
+            if (dlg.ShowDialog() != true) return;
+
+            if (dlg.SelectedDays == null || dlg.SelectedDays.Count == 0) return;
+
+            var cyklGroupId = Guid.NewGuid();
+            int totalDays = dlg.SelectedDays.Count;
+            int created = 0;
+            var errors = new List<string>();
+
+            bool copyNotes = dlg.CopyNotes;
+            bool copyKlasy = dlg.CopyKlasyWagowe;
+            bool copyProd = dlg.CopyDataProdukcji;
+            var godzinaMap = dlg.GodzinaPerDay ?? new Dictionary<DateTime, TimeSpan>();
+
+            // Progress window
+            var cts = new System.Threading.CancellationTokenSource();
+            var progressWin = new Window
+            {
+                Title = "Tworzenie zamówień cyklicznych",
+                Width = 420, Height = 160,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                ResizeMode = ResizeMode.NoResize,
+                WindowStyle = WindowStyle.ToolWindow,
+                Owner = this
+            };
+            var progressBar = new ProgressBar { Minimum = 0, Maximum = totalDays, Height = 22, Margin = new Thickness(16, 0, 16, 0) };
+            var progressLabel = new TextBlock { Text = $"0 / {totalDays}", HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 8, 0, 0), FontSize = 12 };
+            var cancelBtn = new Button { Content = "Anuluj", Width = 80, Height = 28, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 8, 0, 0) };
+            cancelBtn.Click += (s2, e2) => { cts.Cancel(); cancelBtn.IsEnabled = false; cancelBtn.Content = "Anulowanie..."; };
+            progressWin.Closing += (s2, e2) => { if (!cts.IsCancellationRequested) cts.Cancel(); };
+
+            var sp = new StackPanel { Margin = new Thickness(0, 16, 0, 16) };
+            sp.Children.Add(progressBar);
+            sp.Children.Add(progressLabel);
+            sp.Children.Add(cancelBtn);
+            progressWin.Content = sp;
+            progressWin.Show();
+
+            foreach (var date in dlg.SelectedDays)
+            {
+                if (cts.IsCancellationRequested) break;
                 try
                 {
-                    int created = 0;
-                    foreach (var date in dlg.SelectedDays)
-                    {
-                        await DuplicateOrderAsync(_currentOrderId.Value, date, false);
-                        created++;
-                    }
+                    TimeSpan? godz = godzinaMap.TryGetValue(date, out var g) ? g : null;
+                    int newId = await DuplicateOrderAsync(
+                        _currentOrderId.Value,
+                        date,
+                        copyNotes: copyNotes,
+                        copyKlasyWagowe: copyKlasy,
+                        copyDataProdukcji: copyProd,
+                        cyklGroupId: cyklGroupId,
+                        godzinaOverride: godz);
+                    created++;
+                    progressBar.Value = created;
+                    progressLabel.Text = $"{created} / {totalDays} — {date:yyyy-MM-dd}";
 
-                    MessageBox.Show($"Utworzono {created} zamówień cyklicznych.\n" +
-                                  $"Od {dlg.StartDate:yyyy-MM-dd} do {dlg.EndDate:yyyy-MM-dd}",
-                        "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
-
-                    await RefreshAllDataAsync();
+                    // Historia — bogaty opis
+                    var opis = $"Zamówienie cykliczne ({created}/{totalDays}) #{id} → #{newId}\n" +
+                               $"Odbiorca: {sourceInfo.Odbiorca}\n" +
+                               $"Data docelowa: {date:yyyy-MM-dd}" + (godz.HasValue ? $" godz. {godz.Value:hh\\:mm}" : "") + "\n" +
+                               $"Produkty: {sourceInfo.Produkty}\n" +
+                               $"Ilość: {sourceInfo.IloscKg:N0} kg\n" +
+                               $"Cykl: {cyklGroupId.ToString().Substring(0, 8)}... ({created}/{totalDays})\n" +
+                               $"Kopiowano: produkty, ceny" +
+                               (copyKlasy ? ", klasy wagowe" : "") +
+                               (copyProd ? ", data produkcji" : "") +
+                               (copyNotes ? ", notatki" : "") +
+                               ", waluta, DataUboju";
+                    _ = HistoriaZmianService.LogujUtworzenie(newId, UserID, App.UserFullName, opis);
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Błąd podczas tworzenia zamówień cyklicznych: {ex.Message}",
-                        "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                    errors.Add($"{date:yyyy-MM-dd}: {ex.Message}");
                 }
+            }
+
+            progressWin.Close();
+
+            var sb = new System.Text.StringBuilder();
+            if (cts.IsCancellationRequested && created < totalDays)
+                sb.AppendLine($"Anulowano. Utworzono {created} z {totalDays} zamówień.");
+            else
+                sb.AppendLine($"Utworzono {created} z {totalDays} zamówień dla {sourceInfo.Odbiorca}.");
+            sb.AppendLine($"Od {dlg.StartDate:yyyy-MM-dd} do {dlg.EndDate:yyyy-MM-dd}");
+            if (errors.Any())
+            {
+                sb.AppendLine();
+                sb.AppendLine($"Błędów: {errors.Count}");
+                foreach (var err in errors.Take(10))
+                    sb.AppendLine($"  • {err}");
+            }
+            var img = errors.Any() ? MessageBoxImage.Warning : MessageBoxImage.Information;
+            MessageBox.Show(sb.ToString(), "Zamówienia cykliczne", MessageBoxButton.OK, img);
+
+            await RefreshAllDataAsync();
+        }
+
+        private async void MenuPokazCykl_Click(object sender, RoutedEventArgs e)
+        {
+            if (_contextMenuSelectedRow == null) return;
+            string cyklGuid = _contextMenuSelectedRow.Row.Field<string>("CyklGroupId") ?? "";
+            if (string.IsNullOrEmpty(cyklGuid)) return;
+
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                string dateCol = (_showBySlaughterDate && _slaughterDateColumnExists) ? "DataUboju" : "DataZamowienia";
+                var cmd = new SqlCommand(
+                    $@"SELECT Id, {dateCol} AS DataZam, DataPrzyjazdu, KlientId, ISNULL(Status,'Nowe') AS Status,
+                       (SELECT SUM(Ilosc) FROM ZamowieniaMiesoTowar WHERE ZamowienieId = zm.Id) AS Kg
+                    FROM ZamowieniaMieso zm WHERE CAST(CyklGroupId AS NVARCHAR(36)) = @guid
+                    ORDER BY {dateCol}", cn);
+                cmd.Parameters.AddWithValue("@guid", cyklGuid);
+
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine($"Cykl zamówień ({cyklGuid.Substring(0, 8)}...):");
+                sb.AppendLine("─────────────────────────────────────────");
+                sb.AppendLine($"{"ID",-8}{"Data",-14}{"Godz.",-8}{"Kg",10}  {"Status"}");
+                sb.AppendLine("─────────────────────────────────────────");
+
+                int count = 0;
+                using var rdr = await cmd.ExecuteReaderAsync();
+                while (await rdr.ReadAsync())
+                {
+                    count++;
+                    int ordId = rdr.GetInt32(0);
+                    string dataZam = rdr.IsDBNull(1) ? "—" : rdr.GetDateTime(1).ToString("yyyy-MM-dd");
+                    string godz = rdr.IsDBNull(2) ? "" : rdr.GetDateTime(2).ToString("HH:mm");
+                    string kg = rdr.IsDBNull(5) ? "0" : rdr.GetDecimal(5).ToString("N0");
+                    string status = rdr.GetString(4);
+                    string marker = ordId == _contextMenuSelectedRow.Row.Field<int>("Id") ? " <--" : "";
+                    sb.AppendLine($"#{ordId,-7}{dataZam,-14}{godz,-8}{kg,10}  {status}{marker}");
+                }
+                sb.AppendLine("─────────────────────────────────────────");
+                sb.AppendLine($"Razem: {count} zamówień w cyklu");
+
+                MessageBox.Show(sb.ToString(), "Cykl zamówień", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async void MenuAnulujCykl_Click(object sender, RoutedEventArgs e)
+        {
+            if (_contextMenuSelectedRow == null) return;
+            string cyklGuid = _contextMenuSelectedRow.Row.Field<string>("CyklGroupId") ?? "";
+            if (string.IsNullOrEmpty(cyklGuid)) return;
+
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                // Policz ile zamówień do anulowania
+                var cmdCount = new SqlCommand(
+                    "SELECT COUNT(*) FROM ZamowieniaMieso WHERE CAST(CyklGroupId AS NVARCHAR(36)) = @guid AND ISNULL(Status,'') NOT IN ('Anulowane','Zrealizowane')", cn);
+                cmdCount.Parameters.AddWithValue("@guid", cyklGuid);
+                int toCancel = Convert.ToInt32(await cmdCount.ExecuteScalarAsync());
+
+                if (toCancel == 0)
+                {
+                    MessageBox.Show("Brak zamówień do anulowania w tym cyklu (wszystkie już anulowane lub zrealizowane).",
+                        "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                var result = MessageBox.Show(
+                    $"Czy na pewno chcesz anulować {toCancel} zamówień z tego cyklu?\n\n(Zamówienia zrealizowane nie zostaną zmienione)",
+                    "Anuluj cały cykl", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                if (result != MessageBoxResult.Yes) return;
+
+                // Pobierz ID zamówień do anulowania (dla logowania)
+                var idsToCancel = new List<int>();
+                var cmdIds = new SqlCommand(
+                    "SELECT Id FROM ZamowieniaMieso WHERE CAST(CyklGroupId AS NVARCHAR(36)) = @guid AND ISNULL(Status,'') NOT IN ('Anulowane','Zrealizowane')", cn);
+                cmdIds.Parameters.AddWithValue("@guid", cyklGuid);
+                using (var rdr = await cmdIds.ExecuteReaderAsync())
+                    while (await rdr.ReadAsync()) idsToCancel.Add(rdr.GetInt32(0));
+
+                var cmdUpdate = new SqlCommand(
+                    @"UPDATE ZamowieniaMieso SET Status = 'Anulowane', AnulowanePrzez = @user, DataAnulowania = GETDATE()
+                      WHERE CAST(CyklGroupId AS NVARCHAR(36)) = @guid
+                        AND ISNULL(Status,'') NOT IN ('Anulowane','Zrealizowane')", cn);
+                cmdUpdate.Parameters.AddWithValue("@guid", cyklGuid);
+                cmdUpdate.Parameters.AddWithValue("@user", UserID);
+                int affected = await cmdUpdate.ExecuteNonQueryAsync();
+
+                // Loguj anulowanie każdego zamówienia z cyklu
+                string odbiorcaCykl = _contextMenuSelectedRow.Row.Field<string>("Odbiorca") ?? "";
+                foreach (var cancelId in idsToCancel)
+                {
+                    _ = HistoriaZmianService.LogujAnulowanie(cancelId, UserID, App.UserFullName,
+                        $"Anulowanie cyklu — zamówienie #{cancelId}\n" +
+                        $"Odbiorca: {odbiorcaCykl}\n" +
+                        $"Anulowano {affected} zamówień z cyklu {cyklGuid.Substring(0, 8)}...\n" +
+                        $"Zamówienia zrealizowane nie zostały zmienione");
+                }
+
+                MessageBox.Show($"Anulowano {affected} zamówień z cyklu.",
+                    "Anulowano", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                await RefreshAllDataAsync();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -3189,6 +3525,7 @@ namespace Kalendarz1.WPF
             _dtOrders.Columns.Add("CzyZrealizowane", typeof(bool));
             _dtOrders.Columns.Add("WyprInfo", typeof(string));
             _dtOrders.Columns.Add("WydanoInfo", typeof(string));
+            _dtOrders.Columns.Add("CyklGroupId", typeof(string));
 
             // Dynamiczne kolumny dla grup towarowych (z sanityzowanymi nazwami)
             _grupyKolumnDoNazw.Clear();
@@ -3273,27 +3610,26 @@ namespace Kalendarz1.WPF
                 // SQL Zamówienia
                 if (_productCatalogCache.Keys.Any())
                 {
+                    string strefaMax = _strefaColumnExists ? "CAST(MAX(CASE WHEN zmt.Strefa = 1 THEN 1 ELSE 0 END) AS BIT)" : "CAST(0 AS BIT)";
                     string sql = $@"
 SELECT zm.Id, zm.KlientId, SUM(ISNULL(zmt.Ilosc,0)) AS Ilosc,
        zm.DataPrzyjazdu, zm.DataUtworzenia, zm.IdUser, zm.Status,
        zm.LiczbaPojemnikow, zm.LiczbaPalet, zm.TrybE2, zm.Uwagi, zm.TransportKursID,
-       CAST(CASE WHEN EXISTS(SELECT 1 FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = zm.Id AND Folia = 1)
-            THEN 1 ELSE 0 END AS BIT) AS MaFolie,
-       CAST(CASE WHEN EXISTS(SELECT 1 FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = zm.Id AND Hallal = 1)
-            THEN 1 ELSE 0 END AS BIT) AS MaHallal,
-       " + (_strefaColumnExists ? @"CAST(CASE WHEN EXISTS(SELECT 1 FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = zm.Id AND Strefa = 1)
-            THEN 1 ELSE 0 END AS BIT) AS MaStrefa," : "CAST(0 AS BIT) AS MaStrefa,") + $@"
-       CAST(CASE WHEN NOT EXISTS(SELECT 1 FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = zm.Id AND (Cena IS NULL OR Cena = '' OR Cena = '0'))
-            AND EXISTS(SELECT 1 FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = zm.Id)
+       CAST(MAX(CASE WHEN zmt.Folia = 1 THEN 1 ELSE 0 END) AS BIT) AS MaFolie,
+       CAST(MAX(CASE WHEN zmt.Hallal = 1 THEN 1 ELSE 0 END) AS BIT) AS MaHallal,
+       {strefaMax} AS MaStrefa,
+       CAST(CASE WHEN COUNT(zmt.KodTowaru) > 0
+            AND SUM(CASE WHEN zmt.Cena IS NULL OR zmt.Cena = '' OR zmt.Cena = '0' THEN 1 ELSE 0 END) = 0
             THEN 1 ELSE 0 END AS BIT) AS CzyMaCeny,
        ISNULL(zm.CzyZrealizowane, 0) AS CzyZrealizowane,
-       zm.DataWydania{slaughterDateSelect}
+       zm.DataWydania{slaughterDateSelect},
+       CAST(zm.CyklGroupId AS NVARCHAR(36)) AS CyklGroupId
 FROM [dbo].[ZamowieniaMieso] zm
 LEFT JOIN [dbo].[ZamowieniaMiesoTowar] zmt ON zm.Id = zmt.ZamowienieId
 WHERE {dateColumnZm} = @Day " +
                         (selectedProductId.HasValue ? "AND (zmt.KodTowaru = @ProductId OR zmt.KodTowaru IS NULL) " : "") +
                         $@"GROUP BY zm.Id, zm.KlientId, zm.DataPrzyjazdu, zm.DataUtworzenia, zm.IdUser, zm.Status,
-     zm.LiczbaPojemnikow, zm.LiczbaPalet, zm.TrybE2, zm.Uwagi, zm.TransportKursID, zm.CzyZrealizowane, zm.DataWydania{slaughterDateGroupBy}
+     zm.LiczbaPojemnikow, zm.LiczbaPalet, zm.TrybE2, zm.Uwagi, zm.TransportKursID, zm.CzyZrealizowane, zm.DataWydania{slaughterDateGroupBy}, CAST(zm.CyklGroupId AS NVARCHAR(36))
 ORDER BY zm.Id";
 
                     await using var cmd = new SqlCommand(sql, cn) { CommandTimeout = 15 };
@@ -3725,6 +4061,11 @@ ORDER BY zm.Id";
                 newRow["CzyZrealizowane"] = czyZrealizowane;
                 newRow["WyprInfo"] = wyprInfo;
                 newRow["WydanoInfo"] = wydanoInfo;
+
+                // CyklGroupId
+                string cyklGuid = temp.Columns.Contains("CyklGroupId") && !(r["CyklGroupId"] is DBNull)
+                    ? r["CyklGroupId"].ToString() : "";
+                newRow["CyklGroupId"] = cyklGuid;
 
                 // Wypełnij kolumny grup towarowych
                 foreach (var grupaName in _grupyTowaroweNazwy)
@@ -8046,12 +8387,80 @@ ORDER BY zm.Id";
             return "G_" + sanitized.ToString();
         }
 
-        private async Task DuplicateOrderAsync(int sourceId, DateTime targetDate, bool copyNotes = false)
+        // Cache flag — czy kolumny SourceZamowienieId / CyklGroupId istnieją (sprawdzane raz)
+        private static bool? _parentTrackingColumnsChecked = null;
+        private static bool _parentTrackingColumnsExist = false;
+        private static bool? _dataProdukcjiColumnChecked = null;
+        private static bool _dataProdukcjiColumnExists = false;
+
+        /// <summary>
+        /// Duplikuje zamówienie na docelowy dzień. Rozszerzona wersja z obsługą
+        /// DataProdukcji, klas wagowych i śledzenia parent → child.
+        /// </summary>
+        /// <param name="sourceId">ID zamówienia źródłowego</param>
+        /// <param name="targetDate">Docelowa data zamówienia</param>
+        /// <param name="copyNotes">Czy kopiować pole Uwagi</param>
+        /// <param name="copyKlasyWagowe">Czy kopiować RezerwacjeKlasWagowych</param>
+        /// <param name="copyDataProdukcji">Czy kopiować DataProdukcji (z offsetem)</param>
+        /// <param name="cyklGroupId">Opcjonalny GUID grupy cyklu</param>
+        /// <returns>ID nowo utworzonego zamówienia</returns>
+        private async Task<int> DuplicateOrderAsync(int sourceId, DateTime targetDate,
+            bool copyNotes = false, bool copyKlasyWagowe = true,
+            bool copyDataProdukcji = true, Guid? cyklGroupId = null,
+            TimeSpan? godzinaOverride = null)
         {
             targetDate = ValidateSqlDate(targetDate);
 
             await using var cn = new SqlConnection(_connLibra);
             await cn.OpenAsync();
+
+            // Jednorazowo sprawdź istnienie opcjonalnych kolumn — i dodaj je jeśli ich brak
+            if (_parentTrackingColumnsChecked == null)
+            {
+                try
+                {
+                    var checkSql = @"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+                                     WHERE TABLE_NAME='ZamowieniaMieso' AND COLUMN_NAME IN ('SourceZamowienieId','CyklGroupId')";
+                    await using var cmdCheck = new SqlCommand(checkSql, cn);
+                    int colCount = Convert.ToInt32(await cmdCheck.ExecuteScalarAsync());
+
+                    if (colCount < 2)
+                    {
+                        // Dodaj brakujące kolumny
+                        try
+                        {
+                            var alterSql = @"
+                                IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='ZamowieniaMieso' AND COLUMN_NAME='SourceZamowienieId')
+                                    ALTER TABLE [dbo].[ZamowieniaMieso] ADD SourceZamowienieId INT NULL;
+                                IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='ZamowieniaMieso' AND COLUMN_NAME='CyklGroupId')
+                                    ALTER TABLE [dbo].[ZamowieniaMieso] ADD CyklGroupId UNIQUEIDENTIFIER NULL;";
+                            await using var cmdAlter = new SqlCommand(alterSql, cn) { CommandTimeout = 30 };
+                            await cmdAlter.ExecuteNonQueryAsync();
+                            _parentTrackingColumnsExist = true;
+                        }
+                        catch { _parentTrackingColumnsExist = false; }
+                    }
+                    else
+                    {
+                        _parentTrackingColumnsExist = true;
+                    }
+                }
+                catch { _parentTrackingColumnsExist = false; }
+                _parentTrackingColumnsChecked = true;
+            }
+            if (_dataProdukcjiColumnChecked == null)
+            {
+                try
+                {
+                    var checkSql = @"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+                                     WHERE TABLE_NAME='ZamowieniaMieso' AND COLUMN_NAME='DataProdukcji'";
+                    await using var cmdCheck = new SqlCommand(checkSql, cn);
+                    _dataProdukcjiColumnExists = Convert.ToInt32(await cmdCheck.ExecuteScalarAsync()) > 0;
+                }
+                catch { _dataProdukcjiColumnExists = false; }
+                _dataProdukcjiColumnChecked = true;
+            }
+
             await using var tr = cn.BeginTransaction();
 
             try
@@ -8059,12 +8468,22 @@ ORDER BY zm.Id";
                 int clientId = 0;
                 string notes = "";
                 DateTime arrivalTime = DateTime.Today.AddHours(8);
+                DateTime sourceDataZamowienia = DateTime.Today;
+                DateTime? sourceDataProdukcji = null;
+                DateTime? sourceDataUboju = null;
+                string sourceWaluta = "PLN";
                 int containers = 0;
                 decimal pallets = 0m;
                 bool modeE2 = false;
 
-                using (var cmd = new SqlCommand(@"SELECT KlientId, Uwagi, DataPrzyjazdu, LiczbaPojemnikow, LiczbaPalet, TrybE2 
-                                 FROM ZamowieniaMieso WHERE Id = @Id", cn, tr))
+                // Pobierz dane źródłowe (z DataProdukcji, DataUboju, Waluta jeśli kolumny istnieją)
+                var selectCols = "KlientId, Uwagi, DataPrzyjazdu, LiczbaPojemnikow, LiczbaPalet, TrybE2, DataZamowienia";
+                if (_dataProdukcjiColumnExists) selectCols += ", DataProdukcji";
+                if (_slaughterDateColumnExists) selectCols += ", DataUboju";
+                if (_walutaColumnExists) selectCols += ", Waluta";
+                string selectSql = $"SELECT {selectCols} FROM ZamowieniaMieso WHERE Id = @Id";
+
+                using (var cmd = new SqlCommand(selectSql, cn, tr))
                 {
                     cmd.Parameters.AddWithValue("@Id", sourceId);
                     using var reader = await cmd.ExecuteReaderAsync();
@@ -8074,36 +8493,114 @@ ORDER BY zm.Id";
                         clientId = reader.GetInt32(0);
                         notes = reader.IsDBNull(1) ? "" : reader.GetString(1);
                         arrivalTime = reader.GetDateTime(2);
-                        arrivalTime = targetDate.Date.Add(arrivalTime.TimeOfDay);
+                        arrivalTime = godzinaOverride.HasValue
+                            ? targetDate.Date.Add(godzinaOverride.Value)
+                            : targetDate.Date.Add(arrivalTime.TimeOfDay);
                         containers = reader.IsDBNull(3) ? 0 : reader.GetInt32(3);
                         pallets = reader.IsDBNull(4) ? 0m : reader.GetDecimal(4);
                         modeE2 = reader.IsDBNull(5) ? false : reader.GetBoolean(5);
+                        sourceDataZamowienia = reader.GetDateTime(6);
+
+                        if (_dataProdukcjiColumnExists)
+                        {
+                            int ordProd = reader.GetOrdinal("DataProdukcji");
+                            if (!reader.IsDBNull(ordProd))
+                                sourceDataProdukcji = reader.GetDateTime(ordProd);
+                        }
+                        if (_slaughterDateColumnExists)
+                        {
+                            int ordUboj = reader.GetOrdinal("DataUboju");
+                            if (!reader.IsDBNull(ordUboj))
+                                sourceDataUboju = reader.GetDateTime(ordUboj);
+                        }
+                        if (_walutaColumnExists)
+                        {
+                            int ordWal = reader.GetOrdinal("Waluta");
+                            if (!reader.IsDBNull(ordWal))
+                                sourceWaluta = reader.GetString(ordWal);
+                        }
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException($"Zamówienie źródłowe {sourceId} nie istnieje");
                     }
                 }
+
+                // Oblicz DataProdukcji i DataUboju — przesunięte o tę samą różnicę dni
+                int deltaDni = (int)(targetDate.Date - sourceDataZamowienia.Date).TotalDays;
+
+                DateTime? newDataProdukcji = null;
+                if (copyDataProdukcji && sourceDataProdukcji.HasValue)
+                    newDataProdukcji = sourceDataProdukcji.Value.AddDays(deltaDni);
+
+                DateTime? newDataUboju = null;
+                if (sourceDataUboju.HasValue)
+                    newDataUboju = sourceDataUboju.Value.AddDays(deltaDni);
+                else
+                    newDataUboju = targetDate.Date; // fallback: DataUboju = DataZamowienia
 
                 var cmdGetId = new SqlCommand("SELECT ISNULL(MAX(Id),0)+1 FROM ZamowieniaMieso", cn, tr);
                 int newId = Convert.ToInt32(await cmdGetId.ExecuteScalarAsync());
 
-                var cmdInsert = new SqlCommand(@"INSERT INTO ZamowieniaMieso 
-            (Id, DataZamowienia, DataPrzyjazdu, KlientId, Uwagi, IdUser, DataUtworzenia, 
-             LiczbaPojemnikow, LiczbaPalet, TrybE2, TransportStatus) 
-            VALUES (@id, @dz, @dp, @kid, @uw, @u, GETDATE(), @poj, @pal, @e2, 'Oczekuje')", cn, tr);
+                // Zbuduj dynamicznie listę kolumn i wartości w zależności od istniejących kolumn
+                var cols = new List<string> { "Id", "DataZamowienia", "DataPrzyjazdu", "KlientId", "Uwagi",
+                    "IdUser", "DataUtworzenia", "LiczbaPojemnikow", "LiczbaPalet", "TrybE2", "TransportStatus" };
+                var vals = new List<string> { "@id", "@dz", "@dp", "@kid", "@uw",
+                    "@u", "GETDATE()", "@poj", "@pal", "@e2", "'Oczekuje'" };
 
+                if (_dataProdukcjiColumnExists)
+                {
+                    cols.Add("DataProdukcji");
+                    vals.Add("@dataProd");
+                }
+                if (_slaughterDateColumnExists)
+                {
+                    cols.Add("DataUboju");
+                    vals.Add("@dataUboj");
+                }
+                if (_walutaColumnExists)
+                {
+                    cols.Add("Waluta");
+                    vals.Add("@waluta");
+                }
+                if (_parentTrackingColumnsExist)
+                {
+                    cols.Add("SourceZamowienieId");
+                    vals.Add("@srcId");
+                    cols.Add("CyklGroupId");
+                    vals.Add("@cyklGuid");
+                }
+
+                var insertSql = $"INSERT INTO ZamowieniaMieso ({string.Join(",", cols)}) VALUES ({string.Join(",", vals)})";
+                var cmdInsert = new SqlCommand(insertSql, cn, tr);
                 cmdInsert.Parameters.AddWithValue("@id", newId);
                 cmdInsert.Parameters.AddWithValue("@dz", targetDate.Date);
                 cmdInsert.Parameters.AddWithValue("@dp", arrivalTime);
                 cmdInsert.Parameters.AddWithValue("@kid", clientId);
 
                 string finalNotes = copyNotes && !string.IsNullOrEmpty(notes) ? notes : "";
-                cmdInsert.Parameters.AddWithValue("@uw", string.IsNullOrEmpty(finalNotes) ? DBNull.Value : finalNotes);
+                cmdInsert.Parameters.AddWithValue("@uw", string.IsNullOrEmpty(finalNotes) ? DBNull.Value : (object)finalNotes);
 
                 cmdInsert.Parameters.AddWithValue("@u", UserID);
                 cmdInsert.Parameters.AddWithValue("@poj", containers);
                 cmdInsert.Parameters.AddWithValue("@pal", pallets);
                 cmdInsert.Parameters.AddWithValue("@e2", modeE2);
+
+                if (_dataProdukcjiColumnExists)
+                    cmdInsert.Parameters.AddWithValue("@dataProd", newDataProdukcji.HasValue ? (object)newDataProdukcji.Value : DBNull.Value);
+                if (_slaughterDateColumnExists)
+                    cmdInsert.Parameters.AddWithValue("@dataUboj", newDataUboju.HasValue ? (object)newDataUboju.Value : DBNull.Value);
+                if (_walutaColumnExists)
+                    cmdInsert.Parameters.AddWithValue("@waluta", sourceWaluta);
+                if (_parentTrackingColumnsExist)
+                {
+                    cmdInsert.Parameters.AddWithValue("@srcId", sourceId);
+                    cmdInsert.Parameters.AddWithValue("@cyklGuid", cyklGroupId.HasValue ? (object)cyklGroupId.Value : DBNull.Value);
+                }
+
                 await cmdInsert.ExecuteNonQueryAsync();
 
-                // POPRAWIONE - Cena to VARCHAR
+                // Kopiuj produkty
                 var cmdCopyItems = new SqlCommand(
                     _strefaColumnExists
                     ? @"INSERT INTO ZamowieniaMiesoTowar
@@ -8118,11 +8615,40 @@ ORDER BY zm.Id";
                 cmdCopyItems.Parameters.AddWithValue("@sourceId", sourceId);
                 await cmdCopyItems.ExecuteNonQueryAsync();
 
+                // Kopiuj rezerwacje klas wagowych (RezerwacjeKlasWagowych) dla Kurczaka A
+                if (copyKlasyWagowe)
+                {
+                    try
+                    {
+                        var checkRezSql = "SELECT OBJECT_ID('dbo.RezerwacjeKlasWagowych', 'U')";
+                        using var cmdCheckRez = new SqlCommand(checkRezSql, cn, tr);
+                        var rezObj = await cmdCheckRez.ExecuteScalarAsync();
+                        if (rezObj != null && rezObj != DBNull.Value)
+                        {
+                            // Data produkcji dla rezerwacji = DataProdukcji nowego (lub DataZamowienia jeśli brak)
+                            DateTime dataProdRez = newDataProdukcji ?? targetDate.Date;
+                            var copyRezSql = @"INSERT INTO RezerwacjeKlasWagowych
+                                (ZamowienieId, DataProdukcji, Klasa, IloscPojemnikow, Handlowiec, Odbiorca, DataRezerwacji, Status)
+                                SELECT @newId, @newData, Klasa, IloscPojemnikow, Handlowiec, Odbiorca, GETDATE(), 'Aktywna'
+                                FROM RezerwacjeKlasWagowych
+                                WHERE ZamowienieId = @sourceId AND Status = 'Aktywna'";
+                            using var cmdCopyRez = new SqlCommand(copyRezSql, cn, tr);
+                            cmdCopyRez.Parameters.AddWithValue("@newId", newId);
+                            cmdCopyRez.Parameters.AddWithValue("@newData", dataProdRez);
+                            cmdCopyRez.Parameters.AddWithValue("@sourceId", sourceId);
+                            await cmdCopyRez.ExecuteNonQueryAsync();
+                        }
+                    }
+                    catch { /* nie blokuj całej operacji jeśli klasy wagowe padną */ }
+                }
+
                 await tr.CommitAsync();
+                return newId;
             }
-            catch
+            catch (Exception ex)
             {
-                await tr.RollbackAsync();
+                System.Diagnostics.Debug.WriteLine($"DuplicateOrderAsync failed (src={sourceId}, target={targetDate:yyyy-MM-dd}): {ex}");
+                try { await tr.RollbackAsync(); } catch { }
                 throw;
             }
         }

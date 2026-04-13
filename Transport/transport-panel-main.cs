@@ -1391,7 +1391,7 @@ namespace Kalendarz1.Transport.Formularze
                 using var cmd = new SqlCommand($@"
                     SELECT ZamowienieId, TypZmiany, StareWartosc, NowaWartosc, ZgloszonePrzez, DataZgloszenia, KlientNazwa
                     FROM TransportZmiany
-                    WHERE StatusZmiany = 'Oczekuje' AND TypZmiany NOT IN ('NoweZamowienie')
+                    WHERE StatusZmiany = 'Oczekuje' AND TypZmiany NOT IN ('NoweZamowienie', 'ZmianaStatusu')
                       AND ZamowienieId IN ({zamIdsStr})
                     ORDER BY DataZgloszenia DESC", conn);
                 using var rdr = await cmd.ExecuteReaderAsync();
@@ -3150,7 +3150,7 @@ namespace Kalendarz1.Transport.Formularze
                 using (var cmdAcc = new SqlCommand($@"
                     UPDATE TransportZmiany SET StatusZmiany = 'Zaakceptowano',
                         ZaakceptowanePrzez = @User, DataAkceptacji = GETDATE()
-                    WHERE StatusZmiany = 'Oczekuje' AND TypZmiany NOT IN ('NoweZamowienie')
+                    WHERE StatusZmiany = 'Oczekuje' AND TypZmiany NOT IN ('NoweZamowienie', 'ZmianaStatusu')
                       AND ZamowienieId IN ({zamIdsStr})", conn))
                 {
                     cmdAcc.Parameters.AddWithValue("@User", user);
@@ -3573,7 +3573,7 @@ namespace Kalendarz1.Transport.Formularze
                 using var cmd = new SqlCommand($@"
                     SELECT DISTINCT ZamowienieId FROM TransportZmiany
                     WHERE StatusZmiany = 'Oczekuje'
-                      AND TypZmiany NOT IN ('NoweZamowienie')
+                      AND TypZmiany NOT IN ('NoweZamowienie', 'ZmianaStatusu')
                       AND ZamowienieId IN ({zamIdsStr})", connTr);
                 using var rdr = await cmd.ExecuteReaderAsync();
                 while (await rdr.ReadAsync())
@@ -4228,7 +4228,7 @@ namespace Kalendarz1.Transport.Formularze
                 using var cmd = new SqlCommand($@"
                     SELECT TOP 8 TypZmiany, KlientNazwa, ZgloszonePrzez, DataZgloszenia, StareWartosc, NowaWartosc
                     FROM TransportZmiany
-                    WHERE StatusZmiany = 'Oczekuje' AND TypZmiany NOT IN ('NoweZamowienie')
+                    WHERE StatusZmiany = 'Oczekuje' AND TypZmiany NOT IN ('NoweZamowienie', 'ZmianaStatusu')
                       AND ZamowienieId IN ({zamIdsStr})
                     ORDER BY DataZgloszenia DESC", conn);
                 using var rdr = await cmd.ExecuteReaderAsync();

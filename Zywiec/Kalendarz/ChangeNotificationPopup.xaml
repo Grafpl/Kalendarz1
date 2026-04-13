@@ -1,0 +1,91 @@
+<Window x:Class="Kalendarz1.Zywiec.Kalendarz.ChangeNotificationPopup"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ShowActivated="False"
+        Focusable="False"
+        ResizeMode="NoResize"
+        Width="380" SizeToContent="Height"
+        Loaded="Window_Loaded">
+
+    <Border x:Name="mainBorder" CornerRadius="10" Background="White"
+            BorderBrush="#E2E8F0" BorderThickness="1"
+            Margin="8" Opacity="0" Cursor="Hand"
+            MouseLeftButtonUp="MainBorder_MouseLeftButtonUp">
+        <Border.RenderTransform>
+            <TranslateTransform x:Name="slideTransform" X="400"/>
+        </Border.RenderTransform>
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="20" Opacity="0.22" ShadowDepth="4" Color="#000000"/>
+        </Border.Effect>
+
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Nagłówek -->
+            <Border x:Name="headerBorder" Grid.Row="0" Background="#4CAF50"
+                    CornerRadius="10,10,0,0" Padding="14,10">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Avatar -->
+                    <Grid Grid.Column="0" Width="36" Height="36" Margin="0,0,10,0">
+                        <Border x:Name="avatarBorder" Width="36" Height="36" CornerRadius="18" Background="#FFFFFF">
+                            <TextBlock x:Name="avatarInitials" Text="" FontSize="13" FontWeight="Bold"
+                                       Foreground="#4CAF50" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <Ellipse x:Name="avatarImage" Width="36" Height="36" Visibility="Collapsed"/>
+                    </Grid>
+
+                    <!-- Tytuł + podtytuł -->
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock x:Name="txtTitle" Text="" FontSize="14" FontWeight="Bold"
+                                   Foreground="White" TextTrimming="CharacterEllipsis"/>
+                        <TextBlock x:Name="txtSubtitle" Text="" FontSize="10" Foreground="#E8F5E9"
+                                   Margin="0,1,0,0" TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
+
+                    <!-- Zamknij -->
+                    <Button Grid.Column="2" Click="BtnClose_Click"
+                            Width="26" Height="26" Cursor="Hand"
+                            VerticalAlignment="Top" Margin="4,0,0,0">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="closeBorder" Background="Transparent" CornerRadius="13"
+                                        Width="26" Height="26">
+                                    <TextBlock Text="✕" Foreground="#FFFFFFCC" FontSize="13" FontWeight="Bold"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="closeBorder" Property="Background" Value="#FFFFFF30"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <!-- Lista zmian -->
+            <StackPanel x:Name="changesPanel" Grid.Row="1" Margin="6,6,6,2"/>
+
+            <!-- Timestamp -->
+            <TextBlock x:Name="txtTimestamp" Grid.Row="2" Text="" FontSize="9"
+                       Foreground="#9CA3AF" Margin="14,2,14,8"
+                       HorizontalAlignment="Right"/>
+        </Grid>
+    </Border>
+</Window>

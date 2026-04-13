@@ -17,6 +17,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
+using System.Diagnostics;
 using Kalendarz1.Zywiec.Kalendarz;
 
 namespace Kalendarz1
@@ -58,6 +59,7 @@ namespace Kalendarz1
 
         // Flaga do blokowania ponownego otwarcia tooltipa zaraz po zamknięciu
         private DateTime _tooltipCloseTime = DateTime.MinValue;
+
 
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -108,7 +110,6 @@ namespace Kalendarz1
             LoadWstawienia();
             LoadPrzypomnienia();
             LoadHistoria();
-            LoadDoPotwierdzenia();
             UpdateStatistics();
         }
 
@@ -189,6 +190,7 @@ namespace Kalendarz1
             chkPokazPrzyszle.Checked += ChkPokazPrzyszle_Changed;
             chkPokazPrzyszle.Unchecked += ChkPokazPrzyszle_Changed;
             datePickerOd.SelectedDateChanged += DatePickerOd_Changed;
+            datePickerDo.SelectedDateChanged += DatePickerDo_Changed;
 
             // Zamknij tooltip przy kliknięciu lewym przyciskiem myszy w dowolne miejsce
             this.PreviewMouseLeftButtonDown += Window_PreviewMouseLeftButtonDown;
@@ -219,6 +221,39 @@ namespace Kalendarz1
                 StopTooltipTimer();
                 _currentOpenTooltip = null;
                 _tooltipCloseTime = DateTime.Now;
+                e.Handled = true;
+                return;
+            }
+
+            // Skróty klawiszowe
+            if (Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                switch (e.Key)
+                {
+                    case Key.N:
+                        BtnDodaj_Click(null, null);
+                        e.Handled = true;
+                        break;
+                    case Key.F:
+                        textBoxFilter.Focus();
+                        textBoxFilter.SelectAll();
+                        e.Handled = true;
+                        break;
+                }
+            }
+            else if (e.Key == Key.F5)
+            {
+                RefreshAll();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Delete && dataGridWstawienia.IsKeyboardFocusWithin && dataGridWstawienia.SelectedItem != null)
+            {
+                MenuUsun_Click(null, null);
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Enter && dataGridWstawienia.IsKeyboardFocusWithin && dataGridWstawienia.SelectedItem != null)
+            {
+                MenuEdytuj_Click(null, null);
                 e.Handled = true;
             }
         }
@@ -1054,7 +1089,8 @@ namespace Kalendarz1
                        CAST(W.KtoStwo AS VARCHAR(20)) AS KtoStwoID,
                        CONVERT(varchar, W.DataUtw, 120) AS DataUtw,
                        W.[isCheck],
-                       W.[isConf]
+                       W.[isConf],
+                       (SELECT MAX(ch.CreatedAt) FROM dbo.ContactHistory ch WHERE ch.LpWstawienia = W.LP) AS OstatniKontakt
                 FROM dbo.WstawieniaKurczakow W
                 LEFT JOIN dbo.operators O ON W.KtoStwo = O.ID
                 ORDER BY W.LP DESC, W.DataWstawienia DESC";
@@ -1082,6 +1118,30 @@ namespace Kalendarz1
         private void SetupWstawieniaColumns()
         {
             dataGridWstawienia.Columns.Clear();
+
+            // Kolumna kropki świeżości kontaktu
+            var kontaktColumn = new DataGridTemplateColumn
+            {
+                Header = "📞",
+                Width = 24
+            };
+            var kontaktTemplate = new DataTemplate();
+            var kontaktEllipse = new FrameworkElementFactory(typeof(Ellipse));
+            kontaktEllipse.SetValue(Ellipse.WidthProperty, 8.0);
+            kontaktEllipse.SetValue(Ellipse.HeightProperty, 8.0);
+            kontaktEllipse.SetValue(Ellipse.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+            kontaktEllipse.SetValue(Ellipse.VerticalAlignmentProperty, VerticalAlignment.Center);
+            kontaktEllipse.SetBinding(Ellipse.FillProperty, new Binding("OstatniKontakt")
+            {
+                Converter = new KontaktFreshnessConverter()
+            });
+            kontaktEllipse.SetBinding(Ellipse.ToolTipProperty, new Binding("OstatniKontakt")
+            {
+                Converter = new KontaktFreshnessTooltipConverter()
+            });
+            kontaktTemplate.VisualTree = kontaktEllipse;
+            kontaktColumn.CellTemplate = kontaktTemplate;
+            dataGridWstawienia.Columns.Add(kontaktColumn);
 
             dataGridWstawienia.Columns.Add(new DataGridTextColumn
             {
@@ -1756,84 +1816,198 @@ namespace Kalendarz1
 
         private void LoadPrzypomnienia()
         {
-            string query = @"
-                SELECT 
-                    v.LP,
-                    CAST(v.DataWstawienia AS date) AS Data,
-                    v.Dostawca,
-                    v.IloscWstawienia AS Ilosc,
-                    d.Phone1 AS Telefon
-                FROM dbo.v_WstawieniaDoKontaktu AS v
-                LEFT JOIN [LibraNet].[dbo].[Dostawcy] AS d
-                       ON d.ShortName = v.Dostawca
-                ORDER BY Data DESC, Dostawca";
+            var table = new DataTable();
+            table.Columns.Add("LP", typeof(int));
+            table.Columns.Add("Data", typeof(DateTime));
+            table.Columns.Add("Dostawca", typeof(string));
+            table.Columns.Add("Ilosc", typeof(int));
+            table.Columns.Add("Telefon", typeof(string));
+            table.Columns.Add("Oczekuje", typeof(int));
+            table.Columns.Add("ZaDni", typeof(int));
+            table.Columns.Add("IleProb", typeof(int));
+            table.Columns.Add("OstatNotatka", typeof(string));
+            table.Columns.Add("IleNieOdebral", typeof(int));
 
             using (var connection = new SqlConnection(connectionString))
-            using (var adapter = new SqlDataAdapter(query, connection))
             {
-                var table = new DataTable();
-                adapter.Fill(table);
+                connection.Open();
 
-                dataGridPrzypomnienia.ItemsSource = table.DefaultView;
-                SetupPrzypomieniaColumns();
+                // Aktywne przypomnienia
+                string queryAktywne = @"
+                    SELECT
+                        v.LP,
+                        CAST(v.DataWstawienia AS date) AS Data,
+                        v.Dostawca,
+                        v.IloscWstawienia AS Ilosc,
+                        d.Phone1 AS Telefon,
+                        ISNULL((SELECT COUNT(*) FROM dbo.ContactHistory ch WHERE ch.LpWstawienia = v.LP AND ch.CreatedAt >= v.DataWstawienia), 0) AS IleProb,
+                        (SELECT TOP 1 ch.Reason FROM dbo.ContactHistory ch WHERE ch.LpWstawienia = v.LP ORDER BY ch.ContactID DESC) AS OstatNotatka,
+                        ISNULL((SELECT COUNT(*) FROM dbo.ContactHistory ch WHERE ch.LpWstawienia = v.LP AND ch.Reason = 'Brak kontaktu' AND ch.CreatedAt >= v.DataWstawienia), 0) AS IleNieOdebral
+                    FROM dbo.v_WstawieniaDoKontaktu AS v
+                    LEFT JOIN [LibraNet].[dbo].[Dostawcy] AS d
+                           ON d.ShortName = v.Dostawca
+                    ORDER BY Data DESC, Dostawca";
+
+                using (var cmd = new SqlCommand(queryAktywne, connection))
+                using (var reader = cmd.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        var row = table.NewRow();
+                        row["LP"] = reader["LP"];
+                        row["Data"] = reader["Data"];
+                        row["Dostawca"] = reader["Dostawca"];
+                        row["Ilosc"] = reader["Ilosc"] != DBNull.Value ? reader["Ilosc"] : DBNull.Value;
+                        row["Telefon"] = reader["Telefon"] != DBNull.Value ? reader["Telefon"] : DBNull.Value;
+                        row["Oczekuje"] = 0;
+                        row["ZaDni"] = DBNull.Value;
+                        row["IleProb"] = reader["IleProb"];
+                        row["OstatNotatka"] = reader["OstatNotatka"] != DBNull.Value ? reader["OstatNotatka"] : DBNull.Value;
+                        row["IleNieOdebral"] = reader["IleNieOdebral"];
+                        table.Rows.Add(row);
+                    }
+                }
+
+                // Oczekujące (snoozed) — posortowane od najkrótszego czasu
+                string queryOczekujace = @"
+                    SELECT
+                        w.LP,
+                        CAST(w.DataWstawienia AS date) AS Data,
+                        w.Dostawca,
+                        w.IloscWstawienia AS Ilosc,
+                        d.Phone1 AS Telefon,
+                        DATEDIFF(day, CAST(GETDATE() AS date), ch.SnoozedUntil) AS ZaDni,
+                        ISNULL((SELECT COUNT(*) FROM dbo.ContactHistory c2 WHERE c2.LpWstawienia = w.LP AND c2.CreatedAt >= w.DataWstawienia), 0) AS IleProb,
+                        ch.Reason AS OstatNotatka,
+                        ISNULL((SELECT COUNT(*) FROM dbo.ContactHistory c3 WHERE c3.LpWstawienia = w.LP AND c3.Reason = 'Brak kontaktu' AND c3.CreatedAt >= w.DataWstawienia), 0) AS IleNieOdebral
+                    FROM dbo.ContactHistory ch
+                    INNER JOIN dbo.WstawieniaKurczakow w ON w.LP = ch.LpWstawienia
+                    LEFT JOIN [LibraNet].[dbo].[Dostawcy] AS d ON d.ShortName = w.Dostawca
+                    WHERE ch.SnoozedUntil > CAST(GETDATE() AS date)
+                      AND ch.ContactID = (
+                          SELECT MAX(ch2.ContactID)
+                          FROM dbo.ContactHistory ch2
+                          WHERE ch2.LpWstawienia = ch.LpWstawienia
+                      )
+                      AND w.LP NOT IN (SELECT v2.LP FROM dbo.v_WstawieniaDoKontaktu v2)
+                    ORDER BY ZaDni ASC, Dostawca";
+
+                using (var cmd = new SqlCommand(queryOczekujace, connection))
+                using (var reader = cmd.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        var row = table.NewRow();
+                        row["LP"] = reader["LP"];
+                        row["Data"] = reader["Data"];
+                        row["Dostawca"] = reader["Dostawca"];
+                        row["Ilosc"] = reader["Ilosc"] != DBNull.Value ? reader["Ilosc"] : DBNull.Value;
+                        row["Telefon"] = reader["Telefon"] != DBNull.Value ? reader["Telefon"] : DBNull.Value;
+                        row["Oczekuje"] = 1;
+                        row["ZaDni"] = reader["ZaDni"];
+                        row["IleProb"] = reader["IleProb"];
+                        row["OstatNotatka"] = reader["OstatNotatka"] != DBNull.Value ? reader["OstatNotatka"] : DBNull.Value;
+                        row["IleNieOdebral"] = reader["IleNieOdebral"];
+                        table.Rows.Add(row);
+                    }
+                }
             }
+
+            dataGridPrzypomnienia.ItemsSource = table.DefaultView;
+            SetupPrzypomieniaColumns();
         }
 
         private void SetupPrzypomieniaColumns()
         {
             dataGridPrzypomnienia.Columns.Clear();
 
-            // Kolumna LP z pulsacją
-            var lpColumn = new DataGridTemplateColumn { Header = "LP", Width = 38 };
-            lpColumn.CellTemplate = CreatePulsatingTextTemplate("LP", null);
-            dataGridPrzypomnienia.Columns.Add(lpColumn);
+            dataGridPrzypomnienia.Columns.Add(new DataGridTextColumn
+            {
+                Header = "LP", Binding = new Binding("LP"), Width = 46
+            });
 
-            // Kolumna Data z pulsacją
-            var dataColumn = new DataGridTemplateColumn { Header = "Data", Width = 70 };
-            dataColumn.CellTemplate = CreatePulsatingTextTemplate("Data", "MM-dd ddd");
-            dataGridPrzypomnienia.Columns.Add(dataColumn);
+            dataGridPrzypomnienia.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Data", Binding = new Binding("Data") { StringFormat = "MM-dd ddd" }, Width = 66
+            });
 
-            // Kolumna Hodowca z pulsacją (trochę węższa na rzecz Tel)
-            var hodowcaColumn = new DataGridTemplateColumn { Header = "Hodowca", Width = new DataGridLength(0.85, DataGridLengthUnitType.Star) };
-            hodowcaColumn.CellTemplate = CreatePulsatingTextTemplate("Dostawca", null);
-            dataGridPrzypomnienia.Columns.Add(hodowcaColumn);
+            dataGridPrzypomnienia.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Hodowca", Binding = new Binding("Dostawca"), Width = 95
+            });
 
-            // Kolumna Ilość z pulsacją
-            var iloscColumn = new DataGridTemplateColumn { Header = "Ilość", Width = 52 };
-            iloscColumn.CellTemplate = CreatePulsatingTextTemplate("Ilosc", "# ##0");
-            dataGridPrzypomnienia.Columns.Add(iloscColumn);
+            dataGridPrzypomnienia.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Ilość", Binding = new Binding("Ilosc") { StringFormat = "# ##0" }, Width = 48
+            });
 
-            // Kolumna Tel z pulsacją (szersza)
-            var telColumn = new DataGridTemplateColumn { Header = "Tel", Width = 82 };
-            telColumn.CellTemplate = CreatePulsatingTextTemplate("Telefon", null);
-            dataGridPrzypomnienia.Columns.Add(telColumn);
+            dataGridPrzypomnienia.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Tel", Binding = new Binding("Telefon"), Width = 76
+            });
 
-            // Dodaj pulsowanie tła dla całych wierszy
+            // Kolumna 📝 — "X not."
+            var probyColumn = new DataGridTemplateColumn { Header = "📝", Width = 40 };
+            var probyTemplate = new DataTemplate();
+            var probyText = new FrameworkElementFactory(typeof(TextBlock));
+            probyText.SetBinding(TextBlock.TextProperty, new Binding("IleProb") { Converter = new IleProbConverter() });
+            probyText.SetValue(TextBlock.FontSizeProperty, 8.0);
+            probyText.SetValue(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(127, 140, 141)));
+            probyText.SetValue(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+            probyText.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+            probyTemplate.VisualTree = probyText;
+            probyColumn.CellTemplate = probyTemplate;
+            dataGridPrzypomnienia.Columns.Add(probyColumn);
+
+            // Kolumna Za — "X dni"
+            var zaDniColumn = new DataGridTemplateColumn { Header = "Za", Width = 46 };
+            var zaDniTemplate = new DataTemplate();
+            var zaDniText = new FrameworkElementFactory(typeof(TextBlock));
+            zaDniText.SetBinding(TextBlock.TextProperty, new Binding("ZaDni") { Converter = new ZaDniConverter() });
+            zaDniText.SetValue(TextBlock.FontSizeProperty, 8.0);
+            zaDniText.SetValue(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(127, 140, 141)));
+            zaDniText.SetValue(TextBlock.FontStyleProperty, FontStyles.Italic);
+            zaDniText.SetValue(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+            zaDniText.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+            zaDniTemplate.VisualTree = zaDniText;
+            zaDniColumn.CellTemplate = zaDniTemplate;
+            dataGridPrzypomnienia.Columns.Add(zaDniColumn);
+
             dataGridPrzypomnienia.LoadingRow += DataGridPrzypomnienia_LoadingRow;
         }
 
         private void DataGridPrzypomnienia_LoadingRow(object sender, DataGridRowEventArgs e)
         {
-            // Dodaj pulsujące tło dla wiersza przypomnienia
             var row = e.Row;
+            var dataRow = row.Item as DataRowView;
+            if (dataRow == null) return;
 
-            // Ustaw początkowe jasne czerwone tło
-            var brush = new SolidColorBrush(Color.FromRgb(255, 235, 238)); // Jasny różowy
-            row.Background = brush;
+            bool oczekuje = dataRow["Oczekuje"] != DBNull.Value && Convert.ToInt32(dataRow["Oczekuje"]) == 1;
+            string notatka = dataRow["OstatNotatka"] != DBNull.Value ? dataRow["OstatNotatka"].ToString() : null;
 
-            // Animacja koloru tła - pulsowanie
-            var colorAnimation = new System.Windows.Media.Animation.ColorAnimationUsingKeyFrames
+            if (!string.IsNullOrEmpty(notatka))
             {
-                RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever
-            };
+                row.ToolTip = new ToolTip
+                {
+                    Content = $"Ostatnia notatka: {notatka}",
+                    FontSize = 11,
+                    MaxWidth = 300
+                };
+            }
 
-            // Jasny różowy -> czerwonawy -> jasny różowy
-            colorAnimation.KeyFrames.Add(new System.Windows.Media.Animation.LinearColorKeyFrame(Color.FromRgb(255, 235, 238), TimeSpan.FromSeconds(0)));
-            colorAnimation.KeyFrames.Add(new System.Windows.Media.Animation.LinearColorKeyFrame(Color.FromRgb(255, 235, 238), TimeSpan.FromSeconds(0.8)));
-            colorAnimation.KeyFrames.Add(new System.Windows.Media.Animation.EasingColorKeyFrame(Color.FromRgb(255, 182, 193), TimeSpan.FromSeconds(1.3), new System.Windows.Media.Animation.SineEase())); // Mocniejszy różowy
-            colorAnimation.KeyFrames.Add(new System.Windows.Media.Animation.EasingColorKeyFrame(Color.FromRgb(255, 235, 238), TimeSpan.FromSeconds(1.8), new System.Windows.Media.Animation.SineEase()));
-
-            brush.BeginAnimation(SolidColorBrush.ColorProperty, colorAnimation);
+            if (oczekuje)
+            {
+                // Oczekujące — szare tło, czarna czcionka
+                row.Background = new SolidColorBrush(Color.FromRgb(236, 240, 241));
+                row.Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80));
+            }
+            else
+            {
+                // Aktywne — czerwone tło, gruba czerwona czcionka
+                row.Background = new SolidColorBrush(Color.FromRgb(255, 235, 238));
+                row.Foreground = new SolidColorBrush(Color.FromRgb(220, 53, 69));
+                row.FontWeight = FontWeights.Bold;
+            }
         }
 
         private DataTemplate CreatePulsatingTextTemplate(string bindingPath, string stringFormat)
@@ -1847,7 +2021,7 @@ namespace Kalendarz1
             textBlockFactory.SetBinding(TextBlock.TextProperty, binding);
 
             textBlockFactory.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
-            textBlockFactory.AddHandler(FrameworkElement.LoadedEvent, new RoutedEventHandler(StartPulsatingAnimation));
+            textBlockFactory.SetValue(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(44, 62, 80)));
 
             template.VisualTree = textBlockFactory;
             return template;
@@ -1892,8 +2066,47 @@ namespace Kalendarz1
             }
         }
 
+        private DateTime? _historiaCutoffDate = null;
+
+        private void LoadHistoriaForDostawca(string dostawca, DateTime? dataWstawienia)
+        {
+            _historiaCutoffDate = dataWstawienia;
+
+            string query = @"
+                SELECT
+                    ch.ContactID,
+                    ch.Dostawca,
+                    ISNULL(o.Name, ch.UserID) AS UserName,
+                    CAST(ch.UserID AS VARCHAR(20)) AS UserID,
+                    ch.SnoozedUntil,
+                    ch.Reason,
+                    ch.CreatedAt
+                FROM dbo.ContactHistory ch
+                LEFT JOIN dbo.operators o ON ch.UserID = o.ID
+                WHERE ch.Dostawca = @Dostawca
+                ORDER BY ch.CreatedAt DESC, ch.ContactID DESC";
+
+            using (var connection = new SqlConnection(connectionString))
+            using (var adapter = new SqlDataAdapter(query, connection))
+            {
+                adapter.SelectCommand.Parameters.AddWithValue("@Dostawca", dostawca);
+                var table = new DataTable();
+                adapter.Fill(table);
+
+                foreach (DataRow row in table.Rows)
+                {
+                    if (row["UserName"] != DBNull.Value)
+                        row["UserName"] = SkrocNazwisko(row["UserName"].ToString());
+                }
+
+                dataGridHistoria.ItemsSource = table.DefaultView;
+                SetupHistoriaColumns();
+            }
+        }
+
         private void LoadHistoria()
         {
+            _historiaCutoffDate = null;
             string query = @"
                 SELECT
                     ch.ContactID,
@@ -1932,35 +2145,37 @@ namespace Kalendarz1
 
         private void SetupHistoriaColumns()
         {
+            dataGridHistoria.RowHeight = double.NaN; // Auto — pozwala na zawijanie tekstu w notatce
             dataGridHistoria.Columns.Clear();
 
             dataGridHistoria.Columns.Add(new DataGridTextColumn
             {
                 Header = "Hodowca",
                 Binding = new System.Windows.Data.Binding("Dostawca"),
-                Width = new DataGridLength(0.8, DataGridLengthUnitType.Star)
+                Width = new DataGridLength(0.6, DataGridLengthUnitType.Star),
+                FontSize = 9
             });
 
             // User column with avatar
             var userTemplateColumn = new DataGridTemplateColumn
             {
-                Header = "User",
-                Width = 48
+                Header = "Kto",
+                Width = 38
             };
 
             var userTemplate = new DataTemplate();
             var gridFactory = new FrameworkElementFactory(typeof(Grid));
-            gridFactory.SetValue(Grid.WidthProperty, 22.0);
-            gridFactory.SetValue(Grid.HeightProperty, 22.0);
+            gridFactory.SetValue(Grid.WidthProperty, 18.0);
+            gridFactory.SetValue(Grid.HeightProperty, 18.0);
             gridFactory.SetValue(Grid.HorizontalAlignmentProperty, HorizontalAlignment.Center);
             gridFactory.SetValue(Grid.VerticalAlignmentProperty, VerticalAlignment.Center);
-            gridFactory.SetValue(Grid.MarginProperty, new Thickness(2));
+            gridFactory.SetValue(Grid.MarginProperty, new Thickness(1));
 
             // Background border with initials
             var borderFactory = new FrameworkElementFactory(typeof(Border));
-            borderFactory.SetValue(Border.WidthProperty, 22.0);
-            borderFactory.SetValue(Border.HeightProperty, 22.0);
-            borderFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(11));
+            borderFactory.SetValue(Border.WidthProperty, 18.0);
+            borderFactory.SetValue(Border.HeightProperty, 18.0);
+            borderFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(9));
             borderFactory.SetValue(Border.BackgroundProperty, new SolidColorBrush(Color.FromRgb(99, 102, 241)));
             borderFactory.SetValue(Border.HorizontalAlignmentProperty, HorizontalAlignment.Center);
             borderFactory.SetValue(Border.VerticalAlignmentProperty, VerticalAlignment.Center);
@@ -1969,7 +2184,7 @@ namespace Kalendarz1
             initialsTextFactory.SetValue(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center);
             initialsTextFactory.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
             initialsTextFactory.SetValue(TextBlock.ForegroundProperty, Brushes.White);
-            initialsTextFactory.SetValue(TextBlock.FontSizeProperty, 9.0);
+            initialsTextFactory.SetValue(TextBlock.FontSizeProperty, 7.0);
             initialsTextFactory.SetValue(TextBlock.FontWeightProperty, FontWeights.SemiBold);
             initialsTextFactory.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("UserName")
             {
@@ -1981,8 +2196,8 @@ namespace Kalendarz1
 
             // Ellipse for photo (initially hidden, will be shown if photo loads)
             var ellipseFactory = new FrameworkElementFactory(typeof(Ellipse));
-            ellipseFactory.SetValue(Ellipse.WidthProperty, 22.0);
-            ellipseFactory.SetValue(Ellipse.HeightProperty, 22.0);
+            ellipseFactory.SetValue(Ellipse.WidthProperty, 18.0);
+            ellipseFactory.SetValue(Ellipse.HeightProperty, 18.0);
             ellipseFactory.SetValue(Ellipse.VisibilityProperty, Visibility.Collapsed);
             ellipseFactory.SetValue(Ellipse.NameProperty, "avatarEllipse");
 
@@ -2000,24 +2215,37 @@ namespace Kalendarz1
                 {
                     StringFormat = "MM-dd"
                 },
-                Width = 55
+                Width = 46,
+                FontSize = 9
             });
 
-            dataGridHistoria.Columns.Add(new DataGridTextColumn
+            // Notatka z zawijaniem tekstu
+            var notatkaColumn = new DataGridTemplateColumn
             {
                 Header = "Notatka",
-                Binding = new System.Windows.Data.Binding("Reason"),
-                Width = new DataGridLength(1.5, DataGridLengthUnitType.Star)
-            });
+                Width = new DataGridLength(1.0, DataGridLengthUnitType.Star)
+            };
+            var notatkaTemplate = new DataTemplate();
+            var notatkaTextFactory = new FrameworkElementFactory(typeof(TextBlock));
+            notatkaTextFactory.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("Reason"));
+            notatkaTextFactory.SetValue(TextBlock.TextWrappingProperty, TextWrapping.Wrap);
+            notatkaTextFactory.SetValue(TextBlock.FontSizeProperty, 9.0);
+            notatkaTextFactory.SetValue(TextBlock.MarginProperty, new Thickness(2, 2, 2, 2));
+            notatkaTextFactory.SetValue(TextBlock.MaxHeightProperty, 40.0);
+            notatkaTextFactory.SetValue(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis);
+            notatkaTemplate.VisualTree = notatkaTextFactory;
+            notatkaColumn.CellTemplate = notatkaTemplate;
+            dataGridHistoria.Columns.Add(notatkaColumn);
 
             dataGridHistoria.Columns.Add(new DataGridTextColumn
             {
-                Header = "Dodano",
+                Header = "Kiedy",
                 Binding = new System.Windows.Data.Binding("CreatedAt")
                 {
-                    StringFormat = "MM-dd HH:mm"
+                    StringFormat = "yyyy-MM-dd"
                 },
-                Width = 95
+                Width = 72,
+                FontSize = 9
             });
 
             // Menu kontekstowe dla historii kontaktów
@@ -2033,8 +2261,35 @@ namespace Kalendarz1
 
             dataGridHistoria.ContextMenu = contextMenu;
 
-            // Event for loading avatars
+            // Event for loading avatars + podświetlanie od daty wstawienia
             dataGridHistoria.LoadingRow += DataGridHistoria_LoadingRow;
+            dataGridHistoria.LoadingRow += DataGridHistoria_HighlightRow;
+        }
+
+        private void DataGridHistoria_HighlightRow(object sender, DataGridRowEventArgs e)
+        {
+            if (_historiaCutoffDate.HasValue && e.Row.DataContext is DataRowView rv && rv["CreatedAt"] != DBNull.Value)
+            {
+                var created = Convert.ToDateTime(rv["CreatedAt"]);
+                if (created.Date >= _historiaCutoffDate.Value.Date)
+                {
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(255, 235, 238));
+                    e.Row.Foreground = new SolidColorBrush(Color.FromRgb(220, 53, 69));
+                    e.Row.FontWeight = FontWeights.SemiBold;
+                }
+                else
+                {
+                    e.Row.Background = Brushes.White;
+                    e.Row.Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80));
+                    e.Row.FontWeight = FontWeights.Normal;
+                }
+            }
+            else if (!_historiaCutoffDate.HasValue)
+            {
+                e.Row.Background = Brushes.White;
+                e.Row.Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80));
+                e.Row.FontWeight = FontWeights.Normal;
+            }
         }
 
         private void DataGridHistoria_LoadingRow(object sender, DataGridRowEventArgs e)
@@ -2180,7 +2435,7 @@ namespace Kalendarz1
                         "Sukces",
                         MessageBoxButton.OK, MessageBoxImage.Information);
 
-                    LoadDoPotwierdzenia();
+                    LoadPrzypomnienia();
                 }
                 catch (Exception ex)
                 {
@@ -2298,6 +2553,12 @@ namespace Kalendarz1
         {
             ApplyFilters();
         }
+
+        private void DatePickerDo_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            ApplyFilters();
+        }
+
         private void BtnStatystyki_Click(object sender, RoutedEventArgs e)
         {
             var statystykiWindow = new StatystykiPracownikow();
@@ -2322,6 +2583,13 @@ namespace Kalendarz1
                 {
                     string dateString = datePickerOd.SelectedDate.Value.ToString("yyyy-MM-dd");
                     filters.Add($"Data >= '{dateString}'");
+                }
+
+                // Filtr daty do
+                if (datePickerDo.SelectedDate.HasValue)
+                {
+                    string dateString = datePickerDo.SelectedDate.Value.ToString("yyyy-MM-dd");
+                    filters.Add($"Data <= '{dateString}'");
                 }
 
                 // Filtr tylko przyszłe wstawienia (unikalni hodowcy z najwyższą datą)
@@ -2405,6 +2673,12 @@ namespace Kalendarz1
                 if (row["LP"] != DBNull.Value)
                 {
                     lpDostawa = row["LP"].ToString();
+                }
+                string dostawca = row["Dostawca"] != DBNull.Value ? row["Dostawca"].ToString() : null;
+                DateTime? dataWstawienia = row["Data"] != DBNull.Value ? Convert.ToDateTime(row["Data"]) : (DateTime?)null;
+                if (!string.IsNullOrEmpty(dostawca))
+                {
+                    LoadHistoriaForDostawca(dostawca, dataWstawienia);
                 }
             }
         }
@@ -3273,6 +3547,138 @@ namespace Kalendarz1
             }
         }
 
+        // ====== MENU KONTEKSTOWE - SMS ======
+
+        private string PrzygotujTrescSms(DataRowView row)
+        {
+            string dostawca = Convert.ToString(row["Dostawca"]);
+            string ilosc = row["Ilosc"] != DBNull.Value ? Convert.ToInt32(row["Ilosc"]).ToString("# ##0") : "?";
+            string data = row["Data"] != DBNull.Value ? Convert.ToDateTime(row["Data"]).ToString("dd.MM.yyyy") : "?";
+
+            return $"Dzien dobry, kontaktujemy sie w sprawie kolejnego wstawienia kurczakow. " +
+                   $"Wg naszych danych ostatnie wstawienie: {data}, {ilosc} szt. " +
+                   $"Prosimy o informacje o planowanym terminie nastepnego wstawienia. " +
+                   $"Pozdrawiamy, Ubojnia Drobiu Piorkowscy";
+        }
+
+        private string PobierzNumerTelefonu(DataRowView row)
+        {
+            string telefon = row["Telefon"] != DBNull.Value ? Convert.ToString(row["Telefon"]).Trim() : "";
+            return telefon;
+        }
+
+        private void MenuSmsSchowek_Click(object sender, RoutedEventArgs e)
+        {
+            if (dataGridPrzypomnienia.SelectedItem == null)
+            {
+                MessageBox.Show("Wybierz przypomnienie z listy.", "Uwaga",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var row = (DataRowView)dataGridPrzypomnienia.SelectedItem;
+            string dostawca = Convert.ToString(row["Dostawca"]);
+            string telefon = PobierzNumerTelefonu(row);
+            string tresc = PrzygotujTrescSms(row);
+
+            Clipboard.SetText(tresc);
+
+            string info = $"Hodowca: {dostawca}\n";
+            if (!string.IsNullOrEmpty(telefon))
+                info += $"Telefon: {telefon}\n";
+            else
+                info += "Telefon: BRAK NUMERU!\n";
+            info += $"\nTreść SMS skopiowana do schowka:\n\n{tresc}";
+
+            MessageBox.Show(info, "SMS - skopiowano do schowka",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private void MenuSmsPhoneLink_Click(object sender, RoutedEventArgs e)
+        {
+            if (dataGridPrzypomnienia.SelectedItem == null)
+            {
+                MessageBox.Show("Wybierz przypomnienie z listy.", "Uwaga",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var row = (DataRowView)dataGridPrzypomnienia.SelectedItem;
+            string dostawca = Convert.ToString(row["Dostawca"]);
+            string telefon = PobierzNumerTelefonu(row);
+            string tresc = PrzygotujTrescSms(row);
+
+            if (string.IsNullOrEmpty(telefon))
+            {
+                MessageBox.Show($"Brak numeru telefonu dla hodowcy: {dostawca}\n\nUzupełnij numer przez opcję 'Dodanie numeru hodowcy'.",
+                    "Brak numeru", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            Clipboard.SetText(tresc);
+
+            try
+            {
+                string smsUri = $"sms:{Uri.EscapeDataString(telefon)}?body={Uri.EscapeDataString(tresc)}";
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = smsUri,
+                    UseShellExecute = true
+                });
+            }
+            catch
+            {
+                try
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = $"ms-phone://sms?phonenumber={Uri.EscapeDataString(telefon)}",
+                        UseShellExecute = true
+                    });
+
+                    MessageBox.Show(
+                        $"Otwarto Łącze z telefonem dla: {telefon}\n\n" +
+                        $"Treść SMS w schowku — wklej (Ctrl+V) w oknie wiadomości.",
+                        "Łącze z telefonem",
+                        MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(
+                        $"Nie udało się otworzyć aplikacji Łącze z telefonem.\n\n" +
+                        $"Upewnij się, że aplikacja jest zainstalowana i sparowana z telefonem.\n\n" +
+                        $"Treść SMS została skopiowana do schowka.\n\n" +
+                        $"Błąd: {ex.Message}",
+                        "Błąd", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+            }
+        }
+
+        private void MenuKopiujNumer_Click(object sender, RoutedEventArgs e)
+        {
+            if (dataGridPrzypomnienia.SelectedItem == null)
+            {
+                MessageBox.Show("Wybierz przypomnienie z listy.", "Uwaga",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var row = (DataRowView)dataGridPrzypomnienia.SelectedItem;
+            string dostawca = Convert.ToString(row["Dostawca"]);
+            string telefon = PobierzNumerTelefonu(row);
+
+            if (string.IsNullOrEmpty(telefon))
+            {
+                MessageBox.Show($"Brak numeru telefonu dla hodowcy: {dostawca}",
+                    "Brak numeru", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            Clipboard.SetText(telefon);
+            MessageBox.Show($"Skopiowano numer: {telefon}", "Skopiowano",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
         // ====== MENU KONTEKSTOWE - HISTORIA KONTAKTÓW ======
         private void MenuEdytujHistorie_Click(object sender, RoutedEventArgs e)
         {
@@ -3504,7 +3910,6 @@ namespace Kalendarz1
             LoadWstawienia();
             LoadPrzypomnienia();
             LoadHistoria();
-            LoadDoPotwierdzenia();
             UpdateStatistics();
         }
 
@@ -3749,6 +4154,70 @@ namespace Kalendarz1
     }
 
     // ====== CONVERTER DLA KOLUMNY POTW. ======
+    public class IleProbConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value == null || value == DBNull.Value) return "";
+            int ile = System.Convert.ToInt32(value);
+            return ile == 0 ? "" : $"{ile} not.";
+        }
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            => throw new NotImplementedException();
+    }
+
+    public class ZaDniConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value == null || value == DBNull.Value) return "";
+            int dni = System.Convert.ToInt32(value);
+            if (dni == 1) return "1 dzień";
+            return $"{dni} dni";
+        }
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            => throw new NotImplementedException();
+    }
+
+    // Kropka świeżości kontaktu: 🟢 <7d, 🟡 7-14d, 🔴 >14d, ⚪ nigdy
+    public class KontaktFreshnessConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value == null || value == DBNull.Value)
+                return new SolidColorBrush(Color.FromRgb(189, 195, 199)); // szary — nigdy
+
+            var lastContact = System.Convert.ToDateTime(value);
+            int days = (DateTime.Now - lastContact).Days;
+
+            if (days <= 7)
+                return new SolidColorBrush(Color.FromRgb(46, 204, 113)); // zielony
+            else if (days <= 14)
+                return new SolidColorBrush(Color.FromRgb(241, 196, 15)); // żółty
+            else
+                return new SolidColorBrush(Color.FromRgb(231, 76, 60)); // czerwony
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            => throw new NotImplementedException();
+    }
+
+    public class KontaktFreshnessTooltipConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value == null || value == DBNull.Value)
+                return "Brak kontaktu";
+
+            var lastContact = System.Convert.ToDateTime(value);
+            int days = (DateTime.Now - lastContact).Days;
+            return $"Ostatni kontakt: {lastContact:dd.MM.yyyy} ({days} dni temu)";
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            => throw new NotImplementedException();
+    }
+
     public class IsConfConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)

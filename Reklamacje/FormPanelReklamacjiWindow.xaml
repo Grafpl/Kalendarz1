@@ -332,6 +332,7 @@
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
@@ -377,17 +378,26 @@
                                 </ComboBox>
                             </StackPanel>
 
+                            <!-- Filtr handlowca -->
+                            <StackPanel Grid.Column="3" Grid.Row="0" Margin="0,0,15,0">
+                                <TextBlock Text="Handlowiec:" FontSize="10" FontWeight="SemiBold" Foreground="#7F8C8D" Margin="0,0,0,4"/>
+                                <ComboBox x:Name="cmbHandlowiec" Width="140" FontSize="11" SelectionChanged="CmbHandlowiec_SelectionChanged"
+                                          IsEditable="True" IsTextSearchEnabled="True">
+                                    <ComboBoxItem Content="Wszyscy" IsSelected="True"/>
+                                </ComboBox>
+                            </StackPanel>
+
                             <!-- Data od (ukryte - pokazujemy wszystkie) -->
-                            <StackPanel Grid.Column="3" Grid.Row="0" Margin="0,0,10,0" Visibility="Collapsed">
+                            <StackPanel Grid.Column="4" Grid.Row="0" Margin="0,0,10,0" Visibility="Collapsed">
                                 <DatePicker x:Name="dpDataOd" Width="120" FontSize="11" SelectedDateChanged="DpData_SelectedDateChanged"/>
                             </StackPanel>
 
-                            <StackPanel Grid.Column="4" Grid.Row="0" Margin="0,0,15,0" Visibility="Collapsed">
+                            <StackPanel Grid.Column="5" Grid.Row="0" Margin="0,0,15,0" Visibility="Collapsed">
                                 <DatePicker x:Name="dpDataDo" Width="120" FontSize="11" SelectedDateChanged="DpData_SelectedDateChanged"/>
                             </StackPanel>
 
                             <!-- Wyszukiwanie -->
-                            <StackPanel Grid.Column="5" Grid.Row="0" Margin="0,0,15,0">
+                            <StackPanel Grid.Column="6" Grid.Row="0" Margin="0,0,15,0">
                                 <TextBlock Text="Szukaj:" FontSize="10" FontWeight="SemiBold" Foreground="#7F8C8D" Margin="0,0,0,4"/>
                                 <Border Background="White" CornerRadius="6" BorderBrush="#BDC3C7" BorderThickness="1" Padding="8,6">
                                     <Grid Width="180">
@@ -403,7 +413,53 @@
                             </StackPanel>
 
                             <!-- Przyciski eksportu -->
-                            <StackPanel Grid.Column="6" Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,15,0">
+                            <StackPanel Grid.Column="7" Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,15,0">
+                                <Button x:Name="btnNowaBezFaktury" Content="Bez faktury" Click="BtnNowaBezFaktury_Click"
+                                        Padding="14,8" Margin="0,0,10,0" FontSize="11" FontWeight="Bold"
+                                        Background="#3498DB" Foreground="White" BorderThickness="0" Cursor="Hand"
+                                        ToolTip="Zgloszenie reklamacji bez wymogu faktury (dla handlowca/kierowcy/klienta)">
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter Property="Background" Value="#2980B9"/>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                                <Button x:Name="btnNowaReklamacja" Content="+ Nowa reklamacja" Click="BtnNowaReklamacja_Click"
+                                        Padding="14,8" Margin="0,0,10,0" FontSize="11" FontWeight="Bold"
+                                        Background="#E74C3C" Foreground="White" BorderThickness="0" Cursor="Hand"
+                                        ToolTip="Dodaj nowa reklamacje - wybierz fakture sprzedazy">
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter Property="Background" Value="#C0392B"/>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
                                 <Button x:Name="btnExportExcel" Content="Eksport Excel" Click="BtnExportExcel_Click"
                                         Padding="12,8" Margin="0,0,10,0" FontSize="11"
                                         Background="#27AE60" Foreground="White" BorderThickness="0" Cursor="Hand">
@@ -438,6 +494,29 @@
                                         </Style>
                                     </Button.Style>
                                 </Button>
+                                <Button x:Name="btnUstawieniaSync" Content="Ustawienia sync" Click="BtnUstawieniaSync_Click"
+                                        Padding="12,8" Margin="10,0,0,0" FontSize="11"
+                                        Background="#8E44AD" Foreground="White" BorderThickness="0" Cursor="Hand"
+                                        Visibility="Collapsed">
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter Property="Opacity" Value="0.85"/>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
                                 <Button x:Name="btnDebugSync" Content="Debug sync" Click="BtnDebugSync_Click"
                                         Padding="12,8" Margin="10,0,0,0" FontSize="11"
                                         Background="#E67E22" Foreground="White" BorderThickness="0" Cursor="Hand"
@@ -459,7 +538,7 @@
                             </StackPanel>
 
                             <!-- Suma reklamacji -->
-                            <Border Grid.Column="7" Grid.Row="0" Background="#FFEBEE" CornerRadius="8" Padding="15,8">
+                            <Border Grid.Column="8" Grid.Row="0" Background="#FFEBEE" CornerRadius="8" Padding="15,8">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="Razem: " FontSize="12" Foreground="#C62828" VerticalAlignment="Center"/>
                                     <TextBlock x:Name="txtLiczbaReklamacji" Text="0" FontSize="16" FontWeight="Bold" Foreground="#E74C3C" VerticalAlignment="Center"/>
@@ -476,24 +555,148 @@
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
-                    <TextBlock Grid.Row="0" Text="Lista reklamacji" FontSize="14" FontWeight="Bold" Foreground="#2C3E50" Margin="0,0,0,12"/>
+                    <!-- Pasek zakladek workflow V2 -->
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,14">
+                        <Button x:Name="tabDoAkcji" Click="TabDoAkcji_Click" Cursor="Hand" BorderThickness="0" Padding="0"
+                                Background="Transparent" Margin="0,0,10,0">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="tabBorder" Background="#E74C3C" CornerRadius="10" Padding="18,11">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="DO AKCJI" FontSize="12" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                                            <Border Background="#FFFFFF" CornerRadius="10" Padding="9,2" Margin="10,0,0,0">
+                                                <TextBlock x:Name="txtCntDoAkcji" Text="0" FontSize="11" FontWeight="Bold" Foreground="#E74C3C"/>
+                                            </Border>
+                                        </StackPanel>
+                                    </Border>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
 
-                    <Border Grid.Row="1" BorderBrush="#E74C3C" BorderThickness="2" CornerRadius="10" ClipToBounds="True">
+                        <Button x:Name="tabWToku" Click="TabWToku_Click" Cursor="Hand" BorderThickness="0" Padding="0"
+                                Background="Transparent" Margin="0,0,10,0">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="tabBorder" Background="#ECEFF1" CornerRadius="10" Padding="18,11">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="PRZYJETE" FontSize="12" FontWeight="Bold" Foreground="#546E7A" VerticalAlignment="Center"/>
+                                            <Border Background="#546E7A" CornerRadius="10" Padding="9,2" Margin="10,0,0,0">
+                                                <TextBlock x:Name="txtCntWToku" Text="0" FontSize="11" FontWeight="Bold" Foreground="White"/>
+                                            </Border>
+                                        </StackPanel>
+                                    </Border>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+
+                        <Button x:Name="tabZamkniete" Click="TabZamkniete_Click" Cursor="Hand" BorderThickness="0" Padding="0"
+                                Background="Transparent">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="tabBorder" Background="#ECEFF1" CornerRadius="10" Padding="18,11">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="ZAMKNIETE" FontSize="12" FontWeight="Bold" Foreground="#546E7A" VerticalAlignment="Center"/>
+                                            <Border Background="#546E7A" CornerRadius="10" Padding="9,2" Margin="10,0,0,0">
+                                                <TextBlock x:Name="txtCntZamkniete" Text="0" FontSize="11" FontWeight="Bold" Foreground="White"/>
+                                            </Border>
+                                        </StackPanel>
+                                    </Border>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+
+                        <TextBlock x:Name="txtOpisZakladki" Text="Wymagaja akcji dzialu jakosci" FontSize="11.5" FontStyle="Italic"
+                                   Foreground="#7F8C8D" VerticalAlignment="Center" Margin="20,0,0,0"/>
+                    </StackPanel>
+
+                    <TextBlock Grid.Row="1" x:Name="txtTytulListy" Text="Lista reklamacji" FontSize="14" FontWeight="Bold" Foreground="#2C3E50" Margin="0,0,0,12"/>
+
+                    <Border Grid.Row="2" BorderBrush="#E74C3C" BorderThickness="2" CornerRadius="10" ClipToBounds="True">
                         <DataGrid x:Name="dgReklamacje"
                                   Style="{StaticResource ModernDataGrid}"
                                   ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
                                   CellStyle="{StaticResource DataGridCellStyle}"
                                   SelectionChanged="DgReklamacje_SelectionChanged"
                                   MouseDoubleClick="DgReklamacje_MouseDoubleClick">
+                            <DataGrid.RowStyle>
+                                <Style TargetType="DataGridRow">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding JestZagrozonySLA}" Value="True">
+                                            <Setter Property="Background" Value="#FFF8E1"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding JestKrytycznySLA}" Value="True">
+                                            <Setter Property="Background" Value="#FFEBEE"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </DataGrid.RowStyle>
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="50"/>
                                 <DataGridTextColumn Header="Data" Binding="{Binding DataZgloszenia, StringFormat=yyyy-MM-dd}" Width="90"/>
                                 <DataGridTextColumn Header="Nr faktury" Binding="{Binding NumerDokumentu}" Width="100"/>
                                 <DataGridTextColumn Header="Kontrahent" Binding="{Binding NazwaKontrahenta}" Width="*"/>
-                                <DataGridTextColumn Header="Typ" Binding="{Binding TypReklamacji}" Width="120"/>
+                                <!-- Zrodlo zgloszenia -->
+                                <DataGridTemplateColumn Header="Zrodlo" Width="SizeToCells" MinWidth="100" SortMemberPath="ZrodloZgloszenia">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border CornerRadius="10" Padding="10,3" HorizontalAlignment="Center"
+                                                    Background="{Binding ZrodloBgBrush}" Margin="4,0">
+                                                <TextBlock Text="{Binding ZrodloIkona}" FontWeight="SemiBold" FontSize="10.5"
+                                                           Foreground="{Binding ZrodloFgBrush}"
+                                                           HorizontalAlignment="Center"
+                                                           ToolTip="{Binding ZrodloZgloszenia}"/>
+                                            </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <!-- Handlowiec z avatarem -->
+                                <DataGridTemplateColumn Header="Handlowiec" Width="155">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
+                                                        Visibility="{Binding HandlowiecVis}">
+                                                <Grid Width="26" Height="26" Margin="0,0,6,0">
+                                                    <Border Width="26" Height="26" CornerRadius="13"
+                                                            Background="{Binding HandlowiecAvatarBrush}">
+                                                        <TextBlock Text="{Binding HandlowiecInitials}" Foreground="White"
+                                                                   FontWeight="Bold" FontSize="9"
+                                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                    <Ellipse Width="26" Height="26" Visibility="{Binding HandlowiecAvatarPhotoVis}">
+                                                        <Ellipse.Fill>
+                                                            <ImageBrush ImageSource="{Binding HandlowiecAvatar}" Stretch="UniformToFill"/>
+                                                        </Ellipse.Fill>
+                                                    </Ellipse>
+                                                </Grid>
+                                                <TextBlock Text="{Binding Handlowiec}" VerticalAlignment="Center"
+                                                           FontSize="11" TextTrimming="CharacterEllipsis"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="Typ" Binding="{Binding TypReklamacji}" Width="180"/>
+                                <!-- Powiazanie -->
+                                <DataGridTemplateColumn Header="Powiazanie" Width="95" SortMemberPath="MaPowiazanie">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border x:Name="powBorder" CornerRadius="10" Padding="6,2" HorizontalAlignment="Center"
+                                                    Background="#FFEBEE">
+                                                <TextBlock x:Name="powText" Text="{Binding TekstPowiazania}" FontWeight="SemiBold" FontSize="9.5"
+                                                           HorizontalAlignment="Center" Foreground="#C62828"/>
+                                            </Border>
+                                            <DataTemplate.Triggers>
+                                                <DataTrigger Binding="{Binding MaPowiazanie}" Value="True">
+                                                    <Setter TargetName="powBorder" Property="Background" Value="#E8F5E9"/>
+                                                    <Setter TargetName="powText" Property="Foreground" Value="#2E7D32"/>
+                                                </DataTrigger>
+                                            </DataTemplate.Triggers>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
                                 <!-- Priorytet z kolorami -->
                                 <DataGridTemplateColumn Header="Priorytet" Width="90">
                                     <DataGridTemplateColumn.CellTemplate>
@@ -655,18 +858,125 @@
 
                     <!-- Przyciski akcji -->
                     <StackPanel Grid.Column="1" Orientation="Horizontal">
-                        <Button x:Name="btnUzupelnij" Content="Uzupelnij" Style="{StaticResource WarningButton}"
-                                Width="140" Click="BtnUzupelnij_Click" IsEnabled="False" Margin="0,0,10,0"/>
                         <Button x:Name="btnSzczegoly" Content="Szczegoly" Style="{StaticResource InfoButton}"
-                                Width="140" Click="BtnSzczegoly_Click" IsEnabled="False" Margin="0,0,10,0"/>
-                        <Button x:Name="btnZmienStatus" Content="Zmien status" Style="{StaticResource WarningButton}"
-                                Width="140" Click="BtnZmienStatus_Click" IsEnabled="False" Margin="0,0,10,0"/>
-                        <Button x:Name="btnZaakceptuj" Content="Zaakceptuj" Style="{StaticResource SuccessButton}"
-                                Width="140" Click="BtnZaakceptuj_Click" IsEnabled="False" Margin="0,0,10,0"/>
-                        <Button x:Name="btnOdrzuc" Content="Odrzuc" Style="{StaticResource PrimaryButton}"
-                                Width="140" Click="BtnOdrzuc_Click" IsEnabled="False"/>
+                                Width="120" Click="BtnSzczegoly_Click" IsEnabled="False" Margin="0,0,10,0"/>
+                        <Button x:Name="btnUzupelnij" Content="Uzupelnij" Style="{StaticResource WarningButton}"
+                                Width="120" Click="BtnUzupelnij_Click" IsEnabled="False" Margin="0,0,10,0"/>
+
+                        <!-- Workflow V2 - duze przyciski decyzyjne dzialu jakosci -->
+                        <!-- PRZYJETE - jakosc zaczyna rozpatrywac, bez komentarza -->
+                        <Button x:Name="btnPrzekazAnaliza" Click="BtnPrzekazAnaliza_Click"
+                                Visibility="Collapsed" Width="160" Height="56" Margin="0,0,8,0"
+                                Background="#3498DB" Foreground="White" BorderThickness="0" Cursor="Hand"
+                                ToolTip="Jakosc przyjmuje reklamacje do rozpatrzenia">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="8" Padding="12,8">
+                                        <StackPanel>
+                                            <TextBlock Text="PRZYJETE" FontSize="13" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="do rozpatrzenia" FontSize="9.5" Foreground="#DCEBF7" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="bd" Property="Background" Value="#2980B9"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+
+                        <!-- ZAAKCEPTOWANA - z polami przyczyna + akcje naprawcze -->
+                        <Button x:Name="btnZasadna" Click="BtnZasadna_Click"
+                                Visibility="Collapsed" Width="160" Height="56" Margin="0,0,8,0"
+                                Background="#27AE60" Foreground="White" BorderThickness="0" Cursor="Hand"
+                                ToolTip="Reklamacja zasadna - podaj przyczyne glowna i akcje naprawcze">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="8" Padding="12,8">
+                                        <StackPanel>
+                                            <TextBlock Text="ZAAKCEPTOWANA" FontSize="12.5" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="przyczyna + naprawa" FontSize="9.5" Foreground="#D5F5E3" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="bd" Property="Background" Value="#229954"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+
+                        <!-- ODRZUCONA - z powodem -->
+                        <Button x:Name="btnNiezasadna" Click="BtnNiezasadna_Click"
+                                Visibility="Collapsed" Width="160" Height="56" Margin="0,0,8,0"
+                                Background="#E74C3C" Foreground="White" BorderThickness="0" Cursor="Hand"
+                                ToolTip="Reklamacja odrzucona - podaj powod">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="8" Padding="12,8">
+                                        <StackPanel>
+                                            <TextBlock Text="ODRZUCONA" FontSize="13" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="z podaniem powodu" FontSize="9.5" Foreground="#FADBD8" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="bd" Property="Background" Value="#C0392B"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+
+                        <!-- Separator wizualny -->
+                        <Border x:Name="sepWorkflow" Visibility="Collapsed" Width="1" Height="40" Background="#E0E0E0" Margin="4,0,12,0" VerticalAlignment="Center"/>
+
+                        <!-- POWIAZ Z KOREKTA -->
+                        <Button x:Name="btnPowiaz" Click="BtnPowiaz_Click"
+                                Visibility="Collapsed" Width="140" Height="56" Margin="0,0,8,0"
+                                Background="#8E44AD" Foreground="White" BorderThickness="0" Cursor="Hand">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="8" Padding="12,8">
+                                        <StackPanel>
+                                            <TextBlock Text="POWIAZ" FontSize="12.5" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="z korekta Symfonii" FontSize="9.5" Foreground="#E8DAEF" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="bd" Property="Background" Value="#7D3C98"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+
+                        <!-- ZAMKNIJ -->
+                        <Button x:Name="btnZamknij" Click="BtnZamknij_Click"
+                                Visibility="Collapsed" Width="130" Height="56" Margin="0,0,8,0"
+                                Background="#546E7A" Foreground="White" BorderThickness="0" Cursor="Hand">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="8" Padding="12,8">
+                                        <StackPanel>
+                                            <TextBlock Text="ZAMKNIJ" FontSize="12.5" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="sprawa zalatwiona" FontSize="9.5" Foreground="#CFD8DC" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="bd" Property="Background" Value="#455A64"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+
                         <Button x:Name="btnUsun" Content="Usun" Style="{StaticResource PrimaryButton}"
-                                Width="100" Click="BtnUsun_Click" IsEnabled="False" Margin="20,0,0,0"
+                                Width="100" Click="BtnUsun_Click" IsEnabled="False" Margin="10,0,0,0"
                                 Visibility="Collapsed" Background="#E74C3C"/>
                     </StackPanel>
                 </Grid>

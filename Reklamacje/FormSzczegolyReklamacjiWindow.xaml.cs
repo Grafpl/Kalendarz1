@@ -20,12 +20,13 @@ namespace Kalendarz1.Reklamacje
         private readonly string userId;
         private int idDokumentu;
 
-        private const string HandelConnString = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
+        private const string HandelConnString = ReklamacjeConnectionStrings.Handel;
 
         private ObservableCollection<TowarSzczegoly> towary = new ObservableCollection<TowarSzczegoly>();
         private ObservableCollection<ZdjecieViewModel> zdjecia = new ObservableCollection<ZdjecieViewModel>();
         private ObservableCollection<HistoriaViewModel> historia = new ObservableCollection<HistoriaViewModel>();
         private ObservableCollection<PartiaViewModel> partie = new ObservableCollection<PartiaViewModel>();
+        private ObservableCollection<KomentarzViewModel> komentarze = new ObservableCollection<KomentarzViewModel>();
 
         public bool StatusZmieniony { get; private set; }
 
@@ -45,6 +46,7 @@ namespace Kalendarz1.Reklamacje
             icPartie.ItemsSource = partie;
             icHistoria.ItemsSource = historia;
             lbThumbnails.ItemsSource = zdjecia;
+            icKomentarze.ItemsSource = komentarze;
 
             Loaded += (s, e) => WczytajSzczegoly();
         }
@@ -65,6 +67,7 @@ namespace Kalendarz1.Reklamacje
                     WczytajPartie(conn);
                     WczytajZdjecia(conn);
                     WczytajHistorie(conn);
+                    WczytajKomentarze(conn);
                 }
                 WybierzPierwszyTab();
             }
@@ -178,6 +181,24 @@ namespace Kalendarz1.Reklamacje
 
                             // Opis
                             txtOpis.Text = string.IsNullOrWhiteSpace(opis) ? "(brak opisu)" : opis;
+
+                            // Kategoryzacja (Etap 2.5)
+                            string kategoria = SafeGet(reader, "KategoriaPrzyczyny");
+                            string podkategoria = SafeGet(reader, "PodkategoriaPrzyczyny");
+                            if (!string.IsNullOrWhiteSpace(kategoria) || !string.IsNullOrWhiteSpace(podkategoria))
+                            {
+                                sectionKategoria.Visibility = Visibility.Visible;
+                                txtKategoria.Text = string.IsNullOrWhiteSpace(kategoria) ? "-" : kategoria;
+                                txtPodkategoria.Text = string.IsNullOrWhiteSpace(podkategoria) ? "-" : podkategoria;
+                            }
+
+                            // Notatka jakosci (Workflow V2)
+                            string notatkaJakosci = SafeGet(reader, "NotatkaJakosci");
+                            if (!string.IsNullOrWhiteSpace(notatkaJakosci))
+                            {
+                                sectionNotatkaJakosci.Visibility = Visibility.Visible;
+                                txtNotatkaJakosci.Text = notatkaJakosci;
+                            }
 
                             // Komentarz
                             if (!string.IsNullOrWhiteSpace(komentarz))
@@ -594,6 +615,112 @@ namespace Kalendarz1.Reklamacje
                 imgPreview.Source = fullImage;
                 txtNoPhoto.Visibility = fullImage != null ? Visibility.Collapsed : Visibility.Visible;
                 txtKliknijPowieksz.Visibility = fullImage != null ? Visibility.Visible : Visibility.Collapsed;
+                if (btnUsunZalacznik != null) btnUsunZalacznik.IsEnabled = true;
+            }
+            else
+            {
+                if (btnUsunZalacznik != null) btnUsunZalacznik.IsEnabled = false;
+            }
+        }
+
+        // ========================================
+        // ETAP 2: UPLOAD/USUWANIE ZALACZNIKOW
+        // ========================================
+        private void BtnDodajZalacznik_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Wybierz pliki do zalaczenia",
+                Filter = "Obrazy i PDF|*.jpg;*.jpeg;*.png;*.bmp;*.pdf|Wszystkie pliki|*.*",
+                Multiselect = true
+            };
+            if (dlg.ShowDialog() != true) return;
+
+            int dodane = 0;
+            const int MAX_SIZE = 10 * 1024 * 1024;
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    foreach (var path in dlg.FileNames)
+                    {
+                        try
+                        {
+                            var fi = new System.IO.FileInfo(path);
+                            if (fi.Length > MAX_SIZE)
+                            {
+                                MessageBox.Show($"Plik {fi.Name} ma {fi.Length / (1024 * 1024)}MB — limit to 10MB. Pomijam.",
+                                    "Za duzy plik", MessageBoxButton.OK, MessageBoxImage.Warning);
+                                continue;
+                            }
+                            byte[] dane = System.IO.File.ReadAllBytes(path);
+
+                            // Zapisujemy do ReklamacjeZdjecia (jesli ma DaneZdjecia) — kompatybilnie z istniejacym kodem
+                            using (var cmd = new SqlCommand(@"
+                                INSERT INTO [dbo].[ReklamacjeZdjecia]
+                                (IdReklamacji, NazwaPliku, SciezkaPliku, DaneZdjecia, DataDodania)
+                                VALUES (@Id, @Nazwa, @Sciezka, @Dane, GETDATE())", conn))
+                            {
+                                cmd.Parameters.AddWithValue("@Id", idReklamacji);
+                                cmd.Parameters.AddWithValue("@Nazwa", fi.Name);
+                                cmd.Parameters.AddWithValue("@Sciezka", (object)path ?? DBNull.Value);
+                                cmd.Parameters.AddWithValue("@Dane", dane);
+                                cmd.ExecuteNonQuery();
+                                dodane++;
+                            }
+                        }
+                        catch (Exception exFile)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Blad zalacznika {path}: {exFile.Message}");
+                        }
+                    }
+
+                    // Przeladuj liste zdjec
+                    zdjecia.Clear();
+                    WczytajZdjecia(conn);
+                }
+            }
+            catch (Exception ex)
+            {
+                FriendlyError.Pokaz(ex, "Nie udalo sie dodac zalacznika.", this);
+                return;
+            }
+
+            if (dodane > 0)
+            {
+                txtZalacznikiHint.Text = $"  Dodano {dodane} plik(ow)";
+            }
+        }
+
+        private void BtnUsunZalacznik_Click(object sender, RoutedEventArgs e)
+        {
+            if (!(lbThumbnails.SelectedItem is ZdjecieViewModel vm)) return;
+
+            if (MessageBox.Show($"Usunac zalacznik '{vm.NazwaPliku}'?",
+                "Potwierdzenie", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    using (var cmd = new SqlCommand("DELETE FROM [dbo].[ReklamacjeZdjecia] WHERE Id = @Id", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Id", vm.Id);
+                        cmd.ExecuteNonQuery();
+                    }
+                    zdjecia.Clear();
+                    WczytajZdjecia(conn);
+                }
+                imgPreview.Source = null;
+                txtNoPhoto.Visibility = Visibility.Visible;
+                txtKliknijPowieksz.Visibility = Visibility.Collapsed;
+                btnUsunZalacznik.IsEnabled = false;
+            }
+            catch (Exception ex)
+            {
+                FriendlyError.Pokaz(ex, "Nie udalo sie usunac zalacznika.", this);
             }
         }
 
@@ -647,14 +774,72 @@ namespace Kalendarz1.Reklamacje
 
         private void BtnZmienStatus_Click(object sender, RoutedEventArgs e)
         {
-            using (var formZmiana = new FormZmianaStatusu(connectionString, idReklamacji, "", userId))
+            var dialog = new Window
             {
-                if (formZmiana.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+                Title = "Zmiana statusu",
+                Width = 380, Height = 200,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this, ResizeMode = ResizeMode.NoResize
+            };
+            var grid = new Grid { Margin = new Thickness(18) };
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.Children.Add(new TextBlock { Text = "Nowy status:", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 6) });
+            var combo = new ComboBox { Margin = new Thickness(0, 0, 0, 16) };
+            foreach (var s in FormRozpatrzenieWindow.statusPipeline) combo.Items.Add(s);
+            combo.SelectedItem = aktualnyStatus;
+            Grid.SetRow(combo, 1);
+            grid.Children.Add(combo);
+            var btns = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+            var ok = new Button { Content = "Zapisz", Width = 90, Height = 32, Background = Brushes.Green, Foreground = Brushes.White, Margin = new Thickness(0,0,8,0) };
+            ok.Click += (s2, e2) =>
+            {
+                if (combo.SelectedItem == null) return;
+                string nowyStatus = combo.SelectedItem.ToString();
+                string nowyStatusV2 = nowyStatus switch
                 {
-                    StatusZmieniony = true;
-                    ResetujSekcje();
-                    WczytajSzczegoly();
+                    "Przyjeta" => StatusyV2.W_ANALIZIE,
+                    "Zaakceptowana" => StatusyV2.ZASADNA,
+                    "Odrzucona" => StatusyV2.ODRZUCONA,
+                    "Nowa" => StatusyV2.ZGLOSZONA,
+                    _ => StatusyV2.ZGLOSZONA
+                };
+                try
+                {
+                    using (var conn = new SqlConnection(connectionString))
+                    {
+                        conn.Open();
+                        using (var cmd = new SqlCommand(@"
+                            UPDATE [dbo].[Reklamacje]
+                            SET Status=@S, StatusV2=@SV2, OsobaRozpatrujaca=@U, DataModyfikacji=GETDATE(),
+                                WymagaUzupelnienia = CASE WHEN @SV2 IN ('ZASADNA','ODRZUCONA','ZAMKNIETA') THEN 0 ELSE WymagaUzupelnienia END,
+                                DataAnalizy = CASE WHEN DataAnalizy IS NULL THEN GETDATE() ELSE DataAnalizy END,
+                                UserAnalizy = CASE WHEN UserAnalizy IS NULL THEN @U ELSE UserAnalizy END
+                            WHERE Id=@Id", conn))
+                        {
+                            cmd.Parameters.AddWithValue("@S", nowyStatus);
+                            cmd.Parameters.AddWithValue("@SV2", nowyStatusV2);
+                            cmd.Parameters.AddWithValue("@U", userId);
+                            cmd.Parameters.AddWithValue("@Id", idReklamacji);
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+                    dialog.DialogResult = true;
                 }
+                catch (Exception ex) { MessageBox.Show(ex.Message); }
+            };
+            btns.Children.Add(ok);
+            var cancel = new Button { Content = "Anuluj", Width = 80, Height = 32, IsCancel = true };
+            btns.Children.Add(cancel);
+            Grid.SetRow(btns, 2);
+            grid.Children.Add(btns);
+            dialog.Content = grid;
+            if (dialog.ShowDialog() == true)
+            {
+                StatusZmieniony = true;
+                ResetujSekcje();
+                WczytajSzczegoly();
             }
         }
 
@@ -664,9 +849,11 @@ namespace Kalendarz1.Reklamacje
             sectionRozwiazanie.Visibility = Visibility.Collapsed;
             sectionRozpatrzenie.Visibility = Visibility.Collapsed;
             sectionPartie.Visibility = Visibility.Collapsed;
-            sectionZdjecia.Visibility = Visibility.Collapsed;
+            // sectionZdjecia zawsze widoczne (zeby mozna bylo dodac zalacznik nawet do pustej reklamacji)
             sectionHistoria.Visibility = Visibility.Collapsed;
             borderTowarySummary.Visibility = Visibility.Collapsed;
+            if (sectionKategoria != null) sectionKategoria.Visibility = Visibility.Collapsed;
+            if (sectionNotatkaJakosci != null) sectionNotatkaJakosci.Visibility = Visibility.Collapsed;
         }
 
         private void WybierzPierwszyTab()
@@ -840,6 +1027,181 @@ namespace Kalendarz1.Reklamacje
         }
 
         // ========================================
+        // KOMENTARZE WEWNETRZNE
+        // ========================================
+
+        private void WczytajKomentarze(SqlConnection conn)
+        {
+            komentarze.Clear();
+            try
+            {
+                using (var cmd = new SqlCommand(@"
+                    SELECT k.Id, k.IdReklamacji, k.UserID, ISNULL(o.Name, k.UserID) AS UserName, k.Tresc, k.DataDodania
+                    FROM [dbo].[ReklamacjeKomentarze] k
+                    LEFT JOIN [dbo].[operators] o ON k.UserID = o.ID
+                    WHERE k.IdReklamacji = @Id
+                    ORDER BY k.DataDodania ASC", conn))
+                {
+                    cmd.Parameters.AddWithValue("@Id", idReklamacji);
+                    using (var r = cmd.ExecuteReader())
+                    {
+                        while (r.Read())
+                        {
+                            string odbiorcaId = r.IsDBNull(2) ? "" : r.GetString(2);
+                            string userName = r.IsDBNull(3) ? "" : r.GetString(3);
+                            komentarze.Add(new KomentarzViewModel
+                            {
+                                Id = r.GetInt32(0),
+                                IdReklamacji = r.GetInt32(1),
+                                UserId = odbiorcaId,
+                                UserName = userName,
+                                Tresc = r.IsDBNull(4) ? "" : r.GetString(4),
+                                DataDodania = r.GetDateTime(5),
+                                AvatarPhoto = FormRozpatrzenieWindow.LoadWpfAvatar(odbiorcaId, userName, 60)
+                            });
+                        }
+                    }
+                }
+                txtKomentarzeCount.Text = $"({komentarze.Count})";
+            }
+            catch { }
+        }
+
+        private void BtnDodajKomentarz_Click(object sender, RoutedEventArgs e)
+        {
+            string tresc = txtNowyKomentarz.Text?.Trim();
+            if (string.IsNullOrEmpty(tresc)) return;
+
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    using (var cmd = new SqlCommand(@"
+                        INSERT INTO [dbo].[ReklamacjeKomentarze] (IdReklamacji, UserID, Tresc)
+                        VALUES (@Id, @User, @Tresc)", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Id", idReklamacji);
+                        cmd.Parameters.AddWithValue("@User", userId);
+                        cmd.Parameters.AddWithValue("@Tresc", tresc);
+                        cmd.ExecuteNonQuery();
+                    }
+                    txtNowyKomentarz.Text = "";
+                    WczytajKomentarze(conn);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Blad dodawania komentarza:\n{ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        // ========================================
+        // DRAG & DROP ZALACZNIKOW
+        // ========================================
+
+        private void Zalaczniki_DragEnter(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                e.Effects = DragDropEffects.Copy;
+                if (sender is Border border)
+                    border.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E3F2FD"));
+            }
+            else
+            {
+                e.Effects = DragDropEffects.None;
+            }
+            e.Handled = true;
+        }
+
+        private void Zalaczniki_DragLeave(object sender, DragEventArgs e)
+        {
+            if (sender is Border border)
+                border.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F4F6F7"));
+        }
+
+        private void Zalaczniki_Drop(object sender, DragEventArgs e)
+        {
+            if (sender is Border border)
+                border.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F4F6F7"));
+
+            if (!e.Data.GetDataPresent(DataFormats.FileDrop)) return;
+
+            var pliki = (string[])e.Data.GetData(DataFormats.FileDrop);
+            if (pliki == null || pliki.Length == 0) return;
+
+            int dodano = 0;
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    foreach (var sciezka in pliki)
+                    {
+                        var fi = new FileInfo(sciezka);
+                        string ext = fi.Extension.ToLower();
+                        if (ext != ".jpg" && ext != ".jpeg" && ext != ".png" && ext != ".pdf" && ext != ".bmp")
+                        {
+                            MessageBox.Show($"Pominieto nieobslugiwany format: {fi.Name}", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
+                            continue;
+                        }
+                        if (fi.Length > 10 * 1024 * 1024)
+                        {
+                            MessageBox.Show($"Plik {fi.Name} przekracza 10MB.", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
+                            continue;
+                        }
+
+                        byte[] dane = File.ReadAllBytes(sciezka);
+                        using (var cmd = new SqlCommand(@"
+                            INSERT INTO [dbo].[ReklamacjeZdjecia] (IdReklamacji, DaneZdjecia, NazwaPliku)
+                            VALUES (@Id, @Dane, @Nazwa)", conn))
+                        {
+                            cmd.Parameters.AddWithValue("@Id", idReklamacji);
+                            cmd.Parameters.AddWithValue("@Dane", dane);
+                            cmd.Parameters.AddWithValue("@Nazwa", fi.Name);
+                            cmd.ExecuteNonQuery();
+                            dodano++;
+                        }
+                    }
+
+                    if (dodano > 0)
+                    {
+                        WczytajZdjecia(conn);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Blad wgrywania plikow:\n{ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        // ========================================
+        // DRUKOWANIE PROTOKOLU REKLAMACJI
+        // ========================================
+
+        private void BtnDrukuj_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var generator = new ReklamacjePDFGenerator(connectionString);
+                string sciezka = generator.GenerujRaportReklamacji(idReklamacji);
+
+                // Otworz plik w domyslnej przegladarce
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = sciezka,
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Blad generowania raportu:\n{ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        // ========================================
         // HELPER METHODS
         // ========================================
 
@@ -900,58 +1262,4 @@ namespace Kalendarz1.Reklamacje
         }
     }
 
-    // ========================================
-    // MODELE DANYCH
-    // ========================================
-
-    public class TowarSzczegoly
-    {
-        public int Lp { get; set; }
-        public string Symbol { get; set; }
-        public string Nazwa { get; set; }
-        public decimal Waga { get; set; }
-        public decimal Cena { get; set; }
-        public decimal Wartosc { get; set; }
-    }
-
-    public class ZdjecieViewModel
-    {
-        public int Id { get; set; }
-        public string NazwaPliku { get; set; }
-        public string SciezkaPliku { get; set; }
-        public byte[] DaneZdjecia { get; set; }
-        public BitmapImage Miniatura { get; set; }
-    }
-
-    public class PartiaViewModel
-    {
-        public string NumerPartii { get; set; }
-        public string Dostawca { get; set; }
-        public DateTime? DataDodania { get; set; }
-        public string DataDodaniaStr => DataDodania?.ToString("dd.MM.yyyy HH:mm") ?? "";
-    }
-
-    public class HistoriaViewModel
-    {
-        public DateTime DataZmiany { get; set; }
-        public string DataZmianyStr => DataZmiany.ToString("dd.MM.yyyy HH:mm");
-        public string PoprzedniStatus { get; set; }
-        public string StatusNowy { get; set; }
-        public string Uzytkownik { get; set; }
-        public string Komentarz { get; set; }
-        public string Inicjaly { get; set; }
-        public SolidColorBrush AvatarColor { get; set; }
-        public ImageSource AvatarPhoto { get; set; }
-        public Visibility AvatarPhotoVisibility => AvatarPhoto != null ? Visibility.Visible : Visibility.Collapsed;
-        public Visibility KomentarzVisibility => string.IsNullOrWhiteSpace(Komentarz) ? Visibility.Collapsed : Visibility.Visible;
-
-        public SolidColorBrush KolorStatusu
-        {
-            get
-            {
-                string hex = FormRozpatrzenieWindow.GetStatusColor(StatusNowy ?? "");
-                return new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex));
-            }
-        }
-    }
 }

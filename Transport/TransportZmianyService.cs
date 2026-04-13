@@ -101,9 +101,12 @@ namespace Kalendarz1.Transport
             {
                 using var conn = new SqlConnection(_connTransport);
                 conn.Open();
-                // Liczymy ZAMÓWIENIA z oczekującymi zmianami, nie pojedyncze wiersze zmian
+                // Liczymy zmiany z dzisiaj oczekujące na akceptację
                 using var cmd = new SqlCommand(
-                    "SELECT COUNT(DISTINCT ZamowienieId) FROM TransportZmiany WHERE StatusZmiany = 'Oczekuje'", conn);
+                    @"SELECT COUNT(*) FROM TransportZmiany
+                      WHERE StatusZmiany = 'Oczekuje'
+                        AND TypZmiany != 'ZmianaStatusu'
+                        AND CAST(DataZgloszenia AS date) = CAST(GETDATE() AS date)", conn);
                 return (int)(cmd.ExecuteScalar() ?? 0);
             }
             catch { return 0; }
@@ -149,6 +152,7 @@ namespace Kalendarz1.Transport
                            StareWartosc, NowaWartosc, StatusZmiany, ZgloszonePrzez,
                            DataZgloszenia, ZaakceptowanePrzez, DataAkceptacji, Komentarz
                     FROM TransportZmiany
+                    WHERE TypZmiany != 'ZmianaStatusu'
                     ORDER BY DataZgloszenia DESC", conn);
                 using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
@@ -170,7 +174,7 @@ namespace Kalendarz1.Transport
                            StareWartosc, NowaWartosc, StatusZmiany, ZgloszonePrzez,
                            DataZgloszenia, ZaakceptowanePrzez, DataAkceptacji, Komentarz
                     FROM TransportZmiany
-                    WHERE StatusZmiany = @Status
+                    WHERE StatusZmiany = @Status AND TypZmiany != 'ZmianaStatusu'
                     ORDER BY DataZgloszenia DESC", conn);
                 cmd.Parameters.AddWithValue("@Status", status);
                 using var reader = await cmd.ExecuteReaderAsync();
@@ -184,6 +188,8 @@ namespace Kalendarz1.Transport
         public static async Task SubmitChangeAsync(int zamowienieId, string klientKod, string klientNazwa,
             string typZmiany, string opis, string? stareWartosc, string? nowaWartosc, string user)
         {
+            if (typZmiany == "ZmianaStatusu") return;
+
             try
             {
                 using var conn = new SqlConnection(_connTransport);
@@ -297,7 +303,7 @@ namespace Kalendarz1.Transport
                            StareWartosc, NowaWartosc, StatusZmiany, ZgloszonePrzez,
                            DataZgloszenia, ZaakceptowanePrzez, DataAkceptacji, Komentarz
                     FROM TransportZmiany
-                    WHERE ZamowienieId IN ({idsStr})
+                    WHERE ZamowienieId IN ({idsStr}) AND TypZmiany != 'ZmianaStatusu'
                     ORDER BY DataZgloszenia DESC", conn);
                 using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
@@ -833,7 +839,7 @@ namespace Kalendarz1.Transport
                            DataZgloszenia, ZaakceptowanePrzez, DataAkceptacji, Komentarz
                     FROM TransportZmiany
                     WHERE StatusZmiany = 'Oczekuje'
-                      AND TypZmiany NOT IN ('NoweZamowienie')
+                      AND TypZmiany NOT IN ('NoweZamowienie', 'ZmianaStatusu')
                       AND ZamowienieId IN ({zamIdsStr})
                     ORDER BY DataZgloszenia DESC", connTransport))
                 {
@@ -878,7 +884,7 @@ namespace Kalendarz1.Transport
                 var zamIdsStr = string.Join(",", zamIds);
                 using (var cmd = new SqlCommand($@"
                     SELECT DISTINCT ZamowienieId FROM TransportZmiany
-                    WHERE StatusZmiany = 'Oczekuje' AND ZamowienieId IN ({zamIdsStr})", connTransport))
+                    WHERE StatusZmiany = 'Oczekuje' AND TypZmiany != 'ZmianaStatusu' AND ZamowienieId IN ({zamIdsStr})", connTransport))
                 {
                     using var rdr = await cmd.ExecuteReaderAsync();
                     while (await rdr.ReadAsync())
@@ -895,6 +901,9 @@ namespace Kalendarz1.Transport
         public static async Task LogChangeAsync(int zamowienieId, string klientKod, string klientNazwa,
             string typZmiany, string opis, string? stareWartosc, string? nowaWartosc, string user)
         {
+            // Zmiany statusu (przypisanie/usunięcie z kursu) nie są logowane — zbędne dla logistyka
+            if (typZmiany == "ZmianaStatusu") return;
+
             try
             {
                 using var conn = new SqlConnection(_connTransport);

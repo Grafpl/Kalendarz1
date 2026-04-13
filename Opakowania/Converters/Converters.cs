@@ -37,11 +37,11 @@ namespace Kalendarz1.Opakowania.Converters
         {
             if (value is int saldo)
             {
-                if (saldo > 0)
-                    return new SolidColorBrush(Color.FromRgb(231, 76, 60)); // #E74C3C - Czerwony
                 if (saldo < 0)
-                    return new SolidColorBrush(Color.FromRgb(39, 174, 96)); // #27AE60 - Zielony
-                return new SolidColorBrush(Color.FromRgb(127, 140, 141)); // #7F8C8D - Szary
+                    return new SolidColorBrush(Color.FromRgb(220, 38, 38)); // Czerwony - winny (Symfonia: ujemne)
+                if (saldo > 0)
+                    return new SolidColorBrush(Color.FromRgb(22, 163, 74)); // Zielony - wisimy
+                return new SolidColorBrush(Color.FromRgb(127, 140, 141)); // Szary
             }
             return new SolidColorBrush(Color.FromRgb(127, 140, 141));
         }
@@ -62,8 +62,9 @@ namespace Kalendarz1.Opakowania.Converters
             if (value is int saldo)
             {
                 if (saldo == 0) return "0";
-                if (saldo > 0) return $"{saldo} (wydane)";
-                return $"{Math.Abs(saldo)} (zwrot)";
+                var num = Math.Abs(saldo).ToString("N0");
+                if (saldo < 0) return $"Winny {num}";
+                return $"Wisimy {num}";
             }
             return "0";
         }
@@ -231,11 +232,11 @@ namespace Kalendarz1.Opakowania.Converters
         {
             if (value is int saldo)
             {
-                if (saldo > 0)
-                    return new SolidColorBrush(Color.FromRgb(255, 235, 238)); // #FFEBEE - Jasny czerwony
                 if (saldo < 0)
-                    return new SolidColorBrush(Color.FromRgb(232, 245, 233)); // #E8F5E9 - Jasny zielony
-                return new SolidColorBrush(Color.FromRgb(248, 249, 250)); // #F8F9FA - Szary
+                    return new SolidColorBrush(Color.FromRgb(255, 235, 238)); // Jasny czerwony - winny
+                if (saldo > 0)
+                    return new SolidColorBrush(Color.FromRgb(232, 245, 233)); // Jasny zielony - wisimy
+                return new SolidColorBrush(Color.FromRgb(248, 249, 250));
             }
             return new SolidColorBrush(Color.FromRgb(248, 249, 250));
         }

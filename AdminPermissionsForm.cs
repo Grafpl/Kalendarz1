@@ -659,6 +659,11 @@ namespace Kalendarz1
             presetsBtn.Click += ShowPresets_Click;
             topToolbar.Controls.Add(presetsBtn);
 
+            // Per moduł — odwrotny widok uprawnień
+            var perModuleBtn = CreateAnimatedButton("📦 Per moduł", Color.FromArgb(0, 96, 100), ref btnX);
+            perModuleBtn.Click += (_, __) => ShowPerModuleDialog();
+            topToolbar.Controls.Add(perModuleBtn);
+
             btnX += 15;
 
             // Przypisywanie klientów do handlowców
@@ -1475,8 +1480,8 @@ namespace Kalendarz1
 
             try
             {
-                char[] accessArray = new char[56];
-                for (int i = 0; i < 56; i++) accessArray[i] = '0';
+                char[] accessArray = new char[65];
+                for (int i = 0; i < 65; i++) accessArray[i] = '0';
 
                 var accessMap = GetAccessMap();
 
@@ -1488,7 +1493,7 @@ namespace Kalendarz1
                         if (!string.IsNullOrEmpty(moduleKey) && checkbox.Checked)
                         {
                             var position = accessMap.FirstOrDefault(x => x.Value == moduleKey).Key;
-                            if (position >= 0 && position < 56)
+                            if (position >= 0 && position < 65)
                             {
                                 accessArray[position] = '1';
                             }
@@ -1888,6 +1893,211 @@ namespace Kalendarz1
         // ════════════════════════════════════════════════════════════════════════════════
         // ZSYNCHRONIZOWANA LISTA MODUŁÓW - MUSI ODPOWIADAĆ Menu.cs
         // ════════════════════════════════════════════════════════════════════════════════
+        // ════════════════════════════════════════════════════════════════════════════════
+        // PER MODUŁ — wybierz moduł, zaznacz użytkowników którzy mają dostęp
+        // ════════════════════════════════════════════════════════════════════════════════
+        private void ShowPerModuleDialog()
+        {
+            var dlg = new Form
+            {
+                Text = "Uprawnienia per moduł — wybierz kafelek, przypisz użytkowników",
+                Size = new Size(700, 780),
+                StartPosition = FormStartPosition.CenterParent,
+                FormBorderStyle = FormBorderStyle.Sizable,
+                MinimumSize = new Size(500, 400),
+                BackColor = Colors.Background,
+                Font = new Font("Segoe UI", 9.5f)
+            };
+            try { dlg.Icon = this.Icon; } catch { }
+
+            var accessMap = GetAccessMap();
+            var modules = GetModulesList();
+            int maxPos = accessMap.Count > 0 ? accessMap.Keys.Max() + 1 : 65;
+
+            // Toolbar
+            var toolbar = new Panel { Dock = DockStyle.Top, Height = 54, BackColor = Color.White };
+            toolbar.Paint += (_, e) => { using var p = new Pen(Colors.Border); e.Graphics.DrawLine(p, 0, toolbar.Height - 1, toolbar.Width, toolbar.Height - 1); };
+            var lbl = new Label { Text = "Moduł:", AutoSize = true, Location = new Point(14, 18), Font = new Font("Segoe UI Semibold", 10), ForeColor = Colors.TextDark };
+            var cmb = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Location = new Point(80, 14), Width = 480, Font = new Font("Segoe UI", 10), DropDownHeight = 400 };
+
+            foreach (var cat in modules.GroupBy(m => m.Category))
+                foreach (var m in cat)
+                    cmb.Items.Add(new ModuleComboItem(m.Key, m.DisplayName, m.Category));
+            cmb.DisplayMember = "Display";
+
+            toolbar.Controls.AddRange(new Control[] { lbl, cmb });
+
+            // Info bar
+            var lblInfo = new Label { Dock = DockStyle.Top, Height = 32, TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(14, 0, 0, 0), BackColor = Color.FromArgb(238, 242, 255), ForeColor = Color.FromArgb(67, 56, 202), Font = new Font("Segoe UI", 9, FontStyle.Bold) };
+
+            // Users checklist
+            var clb = new CheckedListBox
+            {
+                Dock = DockStyle.Fill,
+                Font = new Font("Segoe UI", 10.5f),
+                BorderStyle = BorderStyle.None,
+                CheckOnClick = true,
+                BackColor = Color.White,
+                IntegralHeight = false
+            };
+
+            // Zaladuj uzytkownikow
+            var users = new List<(string id, string name, string access)>();
+            try
+            {
+                using var conn = new SqlConnection(connectionString);
+                conn.Open();
+                using var cmd = new SqlCommand("SELECT ID, ISNULL(Name, ID), ISNULL(Access, '') FROM operators WHERE Name IS NOT NULL AND Name <> '' ORDER BY Name", conn);
+                using var r = cmd.ExecuteReader();
+                while (r.Read())
+                    users.Add((r.GetString(0), r.GetString(1), r.GetString(2)));
+            }
+            catch (Exception ex) { MessageBox.Show(ex.Message); }
+
+            // Flaga blokujaca — zapobiega ItemCheck podczas przeladowania listy
+            bool loading = false;
+
+            // Zmiana modulu — zaladuj checkboxy
+            cmb.SelectedIndexChanged += (_, __) =>
+            {
+                if (cmb.SelectedItem is not ModuleComboItem sel) return;
+
+                int mPos = -1;
+                foreach (var kv in accessMap)
+                    if (kv.Value == sel.Key) { mPos = kv.Key; break; }
+
+                loading = true;
+                clb.Items.Clear();
+                int checkedCount = 0;
+                foreach (var (id, name, access) in users)
+                {
+                    bool hasAccess = mPos >= 0 && mPos < access.Length && access[mPos] == '1';
+                    clb.Items.Add($"{name}  ({id})", hasAccess);
+                    if (hasAccess) checkedCount++;
+                }
+                string posInfo = mPos >= 0 ? $"(poz. {mPos})" : "(BRAK W MAPIE!)";
+                lblInfo.Text = $"  {sel.DisplayName} {posInfo}: {checkedCount} / {users.Count} użytkowników ma dostęp";
+                lblInfo.ForeColor = mPos >= 0 ? Color.FromArgb(67, 56, 202) : Color.Red;
+                loading = false;
+            };
+
+            // Checkbox zmiana — aktualizuj tylko licznik (zapis dopiero po kliknieciu Zapisz)
+            bool hasChanges = false;
+            clb.ItemCheck += (_, e) =>
+            {
+                if (loading) return;
+                hasChanges = true;
+                if (cmb.SelectedItem is ModuleComboItem sel2)
+                {
+                    int cnt = 0;
+                    for (int i = 0; i < clb.Items.Count; i++)
+                    {
+                        bool ch = i == e.Index ? e.NewValue == CheckState.Checked : clb.GetItemChecked(i);
+                        if (ch) cnt++;
+                    }
+                    lblInfo.Text = $"  {sel2.DisplayName}: {cnt} / {users.Count} użytkowników  —  NIEZAPISANE ZMIANY";
+                    lblInfo.ForeColor = Colors.Danger;
+                }
+            };
+
+            // Bottom bar
+            var bottom = new Panel { Dock = DockStyle.Bottom, Height = 44, BackColor = Color.White };
+            bottom.Paint += (_, e) => { using var p = new Pen(Colors.Border); e.Graphics.DrawLine(p, 0, 0, bottom.Width, 0); };
+
+            var btnSave = new Button { Text = "💾 Zapisz zmiany", AutoSize = true, Location = new Point(14, 6), FlatStyle = FlatStyle.Flat, BackColor = Colors.Success, ForeColor = Color.White, Font = new Font("Segoe UI", 9.5f, FontStyle.Bold), Cursor = Cursors.Hand, Padding = new Padding(12, 0, 12, 0), MinimumSize = new Size(0, 32) };
+            btnSave.FlatAppearance.BorderSize = 0;
+            btnSave.Click += (_, __) =>
+            {
+                if (cmb.SelectedItem is not ModuleComboItem sel3) return;
+
+                // Znajdz pozycje modulu w accessMap — bezpiecznie
+                int modulePos = -1;
+                foreach (var kv in accessMap)
+                    if (kv.Value == sel3.Key) { modulePos = kv.Key; break; }
+
+                if (modulePos < 0)
+                {
+                    MessageBox.Show($"Moduł '{sel3.Key}' nie istnieje w mapie uprawnień (accessMap).\nNie można zapisać.", "Błąd konfiguracji", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+
+                int saved = 0;
+                int accessLen = Math.Max(modulePos + 1, 65);
+                try
+                {
+                    using var conn = new SqlConnection(connectionString);
+                    conn.Open();
+                    for (int i = 0; i < clb.Items.Count && i < users.Count; i++)
+                    {
+                        bool shouldHave = clb.GetItemChecked(i);
+                        var (uid, uname, curAccess) = users[i];
+
+                        // Zawsze padRight do wymaganej dlugosci
+                        var chars = (curAccess ?? "").PadRight(accessLen, '0').ToCharArray();
+                        bool currentlyHas = chars[modulePos] == '1';
+                        if (shouldHave == currentlyHas) continue;
+
+                        chars[modulePos] = shouldHave ? '1' : '0';
+                        var newAcc = new string(chars);
+
+                        using var cmd = new SqlCommand("UPDATE operators SET Access = @access WHERE ID = @userId", conn);
+                        cmd.Parameters.AddWithValue("@access", newAcc);
+                        cmd.Parameters.AddWithValue("@userId", uid);
+                        cmd.ExecuteNonQuery();
+                        users[i] = (uid, uname, newAcc);
+                        saved++;
+                    }
+                    hasChanges = false;
+                    lblInfo.ForeColor = Color.FromArgb(67, 56, 202);
+                    int total = 0; for (int i = 0; i < clb.Items.Count; i++) if (clb.GetItemChecked(i)) total++;
+                    lblInfo.Text = $"  {sel3.DisplayName}: {total} / {users.Count} użytkowników  —  Zapisano ({saved} zmian)";
+                    if (saved > 0)
+                        ToastNotification.Show(dlg, $"Zapisano {saved} zmian uprawnień dla '{sel3.DisplayName}'", ToastNotification.ToastType.Success);
+                    else
+                        ToastNotification.Show(dlg, "Brak zmian do zapisania", ToastNotification.ToastType.Info);
+                }
+                catch (Exception ex) { MessageBox.Show($"Błąd zapisu:\n{ex.Message}\n\nModuł: {sel3.Key} (pozycja {modulePos})", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+            };
+
+            var btnSelectAll = new Button { Text = "✓ Wszyscy", AutoSize = true, Location = new Point(200, 6), FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(76, 175, 80), ForeColor = Color.White, Font = new Font("Segoe UI", 9, FontStyle.Bold), Cursor = Cursors.Hand, Padding = new Padding(8, 0, 8, 0), MinimumSize = new Size(0, 32) };
+            btnSelectAll.FlatAppearance.BorderSize = 0;
+            btnSelectAll.Click += (_, __) => { for (int i = 0; i < clb.Items.Count; i++) clb.SetItemChecked(i, true); };
+
+            var btnDeselectAll = new Button { Text = "✗ Nikt", AutoSize = true, Location = new Point(310, 6), FlatStyle = FlatStyle.Flat, BackColor = Colors.Danger, ForeColor = Color.White, Font = new Font("Segoe UI", 9, FontStyle.Bold), Cursor = Cursors.Hand, Padding = new Padding(8, 0, 8, 0), MinimumSize = new Size(0, 32) };
+            btnDeselectAll.FlatAppearance.BorderSize = 0;
+            btnDeselectAll.Click += (_, __) => { for (int i = 0; i < clb.Items.Count; i++) clb.SetItemChecked(i, false); };
+
+            var btnClose = new Button { Text = "Zamknij", Size = new Size(100, 32), Location = new Point(420, 6), FlatStyle = FlatStyle.Flat, BackColor = Colors.Primary, ForeColor = Color.White, Font = new Font("Segoe UI", 9, FontStyle.Bold), Cursor = Cursors.Hand };
+            btnClose.FlatAppearance.BorderSize = 0;
+            btnClose.Click += (_, __) =>
+            {
+                if (hasChanges && MessageBox.Show("Masz niezapisane zmiany. Zamknąć bez zapisywania?", "Niezapisane zmiany", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.No) return;
+                dlg.Close();
+            };
+
+            bottom.Controls.AddRange(new Control[] { btnSave, btnSelectAll, btnDeselectAll, btnClose });
+
+            dlg.Controls.Add(clb);
+            dlg.Controls.Add(lblInfo);
+            dlg.Controls.Add(toolbar);
+            dlg.Controls.Add(bottom);
+
+            if (cmb.Items.Count > 0) cmb.SelectedIndex = 0;
+            dlg.ShowDialog(this);
+        }
+
+        // Helper do ComboBox — wyświetla "[Kategoria] Nazwa"
+        private class ModuleComboItem
+        {
+            public string Key { get; }
+            public string DisplayName { get; }
+            public string Category { get; }
+            public string Display => $"[{Category}]  {DisplayName}";
+            public ModuleComboItem(string key, string displayName, string category)
+            { Key = key; DisplayName = displayName; Category = category; }
+            public override string ToString() => Display;
+        }
+
         private List<ModuleInfo> GetModulesList()
         {
             return new List<ModuleInfo>
@@ -1918,6 +2128,8 @@ namespace Kalendarz1
                 new ModuleInfo("PanelMagazyniera", "Panel Magazyniera", "Zarządzanie wydaniami towarów", "Produkcja i Magazyn", "🗃️"),
                 new ModuleInfo("AnalizaPrzychodu", "Analiza Przychodu", "Analiza tempa produkcji i przychodu towarów", "Produkcja i Magazyn", "⏱️"),
                 new ModuleInfo("AnalizaWydajnosci", "Analiza Wydajności", "Porównanie masy żywca do tuszek", "Produkcja i Magazyn", "📈"),
+                new ModuleInfo("KartotekaTowarow", "Kartoteka Towarów", "Przeglądanie i edycja artykułów", "Produkcja i Magazyn", "🗂️"),
+                new ModuleInfo("ListaPartii", "Lista Partii Ubojowych", "Zarządzanie partiami produkcyjnymi", "Produkcja i Magazyn", "📋"),
 
                 // ═══════════════════════════════════════════════════════════════════════
                 // SPRZEDAŻ I CRM - Niebieski
@@ -1933,6 +2145,7 @@ namespace Kalendarz1
                 new ModuleInfo("DashboardOfert", "Analiza Ofert", "Statystyki skuteczności ofert", "Sprzedaż i CRM", "📊"),
                 new ModuleInfo("DashboardWyczerpalnosci", "Klasy Wagowe", "Rozdzielanie klas wagowych", "Sprzedaż i CRM", "⚖️"),
                 new ModuleInfo("PanelReklamacji", "Reklamacje Klientów", "Obsługa reklamacji odbiorców", "Sprzedaż i CRM", "⚠️"),
+                new ModuleInfo("ReklamacjeJakosc", "Reklamacje Jakość", "Reklamacje wewnętrzne jakości", "Sprzedaż i CRM", "🔍"),
                 new ModuleInfo("PanelPaniJola", "Panel Pani Jola", "Uproszczony widok zamówień - duże kafelki", "Sprzedaż i CRM", "📞"),
                 new ModuleInfo("MapaKlientow", "Mapa Klientów", "Wizualizacja lokalizacji klientów na mapie", "Sprzedaż i CRM", "🗺️"),
 
@@ -1949,9 +2162,15 @@ namespace Kalendarz1
                 // ═══════════════════════════════════════════════════════════════════════
                 // OPAKOWANIA I TRANSPORT - Turkusowy
                 // ═══════════════════════════════════════════════════════════════════════
-                new ModuleInfo("PodsumowanieSaldOpak", "Zestawienie Opakowań", "Salda opakowań wg typu", "Opakowania i Transport", "📦"),
-                new ModuleInfo("SaldaOdbiorcowOpak", "Salda Opakowań Klientów", "Salda dla kontrahentów", "Opakowania i Transport", "🏷️"),
+                new ModuleInfo("OpakowaniaWinForm", "Opakowania Zwrotne", "Salda opakowań zwrotnych kontrahentów", "Opakowania i Transport", "📦"),
+                new ModuleInfo("PodsumowanieSaldOpak", "Zestawienie Opakowań (stare)", "Stary widok sald opakowań wg typu", "Opakowania i Transport", "📦"),
+                new ModuleInfo("SaldaOdbiorcowOpak", "Salda Opakowań Klientów (stare)", "Stary widok sald dla kontrahentów", "Opakowania i Transport", "🏷️"),
                 new ModuleInfo("UstalanieTranportu", "Planowanie Transportu", "Organizacja tras dostaw", "Opakowania i Transport", "🚚"),
+                new ModuleInfo("TransportZmiany", "Zmiany Transportu", "Zatwierdzanie zmian w transporcie", "Opakowania i Transport", "📋"),
+                new ModuleInfo("Flota", "Flota Pojazdów", "Zarządzanie kierowcami i pojazdami", "Opakowania i Transport", "🚛"),
+                new ModuleInfo("MapaFloty", "Mapa Floty", "Mapa live GPS pojazdów z Webfleet", "Opakowania i Transport", "🗺️"),
+                new ModuleInfo("OsCzasuFloty", "Oś Czasu Floty", "Oś czasu 24h pojazdów", "Opakowania i Transport", "📊"),
+                new ModuleInfo("RaportFloty", "Raport Floty", "Raport efektywności pojazdów", "Opakowania i Transport", "📈"),
 
                 // ═══════════════════════════════════════════════════════════════════════
                 // FINANSE I ZARZĄDZANIE - Szaroniebieski
@@ -1976,6 +2195,7 @@ namespace Kalendarz1
                 new ModuleInfo("AdminPermissions", "Zarządzanie Uprawnieniami", "Nadawanie uprawnień użytkownikom", "Administracja Systemu", "🔐"),
                 new ModuleInfo("CallReminders", "Przypomnienia Telefonów", "Konfiguracja przypomnień o telefonach CRM", "Administracja Systemu", "⏰"),
                 new ModuleInfo("ProductImages", "Zdjęcia Produktów", "Zarządzanie zdjęciami produktów", "Administracja Systemu", "📷"),
+                new ModuleInfo("UstawieniaZmianZamowien", "Ustawienia Zmian Zamówień", "Konfiguracja zmian w zamówieniach", "Administracja Systemu", "⚙️"),
                 new ModuleInfo("PozyskiwanieHodowcow", "Pozyskiwanie Hodowców", "CRM do pozyskiwania nowych hodowców drobiu", "Zaopatrzenie i Zakupy", "🐔")
             };
         }
@@ -2042,7 +2262,16 @@ namespace Kalendarz1
                 [52] = "CallReminders",
                 [53] = "PorannyBriefing",
                 [54] = "ProductImages",
-                [55] = "PozyskiwanieHodowcow"
+                [55] = "PozyskiwanieHodowcow",
+                [56] = "KartotekaTowarow",
+                [57] = "Flota",
+                [58] = "ListaPartii",
+                [59] = "TransportZmiany",
+                [60] = "OpakowaniaWinForm",
+                [61] = "UstawieniaZmianZamowien",
+                [62] = "MapaFloty",
+                [63] = "OsCzasuFloty",
+                [64] = "RaportFloty"
             };
         }
 

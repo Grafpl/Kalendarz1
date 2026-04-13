@@ -9,6 +9,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
 namespace Kalendarz1.Reklamacje
@@ -26,11 +27,12 @@ namespace Kalendarz1.Reklamacje
 
         private ObservableCollection<TowarReklamacji> towary = new ObservableCollection<TowarReklamacji>();
         private ObservableCollection<PartiaDostawcy> partie = new ObservableCollection<PartiaDostawcy>();
+        private ObservableCollection<KorektaItem> korekty = new ObservableCollection<KorektaItem>();
         private List<string> sciezkiZdjec = new List<string>();
 
         public bool ReklamacjaZapisana { get; private set; } = false;
 
-        private const string DefaultLibraNetConnString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+        private const string DefaultLibraNetConnString = ReklamacjeConnectionStrings.LibraNet;
 
         public FormReklamacjaWindow(string connStringHandel, int dokId, int kontrId, string nrDok, string nazwaKontr, string user, string connStringLibraNet = null)
         {
@@ -50,13 +52,212 @@ namespace Kalendarz1.Reklamacje
 
             dgTowary.ItemsSource = towary;
             dgPartie.ItemsSource = partie;
+            dgKorekty.ItemsSource = korekty;
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             WczytajTowary();
             WczytajPartie();
+            WczytajKorekty();
             AktualizujLiczniki();
+            UstawPodkategorieISzablony();
+        }
+
+        // ============================================================
+        // Korekty kontrahenta z HANDEL
+        // ============================================================
+        private void WczytajKorekty()
+        {
+            korekty.Clear();
+            try
+            {
+                using (var connH = new SqlConnection(connectionStringHandel))
+                {
+                    connH.Open();
+                    using (var cmd = new SqlCommand(@"
+                        SELECT DK.id, DK.kod, DK.data,
+                               ABS(ISNULL(DK.walNetto, 0)) AS Wartosc,
+                               ABS(ISNULL((SELECT SUM(DP.ilosc) FROM [HANDEL].[HM].[DP] DP WHERE DP.super = DK.id), 0)) AS SumaKg
+                        FROM [HANDEL].[HM].[DK] DK
+                        WHERE DK.khid = @Khid
+                          AND DK.seria IN ('sFKS', 'sFKSB', 'sFWK')
+                          AND DK.anulowany = 0
+                          AND DK.data >= DATEADD(DAY, -90, GETDATE())
+                        ORDER BY DK.data DESC", connH))
+                    {
+                        cmd.Parameters.AddWithValue("@Khid", idKontrahenta);
+                        using (var r = cmd.ExecuteReader())
+                        {
+                            while (r.Read())
+                            {
+                                // Sprawdz czy ta korekta juz jest powiazana w LibraNet
+                                int idDok = r.GetInt32(0);
+                                bool juzPowiazana = false;
+                                try
+                                {
+                                    using (var connL = new SqlConnection(connectionStringLibraNet))
+                                    {
+                                        connL.Open();
+                                        using (var cmdL = new SqlCommand(
+                                            "SELECT COUNT(*) FROM [dbo].[Reklamacje] WHERE IdDokumentu = @Id AND TypReklamacji = 'Faktura korygujaca' AND PowiazanaReklamacjaId IS NOT NULL AND PowiazanaReklamacjaId > 0", connL))
+                                        {
+                                            cmdL.Parameters.AddWithValue("@Id", idDok);
+                                            juzPowiazana = Convert.ToInt32(cmdL.ExecuteScalar()) > 0;
+                                        }
+                                    }
+                                }
+                                catch { }
+
+                                if (!juzPowiazana)
+                                {
+                                    korekty.Add(new KorektaItem
+                                    {
+                                        IdDokumentu = idDok,
+                                        NumerDokumentu = r.IsDBNull(1) ? "" : r.GetString(1),
+                                        Data = r.GetDateTime(2),
+                                        Wartosc = r.IsDBNull(3) ? 0m : Convert.ToDecimal(r.GetValue(3)),
+                                        SumaKg = r.IsDBNull(4) ? 0m : Convert.ToDecimal(r.GetValue(4))
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+
+                txtKorektyInfo.Text = korekty.Count > 0
+                    ? $"{korekty.Count} niepowiazanych korekt (ostatnie 90 dni)"
+                    : "Brak korekt dla tego kontrahenta";
+            }
+            catch
+            {
+                txtKorektyInfo.Text = "Nie udalo sie pobrac korekt";
+            }
+        }
+
+        private void RadioKorekta_Click(object sender, RoutedEventArgs e)
+        {
+            var wybrana = korekty.FirstOrDefault(k => k.IsSelected);
+            if (wybrana != null)
+            {
+                panelWybranaKorekta.Visibility = Visibility.Visible;
+                txtWybranaKorekta.Text = $"{wybrana.NumerDokumentu}  |  {wybrana.Data:dd.MM.yyyy}  |  {wybrana.SumaKg:#,##0} kg  |  {wybrana.Wartosc:#,##0} zl";
+            }
+            else
+            {
+                panelWybranaKorekta.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        // ============================================================
+        // Podkategorie + szablony opisow wg typu reklamacji
+        // ============================================================
+        private static readonly Dictionary<string, string[]> PodkategorieWgTypu = new Dictionary<string, string[]>
+        {
+            ["Jakosc produktu"] = new[]
+            {
+                "Zly zapach",
+                "Niewlasciwy wyglad",
+                "Zepsuty produkt",
+                "Zla temperatura / rozmrozony",
+                "Niewlasciwa konsystencja",
+                "Obcy posmak",
+                "Zanieczyszczenie"
+            },
+            ["Ilosc / Brak towaru"] = new[]
+            {
+                "Mniejsza waga niz na fakturze",
+                "Brak sztuk w dostawie",
+                "Wiecej niz zamowiono",
+                "Niepelna ilosc opakowan"
+            },
+            ["Uszkodzenie w transporcie"] = new[]
+            {
+                "Uszkodzony karton",
+                "Uszkodzone opakowanie jednostkowe",
+                "Zalanie / zawilgocenie",
+                "Rozlane / wyciek",
+                "Uszkodzenie mechaniczne produktu"
+            },
+            ["Termin waznosci"] = new[]
+            {
+                "Produkt po terminie",
+                "Krotki termin waznosci",
+                "Brak oznaczenia terminu"
+            },
+            ["Niezgodnosc z zamowieniem"] = new[]
+            {
+                "Inny produkt niz zamowiony",
+                "Inne opakowanie / gramatura",
+                "Niewlasciwa marka / rodzaj",
+                "Pomylka dokumentowa"
+            },
+            ["Inne"] = new[] { "Inne - opisz w polu ponizej" }
+        };
+
+        private void CmbTypReklamacji_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            UstawPodkategorieISzablony();
+        }
+
+        private void UstawPodkategorieISzablony()
+        {
+            if (cmbPodkategoria == null || wrapSzablony == null) return;
+
+            string typ = (cmbTypReklamacji.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Inne";
+            if (!PodkategorieWgTypu.TryGetValue(typ, out string[] podkategorie))
+                podkategorie = new[] { "Inne" };
+
+            // Uzupelnij ComboBox podkategorii
+            cmbPodkategoria.Items.Clear();
+            foreach (var p in podkategorie)
+                cmbPodkategoria.Items.Add(new ComboBoxItem { Content = p });
+            if (cmbPodkategoria.Items.Count > 0) cmbPodkategoria.SelectedIndex = 0;
+
+            // Zbuduj chipy szablonow
+            wrapSzablony.Children.Clear();
+            foreach (var tekst in podkategorie)
+            {
+                var chipBorder = new Border
+                {
+                    Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E8F4FD")),
+                    BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#B3D7F2")),
+                    BorderThickness = new Thickness(1),
+                    CornerRadius = new CornerRadius(12),
+                    Padding = new Thickness(10, 4, 10, 4),
+                    Margin = new Thickness(0, 0, 6, 6),
+                    Cursor = Cursors.Hand
+                };
+                var chipText = new TextBlock
+                {
+                    Text = tekst,
+                    FontSize = 10.5,
+                    Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1565C0"))
+                };
+                chipBorder.Child = chipText;
+
+                string captured = tekst;
+                chipBorder.MouseLeftButtonUp += (s, ev) =>
+                {
+                    // Dopisz szablon do opisu (nowa linia jesli juz cos jest)
+                    if (string.IsNullOrWhiteSpace(txtOpis.Text))
+                        txtOpis.Text = captured;
+                    else
+                        txtOpis.Text = txtOpis.Text.TrimEnd() + Environment.NewLine + "- " + captured;
+                    txtOpis.Focus();
+                    txtOpis.CaretIndex = txtOpis.Text.Length;
+                };
+                chipBorder.MouseEnter += (s, ev) =>
+                {
+                    chipBorder.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#D0E7F7"));
+                };
+                chipBorder.MouseLeave += (s, ev) =>
+                {
+                    chipBorder.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E8F4FD"));
+                };
+
+                wrapSzablony.Children.Add(chipBorder);
+            }
         }
 
         private void WczytajTowary()
@@ -444,8 +645,9 @@ namespace Kalendarz1.Reklamacje
             decimal sumaKg = zaznaczoneTowary.Sum(t => t.Waga);
             decimal sumaWartosc = zaznaczoneTowary.Sum(t => t.Wartosc);
 
-            // Pobierz typ i priorytet
+            // Pobierz typ, podkategorie i priorytet
             string typReklamacji = (cmbTypReklamacji.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Inne";
+            string podkategoria = (cmbPodkategoria.SelectedItem as ComboBoxItem)?.Content?.ToString();
             string priorytet = "Normalny";
             if (cmbPriorytet.SelectedItem is ComboBoxItem item)
             {
@@ -456,6 +658,32 @@ namespace Kalendarz1.Reklamacje
                     priorytet = textBlock?.Text ?? "Normalny";
                 }
             }
+
+            // Sprawdzenie duplikatow - czy dla tego dokumentu juz istnieje otwarta reklamacja
+            try
+            {
+                using (var connCheck = new SqlConnection(connectionStringLibraNet))
+                {
+                    connCheck.Open();
+                    using (var cmdCheck = new SqlCommand(@"
+                        SELECT COUNT(*) FROM [dbo].[Reklamacje]
+                        WHERE IdDokumentu = @IdDok
+                          AND TypReklamacji <> 'Faktura korygujaca'
+                          AND StatusV2 NOT IN ('ZAMKNIETA','ODRZUCONA')", connCheck))
+                    {
+                        cmdCheck.Parameters.AddWithValue("@IdDok", idDokumentu);
+                        int istniejace = Convert.ToInt32(cmdCheck.ExecuteScalar());
+                        if (istniejace > 0)
+                        {
+                            var wynik = MessageBox.Show(
+                                $"Dla dokumentu {numerDokumentu} juz istnieje {istniejace} otwarta reklamacja.\n\nCzy na pewno chcesz utworzyc kolejna?",
+                                "Mozliwy duplikat", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                            if (wynik != MessageBoxResult.Yes) return;
+                        }
+                    }
+                }
+            }
+            catch { }
 
             int idReklamacji = 0;
 
@@ -468,12 +696,35 @@ namespace Kalendarz1.Reklamacje
                     {
                         try
                         {
-                            // 1. Zapisz główny rekord reklamacji
+                            // Pobierz handlowca z Symfonii
+                            string handlowiecNazwa = "-";
+                            try
+                            {
+                                using (var connH = new SqlConnection("Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True"))
+                                {
+                                    connH.Open();
+                                    using (var cmdH = new SqlCommand(
+                                        "SELECT CDim_Handlowiec_Val FROM [HANDEL].[SSCommon].[ContractorClassification] WHERE ElementId = @Khid", connH))
+                                    {
+                                        cmdH.Parameters.AddWithValue("@Khid", idKontrahenta);
+                                        var hResult = cmdH.ExecuteScalar();
+                                        if (hResult != null && hResult != DBNull.Value)
+                                            handlowiecNazwa = hResult.ToString();
+                                    }
+                                }
+                            }
+                            catch { }
+
+                            // 1. Zapisz główny rekord reklamacji (z kategoryzacja + Workflow V2)
                             string queryReklamacja = @"
                                 INSERT INTO [dbo].[Reklamacje]
-                                (DataZgloszenia, UserID, IdDokumentu, NumerDokumentu, IdKontrahenta, NazwaKontrahenta, Opis, SumaKg, SumaWartosc, Status, TypReklamacji, Priorytet)
+                                (DataZgloszenia, UserID, IdDokumentu, NumerDokumentu, IdKontrahenta, NazwaKontrahenta,
+                                 Opis, SumaKg, SumaWartosc, Status, TypReklamacji, Priorytet,
+                                 StatusV2, ZrodloZgloszenia, KategoriaPrzyczyny, PodkategoriaPrzyczyny, WymagaUzupelnienia, Handlowiec)
                                 VALUES
-                                (GETDATE(), @UserID, @IdDokumentu, @NumerDokumentu, @IdKontrahenta, @NazwaKontrahenta, @Opis, @SumaKg, @SumaWartosc, 'Nowa', @TypReklamacji, @Priorytet);
+                                (GETDATE(), @UserID, @IdDokumentu, @NumerDokumentu, @IdKontrahenta, @NazwaKontrahenta,
+                                 @Opis, @SumaKg, @SumaWartosc, 'Nowa', @TypReklamacji, @Priorytet,
+                                 'ZGLOSZONA', 'Handlowiec', @Kategoria, @Podkategoria, 0, @Handlowiec);
                                 SELECT SCOPE_IDENTITY();";
 
                             using (SqlCommand cmd = new SqlCommand(queryReklamacja, conn, transaction))
@@ -488,6 +739,9 @@ namespace Kalendarz1.Reklamacje
                                 cmd.Parameters.AddWithValue("@SumaWartosc", sumaWartosc);
                                 cmd.Parameters.AddWithValue("@TypReklamacji", typReklamacji);
                                 cmd.Parameters.AddWithValue("@Priorytet", priorytet);
+                                cmd.Parameters.AddWithValue("@Kategoria", (object)typReklamacji ?? DBNull.Value);
+                                cmd.Parameters.AddWithValue("@Podkategoria", (object)podkategoria ?? DBNull.Value);
+                                cmd.Parameters.AddWithValue("@Handlowiec", handlowiecNazwa);
 
                                 idReklamacji = Convert.ToInt32(cmd.ExecuteScalar());
                             }
@@ -621,13 +875,51 @@ namespace Kalendarz1.Reklamacje
 
                             transaction.Commit();
 
+                            // 6. Powiaz z korekta (jesli wybrana)
+                            var wybranaKorekta = korekty.FirstOrDefault(k => k.IsSelected);
+                            if (wybranaKorekta != null && idReklamacji > 0)
+                            {
+                                try
+                                {
+                                    using (var conn2 = new SqlConnection(connectionStringLibraNet))
+                                    {
+                                        conn2.Open();
+                                        // Znajdz ID rekordu korekty w LibraNet
+                                        int idKorektyRek = 0;
+                                        using (var cmdK = new SqlCommand(
+                                            "SELECT Id FROM [dbo].[Reklamacje] WHERE IdDokumentu = @IdDok AND TypReklamacji = 'Faktura korygujaca'", conn2))
+                                        {
+                                            cmdK.Parameters.AddWithValue("@IdDok", wybranaKorekta.IdDokumentu);
+                                            var r = cmdK.ExecuteScalar();
+                                            if (r != null) idKorektyRek = Convert.ToInt32(r);
+                                        }
+
+                                        if (idKorektyRek > 0)
+                                        {
+                                            // Powiaz bidirectional
+                                            using (var cmdP = new SqlCommand(@"
+                                                UPDATE [dbo].[Reklamacje] SET PowiazanaReklamacjaId=@B, StatusV2='POWIAZANA', WymagaUzupelnienia=0, DataPowiazania=GETDATE(), UserPowiazania=@U WHERE Id=@A;
+                                                UPDATE [dbo].[Reklamacje] SET PowiazanaReklamacjaId=@A, StatusV2='POWIAZANA', WymagaUzupelnienia=0, DataPowiazania=GETDATE(), UserPowiazania=@U WHERE Id=@B;", conn2))
+                                            {
+                                                cmdP.Parameters.AddWithValue("@A", idReklamacji);
+                                                cmdP.Parameters.AddWithValue("@B", idKorektyRek);
+                                                cmdP.Parameters.AddWithValue("@U", userId);
+                                                cmdP.ExecuteNonQuery();
+                                            }
+                                        }
+                                    }
+                                }
+                                catch { }
+                            }
+
+                            string korekInfo = wybranaKorekta != null ? $"\nPowiazano z korekta: {wybranaKorekta.NumerDokumentu}" : "";
                             MessageBox.Show(
                                 $"Reklamacja nr {idReklamacji} została pomyślnie zgłoszona!\n\n" +
                                 $"Typ: {typReklamacji}\n" +
                                 $"Priorytet: {priorytet}\n" +
                                 $"Towarów: {zaznaczoneTowary.Count}\n" +
                                 $"Suma kg: {sumaKg:N2}\n" +
-                                $"Wartość: {sumaWartosc:N2} zł",
+                                $"Wartość: {sumaWartosc:N2} zł{korekInfo}",
                                 "Sukces",
                                 MessageBoxButton.OK,
                                 MessageBoxImage.Information);
@@ -672,6 +964,22 @@ namespace Kalendarz1.Reklamacje
         public decimal Cena { get; set; }
         public decimal Wartosc { get; set; }
 
+        public event System.ComponentModel.PropertyChangedEventHandler PropertyChanged;
+    }
+
+    public class KorektaItem : System.ComponentModel.INotifyPropertyChanged
+    {
+        private bool _isSelected;
+        public bool IsSelected
+        {
+            get => _isSelected;
+            set { _isSelected = value; PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(nameof(IsSelected))); }
+        }
+        public int IdDokumentu { get; set; }
+        public string NumerDokumentu { get; set; }
+        public DateTime Data { get; set; }
+        public decimal Wartosc { get; set; }
+        public decimal SumaKg { get; set; }
         public event System.ComponentModel.PropertyChangedEventHandler PropertyChanged;
     }
 

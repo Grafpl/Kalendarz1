@@ -131,31 +131,38 @@ namespace Kalendarz1.MapaFloty
         {
             var result = new Dictionary<string, KlientAdresInfo>();
             var brakujace = new List<string>();
+            var kodyList = kodyKlientow.Distinct().ToList();
+            if (kodyList.Count == 0) return result;
 
-            // 1) Cache
+            // 1) BATCH query — jeden SELECT z IN zamiast N osobnych
             using (var conn = new SqlConnection(_conn))
             {
                 await conn.OpenAsync();
-                foreach (var kod in kodyKlientow.Distinct())
+                var paramNames = new List<string>();
+                using var cmd = conn.CreateCommand();
+                for (int i = 0; i < kodyList.Count; i++)
                 {
-                    using var cmd = conn.CreateCommand();
-                    cmd.CommandText = "SELECT NazwaKlienta, Ulica, Miasto, KodPocztowy, Kraj, Latitude, Longitude FROM KlientAdres WHERE KodKlienta=@k";
-                    cmd.Parameters.AddWithValue("@k", kod);
-                    using var r = await cmd.ExecuteReaderAsync();
-                    if (await r.ReadAsync())
+                    var pname = $"@k{i}";
+                    paramNames.Add(pname);
+                    cmd.Parameters.AddWithValue(pname, kodyList[i]);
+                }
+                cmd.CommandText = $"SELECT KodKlienta, NazwaKlienta, Ulica, Miasto, KodPocztowy, Kraj, Latitude, Longitude FROM KlientAdres WHERE KodKlienta IN ({string.Join(",", paramNames)})";
+                using var r = await cmd.ExecuteReaderAsync();
+                while (await r.ReadAsync())
+                {
+                    var kod = r["KodKlienta"]?.ToString() ?? "";
+                    result[kod] = new KlientAdresInfo
                     {
-                        result[kod] = new KlientAdresInfo
-                        {
-                            KodKlienta = kod, Nazwa = r["NazwaKlienta"]?.ToString() ?? kod,
-                            Ulica = r["Ulica"]?.ToString() ?? "", Miasto = r["Miasto"]?.ToString() ?? "",
-                            KodPocztowy = r["KodPocztowy"]?.ToString() ?? "", Kraj = r["Kraj"]?.ToString() ?? "PL",
-                            Lat = r["Latitude"] == DBNull.Value ? 0 : Convert.ToDouble(r["Latitude"]),
-                            Lon = r["Longitude"] == DBNull.Value ? 0 : Convert.ToDouble(r["Longitude"])
-                        };
-                    }
-                    else brakujace.Add(kod);
+                        KodKlienta = kod, Nazwa = r["NazwaKlienta"]?.ToString() ?? kod,
+                        Ulica = r["Ulica"]?.ToString() ?? "", Miasto = r["Miasto"]?.ToString() ?? "",
+                        KodPocztowy = r["KodPocztowy"]?.ToString() ?? "", Kraj = r["Kraj"]?.ToString() ?? "PL",
+                        Lat = r["Latitude"] == DBNull.Value ? 0 : Convert.ToDouble(r["Latitude"]),
+                        Lon = r["Longitude"] == DBNull.Value ? 0 : Convert.ToDouble(r["Longitude"])
+                    };
                 }
             }
+            foreach (var kod in kodyList)
+                if (!result.ContainsKey(kod)) brakujace.Add(kod);
             if (brakujace.Count == 0) return result;
 
             // 2) Batch z Handel — BEZ Nominatim

@@ -322,6 +322,26 @@
                             </Border>
                         </Grid>
 
+                        <!-- KATEGORIA (Etap 2.5) -->
+                        <Border x:Name="sectionKategoria" Visibility="Collapsed" Margin="0,0,0,10">
+                            <StackPanel>
+                                <TextBlock Text="KATEGORYZACJA" Style="{StaticResource SectionLabel}"/>
+                                <Border Background="#EAF2FB" CornerRadius="6" Padding="12,10"
+                                        BorderBrush="#B3D7F2" BorderThickness="1">
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                            <TextBlock Text="Kategoria: " FontSize="10" Foreground="#5D6D7E" FontWeight="SemiBold"/>
+                                            <TextBlock x:Name="txtKategoria" FontSize="11" FontWeight="Bold" Foreground="#1565C0"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="Podkategoria: " FontSize="10" Foreground="#5D6D7E" FontWeight="SemiBold"/>
+                                            <TextBlock x:Name="txtPodkategoria" FontSize="11" Foreground="#2C3E50"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+
                         <!-- OPIS -->
                         <TextBlock Text="OPIS PROBLEMU" Style="{StaticResource SectionLabel}" Margin="0,4,0,4"/>
                         <Border Background="#F8FFF8" CornerRadius="6" Padding="12,10"
@@ -329,6 +349,19 @@
                             <TextBlock x:Name="txtOpis" TextWrapping="Wrap" FontSize="11.5"
                                        Foreground="#2C3E50" LineHeight="19" Text="-" MaxHeight="120"
                                        TextTrimming="CharacterEllipsis"/>
+                        </Border>
+
+                        <!-- NOTATKA JAKOSCI (Workflow V2) -->
+                        <Border x:Name="sectionNotatkaJakosci" Visibility="Collapsed" Margin="0,0,0,10">
+                            <StackPanel>
+                                <TextBlock Text="NOTATKI DZIALU JAKOSCI" Style="{StaticResource SectionLabel}"/>
+                                <Border Background="#FFEBEE" CornerRadius="6" Padding="12,10"
+                                        BorderBrush="#FFCDD2" BorderThickness="1">
+                                    <TextBlock x:Name="txtNotatkaJakosci" TextWrapping="Wrap" FontSize="11"
+                                               Foreground="#B71C1C" LineHeight="18" MaxHeight="140"
+                                               TextTrimming="CharacterEllipsis"/>
+                                </Border>
+                            </StackPanel>
                         </Border>
 
                         <!-- KOMENTARZ -->
@@ -470,11 +503,11 @@
                             </Style>
                         </TabControl.Resources>
 
-                        <!-- TAB: ZDJECIA -->
-                        <TabItem x:Name="sectionZdjecia" Visibility="Collapsed">
+                        <!-- TAB: ZDJECIA / ZALACZNIKI -->
+                        <TabItem x:Name="sectionZdjecia">
                             <TabItem.Header>
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="Zdjecia "/>
+                                    <TextBlock Text="Zalaczniki "/>
                                     <TextBlock x:Name="txtZdjeciaCount" Text="(0)" Foreground="#95A5A6" FontWeight="Normal"/>
                                 </StackPanel>
                             </TabItem.Header>
@@ -482,9 +515,11 @@
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="*"/>
                                     <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
                                 <Border Background="#F4F6F7" CornerRadius="6" Cursor="Hand"
-                                        MouseLeftButtonDown="Preview_MouseDown" ClipToBounds="True">
+                                        MouseLeftButtonDown="Preview_MouseDown" ClipToBounds="True"
+                                        AllowDrop="True" DragEnter="Zalaczniki_DragEnter" Drop="Zalaczniki_Drop" DragLeave="Zalaczniki_DragLeave">
                                     <Grid>
                                         <Image x:Name="imgPreview" Stretch="Uniform" Margin="6"/>
                                         <TextBlock x:Name="txtNoPhoto" Text="Wybierz zdjecie z listy ponizej"
@@ -540,6 +575,34 @@
                                         </DataTemplate>
                                     </ListBox.ItemTemplate>
                                 </ListBox>
+                                <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,8,0,0">
+                                    <Button x:Name="btnDodajZalacznik" Content="+ Dodaj zalacznik" Click="BtnDodajZalacznik_Click"
+                                            Padding="12,7" FontSize="11" FontWeight="SemiBold"
+                                            Background="#3498DB" Foreground="White" BorderThickness="0" Cursor="Hand" Margin="0,0,8,0">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border Background="{TemplateBinding Background}" CornerRadius="5" Padding="{TemplateBinding Padding}">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                    <Button x:Name="btnUsunZalacznik" Content="Usun" Click="BtnUsunZalacznik_Click"
+                                            Padding="12,7" FontSize="11" FontWeight="SemiBold"
+                                            Background="#E74C3C" Foreground="White" BorderThickness="0" Cursor="Hand"
+                                            IsEnabled="False">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border Background="{TemplateBinding Background}" CornerRadius="5" Padding="{TemplateBinding Padding}">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                    <TextBlock x:Name="txtZalacznikiHint" Text="  JPG, PNG, PDF do 10MB  |  Przeciagnij pliki tutaj"
+                                               FontSize="10" FontStyle="Italic" Foreground="#95A5A6"
+                                               VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                </StackPanel>
                             </Grid>
                         </TabItem>
 
@@ -640,6 +703,89 @@
                                 </ItemsControl>
                             </ScrollViewer>
                         </TabItem>
+
+                        <!-- TAB: KOMENTARZE WEWNETRZNE -->
+                        <TabItem x:Name="sectionKomentarze">
+                            <TabItem.Header>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Dyskusja "/>
+                                    <TextBlock x:Name="txtKomentarzeCount" Text="(0)" Foreground="#95A5A6" FontWeight="Normal"/>
+                                </StackPanel>
+                            </TabItem.Header>
+                            <Grid Margin="10,8">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <ItemsControl x:Name="icKomentarze">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Padding="10,8" Margin="0,0,0,6" Background="#FAFBFC"
+                                                        CornerRadius="8" BorderBrush="#E8E8E8" BorderThickness="1">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <Grid Width="30" Height="30" Margin="0,0,10,0" VerticalAlignment="Top">
+                                                            <Border Width="30" Height="30" CornerRadius="15"
+                                                                    Background="{Binding AvatarColor}">
+                                                                <TextBlock Text="{Binding Inicjaly}" Foreground="White"
+                                                                           FontWeight="Bold" FontSize="10"
+                                                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                            </Border>
+                                                            <Ellipse Width="30" Height="30" Visibility="{Binding AvatarPhotoVisibility}">
+                                                                <Ellipse.Fill>
+                                                                    <ImageBrush ImageSource="{Binding AvatarPhoto}" Stretch="UniformToFill"/>
+                                                                </Ellipse.Fill>
+                                                            </Ellipse>
+                                                        </Grid>
+                                                        <StackPanel Grid.Column="1">
+                                                            <TextBlock Text="{Binding UserName}" FontWeight="SemiBold" FontSize="11" Foreground="#2C3E50"/>
+                                                            <TextBlock Text="{Binding Tresc}" TextWrapping="Wrap" FontSize="11.5"
+                                                                       Foreground="#546E7A" Margin="0,4,0,0"/>
+                                                        </StackPanel>
+                                                        <TextBlock Grid.Column="2" Text="{Binding DataStr}" FontSize="9.5"
+                                                                   Foreground="#95A5A6" VerticalAlignment="Top"/>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                                <Border Grid.Row="1" Margin="0,8,0,0" Background="White" CornerRadius="8"
+                                        BorderBrush="#DDE2E6" BorderThickness="1.5" Padding="0">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox x:Name="txtNowyKomentarz" FontSize="12" Padding="12,10"
+                                                 AcceptsReturn="False" BorderThickness="0" Background="Transparent"
+                                                 VerticalContentAlignment="Center"/>
+                                        <Button Grid.Column="1" x:Name="btnDodajKomentarz" Content="Wyslij" Click="BtnDodajKomentarz_Click"
+                                                Padding="16,9" FontSize="11" FontWeight="SemiBold"
+                                                Background="#1E8449" Foreground="White" BorderThickness="0" Cursor="Hand"
+                                                Margin="4">
+                                            <Button.Template>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter Property="Opacity" Value="0.85"/>
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Button.Template>
+                                        </Button>
+                                    </Grid>
+                                </Border>
+                            </Grid>
+                        </TabItem>
                     </TabControl>
                 </Border>
             </Grid>
@@ -665,6 +811,8 @@
                             Background="#C0392B" Click="BtnExportPDF_Click"/>
                     <Button Content="Wyslij email" Style="{StaticResource ActionButton}"
                             Background="#E74C3C" Click="BtnEmail_Click"/>
+                    <Button Content="Drukuj protokol" Style="{StaticResource ActionButton}"
+                            Background="#2C3E50" Click="BtnDrukuj_Click"/>
                 </StackPanel>
                 <Button Content="Zamknij" Style="{StaticResource ActionButton}"
                         Background="#7F8C8D" HorizontalAlignment="Right"

@@ -71,6 +71,16 @@
                     </StackPanel>
                     <StackPanel DockPanel.Dock="Right" HorizontalAlignment="Right" Orientation="Horizontal" VerticalAlignment="Center">
                         <TextBlock x:Name="InfoPostep" FontSize="14" FontWeight="Bold" Foreground="#2e7d32" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                        <Button Content="Plan vs Fakt" Click="BtnPlanVsFakt_Click" Background="#e3f2fd" Foreground="#1565c0"
+                                BorderThickness="0" Padding="10,4" Cursor="Hand" FontSize="10" Visibility="Collapsed" x:Name="BtnCompare">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border Background="{TemplateBinding Background}" CornerRadius="5" Padding="{TemplateBinding Padding}">
+                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
                         <Button Content="Eksport GPX" Click="BtnExportGpx_Click" Background="#e8f5e9" Foreground="#2e7d32"
                                 BorderThickness="0" Padding="10,4" Cursor="Hand" FontSize="10" Visibility="Collapsed" x:Name="BtnGpx">
                             <Button.Template>

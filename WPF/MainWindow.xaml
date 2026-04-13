@@ -297,6 +297,8 @@
                                 <ContextMenu x:Name="contextMenuOrders">
                                     <MenuItem x:Name="menuDuplikuj" Header="🔄 Duplikuj zamówienie" Click="MenuDuplikuj_Click"/>
                                     <MenuItem x:Name="menuCykliczne" Header="📅 Zamówienia cykliczne" Click="MenuCykliczne_Click"/>
+                                    <MenuItem x:Name="menuPokazCykl" Header="🔗 Pokaż cały cykl" Click="MenuPokazCykl_Click" Visibility="Collapsed"/>
+                                    <MenuItem x:Name="menuAnulujCykl" Header="🔗❌ Anuluj cały cykl" Click="MenuAnulujCykl_Click" Visibility="Collapsed"/>
                                     <MenuItem x:Name="menuModyfikuj" Header="✏️ Modyfikuj zamówienie" Click="MenuModyfikuj_Click"/>
                                     <MenuItem x:Name="menuNotatka" Header="📝 Dodaj/Edytuj notatkę" Click="MenuNotatka_Click"/>
                                     <Separator/>
