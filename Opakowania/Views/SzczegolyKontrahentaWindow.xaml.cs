@@ -106,13 +106,15 @@ namespace Kalendarz1.Opakowania.Views
         /// <summary>
         /// Otwiera dialog potwierdzenia salda
         /// </summary>
-        private void OtworzDialogPotwierdzenia(string typOpakowania, int saldoSystemowe)
+        private void OtworzDialogPotwierdzenia(string kodOpakowania, int saldoSystemowe)
         {
+            var typ = Array.Find(TypOpakowania.WszystkieTypy, t => t.Kod == kodOpakowania)
+                ?? new TypOpakowania { Kod = kodOpakowania, Nazwa = kodOpakowania, NazwaSystemowa = kodOpakowania };
             var dialog = new DodajPotwierdzenieWindow(
                 _viewModel.Kontrahent.Id,
                 _viewModel.Kontrahent.Kontrahent,
                 _viewModel.Kontrahent.Nazwa,
-                typOpakowania,
+                typ,
                 saldoSystemowe,
                 _viewModel.UserId);
             dialog.Owner = this;

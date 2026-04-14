@@ -283,6 +283,24 @@ namespace Kalendarz1.Opakowania.Models
 
         public string OstatniePotwierdzenieText => OstatniePotwierdzenie?.ToString("dd.MM.yyyy") ?? "-";
 
+        /// <summary>Dni od ostatniego potwierdzenia (MaxValue jeśli nigdy)</summary>
+        public int DniOdPotwierdzenia => OstatniePotwierdzenie.HasValue
+            ? (int)(DateTime.Today - OstatniePotwierdzenie.Value).TotalDays
+            : int.MaxValue;
+
+        /// <summary>Tekst statusu potwierdzenia do wyświetlania w gridzie</summary>
+        public string PotwierdzenieTekst
+        {
+            get
+            {
+                if (!OstatniePotwierdzenie.HasValue) return "Nigdy";
+                int dni = DniOdPotwierdzenia;
+                if (dni <= 30) return $"{OstatniePotwierdzenie:dd.MM}  OK";
+                if (dni <= 90) return $"{OstatniePotwierdzenie:dd.MM}  !";
+                return $"{OstatniePotwierdzenie:dd.MM}  !!!";
+            }
+        }
+
         private string FormatujSaldo(int saldo)
         {
             if (saldo == 0) return "0";

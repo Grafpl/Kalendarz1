@@ -112,10 +112,16 @@ namespace Kalendarz1.Opakowania.Services
                         dataOd,
                         dataDo);
 
-                    // Przenieś plik do właściwego folderu
-                    string sciezkaDocelowa = GetSciezkaZapisu();
+                    // Folder docelowy: ścieżka bazowa / nazwa kontrahenta
+                    string sciezkaBazowa = GetSciezkaZapisu();
+                    string bezpiecznaNazwaFolderu = string.Join("_", kontrahent.Trim().Split(Path.GetInvalidFileNameChars()));
+                    string folderKontrahenta = Path.Combine(sciezkaBazowa, bezpiecznaNazwaFolderu);
+
+                    if (!Directory.Exists(folderKontrahenta))
+                        Directory.CreateDirectory(folderKontrahenta);
+
                     string nazwaPliku = GenerujNazwePliku(kontrahent, "Saldo");
-                    string pelnaSciezkaDocelowa = Path.Combine(sciezkaDocelowa, nazwaPliku);
+                    string pelnaSciezkaDocelowa = Path.Combine(folderKontrahenta, nazwaPliku);
 
                     // Skopiuj plik z lokalizacji tymczasowej do docelowej
                     if (File.Exists(pdfPath))
@@ -470,10 +476,13 @@ namespace Kalendarz1.Opakowania.Services
             {
                 try
                 {
-                    string sciezka = GetSciezkaZapisu();
-                    string bezpiecznaNazwa = string.Join("_", kontrahent.Split(Path.GetInvalidFileNameChars()));
+                    string sciezkaBazowa = GetSciezkaZapisu();
+                    string bezpiecznaNazwa = string.Join("_", kontrahent.Trim().Split(Path.GetInvalidFileNameChars()));
+                    string folderKontrahenta = Path.Combine(sciezkaBazowa, bezpiecznaNazwa);
+                    if (!Directory.Exists(folderKontrahenta))
+                        Directory.CreateDirectory(folderKontrahenta);
                     string nazwaPliku = $"Dokumenty_{bezpiecznaNazwa}_{DateTime.Now:yyyy-MM-dd_HH-mm}.csv";
-                    string pelnaSciezka = Path.Combine(sciezka, nazwaPliku);
+                    string pelnaSciezka = Path.Combine(folderKontrahenta, nazwaPliku);
 
                     var sb = new StringBuilder();
                     sb.AppendLine("Data;Nr dokumentu;Typ;E2;H1;EURO;PCV;DREW");
@@ -811,9 +820,13 @@ namespace Kalendarz1.Opakowania.Services
         {
             try
             {
-                string sciezka = GetSciezkaZapisu();
+                string sciezkaBazowa = GetSciezkaZapisu();
+                string bezpiecznaNazwa = string.Join("_", kontrahent.Kontrahent.Trim().Split(Path.GetInvalidFileNameChars()));
+                string folderKontrahenta = Path.Combine(sciezkaBazowa, bezpiecznaNazwa);
+                if (!Directory.Exists(folderKontrahenta))
+                    Directory.CreateDirectory(folderKontrahenta);
                 string nazwaPliku = GenerujNazwePliku(kontrahent.Kontrahent, "Saldo");
-                string pelnaSciezka = Path.Combine(sciezka, nazwaPliku.Replace(".pdf", ".html"));
+                string pelnaSciezka = Path.Combine(folderKontrahenta, nazwaPliku.Replace(".pdf", ".html"));
 
                 string html = GenerujHTMLSaldaKontrahentaNowy(kontrahent, dokumenty, dataOd, dataDo);
                 File.WriteAllText(pelnaSciezka, html, Encoding.UTF8);
@@ -833,10 +846,13 @@ namespace Kalendarz1.Opakowania.Services
         {
             try
             {
-                string sciezka = GetSciezkaZapisu();
-                string bezpiecznaNazwa = string.Join("_", kontrahent.Kontrahent.Split(Path.GetInvalidFileNameChars()));
+                string sciezkaBazowa = GetSciezkaZapisu();
+                string bezpiecznaNazwa = string.Join("_", kontrahent.Kontrahent.Trim().Split(Path.GetInvalidFileNameChars()));
+                string folderKontrahenta = Path.Combine(sciezkaBazowa, bezpiecznaNazwa);
+                if (!Directory.Exists(folderKontrahenta))
+                    Directory.CreateDirectory(folderKontrahenta);
                 string nazwaPliku = $"Saldo_{bezpiecznaNazwa}_{DateTime.Now:yyyy-MM-dd_HH-mm}.csv";
-                string pelnaSciezka = Path.Combine(sciezka, nazwaPliku);
+                string pelnaSciezka = Path.Combine(folderKontrahenta, nazwaPliku);
 
                 var sb = new StringBuilder();
                 sb.AppendLine($"Kontrahent: {kontrahent.Kontrahent} - {kontrahent.Nazwa}");

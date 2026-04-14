@@ -39,6 +39,8 @@ namespace Kalendarz1.Transport.Formularze
         private bool _isUpdating;
         private Timer _autoUpdateTimer;
         private readonly ConflictDetectionService _conflictService = new();
+        private readonly EtaService _etaService = new();
+        private readonly CoordinatesCache _coordinatesCache = new();
 
         // Undo
         private Stack<Action> _undoStack = new();
@@ -89,6 +91,11 @@ namespace Kalendarz1.Transport.Formularze
             public int PoprzedniePojemniki { get; set; }
             public DateTime? DataUboju { get; set; }
             public string? Handlowiec { get; set; }
+            public int KlientId { get; set; }
+            /// <summary>Obliczone ETA (szacowany czas przyjazdu)</summary>
+            public TimeSpan? Eta { get; set; }
+            /// <summary>Dystans od poprzedniego punktu [km]</summary>
+            public double DistanceKm { get; set; }
         }
 
         public class ZamowienieRow
@@ -755,6 +762,7 @@ namespace Kalendarz1.Transport.Formularze
                 {
                     string? nazwaKlienta = null;
                     string? adres = null;
+                    int klientId = 0;
 
                     // Pobierz nazwę klienta z zamówienia lub kontrahenta
                     if (l.KodKlienta?.StartsWith("ZAM_") == true && int.TryParse(l.KodKlienta.Substring(4), out int zamId))
@@ -762,6 +770,7 @@ namespace Kalendarz1.Transport.Formularze
                         var info = await PobierzInfoZamowienia(zamId);
                         nazwaKlienta = info.nazwa;
                         adres = info.adres;
+                        klientId = info.klientId;
                     }
 
                     var planE2 = l.PlanE2NaPaleteOverride ?? 36;
@@ -779,7 +788,8 @@ namespace Kalendarz1.Transport.Formularze
                         Adres = adres,
                         TrybE2 = l.TrybE2,
                         PlanE2NaPaleteOverride = l.PlanE2NaPaleteOverride,
-                        NazwaKlienta = nazwaKlienta
+                        NazwaKlienta = nazwaKlienta,
+                        KlientId = klientId
                     });
                 }
 
@@ -791,14 +801,15 @@ namespace Kalendarz1.Transport.Formularze
             }
         }
 
-        private async System.Threading.Tasks.Task<(string? nazwa, string? adres)> PobierzInfoZamowienia(int zamId)
+        private async System.Threading.Tasks.Task<(string? nazwa, string? adres, int klientId)> PobierzInfoZamowienia(int zamId)
         {
             try
             {
                 await using var cn = new SqlConnection(_connLibra);
                 await cn.OpenAsync();
                 var sql = @"SELECT TOP 1 z.Uwagi, c.Name1,
-                            ISNULL(a.ZipCode,'') + ' ' + ISNULL(a.City,'')
+                            ISNULL(a.ZipCode,'') + ' ' + ISNULL(a.City,''),
+                            z.KlientId
                             FROM ZamowieniaMieso z
                             LEFT JOIN [192.168.0.112].Handel.SSCommon.STContractors c ON z.KlientId = c.Id
                             LEFT JOIN [192.168.0.112].Handel.SSCommon.STPostOfficeAddresses a ON c.Id = a.ContractorId AND a.IsDefault = 1
@@ -809,14 +820,15 @@ namespace Kalendarz1.Transport.Formularze
                 if (await rdr.ReadAsync())
                 {
                     return (rdr.IsDBNull(1) ? null : rdr.GetString(1),
-                            rdr.IsDBNull(2) ? null : rdr.GetString(2).Trim());
+                            rdr.IsDBNull(2) ? null : rdr.GetString(2).Trim(),
+                            rdr.IsDBNull(3) ? 0 : rdr.GetInt32(3));
                 }
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[KursEditor] PobierzInfoZamowienia error: {ex.Message}");
             }
-            return (null, null);
+            return (null, null, 0);
         }
 
         private async System.Threading.Tasks.Task LoadWolneZamowieniaAsync()
@@ -963,7 +975,7 @@ namespace Kalendarz1.Transport.Formularze
         // ═══════════════════════════════════════════
         //  OnCourseChanged — centralny punkt aktualizacji
         // ═══════════════════════════════════════════
-        private void OnCourseChanged()
+        private async void OnCourseChanged()
         {
             if (!_dataLoaded) return;
 
@@ -979,26 +991,41 @@ namespace Kalendarz1.Transport.Formularze
                 int sumaWaga = (int)(sumPoj * 5.4);
                 capacityBar.SetCapacity(sumPalet, maxPalet, sumPoj, sumaWaga);
 
-                // 3. Route pills
-                var stops = _ladunki.OrderBy(l => l.Kolejnosc)
-                    .Where(l => !string.IsNullOrEmpty(l.NazwaKlienta))
-                    .Select(l => l.NazwaKlienta!)
-                    .ToArray();
-                routePills.SetRoute(stops);
+                // 3. Oblicz ETA dla każdego punktu
+                var etaResult = await CalculateRouteEtaAsync();
 
-                // 4. Timeline
+                // 4. Route pills z czasami ETA
+                var pillStops = new List<RoutePillsControl.RouteStop>();
+                pillStops.Add(new RoutePillsControl.RouteStop { Name = "START", IsStart = true });
+                foreach (var l in _ladunki.OrderBy(l => l.Kolejnosc))
+                {
+                    if (string.IsNullOrEmpty(l.NazwaKlienta)) continue;
+                    var etaTime = l.Eta.HasValue ? l.Eta.Value.ToString(@"hh\:mm") : null;
+                    var distInfo = l.DistanceKm > 0 ? $"{l.DistanceKm:N0}km" : null;
+                    var timeStr = etaTime != null ? (distInfo != null ? $"{etaTime} ~{distInfo}" : etaTime) : null;
+                    pillStops.Add(new RoutePillsControl.RouteStop
+                    {
+                        Name = l.NazwaKlienta!,
+                        Time = timeStr
+                    });
+                }
+                pillStops.Add(new RoutePillsControl.RouteStop { Name = "POWRÓT", IsReturn = true });
+                routePills.SetRoute(pillStops);
+
+                // 5. Timeline z dystansami
                 var timeStops = _ladunki.OrderBy(l => l.Kolejnosc)
                     .Select(l => new TimelineControl.TimelineStop
                     {
                         ClientName = l.NazwaKlienta ?? "?",
-                        PlannedArrival = TimeSpan.Zero // TODO: calculate from order data
+                        PlannedArrival = l.Eta ?? TimeSpan.Zero,
+                        DistanceKm = (int)l.DistanceKm
                     }).ToList();
                 timeline.SetCourse(
                     dtpGodzWyjazdu.Value.TimeOfDay,
                     dtpGodzPowrotu.Value.TimeOfDay,
                     timeStops);
 
-                // 5. Konflikty
+                // 6. Konflikty
                 var courseData = new ConflictDetectionService.CourseData
                 {
                     KursId = _kursId,
@@ -1023,14 +1050,126 @@ namespace Kalendarz1.Transport.Formularze
                 var conflicts = _conflictService.DetectAll(courseData);
                 conflictPanel.SetConflicts(conflicts);
 
-                // 6. Przycisk Zapisz
+                // 7. Przycisk Zapisz
                 bool hasErrors = conflicts.Any(c => c.Level == ConflictLevel.Error);
                 btnZapisz.BackColor = hasErrors ? ZpspColors.Orange : ZpspColors.Green;
                 btnZapisz.Text = hasErrors ? "\u26a0 ZAPISZ KURS (z ostrzeżeniami)" : "\u2713 ZAPISZ KURS";
+
+                // 8. Odśwież kolumnę ETA w gridzie
+                RefreshEtaInGrid();
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[KursEditor] OnCourseChanged error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Pobiera współrzędne GPS z cache i oblicza ETA dla każdego przystanku.
+        /// Zapisuje wyniki w LadunekRow.Eta i LadunekRow.DistanceKm.
+        /// </summary>
+        private async System.Threading.Tasks.Task<EtaService.RouteEtaResult> CalculateRouteEtaAsync()
+        {
+            var stopInputs = new List<EtaService.StopInput>();
+
+            foreach (var l in _ladunki.OrderBy(l => l.Kolejnosc))
+            {
+                double lat = 0, lng = 0;
+
+                if (l.KlientId > 0)
+                {
+                    var coords = await _coordinatesCache.GetCoordinatesAsync(l.KlientId);
+                    if (coords.HasValue)
+                    {
+                        lat = coords.Value.lat;
+                        lng = coords.Value.lng;
+                    }
+                }
+
+                stopInputs.Add(new EtaService.StopInput
+                {
+                    Kolejnosc = l.Kolejnosc,
+                    NazwaKlienta = l.NazwaKlienta ?? "?",
+                    Latitude = lat,
+                    Longitude = lng
+                });
+            }
+
+            var departure = dtpGodzWyjazdu.Value.TimeOfDay;
+            var result = _etaService.Calculate(departure, stopInputs);
+
+            // Zapisz wyniki w LadunekRow
+            foreach (var stopEta in result.Stops)
+            {
+                var ladunek = _ladunki.FirstOrDefault(l => l.Kolejnosc == stopEta.Kolejnosc);
+                if (ladunek != null)
+                {
+                    ladunek.Eta = stopEta.Eta;
+                    ladunek.DistanceKm = stopEta.DistanceFromPrevKm;
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Odświeża kolumnę ETA w gridzie ładunków.
+        /// </summary>
+        private void RefreshEtaInGrid()
+        {
+            if (dgvLadunki.Columns.Count == 0) return;
+
+            // Sprawdź czy kolumna ETA istnieje, jeśli nie — dodaj ją
+            if (!dgvLadunki.Columns.Contains("colEta"))
+            {
+                var colEta = new DataGridViewTextBoxColumn
+                {
+                    Name = "colEta",
+                    HeaderText = "ETA",
+                    Width = 55,
+                    ReadOnly = true,
+                    DefaultCellStyle = new DataGridViewCellStyle
+                    {
+                        Alignment = DataGridViewContentAlignment.MiddleCenter,
+                        Font = new Font("Segoe UI", 8.5F, FontStyle.Bold)
+                    }
+                };
+                var colDist = new DataGridViewTextBoxColumn
+                {
+                    Name = "colDist",
+                    HeaderText = "km",
+                    Width = 45,
+                    ReadOnly = true,
+                    DefaultCellStyle = new DataGridViewCellStyle
+                    {
+                        Alignment = DataGridViewContentAlignment.MiddleRight,
+                        Font = new Font("Segoe UI", 8F)
+                    }
+                };
+                // Wstaw po kolumnie Adres (indeks 5) lub na końcu
+                int insertIdx = Math.Min(6, dgvLadunki.Columns.Count);
+                dgvLadunki.Columns.Insert(insertIdx, colDist);
+                dgvLadunki.Columns.Insert(insertIdx, colEta);
+            }
+
+            for (int i = 0; i < dgvLadunki.Rows.Count; i++)
+            {
+                if (dgvLadunki.Rows[i].Tag is LadunekRow l)
+                {
+                    dgvLadunki.Rows[i].Cells["colEta"].Value = l.Eta.HasValue
+                        ? l.Eta.Value.ToString(@"hh\:mm")
+                        : "—";
+                    dgvLadunki.Rows[i].Cells["colDist"].Value = l.DistanceKm > 0
+                        ? $"{l.DistanceKm:N0}"
+                        : "—";
+
+                    // Podświetl brak GPS na żółto
+                    if (l.DistanceKm == 30 && l.KlientId > 0) // fallback = brak koordynatów
+                    {
+                        dgvLadunki.Rows[i].Cells["colEta"].Style.ForeColor = ZpspColors.Orange;
+                        dgvLadunki.Rows[i].Cells["colDist"].Style.ForeColor = ZpspColors.Orange;
+                    }
+                }
             }
         }
 
@@ -1079,6 +1218,7 @@ namespace Kalendarz1.Transport.Formularze
                     NazwaKlienta = zamowienie.KlientNazwa,
                     DataUboju = zamowienie.DataUboju,
                     Handlowiec = zamowienie.Handlowiec,
+                    KlientId = zamowienie.KlientId,
                     Kolejnosc = _ladunki.Count + 1
                 });
 

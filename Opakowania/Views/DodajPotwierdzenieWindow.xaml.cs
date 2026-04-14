@@ -1,115 +1,61 @@
 using System;
 using System.Windows;
-using System.Windows.Input;
 using Microsoft.Win32;
 using Kalendarz1.Opakowania.Models;
 using Kalendarz1.Opakowania.ViewModels;
 
 namespace Kalendarz1.Opakowania.Views
 {
-    /// <summary>
-    /// Okno dialogowe do dodawania potwierdzenia salda opakowania
-    /// </summary>
     public partial class DodajPotwierdzenieWindow : Window
     {
-        private readonly DodajPotwierdzenieViewModel _viewModel;
+        private readonly DodajPotwierdzenieViewModel _vm;
 
-        public DodajPotwierdzenieWindow(
-            int kontrahentId,
-            string kontrahentNazwa,
-            string kontrahentShortcut,
-            TypOpakowania typOpakowania,
-            int saldoSystemowe,
-            string userId)
+        public DodajPotwierdzenieWindow(int kontrahentId, string kontrahentNazwa, SaldoOpakowania saldo, string userId)
         {
             InitializeComponent();
             WindowIconHelper.SetIcon(this);
-
-            _viewModel = new DodajPotwierdzenieViewModel(
-                kontrahentId,
-                kontrahentNazwa,
-                kontrahentShortcut,
-                typOpakowania,
-                saldoSystemowe,
-                userId);
-
-            DataContext = _viewModel;
-
-            // Subskrybuj event zamknięcia
-            _viewModel.RequestClose += OnRequestClose;
-            _viewModel.WybierzZalacznikRequested += OnWybierzZalacznik;
+            _vm = new DodajPotwierdzenieViewModel(kontrahentId, kontrahentNazwa, kontrahentNazwa, userId,
+                saldo?.SaldoE2 ?? 0, saldo?.SaldoH1 ?? 0, saldo?.SaldoEURO ?? 0, saldo?.SaldoPCV ?? 0, saldo?.SaldoDREW ?? 0);
+            DataContext = _vm;
         }
 
-        /// <summary>
-        /// Alternatywny konstruktor dla nowego dashboardu - przyjmuje kod opakowania jako string
-        /// </summary>
-        public DodajPotwierdzenieWindow(
-            int kontrahentId,
-            string kontrahentShortcut,
-            string kontrahentNazwa,
-            string kodOpakowania,
-            int saldoSystemowe,
-            string userId)
+        public DodajPotwierdzenieWindow(int kontrahentId, string kontrahentNazwa, string kontrahentShortcut,
+            TypOpakowania typOpakowania, int saldoSystemowe, string userId)
         {
             InitializeComponent();
             WindowIconHelper.SetIcon(this);
-
-            // Znajdź typ opakowania po kodzie
-            var typOpakowania = Array.Find(TypOpakowania.WszystkieTypy, t => t.Kod == kodOpakowania)
-                ?? new TypOpakowania { Kod = kodOpakowania, Nazwa = kodOpakowania, NazwaSystemowa = kodOpakowania };
-
-            _viewModel = new DodajPotwierdzenieViewModel(
-                kontrahentId,
-                kontrahentNazwa,
-                kontrahentShortcut,
-                typOpakowania,
-                saldoSystemowe,
-                userId);
-
-            DataContext = _viewModel;
-
-            // Subskrybuj event zamknięcia
-            _viewModel.RequestClose += OnRequestClose;
-            _viewModel.WybierzZalacznikRequested += OnWybierzZalacznik;
-        }
-
-        private void OnRequestClose(bool? dialogResult)
-        {
-            DialogResult = dialogResult;
-            Close();
-        }
-
-        private void OnWybierzZalacznik()
-        {
-            var dialog = new OpenFileDialog
+            int e2 = 0, h1 = 0, euro = 0, pcv = 0, drew = 0;
+            switch (typOpakowania?.Kod)
             {
-                Title = "Wybierz załącznik",
-                Filter = "Wszystkie pliki|*.*|Obrazy|*.jpg;*.jpeg;*.png;*.bmp|Dokumenty PDF|*.pdf|Dokumenty Word|*.doc;*.docx",
-                CheckFileExists = true,
-                Multiselect = false
-            };
-
-            if (dialog.ShowDialog() == true)
-            {
-                _viewModel.SciezkaZalacznika = dialog.FileName;
+                case "E2": e2 = saldoSystemowe; break;
+                case "H1": h1 = saldoSystemowe; break;
+                case "EURO": euro = saldoSystemowe; break;
+                case "PCV": pcv = saldoSystemowe; break;
+                case "DREW": drew = saldoSystemowe; break;
             }
+            _vm = new DodajPotwierdzenieViewModel(kontrahentId, kontrahentNazwa, kontrahentShortcut, userId,
+                e2, h1, euro, pcv, drew);
+            DataContext = _vm;
+        }
+
+        private void BtnWybierzSkan_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new OpenFileDialog
+            {
+                Title = "Wybierz skan potwierdzenia",
+                Filter = "Obrazy i PDF|*.jpg;*.jpeg;*.png;*.bmp;*.pdf;*.tif;*.tiff|Wszystkie pliki|*.*",
+                CheckFileExists = true
+            };
+            if (dlg.ShowDialog() == true)
+                _vm.SkanSciezka = dlg.FileName;
         }
 
         private async void BtnZapisz_Click(object sender, RoutedEventArgs e)
         {
-            try
+            if (await _vm.ZapiszAsync())
             {
-                bool success = await _viewModel.ZapiszAsync();
-                if (success)
-                {
-                    DialogResult = true;
-                    Close();
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd podczas zapisywania: {ex.Message}", "Błąd", 
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                DialogResult = true;
+                Close();
             }
         }
 
@@ -117,29 +63,6 @@ namespace Kalendarz1.Opakowania.Views
         {
             DialogResult = false;
             Close();
-        }
-
-        private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            if (e.ClickCount == 2)
-            {
-                // Nie pozwalaj na maksymalizację dla okna dialogowego
-                return;
-            }
-            DragMove();
-        }
-
-        private void CloseButton_Click(object sender, RoutedEventArgs e)
-        {
-            DialogResult = false;
-            Close();
-        }
-
-        protected override void OnClosed(EventArgs e)
-        {
-            _viewModel.RequestClose -= OnRequestClose;
-            _viewModel.WybierzZalacznikRequested -= OnWybierzZalacznik;
-            base.OnClosed(e);
         }
     }
 }

@@ -356,11 +356,31 @@
             </Style.Triggers>
         </Style>
 
-        <!-- Styl wiersza DataGrid - prosty bez cieni -->
+        <!-- Styl wiersza DataGrid - bez czerwonej ramki walidacji WPF -->
         <Style x:Key="AnimatedDataGridRowStyle" TargetType="DataGridRow">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="SnapsToDevicePixels" Value="True"/>
             <Setter Property="Validation.ErrorTemplate" Value="{x:Null}"/>
+            <Setter Property="ValidationErrorTemplate">
+                <Setter.Value>
+                    <ControlTemplate/>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DataGridRow">
+                        <Border x:Name="DGR_Border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                SnapsToDevicePixels="True">
+                            <DataGridCellsPresenter
+                                ItemsPanel="{TemplateBinding ItemsPanel}"
+                                SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <!-- Styl dla CheckBox w DataGrid - większy i łatwiejszy do kliknięcia -->
@@ -418,6 +438,11 @@
             <Setter Property="CellStyle" Value="{StaticResource DataGridCellStyle}"/>
             <Setter Property="RowStyle" Value="{StaticResource AnimatedDataGridRowStyle}"/>
             <Setter Property="RowHeaderWidth" Value="0"/>
+            <Setter Property="RowValidationErrorTemplate">
+                <Setter.Value>
+                    <ControlTemplate/>
+                </Setter.Value>
+            </Setter>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontFamily" Value="Segoe UI"/>
             <!-- Wydajność - wirtualizacja -->

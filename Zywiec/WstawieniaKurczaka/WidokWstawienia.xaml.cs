@@ -3547,6 +3547,61 @@ namespace Kalendarz1
             }
         }
 
+        // ====== MENU KONTEKSTOWE - ZADZWOŃ ======
+
+        private void MenuZadzwon_Click(object sender, RoutedEventArgs e)
+        {
+            if (dataGridPrzypomnienia.SelectedItem == null)
+            {
+                MessageBox.Show("Wybierz przypomnienie z listy.", "Uwaga",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var row = (DataRowView)dataGridPrzypomnienia.SelectedItem;
+            string dostawca = Convert.ToString(row["Dostawca"]);
+            string telefon = PobierzNumerTelefonu(row);
+
+            if (string.IsNullOrEmpty(telefon))
+            {
+                MessageBox.Show($"Brak numeru telefonu dla hodowcy: {dostawca}\n\nUzupełnij numer przez opcję 'Dodanie numeru hodowcy'.",
+                    "Brak numeru", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            try
+            {
+                // Próba przez tel: URI (standardowy protokół)
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = $"tel:{telefon}",
+                    UseShellExecute = true
+                });
+            }
+            catch
+            {
+                try
+                {
+                    // Fallback: Łącze z telefonem (Phone Link)
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = $"ms-phone://call?phonenumber={Uri.EscapeDataString(telefon)}",
+                        UseShellExecute = true
+                    });
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(
+                        $"Nie udało się zadzwonić na numer: {telefon}\n\n" +
+                        $"Upewnij się, że aplikacja 'Łącze z telefonem' (Phone Link) jest zainstalowana i sparowana z telefonem.\n\n" +
+                        $"Numer został skopiowany do schowka.\n\n" +
+                        $"Błąd: {ex.Message}",
+                        "Błąd połączenia", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    Clipboard.SetText(telefon);
+                }
+            }
+        }
+
         // ====== MENU KONTEKSTOWE - SMS ======
 
         private string PrzygotujTrescSms(DataRowView row)

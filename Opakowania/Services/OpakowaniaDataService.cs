@@ -999,6 +999,34 @@ GROUP BY KontrahentId";
         }
 
         /// <summary>
+        /// Pobiera daty ostatnich potwierdzeń dla wszystkich kontrahentów (batch)
+        /// </summary>
+        public async Task<Dictionary<int, DateTime>> PobierzOstatniePotwierdzeniaAsync()
+        {
+            var wynik = new Dictionary<int, DateTime>();
+            string query = @"
+SELECT KontrahentId, MAX(DataPotwierdzenia) AS OstatniePotwierdzenie
+FROM [LibraNet].[dbo].[PotwierdzeniaSaldaOpakowan]
+WHERE StatusPotwierdzenia IN ('Potwierdzone','Rozbieżność')
+GROUP BY KontrahentId";
+            try
+            {
+                using var conn = new SqlConnection(_connectionStringLibraNet);
+                await conn.OpenAsync();
+                using var cmd = new SqlCommand(query, conn);
+                using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    int id = reader.GetInt32(0);
+                    DateTime dt = reader.GetDateTime(1);
+                    wynik[id] = dt;
+                }
+            }
+            catch { /* tabela może nie istnieć */ }
+            return wynik;
+        }
+
+        /// <summary>
         /// Sprawdza czy kontrahent ma potwierdzenie dla danego typu opakowania
         /// </summary>
         private async Task<(bool, DateTime?)> SprawdzPotwierdzenie(int kontrahentId, string typOpakowania)

@@ -187,7 +187,7 @@ namespace Kalendarz1.Opakowania.Forms
         ComboBox _cbHandler;
         TextBox _txtSearch;
         Button _btnRefresh, _btnPdf, _btnExcel, _btnDruk, _btnGroup;
-        CheckBox _chkTylkoZSaldem, _chkZaleglosci;
+        CheckBox _chkTylkoZSaldem, _chkZaleglosci, _chkNiepotw;
         DataGridView _grid;
         Label _lblStatus, _lblLastRefresh, _emptyState;
         int _hover = -1;
@@ -199,8 +199,10 @@ namespace Kalendarz1.Opakowania.Forms
         Label[] _detSaldoUnits;
         Panel[] _detSaldoCards;
         DataGridView _gridDocs;
-        Button _btnDetAdd, _btnDetPrint, _btnDetEmail, _btnDetFull;
+        Button _btnDetAdd, _btnDetPrint, _btnDetEmail, _btnDetFull, _btnDetPdf, _btnDetKart;
         Label _detPlaceholder;
+        Panel _detPotwBar;
+        Label _detPotwLabel;
 
         // Timers
         System.Windows.Forms.Timer _refreshLabelTimer;
@@ -474,8 +476,10 @@ namespace Kalendarz1.Opakowania.Forms
             _chkTylkoZSaldem.CheckedChanged += (_, __) => ApplyFilter();
             _chkZaleglosci = new CheckBox { Text = ">30 dni bez ruchu", AutoSize = true, Checked = false, Margin = new Padding(8, 11, 0, 0), Font = T.Body, ForeColor = T.TextSecondary };
             _chkZaleglosci.CheckedChanged += (_, __) => ApplyFilter();
+            _chkNiepotw = new CheckBox { Text = "Niepotwierdzone", AutoSize = true, Checked = false, Margin = new Padding(8, 11, 0, 0), Font = T.Body, ForeColor = Color.FromArgb(220, 38, 38) };
+            _chkNiepotw.CheckedChanged += (_, __) => ApplyFilter();
 
-            lf.Controls.AddRange(new Control[] { lblData, _dtDataDo, s1, _txtSearch, _cbHandler, s2, _chkTylkoZSaldem, _chkZaleglosci });
+            lf.Controls.AddRange(new Control[] { lblData, _dtDataDo, s1, _txtSearch, _cbHandler, s2, _chkTylkoZSaldem, _chkZaleglosci, _chkNiepotw });
 
             _btnRefresh = IconBtn(T.IconRefresh, "Odswiez", T.Accent); _btnRefresh.Click += async (_, __) => await Reload();
             _btnGroup = IconBtn(T.IconGroup, "Grupuj", T.TextSecondary); _btnGroup.Click += (_, __) => ToggleGroup();
@@ -621,6 +625,14 @@ namespace Kalendarz1.Opakowania.Forms
                 SortMode = DataGridViewColumnSortMode.Automatic
             });
 
+            _grid.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "Potw", HeaderText = "POTW.", DataPropertyName = "PotwierdzenieTekst",
+                Width = 110, MinimumWidth = 80,
+                DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleCenter, Font = new Font("Segoe UI", 9f, FontStyle.Bold) },
+                SortMode = DataGridViewColumnSortMode.Automatic
+            });
+
             _grid.CellFormatting += GridCellFormatting;
             _grid.CellDoubleClick += (_, e) => { if (e.RowIndex >= 0) OpenFullDetails(); };
             _grid.SelectionChanged += (_, __) => ScheduleDetailsLoad();
@@ -642,6 +654,14 @@ namespace Kalendarz1.Opakowania.Forms
                 if (info.Contains("Wydanie") || info.Contains("MW")) e.CellStyle.ForeColor = T.Danger;
                 else if (info.Contains("Przyj") || info.Contains("MP")) e.CellStyle.ForeColor = T.Success;
                 else e.CellStyle.ForeColor = T.TextMuted;
+            }
+            // Kolumna POTW. — kolorowanie: zielony ≤30d, pomarańczowy 30-90d, czerwony >90d/nigdy
+            if (colName == "Potw" && _grid.Rows[e.RowIndex].DataBoundItem is SaldoOpakowania sp)
+            {
+                int dni = sp.DniOdPotwierdzenia;
+                if (dni <= 30) { e.CellStyle.ForeColor = T.Success; }
+                else if (dni <= 90) { e.CellStyle.ForeColor = Color.FromArgb(245, 158, 11); }
+                else { e.CellStyle.ForeColor = T.Danger; e.CellStyle.Font = new Font("Segoe UI", 9f, FontStyle.Bold); }
             }
         }
 
@@ -835,12 +855,16 @@ namespace Kalendarz1.Opakowania.Forms
             _btnDetFull.Click += (_, __) => OpenFullDetails();
             _btnDetAdd = IconBtn(T.IconAdd, "Potwierdz", T.Success);
             _btnDetAdd.Click += (_, __) => AddConfirmForCurrent();
+            _btnDetKart = IconBtn(T.IconCalendar, "Kartoteka", Color.FromArgb(59, 130, 246));
+            _btnDetKart.Click += (_, __) => OpenKartoteka();
+            _btnDetPdf = IconBtn(T.IconPdf, "PDF", T.Danger);
+            _btnDetPdf.Click += async (_, __) => await PdfForCurrent();
             _btnDetEmail = IconBtn(T.IconEmail, "Email", T.Accent);
             _btnDetEmail.Click += (_, __) => EmailSaldoForCurrent();
             _btnDetPrint = IconBtn(T.IconPrint, "Drukuj", T.TextSecondary);
             _btnDetPrint.Click += (_, __) => PrintDetailsCard();
             var af = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, AutoSize = true, BackColor = Color.Transparent, WrapContents = false };
-            af.Controls.AddRange(new Control[] { _btnDetFull, _btnDetAdd, _btnDetEmail, _btnDetPrint });
+            af.Controls.AddRange(new Control[] { _btnDetFull, _btnDetAdd, _btnDetKart, _btnDetPdf, _btnDetEmail, _btnDetPrint });
             actionsBar.Controls.Add(af);
 
             // 5 kart sald — TableLayout
@@ -932,9 +956,16 @@ namespace Kalendarz1.Opakowania.Forms
             EnableDoubleBuffering(_gridDocs);
 
             // Kolejnosc Dock: Fill (grid) na dnie, potem Top kolejno — ostatni dodany jest najwyzej
+            // Pasek statusu potwierdzenia
+            _detPotwBar = new Panel { Dock = DockStyle.Top, Height = 30, BackColor = Color.FromArgb(255, 251, 235) };
+            _detPotwBar.Paint += (_, e) => { using var p = new Pen(T.Border); e.Graphics.DrawLine(p, 0, _detPotwBar.Height - 1, _detPotwBar.Width, _detPotwBar.Height - 1); };
+            _detPotwLabel = new Label { Dock = DockStyle.Fill, Text = "", Font = new Font("Segoe UI", 8.5f, FontStyle.Bold), ForeColor = Color.FromArgb(161, 98, 7), TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(18, 0, 0, 0), BackColor = Color.Transparent };
+            _detPotwBar.Controls.Add(_detPotwLabel);
+
             _detBody.Controls.Add(_gridDocs);
             _detBody.Controls.Add(docsLabel);
             _detBody.Controls.Add(cardsHost);
+            _detBody.Controls.Add(_detPotwBar);
             _detBody.Controls.Add(actionsBar);
             _detBody.Controls.Add(_detHeaderBg);
 
@@ -987,6 +1018,33 @@ namespace Kalendarz1.Opakowania.Forms
                 _detSaldoUnits[i].Text = vals[i] == 0 ? "—" : vals[i] < 0 ? "winny" : "wisimy";
             }
 
+            // Status potwierdzenia
+            int dni = s.DniOdPotwierdzenia;
+            if (dni <= 30)
+            {
+                _detPotwLabel.Text = $"  Potwierdzone {s.OstatniePotwierdzenie:dd.MM.yyyy}  —  OK";
+                _detPotwLabel.ForeColor = T.Success;
+                _detPotwBar.BackColor = Color.FromArgb(240, 253, 244);
+            }
+            else if (dni <= 90)
+            {
+                _detPotwLabel.Text = $"  Potwierdzone {s.OstatniePotwierdzenie:dd.MM.yyyy}  —  {dni} dni temu, czas na potwierdzenie!";
+                _detPotwLabel.ForeColor = Color.FromArgb(161, 98, 7);
+                _detPotwBar.BackColor = Color.FromArgb(255, 251, 235);
+            }
+            else if (s.OstatniePotwierdzenie.HasValue)
+            {
+                _detPotwLabel.Text = $"  Potwierdzone {s.OstatniePotwierdzenie:dd.MM.yyyy}  —  {dni} dni temu!  PILNE!";
+                _detPotwLabel.ForeColor = T.Danger;
+                _detPotwBar.BackColor = Color.FromArgb(254, 242, 242);
+            }
+            else
+            {
+                _detPotwLabel.Text = "  Nigdy nie potwierdzono salda!  PILNE!";
+                _detPotwLabel.ForeColor = T.Danger;
+                _detPotwBar.BackColor = Color.FromArgb(254, 242, 242);
+            }
+
             _detPlaceholder.Visible = false;
             _detBody.Visible = true;
             _detBody.BringToFront();
@@ -1036,10 +1094,15 @@ namespace Kalendarz1.Opakowania.Forms
         void AddConfirmForCurrent()
         {
             if (_currentDetails is not SaldoOpakowania s || s.KontrahentId <= 0) return;
-            var typ = TypOpakowania.WszystkieTypy.FirstOrDefault(t => t.Kod == "E2");
-            if (typ == null) return;
-            var dlg = new Views.DodajPotwierdzenieWindow(s.KontrahentId, s.Kontrahent, s.Kontrahent, typ, s.SaldoE2, _userId);
+            var dlg = new Views.DodajPotwierdzenieWindow(s.KontrahentId, s.Kontrahent, s, _userId);
             if (dlg.ShowDialog() == true) _ = Reload();
+        }
+
+        void OpenKartoteka()
+        {
+            if (_currentDetails is not SaldoOpakowania s || s.KontrahentId <= 0) return;
+            using var f = new KartotekaPotwierdzienForm(s.KontrahentId, s.Kontrahent);
+            f.ShowDialog(this);
         }
 
         void EmailSaldoForCurrent()
@@ -1068,6 +1131,22 @@ namespace Kalendarz1.Opakowania.Forms
             catch (Exception ex) { MessageBox.Show("Nie udalo sie uruchomic klienta email: " + ex.Message); }
         }
 
+        async Task PdfForCurrent()
+        {
+            if (_currentDetails is not SaldoOpakowania s || s.KontrahentId <= 0) return;
+            try
+            {
+                Cursor = Cursors.WaitCursor;
+                // Pobierz dokumenty kontrahenta
+                var docs = await _dataService.PobierzSaldoKontrahentaAsync(s.KontrahentId, DateTime.Today.AddMonths(-3), _dtDataDo.Value);
+                var path = await _exportService.EksportujSaldoKontrahentaDoPDFAsync(s.Kontrahent, s.KontrahentId, s, docs, DateTime.Today.AddMonths(-3), _dtDataDo.Value);
+                if (MessageBox.Show($"Zapisano:\n{path}\n\nOtworzyc?", "PDF", MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
+                    _exportService.OtworzPlik(path);
+            }
+            catch (Exception ex) { MessageBox.Show("Blad eksportu PDF: " + ex.Message); }
+            finally { Cursor = Cursors.Default; }
+        }
+
         void PrintDetailsCard()
         {
             if (_currentDetails is not SaldoOpakowania s) return;
@@ -1077,28 +1156,84 @@ namespace Kalendarz1.Opakowania.Forms
                 doc.PrintPage += (_, e) =>
                 {
                     var g = e.Graphics;
+                    g.SmoothingMode = SmoothingMode.AntiAlias;
+                    g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
                     var mb = e.MarginBounds;
-                    using var hFont = new Font("Segoe UI Semibold", 18);
-                    using var sFont = new Font("Segoe UI", 11);
-                    using var kFont = new Font("Segoe UI Semibold", 12);
-                    using var vFont = new Font("Segoe UI", 14, FontStyle.Bold);
+
+                    using var fTitle = new Font("Segoe UI", 16, FontStyle.Bold);
+                    using var fName = new Font("Segoe UI", 13, FontStyle.Bold);
+                    using var fSub = new Font("Segoe UI", 10);
+                    using var fLabel = new Font("Segoe UI", 10, FontStyle.Bold);
+                    using var fValue = new Font("Segoe UI", 16, FontStyle.Bold);
+                    using var fUnit = new Font("Segoe UI", 9);
+                    using var fSign = new Font("Segoe UI", 10);
+                    using var penFrame = new Pen(Color.FromArgb(200, 210, 220), 1);
+                    using var penAccent = new Pen(Color.FromArgb(59, 130, 246), 2);
+
                     int y = mb.Top;
-                    g.DrawString("KARTA SALDA OPAKOWAN", hFont, Brushes.Black, mb.Left, y); y += 32;
-                    g.DrawString(s.Kontrahent, new Font("Segoe UI", 14, FontStyle.Bold), Brushes.Black, mb.Left, y); y += 26;
-                    g.DrawString("Handlowiec: " + (s.Handlowiec ?? "—"), sFont, Brushes.DarkSlateGray, mb.Left, y); y += 20;
-                    g.DrawString("Data: " + DateTime.Now.ToString("dd.MM.yyyy HH:mm"), sFont, Brushes.DarkSlateGray, mb.Left, y); y += 30;
-                    using var pen = new Pen(Color.LightGray);
-                    g.DrawLine(pen, mb.Left, y, mb.Right, y); y += 14;
-                    (string, int, string)[] rows = { ("E2", s.SaldoE2, "szt"), ("H1", s.SaldoH1, "palet"), ("EURO", s.SaldoEURO, "palet"), ("PCV", s.SaldoPCV, "palet"), ("DREW", s.SaldoDREW, "palet") };
-                    foreach (var (kod, v, u) in rows)
+
+                    // --- Header bar ---
+                    using (var hBr = new SolidBrush(Color.FromArgb(30, 41, 59)))
+                        g.FillRectangle(hBr, mb.Left, y, mb.Width, 48);
+                    g.DrawString("KARTA SALDA OPAKOWAŃ", fTitle, Brushes.White, mb.Left + 14, y + 10);
+                    g.DrawString(DateTime.Now.ToString("dd.MM.yyyy HH:mm"), fSub, new SolidBrush(Color.FromArgb(148, 163, 184)), mb.Left + mb.Width - 160, y + 16);
+                    y += 56;
+
+                    // --- Contractor info ---
+                    g.DrawString(s.Kontrahent ?? "", fName, Brushes.Black, mb.Left + 14, y); y += 24;
+                    g.DrawString("Handlowiec: " + (s.Handlowiec ?? "—"), fSub, Brushes.DarkSlateGray, mb.Left + 14, y); y += 20;
+                    g.DrawLine(penAccent, mb.Left, y + 4, mb.Right, y + 4); y += 16;
+
+                    // --- Balance boxes ---
+                    (string kod, int val, string unit, Color col)[] items =
                     {
-                        g.DrawString(kod, kFont, Brushes.Black, mb.Left + 20, y);
-                        g.DrawString(FmtSaldo(v, " " + u), vFont, v < 0 ? Brushes.Firebrick : v > 0 ? Brushes.ForestGreen : Brushes.Gray, mb.Left + 120, y);
-                        y += 30;
+                        ("E2 Pojemnik", s.SaldoE2, "szt.", Color.FromArgb(59, 130, 246)),
+                        ("H1 Paleta", s.SaldoH1, "palet", Color.FromArgb(249, 115, 22)),
+                        ("EURO Paleta", s.SaldoEURO, "palet", Color.FromArgb(16, 185, 129)),
+                        ("PCV Plastik.", s.SaldoPCV, "palet", Color.FromArgb(139, 92, 246)),
+                        ("DREW Drewn.", s.SaldoDREW, "palet", Color.FromArgb(245, 158, 11)),
+                    };
+
+                    int boxW = Math.Min(180, (mb.Width - 30) / 3);
+                    int boxH = 70;
+                    int gap = 10;
+                    int col2 = 0;
+
+                    foreach (var (kod, val, unit, col) in items)
+                    {
+                        int bx = mb.Left + 14 + (col2 % 3) * (boxW + gap);
+                        int by = y + (col2 / 3) * (boxH + gap);
+
+                        // Box frame
+                        g.DrawRectangle(penFrame, bx, by, boxW, boxH);
+                        // Left color bar
+                        using (var br = new SolidBrush(col)) g.FillRectangle(br, bx, by, 5, boxH);
+                        // Label
+                        g.DrawString(kod, fLabel, new SolidBrush(Color.FromArgb(71, 85, 105)), bx + 12, by + 6);
+                        // Value
+                        var valTxt = val == 0 ? "0" : Math.Abs(val).ToString("N0");
+                        var valCol = val < 0 ? Color.FromArgb(220, 38, 38) : val > 0 ? Color.FromArgb(22, 163, 74) : Color.Gray;
+                        using (var br = new SolidBrush(valCol)) g.DrawString(valTxt, fValue, br, bx + 12, by + 26);
+                        // Unit + description
+                        var desc = val == 0 ? "" : val < 0 ? $"{unit} — wydaliśmy" : $"{unit} — oddał";
+                        g.DrawString(desc, fUnit, new SolidBrush(Color.FromArgb(120, 130, 140)), bx + 12, by + 52);
+
+                        col2++;
                     }
-                    y += 10;
-                    g.DrawLine(pen, mb.Left, y, mb.Right, y);
-                    g.DrawString("Podpis: ......................................................", sFont, Brushes.Black, mb.Left + 20, y + 40);
+
+                    y += ((col2 + 2) / 3) * (boxH + gap) + 20;
+
+                    // --- Summary ---
+                    int total = s.SaldoE2 + s.SaldoH1 + s.SaldoEURO + s.SaldoPCV + s.SaldoDREW;
+                    string sumTxt = total == 0 ? "Brak salda" : total < 0 ? $"Łącznie wydaliśmy: {Math.Abs(total):N0} opakowań" : $"Łącznie oddał: {Math.Abs(total):N0} opakowań";
+                    g.DrawString(sumTxt, fLabel, total < 0 ? Brushes.Firebrick : total > 0 ? Brushes.ForestGreen : Brushes.Gray, mb.Left + 14, y);
+                    y += 30;
+
+                    // --- Signature lines ---
+                    g.DrawLine(penFrame, mb.Left + 14, y + 2, mb.Left + 14 + mb.Width / 2 - 40, y + 2);
+                    y += 50;
+                    g.DrawString("Sporządził: ...........................................", fSub, Brushes.Black, mb.Left + 14, y); y += 24;
+                    g.DrawString("Podpis kontrahenta: ...........................................", fSub, Brushes.Black, mb.Left + 14, y);
                 };
                 var dlg = new PrintPreviewDialog { Document = doc, Width = 900, Height = 700 };
                 dlg.ShowDialog(this);
@@ -1120,25 +1255,34 @@ namespace Kalendarz1.Opakowania.Forms
                 Cursor = Cursors.WaitCursor;
                 var sw = Stopwatch.StartNew();
 
-                // Salda + batch dokumentow — rownolegle
+                // Salda + batch dokumentow + potwierdzenia — rownolegle
                 var taskSalda = _saldaService.PobierzWszystkieSaldaAsync(_dtDataDo.Value, GetFilter());
                 var taskBatch = _dataService.PreloadDokumentyBatchAsync(_dtDataDo.Value, GetFilter());
+                var taskPotw = _dataService.PobierzOstatniePotwierdzeniaAsync();
 
                 var data = await taskSalda;
-                _saldaData = data.Select(k => new SaldoOpakowania
+                var potwierdzeniaMap = await taskPotw;
+
+                _saldaData = data.Select(k =>
                 {
-                    Kontrahent = k.Kontrahent,
-                    KontrahentId = k.Id,
-                    Handlowiec = k.Handlowiec ?? "-",
-                    SaldoE2 = k.E2,
-                    SaldoH1 = k.H1,
-                    SaldoEURO = k.EURO,
-                    SaldoPCV = k.PCV,
-                    SaldoDREW = k.DREW,
-                    Email = k.Email,
-                    Telefon = k.Telefon,
-                    DataOstatniegoDokumentu = k.OstatniDokument,
-                    TypOstatniegoDok = k.TypOstatniegoDok
+                    var s = new SaldoOpakowania
+                    {
+                        Kontrahent = k.Kontrahent,
+                        KontrahentId = k.Id,
+                        Handlowiec = k.Handlowiec ?? "-",
+                        SaldoE2 = k.E2,
+                        SaldoH1 = k.H1,
+                        SaldoEURO = k.EURO,
+                        SaldoPCV = k.PCV,
+                        SaldoDREW = k.DREW,
+                        Email = k.Email,
+                        Telefon = k.Telefon,
+                        DataOstatniegoDokumentu = k.OstatniDokument,
+                        TypOstatniegoDok = k.TypOstatniegoDok
+                    };
+                    if (potwierdzeniaMap.TryGetValue(k.Id, out var dtPotw))
+                        s.OstatniePotwierdzenie = dtPotw;
+                    return s;
                 }).ToList();
 
                 _suppress = true;
@@ -1203,6 +1347,8 @@ namespace Kalendarz1.Opakowania.Forms
                 f = f.Where(s => s.SaldoCalkowite != 0);
             if (_chkZaleglosci.Checked)
                 f = f.Where(s => s.DataOstatniegoDokumentu == null || (DateTime.Today - s.DataOstatniegoDokumentu.Value).TotalDays > 30);
+            if (_chkNiepotw.Checked)
+                f = f.Where(s => s.DniOdPotwierdzenia > 30);
 
             IOrderedEnumerable<SaldoOpakowania> ordered = _sortKind switch
             {
@@ -1234,13 +1380,138 @@ namespace Kalendarz1.Opakowania.Forms
             try
             {
                 Cursor = Cursors.WaitCursor;
-                var bmp = new System.Drawing.Bitmap(_grid.Width, _grid.Height);
-                _grid.DrawToBitmap(bmp, new Rectangle(0, 0, _grid.Width, _grid.Height));
+                var data = (_grid.DataSource as BindingList<SaldoOpakowania>)?.ToList()
+                        ?? (_grid.DataSource as SortableBindingList<SaldoOpakowania>)?.ToList()
+                        ?? _saldaData;
+                if (data == null || data.Count == 0) { MessageBox.Show("Brak danych do druku.", "Druk", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
+
+                int pageIdx = 0;
                 var doc = new System.Drawing.Printing.PrintDocument();
-                doc.PrintPage += (_, e) => { e.Graphics.DrawImage(bmp, 50, 50, e.MarginBounds.Width, (int)(bmp.Height * ((float)e.MarginBounds.Width / bmp.Width))); };
-                var dlg = new PrintPreviewDialog { Document = doc, Width = 900, Height = 700 };
+                doc.DefaultPageSettings.Landscape = true;
+
+                doc.PrintPage += (_, e) =>
+                {
+                    var g = e.Graphics;
+                    g.SmoothingMode = SmoothingMode.AntiAlias;
+                    g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
+                    var mb = e.MarginBounds;
+
+                    using var fTitle = new Font("Segoe UI", 14, FontStyle.Bold);
+                    using var fSub = new Font("Segoe UI", 8.5f);
+                    using var fHead = new Font("Segoe UI", 8, FontStyle.Bold);
+                    using var fCell = new Font("Segoe UI", 8.5f);
+                    using var fBold = new Font("Segoe UI", 8.5f, FontStyle.Bold);
+                    using var fTotal = new Font("Segoe UI", 9, FontStyle.Bold);
+                    using var fPage = new Font("Segoe UI", 7.5f);
+                    using var penBorder = new Pen(Color.FromArgb(200, 200, 200));
+                    using var penAccent = new Pen(Color.FromArgb(59, 130, 246), 2);
+
+                    // Column widths: Lp, Kontrahent, Handlowiec, E2, H1, EURO, PCV, DREW, Ost.Dok
+                    int[] cw = { 32, 0, 105, 62, 62, 62, 62, 62, 88 };
+                    cw[1] = mb.Width - cw.Where((_, i) => i != 1).Sum(); // Fill
+                    string[] ch = { "Lp", "KONTRAHENT", "HANDLOWIEC", "E2", "H1", "EURO", "PCV", "DREW", "OST. DOK." };
+                    int rowH = 18, headH = 22;
+
+                    int y = mb.Top;
+
+                    // --- Header (page 1 only) ---
+                    if (pageIdx == 0)
+                    {
+                        g.DrawString("ZESTAWIENIE SALD OPAKOWAŃ ZWROTNYCH", fTitle, Brushes.Black, mb.Left, y); y += 24;
+                        var info = $"Stan na: {_dtDataDo.Value:dd.MM.yyyy}   |   Wygenerowano: {DateTime.Now:dd.MM.yyyy HH:mm}   |   Kontrahentów: {data.Count}";
+                        g.DrawString(info, fSub, Brushes.Gray, mb.Left, y); y += 16;
+                        g.DrawLine(penAccent, mb.Left, y, mb.Right, y); y += 8;
+                    }
+
+                    // Rows per page
+                    int availH = mb.Bottom - y - 30 - headH; // 30 for footer
+                    int rowsPerPage = Math.Max(1, availH / rowH);
+                    int startRow = pageIdx * rowsPerPage;
+                    int endRow = Math.Min(startRow + rowsPerPage, data.Count);
+                    int totalPages = (int)Math.Ceiling((double)data.Count / Math.Max(1, rowsPerPage));
+
+                    // --- Table header ---
+                    using (var hBr = new SolidBrush(Color.FromArgb(30, 41, 59)))
+                        g.FillRectangle(hBr, mb.Left, y, mb.Width, headH);
+                    int hx = mb.Left;
+                    for (int c = 0; c < ch.Length; c++)
+                    {
+                        var al = c >= 3 && c <= 7 ? StringAlignment.Far : StringAlignment.Near;
+                        var sf = new StringFormat { Alignment = al, LineAlignment = StringAlignment.Center, Trimming = StringTrimming.EllipsisCharacter, FormatFlags = StringFormatFlags.NoWrap };
+                        g.DrawString(ch[c], fHead, Brushes.White, new RectangleF(hx + 3, y, cw[c] - 6, headH), sf);
+                        hx += cw[c];
+                    }
+                    y += headH;
+
+                    // --- Data rows ---
+                    for (int r = startRow; r < endRow; r++)
+                    {
+                        var s = data[r];
+                        bool alt = (r - startRow) % 2 == 1;
+                        if (alt) using (var br = new SolidBrush(Color.FromArgb(247, 248, 250))) g.FillRectangle(br, mb.Left, y, mb.Width, rowH);
+                        g.DrawLine(penBorder, mb.Left, y + rowH, mb.Left + mb.Width, y + rowH);
+
+                        int cx = mb.Left;
+                        var sfL = new StringFormat { LineAlignment = StringAlignment.Center, Trimming = StringTrimming.EllipsisCharacter, FormatFlags = StringFormatFlags.NoWrap };
+                        var sfR = new StringFormat { Alignment = StringAlignment.Far, LineAlignment = StringAlignment.Center, FormatFlags = StringFormatFlags.NoWrap };
+                        var sfC = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center, FormatFlags = StringFormatFlags.NoWrap };
+
+                        // Lp
+                        g.DrawString((r + 1).ToString(), fCell, Brushes.Gray, new RectangleF(cx + 2, y, cw[0] - 4, rowH), sfC);
+                        cx += cw[0];
+                        // Kontrahent
+                        g.DrawString(s.Kontrahent ?? "", fBold, Brushes.Black, new RectangleF(cx + 3, y, cw[1] - 6, rowH), sfL);
+                        cx += cw[1];
+                        // Handlowiec
+                        g.DrawString(s.Handlowiec ?? "-", fCell, Brushes.DarkSlateGray, new RectangleF(cx + 3, y, cw[2] - 6, rowH), sfL);
+                        cx += cw[2];
+
+                        // 5 balance columns
+                        int[] vals = { s.SaldoE2, s.SaldoH1, s.SaldoEURO, s.SaldoPCV, s.SaldoDREW };
+                        for (int vi = 0; vi < 5; vi++)
+                        {
+                            int v = vals[vi];
+                            string txt = v == 0 ? "0" : Math.Abs(v).ToString("N0");
+                            using var br = new SolidBrush(v < 0 ? Color.FromArgb(220, 38, 38) : v > 0 ? Color.FromArgb(22, 163, 74) : Color.Gray);
+                            g.DrawString(txt, v != 0 ? fBold : fCell, br, new RectangleF(cx + 2, y, cw[3 + vi] - 6, rowH), sfR);
+                            cx += cw[3 + vi];
+                        }
+                        // Ost. dok
+                        g.DrawString(s.OstatniDokumentInfo ?? "-", fCell, Brushes.Gray, new RectangleF(cx + 2, y, cw[8] - 4, rowH), sfC);
+                        y += rowH;
+                    }
+
+                    // --- Totals row (last page only) ---
+                    if (endRow >= data.Count)
+                    {
+                        y += 3;
+                        using (var tBr = new SolidBrush(Color.FromArgb(30, 41, 59))) g.FillRectangle(tBr, mb.Left, y, mb.Width, 24);
+                        g.DrawString("SUMA:", fTotal, Brushes.White, new RectangleF(mb.Left + 4, y, cw[0] + cw[1] + cw[2] - 8, 24),
+                            new StringFormat { Alignment = StringAlignment.Far, LineAlignment = StringAlignment.Center });
+                        int tx = mb.Left + cw[0] + cw[1] + cw[2];
+                        int[] tots = { data.Sum(x => x.SaldoE2), data.Sum(x => x.SaldoH1), data.Sum(x => x.SaldoEURO), data.Sum(x => x.SaldoPCV), data.Sum(x => x.SaldoDREW) };
+                        for (int vi = 0; vi < 5; vi++)
+                        {
+                            int v = tots[vi];
+                            string txt = v == 0 ? "0" : (v < 0 ? "-" : "") + Math.Abs(v).ToString("N0");
+                            using var br = new SolidBrush(v < 0 ? Color.FromArgb(252, 165, 165) : v > 0 ? Color.FromArgb(134, 239, 172) : Color.White);
+                            g.DrawString(txt, fTotal, br, new RectangleF(tx + 2, y, cw[3 + vi] - 6, 24),
+                                new StringFormat { Alignment = StringAlignment.Far, LineAlignment = StringAlignment.Center });
+                            tx += cw[3 + vi];
+                        }
+                    }
+
+                    // --- Footer ---
+                    g.DrawString($"Strona {pageIdx + 1} z {totalPages}", fPage, Brushes.Gray,
+                        new RectangleF(mb.Left, mb.Bottom - 14, mb.Width, 14),
+                        new StringFormat { Alignment = StringAlignment.Center });
+
+                    pageIdx++;
+                    e.HasMorePages = pageIdx * rowsPerPage < data.Count;
+                };
+
+                var dlg = new PrintPreviewDialog { Document = doc, Width = 1100, Height = 800 };
                 dlg.ShowDialog(this);
-                bmp.Dispose();
             }
             catch (Exception ex) { MessageBox.Show(ex.Message); }
             finally { Cursor = Cursors.Default; }

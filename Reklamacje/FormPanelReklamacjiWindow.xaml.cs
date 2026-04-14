@@ -280,6 +280,12 @@ namespace Kalendarz1.Reklamacje
                           AND PowiazanaReklamacjaId > 0
                           AND StatusV2 NOT IN ('ZAMKNIETA','ODRZUCONA');
 
+                        -- Fix: zdejmij WymagaUzupelnienia dla juz rozpatrzonych (nie-ZGLOSZONA)
+                        UPDATE [dbo].[Reklamacje]
+                        SET WymagaUzupelnienia = 0
+                        WHERE WymagaUzupelnienia = 1
+                          AND StatusV2 NOT IN ('ZGLOSZONA');
+
                         -- Ustaw zrodlo zgloszenia dla istniejacych rekordow
                         UPDATE [dbo].[Reklamacje]
                         SET ZrodloZgloszenia = CASE
@@ -429,7 +435,7 @@ namespace Kalendarz1.Reklamacje
                         FROM [dbo].[Reklamacje] r
                         LEFT JOIN [dbo].[operators] o ON r.UserID = o.ID
                         LEFT JOIN [dbo].[operators] o2 ON r.OsobaRozpatrujaca = o2.ID
-                        WHERE (r.TypReklamacji <> 'Faktura korygujaca' OR r.DataZgloszenia >= @DataOdKorekt)";
+                        WHERE (r.TypReklamacji <> 'Faktura korygujaca' OR r.DataZgloszenia >= @DataOdKorekt OR ISNULL(r.StatusV2,'ZGLOSZONA') NOT IN ('ZGLOSZONA'))";
 
                     string statusFilter = (cmbStatus.SelectedItem as ComboBoxItem)?.Content?.ToString();
                     if (!string.IsNullOrEmpty(statusFilter) && statusFilter != "Wszystkie")
@@ -559,7 +565,7 @@ namespace Kalendarz1.Reklamacje
                             ISNULL(Status, 'Nowa') AS Status,
                             COUNT(*) AS Liczba
                         FROM [dbo].[Reklamacje]
-                        WHERE (TypReklamacji <> 'Faktura korygujaca' OR DataZgloszenia >= @DataOdKorekt)
+                        WHERE (TypReklamacji <> 'Faktura korygujaca' OR DataZgloszenia >= @DataOdKorekt OR ISNULL(StatusV2,'ZGLOSZONA') NOT IN ('ZGLOSZONA'))
                         GROUP BY Status";
 
                     using (SqlCommand cmd = new SqlCommand(query, conn))

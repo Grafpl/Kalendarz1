@@ -819,7 +819,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 return;
             }
 
-            // Enter - otwórz inline edit na bieżącej komórce
+            // Enter - otwórz inline edit na bieżącej komórce LUB popup przeniesienia daty
             if (e.Key == Key.Enter)
             {
                 e.Handled = true;
@@ -4378,7 +4378,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 effect.BeginAnimation(DropShadowEffect.BlurRadiusProperty, null);
             }
 
-            // Pełny reset do domyślnych wartości
+            // Pełny reset do domyślnych wartości (ważne przy recyklingu wierszy z wirtualizacją)
+            e.Row.IsEnabled = true;
             e.Row.Background = Brushes.White;
             e.Row.Foreground = new SolidColorBrush(Color.FromRgb(33, 33, 33));
             e.Row.FontWeight = FontWeights.Normal;
@@ -4386,7 +4387,9 @@ namespace Kalendarz1.Zywiec.Kalendarz
             e.Row.Opacity = 1.0;
             e.Row.Height = Double.NaN; // Auto
             e.Row.MinHeight = 0;
+            e.Row.BorderBrush = null;
             e.Row.BorderThickness = new Thickness(0);
+            e.Row.Effect = null;
             e.Row.Resources.Clear(); // Usuń style przekreślenia
 
             if (dostawa.IsSeparator)
@@ -7791,9 +7794,19 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 return;
             }
 
-            // Pokaż custom overlay potwierdzenia (zamiast MessageBox)
-            bool confirmed = await ShowDragDropConfirmationAsync(droppedItem, newDate);
-            if (!confirmed)
+            // Potwierdzenie przez MessageBox
+            var culture = new CultureInfo("pl-PL");
+            string oldDateStr = droppedItem.DataOdbioru.ToString("dd.MM.yyyy (dddd)", culture);
+            string newDateStr = newDate.ToString("dd.MM.yyyy (dddd)", culture);
+            var result = MessageBox.Show(
+                $"Przenieść dostawę?\n\n" +
+                $"Dostawca: {droppedItem.Dostawca}\n" +
+                $"Auta: {droppedItem.Auta}\n\n" +
+                $"{oldDateStr}  →  {newDateStr}",
+                "Przeniesienie dostawy",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+            if (result != MessageBoxResult.Yes)
             {
                 _isDragging = false;
                 return;

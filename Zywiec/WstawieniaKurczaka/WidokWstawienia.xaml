@@ -647,6 +647,8 @@
                                         <MenuItem Header="🕐 Odłożenie na dłużej..." Click="MenuOdlozDluzej_Click"/>
                                         <MenuItem Header="➕ Dodanie numeru hodowcy" Click="MenuDodajNumer_Click"/>
                                         <Separator/>
+                                        <MenuItem Header="📞 Zadzwoń (Łącze z telefonem)" Click="MenuZadzwon_Click" FontWeight="SemiBold"/>
+                                        <Separator/>
                                         <MenuItem Header="📱 Wyślij SMS (schowek)" Click="MenuSmsSchowek_Click" FontWeight="SemiBold"/>
                                         <MenuItem Header="📲 Wyślij SMS (Łącze z telefonem)" Click="MenuSmsPhoneLink_Click" FontWeight="SemiBold"/>
                                         <MenuItem Header="📋 Kopiuj numer telefonu" Click="MenuKopiujNumer_Click"/>
@@ -675,7 +677,7 @@
                                       Style="{StaticResource ModernDataGrid}"
                                       ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
                                       CellStyle="{StaticResource DataGridCellStyle}"
-                                      FontSize="10"
+                                      FontSize="11.5"
                                       VerticalScrollBarVisibility="Auto"/>
                         </Border>
                     </Grid>

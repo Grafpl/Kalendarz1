@@ -39,6 +39,8 @@ namespace Kalendarz1.Opakowania.Forms
         // Info sidebar
         Label _lblInfoNazwa, _lblInfoHandl, _lblInfoEmail, _lblInfoTel;
         Label _lblStatWyd, _lblStatPrzyj, _lblStatDni, _lblStatPotw, _lblStatBilans, _lblStatZwrot;
+        Label _lblPotwStatus;
+        Panel _potwHistPanel;
 
         // Toolbar buttons
         Button _btnCopy, _btnPdf, _btnEmail;
@@ -222,12 +224,13 @@ namespace Kalendarz1.Opakowania.Forms
 
             var flow = new FlowLayoutPanel { Dock = DockStyle.Right, AutoSize = true, FlowDirection = FlowDirection.LeftToRight, BackColor = Color.Transparent, WrapContents = false, Padding = new Padding(0, 3, 8, 0) };
             var btnPotw = MkBtn("Potwierdz saldo", Color.FromArgb(22, 163, 74)); btnPotw.Click += (_, __) => DodajPotwierdzenie();
+            var btnKart = MkBtn("Kartoteka", Color.FromArgb(59, 130, 246)); btnKart.Click += (_, __) => { using var f = new KartotekaPotwierdzienForm(_id, _nazwa); f.ShowDialog(this); };
             _btnCopy = MkBtn("Kopiuj saldo", Color.FromArgb(99, 102, 241)); _btnCopy.Click += (_, __) => CopySaldo();
             _btnPdf = MkBtn("PDF", Color.FromArgb(37, 99, 235)); _btnPdf.Click += async (_, __) => await ExportPdfAsync();
             _btnEmail = MkBtn("Email", Color.FromArgb(5, 150, 105)); _btnEmail.Click += (_, __) => SendEmail();
             var btnPrint = MkBtn("Drukuj", Color.FromArgb(107, 114, 128)); btnPrint.Click += (_, __) => DoPrint();
             var btnClose = MkBtn("Zamknij", Color.FromArgb(100, 116, 139)); btnClose.Click += (_, __) => Close();
-            flow.Controls.AddRange(new Control[] { btnPotw, _btnCopy, _btnPdf, _btnEmail, btnPrint, btnClose });
+            flow.Controls.AddRange(new Control[] { btnPotw, btnKart, _btnCopy, _btnPdf, _btnEmail, btnPrint, btnClose });
 
             _bottomBar.Controls.Add(_lblSaldoEnd);
             _bottomBar.Controls.Add(flow);
@@ -269,6 +272,13 @@ namespace Kalendarz1.Opakowania.Forms
             Sec("AKTYWNOSC", ref y);
             _lblStatDni = Val("Ost. dokument: --", ref y);
             _lblStatPotw = Val("Potwierdzenia: --", ref y);
+            y += 4;
+            _infoPanel.Controls.Add(new Panel { Location = new Point(0, y), Size = new Size(250, 1), BackColor = CBorder }); y += 10;
+
+            Sec("HISTORIA POTWIERDZEN", ref y);
+            _lblPotwStatus = Val("Status: --", ref y);
+            _potwHistPanel = new Panel { Location = new Point(14, y), Size = new Size(212, 120), BackColor = Color.Transparent, AutoScroll = true };
+            _infoPanel.Controls.Add(_potwHistPanel);
         }
 
         void Sec(string t, ref int y) { _infoPanel.Controls.Add(new Label { Text = t, Location = new Point(14, y), AutoSize = true, ForeColor = CMuted, Font = new Font("Segoe UI", 7, FontStyle.Bold), BackColor = Color.Transparent }); y += 15; }
@@ -492,6 +502,40 @@ namespace Kalendarz1.Opakowania.Forms
                 int potwOk = _potw.Count(p => p.StatusPotwierdzenia == "Potwierdzone");
                 _lblStatPotw.Text = $"Potwierdzenia: {potwOk}/{_potw.Count}";
                 _lblStatPotw.ForeColor = _potw.Count == 0 ? CGray : potwOk == _potw.Count ? CGreen : Color.FromArgb(245, 158, 11);
+
+                // Status + historia potwierdzeń w panelu info
+                var ostatnie = _potw.FirstOrDefault();
+                if (ostatnie != null)
+                {
+                    int dni = (int)(DateTime.Today - ostatnie.DataPotwierdzenia).TotalDays;
+                    if (dni <= 30) { _lblPotwStatus.Text = $"OK — {ostatnie.DataPotwierdzenia:dd.MM.yyyy} ({dni} dni)"; _lblPotwStatus.ForeColor = CGreen; }
+                    else if (dni <= 90) { _lblPotwStatus.Text = $"Uwaga — {dni} dni od potw.!"; _lblPotwStatus.ForeColor = Color.FromArgb(245, 158, 11); }
+                    else { _lblPotwStatus.Text = $"PILNE — {dni} dni od potw.!"; _lblPotwStatus.ForeColor = CRed; }
+                }
+                else { _lblPotwStatus.Text = "Nigdy nie potwierdzono!"; _lblPotwStatus.ForeColor = CRed; }
+
+                // Lista historii
+                _potwHistPanel.Controls.Clear();
+                int py = 0;
+                foreach (var p in _potw.Take(10))
+                {
+                    var statusCol = p.StatusPotwierdzenia == "Potwierdzone" ? CGreen : p.StatusPotwierdzenia == "Rozbieżność" ? CRed : Color.FromArgb(245, 158, 11);
+                    var dot = new Panel { Location = new Point(0, py + 4), Size = new Size(8, 8), BackColor = statusCol };
+                    var lbl = new Label
+                    {
+                        Text = $"{p.DataPotwierdzenia:dd.MM.yy} {p.KodOpakowania}: {p.IloscPotwierdzona} ({p.StatusPotwierdzenia})",
+                        Location = new Point(14, py), AutoSize = true, MaximumSize = new Size(195, 0),
+                        Font = new Font("Segoe UI", 8), ForeColor = CSlate, BackColor = Color.Transparent
+                    };
+                    var lblUser = new Label
+                    {
+                        Text = p.UzytkownikNazwa ?? p.UzytkownikId,
+                        Location = new Point(14, py + 15), AutoSize = true,
+                        Font = new Font("Segoe UI", 7, FontStyle.Italic), ForeColor = CMuted, BackColor = Color.Transparent
+                    };
+                    _potwHistPanel.Controls.AddRange(new Control[] { dot, lbl, lblUser });
+                    py += 34;
+                }
             }
             catch (Exception ex) { MessageBox.Show(ex.Message, "Blad", MessageBoxButtons.OK, MessageBoxIcon.Error); }
             finally { Cursor = Cursors.Default; }
@@ -577,57 +621,252 @@ namespace Kalendarz1.Opakowania.Forms
         void DodajPotwierdzenie()
         {
             if (_saldo == null) return;
-
-            // Pokaz menu z wyborem typu opakowania
-            var menu = new ContextMenuStrip { Font = new Font("Segoe UI", 10) };
-            var typy = new[] { ("E2", _saldo.SaldoE2), ("H1", _saldo.SaldoH1), ("EURO", _saldo.SaldoEURO), ("PCV", _saldo.SaldoPCV), ("DREW", _saldo.SaldoDREW) };
-
-            foreach (var (kod, saldo) in typy)
-            {
-                if (saldo == 0) continue; // pomijaj zerowe
-                var typ = TypOpakowania.WszystkieTypy.FirstOrDefault(t => t.Kod == kod);
-                if (typ == null) continue;
-                var txt = $"{kod}: {Math.Abs(saldo)} ({(saldo < 0 ? "wisi" : "my winni")})";
-                var k = kod; var s = saldo; var tp = typ;
-                menu.Items.Add(txt, null, (_, __) =>
-                {
-                    var okno = new Views.DodajPotwierdzenieWindow(_id, _nazwa, _nazwa, tp, s, _userId);
-                    if (okno.ShowDialog() == true)
-                        _ = LoadAsync(); // odswiez po dodaniu
-                });
-            }
-
-            if (menu.Items.Count == 0)
-            {
-                MessageBox.Show("Brak sald do potwierdzenia (wszystkie zerowe).", "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
-
-            menu.Show(Cursor.Position);
+            var okno = new Views.DodajPotwierdzenieWindow(_id, _nazwa, _saldo, _userId);
+            if (okno.ShowDialog() == true)
+                _ = LoadAsync();
         }
 
         void DoPrint()
         {
             try
             {
-                var bmp = new Bitmap(_grid.Width, _grid.Height);
-                _grid.DrawToBitmap(bmp, new Rectangle(0, 0, _grid.Width, _grid.Height));
+                // Format zgodny z oryginalnym programem WidokPojemniki
+                var data = _docs?.Where(d => !d.JestSaldem && d.TypDokumentu != "GRP").OrderByDescending(d => d.Data).ToList()
+                    ?? new List<DokumentOpakowania>();
+                int pageIdx = 0;
+                bool summaryPageDone = false;
                 var doc = new System.Drawing.Printing.PrintDocument();
+
                 doc.PrintPage += (_, e) =>
                 {
-                    // Naglowek
-                    using var f = new Font("Segoe UI", 14, FontStyle.Bold);
-                    e.Graphics.DrawString($"Opakowania: {_nazwa}", f, Brushes.Black, 50, 30);
-                    using var f2 = new Font("Segoe UI", 10);
-                    e.Graphics.DrawString($"Handlowiec: {_handlowiec}  |  Data: {DateTime.Today:dd.MM.yyyy}", f2, Brushes.Gray, 50, 55);
-                    // Grid
-                    var imgW = e.MarginBounds.Width;
-                    var imgH = (int)(bmp.Height * ((float)imgW / bmp.Width));
-                    e.Graphics.DrawImage(bmp, 50, 85, imgW, imgH);
+                    var g = e.Graphics;
+                    g.SmoothingMode = SmoothingMode.AntiAlias;
+                    g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+                    var mb = e.MarginBounds;
+
+                    using var fCompany = new Font("Segoe UI", 10, FontStyle.Italic);
+                    using var fTitle = new Font("Segoe UI", 16, FontStyle.Bold);
+                    using var fBody = new Font("Segoe UI", 11);
+                    using var fTable = new Font("Segoe UI", 11);
+                    using var fTableBold = new Font("Segoe UI", 11, FontStyle.Bold);
+                    using var fSign = new Font("Segoe UI", 11);
+                    using var fNote = new Font("Segoe UI", 9, FontStyle.Italic);
+                    using var fHead = new Font("Segoe UI", 9, FontStyle.Bold);
+                    using var fCell = new Font("Segoe UI", 9);
+                    using var fCellBold = new Font("Segoe UI", 9, FontStyle.Bold);
+                    using var fPage = new Font("Segoe UI", 8);
+                    using var penTable = new Pen(Color.FromArgb(160, 160, 160));
+
+                    // =============================================
+                    // STRONA 1 — Podsumowanie (jak stary program)
+                    // =============================================
+                    if (!summaryPageDone)
+                    {
+                        int y = mb.Top;
+                        string dataSalda = _dtDo.Value.ToString("yyyy-MM-dd");
+
+                        // Nagłówek firmy
+                        g.DrawString("Ubojnia Drobiu \"Piórkowscy\"", fCompany, Brushes.Black, mb.Left, y); y += 16;
+                        g.DrawString("Koziołki 40, 95-061 Dmosin", fCompany, Brushes.Black, mb.Left, y); y += 16;
+                        g.DrawString("46 874 71 70, wew 122 Magazyn Opakowań", fCompany, Brushes.Black, mb.Left, y); y += 30;
+
+                        // Tytuł
+                        var titleTxt = $"Zestawienie Opakowań Zwrotnych dla Kontrahenta: {_nazwa}";
+                        var titleRect = new RectangleF(mb.Left, y, mb.Width, 60);
+                        g.DrawString(titleTxt, fTitle, Brushes.Black, titleRect, new StringFormat { Alignment = StringAlignment.Center });
+                        y += (int)g.MeasureString(titleTxt, fTitle, mb.Width).Height + 14;
+
+                        // Tekst wyjaśniający
+                        var introTxt = $"W związku z koniecznością uzgodnienia salda opakowań zwrotnych na dzień {dataSalda}, " +
+                            "poniżej przedstawiamy szczegółowe zestawienie opakowań zgodnie z naszą ewidencją. " +
+                            "Prosimy o weryfikację przedstawionych danych oraz potwierdzenie ich zgodności.";
+                        var introRect = new RectangleF(mb.Left + 20, y, mb.Width - 40, 200);
+                        g.DrawString(introTxt, fBody, Brushes.Black, introRect);
+                        y += (int)g.MeasureString(introTxt, fBody, (int)(mb.Width - 40)).Height + 24;
+
+                        // Tabela podsumowania sald
+                        if (_saldo != null)
+                        {
+                            (string nazwa, int val)[] rows =
+                            {
+                                ("Pojemniki E2", _saldo.SaldoE2),
+                                ("Palety H1", _saldo.SaldoH1),
+                                ("Palety EURO", _saldo.SaldoEURO),
+                                ("Palety plastikowe", _saldo.SaldoPCV),
+                                ("Palety drewniane (bez zwrotne)", _saldo.SaldoDREW),
+                            };
+
+                            int tblLeft = mb.Left + (mb.Width - 440) / 2;
+                            int col1W = 220, col2W = 220, rowH = 30;
+
+                            for (int i = 0; i < rows.Length; i++)
+                            {
+                                int ry = y + i * rowH;
+                                g.DrawRectangle(penTable, tblLeft, ry, col1W, rowH);
+                                g.DrawRectangle(penTable, tblLeft + col1W, ry, col2W, rowH);
+
+                                // Nazwa opakowania
+                                g.DrawString(rows[i].nazwa, fTable, Brushes.Black,
+                                    new RectangleF(tblLeft + 6, ry, col1W - 12, rowH),
+                                    new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
+
+                                // Wartość z opisem
+                                string valTxt;
+                                if (rows[i].val > 0) valTxt = $"Kontrahent winny : {rows[i].val}";
+                                else if (rows[i].val < 0) valTxt = $"Ubojnia winna : {Math.Abs(rows[i].val)}";
+                                else valTxt = "0";
+                                g.DrawString(valTxt, fTable, Brushes.Black,
+                                    new RectangleF(tblLeft + col1W + 6, ry, col2W - 12, rowH),
+                                    new StringFormat { LineAlignment = StringAlignment.Center });
+                            }
+                            y += rows.Length * rowH + 24;
+                        }
+
+                        // Tekst o potwierdzeniu
+                        var footerTxt = "Prosimy o przesłanie potwierdzenia zgodności danych na adres e-mail: " +
+                            "opakowania@piorkowscy.com.pl. W przypadku braku odpowiedzi w ciągu 7 dni " +
+                            "od daty otrzymania niniejszego dokumentu, saldo przedstawione przez naszą " +
+                            "firmę zostanie uznane za zgodne. W razie jakichkolwiek pytań lub wątpliwości " +
+                            "prosimy o kontakt telefoniczny z naszym magazynem opakowań pod numerem " +
+                            "46 874 71 70, wew. 122. Dziękujemy za współpracę.";
+                        var footRect = new RectangleF(mb.Left + 20, y, mb.Width - 40, 200);
+                        g.DrawString(footerTxt, fBody, Brushes.Black, footRect);
+                        y += (int)g.MeasureString(footerTxt, fBody, (int)(mb.Width - 40)).Height + 50;
+
+                        // Podpis
+                        g.DrawString("Podpis kontrahenta: .......................................................", fSign, Brushes.Black,
+                            new RectangleF(mb.Left, y, mb.Width, 20), new StringFormat { Alignment = StringAlignment.Center });
+                        y += 40;
+
+                        // Stopka
+                        g.DrawString("Oprogramowanie utworzone przez Sergiusza Piórkowskiego", fNote, Brushes.Black,
+                            new RectangleF(mb.Left, mb.Bottom - 16, mb.Width, 16), new StringFormat { Alignment = StringAlignment.Far });
+
+                        summaryPageDone = true;
+                        e.HasMorePages = data.Count > 0;
+                        return;
+                    }
+
+                    // =============================================
+                    // STRONY 2+ — Tabela dokumentów
+                    // =============================================
+                    {
+                        int y = mb.Top;
+
+                        // Notatka u góry (prawa strona)
+                        g.DrawString("- wydanie do odbiorcy, + przyjęcie na ubojnię", fNote, Brushes.Black,
+                            new RectangleF(mb.Left, y, mb.Width, 14), new StringFormat { Alignment = StringAlignment.Far });
+                        y += 18;
+
+                        // Kolumny: NrDok, Data, Dokumenty, E2, H1, EURO, PCV, Drew
+                        int[] cw = { 80, 72, 0, 58, 50, 50, 50, 50 };
+                        cw[2] = mb.Width - cw.Where((_, i) => i != 2).Sum();
+                        string[] colH = { "NrDok", "Data", "Dokumenty", "E2", "H1", "EURO", "PCV", "Drew" };
+                        int rowH = 22, headH = 24;
+
+                        // Oblicz ile wierszy zmieści się
+                        int availH = mb.Bottom - y - 24 - headH;
+                        int rowsPerPage = Math.Max(1, availH / rowH);
+
+                        // Na pierwszej stronie tabeli dodaj wiersz Saldo na górze (nie liczy się do pageIdx)
+                        int dataPageIdx = pageIdx - 1; // bo strona 0 to podsumowanie
+                        int startRow = dataPageIdx * rowsPerPage;
+                        // Na pierwszej stronie tabeli odejmij 1 bo wiersz salda zajmuje miejsce
+                        if (dataPageIdx == 0) startRow = 0;
+                        int endRow = Math.Min(startRow + rowsPerPage, data.Count);
+                        if (dataPageIdx == 0 && _saldo != null) endRow = Math.Min(startRow + rowsPerPage - 1, data.Count); // -1 bo saldo
+                        int totalDataPages = Math.Max(1, (int)Math.Ceiling((double)data.Count / Math.Max(1, rowsPerPage)));
+
+                        // Nagłówek tabeli
+                        using (var hBr = new SolidBrush(Color.FromArgb(220, 220, 220)))
+                            g.FillRectangle(hBr, mb.Left, y, mb.Width, headH);
+                        int hx = mb.Left;
+                        for (int c = 0; c < colH.Length; c++)
+                        {
+                            g.DrawRectangle(penTable, hx, y, cw[c], headH);
+                            g.DrawString(colH[c], fHead, Brushes.Black,
+                                new RectangleF(hx + 4, y, cw[c] - 8, headH),
+                                new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
+                            hx += cw[c];
+                        }
+                        y += headH;
+
+                        // Wiersz Saldo (na pierwszej stronie tabeli)
+                        if (dataPageIdx == 0 && _saldo != null)
+                        {
+                            int cx = mb.Left;
+                            // NrDok - puste
+                            g.DrawRectangle(penTable, cx, y, cw[0], rowH); cx += cw[0];
+                            // Data - puste
+                            g.DrawRectangle(penTable, cx, y, cw[1], rowH); cx += cw[1];
+                            // Dokumenty - "Saldo DD.MM.YYYY"
+                            g.DrawRectangle(penTable, cx, y, cw[2], rowH);
+                            g.DrawString($"Saldo {_dtDo.Value:dd.MM.yyyy}", fCellBold, Brushes.Black,
+                                new RectangleF(cx + 4, y, cw[2] - 8, rowH),
+                                new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
+                            cx += cw[2];
+                            // E2, H1, EURO, PCV, DREW
+                            int[] saldoVals = { _saldo.SaldoE2, _saldo.SaldoH1, _saldo.SaldoEURO, _saldo.SaldoPCV, _saldo.SaldoDREW };
+                            for (int vi = 0; vi < 5; vi++)
+                            {
+                                g.DrawRectangle(penTable, cx, y, cw[3 + vi], rowH);
+                                g.DrawString(saldoVals[vi].ToString(), fCellBold, Brushes.Black,
+                                    new RectangleF(cx + 4, y, cw[3 + vi] - 8, rowH),
+                                    new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
+                                cx += cw[3 + vi];
+                            }
+                            y += rowH;
+                        }
+
+                        // Wiersze dokumentów
+                        for (int r = startRow; r < endRow; r++)
+                        {
+                            var d = data[r];
+                            int cx = mb.Left;
+
+                            // NrDok
+                            g.DrawRectangle(penTable, cx, y, cw[0], rowH);
+                            g.DrawString(d.NrDok ?? "", fCell, Brushes.Black,
+                                new RectangleF(cx + 3, y, cw[0] - 6, rowH),
+                                new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
+                            cx += cw[0];
+                            // Data
+                            g.DrawRectangle(penTable, cx, y, cw[1], rowH);
+                            g.DrawString(d.Data?.ToString("yyyy-MM-dd") ?? "", fCell, Brushes.Black,
+                                new RectangleF(cx + 3, y, cw[1] - 6, rowH),
+                                new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
+                            cx += cw[1];
+                            // Dokumenty
+                            g.DrawRectangle(penTable, cx, y, cw[2], rowH);
+                            g.DrawString(d.Dokumenty ?? d.NrDok ?? "", fCell, Brushes.Black,
+                                new RectangleF(cx + 3, y, cw[2] - 6, rowH),
+                                new StringFormat { LineAlignment = StringAlignment.Center, Trimming = StringTrimming.EllipsisCharacter, FormatFlags = StringFormatFlags.NoWrap });
+                            cx += cw[2];
+                            // E2, H1, EURO, PCV, DREW
+                            int[] vals = { d.E2, d.H1, d.EURO, d.PCV, d.DREW };
+                            for (int vi = 0; vi < 5; vi++)
+                            {
+                                g.DrawRectangle(penTable, cx, y, cw[3 + vi], rowH);
+                                g.DrawString(vals[vi] > 0 ? $"+{vals[vi]}" : vals[vi].ToString(), fCell, Brushes.Black,
+                                    new RectangleF(cx + 3, y, cw[3 + vi] - 6, rowH),
+                                    new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
+                                cx += cw[3 + vi];
+                            }
+                            y += rowH;
+                        }
+
+                        // Numer strony
+                        g.DrawString($"Strona {pageIdx + 1}", fPage, Brushes.Gray,
+                            new RectangleF(mb.Left, mb.Bottom - 14, mb.Width, 14),
+                            new StringFormat { Alignment = StringAlignment.Center });
+
+                        pageIdx++;
+                        e.HasMorePages = endRow < data.Count;
+                    }
                 };
+
                 var dlg = new PrintPreviewDialog { Document = doc, Width = 900, Height = 700 };
                 dlg.ShowDialog(this);
-                bmp.Dispose();
             }
             catch (Exception ex) { MessageBox.Show(ex.Message); }
         }
@@ -664,7 +903,7 @@ namespace Kalendarz1.Opakowania.Forms
             {
                 Cursor = Cursors.WaitCursor;
                 var saldo = _saldo ?? new SaldoOpakowania();
-                var path = await _export.EksportujSaldoKontrahentaDoPDFAsync(_nazwa, _id, saldo, _docs, DateTime.Today.AddMonths(-3), DateTime.Today);
+                var path = await _export.EksportujSaldoKontrahentaDoPDFAsync(_nazwa, _id, saldo, _docs, _dtOd.Value, _dtDo.Value);
                 if (MessageBox.Show($"Zapisano:\n{path}\n\nOtworzyc?", "PDF", MessageBoxButtons.YesNo) == DialogResult.Yes)
                     _export.OtworzPlik(path);
             }

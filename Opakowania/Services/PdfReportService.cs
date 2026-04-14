@@ -344,10 +344,10 @@ namespace Kalendarz1.Opakowania.Services
                     // Tabela szczegółowa
                     PdfPTable detailTable = new PdfPTable(8);
                     detailTable.WidthPercentage = 100;
-                    detailTable.SetWidths(new float[] { 2f, 2.5f, 3f, 1.5f, 1.5f, 1.5f, 1.5f, 1.5f });
+                    detailTable.SetWidths(new float[] { 2.5f, 2f, 3f, 1.5f, 1.5f, 1.5f, 1.5f, 1.5f });
 
-                    // Nagłówki
-                    string[] docHeaders = { "Data", "Nr dok.", "Dokumenty", "E2", "H1", "EURO", "PCV", "Drew" };
+                    // Nagłówki — kolejność jak w oryginalnym programie: NrDok, Data, Dokumenty, ...
+                    string[] docHeaders = { "NrDok", "Data", "Dokumenty", "E2", "H1", "EURO", "PCV", "Drew" };
                     foreach (var h in docHeaders)
                     {
                         var headerCell = new PdfPCell(new Phrase(h, _fontHeader))
@@ -362,62 +362,40 @@ namespace Kalendarz1.Opakowania.Services
 
                     // Przygotuj dane - posortowane od najnowszych
                     var dokumentyPosortowane = dokumenty
-                        .Where(d => !d.Dokumenty?.StartsWith("Saldo") ?? true)
+                        .Where(d => !d.JestSaldem && d.TypDokumentu != "GRP" && (!d.Dokumenty?.StartsWith("Saldo") ?? true))
                         .OrderByDescending(d => d.Data)
                         .ToList();
 
-                    // Znajdź saldo początkowe i końcowe
-                    var saldoPoczatkowe = dokumenty.FirstOrDefault(d => d.Dokumenty?.Contains("Saldo") == true && d.Data <= dataOd);
-                    var saldoKoncowe = dokumenty.FirstOrDefault(d => d.Dokumenty?.Contains("Saldo") == true && d.Data >= dataDo);
-
-                    // Jeśli nie ma salda końcowego, stwórz je z aktualnych sald
-                    if (saldoKoncowe == null && saldo != null)
-                    {
-                        saldoKoncowe = new DokumentOpakowania
-                        {
-                            Data = dataDo,
-                            NrDok = "",
-                            Dokumenty = $"Saldo na",
-                            E2 = saldo.SaldoE2,
-                            H1 = saldo.SaldoH1,
-                            EURO = saldo.SaldoEURO,
-                            PCV = saldo.SaldoPCV,
-                            DREW = saldo.SaldoDREW
-                        };
-                    }
-
                     // 1. PIERWSZY WIERSZ - Saldo końcowe (na datę DO)
-                    if (saldoKoncowe != null)
-                    {
-                        AddDetailCell(detailTable, dataDo.ToString("yyyy-MM-dd"), true);
-                        AddDetailCell(detailTable, "", true);
-                        AddDetailCell(detailTable, "Saldo na", true);
-                        AddDetailCell(detailTable, saldoKoncowe.E2.ToString(), true);
-                        AddDetailCell(detailTable, saldoKoncowe.H1.ToString(), true);
-                        AddDetailCell(detailTable, saldoKoncowe.EURO.ToString(), true);
-                        AddDetailCell(detailTable, saldoKoncowe.PCV.ToString(), true);
-                        AddDetailCell(detailTable, saldoKoncowe.DREW.ToString(), true);
-                    }
+                    AddDetailCell(detailTable, "", true);
+                    AddDetailCell(detailTable, "", true);
+                    AddDetailCell(detailTable, $"Saldo {dataDo:dd.MM.yyyy}", true);
+                    AddDetailCell(detailTable, (saldo?.SaldoE2 ?? 0).ToString(), true);
+                    AddDetailCell(detailTable, (saldo?.SaldoH1 ?? 0).ToString(), true);
+                    AddDetailCell(detailTable, (saldo?.SaldoEURO ?? 0).ToString(), true);
+                    AddDetailCell(detailTable, (saldo?.SaldoPCV ?? 0).ToString(), true);
+                    AddDetailCell(detailTable, (saldo?.SaldoDREW ?? 0).ToString(), true);
 
-                    // 2. Dokumenty - od najnowszego do najstarszego
+                    // 2. Dokumenty - od najnowszego do najstarszego (NrDok, Data, Dokumenty)
                     foreach (var dok in dokumentyPosortowane)
                     {
-                        AddDetailCell(detailTable, dok.Data?.ToString("yyyy-MM-dd") ?? "");
                         AddDetailCell(detailTable, dok.NrDok ?? "");
+                        AddDetailCell(detailTable, dok.Data?.ToString("yyyy-MM-dd") ?? "");
                         AddDetailCell(detailTable, dok.Dokumenty ?? "");
-                        AddDetailCell(detailTable, dok.E2.ToString());
-                        AddDetailCell(detailTable, dok.H1.ToString());
-                        AddDetailCell(detailTable, dok.EURO.ToString());
-                        AddDetailCell(detailTable, dok.PCV.ToString());
-                        AddDetailCell(detailTable, dok.DREW.ToString());
+                        AddDetailCell(detailTable, FmtVal(dok.E2));
+                        AddDetailCell(detailTable, FmtVal(dok.H1));
+                        AddDetailCell(detailTable, FmtVal(dok.EURO));
+                        AddDetailCell(detailTable, FmtVal(dok.PCV));
+                        AddDetailCell(detailTable, FmtVal(dok.DREW));
                     }
 
                     // 3. OSTATNI WIERSZ - Saldo początkowe (na datę OD)
+                    var saldoPoczatkowe = dokumenty.FirstOrDefault(d => d.JestSaldem || (d.Dokumenty?.Contains("Saldo") == true));
                     if (saldoPoczatkowe != null)
                     {
-                        AddDetailCell(detailTable, dataOd.ToString("yyyy-MM-dd"), true);
                         AddDetailCell(detailTable, "", true);
-                        AddDetailCell(detailTable, "Saldo na", true);
+                        AddDetailCell(detailTable, "", true);
+                        AddDetailCell(detailTable, $"Saldo {dataOd:dd.MM.yyyy}", true);
                         AddDetailCell(detailTable, saldoPoczatkowe.E2.ToString(), true);
                         AddDetailCell(detailTable, saldoPoczatkowe.H1.ToString(), true);
                         AddDetailCell(detailTable, saldoPoczatkowe.EURO.ToString(), true);
@@ -462,6 +440,9 @@ namespace Kalendarz1.Opakowania.Services
             };
             table.AddCell(cell);
         }
+
+        /// <summary>Formatuje wartość dokumentu: +N dla przyjęć, -N dla wydań, 0 dla zera</summary>
+        private string FmtVal(int v) => v > 0 ? $"+{v}" : v.ToString();
 
         private string FormatSaldo(int value)
         {

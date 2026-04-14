@@ -1,257 +1,157 @@
 using System;
+using System.IO;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Input;
-using Microsoft.Win32;
+using System.Windows.Media;
 using Kalendarz1.Opakowania.Models;
 using Kalendarz1.Opakowania.Services;
 
 namespace Kalendarz1.Opakowania.ViewModels
 {
-    /// <summary>
-    /// ViewModel dla okna dodawania potwierdzenia salda
-    /// </summary>
     public class DodajPotwierdzenieViewModel : ViewModelBase
     {
-        private readonly OpakowaniaDataService _dataService;
+        private readonly OpakowaniaDataService _dataService = new();
+        private readonly ExportService _exportService = new();
+        private readonly int _kontrahentId;
+        private readonly string _kontrahentShortcut;
         private readonly string _userId;
 
-        private int _kontrahentId;
         private string _kontrahentNazwa;
-        private string _kontrahentShortcut;
-        private TypOpakowania _typOpakowania;
-
-        private DateTime _dataPotwierdzenia;
-        private int _iloscPotwierdzona;
-        private int _saldoSystemowe;
-        private string _numerDokumentu;
-        private string _sciezkaZalacznika;
+        private DateTime _dataPotwierdzenia = DateTime.Today;
         private string _uwagi;
-        private string _statusPotwierdzenia;
+        private string _skanSciezka;
+        private int _sysE2, _sysH1, _sysEURO, _sysPCV, _sysDREW;
+        private int _potwE2, _potwH1, _potwEURO, _potwPCV, _potwDREW;
 
-        public DodajPotwierdzenieViewModel(int kontrahentId, string kontrahentNazwa, string kontrahentShortcut, 
-            TypOpakowania typOpakowania, int saldoSystemowe, string userId)
+        public DodajPotwierdzenieViewModel(int kontrahentId, string kontrahentNazwa, string kontrahentShortcut,
+            string userId, int sysE2, int sysH1, int sysEURO, int sysPCV, int sysDREW)
         {
             _kontrahentId = kontrahentId;
             _kontrahentNazwa = kontrahentNazwa;
             _kontrahentShortcut = kontrahentShortcut;
-            _typOpakowania = typOpakowania;
-            _saldoSystemowe = saldoSystemowe;
-            _iloscPotwierdzona = saldoSystemowe; // Domyślnie taka sama
             _userId = userId;
-            _dataPotwierdzenia = DateTime.Today;
-            _statusPotwierdzenia = "Potwierdzone";
-
-            _dataService = new OpakowaniaDataService();
-
-            // Komendy
-            ZapiszCommand = new AsyncRelayCommand(ZapiszCommandAsync, () => CanZapisz);
-            AnulujCommand = new RelayCommand(_ => RequestClose?.Invoke(false));
-            WybierzZalacznikCommand = new RelayCommand(_ => WybierzZalacznik());
+            _sysE2 = sysE2; _potwE2 = sysE2;
+            _sysH1 = sysH1; _potwH1 = sysH1;
+            _sysEURO = sysEURO; _potwEURO = sysEURO;
+            _sysPCV = sysPCV; _potwPCV = sysPCV;
+            _sysDREW = sysDREW; _potwDREW = sysDREW;
         }
-
-        #region Properties
-
-        public int KontrahentId
-        {
-            get => _kontrahentId;
-            set => SetProperty(ref _kontrahentId, value);
-        }
-
-        public string KontrahentNazwa
-        {
-            get => _kontrahentNazwa;
-            set => SetProperty(ref _kontrahentNazwa, value);
-        }
-
-        public string KontrahentShortcut
-        {
-            get => _kontrahentShortcut;
-            set => SetProperty(ref _kontrahentShortcut, value);
-        }
-
-        public TypOpakowania TypOpakowania
-        {
-            get => _typOpakowania;
-            set => SetProperty(ref _typOpakowania, value);
-        }
-
-        public string TypOpakowaniaText => TypOpakowania?.Nazwa ?? "-";
-
-        public DateTime DataPotwierdzenia
-        {
-            get => _dataPotwierdzenia;
-            set
-            {
-                if (SetProperty(ref _dataPotwierdzenia, value))
-                    ((AsyncRelayCommand)ZapiszCommand).RaiseCanExecuteChanged();
-            }
-        }
-
-        public int IloscPotwierdzona
-        {
-            get => _iloscPotwierdzona;
-            set
-            {
-                if (SetProperty(ref _iloscPotwierdzona, value))
-                {
-                    OnPropertyChanged(nameof(Roznica));
-                    OnPropertyChanged(nameof(RoznicaTekst));
-                    OnPropertyChanged(nameof(MaRozbieznosc));
-                    AktualizujStatus();
-                    ((AsyncRelayCommand)ZapiszCommand).RaiseCanExecuteChanged();
-                }
-            }
-        }
-
-        public int SaldoSystemowe
-        {
-            get => _saldoSystemowe;
-            set => SetProperty(ref _saldoSystemowe, value);
-        }
-
-        public int Roznica => IloscPotwierdzona - SaldoSystemowe;
-
-        public string RoznicaTekst
-        {
-            get
-            {
-                var roznica = Roznica;
-                if (roznica == 0) return "Brak różnicy";
-                return roznica > 0 ? $"+{roznica} (odbiorca twierdzi, że ma więcej)" : $"{roznica} (odbiorca twierdzi, że ma mniej)";
-            }
-        }
-
-        public bool MaRozbieznosc => Roznica != 0;
-
-        public string NumerDokumentu
-        {
-            get => _numerDokumentu;
-            set => SetProperty(ref _numerDokumentu, value);
-        }
-
-        public string SciezkaZalacznika
-        {
-            get => _sciezkaZalacznika;
-            set => SetProperty(ref _sciezkaZalacznika, value);
-        }
-
-        public string Uwagi
-        {
-            get => _uwagi;
-            set => SetProperty(ref _uwagi, value);
-        }
-
-        public string StatusPotwierdzenia
-        {
-            get => _statusPotwierdzenia;
-            set => SetProperty(ref _statusPotwierdzenia, value);
-        }
-
-        public string[] DostepneStatusy => new[] { "Potwierdzone", "Rozbieżność", "Oczekujące" };
-
-        public bool CanZapisz => DataPotwierdzenia <= DateTime.Today;
-
-        #endregion
-
-        #region Commands
-
-        public ICommand ZapiszCommand { get; }
-        public ICommand AnulujCommand { get; }
-        public ICommand WybierzZalacznikCommand { get; }
-
-        #endregion
-
-        #region Events
 
         public event Action<bool?> RequestClose;
-        public event Action WybierzZalacznikRequested;
 
-        #endregion
+        public string KontrahentNazwa => _kontrahentNazwa;
+        public DateTime DataPotwierdzenia { get => _dataPotwierdzenia; set => SetProperty(ref _dataPotwierdzenia, value); }
+        public string Uwagi { get => _uwagi; set => SetProperty(ref _uwagi, value); }
 
-        #region Properties Additional
+        public string SkanSciezka
+        {
+            get => _skanSciezka;
+            set { SetProperty(ref _skanSciezka, value); OnPropertyChanged(nameof(SkanNazwa)); }
+        }
+        public string SkanNazwa => string.IsNullOrEmpty(_skanSciezka) ? "(brak)" : Path.GetFileName(_skanSciezka);
 
-        public string RoznicaDisplay
+        public int SysE2 => _sysE2; public int SysH1 => _sysH1; public int SysEURO => _sysEURO; public int SysPCV => _sysPCV; public int SysDREW => _sysDREW;
+
+        public int PotwE2 { get => _potwE2; set { if (SetProperty(ref _potwE2, value)) Roz("E2"); } }
+        public int PotwH1 { get => _potwH1; set { if (SetProperty(ref _potwH1, value)) Roz("H1"); } }
+        public int PotwEURO { get => _potwEURO; set { if (SetProperty(ref _potwEURO, value)) Roz("EURO"); } }
+        public int PotwPCV { get => _potwPCV; set { if (SetProperty(ref _potwPCV, value)) Roz("PCV"); } }
+        public int PotwDREW { get => _potwDREW; set { if (SetProperty(ref _potwDREW, value)) Roz("DREW"); } }
+
+        public string RozE2Txt => Fmt(_potwE2 - _sysE2); public string RozH1Txt => Fmt(_potwH1 - _sysH1);
+        public string RozEUROTxt => Fmt(_potwEURO - _sysEURO); public string RozPCVTxt => Fmt(_potwPCV - _sysPCV);
+        public string RozDREWTxt => Fmt(_potwDREW - _sysDREW);
+
+        public Brush RozE2Color => Clr(_potwE2 - _sysE2); public Brush RozH1Color => Clr(_potwH1 - _sysH1);
+        public Brush RozEUROColor => Clr(_potwEURO - _sysEURO); public Brush RozPCVColor => Clr(_potwPCV - _sysPCV);
+        public Brush RozDREWColor => Clr(_potwDREW - _sysDREW);
+
+        public string Info
         {
             get
             {
-                var r = Roznica;
-                if (r == 0) return "0";
-                return r > 0 ? $"+{r}" : r.ToString();
+                int n = 0;
+                if (_potwE2 != _sysE2) n++; if (_potwH1 != _sysH1) n++;
+                if (_potwEURO != _sysEURO) n++; if (_potwPCV != _sysPCV) n++;
+                if (_potwDREW != _sysDREW) n++;
+                return n == 0 ? "Wszystko zgodne" : $"{n} rozbieżności";
             }
         }
 
-        #endregion
+        void Roz(string k) { OnPropertyChanged($"Roz{k}Txt"); OnPropertyChanged($"Roz{k}Color"); OnPropertyChanged(nameof(Info)); }
+        static string Fmt(int r) => r == 0 ? "0" : r > 0 ? $"+{r}" : r.ToString();
+        static Brush Clr(int r) => r == 0 ? new SolidColorBrush(Color.FromRgb(156, 163, 175)) : new SolidColorBrush(Color.FromRgb(220, 38, 38));
 
-        #region Methods
-
-        private void AktualizujStatus()
+        /// <summary>Kopiuje skan na serwer do folderu kontrahenta/Potwierdzenia</summary>
+        string KopiujSkanNaSerwer()
         {
-            if (Roznica != 0)
+            if (string.IsNullOrEmpty(_skanSciezka) || !File.Exists(_skanSciezka)) return null;
+            try
             {
-                StatusPotwierdzenia = "Rozbieżność";
-            }
-            else
-            {
-                StatusPotwierdzenia = "Potwierdzone";
-            }
-        }
+                string bazowa = _exportService.GetSciezkaZapisu();
+                string bezp = string.Join("_", _kontrahentNazwa.Trim().Split(Path.GetInvalidFileNameChars()));
+                string folder = Path.Combine(bazowa, bezp, "Potwierdzenia");
+                if (!Directory.Exists(folder)) Directory.CreateDirectory(folder);
 
-        private void WybierzZalacznik()
-        {
-            WybierzZalacznikRequested?.Invoke();
+                string ext = Path.GetExtension(_skanSciezka);
+                string nazwa = $"Potw_{DataPotwierdzenia:yyyy-MM-dd}_{DateTime.Now:HHmmss}{ext}";
+                string cel = Path.Combine(folder, nazwa);
+                File.Copy(_skanSciezka, cel, true);
+                return cel;
+            }
+            catch { return _skanSciezka; } // fallback — oryginalna ścieżka
         }
 
         public async Task<bool> ZapiszAsync()
         {
+            if (DataPotwierdzenia > DateTime.Today)
+            {
+                MessageBox.Show("Data nie może być z przyszłości.", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return false;
+            }
+
             try
             {
-                IsLoading = true;
-                StatusMessage = "Zapisywanie potwierdzenia...";
+                // Skopiuj skan na serwer (raz, wspólna ścieżka dla wszystkich typów)
+                string skanSerwer = KopiujSkanNaSerwer();
 
-                var potwierdzenie = new PotwierdzenieSalda
+                var typy = TypOpakowania.WszystkieTypy;
+                (string kod, int potw, int sys)[] items =
                 {
-                    KontrahentId = KontrahentId,
-                    KontrahentNazwa = KontrahentNazwa,
-                    KontrahentShortcut = KontrahentShortcut,
-                    TypOpakowania = TypOpakowania.NazwaSystemowa,
-                    KodOpakowania = TypOpakowania.Kod,
-                    DataPotwierdzenia = DataPotwierdzenia,
-                    IloscPotwierdzona = IloscPotwierdzona,
-                    SaldoSystemowe = SaldoSystemowe,
-                    StatusPotwierdzenia = StatusPotwierdzenia,
-                    NumerDokumentu = NumerDokumentu,
-                    SciezkaZalacznika = SciezkaZalacznika,
-                    Uwagi = Uwagi,
-                    UzytkownikId = _userId,
-                    UzytkownikNazwa = _userId // Użyj ID jako nazwa
+                    ("E2", _potwE2, _sysE2), ("H1", _potwH1, _sysH1), ("EURO", _potwEURO, _sysEURO),
+                    ("PCV", _potwPCV, _sysPCV), ("DREW", _potwDREW, _sysDREW)
                 };
 
-                await _dataService.DodajPotwierdzenie(potwierdzenie);
+                foreach (var (kod, potw, sys) in items)
+                {
+                    if (sys == 0 && potw == 0) continue;
+                    var typ = Array.Find(typy, t => t.Kod == kod)
+                        ?? new TypOpakowania { Kod = kod, Nazwa = kod, NazwaSystemowa = kod };
+
+                    await _dataService.DodajPotwierdzenie(new PotwierdzenieSalda
+                    {
+                        KontrahentId = _kontrahentId,
+                        KontrahentNazwa = _kontrahentNazwa,
+                        KontrahentShortcut = _kontrahentShortcut,
+                        TypOpakowania = typ.NazwaSystemowa,
+                        KodOpakowania = kod,
+                        DataPotwierdzenia = DataPotwierdzenia,
+                        IloscPotwierdzona = potw,
+                        SaldoSystemowe = sys,
+                        StatusPotwierdzenia = potw != sys ? "Rozbieżność" : "Potwierdzone",
+                        SciezkaZalacznika = skanSerwer,
+                        Uwagi = Uwagi,
+                        UzytkownikId = _userId,
+                        UzytkownikNazwa = _userId
+                    });
+                }
                 return true;
             }
             catch (Exception ex)
             {
-                ErrorMessage = ex.Message;
+                MessageBox.Show(ex.Message, "Błąd zapisu", MessageBoxButton.OK, MessageBoxImage.Error);
                 return false;
             }
-            finally
-            {
-                IsLoading = false;
-            }
         }
-
-        private async Task ZapiszCommandAsync()
-        {
-            bool success = await ZapiszAsync();
-            if (success)
-            {
-                MessageBox.Show("Potwierdzenie zostało zapisane pomyślnie.", "Sukces", 
-                    MessageBoxButton.OK, MessageBoxImage.Information);
-                RequestClose?.Invoke(true);
-            }
-        }
-
-        #endregion
     }
 }
