@@ -50,6 +50,8 @@ namespace Kalendarz1
         // Cache dla danych dostaw - ładowany raz przy starcie
         private Dictionary<int, List<DeliveryInfo>> _deliveryCache = new Dictionary<int, List<DeliveryInfo>>();
         private bool _deliveryCacheLoaded = false;
+        private const int WSTAWIENIA_DEFAULT_LIMIT = 100;
+        private bool _wstawieniaShowAll = false;
 
         // Aktualnie otwarty tooltip - tylko jeden naraz
         private ToolTip _currentOpenTooltip = null;
@@ -560,497 +562,25 @@ namespace Kalendarz1
         // ====== STATYSTYKI ======
         private void UpdateStatistics()
         {
+            // Panele statystyk usunięte z UI — aktualizujemy tylko badge przypomnień
+            // licząc wiersze w-pamięci (bez nowego zapytania SQL).
             try
             {
-                using (var connection = new SqlConnection(connectionString))
+                if (txtLiczbaPrzypomnien == null) return;
+                var dv = dataGridPrzypomnienia?.ItemsSource as System.Data.DataView;
+                if (dv == null) return;
+
+                int aktywne = 0;
+                foreach (System.Data.DataRow r in dv.Table.Rows)
                 {
-                    connection.Open();
-
-                    // Dziś
-                    string queryDzisiaj = @"
-                        SELECT COUNT(*) 
-                        FROM dbo.WstawieniaKurczakow 
-                        WHERE CAST(DataUtw AS DATE) = CAST(GETDATE() AS DATE)";
-                    using (var cmd = new SqlCommand(queryDzisiaj, connection))
-                    {
-                        txtStatDzisiaj.Text = cmd.ExecuteScalar().ToString();
-                    }
-
-                    // Tydzień
-                    string queryTydzien = @"
-                        SELECT COUNT(*) 
-                        FROM dbo.WstawieniaKurczakow 
-                        WHERE DATEPART(YEAR, DataUtw) = DATEPART(YEAR, GETDATE()) 
-                        AND DATEPART(WEEK, DataUtw) = DATEPART(WEEK, GETDATE())";
-                    using (var cmd = new SqlCommand(queryTydzien, connection))
-                    {
-                        txtStatTydzien.Text = cmd.ExecuteScalar().ToString();
-                    }
-
-                    // Ten miesiąc
-                    string queryMiesiac = @"
-                        SELECT COUNT(*) 
-                        FROM dbo.WstawieniaKurczakow 
-                        WHERE YEAR(DataUtw) = YEAR(GETDATE()) AND MONTH(DataUtw) = MONTH(GETDATE())";
-                    using (var cmd = new SqlCommand(queryMiesiac, connection))
-                    {
-                        txtStatMiesiac.Text = cmd.ExecuteScalar().ToString();
-                    }
-
-                    // Ten rok
-                    string queryRok = @"
-                        SELECT COUNT(*) 
-                        FROM dbo.WstawieniaKurczakow 
-                        WHERE YEAR(DataUtw) = YEAR(GETDATE())";
-                    using (var cmd = new SqlCommand(queryRok, connection))
-                    {
-                        txtStatRok.Text = cmd.ExecuteScalar().ToString();
-                    }
-
-                    // Przypomnienia
-                    string queryPrzypomnienia = "SELECT COUNT(*) FROM dbo.v_WstawieniaDoKontaktu";
-                    using (var cmd = new SqlCommand(queryPrzypomnienia, connection))
-                    {
-                        int przypomnienia = Convert.ToInt32(cmd.ExecuteScalar());
-                        txtStatPrzypomnienia.Text = przypomnienia.ToString();
-                        txtLiczbaPrzypomnien.Text = przypomnienia.ToString();
-                    }
-
-                    // Łącznie
-                    string queryLacznie = "SELECT COUNT(*) FROM dbo.WstawieniaKurczakow";
-                    using (var cmd = new SqlCommand(queryLacznie, connection))
-                    {
-                        txtStatLacznie.Text = cmd.ExecuteScalar().ToString();
-                    }
-
-                    // === DODATKOWE STATYSTYKI ===
-
-                    // Średnia wstawień na dzień (ostatnie 30 dni)
-                    string querySredniaDzien = @"
-                        SELECT COUNT(*) * 1.0 / 30 
-                        FROM dbo.WstawieniaKurczakow 
-                        WHERE DataUtw >= DATEADD(DAY, -30, GETDATE())";
-                    using (var cmd = new SqlCommand(querySredniaDzien, connection))
-                    {
-                        var result = cmd.ExecuteScalar();
-                        double srednia = result != DBNull.Value ? Convert.ToDouble(result) : 0;
-                        txtStatSredniaDzien.Text = srednia.ToString("0.0");
-                    }
-
-                    // Liczba unikalnych hodowców
-                    string queryHodowcow = @"
-                        SELECT COUNT(DISTINCT Dostawca) 
-                        FROM dbo.WstawieniaKurczakow";
-                    using (var cmd = new SqlCommand(queryHodowcow, connection))
-                    {
-                        txtStatHodowcow.Text = cmd.ExecuteScalar().ToString();
-                    }
-
-                    // Średnia sztuk na wstawienie
-                    string querySredniaSztuk = @"
-                        SELECT AVG(CAST(IloscWstawienia AS FLOAT)) 
-                        FROM dbo.WstawieniaKurczakow 
-                        WHERE IloscWstawienia > 0";
-                    using (var cmd = new SqlCommand(querySredniaSztuk, connection))
-                    {
-                        var result = cmd.ExecuteScalar();
-                        double srednia = result != DBNull.Value ? Convert.ToDouble(result) : 0;
-                        txtStatSredniaSztuk.Text = FormatLiczba((long)srednia);
-                    }
-
-                    // Największe wstawienie
-                    string queryNajwieksze = @"
-                        SELECT ISNULL(MAX(IloscWstawienia), 0) 
-                        FROM dbo.WstawieniaKurczakow";
-                    using (var cmd = new SqlCommand(queryNajwieksze, connection))
-                    {
-                        long najwieksze = Convert.ToInt64(cmd.ExecuteScalar());
-                        txtStatNajwieksze.Text = FormatLiczba(najwieksze);
-                    }
-
-                    // Trend - porównanie ostatnich 2 tygodni
-                    string queryTrend = @"
-                        SELECT 
-                            (SELECT COUNT(*) FROM dbo.WstawieniaKurczakow 
-                             WHERE DataUtw >= DATEADD(DAY, -7, GETDATE())) AS LastWeek,
-                            (SELECT COUNT(*) FROM dbo.WstawieniaKurczakow 
-                             WHERE DataUtw >= DATEADD(DAY, -14, GETDATE()) 
-                             AND DataUtw < DATEADD(DAY, -7, GETDATE())) AS PreviousWeek";
-                    using (var cmd = new SqlCommand(queryTrend, connection))
-                    using (var reader = cmd.ExecuteReader())
-                    {
-                        if (reader.Read())
-                        {
-                            int lastWeek = reader.GetInt32(0);
-                            int previousWeek = reader.GetInt32(1);
-
-                            if (previousWeek == 0)
-                            {
-                                txtStatTrend.Text = lastWeek > 0 ? "📈 ↗️" : "➡️";
-                            }
-                            else
-                            {
-                                double change = ((lastWeek - previousWeek) * 100.0) / previousWeek;
-                                if (change > 10)
-                                    txtStatTrend.Text = "📈 ↗️";
-                                else if (change < -10)
-                                    txtStatTrend.Text = "📉 ↘️";
-                                else
-                                    txtStatTrend.Text = "➡️";
-                            }
-                        }
-                    }
-
-                    // Wolny vs Kontrakt
-                    string queryWolnyKontrakt = @"
-                        SELECT 
-                            SUM(CASE WHEN TypUmowy LIKE '%Wolny%' OR TypUmowy LIKE '%W.Woln%' THEN 1 ELSE 0 END) AS Wolny,
-                            SUM(CASE WHEN TypUmowy LIKE '%Kontrakt%' THEN 1 ELSE 0 END) AS Kontrakt
-                        FROM dbo.WstawieniaKurczakow 
-                        WHERE YEAR(DataUtw) = YEAR(GETDATE())";
-                    using (var cmd = new SqlCommand(queryWolnyKontrakt, connection))
-                    using (var reader = cmd.ExecuteReader())
-                    {
-                        if (reader.Read())
-                        {
-                            int wolny = reader.IsDBNull(0) ? 0 : reader.GetInt32(0);
-                            int kontrakt = reader.IsDBNull(1) ? 0 : reader.GetInt32(1);
-                            txtStatWolnyKontrakt.Text = $"{wolny}/{kontrakt}";
-                        }
-                    }
-
-                    // TOP Hodowca (miesiąc)
-                    string queryTopHodowca = @"
-                        SELECT TOP 1 Dostawca, COUNT(*) AS Cnt
-                        FROM dbo.WstawieniaKurczakow 
-                        WHERE YEAR(DataUtw) = YEAR(GETDATE()) 
-                        AND MONTH(DataUtw) = MONTH(GETDATE())
-                        GROUP BY Dostawca
-                        ORDER BY Cnt DESC";
-                    using (var cmd = new SqlCommand(queryTopHodowca, connection))
-                    using (var reader = cmd.ExecuteReader())
-                    {
-                        if (reader.Read())
-                        {
-                            string hodowca = reader.GetString(0);
-                            int count = reader.GetInt32(1);
-                            if (hodowca.Length > 15)
-                                hodowca = hodowca.Substring(0, 12) + "...";
-                            txtStatTopHodowca.Text = $"{hodowca} ({count})";
-                        }
-                        else
-                        {
-                            txtStatTopHodowca.Text = "-";
-                        }
-                    }
-
-                    // Ostatnie 7 dni
-                    string queryOstatnie7Dni = @"
-                        SELECT COUNT(*) 
-                        FROM dbo.WstawieniaKurczakow 
-                        WHERE DataUtw >= DATEADD(DAY, -7, GETDATE())";
-                    using (var cmd = new SqlCommand(queryOstatnie7Dni, connection))
-                    {
-                        txtStatOstatnie7Dni.Text = cmd.ExecuteScalar().ToString();
-                    }
+                    if (r["Oczekuje"] != DBNull.Value && Convert.ToInt32(r["Oczekuje"]) == 0)
+                        aktywne++;
                 }
-
-                // Statystyki per użytkownik
-                LoadWstawieniaPerUser();
-                LoadKontaktyPerUser();
-                LoadPotwierdzaniaPerUser();
+                txtLiczbaPrzypomnien.Text = aktywne.ToString();
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Błąd statystyk: {ex.Message}");
-            }
+            catch { }
         }
 
-        private void LoadWstawieniaPerUser()
-        {
-            try
-            {
-                using (var connection = new SqlConnection(connectionString))
-                {
-                    connection.Open();
-
-                    // Tydzień
-                    string queryTydzien = @"
-                        SELECT 
-                            ISNULL(o.Name, 'Nieznany') AS UserName,
-                            COUNT(*) AS TotalCount
-                        FROM dbo.WstawieniaKurczakow w
-                        LEFT JOIN dbo.operators o ON w.KtoStwo = o.ID
-                        WHERE DATEPART(YEAR, w.DataUtw) = DATEPART(YEAR, GETDATE()) 
-                        AND DATEPART(WEEK, w.DataUtw) = DATEPART(WEEK, GETDATE())
-                        GROUP BY o.Name
-                        ORDER BY TotalCount DESC";
-
-                    using (var cmd = new SqlCommand(queryTydzien, connection))
-                    using (var reader = cmd.ExecuteReader())
-                    {
-                        var stats = new ObservableCollection<UserStat>();
-                        while (reader.Read())
-                        {
-                            stats.Add(new UserStat
-                            {
-                                User = SkrocNazwisko(reader["UserName"].ToString()),
-                                Count = Convert.ToInt32(reader["TotalCount"])
-                            });
-                        }
-                        itemsWstawieniaPerUserTydzien.ItemsSource = stats;
-                    }
-
-                    // Miesiąc
-                    string queryMiesiac = @"
-                        SELECT 
-                            ISNULL(o.Name, 'Nieznany') AS UserName,
-                            COUNT(*) AS TotalCount
-                        FROM dbo.WstawieniaKurczakow w
-                        LEFT JOIN dbo.operators o ON w.KtoStwo = o.ID
-                        WHERE YEAR(w.DataUtw) = YEAR(GETDATE()) AND MONTH(w.DataUtw) = MONTH(GETDATE())
-                        GROUP BY o.Name
-                        ORDER BY TotalCount DESC";
-
-                    using (var cmd = new SqlCommand(queryMiesiac, connection))
-                    using (var reader = cmd.ExecuteReader())
-                    {
-                        var stats = new ObservableCollection<UserStat>();
-                        while (reader.Read())
-                        {
-                            stats.Add(new UserStat
-                            {
-                                User = SkrocNazwisko(reader["UserName"].ToString()),
-                                Count = Convert.ToInt32(reader["TotalCount"])
-                            });
-                        }
-                        itemsWstawieniaPerUserMiesiac.ItemsSource = stats;
-                    }
-
-                    // Rok
-                    string queryRok = @"
-                        SELECT 
-                            ISNULL(o.Name, 'Nieznany') AS UserName,
-                            COUNT(*) AS TotalCount
-                        FROM dbo.WstawieniaKurczakow w
-                        LEFT JOIN dbo.operators o ON w.KtoStwo = o.ID
-                        WHERE YEAR(w.DataUtw) = YEAR(GETDATE())
-                        GROUP BY o.Name
-                        ORDER BY TotalCount DESC";
-
-                    using (var cmd = new SqlCommand(queryRok, connection))
-                    using (var reader = cmd.ExecuteReader())
-                    {
-                        var stats = new ObservableCollection<UserStat>();
-                        while (reader.Read())
-                        {
-                            stats.Add(new UserStat
-                            {
-                                User = SkrocNazwisko(reader["UserName"].ToString()),
-                                Count = Convert.ToInt32(reader["TotalCount"])
-                            });
-                        }
-                        itemsWstawieniaPerUserRok.ItemsSource = stats;
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Błąd statystyk wstawień per user: {ex.Message}");
-            }
-        }
-
-        private void LoadKontaktyPerUser()
-        {
-            try
-            {
-                using (var connection = new SqlConnection(connectionString))
-                {
-                    connection.Open();
-
-                    // Tydzień
-                    string queryTydzien = @"
-                        SELECT 
-                            ISNULL(o.Name, ch.UserID) AS UserName,
-                            COUNT(*) AS TotalCount
-                        FROM dbo.ContactHistory ch
-                        LEFT JOIN dbo.operators o ON ch.UserID = o.ID
-                        WHERE DATEPART(YEAR, ch.CreatedAt) = DATEPART(YEAR, GETDATE()) 
-                        AND DATEPART(WEEK, ch.CreatedAt) = DATEPART(WEEK, GETDATE())
-                        GROUP BY o.Name, ch.UserID
-                        ORDER BY TotalCount DESC";
-
-                    using (var cmd = new SqlCommand(queryTydzien, connection))
-                    using (var reader = cmd.ExecuteReader())
-                    {
-                        var stats = new ObservableCollection<UserStat>();
-                        while (reader.Read())
-                        {
-                            stats.Add(new UserStat
-                            {
-                                User = SkrocNazwisko(reader["UserName"].ToString()),
-                                Count = Convert.ToInt32(reader["TotalCount"])
-                            });
-                        }
-                        itemsKontaktyPerUserTydzien.ItemsSource = stats;
-                    }
-
-                    // Miesiąc
-                    string queryMiesiac = @"
-                        SELECT 
-                            ISNULL(o.Name, ch.UserID) AS UserName,
-                            COUNT(*) AS TotalCount
-                        FROM dbo.ContactHistory ch
-                        LEFT JOIN dbo.operators o ON ch.UserID = o.ID
-                        WHERE YEAR(ch.CreatedAt) = YEAR(GETDATE()) AND MONTH(ch.CreatedAt) = MONTH(GETDATE())
-                        GROUP BY o.Name, ch.UserID
-                        ORDER BY TotalCount DESC";
-
-                    using (var cmd = new SqlCommand(queryMiesiac, connection))
-                    using (var reader = cmd.ExecuteReader())
-                    {
-                        var stats = new ObservableCollection<UserStat>();
-                        while (reader.Read())
-                        {
-                            stats.Add(new UserStat
-                            {
-                                User = SkrocNazwisko(reader["UserName"].ToString()),
-                                Count = Convert.ToInt32(reader["TotalCount"])
-                            });
-                        }
-                        itemsKontaktyPerUserMiesiac.ItemsSource = stats;
-                    }
-
-                    // Rok
-                    string queryRok = @"
-                        SELECT 
-                            ISNULL(o.Name, ch.UserID) AS UserName,
-                            COUNT(*) AS TotalCount
-                        FROM dbo.ContactHistory ch
-                        LEFT JOIN dbo.operators o ON ch.UserID = o.ID
-                        WHERE YEAR(ch.CreatedAt) = YEAR(GETDATE())
-                        GROUP BY o.Name, ch.UserID
-                        ORDER BY TotalCount DESC";
-
-                    using (var cmd = new SqlCommand(queryRok, connection))
-                    using (var reader = cmd.ExecuteReader())
-                    {
-                        var stats = new ObservableCollection<UserStat>();
-                        while (reader.Read())
-                        {
-                            stats.Add(new UserStat
-                            {
-                                User = SkrocNazwisko(reader["UserName"].ToString()),
-                                Count = Convert.ToInt32(reader["TotalCount"])
-                            });
-                        }
-                        itemsKontaktyPerUserRok.ItemsSource = stats;
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Błąd statystyk kontaktów per user: {ex.Message}");
-            }
-        }
-
-        private void LoadPotwierdzaniaPerUser()
-        {
-            try
-            {
-                using (var connection = new SqlConnection(connectionString))
-                {
-                    connection.Open();
-
-                    // Tydzień
-                    string queryTydzien = @"
-                        SELECT 
-                            ISNULL(o.Name, 'Nieznany') AS UserName,
-                            COUNT(*) AS TotalCount
-                        FROM dbo.WstawieniaKurczakow w
-                        LEFT JOIN dbo.operators o ON w.KtoConf = o.ID
-                        WHERE w.isConf = 1 
-                        AND DATEPART(YEAR, w.DataUtw) = DATEPART(YEAR, GETDATE()) 
-                        AND DATEPART(WEEK, w.DataUtw) = DATEPART(WEEK, GETDATE())
-                        GROUP BY o.Name
-                        ORDER BY TotalCount DESC";
-
-                    using (var cmd = new SqlCommand(queryTydzien, connection))
-                    using (var reader = cmd.ExecuteReader())
-                    {
-                        var stats = new ObservableCollection<UserStat>();
-                        while (reader.Read())
-                        {
-                            stats.Add(new UserStat
-                            {
-                                User = SkrocNazwisko(reader["UserName"].ToString()),
-                                Count = Convert.ToInt32(reader["TotalCount"])
-                            });
-                        }
-                        itemsPotwierdzaniaPerUserTydzien.ItemsSource = stats;
-                    }
-
-                    // Miesiąc
-                    string queryMiesiac = @"
-                        SELECT 
-                            ISNULL(o.Name, 'Nieznany') AS UserName,
-                            COUNT(*) AS TotalCount
-                        FROM dbo.WstawieniaKurczakow w
-                        LEFT JOIN dbo.operators o ON w.KtoConf = o.ID
-                        WHERE w.isConf = 1 
-                        AND YEAR(w.DataUtw) = YEAR(GETDATE()) 
-                        AND MONTH(w.DataUtw) = MONTH(GETDATE())
-                        GROUP BY o.Name
-                        ORDER BY TotalCount DESC";
-
-                    using (var cmd = new SqlCommand(queryMiesiac, connection))
-                    using (var reader = cmd.ExecuteReader())
-                    {
-                        var stats = new ObservableCollection<UserStat>();
-                        while (reader.Read())
-                        {
-                            stats.Add(new UserStat
-                            {
-                                User = SkrocNazwisko(reader["UserName"].ToString()),
-                                Count = Convert.ToInt32(reader["TotalCount"])
-                            });
-                        }
-                        itemsPotwierdzaniaPerUserMiesiac.ItemsSource = stats;
-                    }
-
-                    // Rok
-                    string queryRok = @"
-                        SELECT 
-                            ISNULL(o.Name, 'Nieznany') AS UserName,
-                            COUNT(*) AS TotalCount
-                        FROM dbo.WstawieniaKurczakow w
-                        LEFT JOIN dbo.operators o ON w.KtoConf = o.ID
-                        WHERE w.isConf = 1 
-                        AND YEAR(w.DataUtw) = YEAR(GETDATE())
-                        GROUP BY o.Name
-                        ORDER BY TotalCount DESC";
-
-                    using (var cmd = new SqlCommand(queryRok, connection))
-                    using (var reader = cmd.ExecuteReader())
-                    {
-                        var stats = new ObservableCollection<UserStat>();
-                        while (reader.Read())
-                        {
-                            stats.Add(new UserStat
-                            {
-                                User = SkrocNazwisko(reader["UserName"].ToString()),
-                                Count = Convert.ToInt32(reader["TotalCount"])
-                            });
-                        }
-                        itemsPotwierdzaniaPerUserRok.ItemsSource = stats;
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Błąd statystyk potwierdzeń per user: {ex.Message}");
-            }
-        }
 
         private string FormatLiczba(long liczba)
         {
@@ -1080,8 +610,9 @@ namespace Kalendarz1
         // ====== ŁADOWANIE DANYCH ======
         private void LoadWstawienia()
         {
-            string query = @"
-                SELECT W.LP, W.Dostawca,
+            string topClause = _wstawieniaShowAll ? "" : $"TOP {WSTAWIENIA_DEFAULT_LIMIT}";
+            string query = $@"
+                SELECT {topClause} W.LP, W.Dostawca,
                        CONVERT(varchar, W.DataWstawienia, 23) AS Data,
                        W.IloscWstawienia, W.TypUmowy,
                        ISNULL(W.TypCeny, '-') AS TypCeny,
@@ -1090,9 +621,13 @@ namespace Kalendarz1
                        CONVERT(varchar, W.DataUtw, 120) AS DataUtw,
                        W.[isCheck],
                        W.[isConf],
+                       ISNULL(OC.Name, '') AS KtoConfName,
+                       CAST(W.KtoConf AS VARCHAR(20)) AS KtoConfID,
+                       CONVERT(varchar, W.DataConf, 120) AS DataConf,
                        (SELECT MAX(ch.CreatedAt) FROM dbo.ContactHistory ch WHERE ch.LpWstawienia = W.LP) AS OstatniKontakt
                 FROM dbo.WstawieniaKurczakow W
                 LEFT JOIN dbo.operators O ON W.KtoStwo = O.ID
+                LEFT JOIN dbo.operators OC ON W.KtoConf = OC.ID
                 ORDER BY W.LP DESC, W.DataWstawienia DESC";
 
             using (var connection = new SqlConnection(connectionString))
@@ -1107,12 +642,17 @@ namespace Kalendarz1
                     {
                         row["KtoStwo"] = SkrocNazwisko(row["KtoStwo"].ToString());
                     }
+                    if (row["KtoConfName"] != DBNull.Value && !string.IsNullOrWhiteSpace(row["KtoConfName"].ToString()))
+                    {
+                        row["KtoConfName"] = SkrocNazwisko(row["KtoConfName"].ToString());
+                    }
                 }
 
                 dataGridWstawienia.ItemsSource = table.DefaultView;
                 SetupWstawieniaColumns();
                 ApplySupplierGroupingColors();
             }
+            ApplyFilters();
         }
 
         private void SetupWstawieniaColumns()
@@ -1283,27 +823,65 @@ namespace Kalendarz1
                 Width = new DataGridLength(1, DataGridLengthUnitType.Star)
             });
 
-            // Kolumna Potw. - znaczek ✓ (zielony i pogrubiony)
-            var potwColumn = new DataGridTemplateColumn
+            // Kolumna avatar potwierdzającego
+            var confAvatarColumn = new DataGridTemplateColumn
             {
-                Header = "✓",
-                Width = 30
+                Header = "Potw. kto",
+                Width = 90
             };
+            var confAvatarTemplate = new DataTemplate();
 
-            var potwCellTemplate = new DataTemplate();
-            var potwTextFactory = new FrameworkElementFactory(typeof(TextBlock));
-            potwTextFactory.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("isConf")
+            var confStackFactory = new FrameworkElementFactory(typeof(StackPanel));
+            confStackFactory.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
+            confStackFactory.SetValue(StackPanel.MarginProperty, new Thickness(2, 0, 2, 0));
+
+            var confGridFactory = new FrameworkElementFactory(typeof(Grid));
+            confGridFactory.SetValue(Grid.WidthProperty, 20.0);
+            confGridFactory.SetValue(Grid.HeightProperty, 20.0);
+            confGridFactory.SetValue(Grid.MarginProperty, new Thickness(0, 0, 4, 0));
+
+            // Border z inicjałami potwierdzającego (fallback)
+            var confBorderFactory = new FrameworkElementFactory(typeof(Border));
+            confBorderFactory.SetValue(Border.WidthProperty, 20.0);
+            confBorderFactory.SetValue(Border.HeightProperty, 20.0);
+            confBorderFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(10));
+            confBorderFactory.SetValue(Border.BackgroundProperty, new SolidColorBrush(Color.FromRgb(39, 174, 96))); // #27AE60
+            confBorderFactory.SetValue(FrameworkElement.NameProperty, "avatarBorderConf");
+            confBorderFactory.SetBinding(UIElement.VisibilityProperty, new Binding("KtoConfID")
             {
-                Converter = new IsConfConverter()
+                Converter = new NonEmptyToVisibilityConverter()
             });
-            potwTextFactory.SetValue(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(0, 150, 0)));
-            potwTextFactory.SetValue(TextBlock.FontWeightProperty, FontWeights.Bold);
-            potwTextFactory.SetValue(TextBlock.FontSizeProperty, 14.0);
-            potwTextFactory.SetValue(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center);
-            potwTextFactory.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
-            potwCellTemplate.VisualTree = potwTextFactory;
-            potwColumn.CellTemplate = potwCellTemplate;
-            dataGridWstawienia.Columns.Add(potwColumn);
+
+            var confInitialsFactory = new FrameworkElementFactory(typeof(TextBlock));
+            confInitialsFactory.SetBinding(TextBlock.TextProperty, new Binding("KtoConfName") { Converter = new InitialsConverter() });
+            confInitialsFactory.SetValue(TextBlock.FontSizeProperty, 8.0);
+            confInitialsFactory.SetValue(TextBlock.FontWeightProperty, FontWeights.Bold);
+            confInitialsFactory.SetValue(TextBlock.ForegroundProperty, Brushes.White);
+            confInitialsFactory.SetValue(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+            confInitialsFactory.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+            confBorderFactory.AppendChild(confInitialsFactory);
+            confGridFactory.AppendChild(confBorderFactory);
+
+            var confEllipseFactory = new FrameworkElementFactory(typeof(Ellipse));
+            confEllipseFactory.SetValue(Ellipse.WidthProperty, 20.0);
+            confEllipseFactory.SetValue(Ellipse.HeightProperty, 20.0);
+            confEllipseFactory.SetValue(Ellipse.VisibilityProperty, Visibility.Collapsed);
+            confEllipseFactory.SetValue(FrameworkElement.NameProperty, "avatarImageConf");
+            confGridFactory.AppendChild(confEllipseFactory);
+
+            confStackFactory.AppendChild(confGridFactory);
+
+            var confNameFactory = new FrameworkElementFactory(typeof(TextBlock));
+            confNameFactory.SetBinding(TextBlock.TextProperty, new Binding("KtoConfName"));
+            confNameFactory.SetValue(TextBlock.FontSizeProperty, 9.0);
+            confNameFactory.SetValue(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(100, 116, 139)));
+            confNameFactory.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+            confNameFactory.SetBinding(FrameworkElement.ToolTipProperty, new Binding("DataConf"));
+            confStackFactory.AppendChild(confNameFactory);
+
+            confAvatarTemplate.VisualTree = confStackFactory;
+            confAvatarColumn.CellTemplate = confAvatarTemplate;
+            dataGridWstawienia.Columns.Add(confAvatarColumn);
         }
 
         private void ApplySupplierGroupingColors()
@@ -1374,6 +952,40 @@ namespace Kalendarz1
                         var border = FindVisualChild<Border>(e.Row, "avatarBorderWstawienia");
                         if (ellipse != null) ellipse.Visibility = Visibility.Collapsed;
                         if (border != null) border.Visibility = Visibility.Visible;
+                    }
+
+                    // Avatar potwierdzającego (KtoConf)
+                    string currentKtoConfID = row.Row.Table.Columns.Contains("KtoConfID") && row["KtoConfID"] != DBNull.Value
+                        ? row["KtoConfID"].ToString() : null;
+                    if (!string.IsNullOrEmpty(currentKtoConfID))
+                    {
+                        var capturedRow = e.Row;
+                        var capturedConfId = currentKtoConfID;
+                        Dispatcher.BeginInvoke(new Action(() =>
+                        {
+                            try
+                            {
+                                if (capturedRow.DataContext is DataRowView currentData &&
+                                    currentData.Row.Table.Columns.Contains("KtoConfID") &&
+                                    currentData["KtoConfID"]?.ToString() == capturedConfId)
+                                {
+                                    var ellipse = FindVisualChild<Ellipse>(capturedRow, "avatarImageConf");
+                                    var border = FindVisualChild<Border>(capturedRow, "avatarBorderConf");
+                                    if (ellipse != null) ellipse.Visibility = Visibility.Collapsed;
+                                    if (border != null) border.Visibility = Visibility.Visible;
+
+                                    LoadAvatarForRow(capturedRow, capturedConfId, "avatarImageConf", "avatarBorderConf");
+                                }
+                            }
+                            catch { }
+                        }), System.Windows.Threading.DispatcherPriority.Loaded);
+                    }
+                    else
+                    {
+                        var ellipseC = FindVisualChild<Ellipse>(e.Row, "avatarImageConf");
+                        var borderC = FindVisualChild<Border>(e.Row, "avatarBorderConf");
+                        if (ellipseC != null) ellipseC.Visibility = Visibility.Collapsed;
+                        if (borderC != null) borderC.Visibility = Visibility.Collapsed;
                     }
 
                     // Double-click otwiera osobne okno - tylko raz (tag zapobiega kumulacji)
@@ -1746,62 +1358,27 @@ namespace Kalendarz1
 
         private DeliveryStatus GetDeliveryStatus(int lpWstawienia)
         {
-            try
+            // Używamy cache (PreloadDeliveryCache) zamiast zapytania per wiersz.
+            // To eliminuje N+1 problem w LoadingRow dla dataGridWstawienia.
+            if (!_deliveryCacheLoaded || !_deliveryCache.TryGetValue(lpWstawienia, out var deliveries) || deliveries.Count == 0)
             {
-                using (var connection = new SqlConnection(connectionString))
-                {
-                    connection.Open();
-                    string query = @"
-                        SELECT DataOdbioru 
-                        FROM dbo.HarmonogramDostaw 
-                        WHERE LpW = @LP 
-                        ORDER BY DataOdbioru";
-
-                    using (var cmd = new SqlCommand(query, connection))
-                    {
-                        cmd.Parameters.AddWithValue("@LP", lpWstawienia);
-
-                        var deliveryDates = new List<DateTime>();
-                        using (var reader = cmd.ExecuteReader())
-                        {
-                            while (reader.Read())
-                            {
-                                if (!reader.IsDBNull(0))
-                                {
-                                    deliveryDates.Add(reader.GetDateTime(0));
-                                }
-                            }
-                        }
-
-                        if (deliveryDates.Count == 0)
-                        {
-                            return DeliveryStatus.NoDeliveries;
-                        }
-
-                        DateTime today = DateTime.Today;
-                        bool hasPast = deliveryDates.Any(d => d.Date < today);
-                        bool hasFuture = deliveryDates.Any(d => d.Date >= today);
-
-                        if (hasPast && hasFuture)
-                        {
-                            return DeliveryStatus.Ongoing;
-                        }
-                        else if (hasPast && !hasFuture)
-                        {
-                            return DeliveryStatus.AllPast;
-                        }
-                        else
-                        {
-                            return DeliveryStatus.AllFuture;
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Błąd sprawdzania statusu dostaw: {ex.Message}");
                 return DeliveryStatus.NoDeliveries;
             }
+
+            DateTime today = DateTime.Today;
+            bool hasPast = false, hasFuture = false;
+            foreach (var d in deliveries)
+            {
+                if (d.DataOdbioru == DateTime.MinValue) continue;
+                if (d.DataOdbioru.Date < today) hasPast = true;
+                else hasFuture = true;
+                if (hasPast && hasFuture) break;
+            }
+
+            if (!hasPast && !hasFuture) return DeliveryStatus.NoDeliveries;
+            if (hasPast && hasFuture) return DeliveryStatus.Ongoing;
+            if (hasPast) return DeliveryStatus.AllPast;
+            return DeliveryStatus.AllFuture;
         }
 
         private List<DeliveryInfo> GetDeliveryDetails(int lpWstawienia)
@@ -1828,13 +1405,15 @@ namespace Kalendarz1
             table.Columns.Add("OstatNotatka", typeof(string));
             table.Columns.Add("IleNieOdebral", typeof(int));
 
+            var seenLp = new HashSet<int>();
+
             using (var connection = new SqlConnection(connectionString))
             {
                 connection.Open();
 
-                // Aktywne przypomnienia
+                // Aktywne przypomnienia (DISTINCT by LP — widok może zwrócić duplikaty)
                 string queryAktywne = @"
-                    SELECT
+                    SELECT DISTINCT
                         v.LP,
                         CAST(v.DataWstawienia AS date) AS Data,
                         v.Dostawca,
@@ -1853,8 +1432,10 @@ namespace Kalendarz1
                 {
                     while (reader.Read())
                     {
+                        int lp = Convert.ToInt32(reader["LP"]);
+                        if (!seenLp.Add(lp)) continue; // pomiń duplikaty LP
                         var row = table.NewRow();
-                        row["LP"] = reader["LP"];
+                        row["LP"] = lp;
                         row["Data"] = reader["Data"];
                         row["Dostawca"] = reader["Dostawca"];
                         row["Ilosc"] = reader["Ilosc"] != DBNull.Value ? reader["Ilosc"] : DBNull.Value;
@@ -1897,8 +1478,10 @@ namespace Kalendarz1
                 {
                     while (reader.Read())
                     {
+                        int lp = Convert.ToInt32(reader["LP"]);
+                        if (!seenLp.Add(lp)) continue; // pomiń duplikaty LP
                         var row = table.NewRow();
-                        row["LP"] = reader["LP"];
+                        row["LP"] = lp;
                         row["Data"] = reader["Data"];
                         row["Dostawca"] = reader["Dostawca"];
                         row["Ilosc"] = reader["Ilosc"] != DBNull.Value ? reader["Ilosc"] : DBNull.Value;
@@ -1915,6 +1498,7 @@ namespace Kalendarz1
 
             dataGridPrzypomnienia.ItemsSource = table.DefaultView;
             SetupPrzypomieniaColumns();
+            ApplyFilters();
         }
 
         private void SetupPrzypomieniaColumns()
@@ -1943,7 +1527,9 @@ namespace Kalendarz1
 
             dataGridPrzypomnienia.Columns.Add(new DataGridTextColumn
             {
-                Header = "Tel", Binding = new Binding("Telefon"), Width = 76
+                Header = "Tel",
+                Binding = new Binding("Telefon") { Converter = new PhoneFormatConverter() },
+                Width = 108
             });
 
             // Kolumna 📝 — "X not."
@@ -2141,6 +1727,7 @@ namespace Kalendarz1
                 dataGridHistoria.ItemsSource = table.DefaultView;
                 SetupHistoriaColumns();
             }
+            ApplyFilters();
         }
 
         private void SetupHistoriaColumns()
@@ -2541,6 +2128,14 @@ namespace Kalendarz1
         // ====== OBSŁUGA ZDARZEŃ ======
         private void TextBoxFilter_TextChanged(object sender, TextChangedEventArgs e)
         {
+            // Przy wyszukiwaniu pokazujemy wszystkie wstawienia; bez frazy tylko 100 ostatnich
+            bool needsAll = !string.IsNullOrWhiteSpace(textBoxFilter?.Text);
+            if (needsAll != _wstawieniaShowAll)
+            {
+                _wstawieniaShowAll = needsAll;
+                LoadWstawienia(); // przeładuj z/bez TOP 100
+                return; // LoadWstawienia wywoła już ApplyFilters()
+            }
             ApplyFilters();
         }
 
@@ -2566,36 +2161,34 @@ namespace Kalendarz1
         }
         private void ApplyFilters()
         {
-            var view = dataGridWstawienia.ItemsSource as DataView;
-            if (view != null)
+            string filterText = textBoxFilter?.Text?.Trim() ?? "";
+            string escapedFilter = filterText.Replace("'", "''");
+
+            // === Wstawienia (lista główna) ===
+            var viewWstawienia = dataGridWstawienia.ItemsSource as DataView;
+            if (viewWstawienia != null)
             {
                 var filters = new List<string>();
 
-                // Filtr tekstowy
-                string filterText = textBoxFilter.Text.Trim();
                 if (!string.IsNullOrEmpty(filterText))
                 {
-                    filters.Add($"Dostawca LIKE '%{filterText}%'");
+                    filters.Add($"Dostawca LIKE '%{escapedFilter}%'");
                 }
 
-                // Filtr daty od
-                if (datePickerOd.SelectedDate.HasValue)
+                if (datePickerOd?.SelectedDate.HasValue == true)
                 {
                     string dateString = datePickerOd.SelectedDate.Value.ToString("yyyy-MM-dd");
                     filters.Add($"Data >= '{dateString}'");
                 }
 
-                // Filtr daty do
-                if (datePickerDo.SelectedDate.HasValue)
+                if (datePickerDo?.SelectedDate.HasValue == true)
                 {
                     string dateString = datePickerDo.SelectedDate.Value.ToString("yyyy-MM-dd");
                     filters.Add($"Data <= '{dateString}'");
                 }
 
-                // Filtr tylko przyszłe wstawienia (unikalni hodowcy z najwyższą datą)
-                if (chkPokazPrzyszle.IsChecked == true)
+                if (chkPokazPrzyszle?.IsChecked == true)
                 {
-                    // Pobierz unikalnych hodowców z najwyższą datą >= aktualny rok
                     var uniqueSuppliers = GetUniqueSuppliersWithFutureDeliveries();
                     if (uniqueSuppliers.Any())
                     {
@@ -2604,12 +2197,29 @@ namespace Kalendarz1
                     }
                     else
                     {
-                        // Jeśli brak hodowców, pokaż pusty wynik
                         filters.Add("1 = 0");
                     }
                 }
 
-                view.RowFilter = filters.Count > 0 ? string.Join(" AND ", filters) : string.Empty;
+                viewWstawienia.RowFilter = filters.Count > 0 ? string.Join(" AND ", filters) : string.Empty;
+            }
+
+            // === Przypomnienia ===
+            var viewPrzypomnienia = dataGridPrzypomnienia.ItemsSource as DataView;
+            if (viewPrzypomnienia != null)
+            {
+                viewPrzypomnienia.RowFilter = string.IsNullOrEmpty(filterText)
+                    ? string.Empty
+                    : $"Dostawca LIKE '%{escapedFilter}%'";
+            }
+
+            // === Historia kontaktów ===
+            var viewHistoria = dataGridHistoria.ItemsSource as DataView;
+            if (viewHistoria != null)
+            {
+                viewHistoria.RowFilter = string.IsNullOrEmpty(filterText)
+                    ? string.Empty
+                    : $"Dostawca LIKE '%{escapedFilter}%' OR Reason LIKE '%{escapedFilter}%' OR UserName LIKE '%{escapedFilter}%'";
             }
         }
 
@@ -3878,6 +3488,101 @@ namespace Kalendarz1
             }
         }
 
+        private void MenuPotwierdzWstawienieGrid_Click(object sender, RoutedEventArgs e)
+        {
+            if (dataGridWstawienia.SelectedItem == null)
+            {
+                MessageBox.Show("Wybierz wstawienie z listy.", "Uwaga",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var row = (DataRowView)dataGridWstawienia.SelectedItem;
+            if (row["LP"] == DBNull.Value) return;
+
+            int lp = Convert.ToInt32(row["LP"]);
+            string dostawca = row["Dostawca"]?.ToString() ?? "";
+            bool juzPotwierdzone = row["isConf"] != DBNull.Value && Convert.ToBoolean(row["isConf"]);
+
+            if (juzPotwierdzone)
+            {
+                var confirm = MessageBox.Show(
+                    $"Wstawienie (LP {lp}, {dostawca}) jest już potwierdzone.\n\nCzy chcesz zaktualizować datę i osobę potwierdzającą?",
+                    "Już potwierdzone",
+                    MessageBoxButton.YesNo, MessageBoxImage.Question);
+                if (confirm != MessageBoxResult.Yes) return;
+            }
+            else
+            {
+                var confirm = MessageBox.Show(
+                    $"Potwierdzić wstawienie LP {lp} ({dostawca})?",
+                    "Potwierdzenie wstawienia",
+                    MessageBoxButton.YesNo, MessageBoxImage.Question);
+                if (confirm != MessageBoxResult.Yes) return;
+            }
+
+            PotwierdzWstawienie(lp);
+        }
+
+        private void MenuCofnijPotwierdzenie_Click(object sender, RoutedEventArgs e)
+        {
+            if (dataGridWstawienia.SelectedItem == null)
+            {
+                MessageBox.Show("Wybierz wstawienie z listy.", "Uwaga",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var row = (DataRowView)dataGridWstawienia.SelectedItem;
+            if (row["LP"] == DBNull.Value) return;
+
+            int lp = Convert.ToInt32(row["LP"]);
+            string dostawca = row["Dostawca"]?.ToString() ?? "";
+            bool juzPotwierdzone = row["isConf"] != DBNull.Value && Convert.ToBoolean(row["isConf"]);
+
+            if (!juzPotwierdzone)
+            {
+                MessageBox.Show(
+                    $"Wstawienie LP {lp} ({dostawca}) nie jest potwierdzone — nie ma czego cofać.",
+                    "Brak potwierdzenia",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            string ktoConf = row.Row.Table.Columns.Contains("KtoConfName") && row["KtoConfName"] != DBNull.Value
+                ? row["KtoConfName"].ToString() : "";
+            string dataConf = row.Row.Table.Columns.Contains("DataConf") && row["DataConf"] != DBNull.Value
+                ? row["DataConf"].ToString() : "";
+
+            string info = $"Cofnąć potwierdzenie wstawienia LP {lp} ({dostawca})?";
+            if (!string.IsNullOrWhiteSpace(ktoConf) || !string.IsNullOrWhiteSpace(dataConf))
+                info += $"\n\nPotwierdził: {ktoConf}\nData: {dataConf}";
+
+            var confirm = MessageBox.Show(info, "Cofnięcie potwierdzenia",
+                MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (confirm != MessageBoxResult.Yes) return;
+
+            try
+            {
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+                    string q = "UPDATE dbo.WstawieniaKurczakow SET isConf = 0, DataConf = NULL, KtoConf = NULL WHERE Lp = @LP";
+                    using (var cmd = new SqlCommand(q, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@LP", lp);
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+                RefreshAll();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Błąd cofania potwierdzenia: " + ex.Message, "Błąd",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
         private void PotwierdzWstawienie(int lp, DateTime? nowaData = null)
         {
             try
@@ -3962,6 +3667,7 @@ namespace Kalendarz1
 
         private void RefreshAll()
         {
+            PreloadDeliveryCache();
             LoadWstawienia();
             LoadPrzypomnienia();
             LoadHistoria();
@@ -5495,6 +5201,69 @@ namespace Kalendarz1
             else if (parts.Length == 1 && parts[0].Length == 1)
                 return parts[0].ToUpper();
             return "";
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    /// <summary>
+    /// Formatuje numer telefonu do czytelnej postaci.
+    /// +48xxxxxxxxx lub 48xxxxxxxxx → "+48 xxx xxx xxx"
+    /// xxxxxxxxx (9 cyfr) → "xxx xxx xxx"
+    /// Pozostałe bez prefiksu → dzielone po 3 cyfry od prawej
+    /// </summary>
+    public class PhoneFormatConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value == null || value == DBNull.Value) return "";
+            string raw = value.ToString()?.Trim() ?? "";
+            if (string.IsNullOrEmpty(raw)) return "";
+
+            bool plus = raw.StartsWith("+");
+            string digits = new string(raw.Where(char.IsDigit).ToArray());
+            if (digits.Length == 0) return raw;
+
+            string prefix = "";
+            string rest = digits;
+            if (digits.StartsWith("48") && digits.Length > 9)
+            {
+                prefix = "+48 ";
+                rest = digits.Substring(2);
+            }
+            else if (plus)
+            {
+                prefix = "+";
+            }
+
+            var sb = new System.Text.StringBuilder();
+            for (int i = 0; i < rest.Length; i += 3)
+            {
+                if (sb.Length > 0) sb.Append(' ');
+                sb.Append(rest.Substring(i, Math.Min(3, rest.Length - i)));
+            }
+            return prefix + sb.ToString();
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    /// <summary>
+    /// Visible gdy wartość nie jest null/pusta (do ukrywania avatara gdy brak KtoConf)
+    /// </summary>
+    public class NonEmptyToVisibilityConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value == null || value == DBNull.Value) return Visibility.Collapsed;
+            var s = value.ToString();
+            return string.IsNullOrWhiteSpace(s) ? Visibility.Collapsed : Visibility.Visible;
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

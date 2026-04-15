@@ -251,6 +251,33 @@ namespace Kalendarz1.Opakowania.Services
                 };
                 doc.Add(introText);
 
+                // BANNER: kto komu winny (na podstawie sald wszystkich typów)
+                int _pos = 0, _neg = 0, _posSum = 0, _negSum = 0;
+                int[] _salda = { saldo?.SaldoE2 ?? 0, saldo?.SaldoH1 ?? 0, saldo?.SaldoEURO ?? 0, saldo?.SaldoPCV ?? 0, saldo?.SaldoDREW ?? 0 };
+                foreach (var v in _salda)
+                {
+                    if (v > 0) { _pos++; _posSum += v; }
+                    else if (v < 0) { _neg++; _negSum += Math.Abs(v); }
+                }
+
+                string bannerText = null;
+                if (_pos == 0 && _neg == 0)
+                    bannerText = "SALDO ZEROWE — wszystkie opakowania rozliczone";
+                else if (_neg == 0)
+                    bannerText = $"UBOJNIA WINNA — łącznie {_posSum} szt./pal.";
+                else if (_pos == 0)
+                    bannerText = $"KONTRAHENT WINNY — łącznie {_negSum} szt./pal.";
+
+                if (bannerText != null)
+                {
+                    var bannerPara = new Paragraph(bannerText, new Font(_baseFont, 16, Font.BOLD))
+                    {
+                        Alignment = Element.ALIGN_CENTER,
+                        SpacingAfter = 20
+                    };
+                    doc.Add(bannerPara);
+                }
+
                 // Tabela podsumowania sald
                 PdfPTable summaryTable = new PdfPTable(2)
                 {
@@ -277,11 +304,11 @@ namespace Kalendarz1.Opakowania.Services
                     string wartoscText;
                     if (wartosc < 0)
                     {
-                        wartoscText = $"Ubojnia winna : {Math.Abs(wartosc)}";
+                        wartoscText = $"Kontrahent winny : {Math.Abs(wartosc)}";
                     }
                     else if (wartosc > 0)
                     {
-                        wartoscText = $"Kontrahent winny : {wartosc}";
+                        wartoscText = $"Ubojnia winna : {wartosc}";
                     }
                     else
                     {

@@ -80,7 +80,11 @@ namespace Kalendarz1.Reklamacje
                 OnPropertyChanged(nameof(KategoriaZakladki));
             }
         }
-        public string StatusV2Etykieta => StatusyV2.Etykieta(StatusV2);
+        public string StatusV2Etykieta =>
+            // Korekta bez uzupelnienia info = "Oczekuje" (czeka na handlowca)
+            (StatusV2 == StatusyV2.ZGLOSZONA && WymagaUzupelnienia)
+                ? "Oczekuje"
+                : StatusyV2.Etykieta(StatusV2);
         public string Zglaszajacy { get => _zglaszajacy; set { _zglaszajacy = value; OnPropertyChanged(nameof(Zglaszajacy)); } }
         public string OsobaRozpatrujaca { get => _osobaRozpatrujaca; set { _osobaRozpatrujaca = value; OnPropertyChanged(nameof(OsobaRozpatrujaca)); } }
         public string TypReklamacji { get => _typReklamacji; set { _typReklamacji = value; OnPropertyChanged(nameof(TypReklamacji)); } }
@@ -100,6 +104,7 @@ namespace Kalendarz1.Reklamacje
                 _wymagaUzupelnienia = value;
                 OnPropertyChanged(nameof(WymagaUzupelnienia));
                 OnPropertyChanged(nameof(KategoriaZakladki));
+                OnPropertyChanged(nameof(StatusV2Etykieta));
             }
         }
 
@@ -117,6 +122,9 @@ namespace Kalendarz1.Reklamacje
         public SolidColorBrush HandlowiecAvatarBrush => FormRozpatrzenieWindow.GetAvatarBrush(Handlowiec);
         public Visibility HandlowiecAvatarPhotoVis => HandlowiecAvatar != null ? Visibility.Visible : Visibility.Collapsed;
         public Visibility HandlowiecVis => string.IsNullOrEmpty(Handlowiec) || Handlowiec == "-" ? Visibility.Collapsed : Visibility.Visible;
+
+        // Widocznosc info o fakturze bazowej (dla korekt)
+        public Visibility FakturaBazowaVis => !string.IsNullOrEmpty(NumerFakturyOryginalnej) ? Visibility.Visible : Visibility.Collapsed;
 
         public string ZrodloIkona => ZrodloZgloszenia switch
         {

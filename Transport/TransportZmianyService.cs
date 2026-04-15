@@ -118,14 +118,14 @@ namespace Kalendarz1.Transport
             {
                 using var conn = new SqlConnection(_connLibra);
                 conn.Open();
+                // Liczymy tylko zamówienia na DZISIAJ — spójne z pending badge
                 using var cmd = new SqlCommand(@"
                     SELECT COUNT(DISTINCT zm.Id)
                     FROM dbo.ZamowieniaMieso zm
                     WHERE ISNULL(zm.TransportStatus, 'Oczekuje') NOT IN ('Przypisany', 'Wlasny')
                       AND zm.TransportKursID IS NULL
                       AND ISNULL(zm.Status, 'Nowe') NOT IN ('Anulowane')
-                      AND zm.DataZamowienia >= CAST(GETDATE() AS date)
-                      AND zm.DataZamowienia <= DATEADD(day, 7, CAST(GETDATE() AS date))", conn);
+                      AND CAST(zm.DataZamowienia AS date) = CAST(GETDATE() AS date)", conn);
                 return (int)(cmd.ExecuteScalar() ?? 0);
             }
             catch { return 0; }
@@ -138,6 +138,34 @@ namespace Kalendarz1.Transport
         public static async Task<List<TransportZmiana>> GetPendingAsync()
         {
             return await GetByStatusAsync("Oczekuje");
+        }
+
+        /// <summary>
+        /// Zwraca oczekujące zmiany zgłoszone dzisiaj (zgodnie z badge count).
+        /// Starsze oczekujące nie są pokazywane jako bieżące notyfikacje.
+        /// </summary>
+        public static async Task<List<TransportZmiana>> GetPendingTodayAsync()
+        {
+            var list = new List<TransportZmiana>();
+            try
+            {
+                using var conn = new SqlConnection(_connTransport);
+                await conn.OpenAsync();
+                using var cmd = new SqlCommand(@"
+                    SELECT Id, ZamowienieId, KlientKod, KlientNazwa, TypZmiany, Opis,
+                           StareWartosc, NowaWartosc, StatusZmiany, ZgloszonePrzez,
+                           DataZgloszenia, ZaakceptowanePrzez, DataAkceptacji, Komentarz
+                    FROM TransportZmiany
+                    WHERE StatusZmiany = 'Oczekuje'
+                      AND TypZmiany != 'ZmianaStatusu'
+                      AND CAST(DataZgloszenia AS date) = CAST(GETDATE() AS date)
+                    ORDER BY DataZgloszenia DESC", conn);
+                using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                    list.Add(MapZmiana(reader));
+            }
+            catch { }
+            return list;
         }
 
         public static async Task<List<TransportZmiana>> GetAllAsync(int top = 100)

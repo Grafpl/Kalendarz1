@@ -149,6 +149,7 @@ namespace Kalendarz1.Opakowania.Forms
             public const string IconMaximize = "\uE739";
             public const string IconWarning = "\uE7BA";
             public const string IconSort = "\uE8CB";
+            public const string IconFolder = "\uE838";
         }
 
         // Services
@@ -186,8 +187,7 @@ namespace Kalendarz1.Opakowania.Forms
         DateTimePicker _dtDataDo;
         ComboBox _cbHandler;
         TextBox _txtSearch;
-        Button _btnRefresh, _btnPdf, _btnExcel, _btnDruk, _btnGroup;
-        CheckBox _chkTylkoZSaldem, _chkZaleglosci, _chkNiepotw;
+        Button _btnRefresh, _btnPdf, _btnExcel, _btnGroup, _btnFolder;
         DataGridView _grid;
         Label _lblStatus, _lblLastRefresh, _emptyState;
         int _hover = -1;
@@ -199,7 +199,7 @@ namespace Kalendarz1.Opakowania.Forms
         Label[] _detSaldoUnits;
         Panel[] _detSaldoCards;
         DataGridView _gridDocs;
-        Button _btnDetAdd, _btnDetPrint, _btnDetEmail, _btnDetFull, _btnDetPdf, _btnDetKart;
+        Button _btnDetAdd, _btnDetEmail, _btnDetFull, _btnDetPdf, _btnDetKart, _btnDetFolder;
         Label _detPlaceholder;
         Panel _detPotwBar;
         Label _detPotwLabel;
@@ -462,7 +462,7 @@ namespace Kalendarz1.Opakowania.Forms
 
             var s1 = new Panel { Size = new Size(1, 32), Margin = new Padding(12, 2, 12, 0), BackColor = T.Border };
 
-            _txtSearch = new TextBox { Width = 240, Font = new Font("Segoe UI", 10), PlaceholderText = "Szukaj kontrahenta...", Margin = new Padding(0, 5, 0, 0) };
+            _txtSearch = new TextBox { Width = 140, Font = new Font("Segoe UI", 10), PlaceholderText = "Szukaj...", Margin = new Padding(0, 5, 0, 0) };
             _txtSearch.TextChanged += (_, __) => ApplyFilter();
 
             _cbHandler = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 150, Font = T.Body, Visible = false, Margin = new Padding(8, 5, 0, 0), FlatStyle = FlatStyle.Flat };
@@ -472,25 +472,18 @@ namespace Kalendarz1.Opakowania.Forms
 
 
             var s2 = new Panel { Size = new Size(1, 32), Margin = new Padding(12, 2, 12, 0), BackColor = T.Border };
-            _chkTylkoZSaldem = new CheckBox { Text = "Z saldem", AutoSize = true, Checked = false, Margin = new Padding(0, 11, 0, 0), Font = T.Body, ForeColor = T.TextSecondary };
-            _chkTylkoZSaldem.CheckedChanged += (_, __) => ApplyFilter();
-            _chkZaleglosci = new CheckBox { Text = ">30 dni bez ruchu", AutoSize = true, Checked = false, Margin = new Padding(8, 11, 0, 0), Font = T.Body, ForeColor = T.TextSecondary };
-            _chkZaleglosci.CheckedChanged += (_, __) => ApplyFilter();
-            _chkNiepotw = new CheckBox { Text = "Niepotwierdzone", AutoSize = true, Checked = false, Margin = new Padding(8, 11, 0, 0), Font = T.Body, ForeColor = Color.FromArgb(220, 38, 38) };
-            _chkNiepotw.CheckedChanged += (_, __) => ApplyFilter();
-
-            lf.Controls.AddRange(new Control[] { lblData, _dtDataDo, s1, _txtSearch, _cbHandler, s2, _chkTylkoZSaldem, _chkZaleglosci, _chkNiepotw });
+            lf.Controls.AddRange(new Control[] { lblData, _dtDataDo, s1, _txtSearch, _cbHandler });
 
             _btnRefresh = IconBtn(T.IconRefresh, "Odswiez", T.Accent); _btnRefresh.Click += async (_, __) => await Reload();
             _btnGroup = IconBtn(T.IconGroup, "Grupuj", T.TextSecondary); _btnGroup.Click += (_, __) => ToggleGroup();
             _btnPdf = IconBtn(T.IconPdf, "PDF", T.Danger); _btnPdf.Click += async (_, __) => await DoPdf();
             _btnExcel = IconBtn(T.IconExcel, "Excel", T.Success); _btnExcel.Click += async (_, __) => await DoExcel();
-            _btnDruk = IconBtn(T.IconPrint, "Drukuj", T.TextSecondary); _btnDruk.Click += (_, __) => DoPrint();
+            _btnFolder = IconBtn(T.IconFolder, "Folder", Color.FromArgb(234, 88, 12)); _btnFolder.Click += (_, __) => OpenFolderRoot();
 
             _lblLastRefresh = new Label { Text = "—", AutoSize = true, ForeColor = T.TextMuted, Font = T.Small, Margin = new Padding(10, 13, 10, 0) };
 
             var rf = new FlowLayoutPanel { Dock = DockStyle.Right, AutoSize = true, FlowDirection = FlowDirection.LeftToRight, BackColor = Color.Transparent, WrapContents = false, Padding = new Padding(0, 10, 14, 0) };
-            rf.Controls.AddRange(new Control[] { _lblLastRefresh, _btnRefresh, _btnGroup, _btnPdf, _btnExcel, _btnDruk });
+            rf.Controls.AddRange(new Control[] { _lblLastRefresh, _btnRefresh, _btnGroup, _btnPdf, _btnExcel, _btnFolder });
 
             _toolbar.Controls.Add(lf);
             _toolbar.Controls.Add(rf);
@@ -861,10 +854,10 @@ namespace Kalendarz1.Opakowania.Forms
             _btnDetPdf.Click += async (_, __) => await PdfForCurrent();
             _btnDetEmail = IconBtn(T.IconEmail, "Email", T.Accent);
             _btnDetEmail.Click += (_, __) => EmailSaldoForCurrent();
-            _btnDetPrint = IconBtn(T.IconPrint, "Drukuj", T.TextSecondary);
-            _btnDetPrint.Click += (_, __) => PrintDetailsCard();
+            _btnDetFolder = IconBtn(T.IconFolder, "Folder", Color.FromArgb(234, 88, 12));
+            _btnDetFolder.Click += (_, __) => OpenFolderKontrahenta();
             var af = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, AutoSize = true, BackColor = Color.Transparent, WrapContents = false };
-            af.Controls.AddRange(new Control[] { _btnDetFull, _btnDetAdd, _btnDetKart, _btnDetPdf, _btnDetEmail, _btnDetPrint });
+            af.Controls.AddRange(new Control[] { _btnDetFull, _btnDetAdd, _btnDetKart, _btnDetPdf, _btnDetEmail, _btnDetFolder });
             actionsBar.Controls.Add(af);
 
             // 5 kart sald — TableLayout
@@ -1105,6 +1098,31 @@ namespace Kalendarz1.Opakowania.Forms
             f.ShowDialog(this);
         }
 
+        void OpenFolderRoot()
+        {
+            try
+            {
+                string folder = _exportService.GetSciezkaZapisu();
+                if (!System.IO.Directory.Exists(folder)) System.IO.Directory.CreateDirectory(folder);
+                Process.Start("explorer.exe", $"\"{folder}\"");
+            }
+            catch (Exception ex) { MessageBox.Show("Nie udalo sie otworzyc folderu: " + ex.Message); }
+        }
+
+        void OpenFolderKontrahenta()
+        {
+            if (_currentDetails is not SaldoOpakowania s) { OpenFolderRoot(); return; }
+            try
+            {
+                string bazowa = _exportService.GetSciezkaZapisu();
+                string bezp = string.Join("_", (s.Kontrahent ?? "").Trim().Split(System.IO.Path.GetInvalidFileNameChars()));
+                string folder = System.IO.Path.Combine(bazowa, bezp);
+                if (!System.IO.Directory.Exists(folder)) System.IO.Directory.CreateDirectory(folder);
+                Process.Start("explorer.exe", $"\"{folder}\"");
+            }
+            catch (Exception ex) { MessageBox.Show("Nie udalo sie otworzyc folderu: " + ex.Message); }
+        }
+
         void EmailSaldoForCurrent()
         {
             if (_currentDetails is not SaldoOpakowania s) return;
@@ -1343,12 +1361,6 @@ namespace Kalendarz1.Opakowania.Forms
             IEnumerable<SaldoOpakowania> f = _saldaData;
             if (!string.IsNullOrWhiteSpace(q))
                 f = f.Where(s => s.Kontrahent.ToLower().Contains(q) || (s.Handlowiec?.ToLower().Contains(q) ?? false));
-            if (_chkTylkoZSaldem.Checked)
-                f = f.Where(s => s.SaldoCalkowite != 0);
-            if (_chkZaleglosci.Checked)
-                f = f.Where(s => s.DataOstatniegoDokumentu == null || (DateTime.Today - s.DataOstatniegoDokumentu.Value).TotalDays > 30);
-            if (_chkNiepotw.Checked)
-                f = f.Where(s => s.DniOdPotwierdzenia > 30);
 
             IOrderedEnumerable<SaldoOpakowania> ordered = _sortKind switch
             {

@@ -51,6 +51,7 @@ namespace Kalendarz1
         private System.Windows.Forms.Timer _reklamacjeBadgeTimer;
         private Label _wstawieniaBadgeLabel;
         private System.Windows.Forms.Timer _wstawieniaBadgeTimer;
+        private System.Windows.Forms.Timer _clockTimer;
 
         public MENU()
         {
@@ -65,6 +66,32 @@ namespace Kalendarz1
             StartTransportBadgeTimer();
             StartReklamacjeBadgeTimer();
             StartWstawieniaBadgeTimer();
+        }
+
+        protected override void OnFormClosed(FormClosedEventArgs e)
+        {
+            // Sprzątamy wszystkie timery — zapobiega wyciekom pamięci i zombie SQL po zamknięciu menu
+            try
+            {
+                taskNotificationTimer?.Stop(); taskNotificationTimer?.Dispose();
+                _chatBadgeTimer?.Stop(); _chatBadgeTimer?.Dispose();
+                _crBadgeTimer?.Stop(); _crBadgeTimer?.Dispose();
+                _transportBadgeTimer?.Stop(); _transportBadgeTimer?.Dispose();
+                _reklamacjeBadgeTimer?.Stop(); _reklamacjeBadgeTimer?.Dispose();
+                _wstawieniaBadgeTimer?.Stop(); _wstawieniaBadgeTimer?.Dispose();
+                _clockTimer?.Stop(); _clockTimer?.Dispose();
+
+                if (meetingChangeMonitor != null)
+                {
+                    meetingChangeMonitor.ChangesDetected -= MeetingChangeMonitor_ChangesDetected;
+                    meetingChangeMonitor.Stop();
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"OnFormClosed cleanup error: {ex.Message}");
+            }
+            base.OnFormClosed(e);
         }
 
         private void StartTaskNotifications()
@@ -83,6 +110,7 @@ namespace Kalendarz1
             try
             {
                 meetingChangeMonitor = new MeetingChangeMonitor(App.UserID);
+                meetingChangeMonitor.ChangesDetected -= MeetingChangeMonitor_ChangesDetected; // zapobiega dublowaniu handlerów
                 meetingChangeMonitor.ChangesDetected += MeetingChangeMonitor_ChangesDetected;
                 meetingChangeMonitor.Start(2); // Check every 2 minutes
             }
@@ -163,7 +191,7 @@ namespace Kalendarz1
         private void StartChatBadgeTimer()
         {
             _chatBadgeTimer = new System.Windows.Forms.Timer();
-            _chatBadgeTimer.Interval = 5000; // Co 5 sekund
+            _chatBadgeTimer.Interval = 30000; // Co 30 sekund (było 5s — nadmierne obciążenie SQL)
             _chatBadgeTimer.Tick += (s, e) => UpdateChatBadge();
             _chatBadgeTimer.Start();
 
@@ -288,7 +316,10 @@ namespace Kalendarz1
 
             if (_transportFreeBadge != null)
             {
-                if (freeCount > 0)
+                // Pokazuj wolne zamówienia tylko jeśli są też oczekujące zmiany do akceptacji.
+                // Gdy dispatcher zaakceptował wszystko (pendingCount=0), oba dymki znikają —
+                // wolne zamówienia (nieprzypisane do kursu) są i tak widoczne w samym panelu Transport.
+                if (freeCount > 0 && pendingCount > 0)
                 {
                     _transportFreeBadge.Text = freeCount > 99 ? "99+" : freeCount.ToString();
                     _transportFreeBadge.Visible = true;
@@ -319,7 +350,7 @@ namespace Kalendarz1
             try
             {
                 int count = 0;
-                using (var conn = new Microsoft.Data.SqlClient.SqlConnection("Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True"))
+                using (var conn = new Microsoft.Data.SqlClient.SqlConnection(connectionString))
                 {
                     conn.Open();
                     using (var cmd = new Microsoft.Data.SqlClient.SqlCommand("SELECT COUNT(*) FROM dbo.v_WstawieniaDoKontaktu", conn))
@@ -950,7 +981,6 @@ namespace Kalendarz1
             string dayOfWeek = culture.DateTimeFormat.GetDayName(now.DayOfWeek);
             dayOfWeek = char.ToUpper(dayOfWeek[0]) + dayOfWeek.Substring(1);
             int weekNumber = culture.Calendar.GetWeekOfYear(now, System.Globalization.CalendarWeekRule.FirstFourDayWeek, DayOfWeek.Monday);
-            var weather = WeatherManager.GetWeather();
             var lastLogin = LoginHistoryManager.GetLastLogin(App.UserID);
             var quote = QuotesManager.GetRandomQuote();
             var meetings = MeetingsManager.GetMeetingsSummary(App.UserID);
@@ -995,57 +1025,6 @@ namespace Kalendarz1
             };
             infoPanel.Controls.Add(sep1);
             y += 5;
-
-            // ========== POGODA ==========
-            var weatherMainLabel = new Label
-            {
-                Text = $"{weather.Icon} {weather.Temperature}°C  {weather.Description}",
-                Font = new Font("Segoe UI", 10),
-                ForeColor = Color.FromArgb(255, 220, 100),
-                Size = new Size(contentWidth, 18),
-                Location = new Point(10, y),
-                TextAlign = ContentAlignment.MiddleCenter,
-                Cursor = Cursors.Hand
-            };
-            weatherMainLabel.Click += (s, ev) =>
-            {
-                var weatherChartWindow = new WeatherChartWindow();
-                weatherChartWindow.Show();
-            };
-            infoPanel.Controls.Add(weatherMainLabel);
-            y += 20;
-
-            // ========== SEPARATOR ==========
-            var sep2 = new Panel
-            {
-                Size = new Size(contentWidth - 20, 1),
-                Location = new Point(20, y),
-                BackColor = Color.FromArgb(50, 60, 70)
-            };
-            infoPanel.Controls.Add(sep2);
-            y += 4;
-
-            // ========== PROGNOZA - kompaktowa ==========
-            int forecastDays = Math.Min(3, weather.Forecast.Count);
-            if (forecastDays > 0)
-            {
-                int dayWidth = contentWidth / forecastDays;
-                for (int i = 0; i < forecastDays; i++)
-                {
-                    var day = weather.Forecast[i];
-                    var dayLbl = new Label
-                    {
-                        Text = $"{day.DayName}\n{day.Icon} {day.TempMax}°",
-                        Font = new Font("Segoe UI", 7),
-                        ForeColor = Color.FromArgb(150, 160, 170),
-                        Size = new Size(dayWidth, 28),
-                        Location = new Point(10 + i * dayWidth, y),
-                        TextAlign = ContentAlignment.MiddleCenter
-                    };
-                    infoPanel.Controls.Add(dayLbl);
-                }
-                y += 30;
-            }
 
             // ========== SEPARATOR ==========
             var sep3 = new Panel
@@ -1220,9 +1199,9 @@ namespace Kalendarz1
             panel.Controls.Add(headerPanel);
             panel.Controls.Add(logoSection);
 
-            // Timer do aktualizacji czasu
-            var clockTimer = new Timer { Interval = 1000 };
-            clockTimer.Tick += (s, e) =>
+            // Timer do aktualizacji czasu (zapisujemy w polu — żeby Dispose w OnFormClosed zatrzymał timer)
+            _clockTimer = new Timer { Interval = 1000 };
+            _clockTimer.Tick += (s, e) =>
             {
                 var currentTime = DateTime.Now;
                 timeLabel.Text = currentTime.ToString("HH:mm");
@@ -1235,16 +1214,7 @@ namespace Kalendarz1
                     dayLabel.Text = $"{newDayOfWeek}, {currentTime.ToString("d MMM", culture)} | Tydz. {newWeekNumber}";
                 }
             };
-            clockTimer.Start();
-
-            // Timer do aktualizacji pogody (co 30 minut)
-            var weatherTimer = new Timer { Interval = 30 * 60 * 1000 };
-            weatherTimer.Tick += async (s, e) =>
-            {
-                var newWeather = await WeatherManager.GetWeatherAsync();
-                weatherMainLabel.Text = $"{newWeather.Icon} {newWeather.Temperature}°C  {newWeather.Description}";
-            };
-            weatherTimer.Start();
+            _clockTimer.Start();
 
             return panel;
         }

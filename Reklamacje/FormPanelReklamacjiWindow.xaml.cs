@@ -344,6 +344,64 @@ namespace Kalendarz1.Reklamacje
                     }
                     catch { /* HANDEL niedostepny — nie blokuj startu */ }
 
+                    // Uzupelnij NumerFakturyOryginalnej / IdFakturyOryginalnej dla korekt (z HANDEL.DK.iddokkoryg)
+                    try
+                    {
+                        using (var connH = new SqlConnection(HandelConnString))
+                        {
+                            connH.Open();
+                            var mapaKorekt = new Dictionary<int, (int idFakt, string nrFakt)>();
+                            using (var cmdH = new SqlCommand(@"
+                                SELECT K.id AS IdKorekty, F.id AS IdFakt, F.kod AS NrFakt
+                                FROM [HANDEL].[HM].[DK] K
+                                INNER JOIN [HANDEL].[HM].[DK] F ON K.iddokkoryg = F.id
+                                WHERE K.seria IN ('sFKS', 'sFKSB', 'sFWK')
+                                  AND K.anulowany = 0
+                                  AND K.iddokkoryg IS NOT NULL
+                                  AND K.iddokkoryg > 0", connH))
+                            using (var rdr = cmdH.ExecuteReader())
+                            {
+                                while (rdr.Read())
+                                    mapaKorekt[rdr.GetInt32(0)] = (rdr.GetInt32(1), rdr.GetString(2));
+                            }
+
+                            using (var cmdR = new SqlCommand(@"
+                                SELECT Id, IdDokumentu FROM [dbo].[Reklamacje]
+                                WHERE TypReklamacji = 'Faktura korygujaca'
+                                  AND (IdFakturyOryginalnej IS NULL OR IdFakturyOryginalnej = 0)
+                                  AND IdDokumentu IS NOT NULL AND IdDokumentu > 0", conn))
+                            using (var rdr = cmdR.ExecuteReader())
+                            {
+                                var doUp = new List<(int idRekl, int idFakt, string nrFakt)>();
+                                while (rdr.Read())
+                                {
+                                    int idKor = rdr.GetInt32(1);
+                                    if (mapaKorekt.TryGetValue(idKor, out var fakt))
+                                        doUp.Add((rdr.GetInt32(0), fakt.idFakt, fakt.nrFakt));
+                                }
+                                rdr.Close();
+
+                                foreach (var (idRekl, idFakt, nrFakt) in doUp)
+                                {
+                                    using (var cmdU = new SqlCommand(@"
+                                        UPDATE [dbo].[Reklamacje]
+                                        SET IdFakturyOryginalnej = @IdF, NumerFakturyOryginalnej = @NrF
+                                        WHERE Id = @Id", conn))
+                                    {
+                                        cmdU.Parameters.AddWithValue("@IdF", idFakt);
+                                        cmdU.Parameters.AddWithValue("@NrF", nrFakt);
+                                        cmdU.Parameters.AddWithValue("@Id", idRekl);
+                                        cmdU.ExecuteNonQuery();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Uzupelnienie iddokkoryg blad: {ex.Message}");
+                    }
+
                     // ======================================================
                     // Tabela zalacznikow (zdjecia, pdf, skany)
                     // ======================================================
@@ -438,9 +496,19 @@ namespace Kalendarz1.Reklamacje
                         WHERE (r.TypReklamacji <> 'Faktura korygujaca' OR r.DataZgloszenia >= @DataOdKorekt OR ISNULL(r.StatusV2,'ZGLOSZONA') NOT IN ('ZGLOSZONA'))";
 
                     string statusFilter = (cmbStatus.SelectedItem as ComboBoxItem)?.Content?.ToString();
-                    if (!string.IsNullOrEmpty(statusFilter) && statusFilter != "Wszystkie")
+                    string statusV2Filter = statusFilter switch
                     {
-                        query += " AND r.Status = @Status";
+                        "Zgloszona" => "ZGLOSZONA",
+                        "W analizie" => "W_ANALIZIE",
+                        "Zasadna" => "ZASADNA",
+                        "Odrzucona" => "ODRZUCONA",
+                        "Powiazana" => "POWIAZANA",
+                        "Zamknieta" => "ZAMKNIETA",
+                        _ => null
+                    };
+                    if (!string.IsNullOrEmpty(statusV2Filter))
+                    {
+                        query += " AND ISNULL(r.StatusV2,'ZGLOSZONA') = @StatusV2";
                     }
 
                     string typFilter = (cmbTyp?.SelectedItem as ComboBoxItem)?.Content?.ToString();
@@ -473,9 +541,9 @@ namespace Kalendarz1.Reklamacje
                     {
                         cmd.Parameters.AddWithValue("@DataOdKorekt", dataOdKorekt);
 
-                        if (!string.IsNullOrEmpty(statusFilter) && statusFilter != "Wszystkie")
+                        if (!string.IsNullOrEmpty(statusV2Filter))
                         {
-                            cmd.Parameters.AddWithValue("@Status", statusFilter);
+                            cmd.Parameters.AddWithValue("@StatusV2", statusV2Filter);
                         }
 
                         if (!string.IsNullOrEmpty(typFilter) && typFilter != "Wszystkie")
@@ -560,46 +628,45 @@ namespace Kalendarz1.Reklamacje
 
                     DateTime dataOdKorekt = PobierzDataOdKorekt();
 
+                    // Licz wg KategoriaZakladki - dokladnie tak jak zakladki
                     string query = @"
                         SELECT
-                            ISNULL(Status, 'Nowa') AS Status,
+                            CASE
+                                WHEN ISNULL(StatusV2,'ZGLOSZONA') IN ('ZAMKNIETA','ODRZUCONA','POWIAZANA','ZASADNA') THEN 'ZAMKNIETE'
+                                WHEN ISNULL(StatusV2,'ZGLOSZONA') = 'ZGLOSZONA' OR ISNULL(WymagaUzupelnienia,0) = 1 THEN 'DO_AKCJI'
+                                ELSE 'W_TOKU'
+                            END AS Kategoria,
                             COUNT(*) AS Liczba
                         FROM [dbo].[Reklamacje]
                         WHERE (TypReklamacji <> 'Faktura korygujaca' OR DataZgloszenia >= @DataOdKorekt OR ISNULL(StatusV2,'ZGLOSZONA') NOT IN ('ZGLOSZONA'))
-                        GROUP BY Status";
+                        GROUP BY
+                            CASE
+                                WHEN ISNULL(StatusV2,'ZGLOSZONA') IN ('ZAMKNIETA','ODRZUCONA','POWIAZANA','ZASADNA') THEN 'ZAMKNIETE'
+                                WHEN ISNULL(StatusV2,'ZGLOSZONA') = 'ZGLOSZONA' OR ISNULL(WymagaUzupelnienia,0) = 1 THEN 'DO_AKCJI'
+                                ELSE 'W_TOKU'
+                            END";
 
                     using (SqlCommand cmd = new SqlCommand(query, conn))
                     {
                         cmd.Parameters.AddWithValue("@DataOdKorekt", dataOdKorekt);
                         using (SqlDataReader reader = cmd.ExecuteReader())
                         {
-                            int nowe = 0, wTrakcie = 0, zaakceptowane = 0, odrzucone = 0, zamkniete = 0;
-
+                            int doAkcji = 0, wToku = 0, zamkniete = 0;
                             while (reader.Read())
                             {
-                                string status = reader.GetString(0);
+                                string kat = reader.GetString(0);
                                 int liczba = reader.GetInt32(1);
-
-                                switch (status)
+                                switch (kat)
                                 {
-                                    case "Nowa": nowe += liczba; break;
-                                    case "Przyjeta":
-                                    case "W analizie":
-                                    case "W trakcie realizacji":
-                                    case "Oczekuje na dostawce":
-                                    case "W trakcie":
-                                        wTrakcie += liczba; break;
-                                    case "Zaakceptowana": zaakceptowane += liczba; break;
-                                    case "Odrzucona": odrzucone += liczba; break;
-                                    case "Zamknieta": case "Zamknięta": zamkniete += liczba; break;
+                                    case "DO_AKCJI": doAkcji = liczba; break;
+                                    case "W_TOKU": wToku = liczba; break;
+                                    case "ZAMKNIETE": zamkniete = liczba; break;
                                 }
                             }
 
-                            txtStatNowe.Text = nowe.ToString();
-                            txtStatWTrakcie.Text = wTrakcie.ToString();
-                            txtStatZaakceptowane.Text = zaakceptowane.ToString();
-                            txtStatOdrzucone.Text = odrzucone.ToString();
-                            txtStatZamkniete.Text = zamkniete.ToString();
+                            txtStatNowe.Text = doAkcji.ToString();
+                            txtStatWTrakcie.Text = wToku.ToString();
+                            txtStatZaakceptowane.Text = zamkniete.ToString();
                         }
                     }
                 }
@@ -668,8 +735,20 @@ namespace Kalendarz1.Reklamacje
             btnPowiaz.Visibility = Visibility.Collapsed;
             btnZamknij.Visibility = Visibility.Collapsed;
             if (sepWorkflow != null) sepWorkflow.Visibility = Visibility.Collapsed;
+            btnZglosDoKorekty.Visibility = Visibility.Collapsed;
 
             if (item == null) return;
+
+            // Przycisk "Zglos reklamacje do korekty" - dla handlowca i jakosci
+            // Warunek: korekta z Symfonii + otwarta + niepowiazana
+            bool toKorekta = item.TypReklamacji == "Faktura korygujaca";
+            bool otwarta = item.StatusV2 == StatusyV2.ZGLOSZONA || item.StatusV2 == StatusyV2.W_ANALIZIE;
+            bool niepowiazana = !item.MaPowiazanie;
+            if (toKorekta && otwarta && niepowiazana)
+            {
+                btnZglosDoKorekty.Visibility = Visibility.Visible;
+            }
+
             if (!isJakosc) return;
 
             string s = item.StatusV2 ?? StatusyV2.ZGLOSZONA;
@@ -2192,6 +2271,75 @@ namespace Kalendarz1.Reklamacje
             }
         }
 
+        // Handlowiec zglasza pelna reklamacje do istniejacej korekty z Symfonii
+        private void BtnZglosDoKorekty_Click(object sender, RoutedEventArgs e)
+        {
+            if (!(dgReklamacje.SelectedItem is ReklamacjaItem item)) return;
+            if (item.TypReklamacji != "Faktura korygujaca")
+            {
+                MessageBox.Show("Ta opcja jest dostepna tylko dla korekt z Symfonii.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            if (item.MaPowiazanie)
+            {
+                MessageBox.Show($"Ta korekta jest juz powiazana z reklamacja #{item.PowiazanaReklamacjaId}.\n\nNie mozna dodac drugiej reklamacji.", "Juz powiazana", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            // SZYBKA SCIEZKA: jesli znamy fakture bazowa z Symfonii (iddokkoryg), pomijamy picker
+            if (item.IdFakturyOryginalnej.HasValue && item.IdFakturyOryginalnej.Value > 0
+                && !string.IsNullOrEmpty(item.NumerFakturyOryginalnej))
+            {
+                // Pobierz IdKontrahenta + IdDokumentu (id korekty w HANDEL)
+                int khid = 0;
+                int idDokKorekty = 0;
+                try
+                {
+                    using (var conn = new SqlConnection(connectionString))
+                    {
+                        conn.Open();
+                        using (var cmd = new SqlCommand("SELECT IdKontrahenta, IdDokumentu FROM [dbo].[Reklamacje] WHERE Id = @Id", conn))
+                        {
+                            cmd.Parameters.AddWithValue("@Id", item.Id);
+                            using (var r = cmd.ExecuteReader())
+                            {
+                                if (r.Read())
+                                {
+                                    khid = r.IsDBNull(0) ? 0 : r.GetInt32(0);
+                                    idDokKorekty = r.IsDBNull(1) ? 0 : r.GetInt32(1);
+                                }
+                            }
+                        }
+                    }
+                }
+                catch { }
+
+                if (khid > 0 && idDokKorekty > 0)
+                {
+                    // Uzyj konstruktora "przypiety do korekty" — formularz sam wykona link
+                    var okno = new FormReklamacjaWindow(
+                        HandelConnString, item.IdFakturyOryginalnej.Value, khid,
+                        item.NumerFakturyOryginalnej, item.NazwaKontrahenta,
+                        userId, connectionString,
+                        idKorekty: idDokKorekty,
+                        nrKorekty: item.NumerDokumentu,
+                        dataKorekty: item.DataZgloszenia,
+                        wartoscKorekty: null,
+                        kgKorekty: item.SumaKg);
+                    okno.Owner = this;
+                    if (okno.ShowDialog() == true)
+                    {
+                        WczytajReklamacje();
+                        WczytajStatystyki();
+                    }
+                    return;
+                }
+            }
+
+            // Fallback: brak znanej faktury bazowej - pokaz picker
+            UzupelnijKorektePickerem(item);
+        }
+
         // Uzupelnienie korekty — picker faktur bazowych kontrahenta
         private void UzupelnijKorektePickerem(ReklamacjaItem korekta)
         {
@@ -2312,8 +2460,8 @@ namespace Kalendarz1.Reklamacje
             {
                 Padding = new Thickness(28, 16, 28, 16),
                 Background = new LinearGradientBrush(
-                    (Color)ColorConverter.ConvertFromString("#F39C12"),
-                    (Color)ColorConverter.ConvertFromString("#E67E22"),
+                    (Color)ColorConverter.ConvertFromString("#3498DB"),
+                    (Color)ColorConverter.ConvertFromString("#2980B9"),
                     new System.Windows.Point(0, 0), new System.Windows.Point(1, 0))
             };
             var headerGrid = new Grid();
@@ -2323,14 +2471,23 @@ namespace Kalendarz1.Reklamacje
             var headerLeft = new StackPanel();
             headerLeft.Children.Add(new TextBlock
             {
-                Text = $"UZUPELNIENIE KOREKTY #{korekta.Id}",
+                Text = "ZGLOS REKLAMACJE DO KOREKTY Z SYMFONII",
                 FontSize = 18, FontWeight = FontWeights.Bold, Foreground = Brushes.White
             });
             headerLeft.Children.Add(new TextBlock
             {
-                Text = $"{korekta.NumerDokumentu}  |  {kontrahentNazwa}  |  {korekta.SumaKg:#,##0.00} kg  |  Wybierz fakture bazowa i zglos reklamacje",
-                FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(220, 255, 255, 255)),
-                Margin = new Thickness(0, 4, 0, 0)
+                Text = $"Korekta: {korekta.NumerDokumentu}  |  Kontrahent: {kontrahentNazwa}  |  {korekta.SumaKg:#,##0.00} kg",
+                FontSize = 12.5, FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Color.FromArgb(240, 255, 255, 255)),
+                Margin = new Thickness(0, 5, 0, 0)
+            });
+            headerLeft.Children.Add(new TextBlock
+            {
+                Text = "Wybierz fakture bazowa dla tej korekty → wypelnij szczegoly reklamacji (typ, opis, zdjecia) → system powiaze je automatycznie",
+                FontSize = 11, FontStyle = FontStyles.Italic,
+                Foreground = new SolidColorBrush(Color.FromArgb(200, 255, 255, 255)),
+                Margin = new Thickness(0, 4, 0, 0),
+                TextWrapping = TextWrapping.Wrap
             });
             headerGrid.Children.Add(headerLeft);
             header.Child = headerGrid;
@@ -2408,7 +2565,7 @@ namespace Kalendarz1.Reklamacje
             btnAnuluj.Click += (s, ev) => dialog.Close();
             footerBtns.Children.Add(btnAnuluj);
 
-            var btnOk = new Button { Content = "Zglos reklamacje  →", Padding = new Thickness(24, 10, 24, 10), FontSize = 12.5, FontWeight = FontWeights.Bold, Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F39C12")), Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = Cursors.Hand, IsDefault = true, IsEnabled = false };
+            var btnOk = new Button { Content = "Zglos reklamacje  →", Padding = new Thickness(24, 10, 24, 10), FontSize = 12.5, FontWeight = FontWeights.Bold, Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#3498DB")), Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = Cursors.Hand, IsDefault = true, IsEnabled = false };
             footerBtns.Children.Add(btnOk);
             Grid.SetColumn(footerBtns, 1);
             footerGrid.Children.Add(footerBtns);
@@ -2437,7 +2594,7 @@ namespace Kalendarz1.Reklamacje
             dgFaktury.SelectionChanged += (s, ev) =>
             {
                 btnOk.IsEnabled = dgFaktury.SelectedItem != null;
-                btnOk.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(dgFaktury.SelectedItem != null ? "#F39C12" : "#F5CBA7"));
+                btnOk.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(dgFaktury.SelectedItem != null ? "#3498DB" : "#AED6F1"));
             };
 
             Action wykonaj = () =>
@@ -4414,8 +4571,8 @@ namespace Kalendarz1.Reklamacje
                 // Pobierz date poczatkowa z ustawien (admin moze ja zmienic)
                 DateTime dataOdKorekt = PobierzDataOdKorekt();
 
-                // Pobierz faktury korygujace z HANDEL
-                var korygujace = new List<(int id, string kod, DateTime data, decimal wartosc, int khid, string kontrahent, string handlowiec, decimal sumaKg)>();
+                // Pobierz faktury korygujace z HANDEL + JOIN do faktury bazowej przez iddokkoryg
+                var korygujace = new List<(int id, string kod, DateTime data, decimal wartosc, int khid, string kontrahent, string handlowiec, decimal sumaKg, int? idFaktBazowej, string nrFaktBazowej)>();
 
                 using (var connHandel = new SqlConnection(HandelConnString))
                 {
@@ -4426,10 +4583,13 @@ namespace Kalendarz1.Reklamacje
                                DK.khid,
                                C.shortcut AS NazwaKontrahenta,
                                ISNULL(WYM.CDim_Handlowiec_Val, '-') AS Handlowiec,
-                               ABS(ISNULL((SELECT SUM(DP.ilosc) FROM [HANDEL].[HM].[DP] DP WHERE DP.super = DK.id), 0)) AS SumaKg
+                               ABS(ISNULL((SELECT SUM(DP.ilosc) FROM [HANDEL].[HM].[DP] DP WHERE DP.super = DK.id), 0)) AS SumaKg,
+                               DK.iddokkoryg AS IdFaktBazowej,
+                               F.kod AS NrFaktBazowej
                         FROM [HANDEL].[HM].[DK] DK
                         INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
                         LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
+                        LEFT JOIN [HANDEL].[HM].[DK] F ON DK.iddokkoryg = F.id
                         WHERE DK.seria IN ('sFKS', 'sFKSB', 'sFWK')
                           AND DK.anulowany = 0
                           AND DK.data >= @DataOd
@@ -4448,7 +4608,9 @@ namespace Kalendarz1.Reklamacje
                                     reader.GetInt32(4),
                                     reader.IsDBNull(5) ? "" : reader.GetString(5),
                                     reader.IsDBNull(6) ? "-" : reader.GetString(6),
-                                    reader.IsDBNull(7) ? 0m : Convert.ToDecimal(reader.GetValue(7))
+                                    reader.IsDBNull(7) ? 0m : Convert.ToDecimal(reader.GetValue(7)),
+                                    reader.IsDBNull(8) ? (int?)null : reader.GetInt32(8),
+                                    reader.IsDBNull(9) ? null : reader.GetString(9)
                                 ));
                             }
                         }
@@ -4472,17 +4634,19 @@ namespace Kalendarz1.Reklamacje
                             if (Convert.ToInt32(cmdCheck.ExecuteScalar()) > 0) continue;
                         }
 
-                        // Wstaw nowa reklamacje (z polami Workflow V2)
+                        // Wstaw nowa reklamacje (z polami Workflow V2 + faktura bazowa)
                         int noweIdReklamacji = 0;
                         using (var cmdInsert = new SqlCommand(@"
                             INSERT INTO [dbo].[Reklamacje]
                             (DataZgloszenia, UserID, IdDokumentu, NumerDokumentu, IdKontrahenta, NazwaKontrahenta,
                              Opis, SumaKg, SumaWartosc, Status, TypReklamacji, Priorytet,
-                             StatusV2, ZrodloZgloszenia, WymagaUzupelnienia, Handlowiec)
+                             StatusV2, ZrodloZgloszenia, WymagaUzupelnienia, Handlowiec,
+                             IdFakturyOryginalnej, NumerFakturyOryginalnej)
                             VALUES
                             (@Data, '', @IdDok, @NrDok, @IdKontr, @Kontrahent,
                              @Opis, @SumaKg, @Wartosc, 'Nowa', 'Faktura korygujaca', 'Normalny',
-                             'ZGLOSZONA', 'Symfonia', 1, @Handlowiec);
+                             'ZGLOSZONA', 'Symfonia', 1, @Handlowiec,
+                             @IdFaktBaz, @NrFaktBaz);
                             SELECT SCOPE_IDENTITY();", conn))
                         {
                             cmdInsert.Parameters.AddWithValue("@Data", fk.data);
@@ -4490,19 +4654,25 @@ namespace Kalendarz1.Reklamacje
                             cmdInsert.Parameters.AddWithValue("@NrDok", fk.kod);
                             cmdInsert.Parameters.AddWithValue("@IdKontr", fk.khid);
                             cmdInsert.Parameters.AddWithValue("@Kontrahent", fk.kontrahent);
-                            cmdInsert.Parameters.AddWithValue("@Opis", $"Faktura korygujaca {fk.kod} | Handlowiec: {fk.handlowiec}");
+                            string opisInfo = fk.nrFaktBazowej != null
+                                ? $"Faktura korygujaca {fk.kod} do {fk.nrFaktBazowej} | Handlowiec: {fk.handlowiec}"
+                                : $"Faktura korygujaca {fk.kod} | Handlowiec: {fk.handlowiec}";
+                            cmdInsert.Parameters.AddWithValue("@Opis", opisInfo);
                             cmdInsert.Parameters.AddWithValue("@SumaKg", fk.sumaKg);
                             cmdInsert.Parameters.AddWithValue("@Wartosc", fk.wartosc);
                             cmdInsert.Parameters.AddWithValue("@Handlowiec", fk.handlowiec ?? "-");
+                            cmdInsert.Parameters.AddWithValue("@IdFaktBaz", (object)fk.idFaktBazowej ?? DBNull.Value);
+                            cmdInsert.Parameters.AddWithValue("@NrFaktBaz", (object)fk.nrFaktBazowej ?? DBNull.Value);
                             var result = cmdInsert.ExecuteScalar();
                             if (result != null && result != DBNull.Value)
                                 noweIdReklamacji = Convert.ToInt32(result);
                         }
 
-                        // AUTO-MATCHING: sprobuj znalezc dokladnie 1 pasujaca reklamacje handlowca
+                        // AUTO-MATCHING: najpierw sprobuj po IdFakturyOryginalnej (100% trafnosc z iddokkoryg)
+                        // potem fallback na khid + 14 dni
                         if (noweIdReklamacji > 0)
                         {
-                            try { ProbujAutoMatch(conn, noweIdReklamacji, fk.khid, fk.data); } catch { }
+                            try { ProbujAutoMatch(conn, noweIdReklamacji, fk.khid, fk.data, fk.idFaktBazowej); } catch { }
                         }
 
                         // Wstaw towary z faktury korygujuacej z HANDEL
@@ -4581,24 +4751,47 @@ namespace Kalendarz1.Reklamacje
         // handlowca dla tego samego kontrahenta, w oknie ±14 dni od daty korekty,
         // w statusach W_ANALIZIE lub ZASADNA. Jesli dokladnie 1 kandydat pasuje =>
         // laczymy bidirectional + zdejmujemy flage WymagaUzupelnienia.
-        private void ProbujAutoMatch(SqlConnection conn, int idKorekty, int khid, DateTime dataKorekty)
+        private void ProbujAutoMatch(SqlConnection conn, int idKorekty, int khid, DateTime dataKorekty, int? idFaktBazowej = null)
         {
             var kandydaci = new List<int>();
-            using (var cmd = new SqlCommand(@"
-                SELECT Id
-                FROM [dbo].[Reklamacje]
-                WHERE IdKontrahenta = @Khid
-                  AND TypReklamacji <> 'Faktura korygujaca'
-                  AND (PowiazanaReklamacjaId IS NULL OR PowiazanaReklamacjaId = 0)
-                  AND ISNULL(StatusV2, 'ZGLOSZONA') IN ('ZGLOSZONA','W_ANALIZIE','ZASADNA')
-                  AND DataZgloszenia BETWEEN @DataOd AND @DataDo", conn))
+
+            // POZIOM 1: Idealne dopasowanie po fakturze bazowej (iddokkoryg z HANDEL)
+            if (idFaktBazowej.HasValue && idFaktBazowej.Value > 0)
             {
-                cmd.Parameters.AddWithValue("@Khid", khid);
-                cmd.Parameters.AddWithValue("@DataOd", dataKorekty.AddDays(-14));
-                cmd.Parameters.AddWithValue("@DataDo", dataKorekty.AddDays(14));
-                using (var rdr = cmd.ExecuteReader())
+                using (var cmd = new SqlCommand(@"
+                    SELECT Id FROM [dbo].[Reklamacje]
+                    WHERE IdDokumentu = @IdFakt
+                      AND TypReklamacji <> 'Faktura korygujaca'
+                      AND (PowiazanaReklamacjaId IS NULL OR PowiazanaReklamacjaId = 0)
+                      AND ISNULL(StatusV2,'ZGLOSZONA') IN ('ZGLOSZONA','W_ANALIZIE','ZASADNA')", conn))
                 {
-                    while (rdr.Read()) kandydaci.Add(rdr.GetInt32(0));
+                    cmd.Parameters.AddWithValue("@IdFakt", idFaktBazowej.Value);
+                    using (var rdr = cmd.ExecuteReader())
+                    {
+                        while (rdr.Read()) kandydaci.Add(rdr.GetInt32(0));
+                    }
+                }
+            }
+
+            // POZIOM 2: Fallback - khid + 14 dni (gdy brak iddokkoryg albo zero trafien)
+            if (kandydaci.Count == 0)
+            {
+                using (var cmd = new SqlCommand(@"
+                    SELECT Id
+                    FROM [dbo].[Reklamacje]
+                    WHERE IdKontrahenta = @Khid
+                      AND TypReklamacji <> 'Faktura korygujaca'
+                      AND (PowiazanaReklamacjaId IS NULL OR PowiazanaReklamacjaId = 0)
+                      AND ISNULL(StatusV2, 'ZGLOSZONA') IN ('ZGLOSZONA','W_ANALIZIE','ZASADNA')
+                      AND DataZgloszenia BETWEEN @DataOd AND @DataDo", conn))
+                {
+                    cmd.Parameters.AddWithValue("@Khid", khid);
+                    cmd.Parameters.AddWithValue("@DataOd", dataKorekty.AddDays(-14));
+                    cmd.Parameters.AddWithValue("@DataDo", dataKorekty.AddDays(14));
+                    using (var rdr = cmd.ExecuteReader())
+                    {
+                        while (rdr.Read()) kandydaci.Add(rdr.GetInt32(0));
+                    }
                 }
             }
 

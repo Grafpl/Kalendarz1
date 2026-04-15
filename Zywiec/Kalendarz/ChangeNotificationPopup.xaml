@@ -9,13 +9,14 @@
         ShowActivated="False"
         Focusable="False"
         ResizeMode="NoResize"
-        Width="380" SizeToContent="Height"
+        Width="360" SizeToContent="Height"
         Loaded="Window_Loaded">
 
     <Border x:Name="mainBorder" CornerRadius="10" Background="White"
             BorderBrush="#E2E8F0" BorderThickness="1"
-            Margin="8" Opacity="0" Cursor="Hand"
-            MouseLeftButtonUp="MainBorder_MouseLeftButtonUp">
+            Margin="8" Opacity="0"
+            MouseEnter="MainBorder_MouseEnter"
+            MouseLeave="MainBorder_MouseLeave">
         <Border.RenderTransform>
             <TranslateTransform x:Name="slideTransform" X="400"/>
         </Border.RenderTransform>
@@ -25,14 +26,38 @@
 
         <Grid>
             <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto" MaxHeight="320"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <!-- Nagłówek -->
-            <Border x:Name="headerBorder" Grid.Row="0" Background="#4CAF50"
-                    CornerRadius="10,10,0,0" Padding="14,10">
+            <!-- Przycisk zamknij (floating w prawym górnym rogu) -->
+            <Button Grid.Row="0" Click="BtnClose_Click" Panel.ZIndex="10"
+                    Width="22" Height="22" Cursor="Hand"
+                    HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,4,0">
+                <Button.Template>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="closeBorder" Background="#F1F5F9" CornerRadius="11"
+                                Width="22" Height="22">
+                            <TextBlock Text="✕" Foreground="#64748B" FontSize="12" FontWeight="Bold"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="closeBorder" Property="Background" Value="#E2E8F0"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Button.Template>
+            </Button>
+
+            <!-- Lista zmian (scrollowana gdy dużo zmian) -->
+            <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,28,0,0">
+                <StackPanel x:Name="changesPanel" Margin="6,2,6,4"/>
+            </ScrollViewer>
+
+            <!-- Stopka: avatar + tytuł + data odbioru (pełna informacja) -->
+            <Border Grid.Row="1" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="0,1,0,0"
+                    CornerRadius="0,0,10,10" Padding="10,7,10,8">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
@@ -41,51 +66,36 @@
                     </Grid.ColumnDefinitions>
 
                     <!-- Avatar -->
-                    <Grid Grid.Column="0" Width="36" Height="36" Margin="0,0,10,0">
-                        <Border x:Name="avatarBorder" Width="36" Height="36" CornerRadius="18" Background="#FFFFFF">
-                            <TextBlock x:Name="avatarInitials" Text="" FontSize="13" FontWeight="Bold"
-                                       Foreground="#4CAF50" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    <Grid Grid.Column="0" Width="32" Height="32" Margin="0,0,10,0" VerticalAlignment="Center">
+                        <Border x:Name="avatarBorder" Width="32" Height="32" CornerRadius="16" Background="#4CAF50">
+                            <TextBlock x:Name="avatarInitials" Text="" FontSize="12" FontWeight="Bold"
+                                       Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
-                        <Ellipse x:Name="avatarImage" Width="36" Height="36" Visibility="Collapsed"/>
+                        <Ellipse x:Name="avatarImage" Width="32" Height="32" Visibility="Collapsed"/>
                     </Grid>
 
-                    <!-- Tytuł + podtytuł -->
+                    <!-- Tytuł + podtytuł + timestamp -->
                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                        <TextBlock x:Name="txtTitle" Text="" FontSize="14" FontWeight="Bold"
-                                   Foreground="White" TextTrimming="CharacterEllipsis"/>
-                        <TextBlock x:Name="txtSubtitle" Text="" FontSize="10" Foreground="#E8F5E9"
+                        <TextBlock x:Name="txtTitle" Text="" FontSize="13" FontWeight="Bold"
+                                   Foreground="#1E293B" TextTrimming="CharacterEllipsis"/>
+                        <TextBlock x:Name="txtSubtitle" Text="" FontSize="10" Foreground="#64748B"
                                    Margin="0,1,0,0" TextTrimming="CharacterEllipsis"/>
+                        <TextBlock x:Name="txtTimestamp" Text="" FontSize="9"
+                                   Foreground="#94A3B8" Margin="0,2,0,0"/>
                     </StackPanel>
 
-                    <!-- Zamknij -->
-                    <Button Grid.Column="2" Click="BtnClose_Click"
-                            Width="26" Height="26" Cursor="Hand"
-                            VerticalAlignment="Top" Margin="4,0,0,0">
-                        <Button.Template>
-                            <ControlTemplate TargetType="Button">
-                                <Border x:Name="closeBorder" Background="Transparent" CornerRadius="13"
-                                        Width="26" Height="26">
-                                    <TextBlock Text="✕" Foreground="#FFFFFFCC" FontSize="13" FontWeight="Bold"
-                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                </Border>
-                                <ControlTemplate.Triggers>
-                                    <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter TargetName="closeBorder" Property="Background" Value="#FFFFFF30"/>
-                                    </Trigger>
-                                </ControlTemplate.Triggers>
-                            </ControlTemplate>
-                        </Button.Template>
-                    </Button>
+                    <!-- Data odbioru prominentnie po prawej -->
+                    <Border x:Name="borderDataOdbioru" Grid.Column="2" VerticalAlignment="Center"
+                            CornerRadius="5" Padding="8,4" Background="#FEF3C7"
+                            BorderBrush="#F59E0B" BorderThickness="1" Visibility="Collapsed">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="📅" FontSize="11" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="txtDataOdbioru" Text="" FontSize="13" FontWeight="Bold"
+                                       Foreground="#92400E" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
                 </Grid>
             </Border>
-
-            <!-- Lista zmian -->
-            <StackPanel x:Name="changesPanel" Grid.Row="1" Margin="6,6,6,2"/>
-
-            <!-- Timestamp -->
-            <TextBlock x:Name="txtTimestamp" Grid.Row="2" Text="" FontSize="9"
-                       Foreground="#9CA3AF" Margin="14,2,14,8"
-                       HorizontalAlignment="Right"/>
         </Grid>
     </Border>
 </Window>

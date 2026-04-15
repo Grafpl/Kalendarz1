@@ -251,7 +251,7 @@
                             </StackPanel>
                         </Border>
                         <Border Grid.Row="1" BorderBrush="#5C8A3A" BorderThickness="2" CornerRadius="8" ClipToBounds="True">
-                            <DataGrid x:Name="dgTowary" Style="{StaticResource ModernDataGrid}" ColumnHeaderStyle="{StaticResource GreenHeader}" CellStyle="{StaticResource CellStyle}" SelectionMode="Single">
+                            <DataGrid x:Name="dgTowary" Style="{StaticResource ModernDataGrid}" ColumnHeaderStyle="{StaticResource GreenHeader}" CellStyle="{StaticResource CellStyle}" SelectionMode="Single" IsReadOnly="False" CellEditEnding="DgTowary_CellEditEnding">
                                 <DataGrid.Columns>
                                     <DataGridTemplateColumn Header="" Width="36">
                                         <DataGridTemplateColumn.CellTemplate>
@@ -265,14 +265,27 @@
                                             </DataTemplate>
                                         </DataGridTemplateColumn.HeaderTemplate>
                                     </DataGridTemplateColumn>
-                                    <DataGridTextColumn Header="Nazwa towaru" Binding="{Binding Nazwa}" Width="*"/>
-                                    <DataGridTextColumn Header="Kg" Binding="{Binding Waga, StringFormat=N2}" Width="80">
+                                    <DataGridTextColumn Header="Nazwa towaru" Binding="{Binding Nazwa}" Width="*" IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="Kg ✎" Binding="{Binding Waga, StringFormat=N2}" Width="90">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Padding" Value="6,0,6,0"/>
+                                                <Setter Property="Background" Value="#FFFBEA"/>
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                        <DataGridTextColumn.EditingElementStyle>
+                                            <Style TargetType="TextBox">
+                                                <Setter Property="HorizontalContentAlignment" Value="Right"/>
+                                                <Setter Property="Background" Value="#FFF3CD"/>
+                                            </Style>
+                                        </DataGridTextColumn.EditingElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Cena" Binding="{Binding Cena, StringFormat=N2}" Width="80" IsReadOnly="True">
                                         <DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style></DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Cena" Binding="{Binding Cena, StringFormat=N2}" Width="80">
-                                        <DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style></DataGridTextColumn.ElementStyle>
-                                    </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Wartosc" Binding="{Binding Wartosc, StringFormat=N2}" Width="90">
+                                    <DataGridTextColumn Header="Wartosc" Binding="{Binding Wartosc, StringFormat=N2}" Width="90" IsReadOnly="True">
                                         <DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/><Setter Property="FontWeight" Value="SemiBold"/></Style></DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
                                 </DataGrid.Columns>

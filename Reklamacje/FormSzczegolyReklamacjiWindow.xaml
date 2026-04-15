@@ -801,6 +801,10 @@
             </Border.Background>
             <Grid>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                    <Button x:Name="btnZglosDoKorekty" Content="Zglos reklamacje do tej korekty"
+                            Style="{StaticResource ActionButton}" Background="#3498DB"
+                            Click="BtnZglosDoKorekty_Click" Visibility="Collapsed"
+                            FontWeight="Bold"/>
                     <Button Content="Rozpatrz" Style="{StaticResource ActionButton}"
                             Background="#8E44AD" Click="BtnRozpatrz_Click"/>
                     <Button Content="Zmien status" Style="{StaticResource ActionButton}"

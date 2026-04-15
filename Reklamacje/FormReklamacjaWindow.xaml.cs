@@ -25,6 +25,16 @@ namespace Kalendarz1.Reklamacje
         private string nazwaKontrahenta;
         private string userId;
 
+        // Gdy ustawione — formularz jest "przypisany" do tej korekty, nie ma wyboru
+        private int? przypisanaKorektaId;
+        private string przypisanaKorektaNumer;
+        private DateTime? przypisanaKorektaData;
+        private decimal? przypisanaKorektaWartosc;
+        private decimal? przypisanaKorektaKg;
+
+        // ID nowo utworzonej reklamacji - do automatycznego linku
+        public int IdUtworzonejReklamacji { get; private set; }
+
         private ObservableCollection<TowarReklamacji> towary = new ObservableCollection<TowarReklamacji>();
         private ObservableCollection<PartiaDostawcy> partie = new ObservableCollection<PartiaDostawcy>();
         private ObservableCollection<KorektaItem> korekty = new ObservableCollection<KorektaItem>();
@@ -55,13 +65,163 @@ namespace Kalendarz1.Reklamacje
             dgKorekty.ItemsSource = korekty;
         }
 
+        // Konstruktor "przypiety do korekty" — handlowiec uzupelnia info dla istniejacej korekty
+        // Otwiera sie formularz na fakturze bazowej, z ukryta sekcja wyboru korekty,
+        // i przy zapisie automatycznie powiazuje sie z przekazana korekta
+        public FormReklamacjaWindow(string connStringHandel, int idFakturyBazowej, int kontrId,
+            string nrFakturyBazowej, string nazwaKontr, string user, string connStringLibraNet,
+            int idKorekty, string nrKorekty, DateTime? dataKorekty, decimal? wartoscKorekty, decimal? kgKorekty)
+            : this(connStringHandel, idFakturyBazowej, kontrId, nrFakturyBazowej, nazwaKontr, user, connStringLibraNet)
+        {
+            przypisanaKorektaId = idKorekty;
+            przypisanaKorektaNumer = nrKorekty;
+            przypisanaKorektaData = dataKorekty;
+            przypisanaKorektaWartosc = wartoscKorekty;
+            przypisanaKorektaKg = kgKorekty;
+        }
+
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             WczytajTowary();
             WczytajPartie();
-            WczytajKorekty();
+
+            // Gdy formularz jest "przypiety do korekty" — NIE laduje listy korekt,
+            // pokazuje widok informacyjny (zero wyboru)
+            if (przypisanaKorektaId.HasValue && przypisanaKorektaId.Value > 0)
+            {
+                PokazPrzypisanaKorekte();
+            }
+            else
+            {
+                WczytajKorekty();
+            }
+
             AktualizujLiczniki();
             UstawPodkategorieISzablony();
+        }
+
+        // Zastap widok listy korekt — widokiem info "POWIAZANA Z KOREKTA: xyz"
+        private void PokazPrzypisanaKorekte()
+        {
+            // Tytul okna
+            Title = $"Zgloszenie reklamacji do korekty {przypisanaKorektaNumer}";
+
+            // Ukryj DataGrid korekt + etykiete listy
+            if (dgKorekty != null) dgKorekty.Visibility = Visibility.Collapsed;
+            if (txtKorektyInfo != null) txtKorektyInfo.Visibility = Visibility.Collapsed;
+
+            // Naglowek prawej kolumny zmien na info o przypisanej korekcie
+            var parent = dgKorekty?.Parent as Border;
+            var grid = parent?.Parent as Grid;
+            if (grid == null) return;
+
+            // Zastap DataGrid informacyjnym panelem
+            var infoCard = new Border
+            {
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFF3E0")),
+                BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F39C12")),
+                BorderThickness = new Thickness(2),
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(16),
+                Margin = new Thickness(0, 6, 0, 0)
+            };
+            var sp = new StackPanel();
+
+            sp.Children.Add(new TextBlock
+            {
+                Text = "✓ POWIAZANA Z KOREKTA",
+                FontSize = 11, FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E67E22")),
+                Margin = new Thickness(0, 0, 0, 10)
+            });
+
+            sp.Children.Add(new TextBlock
+            {
+                Text = "Numer korekty",
+                FontSize = 9, Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#95A5A6")),
+                FontWeight = FontWeights.SemiBold
+            });
+            sp.Children.Add(new TextBlock
+            {
+                Text = przypisanaKorektaNumer ?? "-",
+                FontSize = 15, FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2C3E50")),
+                Margin = new Thickness(0, 2, 0, 10)
+            });
+
+            if (przypisanaKorektaData.HasValue)
+            {
+                sp.Children.Add(new TextBlock
+                {
+                    Text = "Data wystawienia",
+                    FontSize = 9, Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#95A5A6")),
+                    FontWeight = FontWeights.SemiBold
+                });
+                sp.Children.Add(new TextBlock
+                {
+                    Text = przypisanaKorektaData.Value.ToString("dd.MM.yyyy"),
+                    FontSize = 13, FontWeight = FontWeights.SemiBold,
+                    Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2C3E50")),
+                    Margin = new Thickness(0, 2, 0, 10)
+                });
+            }
+
+            if (przypisanaKorektaKg.HasValue && przypisanaKorektaKg.Value != 0)
+            {
+                sp.Children.Add(new TextBlock
+                {
+                    Text = "Kg z korekty",
+                    FontSize = 9, Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#95A5A6")),
+                    FontWeight = FontWeights.SemiBold
+                });
+                sp.Children.Add(new TextBlock
+                {
+                    Text = $"{przypisanaKorektaKg.Value:#,##0.00} kg",
+                    FontSize = 13, FontWeight = FontWeights.SemiBold,
+                    Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2C3E50")),
+                    Margin = new Thickness(0, 2, 0, 10)
+                });
+            }
+
+            if (przypisanaKorektaWartosc.HasValue)
+            {
+                sp.Children.Add(new TextBlock
+                {
+                    Text = "Wartosc netto korekty",
+                    FontSize = 9, Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#95A5A6")),
+                    FontWeight = FontWeights.SemiBold
+                });
+                sp.Children.Add(new TextBlock
+                {
+                    Text = $"{przypisanaKorektaWartosc.Value:#,##0.00} zl",
+                    FontSize = 13, FontWeight = FontWeights.SemiBold,
+                    Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E74C3C")),
+                    Margin = new Thickness(0, 2, 0, 14)
+                });
+            }
+
+            // Separator
+            sp.Children.Add(new Border
+            {
+                Height = 1,
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F5CBA7")),
+                Margin = new Thickness(0, 0, 0, 12)
+            });
+
+            sp.Children.Add(new TextBlock
+            {
+                Text = "Po zapisaniu reklamacja zostanie automatycznie powiazana z ta korekta — nie trzeba nic wybierac.",
+                FontSize = 10.5, FontStyle = FontStyles.Italic,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#7F8C8D")),
+                TextWrapping = TextWrapping.Wrap
+            });
+
+            infoCard.Child = sp;
+            Grid.SetRow(infoCard, 2);
+            grid.Children.Add(infoCard);
+
+            // Ukryj panel "wybrana korekta" jesli istnieje
+            if (panelWybranaKorekta != null) panelWybranaKorekta.Visibility = Visibility.Collapsed;
         }
 
         // ============================================================
@@ -264,28 +424,99 @@ namespace Kalendarz1.Reklamacje
         {
             try
             {
+                bool tryPrzypiety = przypisanaKorektaId.HasValue && przypisanaKorektaId.Value > 0;
+
+                // TRYB PRZYPIETY: najpierw sprobuj ReklamacjeTowary (LibraNet) — tam sa dane z sync
+                if (tryPrzypiety)
+                {
+                    bool udaloSieZLibraNet = false;
+                    try
+                    {
+                        using (var conn = new SqlConnection(connectionStringLibraNet))
+                        {
+                            conn.Open();
+                            // Znajdz Id rekordu korekty w LibraNet po IdDokumentu z Symfonii
+                            int idRekKorekty = 0;
+                            using (var cmdR = new SqlCommand(
+                                "SELECT TOP 1 Id FROM [dbo].[Reklamacje] WHERE IdDokumentu = @IdDok AND TypReklamacji = 'Faktura korygujaca'", conn))
+                            {
+                                cmdR.Parameters.AddWithValue("@IdDok", przypisanaKorektaId.Value);
+                                var r = cmdR.ExecuteScalar();
+                                if (r != null && r != DBNull.Value) idRekKorekty = Convert.ToInt32(r);
+                            }
+
+                            if (idRekKorekty > 0)
+                            {
+                                using (var cmd = new SqlCommand(@"
+                                    SELECT IdTowaru AS ID, Symbol, Nazwa,
+                                           ABS(ISNULL(Waga, 0)) AS Waga,
+                                           ABS(ISNULL(Cena, 0)) AS Cena,
+                                           ABS(ISNULL(Wartosc, 0)) AS Wartosc
+                                    FROM [dbo].[ReklamacjeTowary]
+                                    WHERE IdReklamacji = @IdR
+                                    ORDER BY Id", conn))
+                                {
+                                    cmd.Parameters.AddWithValue("@IdR", idRekKorekty);
+                                    using (var reader = cmd.ExecuteReader())
+                                    {
+                                        towary.Clear();
+                                        while (reader.Read())
+                                        {
+                                            towary.Add(new TowarReklamacji
+                                            {
+                                                ID = reader.IsDBNull(0) ? 0 : reader.GetInt32(0),
+                                                Symbol = reader.IsDBNull(1) ? "" : reader.GetString(1),
+                                                Nazwa = reader.IsDBNull(2) ? "" : reader.GetString(2),
+                                                Waga = reader.IsDBNull(3) ? 0 : reader.GetDecimal(3),
+                                                Cena = reader.IsDBNull(4) ? 0 : reader.GetDecimal(4),
+                                                IsSelected = true // wszystkie zaznaczone
+                                            });
+                                        }
+                                    }
+                                }
+                                udaloSieZLibraNet = towary.Count > 0;
+                            }
+                        }
+                    }
+                    catch { /* fallback do HANDEL */ }
+
+                    if (udaloSieZLibraNet)
+                    {
+                        AktualizujLiczniki();
+                        return;
+                    }
+                }
+
+                // FALLBACK / tryb normalny: towary z HANDEL
                 using (SqlConnection conn = new SqlConnection(connectionStringHandel))
                 {
                     conn.Open();
+                    int zrodloDok = tryPrzypiety ? przypisanaKorektaId.Value : idDokumentu;
 
-                    // Pobierz towary z faktury - oblicz wartość jako ilość * cena
-                    string query = @"
-                        SELECT
-                            DP.id AS ID,
-                            DP.kod AS Symbol,
-                            ISNULL(TW.nazwa, TW.kod) AS Nazwa,
-                            CAST(ISNULL(DP.ilosc, 0) AS DECIMAL(10,2)) AS Waga,
-                            CAST(ISNULL(DP.cena, 0) AS DECIMAL(10,2)) AS Cena,
-                            CAST(ISNULL(DP.ilosc, 0) * ISNULL(DP.cena, 0) AS DECIMAL(10,2)) AS Wartosc
-                        FROM [HM].[DP] DP
-                        LEFT JOIN [HM].[TW] TW ON DP.idtw = TW.ID
-                        WHERE DP.super = @IdDokumentu
-                        ORDER BY DP.lp";
+                    // W trybie przypietym bierzemy ABS (korekta ma ujemne), w normalnym zwykle
+                    string query = tryPrzypiety
+                        ? @"SELECT DP.id, DP.kod,
+                                ISNULL(TW.nazwa, TW.kod) AS Nazwa,
+                                CAST(ABS(ISNULL(DP.ilosc, 0)) AS DECIMAL(10,2)) AS Waga,
+                                CAST(ABS(ISNULL(DP.cena, 0)) AS DECIMAL(10,2)) AS Cena,
+                                CAST(ABS(ISNULL(DP.ilosc, 0) * ISNULL(DP.cena, 0)) AS DECIMAL(10,2)) AS Wartosc
+                            FROM [HM].[DP] DP
+                            LEFT JOIN [HM].[TW] TW ON DP.idtw = TW.ID
+                            WHERE DP.super = @IdDokumentu
+                            ORDER BY DP.lp"
+                        : @"SELECT DP.id, DP.kod,
+                                ISNULL(TW.nazwa, TW.kod) AS Nazwa,
+                                CAST(ISNULL(DP.ilosc, 0) AS DECIMAL(10,2)) AS Waga,
+                                CAST(ISNULL(DP.cena, 0) AS DECIMAL(10,2)) AS Cena,
+                                CAST(ISNULL(DP.ilosc, 0) * ISNULL(DP.cena, 0) AS DECIMAL(10,2)) AS Wartosc
+                            FROM [HM].[DP] DP
+                            LEFT JOIN [HM].[TW] TW ON DP.idtw = TW.ID
+                            WHERE DP.super = @IdDokumentu
+                            ORDER BY DP.lp";
 
                     using (SqlCommand cmd = new SqlCommand(query, conn))
                     {
-                        cmd.Parameters.AddWithValue("@IdDokumentu", idDokumentu);
-
+                        cmd.Parameters.AddWithValue("@IdDokumentu", zrodloDok);
                         using (SqlDataReader reader = cmd.ExecuteReader())
                         {
                             towary.Clear();
@@ -298,12 +529,14 @@ namespace Kalendarz1.Reklamacje
                                     Nazwa = reader.IsDBNull(2) ? "" : reader.GetString(2),
                                     Waga = reader.IsDBNull(3) ? 0 : reader.GetDecimal(3),
                                     Cena = reader.IsDBNull(4) ? 0 : reader.GetDecimal(4),
-                                    Wartosc = reader.IsDBNull(5) ? 0 : reader.GetDecimal(5)
+                                    IsSelected = tryPrzypiety // auto-zaznaczone dla korekt
                                 });
                             }
                         }
                     }
                 }
+
+                AktualizujLiczniki();
             }
             catch (Exception ex)
             {
@@ -386,6 +619,16 @@ namespace Kalendarz1.Reklamacje
         private void ChkTowar_Click(object sender, RoutedEventArgs e)
         {
             AktualizujLiczniki();
+        }
+
+        private void DgTowary_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
+        {
+            // Po edycji kg odswiezamy sumy
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                dgTowary.Items.Refresh();
+                AktualizujLiczniki();
+            }), System.Windows.Threading.DispatcherPriority.Background);
         }
 
         private void ChkWszystkieTowary_Click(object sender, RoutedEventArgs e)
@@ -875,44 +1118,99 @@ namespace Kalendarz1.Reklamacje
 
                             transaction.Commit();
 
-                            // 6. Powiaz z korekta (jesli wybrana)
-                            var wybranaKorekta = korekty.FirstOrDefault(k => k.IsSelected);
-                            if (wybranaKorekta != null && idReklamacji > 0)
+                            // 6. Powiaz z korekta
+                            // Priorytet: przypisanaKorektaId (z konstruktora) → reczny wybor z listy
+                            int idKorektyRek = 0;
+                            string numerKorektyInfo = null;
+
+                            if (przypisanaKorektaId.HasValue && przypisanaKorektaId.Value > 0 && idReklamacji > 0)
                             {
+                                // Formularz byl otwarty w trybie "przypiety do korekty"
+                                // WAZNE: NIE zmieniamy StatusV2 na POWIAZANA — to jest uzupelnienie info,
+                                // nie zamykanie sprawy. Dzial jakosci musi to nadal rozpatrzyc.
+                                // Linkujemy tylko bidirectional + zdejmujemy WymagaUzupelnienia (info sa).
                                 try
                                 {
                                     using (var conn2 = new SqlConnection(connectionStringLibraNet))
                                     {
                                         conn2.Open();
-                                        // Znajdz ID rekordu korekty w LibraNet
-                                        int idKorektyRek = 0;
                                         using (var cmdK = new SqlCommand(
                                             "SELECT Id FROM [dbo].[Reklamacje] WHERE IdDokumentu = @IdDok AND TypReklamacji = 'Faktura korygujaca'", conn2))
                                         {
-                                            cmdK.Parameters.AddWithValue("@IdDok", wybranaKorekta.IdDokumentu);
+                                            cmdK.Parameters.AddWithValue("@IdDok", przypisanaKorektaId.Value);
                                             var r = cmdK.ExecuteScalar();
                                             if (r != null) idKorektyRek = Convert.ToInt32(r);
                                         }
 
                                         if (idKorektyRek > 0)
                                         {
-                                            // Powiaz bidirectional
+                                            // Bidirectional link + zdejmujemy flage WymagaUzupelnienia (info sa uzupelnione)
+                                            // Status zostaje ZGLOSZONA - dzial jakosci musi rozpatrzyc
                                             using (var cmdP = new SqlCommand(@"
-                                                UPDATE [dbo].[Reklamacje] SET PowiazanaReklamacjaId=@B, StatusV2='POWIAZANA', WymagaUzupelnienia=0, DataPowiazania=GETDATE(), UserPowiazania=@U WHERE Id=@A;
-                                                UPDATE [dbo].[Reklamacje] SET PowiazanaReklamacjaId=@A, StatusV2='POWIAZANA', WymagaUzupelnienia=0, DataPowiazania=GETDATE(), UserPowiazania=@U WHERE Id=@B;", conn2))
+                                                UPDATE [dbo].[Reklamacje]
+                                                SET PowiazanaReklamacjaId=@B,
+                                                    WymagaUzupelnienia=0,
+                                                    DataPowiazania=GETDATE(),
+                                                    UserPowiazania=@U
+                                                WHERE Id=@A;
+
+                                                UPDATE [dbo].[Reklamacje]
+                                                SET PowiazanaReklamacjaId=@A,
+                                                    WymagaUzupelnienia=0,
+                                                    DataPowiazania=GETDATE(),
+                                                    UserPowiazania=@U
+                                                WHERE Id=@B;", conn2))
                                             {
                                                 cmdP.Parameters.AddWithValue("@A", idReklamacji);
                                                 cmdP.Parameters.AddWithValue("@B", idKorektyRek);
                                                 cmdP.Parameters.AddWithValue("@U", userId);
                                                 cmdP.ExecuteNonQuery();
                                             }
+                                            numerKorektyInfo = przypisanaKorektaNumer;
                                         }
                                     }
                                 }
                                 catch { }
                             }
+                            else
+                            {
+                                // Stary tryb - reczny wybor z listy
+                                var wybranaKorekta = korekty.FirstOrDefault(k => k.IsSelected);
+                                if (wybranaKorekta != null && idReklamacji > 0)
+                                {
+                                    try
+                                    {
+                                        using (var conn2 = new SqlConnection(connectionStringLibraNet))
+                                        {
+                                            conn2.Open();
+                                            using (var cmdK = new SqlCommand(
+                                                "SELECT Id FROM [dbo].[Reklamacje] WHERE IdDokumentu = @IdDok AND TypReklamacji = 'Faktura korygujaca'", conn2))
+                                            {
+                                                cmdK.Parameters.AddWithValue("@IdDok", wybranaKorekta.IdDokumentu);
+                                                var r = cmdK.ExecuteScalar();
+                                                if (r != null) idKorektyRek = Convert.ToInt32(r);
+                                            }
 
-                            string korekInfo = wybranaKorekta != null ? $"\nPowiazano z korekta: {wybranaKorekta.NumerDokumentu}" : "";
+                                            if (idKorektyRek > 0)
+                                            {
+                                                using (var cmdP = new SqlCommand(@"
+                                                    UPDATE [dbo].[Reklamacje] SET PowiazanaReklamacjaId=@B, StatusV2='POWIAZANA', WymagaUzupelnienia=0, DataPowiazania=GETDATE(), UserPowiazania=@U WHERE Id=@A;
+                                                    UPDATE [dbo].[Reklamacje] SET PowiazanaReklamacjaId=@A, StatusV2='POWIAZANA', WymagaUzupelnienia=0, DataPowiazania=GETDATE(), UserPowiazania=@U WHERE Id=@B;", conn2))
+                                                {
+                                                    cmdP.Parameters.AddWithValue("@A", idReklamacji);
+                                                    cmdP.Parameters.AddWithValue("@B", idKorektyRek);
+                                                    cmdP.Parameters.AddWithValue("@U", userId);
+                                                    cmdP.ExecuteNonQuery();
+                                                }
+                                                numerKorektyInfo = wybranaKorekta.NumerDokumentu;
+                                            }
+                                        }
+                                    }
+                                    catch { }
+                                }
+                            }
+
+                            string korekInfo = numerKorektyInfo != null ? $"\nPowiazano z korekta: {numerKorektyInfo}" : "";
                             MessageBox.Show(
                                 $"Reklamacja nr {idReklamacji} została pomyślnie zgłoszona!\n\n" +
                                 $"Typ: {typReklamacji}\n" +
@@ -924,6 +1222,7 @@ namespace Kalendarz1.Reklamacje
                                 MessageBoxButton.OK,
                                 MessageBoxImage.Information);
 
+                            IdUtworzonejReklamacji = idReklamacji;
                             ReklamacjaZapisana = true;
                             this.DialogResult = true;
                             this.Close();
@@ -948,6 +1247,7 @@ namespace Kalendarz1.Reklamacje
     public class TowarReklamacji : System.ComponentModel.INotifyPropertyChanged
     {
         private bool _isSelected;
+        private decimal _waga;
         public bool IsSelected
         {
             get => _isSelected;
@@ -960,9 +1260,18 @@ namespace Kalendarz1.Reklamacje
         public int ID { get; set; }
         public string Symbol { get; set; }
         public string Nazwa { get; set; }
-        public decimal Waga { get; set; }
+        public decimal Waga
+        {
+            get => _waga;
+            set
+            {
+                _waga = value;
+                PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(nameof(Waga)));
+                PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(nameof(Wartosc)));
+            }
+        }
         public decimal Cena { get; set; }
-        public decimal Wartosc { get; set; }
+        public decimal Wartosc => Math.Round(Waga * Cena, 2);
 
         public event System.ComponentModel.PropertyChangedEventHandler PropertyChanged;
     }

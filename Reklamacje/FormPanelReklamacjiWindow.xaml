@@ -273,41 +273,39 @@
 
                         <!-- Statystyki statusow -->
                         <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <Border Background="#E3F2FD" CornerRadius="8" Padding="15,8" Margin="5,0">
+                            <!-- DO AKCJI — czerwony -->
+                            <Border Background="#FDEDEC" CornerRadius="10" Padding="18,10" Margin="6,0" BorderBrush="#F5B7B1" BorderThickness="1">
                                 <StackPanel Orientation="Horizontal">
-                                    <Ellipse Width="12" Height="12" Fill="#3498DB" Margin="0,0,8,0"/>
-                                    <TextBlock Text="Nowe: " FontSize="12" Foreground="#1976D2" VerticalAlignment="Center"/>
-                                    <TextBlock x:Name="txtStatNowe" Text="0" FontSize="16" FontWeight="Bold" Foreground="#3498DB" VerticalAlignment="Center"/>
+                                    <Ellipse Width="12" Height="12" Fill="#E74C3C" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                    <StackPanel>
+                                        <TextBlock Text="DO AKCJI" FontSize="9" FontWeight="Bold" Foreground="#C0392B" Margin="0,0,0,2"/>
+                                        <TextBlock x:Name="txtStatNowe" Text="0" FontSize="20" FontWeight="Bold" Foreground="#E74C3C" LineHeight="22" Margin="0,-3,0,0"/>
+                                    </StackPanel>
                                 </StackPanel>
                             </Border>
-                            <Border Background="#FFF3E0" CornerRadius="8" Padding="15,8" Margin="5,0">
+                            <!-- PRZYJETE — zolty -->
+                            <Border Background="#FFF8E1" CornerRadius="10" Padding="18,10" Margin="6,0" BorderBrush="#FFE082" BorderThickness="1">
                                 <StackPanel Orientation="Horizontal">
-                                    <Ellipse Width="12" Height="12" Fill="#F39C12" Margin="0,0,8,0"/>
-                                    <TextBlock Text="Przyjete: " FontSize="12" Foreground="#EF6C00" VerticalAlignment="Center"/>
-                                    <TextBlock x:Name="txtStatWTrakcie" Text="0" FontSize="16" FontWeight="Bold" Foreground="#F39C12" VerticalAlignment="Center"/>
+                                    <Ellipse Width="12" Height="12" Fill="#F39C12" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                    <StackPanel>
+                                        <TextBlock Text="PRZYJETE" FontSize="9" FontWeight="Bold" Foreground="#E67E22" Margin="0,0,0,2"/>
+                                        <TextBlock x:Name="txtStatWTrakcie" Text="0" FontSize="20" FontWeight="Bold" Foreground="#F39C12" LineHeight="22" Margin="0,-3,0,0"/>
+                                    </StackPanel>
                                 </StackPanel>
                             </Border>
-                            <Border Background="#E8F5E9" CornerRadius="8" Padding="15,8" Margin="5,0">
+                            <!-- ZAMKNIETE — zielony -->
+                            <Border Background="#E8F5E9" CornerRadius="10" Padding="18,10" Margin="6,0" BorderBrush="#A5D6A7" BorderThickness="1">
                                 <StackPanel Orientation="Horizontal">
-                                    <Ellipse Width="12" Height="12" Fill="#27AE60" Margin="0,0,8,0"/>
-                                    <TextBlock Text="Zaakceptowane: " FontSize="12" Foreground="#2E7D32" VerticalAlignment="Center"/>
-                                    <TextBlock x:Name="txtStatZaakceptowane" Text="0" FontSize="16" FontWeight="Bold" Foreground="#27AE60" VerticalAlignment="Center"/>
+                                    <Ellipse Width="12" Height="12" Fill="#27AE60" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                    <StackPanel>
+                                        <TextBlock Text="ZAMKNIETE" FontSize="9" FontWeight="Bold" Foreground="#2E7D32" Margin="0,0,0,2"/>
+                                        <TextBlock x:Name="txtStatZaakceptowane" Text="0" FontSize="20" FontWeight="Bold" Foreground="#27AE60" LineHeight="22" Margin="0,-3,0,0"/>
+                                    </StackPanel>
                                 </StackPanel>
                             </Border>
-                            <Border Background="#FFEBEE" CornerRadius="8" Padding="15,8" Margin="5,0">
-                                <StackPanel Orientation="Horizontal">
-                                    <Ellipse Width="12" Height="12" Fill="#E74C3C" Margin="0,0,8,0"/>
-                                    <TextBlock Text="Odrzucone: " FontSize="12" Foreground="#C62828" VerticalAlignment="Center"/>
-                                    <TextBlock x:Name="txtStatOdrzucone" Text="0" FontSize="16" FontWeight="Bold" Foreground="#E74C3C" VerticalAlignment="Center"/>
-                                </StackPanel>
-                            </Border>
-                            <Border Background="#ECEFF1" CornerRadius="8" Padding="15,8" Margin="5,0">
-                                <StackPanel Orientation="Horizontal">
-                                    <Ellipse Width="12" Height="12" Fill="#95A5A6" Margin="0,0,8,0"/>
-                                    <TextBlock Text="Zamkniete: " FontSize="12" Foreground="#546E7A" VerticalAlignment="Center"/>
-                                    <TextBlock x:Name="txtStatZamkniete" Text="0" FontSize="16" FontWeight="Bold" Foreground="#95A5A6" VerticalAlignment="Center"/>
-                                </StackPanel>
-                            </Border>
+                            <!-- Ukryte - zachowuje kompatybilnosc -->
+                            <TextBlock x:Name="txtStatOdrzucone" Text="0" Visibility="Collapsed"/>
+                            <TextBlock x:Name="txtStatZamkniete" Text="0" Visibility="Collapsed"/>
                         </StackPanel>
 
                         <!-- Przycisk odswiez -->
@@ -342,10 +340,12 @@
                                 <TextBlock Text="Status:" FontSize="10" FontWeight="SemiBold" Foreground="#7F8C8D" Margin="0,0,0,4"/>
                                 <ComboBox x:Name="cmbStatus" Width="130" FontSize="11" SelectionChanged="CmbStatus_SelectionChanged">
                                     <ComboBoxItem Content="Wszystkie" IsSelected="True"/>
-                                    <ComboBoxItem Content="Nowa"/>
-                                    <ComboBoxItem Content="Przyjeta"/>
-                                    <ComboBoxItem Content="Zaakceptowana"/>
+                                    <ComboBoxItem Content="Zgloszona"/>
+                                    <ComboBoxItem Content="W analizie"/>
+                                    <ComboBoxItem Content="Zasadna"/>
                                     <ComboBoxItem Content="Odrzucona"/>
+                                    <ComboBoxItem Content="Powiazana"/>
+                                    <ComboBoxItem Content="Zamknieta"/>
                                 </ComboBox>
                             </StackPanel>
 
@@ -637,7 +637,20 @@
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="50"/>
                                 <DataGridTextColumn Header="Data" Binding="{Binding DataZgloszenia, StringFormat=yyyy-MM-dd}" Width="90"/>
-                                <DataGridTextColumn Header="Nr faktury" Binding="{Binding NumerDokumentu}" Width="100"/>
+                                <DataGridTemplateColumn Header="Nr dokumentu" Width="160" SortMemberPath="NumerDokumentu">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding NumerDokumentu}" FontWeight="SemiBold" FontSize="11"/>
+                                                <TextBlock FontSize="9" Foreground="#F39C12" FontStyle="Italic"
+                                                           Visibility="{Binding FakturaBazowaVis}">
+                                                    <Run Text="↳ do: "/>
+                                                    <Run Text="{Binding NumerFakturyOryginalnej, Mode=OneWay}"/>
+                                                </TextBlock>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
                                 <DataGridTextColumn Header="Kontrahent" Binding="{Binding NazwaKontrahenta}" Width="*"/>
                                 <!-- Zrodlo zgloszenia -->
                                 <DataGridTemplateColumn Header="Zrodlo" Width="SizeToCells" MinWidth="100" SortMemberPath="ZrodloZgloszenia">
@@ -733,48 +746,41 @@
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTemplateColumn Header="Status" Width="110">
+                                <DataGridTemplateColumn Header="Status" Width="115" SortMemberPath="StatusV2">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <Border x:Name="statusBorder" CornerRadius="12" Padding="10,4" HorizontalAlignment="Center">
-                                                <TextBlock x:Name="statusText" Text="{Binding Status}" FontWeight="Bold" FontSize="10"/>
+                                            <Border x:Name="statusBorder" CornerRadius="10" Padding="10,4" HorizontalAlignment="Center" Background="#ECEFF1">
+                                                <TextBlock x:Name="statusText" Text="{Binding StatusV2Etykieta}" FontWeight="Bold" FontSize="10" Foreground="#546E7A"/>
                                             </Border>
                                             <DataTemplate.Triggers>
-                                                <DataTrigger Binding="{Binding Status}" Value="Nowa">
-                                                    <Setter TargetName="statusBorder" Property="Background" Value="#E3F2FD"/>
-                                                    <Setter TargetName="statusText" Property="Foreground" Value="#1976D2"/>
+                                                <DataTrigger Binding="{Binding StatusV2}" Value="ZGLOSZONA">
+                                                    <Setter TargetName="statusBorder" Property="Background" Value="#FDEDEC"/>
+                                                    <Setter TargetName="statusText" Property="Foreground" Value="#C0392B"/>
                                                 </DataTrigger>
-                                                <DataTrigger Binding="{Binding Status}" Value="W trakcie">
-                                                    <Setter TargetName="statusBorder" Property="Background" Value="#FFF3E0"/>
-                                                    <Setter TargetName="statusText" Property="Foreground" Value="#EF6C00"/>
+                                                <!-- Oczekuje = ZGLOSZONA + WymagaUzupelnienia (fioletowo-pomaranczowy) -->
+                                                <DataTrigger Binding="{Binding StatusV2Etykieta}" Value="Oczekuje">
+                                                    <Setter TargetName="statusBorder" Property="Background" Value="#FFE0B2"/>
+                                                    <Setter TargetName="statusText" Property="Foreground" Value="#E65100"/>
                                                 </DataTrigger>
-                                                <DataTrigger Binding="{Binding Status}" Value="Zaakceptowana">
+                                                <DataTrigger Binding="{Binding StatusV2}" Value="W_ANALIZIE">
+                                                    <Setter TargetName="statusBorder" Property="Background" Value="#FFF8E1"/>
+                                                    <Setter TargetName="statusText" Property="Foreground" Value="#E67E22"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding StatusV2}" Value="ZASADNA">
                                                     <Setter TargetName="statusBorder" Property="Background" Value="#E8F5E9"/>
                                                     <Setter TargetName="statusText" Property="Foreground" Value="#2E7D32"/>
                                                 </DataTrigger>
-                                                <DataTrigger Binding="{Binding Status}" Value="Odrzucona">
+                                                <DataTrigger Binding="{Binding StatusV2}" Value="ODRZUCONA">
                                                     <Setter TargetName="statusBorder" Property="Background" Value="#FFEBEE"/>
                                                     <Setter TargetName="statusText" Property="Foreground" Value="#C62828"/>
                                                 </DataTrigger>
-                                                <DataTrigger Binding="{Binding Status}" Value="Zamknieta">
-                                                    <Setter TargetName="statusBorder" Property="Background" Value="#ECEFF1"/>
-                                                    <Setter TargetName="statusText" Property="Foreground" Value="#546E7A"/>
-                                                </DataTrigger>
-                                                <DataTrigger Binding="{Binding Status}" Value="Przyjeta">
-                                                    <Setter TargetName="statusBorder" Property="Background" Value="#E3F2FD"/>
-                                                    <Setter TargetName="statusText" Property="Foreground" Value="#1565C0"/>
-                                                </DataTrigger>
-                                                <DataTrigger Binding="{Binding Status}" Value="W analizie">
-                                                    <Setter TargetName="statusBorder" Property="Background" Value="#FFF3E0"/>
-                                                    <Setter TargetName="statusText" Property="Foreground" Value="#EF6C00"/>
-                                                </DataTrigger>
-                                                <DataTrigger Binding="{Binding Status}" Value="W trakcie realizacji">
-                                                    <Setter TargetName="statusBorder" Property="Background" Value="#FFF3E0"/>
-                                                    <Setter TargetName="statusText" Property="Foreground" Value="#D84315"/>
-                                                </DataTrigger>
-                                                <DataTrigger Binding="{Binding Status}" Value="Oczekuje na dostawce">
+                                                <DataTrigger Binding="{Binding StatusV2}" Value="POWIAZANA">
                                                     <Setter TargetName="statusBorder" Property="Background" Value="#F3E5F5"/>
                                                     <Setter TargetName="statusText" Property="Foreground" Value="#7B1FA2"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding StatusV2}" Value="ZAMKNIETA">
+                                                    <Setter TargetName="statusBorder" Property="Background" Value="#ECEFF1"/>
+                                                    <Setter TargetName="statusText" Property="Foreground" Value="#546E7A"/>
                                                 </DataTrigger>
                                             </DataTemplate.Triggers>
                                         </DataTemplate>
@@ -862,6 +868,28 @@
                                 Width="120" Click="BtnSzczegoly_Click" IsEnabled="False" Margin="0,0,10,0"/>
                         <Button x:Name="btnUzupelnij" Content="Uzupelnij" Style="{StaticResource WarningButton}"
                                 Width="120" Click="BtnUzupelnij_Click" IsEnabled="False" Margin="0,0,10,0"/>
+
+                        <!-- Handlowiec: zglos pelna reklamacje do korekty z Symfonii -->
+                        <Button x:Name="btnZglosDoKorekty" Click="BtnZglosDoKorekty_Click"
+                                Visibility="Collapsed" Height="56" Margin="0,0,8,0"
+                                Background="#3498DB" Foreground="White" BorderThickness="0" Cursor="Hand"
+                                ToolTip="Wypelnij szczegoly reklamacji dla tej korekty z Symfonii">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="8" Padding="14,8">
+                                        <StackPanel>
+                                            <TextBlock Text="ZGLOS REKLAMACJE" FontSize="12" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="do tej korekty" FontSize="9.5" Foreground="#D6EAF8" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="bd" Property="Background" Value="#2980B9"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
 
                         <!-- Workflow V2 - duze przyciski decyzyjne dzialu jakosci -->
                         <!-- PRZYJETE - jakosc zaczyna rozpatrywac, bez komentarza -->

@@ -36,7 +36,9 @@ namespace Kalendarz1.Transport
                 TxtStatus.Text = "Ladowanie...";
 
                 if (RbOczekuje.IsChecked == true)
-                    _allItems = await TransportZmianyService.GetByStatusAsync("Oczekuje");
+                    // Tylko dzisiejsze oczekujące — zgodnie z badge count.
+                    // Starsze nieakceptowane zmiany nie są już pokazywane jako bieżące notyfikacje.
+                    _allItems = await TransportZmianyService.GetPendingTodayAsync();
                 else if (RbZaakceptowane.IsChecked == true)
                     _allItems = await TransportZmianyService.GetByStatusAsync("Zaakceptowano");
                 else if (RbOdrzucone.IsChecked == true)

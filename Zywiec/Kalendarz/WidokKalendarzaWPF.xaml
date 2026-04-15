@@ -735,6 +735,7 @@
                                 <MenuItem Header="❌ Cofnij potwierdzenie SZTUK" Click="MenuCofnijSztuki_Click"/>
                                 <MenuItem Header="🐣 Potwierdź WSTAWIENIE" Click="MenuPotwierdzWstawienie_Click" Foreground="#F57C00" FontWeight="SemiBold"/>
                                 <MenuItem Header="❌ Cofnij potwierdzenie WSTAWIENIA" Click="MenuCofnijWstawienie_Click"/>
+                                <MenuItem Header="✏️ Edytuj WSTAWIENIE" Click="MenuEdytujWstawienie_Click" Foreground="#1976D2" FontWeight="SemiBold"/>
                                 <Separator/>
 
                                 <!-- SEKCJA: Status dostawy -->
@@ -1094,6 +1095,7 @@
                                 <MenuItem Header="❌ Cofnij potwierdzenie SZTUK" Click="MenuCofnijSztuki_Click"/>
                                 <MenuItem Header="🐣 Potwierdź WSTAWIENIE" Click="MenuPotwierdzWstawienie_Click" Foreground="#F57C00" FontWeight="SemiBold"/>
                                 <MenuItem Header="❌ Cofnij potwierdzenie WSTAWIENIA" Click="MenuCofnijWstawienie_Click"/>
+                                <MenuItem Header="✏️ Edytuj WSTAWIENIE" Click="MenuEdytujWstawienie_Click" Foreground="#1976D2" FontWeight="SemiBold"/>
                                 <Separator/>
 
                                 <!-- SEKCJA: Status dostawy -->
@@ -2072,14 +2074,14 @@
                                                 <Border Grid.Column="3" Background="#FEF9C3" CornerRadius="6" Padding="8,6" Margin="4,0" BorderBrush="#FDE047" BorderThickness="1">
                                                     <StackPanel>
                                                         <TextBlock Text="🐔 Sztuki" FontSize="9" Foreground="#A16207" FontWeight="SemiBold" Margin="0,0,0,2"/>
-                                                        <TextBox x:Name="txtSztuki" FontSize="15" FontWeight="Bold" Foreground="#854D0E" Background="Transparent" BorderThickness="0" Padding="0"/>
+                                                        <TextBox x:Name="txtSztuki" FontSize="15" FontWeight="Bold" Foreground="#854D0E" Background="Transparent" BorderThickness="0" Padding="0" TextChanged="TxtSztuki_TextChanged"/>
                                                     </StackPanel>
                                                 </Border>
                                                 <!-- Auta -->
                                                 <Border Grid.Column="4" Background="#E0E7FF" CornerRadius="6" Padding="8,6" Margin="4,0" BorderBrush="#C7D2FE" BorderThickness="1">
                                                     <StackPanel>
                                                         <TextBlock Text="🚚 Auta" FontSize="9" Foreground="#4338CA" FontWeight="SemiBold" Margin="0,0,0,2"/>
-                                                        <TextBox x:Name="txtAuta" FontSize="15" FontWeight="Bold" Foreground="#3730A3" Background="Transparent" BorderThickness="0" Padding="0"/>
+                                                        <TextBox x:Name="txtAuta" FontSize="15" FontWeight="Bold" Foreground="#3730A3" Background="Transparent" BorderThickness="0" Padding="0" TextChanged="TxtAuta_TextChanged"/>
                                                     </StackPanel>
                                                 </Border>
                                                 <!-- Obliczone Auta (tylko do odczytu) -->
@@ -2485,7 +2487,7 @@
                                                                 </Style>
                                                             </Button.Style>
                                                         </Button>
-                                                        <Button Content="✏️ Edytuj" Click="BtnEdytujWstawienie_Click" Padding="8,4" FontSize="9" Margin="0,0,4,0" Cursor="Hand" ToolTip="Edytuj wybrane wstawienie">
+                                                        <Button Content="✏️ Zmień wstawienie" Click="BtnEdytujWstawienie_Click" Padding="8,4" FontSize="9" Margin="0,0,4,0" Cursor="Hand" ToolTip="Zmień wybrane wstawienie (to samo co w menu kontekstowym)">
                                                             <Button.Style>
                                                                 <Style TargetType="Button">
                                                                     <Setter Property="Background" Value="#3B82F6"/>

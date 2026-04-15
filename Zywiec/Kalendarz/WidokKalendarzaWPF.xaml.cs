@@ -445,8 +445,9 @@ namespace Kalendarz1.Zywiec.Kalendarz
                                 DateTime dataZmiany = reader["DataZmiany"] != DBNull.Value
                                     ? Convert.ToDateTime(reader["DataZmiany"]) : DateTime.Now;
 
-                                // Wyciągnij dostawcę z DodatkoweInfo (JSON) jeśli dostępny
+                                // Wyciągnij dostawcę i datę odbioru z DodatkoweInfo (JSON) jeśli dostępny
                                 string dostawca = "";
+                                DateTime? dataOdbioruAudit = null;
                                 string dodatkoweInfo = reader["DodatkoweInfo"]?.ToString() ?? "";
                                 if (!string.IsNullOrEmpty(dodatkoweInfo))
                                 {
@@ -460,6 +461,19 @@ namespace Kalendarz1.Zywiec.Kalendarz
                                             int end = dodatkoweInfo.IndexOf("\"", start);
                                             if (start > 0 && end > start)
                                                 dostawca = dodatkoweInfo.Substring(start, end - start);
+                                        }
+                                        // Szukaj "DataOdbioru":"..."
+                                        int idx2 = dodatkoweInfo.IndexOf("\"DataOdbioru\":");
+                                        if (idx2 >= 0)
+                                        {
+                                            int start = dodatkoweInfo.IndexOf("\"", idx2 + 14) + 1;
+                                            int end = dodatkoweInfo.IndexOf("\"", start);
+                                            if (start > 0 && end > start)
+                                            {
+                                                string dStr = dodatkoweInfo.Substring(start, end - start);
+                                                if (DateTime.TryParse(dStr, out DateTime parsed))
+                                                    dataOdbioruAudit = parsed;
+                                            }
                                         }
                                     }
                                     catch { }
@@ -495,6 +509,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                                         Title = $"{title} ({userName})",
                                         Dostawca = dostawca,
                                         LP = rekordId,
+                                        DataOdbioru = dataOdbioruAudit,
                                         UserId = userId,
                                         UserName = userName,
                                         Timestamp = dataZmiany,
@@ -3268,6 +3283,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                         Title = "Zmieniono dostawę",
                         Dostawca = item.Dostawca,
                         LP = lp,
+                        DataOdbioru = item.DataOdbioru,
                         UserId = UserID,
                         UserName = txtUserName?.Text,
                         NotificationType = ChangeNotificationType.InlineEdit,
@@ -4066,6 +4082,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                                     Title = "Zmieniono typ ceny",
                                     Dostawca = selectedItem.Dostawca,
                                     LP = selectedItem.LP,
+                                    DataOdbioru = selectedItem.DataOdbioru,
                                     UserId = UserID,
                                     UserName = txtUserName?.Text,
                                     NotificationType = ChangeNotificationType.InlineEdit,
@@ -4231,6 +4248,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                         Title = "Zmieniono cenę",
                         Dostawca = selectedItem.Dostawca,
                         LP = selectedItem.LP,
+                        DataOdbioru = selectedItem.DataOdbioru,
                         UserId = UserID,
                         UserName = txtUserName?.Text,
                         NotificationType = ChangeNotificationType.InlineEdit,
@@ -5407,6 +5425,84 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 {
                     await _auditService.LogWstawienieConfirmationAsync(dostawa.LpW, false, _cts.Token);
                 }
+            }
+            catch (Exception ex)
+            {
+                ShowToast($"Błąd: {ex.Message}", ToastType.Error);
+            }
+        }
+
+        // Menu kontekstowe - Edytuj wstawienie (otwiera to samo okno co w Cykle Wstawień)
+        private async void MenuEdytujWstawienie_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(_selectedLP))
+            {
+                ShowToast("Wybierz dostawę", ToastType.Warning);
+                return;
+            }
+
+            var dostawa = _dostawy.FirstOrDefault(d => d.LP == _selectedLP) ?? _dostawyNastepnyTydzien.FirstOrDefault(d => d.LP == _selectedLP);
+            if (dostawa == null || string.IsNullOrEmpty(dostawa.LpW))
+            {
+                ShowToast("Brak powiązanego wstawienia (LpW)", ToastType.Warning);
+                return;
+            }
+
+            if (!int.TryParse(dostawa.LpW, out int lpWstawienia))
+            {
+                ShowToast("Nieprawidłowe LpW", ToastType.Error);
+                return;
+            }
+
+            try
+            {
+                string dostawca = null;
+                DateTime dataWstawienia = DateTime.Today;
+                int sztWstawione = 0;
+
+                using (var conn = new SqlConnection(ConnectionString))
+                {
+                    await conn.OpenAsync(_cts.Token);
+                    using (var cmd = new SqlCommand(
+                        "SELECT Dostawca, DataWstawienia, IloscWstawienia FROM dbo.WstawieniaKurczakow WHERE Lp = @lp", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@lp", lpWstawienia);
+                        using (var reader = await cmd.ExecuteReaderAsync(_cts.Token))
+                        {
+                            if (await reader.ReadAsync(_cts.Token))
+                            {
+                                dostawca = reader["Dostawca"]?.ToString();
+                                dataWstawienia = reader["DataWstawienia"] != DBNull.Value
+                                    ? Convert.ToDateTime(reader["DataWstawienia"])
+                                    : DateTime.Today;
+                                sztWstawione = reader["IloscWstawienia"] != DBNull.Value
+                                    ? Convert.ToInt32(reader["IloscWstawienia"])
+                                    : 0;
+                            }
+                            else
+                            {
+                                ShowToast($"Nie znaleziono wstawienia Lp={lpWstawienia}", ToastType.Warning);
+                                return;
+                            }
+                        }
+                    }
+                }
+
+                var wstawienie = new WstawienieWindow
+                {
+                    UserID = UserID ?? "0",
+                    SztWstawienia = sztWstawione,
+                    Dostawca = dostawca,
+                    LpWstawienia = lpWstawienia,
+                    DataWstawienia = dataWstawienia,
+                    Modyfikacja = true,
+                    Owner = this
+                };
+
+                wstawienie.ShowDialog();
+
+                // Odśwież dane aby pokazać ewentualne zmiany
+                await LoadDostawyAsync();
             }
             catch (Exception ex)
             {
@@ -6712,6 +6808,13 @@ namespace Kalendarz1.Zywiec.Kalendarz
             DateTime oldDate = dostawa.DataOdbioru;
             dostawa.DataOdbioru = newDate;
 
+            // Zaktualizuj wiek kurczaków (kolumna "dni") po przesunięciu dostawy
+            int shiftDays = (newDate.Date - oldDate.Date).Days;
+            if (dostawa.RoznicaDni.HasValue && shiftDays != 0)
+            {
+                dostawa.RoznicaDni = dostawa.RoznicaDni.Value + shiftDays;
+            }
+
             // Oznacz jako przesunięty (czerwona czcionka)
             dostawa.IsSimulationMoved = true;
 
@@ -7000,6 +7103,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                         Title = "Zapisano dostawę",
                         Dostawca = newDostawca ?? oldDostawa?.Dostawca,
                         LP = _selectedLP,
+                        DataOdbioru = newDataOdbioru ?? oldDostawa?.DataOdbioru,
                         UserId = UserID,
                         UserName = txtUserName?.Text,
                         NotificationType = ChangeNotificationType.FormSave,
@@ -7168,29 +7272,71 @@ namespace Kalendarz1.Zywiec.Kalendarz
             }
         }
 
-        private void BtnEdytujWstawienie_Click(object sender, RoutedEventArgs e)
+        private async void BtnEdytujWstawienie_Click(object sender, RoutedEventArgs e)
         {
+            // Wybierz LpW: najpierw z comboboxa, w razie braku - z zaznaczonej dostawy
+            string selectedLp = cmbLpWstawienia.SelectedItem?.ToString();
+            if (string.IsNullOrEmpty(selectedLp) && !string.IsNullOrEmpty(_selectedLP))
+            {
+                var dostawa = _dostawy.FirstOrDefault(d => d.LP == _selectedLP) ?? _dostawyNastepnyTydzien.FirstOrDefault(d => d.LP == _selectedLP);
+                selectedLp = dostawa?.LpW;
+            }
+
+            if (string.IsNullOrEmpty(selectedLp) || !int.TryParse(selectedLp, out int lpWstawienia))
+            {
+                ShowToast("Wybierz wstawienie do edycji", ToastType.Warning);
+                return;
+            }
+
             try
             {
-                string selectedLp = cmbLpWstawienia.SelectedItem?.ToString();
-                if (string.IsNullOrEmpty(selectedLp))
+                string dostawca = null;
+                DateTime dataWstawienia = DateTime.Today;
+                int sztWstawione = 0;
+
+                using (var conn = new SqlConnection(ConnectionString))
                 {
-                    ShowToast("Wybierz wstawienie do edycji", ToastType.Warning);
-                    return;
+                    await conn.OpenAsync(_cts.Token);
+                    using (var cmd = new SqlCommand(
+                        "SELECT Dostawca, DataWstawienia, IloscWstawienia FROM dbo.WstawieniaKurczakow WHERE Lp = @lp", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@lp", lpWstawienia);
+                        using (var reader = await cmd.ExecuteReaderAsync(_cts.Token))
+                        {
+                            if (await reader.ReadAsync(_cts.Token))
+                            {
+                                dostawca = reader["Dostawca"]?.ToString();
+                                dataWstawienia = reader["DataWstawienia"] != DBNull.Value
+                                    ? Convert.ToDateTime(reader["DataWstawienia"])
+                                    : DateTime.Today;
+                                sztWstawione = reader["IloscWstawienia"] != DBNull.Value
+                                    ? Convert.ToInt32(reader["IloscWstawienia"])
+                                    : 0;
+                            }
+                            else
+                            {
+                                ShowToast($"Nie znaleziono wstawienia Lp={lpWstawienia}", ToastType.Warning);
+                                return;
+                            }
+                        }
+                    }
                 }
 
-                // Otwórz okno edycji wstawienia
-                var wstawienieWindow = new WstawienieWindow();
-                wstawienieWindow.Modyfikacja = true;
-                if (int.TryParse(selectedLp, out int lpInt))
+                var wstawienie = new WstawienieWindow
                 {
-                    wstawienieWindow.LpWstawienia = lpInt;
-                }
-                wstawienieWindow.Owner = this;
-                wstawienieWindow.ShowDialog();
+                    UserID = UserID ?? "0",
+                    SztWstawienia = sztWstawione,
+                    Dostawca = dostawca,
+                    LpWstawienia = lpWstawienia,
+                    DataWstawienia = dataWstawienia,
+                    Modyfikacja = true,
+                    Owner = this
+                };
+
+                wstawienie.ShowDialog();
 
                 // Odśwież dane po zamknięciu okna
-                _ = LoadDostawyAsync();
+                await LoadDostawyAsync();
             }
             catch (Exception ex)
             {
@@ -7207,6 +7353,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
         /// </summary>
         private void UpdateObliczoneAuta()
         {
+            if (txtOblA == null || txtSztuki == null || txtSztNaSzuflade == null) return;
+
             if (double.TryParse(txtSztuki.Text, out double sztuki) &&
                 int.TryParse(txtSztNaSzuflade.Text, out int sztSzuf) && sztSzuf > 0)
             {
@@ -7218,6 +7366,16 @@ namespace Kalendarz1.Zywiec.Kalendarz
             {
                 txtOblA.Text = "-";
             }
+        }
+
+        private void TxtSztuki_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            UpdateObliczoneAuta();
+        }
+
+        private void TxtAuta_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            UpdateObliczoneAuta();
         }
 
         private void TxtSztNaSzufladeCalc_TextChanged(object sender, TextChangedEventArgs e)
@@ -7268,6 +7426,9 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 txtSztNaSzufladeWaga2.Text = "";
                 txtSztNaSzufladeWaga3.Text = "";
             }
+
+            // Przelicz obl.A na bieżąco
+            UpdateObliczoneAuta();
 
             // Przelicz wszystkie wiersze
             CalculateZaladunekRow1();
@@ -7852,6 +8013,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                     Title = "Przeniesiono dostawę",
                     Dostawca = dostawca,
                     LP = lp,
+                    DataOdbioru = newDate,
                     UserId = UserID,
                     UserName = txtUserName?.Text,
                     NotificationType = ChangeNotificationType.DragDrop,
@@ -7867,7 +8029,13 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 var (item, _) = FindDostawaByLP(lp);
                 if (item != null)
                 {
+                    int shiftDays = (newDate.Date - oldDate.Date).Days;
                     item.DataOdbioru = newDate;
+                    // Zaktualizuj wiek kurczaków (kolumna "dni") po przesunięciu dostawy
+                    if (item.RoznicaDni.HasValue && shiftDays != 0)
+                    {
+                        item.RoznicaDni = item.RoznicaDni.Value + shiftDays;
+                    }
                     RefreshDostawyView();
                 }
             }
@@ -8902,6 +9070,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
         public string UserId { get; set; }
         public string UserName { get; set; }
         public DateTime Timestamp { get; set; } = DateTime.Now;
+        public DateTime? DataOdbioru { get; set; }
         public ChangeNotificationType NotificationType { get; set; }
         public List<FieldChange> Changes { get; set; } = new List<FieldChange>();
     }
@@ -8961,7 +9130,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
         public string UwagiAutorName { get; set; }
         private DateTime? _dataNotatki;
         public DateTime? DataNotatki { get => _dataNotatki; set { _dataNotatki = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsVeryRecentNote)); OnPropertyChanged(nameof(IsRecentNote)); } }
-        public int? RoznicaDni { get; set; }
+        private int? _roznicaDni;
+        public int? RoznicaDni { get => _roznicaDni; set { _roznicaDni = value; OnPropertyChanged(); OnPropertyChanged(nameof(RoznicaDniDisplay)); } }
         public string LpW { get; set; }
         public bool PotwWaga { get; set; }
         public bool PotwSztuki { get; set; }

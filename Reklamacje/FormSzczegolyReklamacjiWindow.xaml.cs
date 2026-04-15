@@ -19,6 +19,12 @@ namespace Kalendarz1.Reklamacje
         private readonly int idReklamacji;
         private readonly string userId;
         private int idDokumentu;
+        private int idKontrahenta;
+        private string typReklamacji;
+        private int? powiazanaReklamacjaId;
+        private int? idFakturyOryginalnej;
+        private string numerFakturyOryginalnej;
+        private string nazwaKontrahenta;
 
         private const string HandelConnString = ReklamacjeConnectionStrings.Handel;
 
@@ -104,13 +110,29 @@ namespace Kalendarz1.Reklamacje
                             aktualnyStatus = status;
                             string numerDok = SafeGet(reader, "NumerDokumentu");
                             string nazwaKontr = SafeGet(reader, "NazwaKontrahenta");
+                            nazwaKontrahenta = nazwaKontr;
                             string opis = SafeGet(reader, "Opis");
                             string komentarz = SafeGet(reader, "Komentarz");
                             string rozwiazanie = SafeGet(reader, "Rozwiazanie");
                             string zglaszajacyNazwa = SafeGet(reader, "ZglaszajacyNazwa");
                             string rozpatrujacyNazwa = SafeGet(reader, "RozpatrujacyNazwa");
                             string typRekl = SafeGet(reader, "TypReklamacji");
+                            typReklamacji = typRekl;
                             string priorytet = SafeGet(reader, "Priorytet");
+
+                            // Dane korekty — do przycisku "Zglos reklamacje do tej korekty"
+                            try { idKontrahenta = Convert.ToInt32(reader["IdKontrahenta"]); } catch { idKontrahenta = 0; }
+                            try { var v = reader["PowiazanaReklamacjaId"]; powiazanaReklamacjaId = (v == DBNull.Value) ? (int?)null : Convert.ToInt32(v); } catch { powiazanaReklamacjaId = null; }
+                            try { var v = reader["IdFakturyOryginalnej"]; idFakturyOryginalnej = (v == DBNull.Value) ? (int?)null : Convert.ToInt32(v); } catch { idFakturyOryginalnej = null; }
+                            numerFakturyOryginalnej = SafeGet(reader, "NumerFakturyOryginalnej");
+
+                            // Pokaz przycisk tylko dla niepowiazanych otwartych korekt
+                            string statusV2 = SafeGet(reader, "StatusV2");
+                            bool toKorekta = typRekl == "Faktura korygujaca";
+                            bool niepowiazana = !powiazanaReklamacjaId.HasValue || powiazanaReklamacjaId.Value <= 0;
+                            bool otwarta = statusV2 == "ZGLOSZONA" || statusV2 == "W_ANALIZIE" || string.IsNullOrEmpty(statusV2);
+                            if (btnZglosDoKorekty != null)
+                                btnZglosDoKorekty.Visibility = (toKorekta && niepowiazana && otwarta) ? Visibility.Visible : Visibility.Collapsed;
                             decimal sumaKg = SafeGetDecimal(reader, "SumaKg");
                             decimal sumaWartosc = SafeGetDecimal(reader, "SumaWartosc");
                             DateTime dataZgl = SafeGetDateTime(reader, "DataZgloszenia");
@@ -1180,6 +1202,95 @@ namespace Kalendarz1.Reklamacje
         // ========================================
         // DRUKOWANIE PROTOKOLU REKLAMACJI
         // ========================================
+
+        private void BtnZglosDoKorekty_Click(object sender, RoutedEventArgs e)
+        {
+            if (typReklamacji != "Faktura korygujaca")
+            {
+                MessageBox.Show("Ta opcja jest dostepna tylko dla korekt z Symfonii.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            if (powiazanaReklamacjaId.HasValue && powiazanaReklamacjaId.Value > 0)
+            {
+                MessageBox.Show($"Ta korekta jest juz powiazana z reklamacja #{powiazanaReklamacjaId}.", "Juz powiazana", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            if (!idFakturyOryginalnej.HasValue || idFakturyOryginalnej.Value <= 0)
+            {
+                MessageBox.Show("Brak informacji o fakturze bazowej dla tej korekty.\n\nUzyj przycisku 'Uzupelnij' w panelu glownym aby recznie wybrac fakture.",
+                    "Brak faktury bazowej", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            if (idKontrahenta <= 0)
+            {
+                MessageBox.Show("Brak informacji o kontrahencie.", "Blad", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            // Pobierz info o korekcie: IdDokumentu (HANDEL), suma kg, wartosc
+            int idDokKorekty = 0;
+            decimal? kgKorekty = null, wartKorekty = null;
+            DateTime? dataKorekty = null;
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    using (var cmd = new SqlCommand(@"
+                        SELECT IdDokumentu, SumaKg, SumaWartosc, DataZgloszenia, NumerDokumentu
+                        FROM [dbo].[Reklamacje] WHERE Id = @Id", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Id", idReklamacji);
+                        using (var r = cmd.ExecuteReader())
+                        {
+                            if (r.Read())
+                            {
+                                idDokKorekty = r.IsDBNull(0) ? 0 : r.GetInt32(0);
+                                kgKorekty = r.IsDBNull(1) ? (decimal?)null : r.GetDecimal(1);
+                                wartKorekty = r.IsDBNull(2) ? (decimal?)null : r.GetDecimal(2);
+                                dataKorekty = r.IsDBNull(3) ? (DateTime?)null : r.GetDateTime(3);
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            string nrKorekty = "";
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    using (var cmd = new SqlCommand("SELECT NumerDokumentu FROM [dbo].[Reklamacje] WHERE Id = @Id", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Id", idReklamacji);
+                        var r = cmd.ExecuteScalar();
+                        if (r != null && r != DBNull.Value) nrKorekty = r.ToString();
+                    }
+                }
+            }
+            catch { }
+
+            // Otworz formularz "przypiety do korekty" — formularz sam powiazuje
+            var okno = new FormReklamacjaWindow(
+                HandelConnString, idFakturyOryginalnej.Value, idKontrahenta,
+                numerFakturyOryginalnej, nazwaKontrahenta,
+                userId, connectionString,
+                idKorekty: idDokKorekty,
+                nrKorekty: nrKorekty,
+                dataKorekty: dataKorekty,
+                wartoscKorekty: wartKorekty,
+                kgKorekty: kgKorekty);
+            okno.Owner = this;
+            if (okno.ShowDialog() == true)
+            {
+                StatusZmieniony = true;
+                ResetujSekcje();
+                WczytajSzczegoly();
+                MessageBox.Show("Reklamacja zostala zgloszona i powiazana z korekta.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
 
         private void BtnDrukuj_Click(object sender, RoutedEventArgs e)
         {
