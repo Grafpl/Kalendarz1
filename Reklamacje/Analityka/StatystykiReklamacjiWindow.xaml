@@ -1,0 +1,349 @@
+<Window x:Class="Kalendarz1.Reklamacje.Analityka.StatystykiReklamacjiWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:lvc="clr-namespace:LiveCharts.Wpf;assembly=LiveCharts.Wpf"
+        Title="Inspekcja Kontrahenta — Korekty Miesa"
+        WindowState="Maximized" WindowStartupLocation="CenterScreen"
+        Background="#0F1117" FontFamily="Segoe UI" Loaded="Window_Loaded">
+
+    <Window.Resources>
+        <Style x:Key="DCombo" TargetType="ComboBox">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="10,7"/>
+            <Setter Property="Background" Value="#1E2028"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#2A2E38"/>
+        </Style>
+        <Style x:Key="Card" TargetType="Border">
+            <Setter Property="Background" Value="#1A1E26"/>
+            <Setter Property="CornerRadius" Value="14"/>
+            <Setter Property="Padding" Value="18,14"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="20,14,20,14">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- ═══ HEADER ═══ -->
+        <Grid Grid.Row="0" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="INSPEKCJA KONTRAHENTA — KOREKTY MIESA" FontSize="22" FontWeight="Bold" Foreground="White" Opacity="0.95"/>
+                <TextBlock x:Name="txtPodtytul" Text="Ladowanie..." FontSize="11" Foreground="#565D6B" Margin="0,4,0,0"/>
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                <StackPanel Margin="0,0,14,0">
+                    <TextBlock Text="KONTRAHENT" FontSize="8" Foreground="#565D6B" FontWeight="Bold" Margin="2,0,0,3"/>
+                    <ComboBox x:Name="cmbKontrahent" Style="{StaticResource DCombo}" MinWidth="280"
+                              IsEditable="True" IsTextSearchEnabled="True" StaysOpenOnEdit="True"
+                              SelectionChanged="Filtr_Changed"/>
+                </StackPanel>
+                <!-- ComboBox'y ukryte — uzywane przez guziki -->
+                <ComboBox x:Name="cmbOkres" Visibility="Collapsed" SelectionChanged="Filtr_Changed">
+                    <ComboBoxItem Content="30 dni" Tag="30"/>
+                    <ComboBoxItem Content="90 dni" Tag="90"/>
+                    <ComboBoxItem Content="Pol roku" Tag="180" IsSelected="True"/>
+                    <ComboBoxItem Content="Rok" Tag="365"/>
+                    <ComboBoxItem Content="2 lata" Tag="730"/>
+                    <ComboBoxItem Content="Wszystko" Tag="9999"/>
+                </ComboBox>
+                <ComboBox x:Name="cmbGrupowanie" Visibility="Collapsed" SelectionChanged="Filtr_Changed">
+                    <ComboBoxItem Content="Tydzien" Tag="week"/>
+                    <ComboBoxItem Content="Miesiac" Tag="month" IsSelected="True"/>
+                    <ComboBoxItem Content="Kwartal" Tag="quarter"/>
+                    <ComboBoxItem Content="Rok" Tag="year"/>
+                </ComboBox>
+            </StackPanel>
+        </Grid>
+
+        <!-- ═══ GUZIKI FILTROW ═══ -->
+        <Border Grid.Row="1" Background="#14171E" CornerRadius="10" Padding="14,10" Margin="0,0,0,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- LATA -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="ROK" FontSize="9" Foreground="#4A5060" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <WrapPanel x:Name="panelLata" Orientation="Horizontal"/>
+                    <Border Width="1" Height="20" Background="#2A2E38" Margin="14,0,14,0" VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <!-- MIESIACE -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="MIESIAC" FontSize="9" Foreground="#4A5060" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <WrapPanel x:Name="panelMiesiace" Orientation="Horizontal"/>
+                    <Border Width="1" Height="20" Background="#2A2E38" Margin="14,0,14,0" VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <!-- SZYBKIE ZAKRESY -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="ZAKRES" FontSize="9" Foreground="#4A5060" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <WrapPanel x:Name="panelZakresy" Orientation="Horizontal"/>
+                    <Border Width="1" Height="20" Background="#2A2E38" Margin="14,0,14,0" VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <!-- GRUPOWANIE -->
+                <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="GRUPUJ" FontSize="9" Foreground="#4A5060" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <WrapPanel x:Name="panelGrupowanie" Orientation="Horizontal"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ═══ KPI ═══ -->
+        <Grid Grid.Row="2" Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Style="{StaticResource Card}" Margin="0,0,8,0">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <Border Width="8" Height="8" CornerRadius="4" Background="#6C7BF2" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="KOREKTY" FontSize="9" Foreground="#565D6B" FontWeight="Bold"/>
+                    </StackPanel>
+                    <TextBlock x:Name="txtKpiIle" Text="-" FontSize="30" FontWeight="Bold" Foreground="White" Margin="0,4,0,0"/>
+                    <TextBlock x:Name="txtKpiIleSub" FontSize="10" Foreground="#3A3F4A"/>
+                </StackPanel>
+            </Border>
+            <Border Grid.Column="1" Style="{StaticResource Card}" Margin="0,0,8,0">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <Border Width="8" Height="8" CornerRadius="4" Background="#EF4444" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="STRATA NETTO" FontSize="9" Foreground="#565D6B" FontWeight="Bold"/>
+                    </StackPanel>
+                    <TextBlock x:Name="txtKpiZl" Text="-" FontSize="30" FontWeight="Bold" Foreground="#FF6B6B" Margin="0,4,0,0"/>
+                    <TextBlock x:Name="txtKpiZlSub" FontSize="10" Foreground="#3A3F4A"/>
+                </StackPanel>
+            </Border>
+            <Border Grid.Column="2" Style="{StaticResource Card}" Margin="0,0,8,0">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <Border Width="8" Height="8" CornerRadius="4" Background="#F59E0B" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="SUMA KG" FontSize="9" Foreground="#565D6B" FontWeight="Bold"/>
+                    </StackPanel>
+                    <TextBlock x:Name="txtKpiKg" Text="-" FontSize="30" FontWeight="Bold" Foreground="#FFD166" Margin="0,4,0,0"/>
+                    <TextBlock x:Name="txtKpiKgSub" FontSize="10" Foreground="#3A3F4A"/>
+                </StackPanel>
+            </Border>
+            <Border Grid.Column="3" Style="{StaticResource Card}" Margin="0,0,8,0">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <Border Width="8" Height="8" CornerRadius="4" Background="#A855F7" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="SREDNIA KOREKTA" FontSize="9" Foreground="#565D6B" FontWeight="Bold"/>
+                    </StackPanel>
+                    <TextBlock x:Name="txtKpiSr" Text="-" FontSize="30" FontWeight="Bold" Foreground="#C084FC" Margin="0,4,0,0"/>
+                </StackPanel>
+            </Border>
+            <Border Grid.Column="4" Style="{StaticResource Card}" Margin="0,0,8,0">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <Border Width="8" Height="8" CornerRadius="4" Background="#10B981" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="PRODUKTOW" FontSize="9" Foreground="#565D6B" FontWeight="Bold"/>
+                    </StackPanel>
+                    <TextBlock x:Name="txtKpiProd" Text="-" FontSize="30" FontWeight="Bold" Foreground="#34D399" Margin="0,4,0,0"/>
+                </StackPanel>
+            </Border>
+            <Border Grid.Column="5" Style="{StaticResource Card}">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <Border Width="8" Height="8" CornerRadius="4" Background="#3B82F6" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="HANDLOWIEC" FontSize="9" Foreground="#565D6B" FontWeight="Bold"/>
+                    </StackPanel>
+                    <TextBlock x:Name="txtKpiHandl" Text="-" FontSize="18" FontWeight="Bold" Foreground="#60A5FA" Margin="0,6,0,0" TextTrimming="CharacterEllipsis"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- ═══ PANELE ═══ -->
+        <Grid Grid.Row="3">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="3*"/>
+                <ColumnDefinition Width="2*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- TREND -->
+            <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource Card}" Margin="0,0,8,8">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                        <TextBlock Text="TREND KOREKT W CZASIE" FontSize="11" FontWeight="Bold" Foreground="#565D6B"/>
+                        <TextBlock x:Name="txtTrendInfo" FontSize="9" Foreground="#3A3F4A" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <lvc:CartesianChart x:Name="chartTrend" Grid.Row="1" Background="Transparent" DisableAnimations="True" DataClick="ChartTrend_DataClick" Cursor="Hand">
+                        <lvc:CartesianChart.DataTooltip>
+                            <lvc:DefaultTooltip Background="#2D3139" Foreground="White" CornerRadius="8"/>
+                        </lvc:CartesianChart.DataTooltip>
+                        <lvc:CartesianChart.AxisX>
+                            <lvc:Axis x:Name="axTX" Foreground="#3A3F4A" FontSize="9">
+                                <lvc:Axis.Separator><lvc:Separator StrokeThickness="0.15" Stroke="#1E2230"/></lvc:Axis.Separator>
+                            </lvc:Axis>
+                        </lvc:CartesianChart.AxisX>
+                        <lvc:CartesianChart.AxisY>
+                            <lvc:Axis x:Name="axTY" Foreground="#3A3F4A" FontSize="9" MinValue="0">
+                                <lvc:Axis.Separator><lvc:Separator StrokeThickness="0.15" Stroke="#1E2230"/></lvc:Axis.Separator>
+                            </lvc:Axis>
+                            <lvc:Axis x:Name="axTY2" Foreground="#F59E0B" FontSize="9" Position="RightTop" MinValue="0">
+                                <lvc:Axis.Separator><lvc:Separator StrokeThickness="0"/></lvc:Axis.Separator>
+                            </lvc:Axis>
+                        </lvc:CartesianChart.AxisY>
+                    </lvc:CartesianChart>
+                </Grid>
+            </Border>
+
+            <!-- TYP KOREKTY (pie-like bar) + TOP PRODUKTY -->
+            <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource Card}" Margin="0,0,0,8">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="ROZKLAD WG TYPU KOREKTY" FontSize="11" FontWeight="Bold" Foreground="#565D6B" Margin="0,0,0,6"/>
+                    <lvc:CartesianChart x:Name="chartTyp" Grid.Row="1" Background="Transparent" DisableAnimations="True" DataClick="ChartTyp_DataClick" Cursor="Hand">
+                        <lvc:CartesianChart.DataTooltip>
+                            <lvc:DefaultTooltip Background="#2D3139" Foreground="White" CornerRadius="8"/>
+                        </lvc:CartesianChart.DataTooltip>
+                        <lvc:CartesianChart.AxisY>
+                            <lvc:Axis x:Name="axTypY" Foreground="#3A3F4A" FontSize="9" ShowLabels="True">
+                                <lvc:Axis.Separator><lvc:Separator StrokeThickness="0"/></lvc:Axis.Separator>
+                            </lvc:Axis>
+                        </lvc:CartesianChart.AxisY>
+                        <lvc:CartesianChart.AxisX>
+                            <lvc:Axis Foreground="#3A3F4A" FontSize="9" MinValue="0">
+                                <lvc:Axis.Separator><lvc:Separator StrokeThickness="0.15" Stroke="#1E2230"/></lvc:Axis.Separator>
+                            </lvc:Axis>
+                        </lvc:CartesianChart.AxisX>
+                    </lvc:CartesianChart>
+                </Grid>
+            </Border>
+
+            <!-- TOP PRODUKTY -->
+            <Border Grid.Row="1" Grid.Column="0" Style="{StaticResource Card}" Margin="0,0,8,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="NAJCZESCIEJ REKLAMOWANE PRODUKTY" FontSize="11" FontWeight="Bold" Foreground="#565D6B" Margin="0,0,0,6"/>
+                    <lvc:CartesianChart x:Name="chartProd" Grid.Row="1" Background="Transparent" DisableAnimations="True" DataClick="ChartProd_DataClick" Cursor="Hand">
+                        <lvc:CartesianChart.DataTooltip>
+                            <lvc:DefaultTooltip Background="#2D3139" Foreground="White" CornerRadius="8"/>
+                        </lvc:CartesianChart.DataTooltip>
+                        <lvc:CartesianChart.AxisX>
+                            <lvc:Axis x:Name="axPX" Foreground="#3A3F4A" FontSize="8" LabelsRotation="-30">
+                                <lvc:Axis.Separator><lvc:Separator StrokeThickness="0"/></lvc:Axis.Separator>
+                            </lvc:Axis>
+                        </lvc:CartesianChart.AxisX>
+                        <lvc:CartesianChart.AxisY>
+                            <lvc:Axis Foreground="#3A3F4A" FontSize="9" MinValue="0">
+                                <lvc:Axis.Separator><lvc:Separator StrokeThickness="0.15" Stroke="#1E2230"/></lvc:Axis.Separator>
+                            </lvc:Axis>
+                        </lvc:CartesianChart.AxisY>
+                    </lvc:CartesianChart>
+                </Grid>
+            </Border>
+
+            <!-- SZCZEGOLOWA TABELA KOREKT -->
+            <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource Card}" Margin="0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                        <TextBlock Text="SZCZEGOLY KOREKT" FontSize="11" FontWeight="Bold" Foreground="#565D6B"/>
+                        <TextBlock x:Name="txtDetaleInfo" FontSize="9" Foreground="#3A3F4A" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <DataGrid x:Name="dgDetale" Grid.Row="1"
+                              AutoGenerateColumns="False" IsReadOnly="True"
+                              CanUserSortColumns="True"
+                              EnableRowVirtualization="True"
+                              EnableColumnVirtualization="True"
+                              VirtualizingPanel.IsVirtualizing="True"
+                              VirtualizingPanel.VirtualizationMode="Recycling"
+                              Background="Transparent" Foreground="#C5CAD3"
+                              BorderThickness="0" RowHeaderWidth="0"
+                              GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#1E2230"
+                              RowBackground="#1A1E26" AlternatingRowBackground="#1F232C"
+                              HeadersVisibility="Column" RowHeight="28" FontSize="10.5"
+                              ColumnHeaderHeight="28" CanUserAddRows="False">
+                        <DataGrid.ColumnHeaderStyle>
+                            <Style TargetType="DataGridColumnHeader">
+                                <Setter Property="Background" Value="#1E2230"/>
+                                <Setter Property="Foreground" Value="#565D6B"/>
+                                <Setter Property="FontWeight" Value="Bold"/>
+                                <Setter Property="FontSize" Value="9"/>
+                                <Setter Property="Padding" Value="6,4"/>
+                                <Setter Property="BorderThickness" Value="0"/>
+                            </Style>
+                        </DataGrid.ColumnHeaderStyle>
+                        <DataGrid.CellStyle>
+                            <Style TargetType="DataGridCell">
+                                <Setter Property="BorderThickness" Value="0"/>
+                                <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="DataGridCell">
+                                            <Border Background="{TemplateBinding Background}" Padding="6,2">
+                                                <ContentPresenter VerticalAlignment="Center"/>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </DataGrid.CellStyle>
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="DATA" Binding="{Binding DataStr}" Width="58" SortMemberPath="DataSort"/>
+                            <DataGridTextColumn Header="KOREKTA" Binding="{Binding Kod}" Width="90"/>
+                            <DataGridTextColumn Header="TYP" Binding="{Binding Typ}" Width="42">
+                                <DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="Foreground" Value="#6C7380"/></Style></DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="TOWAR" Binding="{Binding Tw}" Width="*">
+                                <DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="TextTrimming" Value="CharacterEllipsis"/></Style></DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="FAKTURA" Binding="{Binding KgOrygStr}" Width="60" SortMemberPath="KgOryg">
+                                <DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/><Setter Property="Foreground" Value="#565D6B"/></Style></DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="PO KOR." Binding="{Binding KgPoStr}" Width="60" SortMemberPath="KgPo">
+                                <DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/><Setter Property="Foreground" Value="#565D6B"/></Style></DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="STRATA" Binding="{Binding StrataKgStr}" Width="60" SortMemberPath="StrataKg">
+                                <DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/><Setter Property="Foreground" Value="#FFD166"/><Setter Property="FontWeight" Value="SemiBold"/></Style></DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="CENA" Binding="{Binding CenaStr}" Width="55" SortMemberPath="Cena">
+                                <DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/><Setter Property="Foreground" Value="#565D6B"/></Style></DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="STRATA ZL" Binding="{Binding StrataZlStr}" Width="70" SortMemberPath="StrataZl">
+                                <DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/><Setter Property="Foreground" Value="#FF6B6B"/><Setter Property="FontWeight" Value="Bold"/></Style></DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="FAKT. BAZ." Binding="{Binding FaktBaz}" Width="90">
+                                <DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="Foreground" Value="#4A5060"/><Setter Property="TextTrimming" Value="CharacterEllipsis"/></Style></DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

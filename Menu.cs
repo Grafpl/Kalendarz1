@@ -25,7 +25,6 @@ using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using System.Windows.Interop;
 using System.Windows.Media.Imaging;
-
 namespace Kalendarz1
 {
     public partial class MENU : Form
@@ -1337,7 +1336,8 @@ namespace Kalendarz1
                 [61] = "UstawieniaZmianZamowien",
                 [62] = "MapaFloty",
                 [63] = "OsCzasuFloty",
-                [64] = "RaportFloty"
+                [64] = "RaportFloty",
+                [65] = "StatystykiReklamacji"
             };
 
             for (int i = 0; i < accessString.Length && i < accessMap.Count; i++)
@@ -1430,7 +1430,7 @@ namespace Kalendarz1
                 // SPRZEDAŻ I CRM
                 "CRM", "KartotekaOdbiorcow", "MapaKlientow", "ZamowieniaOdbiorcow", "DashboardHandlowca",
                 "DokumentySprzedazy", "PanelFaktur", "OfertaCenowa", "ListaOfert",
-                "DashboardOfert", "DashboardWyczerpalnosci", "PanelReklamacji",
+                "DashboardOfert", "DashboardWyczerpalnosci", "PanelReklamacji", "StatystykiReklamacji",
 
                 // PLANOWANIE I ANALIZY
                 "PrognozyUboju", "PlanTygodniowy", "AnalizaTygodniowa", "DashboardPrzychodu",
@@ -1741,7 +1741,11 @@ namespace Kalendarz1
                     new MenuItemConfig("PanelReklamacji", "Reklamacje Klientów",
                         "Rejestracja i obsługa reklamacji jakościowych zgłaszanych przez odbiorców",
                         Color.FromArgb(13, 71, 161), // Ciemny niebieski #0D47A1
-                        () => new FormPanelReklamacjiWindow(connectionString, App.UserID), "⚠️", "Reklamacje")
+                        () => new FormPanelReklamacjiWindow(connectionString, App.UserID), "⚠️", "Reklamacje"),
+                    new MenuItemConfig("StatystykiReklamacji", "Analiza Reklamacji",
+                        "Dashboard analityczny korekt i reklamacji — wykresy, trendy, ranking kontrahentów i produktów",
+                        Color.FromArgb(10, 50, 120),
+                        () => new Reklamacje.Analityka.StatystykiReklamacjiWindow(), "📊", "Analiza Rekl.")
                 },
 
                 // ═══════════════════════════════════════════════════════════════════════════
