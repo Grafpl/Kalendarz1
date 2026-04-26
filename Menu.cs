@@ -13,6 +13,7 @@ using Kalendarz1.PulpitZarzadu.Views;
 using Kalendarz1.Komunikator.Services;
 using Kalendarz1.Komunikator.Views;
 using Microsoft.Data.SqlClient;
+using System.Threading;
 using System.Threading.Tasks;
 using System;
 using System.Collections.Generic;
@@ -37,20 +38,20 @@ namespace Kalendarz1
         private Panel sidePanel;
         private TableLayoutPanel mainLayout;
         private System.Windows.Forms.Timer taskNotificationTimer;
-        private MeetingChangeMonitor meetingChangeMonitor;
-        private Label _chatBadgeLabel;
-        private System.Windows.Forms.Timer _chatBadgeTimer;
+        private MeetingChangeMonitor meetingChangeMonitor; // wstrzymane (Spotkania) — nigdy nie tworzony
+        private Label _chatBadgeLabel;                     // wstrzymane (Komunikator) — nigdy nie podpięty
         private Label _crBadgeLabel;
-        private System.Windows.Forms.Timer _crBadgeTimer;
         private Label _transportPendingBadge;
         private Label _transportFreeBadge;
-        private System.Windows.Forms.Timer _transportBadgeTimer;
         private Label _reklamacjeBadgeLabel;
         private Label _reklamacjeOczekBadgeLabel;
-        private System.Windows.Forms.Timer _reklamacjeBadgeTimer;
         private Label _wstawieniaBadgeLabel;
-        private System.Windows.Forms.Timer _wstawieniaBadgeTimer;
         private System.Windows.Forms.Timer _clockTimer;
+        // Per-badge timery i busy guardy są w polu _badgePollers (lista BadgePoller).
+
+        // Śledzenie minimalizacji — pozwala odświeżyć badge'y od razu po przywróceniu okna,
+        // żeby user nie czekał do 30s na pierwszy refresh.
+        private FormWindowState _lastWindowState = FormWindowState.Normal;
 
         public MENU()
         {
@@ -60,25 +61,167 @@ namespace Kalendarz1
             SetupMenuItems();
             ApplyModernStyle();
             StartTaskNotifications();
-            StartChatBadgeTimer();
-            StartCrBadgeTimer();
-            StartTransportBadgeTimer();
-            StartReklamacjeBadgeTimer();
-            StartWstawieniaBadgeTimer();
+            // Generyczna rejestracja wszystkich badge — stagger 1/2/3/4s żeby nie zalać SQL przy starcie.
+            // Komunikator wstrzymany (Spotkania też) — brak ich na liście.
+            RegisterBadge(RefreshCrBadgeAsync, initialDelayMs: 1000);
+            RegisterBadge(RefreshTransportBadgeAsync, initialDelayMs: 2000);
+            RegisterBadge(RefreshReklamacjeBadgeAsync, initialDelayMs: 3000);
+            RegisterBadge(RefreshWstawieniaBadgeAsync, initialDelayMs: 4000);
+
+            // Po przywróceniu z minimalizacji odśwież badge od razu, nie czekaj 30s.
+            this.SizeChanged += MENU_SizeChanged;
+        }
+
+        private void MENU_SizeChanged(object sender, EventArgs e)
+        {
+            if (_lastWindowState == FormWindowState.Minimized && WindowState != FormWindowState.Minimized)
+            {
+                // Po przywróceniu z minimalizacji — odśwież wszystkie badge od razu, nie czekaj 30s.
+                RefreshAllBadges();
+            }
+            _lastWindowState = WindowState;
+        }
+
+        // Czy odpytywać SQL? Pomijamy gdy okno zminimalizowane lub disposed —
+        // nie ma sensu hammerować bazy, gdy nikt nie patrzy.
+        private bool ShouldPollBadges()
+            => !IsDisposed && Visible && WindowState != FormWindowState.Minimized;
+
+        // Wrapper: synchroniczne wywołanie SQL na threadpool z hard-timeoutem.
+        // Cancel nie zatrzyma samego SQL (cancel tokena nie propaguje do sync ADO),
+        // ale UI nie blokuje się dłużej niż timeoutSeconds — następny tick może spróbować ponownie.
+        private static async Task<T> RunWithTimeoutAsync<T>(Func<T> sync, T fallback, int timeoutSeconds = 5)
+        {
+            try
+            {
+                return await Task.Run(sync).WaitAsync(TimeSpan.FromSeconds(timeoutSeconds));
+            }
+            catch
+            {
+                return fallback;
+            }
+        }
+
+        // Ustawia okrągły Region dla badge — wywoływane raz po utworzeniu i przy SizeChanged.
+        // Wcześniej te konstrukcje były w handlerze Paint (przeliczane przy każdym repaint, wiele
+        // alokacji GraphicsPath/Region na sekundę przy hover) — bez sensu, bo Region zależy
+        // tylko od Size kontrolki, nie od stanu rysowania.
+        private static void SetEllipseRegion(Control c)
+        {
+            if (c.Width <= 0 || c.Height <= 0) return;
+            using var path = new System.Drawing.Drawing2D.GraphicsPath();
+            path.AddEllipse(0, 0, c.Width - 1, c.Height - 1);
+            c.Region = new Region(path);
+        }
+
+        // Zaokrąglony prostokąt — używany przez badge typu pendingBadge / rekBadge / oczekBadge.
+        private static void SetRoundedRegion(Control c, int radius)
+        {
+            if (c.Width <= 0 || c.Height <= 0) return;
+            int r2 = radius * 2;
+            using var path = new System.Drawing.Drawing2D.GraphicsPath();
+            path.AddArc(0, 0, r2, r2, 180, 90);
+            path.AddArc(c.Width - r2 - 1, 0, r2, r2, 270, 90);
+            path.AddArc(c.Width - r2 - 1, c.Height - r2 - 1, r2, r2, 0, 90);
+            path.AddArc(0, c.Height - r2 - 1, r2, r2, 90, 90);
+            path.CloseFigure();
+            c.Region = new Region(path);
+        }
+
+        // Pigułka (półokrągłe końce) — wstawienia badge.
+        private static void SetPillRegion(Control c)
+        {
+            if (c.Width <= 0 || c.Height <= 0) return;
+            using var path = new System.Drawing.Drawing2D.GraphicsPath();
+            path.AddArc(0, 0, c.Height, c.Height, 90, 180);
+            path.AddArc(c.Width - c.Height - 1, 0, c.Height, c.Height, 270, 180);
+            path.CloseFigure();
+            c.Region = new Region(path);
+        }
+
+        private enum BadgeShape { Ellipse, Rounded, Pill }
+
+        // Tworzy badge na kafelku z odpowiednim kształtem (Region) i podpina go.
+        // Wcześniej każdy z 5 typów badge miał swój if-blok w CreateMenuButton (~30 linii każdy);
+        // teraz to jedna metoda, więc dodanie nowego badge to 1 wywołanie zamiast 30 linii.
+        private static Label AttachTileBadge(
+            AnimatedTile tile,
+            string initialText,
+            Color background,
+            Size size,
+            Point location,
+            BadgeShape shape,
+            Font font,
+            Color? foreground = null,
+            int roundedRadius = 9,
+            AnchorStyles anchor = AnchorStyles.Top | AnchorStyles.Left)
+        {
+            var label = new Label
+            {
+                Text = initialText,
+                Font = font,
+                ForeColor = foreground ?? Color.White,
+                BackColor = background,
+                AutoSize = false,
+                Size = size,
+                Location = location,
+                TextAlign = ContentAlignment.MiddleCenter,
+                Visible = false,
+                Cursor = Cursors.Hand,
+                Anchor = anchor
+            };
+
+            // Ustaw kształt regionu — raz teraz i przy każdej zmianie rozmiaru (np. tekst "99+" → "5").
+            Action applyShape = shape switch
+            {
+                BadgeShape.Ellipse => () => SetEllipseRegion(label),
+                BadgeShape.Rounded => () => SetRoundedRegion(label, roundedRadius),
+                BadgeShape.Pill => () => SetPillRegion(label),
+                _ => () => { }
+            };
+            label.SizeChanged += (s, e) => applyShape();
+            applyShape();
+
+            tile.Controls.Add(label);
+            label.BringToFront();
+            return label;
+        }
+
+        // Ile ms zostało do następnej pełnej minuty. Używane przez clock timer
+        // do wyrównania ticków do granic minut (zamiast tikania co 1s).
+        private static int MsToNextMinute()
+        {
+            var now = DateTime.Now;
+            int ms = 60000 - (now.Second * 1000 + now.Millisecond);
+            return Math.Max(ms, 100);
         }
 
         protected override void OnFormClosed(FormClosedEventArgs e)
         {
+            // Diagnostyka auto-zamykania: zaloguj POWÓD zamknięcia + stack trace.
+            // CloseReason mówi czy to user (UserClosing), shutdown systemu (WindowsShutDown),
+            // task manager (TaskManagerClosing), Application.Exit (ApplicationExitCall) itd.
+            // Stack trace pokaże skąd przyszło Close() — bardzo cenne przy "samo się zamyka".
+            try
+            {
+                Services.LogService.Instance.Info(
+                    $"MENU.OnFormClosed: reason={e.CloseReason}, user={App.UserID}, stack=\n{Environment.StackTrace}");
+            }
+            catch { }
+
             // Sprzątamy wszystkie timery — zapobiega wyciekom pamięci i zombie SQL po zamknięciu menu
             try
             {
                 taskNotificationTimer?.Stop(); taskNotificationTimer?.Dispose();
-                _chatBadgeTimer?.Stop(); _chatBadgeTimer?.Dispose();
-                _crBadgeTimer?.Stop(); _crBadgeTimer?.Dispose();
-                _transportBadgeTimer?.Stop(); _transportBadgeTimer?.Dispose();
-                _reklamacjeBadgeTimer?.Stop(); _reklamacjeBadgeTimer?.Dispose();
-                _wstawieniaBadgeTimer?.Stop(); _wstawieniaBadgeTimer?.Dispose();
                 _clockTimer?.Stop(); _clockTimer?.Dispose();
+                foreach (var p in _badgePollers)
+                {
+                    p.Timer?.Stop();
+                    p.Timer?.Dispose();
+                }
+                _badgePollers.Clear();
+
+                this.SizeChanged -= MENU_SizeChanged;
 
                 if (meetingChangeMonitor != null)
                 {
@@ -100,8 +243,7 @@ namespace Kalendarz1
             taskNotificationTimer.Tick += TaskNotificationTimer_Tick;
             taskNotificationTimer.Start();
 
-            // Start meeting change monitor
-            StartMeetingChangeMonitor();
+            // MeetingChangeMonitor wstrzymany — Spotkania nieużywane.
         }
 
         private void StartMeetingChangeMonitor()
@@ -187,296 +329,177 @@ namespace Kalendarz1
             }
         }
 
-        private void StartChatBadgeTimer()
-        {
-            _chatBadgeTimer = new System.Windows.Forms.Timer();
-            _chatBadgeTimer.Interval = 30000; // Co 30 sekund (było 5s — nadmierne obciążenie SQL)
-            _chatBadgeTimer.Tick += (s, e) => UpdateChatBadge();
-            _chatBadgeTimer.Start();
+        // ═══════════════════════════════════════════════════════════════
+        // GENERYCZNY MECHANIZM BADGE
+        // Każdy badge to: refresh(), 30s timer, reentrancy guard, hard 5s timeout.
+        // Wcześniej te same 30 linii były powtórzone 5×; tu jest jedna metoda RegisterBadge.
+        // ═══════════════════════════════════════════════════════════════
 
-            // Pierwsze sprawdzenie od razu
-            UpdateChatBadge();
+        private sealed class BadgePoller
+        {
+            public Func<Task> Refresh;
+            public System.Windows.Forms.Timer Timer;
+            public int Busy; // 0/1, atomic via Interlocked
         }
 
-        private void UpdateChatBadge()
-        {
-            if (_chatBadgeLabel == null) return;
+        private readonly List<BadgePoller> _badgePollers = new();
 
+        // Tworzy timer + tick handler. Pierwsze odpalenie po initialDelayMs (stagger startów).
+        private void RegisterBadge(Func<Task> refresh, int initialDelayMs, int intervalMs = 30000)
+        {
+            var poller = new BadgePoller { Refresh = refresh };
+            poller.Timer = new System.Windows.Forms.Timer { Interval = intervalMs };
+            poller.Timer.Tick += async (s, e) => await TickBadgeAsync(poller);
+            poller.Timer.Start();
+            _badgePollers.Add(poller);
+
+            // Pierwszy strzał z opóźnieniem (rozkłada peak SQL przy starcie menu).
+            _ = InitialDelayedRefreshAsync(poller, initialDelayMs);
+        }
+
+        private async Task InitialDelayedRefreshAsync(BadgePoller p, int delayMs)
+        {
             try
             {
-                var count = ChatService.GetUnreadSendersCount(App.UserID);
-
-                if (InvokeRequired)
-                {
-                    Invoke(new Action(() => UpdateBadgeUI(count)));
-                }
-                else
-                {
-                    UpdateBadgeUI(count);
-                }
+                if (delayMs > 0) await Task.Delay(delayMs);
+                await TickBadgeAsync(p);
             }
             catch { }
         }
 
-        private void UpdateBadgeUI(int count)
+        private async Task TickBadgeAsync(BadgePoller p)
         {
-            if (_chatBadgeLabel == null) return;
-
-            if (count > 0)
-            {
-                _chatBadgeLabel.Text = count > 99 ? "99+" : count.ToString();
-                _chatBadgeLabel.Visible = true;
-            }
-            else
-            {
-                _chatBadgeLabel.Visible = false;
-            }
-        }
-
-        private void StartCrBadgeTimer()
-        {
-            _crBadgeTimer = new System.Windows.Forms.Timer();
-            _crBadgeTimer.Interval = 30000; // Co 30 sekund
-            _crBadgeTimer.Tick += (s, e) => UpdateCrBadge();
-            _crBadgeTimer.Start();
-            UpdateCrBadge();
-        }
-
-        private void UpdateCrBadge()
-        {
-            if (_crBadgeLabel == null) return;
+            if (!ShouldPollBadges()) return;
+            // Anti-reentrancy: jeśli poprzedni fetch jeszcze trwa (wolny SQL), pomijamy ten tick
+            if (Interlocked.CompareExchange(ref p.Busy, 1, 0) != 0) return;
             try
             {
-                var count = Hodowcy.AdminChangeRequestsWindow.GetPendingCount(connectionString);
-                if (InvokeRequired)
-                    Invoke(new Action(() => UpdateCrBadgeUI(count)));
-                else
-                    UpdateCrBadgeUI(count);
+                await p.Refresh();
             }
-            catch { }
+            catch { /* refresh swoje wyjątki łapie samodzielnie */ }
+            finally { Interlocked.Exchange(ref p.Busy, 0); }
         }
 
-        private void UpdateCrBadgeUI(int count)
+        // Wszystkie znane badge — używane przez konstruktor (rejestracja) i SizeChanged (refresh po restore).
+        private void RefreshAllBadges()
         {
-            if (_crBadgeLabel == null) return;
+            foreach (var p in _badgePollers)
+                _ = TickBadgeAsync(p);
+        }
+
+        // Generyczny formatter dla badge typu "liczba". 0 ⇒ ukryj, >99 ⇒ "99+", inaczej liczba.
+        // formatter pozwala dodać sufiks ("3 tel", "5 oczek." itp).
+        private static void SetSimpleBadge(Label label, int count, Func<int, string> formatter = null)
+        {
+            if (label == null) return;
             if (count > 0)
             {
-                _crBadgeLabel.Text = count > 99 ? "99+" : count.ToString();
-                _crBadgeLabel.Visible = true;
+                label.Text = formatter != null
+                    ? formatter(count)
+                    : (count > 99 ? "99+" : count.ToString());
+                label.Visible = true;
             }
             else
             {
-                _crBadgeLabel.Visible = false;
+                label.Visible = false;
             }
         }
 
-        // ═══════════════════════════════════════════════════════════════
-        // TRANSPORT BADGE - pending changes + free orders
-        // ═══════════════════════════════════════════════════════════════
+        // ─── Konkretne refreshery ──────────────────────────────────────────────
 
-        private void StartTransportBadgeTimer()
+        private async Task RefreshCrBadgeAsync()
         {
-            _transportBadgeTimer = new System.Windows.Forms.Timer();
-            _transportBadgeTimer.Interval = 30000; // Co 30 sekund
-            _transportBadgeTimer.Tick += (s, e) => UpdateTransportBadge();
-            _transportBadgeTimer.Start();
-            UpdateTransportBadge();
+            if (_crBadgeLabel == null) return;
+            var count = await RunWithTimeoutAsync(
+                () => Hodowcy.AdminChangeRequestsWindow.GetPendingCount(connectionString), 0);
+            if (!IsDisposed) SetSimpleBadge(_crBadgeLabel, count);
         }
 
-        private void UpdateTransportBadge()
+        private async Task RefreshTransportBadgeAsync()
         {
             if (_transportPendingBadge == null && _transportFreeBadge == null) return;
-            try
-            {
-                var pendingCount = Transport.TransportZmianyService.GetPendingCount();
-                var freeCount = Transport.TransportZmianyService.GetFreeOrdersCount();
-                if (InvokeRequired)
-                    Invoke(new Action(() => UpdateTransportBadgeUI(pendingCount, freeCount)));
-                else
-                    UpdateTransportBadgeUI(pendingCount, freeCount);
-            }
-            catch { }
+
+            // Dwa zapytania (różne bazy) równolegle, każde z hard timeoutem 5s.
+            var pendingTask = RunWithTimeoutAsync(() => Transport.TransportZmianyService.GetPendingCount(), 0);
+            var freeTask = RunWithTimeoutAsync(() => Transport.TransportZmianyService.GetFreeOrdersCount(), 0);
+            await Task.WhenAll(pendingTask, freeTask);
+            if (IsDisposed) return;
+
+            int pendingCount = pendingTask.Result;
+            int freeCount = freeTask.Result;
+
+            SetSimpleBadge(_transportPendingBadge, pendingCount, n => $"{n} do akc.");
+            // Wolne zamówienia tylko gdy są też oczekujące zmiany — gdy dispatcher zaakceptował wszystko,
+            // oba dymki znikają (wolne i tak są widoczne w samym panelu Transport).
+            SetSimpleBadge(_transportFreeBadge, pendingCount > 0 ? freeCount : 0);
         }
 
-        private void UpdateTransportBadgeUI(int pendingCount, int freeCount)
-        {
-            if (_transportPendingBadge != null)
-            {
-                if (pendingCount > 0)
-                {
-                    _transportPendingBadge.Text = $"{pendingCount} do akc.";
-                    _transportPendingBadge.Visible = true;
-                }
-                else
-                {
-                    _transportPendingBadge.Visible = false;
-                }
-            }
-
-            if (_transportFreeBadge != null)
-            {
-                // Pokazuj wolne zamówienia tylko jeśli są też oczekujące zmiany do akceptacji.
-                // Gdy dispatcher zaakceptował wszystko (pendingCount=0), oba dymki znikają —
-                // wolne zamówienia (nieprzypisane do kursu) są i tak widoczne w samym panelu Transport.
-                if (freeCount > 0 && pendingCount > 0)
-                {
-                    _transportFreeBadge.Text = freeCount > 99 ? "99+" : freeCount.ToString();
-                    _transportFreeBadge.Visible = true;
-                }
-                else
-                {
-                    _transportFreeBadge.Visible = false;
-                }
-            }
-        }
-
-        // ═══════════════════════════════════════════════════════════════
-        // WSTAWIENIA BADGE - ile telefonów do wykonania
-        // ═══════════════════════════════════════════════════════════════
-
-        private void StartWstawieniaBadgeTimer()
-        {
-            _wstawieniaBadgeTimer = new System.Windows.Forms.Timer();
-            _wstawieniaBadgeTimer.Interval = 30000;
-            _wstawieniaBadgeTimer.Tick += (s, e) => UpdateWstawieniaBadge();
-            _wstawieniaBadgeTimer.Start();
-            UpdateWstawieniaBadge();
-        }
-
-        private void UpdateWstawieniaBadge()
+        private async Task RefreshWstawieniaBadgeAsync()
         {
             if (_wstawieniaBadgeLabel == null) return;
+            int count = 0;
             try
             {
-                int count = 0;
-                using (var conn = new Microsoft.Data.SqlClient.SqlConnection(connectionString))
-                {
-                    conn.Open();
-                    using (var cmd = new Microsoft.Data.SqlClient.SqlCommand("SELECT COUNT(*) FROM dbo.v_WstawieniaDoKontaktu", conn))
-                    {
-                        count = Convert.ToInt32(cmd.ExecuteScalar());
-                    }
-                }
-                if (InvokeRequired)
-                    Invoke(new Action(() => UpdateWstawieniaBadgeUI(count)));
-                else
-                    UpdateWstawieniaBadgeUI(count);
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                await using var conn = new Microsoft.Data.SqlClient.SqlConnection(connectionString);
+                await conn.OpenAsync(cts.Token);
+                await using var cmd = new Microsoft.Data.SqlClient.SqlCommand(
+                    "SELECT COUNT(*) FROM dbo.v_WstawieniaDoKontaktu", conn);
+                cmd.CommandTimeout = 5;
+                count = Convert.ToInt32(await cmd.ExecuteScalarAsync(cts.Token));
             }
-            catch { }
+            catch { count = 0; }
+
+            if (!IsDisposed) SetSimpleBadge(_wstawieniaBadgeLabel, count, n => $"{n} tel");
         }
 
-        private void UpdateWstawieniaBadgeUI(int count)
+        private async Task RefreshReklamacjeBadgeAsync()
         {
-            if (_wstawieniaBadgeLabel == null) return;
-            if (count > 0)
-            {
-                _wstawieniaBadgeLabel.Text = count > 99 ? "99+" : $"{count} tel";
-                _wstawieniaBadgeLabel.Visible = true;
-            }
-            else
-            {
-                _wstawieniaBadgeLabel.Visible = false;
-            }
+            if (_reklamacjeBadgeLabel == null && _reklamacjeOczekBadgeLabel == null) return;
+            var (nowe, oczekujace) = await GetReklamacjeCountsAsync();
+            if (IsDisposed) return;
+            SetSimpleBadge(_reklamacjeBadgeLabel, nowe, n => n > 99 ? "99+ Now." : $"{n} Now.");
+            SetSimpleBadge(_reklamacjeOczekBadgeLabel, oczekujace, n => n > 99 ? "99+ oczek." : $"{n} oczek.");
         }
 
-        // ═══════════════════════════════════════════════════════════════
-        // REKLAMACJE BADGE - nowe reklamacje
-        // ═══════════════════════════════════════════════════════════════
-
-        private void StartReklamacjeBadgeTimer()
-        {
-            _reklamacjeBadgeTimer = new System.Windows.Forms.Timer();
-            _reklamacjeBadgeTimer.Interval = 30000;
-            _reklamacjeBadgeTimer.Tick += (s, e) => UpdateReklamacjeBadge();
-            _reklamacjeBadgeTimer.Start();
-            UpdateReklamacjeBadge();
-        }
-
-        private void UpdateReklamacjeBadge()
-        {
-            if (_reklamacjeBadgeLabel == null) return;
-            try
-            {
-                var (nowe, oczekujace) = GetReklamacjeCounts();
-                if (InvokeRequired)
-                    Invoke(new Action(() => UpdateReklamacjeBadgeUI(nowe, oczekujace)));
-                else
-                    UpdateReklamacjeBadgeUI(nowe, oczekujace);
-            }
-            catch { }
-        }
-
-        private void UpdateReklamacjeBadgeUI(int nowe, int oczekujace)
-        {
-            if (_reklamacjeBadgeLabel != null)
-            {
-                if (nowe > 0)
-                {
-                    _reklamacjeBadgeLabel.Text = nowe > 99 ? "99+ Now." : $"{nowe} Now.";
-                    _reklamacjeBadgeLabel.Visible = true;
-                }
-                else
-                {
-                    _reklamacjeBadgeLabel.Visible = false;
-                }
-            }
-            if (_reklamacjeOczekBadgeLabel != null)
-            {
-                if (oczekujace > 0)
-                {
-                    _reklamacjeOczekBadgeLabel.Text = oczekujace > 99 ? "99+ oczek." : $"{oczekujace} oczek.";
-                    _reklamacjeOczekBadgeLabel.Visible = true;
-                }
-                else
-                {
-                    _reklamacjeOczekBadgeLabel.Visible = false;
-                }
-            }
-        }
-
-        private (int nowe, int oczekujace) GetReklamacjeCounts()
+        private async Task<(int nowe, int oczekujace)> GetReklamacjeCountsAsync()
         {
             try
             {
-                using (var conn = new Microsoft.Data.SqlClient.SqlConnection(connectionString))
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                await using var conn = new Microsoft.Data.SqlClient.SqlConnection(connectionString);
+                await conn.OpenAsync(cts.Token);
+
+                DateTime dataOd = DateTime.Now.AddMonths(-6);
+                try
                 {
-                    conn.Open();
-
-                    DateTime dataOd = DateTime.Now.AddMonths(-6);
-                    try
-                    {
-                        using (var cmdDate = new Microsoft.Data.SqlClient.SqlCommand(
-                            "SELECT Wartosc FROM [dbo].[ReklamacjeUstawienia] WHERE Klucz = 'DataOdKorekt'", conn))
-                        {
-                            var result = cmdDate.ExecuteScalar();
-                            if (result != null && result != DBNull.Value && DateTime.TryParse(result.ToString(), out DateTime dt))
-                                dataOd = dt;
-                        }
-                    }
-                    catch { }
-
-                    int nowe = 0, oczek = 0;
-                    using (var cmd = new Microsoft.Data.SqlClient.SqlCommand(@"
-                        SELECT ISNULL(StatusV2, 'ZGLOSZONA') AS SV2, COUNT(*) AS Cnt
-                        FROM [dbo].[Reklamacje]
-                        WHERE ISNULL(StatusV2, 'ZGLOSZONA') IN ('ZGLOSZONA', 'W_ANALIZIE')
-                          AND (TypReklamacji <> 'Faktura korygujaca' OR DataZgloszenia >= @DataOd)
-                        GROUP BY ISNULL(StatusV2, 'ZGLOSZONA')", conn))
-                    {
-                        cmd.Parameters.AddWithValue("@DataOd", dataOd);
-                        using (var r = cmd.ExecuteReader())
-                        {
-                            while (r.Read())
-                            {
-                                string sv2 = r.GetString(0);
-                                int cnt = r.GetInt32(1);
-                                if (sv2 == "ZGLOSZONA") nowe = cnt;
-                                else if (sv2 == "W_ANALIZIE") oczek = cnt;
-                            }
-                        }
-                    }
-                    return (nowe, oczek);
+                    await using var cmdDate = new Microsoft.Data.SqlClient.SqlCommand(
+                        "SELECT Wartosc FROM [dbo].[ReklamacjeUstawienia] WHERE Klucz = 'DataOdKorekt'", conn);
+                    cmdDate.CommandTimeout = 5;
+                    var result = await cmdDate.ExecuteScalarAsync(cts.Token);
+                    if (result != null && result != DBNull.Value && DateTime.TryParse(result.ToString(), out DateTime dt))
+                        dataOd = dt;
                 }
+                catch { }
+
+                int nowe = 0, oczek = 0;
+                await using var cmd = new Microsoft.Data.SqlClient.SqlCommand(@"
+                    SELECT ISNULL(StatusV2, 'ZGLOSZONA') AS SV2, COUNT(*) AS Cnt
+                    FROM [dbo].[Reklamacje]
+                    WHERE ISNULL(StatusV2, 'ZGLOSZONA') IN ('ZGLOSZONA', 'W_ANALIZIE')
+                      AND (TypReklamacji <> 'Faktura korygujaca' OR DataZgloszenia >= @DataOd)
+                    GROUP BY ISNULL(StatusV2, 'ZGLOSZONA')", conn);
+                cmd.CommandTimeout = 5;
+                cmd.Parameters.AddWithValue("@DataOd", dataOd);
+                await using var r = await cmd.ExecuteReaderAsync(cts.Token);
+                while (await r.ReadAsync(cts.Token))
+                {
+                    string sv2 = r.GetString(0);
+                    int cnt = r.GetInt32(1);
+                    if (sv2 == "ZGLOSZONA") nowe = cnt;
+                    else if (sv2 == "W_ANALIZIE") oczek = cnt;
+                }
+                return (nowe, oczek);
             }
             catch { return (0, 0); }
         }
@@ -500,9 +523,7 @@ namespace Kalendarz1
                 _chatWindow = new ChatMainWindow(App.UserID, App.UserFullName);
                 _chatWindow.Closed += (s, args) => _chatWindow = null;
                 _chatWindow.Show();
-
-                // Odśwież badge
-                UpdateChatBadge();
+                // Komunikator wstrzymany — brak refresh badge.
             }
             catch (Exception ex)
             {
@@ -781,75 +802,7 @@ namespace Kalendarz1
             avatarPanel.Click += (s, e) => ShowEnlargedAvatar(odbiorcaId, userName);
             headerPanel.Controls.Add(avatarPanel);
 
-            // ========== PRZYCISK CZATU Z BADGE ==========
-            var chatButtonSize = 32;
-            var chatButtonX = (panelWidth - avatarSize) / 2 + avatarSize - 10; // Prawy róg avatara
-            var chatButtonY = 20 + avatarSize - chatButtonSize + 5; // Dolny róg avatara
-
-            var chatButton = new Panel
-            {
-                Size = new Size(chatButtonSize, chatButtonSize),
-                Location = new Point(chatButtonX, chatButtonY),
-                BackColor = Color.FromArgb(76, 175, 80),
-                Cursor = Cursors.Hand
-            };
-
-            chatButton.Paint += (s, e) =>
-            {
-                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-                // Okrągły kształt
-                using (var path = new GraphicsPath())
-                {
-                    path.AddEllipse(0, 0, chatButtonSize - 1, chatButtonSize - 1);
-                    chatButton.Region = new Region(path);
-                }
-                // Ikona czatu (💬)
-                using (var font = new Font("Segoe UI Emoji", 14))
-                using (var brush = new SolidBrush(Color.White))
-                {
-                    var text = "💬";
-                    var textSize = e.Graphics.MeasureString(text, font);
-                    var x = (chatButtonSize - textSize.Width) / 2;
-                    var y = (chatButtonSize - textSize.Height) / 2;
-                    e.Graphics.DrawString(text, font, brush, x, y);
-                }
-            };
-
-            chatButton.MouseEnter += (s, e) => chatButton.BackColor = Color.FromArgb(56, 142, 60);
-            chatButton.MouseLeave += (s, e) => chatButton.BackColor = Color.FromArgb(76, 175, 80);
-            chatButton.Click += (s, e) => OpenChatWindow();
-            headerPanel.Controls.Add(chatButton);
-            chatButton.BringToFront();
-
-            // Badge z liczbą nieprzeczytanych wiadomości
-            var sidebarChatBadge = new Label
-            {
-                Font = new Font("Segoe UI", 7, FontStyle.Bold),
-                ForeColor = Color.White,
-                BackColor = Color.FromArgb(231, 76, 60), // Czerwony
-                Size = new Size(18, 18),
-                Location = new Point(chatButtonX + chatButtonSize - 12, chatButtonY - 4),
-                TextAlign = ContentAlignment.MiddleCenter,
-                Visible = false,
-                Cursor = Cursors.Hand
-            };
-
-            sidebarChatBadge.Paint += (s, e) =>
-            {
-                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-                using (var path = new GraphicsPath())
-                {
-                    path.AddEllipse(0, 0, sidebarChatBadge.Width - 1, sidebarChatBadge.Height - 1);
-                    sidebarChatBadge.Region = new Region(path);
-                }
-            };
-
-            sidebarChatBadge.Click += (s, e) => OpenChatWindow();
-            headerPanel.Controls.Add(sidebarChatBadge);
-            sidebarChatBadge.BringToFront();
-
-            // Przypisz do pola klasy dla aktualizacji
-            _chatBadgeLabel = sidebarChatBadge;
+            // Przycisk czatu i badge w sidebarze — wstrzymane (Komunikator Firmowy nieużywany).
 
             // Nazwa użytkownika - wycentrowana
             var nameLabel = new Label
@@ -982,7 +935,7 @@ namespace Kalendarz1
             int weekNumber = culture.Calendar.GetWeekOfYear(now, System.Globalization.CalendarWeekRule.FirstFourDayWeek, DayOfWeek.Monday);
             var lastLogin = LoginHistoryManager.GetLastLogin(App.UserID);
             var quote = QuotesManager.GetRandomQuote();
-            var meetings = MeetingsManager.GetMeetingsSummary(App.UserID);
+            // Spotkania wstrzymane — pomijamy MeetingsManager.GetMeetingsSummary().
             var tasks = TasksManager.GetTodayTasksSummary(App.UserID);
             var currency = CurrencyManager.GetCurrency();
 
@@ -1035,34 +988,7 @@ namespace Kalendarz1
             infoPanel.Controls.Add(sep3);
             y += 4;
 
-            // ========== SPOTKANIA - kompaktowe ==========
-            var meetingsText = meetings.NextMeeting != null
-                ? $"Spotkania: {meetings.NextMeeting.GetTimeUntilText()}"
-                : "Spotkania: brak";
-            var meetingColor = meetings.NextMeeting?.IsNow == true ? Color.FromArgb(76, 175, 80) :
-                               meetings.NextMeeting?.IsSoon == true ? Color.FromArgb(255, 193, 7) :
-                               Color.FromArgb(100, 180, 255);
-            var meetingsHeader = new Label
-            {
-                Text = meetingsText,
-                Font = new Font("Segoe UI", 7, FontStyle.Bold),
-                ForeColor = meetingColor,
-                Size = new Size(contentWidth, 14),
-                Location = new Point(10, y),
-                TextAlign = ContentAlignment.MiddleCenter,
-                Cursor = Cursors.Hand
-            };
-            infoPanel.Controls.Add(meetingsHeader);
-            y += 16;
-
-            var sepMeetings = new Panel
-            {
-                Size = new Size(contentWidth - 20, 1),
-                Location = new Point(20, y),
-                BackColor = Color.FromArgb(50, 60, 70)
-            };
-            infoPanel.Controls.Add(sepMeetings);
-            y += 4;
+            // ========== SPOTKANIA - wstrzymane (Spotkania nieużywane) ==========
 
             // ========== ZADANIA - kompaktowe ==========
             var tasksText = tasks.Total > 0
@@ -1198,19 +1124,35 @@ namespace Kalendarz1
             panel.Controls.Add(headerPanel);
             panel.Controls.Add(logoSection);
 
-            // Timer do aktualizacji czasu (zapisujemy w polu — żeby Dispose w OnFormClosed zatrzymał timer)
-            _clockTimer = new Timer { Interval = 1000 };
+            // Timer aktualizacji czasu — wyrównany do granicy minuty.
+            // Wcześniej tikał co 1s (86 400 ticków/dzień), choć HH:mm zmienia się tylko raz/min.
+            // Po refaktorze: 1 440 ticków/dzień (-98%), bez zauważalnej zmiany dla użytkownika.
+            _clockTimer = new System.Windows.Forms.Timer { Interval = MsToNextMinute() };
             _clockTimer.Tick += (s, e) =>
             {
-                var currentTime = DateTime.Now;
-                timeLabel.Text = currentTime.ToString("HH:mm");
-
-                if (currentTime.Second == 0 && currentTime.Minute == 0)
+                // Guard: gdy menu jest w trakcie zamykania, label/dayLabel mogą być disposed.
+                // Bez tego ObjectDisposedException leciał jako unhandled na UI thread → crash menu.
+                if (IsDisposed || timeLabel.IsDisposed || dayLabel.IsDisposed) return;
+                try
                 {
-                    string newDayOfWeek = culture.DateTimeFormat.GetDayName(currentTime.DayOfWeek);
-                    newDayOfWeek = char.ToUpper(newDayOfWeek[0]) + newDayOfWeek.Substring(1);
-                    int newWeekNumber = culture.Calendar.GetWeekOfYear(currentTime, System.Globalization.CalendarWeekRule.FirstFourDayWeek, DayOfWeek.Monday);
-                    dayLabel.Text = $"{newDayOfWeek}, {currentTime.ToString("d MMM", culture)} | Tydz. {newWeekNumber}";
+                    var currentTime = DateTime.Now;
+                    timeLabel.Text = currentTime.ToString("HH:mm");
+
+                    // Data/dzień tygodnia zmienia się tylko o północy — odświeżamy raz na godzinę przy granicy 00.
+                    if (currentTime.Minute == 0)
+                    {
+                        string newDayOfWeek = culture.DateTimeFormat.GetDayName(currentTime.DayOfWeek);
+                        newDayOfWeek = char.ToUpper(newDayOfWeek[0]) + newDayOfWeek.Substring(1);
+                        int newWeekNumber = culture.Calendar.GetWeekOfYear(currentTime, System.Globalization.CalendarWeekRule.FirstFourDayWeek, DayOfWeek.Monday);
+                        dayLabel.Text = $"{newDayOfWeek}, {currentTime.ToString("d MMM", culture)} | Tydz. {newWeekNumber}";
+                    }
+
+                    // Re-align do następnej minuty (kompensuje drift WinForms Timer).
+                    _clockTimer.Interval = MsToNextMinute();
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"clock tick error: {ex.Message}");
                 }
             };
             _clockTimer.Start();
@@ -1268,84 +1210,89 @@ namespace Kalendarz1
             }
         }
 
+        // ════════════════════════════════════════════════════════════════════════════
+        // Jedyne źródło prawdy listy modułów. Pozycja w tej tablicy = bit w accessString
+        // (zapis uprawnień użytkownika w tabeli operators).
+        // UWAGA: NIGDY nie zmieniaj kolejności ani nie wstawiaj na środek — przesunie
+        // wszystkie istniejące uprawnienia. Nowe moduły dodawaj TYLKO na końcu.
+        // ════════════════════════════════════════════════════════════════════════════
+        private static readonly string[] _moduleAccessOrder =
+        {
+            /* 00 */ "DaneHodowcy",
+            /* 01 */ "ZakupPaszyPisklak",
+            /* 02 */ "WstawieniaHodowcy",
+            /* 03 */ "TerminyDostawyZywca",
+            /* 04 */ "PlachtyAviloga",
+            /* 05 */ "DokumentyZakupu",
+            /* 06 */ "Specyfikacje",
+            /* 07 */ "PlatnosciHodowcy",
+            /* 08 */ "CRM",
+            /* 09 */ "ZamowieniaOdbiorcow",
+            /* 10 */ "KalkulacjaKrojenia",
+            /* 11 */ "PrzychodMrozni",
+            /* 12 */ "DokumentySprzedazy",
+            /* 13 */ "PodsumowanieSaldOpak",
+            /* 14 */ "SaldaOdbiorcowOpak",
+            /* 15 */ "DaneFinansowe",
+            /* 16 */ "UstalanieTranportu",
+            /* 17 */ "ZmianyUHodowcow",
+            /* 18 */ "ProdukcjaPodglad",
+            /* 19 */ "OfertaCenowa",
+            /* 20 */ "PrognozyUboju",
+            /* 21 */ "AnalizaTygodniowa",
+            /* 22 */ "NotatkiZeSpotkan",
+            /* 23 */ "PlanTygodniowy",
+            /* 24 */ "LiczenieMagazynu",
+            /* 25 */ "PanelMagazyniera",
+            /* 26 */ "KartotekaOdbiorcow",
+            /* 27 */ "AnalizaWydajnosci",
+            /* 28 */ "RezerwacjaKlas",
+            /* 29 */ "DashboardWyczerpalnosci",
+            /* 30 */ "ListaOfert",
+            /* 31 */ "DashboardOfert",
+            /* 32 */ "PanelReklamacji",
+            /* 33 */ "ReklamacjeJakosc",
+            /* 34 */ "RaportyHodowcow",
+            /* 35 */ "AdminPermissions",
+            /* 36 */ "AnalizaPrzychodu",
+            /* 37 */ "DashboardHandlowca",
+            /* 38 */ "PanelFaktur",
+            /* 39 */ "PanelPortiera",
+            /* 40 */ "PanelLekarza",
+            /* 41 */ "KontrolaGodzin",
+            /* 42 */ "CentrumSpotkan",
+            /* 43 */ "PanelPaniJola",
+            /* 44 */ "KomunikatorFirmowy",
+            /* 45 */ "RozliczeniaAvilog",
+            /* 46 */ "DashboardPrzychodu",
+            /* 47 */ "MapaKlientow",
+            /* 48 */ "WnioskiUrlopowe",
+            /* 49 */ "DashboardZamowien",
+            /* 50 */ "QuizDrobiarstwo",
+            /* 51 */ "PulpitZarzadu",
+            /* 52 */ "CallReminders",
+            /* 53 */ "PorannyBriefing",
+            /* 54 */ "ProductImages",
+            /* 55 */ "PozyskiwanieHodowcow",
+            /* 56 */ "KartotekaTowarow",
+            /* 57 */ "Flota",
+            /* 58 */ "ListaPartii",
+            /* 59 */ "TransportZmiany",
+            /* 60 */ "OpakowaniaWinForm",
+            /* 61 */ "UstawieniaZmianZamowien",
+            /* 62 */ "MapaFloty",
+            /* 63 */ "OsCzasuFloty",
+            /* 64 */ "RaportFloty",
+            /* 65 */ "StatystykiReklamacji",
+        };
+
         private void ParseAccessString(string accessString)
         {
-            var accessMap = new Dictionary<int, string>
+            int len = Math.Min(accessString.Length, _moduleAccessOrder.Length);
+            for (int i = 0; i < len; i++)
             {
-                [0] = "DaneHodowcy",
-                [1] = "ZakupPaszyPisklak",
-                [2] = "WstawieniaHodowcy",
-                [3] = "TerminyDostawyZywca",
-                [4] = "PlachtyAviloga",
-                [5] = "DokumentyZakupu",
-                [6] = "Specyfikacje",
-                [7] = "PlatnosciHodowcy",
-                [8] = "CRM",
-                [9] = "ZamowieniaOdbiorcow",
-                [10] = "KalkulacjaKrojenia",
-                [11] = "PrzychodMrozni",
-                [12] = "DokumentySprzedazy",
-                [13] = "PodsumowanieSaldOpak",
-                [14] = "SaldaOdbiorcowOpak",
-                [15] = "DaneFinansowe",
-                [16] = "UstalanieTranportu",
-                [17] = "ZmianyUHodowcow",
-                [18] = "ProdukcjaPodglad",
-                [19] = "OfertaCenowa",
-                [20] = "PrognozyUboju",
-                [21] = "AnalizaTygodniowa",
-                [22] = "NotatkiZeSpotkan",
-                [23] = "PlanTygodniowy",
-                [24] = "LiczenieMagazynu",
-                [25] = "PanelMagazyniera",
-                [26] = "KartotekaOdbiorcow",
-                [27] = "AnalizaWydajnosci",
-                [28] = "RezerwacjaKlas",
-                [29] = "DashboardWyczerpalnosci",
-                [30] = "ListaOfert",
-                [31] = "DashboardOfert",
-                [32] = "PanelReklamacji",
-                [33] = "ReklamacjeJakosc",
-                [34] = "RaportyHodowcow",
-                [35] = "AdminPermissions",
-                [36] = "AnalizaPrzychodu",
-                [37] = "DashboardHandlowca",
-                [38] = "PanelFaktur",
-                [39] = "PanelPortiera",
-                [40] = "PanelLekarza",
-                [41] = "KontrolaGodzin",
-                [42] = "CentrumSpotkan",
-                [43] = "PanelPaniJola",
-                [44] = "KomunikatorFirmowy",
-                [45] = "RozliczeniaAvilog",
-                [46] = "DashboardPrzychodu",
-                [47] = "MapaKlientow",
-                [48] = "WnioskiUrlopowe",
-                [49] = "DashboardZamowien",
-                [50] = "QuizDrobiarstwo",
-                [51] = "PulpitZarzadu",
-                [52] = "CallReminders",
-                [53] = "PorannyBriefing",
-                [54] = "ProductImages",
-                [55] = "PozyskiwanieHodowcow",
-                [56] = "KartotekaTowarow",
-                [57] = "Flota",
-                [58] = "ListaPartii",
-                [59] = "TransportZmiany",
-                [60] = "OpakowaniaWinForm",
-                [61] = "UstawieniaZmianZamowien",
-                [62] = "MapaFloty",
-                [63] = "OsCzasuFloty",
-                [64] = "RaportFloty",
-                [65] = "StatystykiReklamacji"
-            };
-
-            for (int i = 0; i < accessString.Length && i < accessMap.Count; i++)
-            {
-                if (accessMap.ContainsKey(i) && accessString[i] == '1')
-                {
-                    userPermissions[accessMap[i]] = true;
-                }
+                if (accessString[i] == '1')
+                    userPermissions[_moduleAccessOrder[i]] = true;
             }
 
             // Scalenie uprawnień opakowań: użytkownicy z SaldaOdbiorcowOpak widzą nowy scalony kafelek
@@ -1413,46 +1360,9 @@ namespace Kalendarz1
             }
         }
 
-        private List<string> GetAllModules()
-        {
-            // Pełna lista wszystkich modułów dostępnych w menu
-            return new List<string>
-            {
-                // ZAOPATRZENIE I ZAKUPY
-                "DaneHodowcy", "WstawieniaHodowcy", "TerminyDostawyZywca", "PlachtyAviloga",
-                "PanelPortiera", "PanelLekarza", "Specyfikacje", "RozliczeniaAvilog", "DokumentyZakupu",
-                "PlatnosciHodowcy", "ZakupPaszyPisklak", "RaportyHodowcow", "PozyskiwanieHodowcow",
-
-                // PRODUKCJA I MAGAZYN
-                "ProdukcjaPodglad", "KalkulacjaKrojenia", "PrzychodMrozni", "LiczenieMagazynu",
-                "PanelMagazyniera", "AnalizaPrzychodu", "AnalizaWydajnosci", "ListaPartii",
-
-                // SPRZEDAŻ I CRM
-                "CRM", "KartotekaOdbiorcow", "MapaKlientow", "ZamowieniaOdbiorcow", "DashboardHandlowca",
-                "DokumentySprzedazy", "PanelFaktur", "OfertaCenowa", "ListaOfert",
-                "DashboardOfert", "DashboardWyczerpalnosci", "PanelReklamacji", "StatystykiReklamacji",
-
-                // PLANOWANIE I ANALIZY
-                "PrognozyUboju", "PlanTygodniowy", "AnalizaTygodniowa", "DashboardPrzychodu",
-                "DashboardZamowien", "QuizDrobiarstwo",
-
-                // OPAKOWANIA I TRANSPORT
-                "PodsumowanieSaldOpak", "SaldaOdbiorcowOpak", "OpakowaniaWinForm", "UstalanieTranportu", "Flota", "TransportZmiany", "MapaFloty", "OsCzasuFloty", "RaportFloty",
-
-                // FINANSE I ZARZĄDZANIE
-                "PulpitZarzadu", "DaneFinansowe", "CentrumSpotkan", "NotatkiZeSpotkan",
-                "KomunikatorFirmowy", "PorannyBriefing", "PanelPaniJola",
-
-                // KADRY I HR
-                "KontrolaGodzin", "WnioskiUrlopowe",
-
-                // ADMINISTRACJA SYSTEMU
-                "ZmianyUHodowcow", "AdminPermissions", "CallReminders", "ProductImages", "UstawieniaZmianZamowien",
-
-                // Nieużywane ale w systemie uprawnień
-                "RezerwacjaKlas", "ReklamacjeJakosc"
-            };
-        }
+        // Wszystkie moduły — derywujemy z _moduleAccessOrder (jedyne źródło prawdy).
+        // Wcześniej była osobna lista pogrupowana wg kategorii (66 wpisów), łatwa do desync z accessMap.
+        private List<string> GetAllModules() => new List<string>(_moduleAccessOrder);
 
         private void SetupMenuItems()
         {
@@ -1906,11 +1816,20 @@ namespace Kalendarz1
             }
         }
 
+        // Moduły wstrzymane — nie renderujemy ich kafelków w menu.
+        // Aby przywrócić, usuń wpis z _suspendedModules.
+        private static readonly HashSet<string> _suspendedModules = new HashSet<string>
+        {
+            "KomunikatorFirmowy",
+            "CentrumSpotkan"
+        };
+
         private void PopulateColumn(FlowLayoutPanel columnPanel, Dictionary<string, List<MenuItemConfig>> categories)
         {
             foreach (var category in categories)
             {
                 var permittedItems = category.Value.Where(item =>
+                    !_suspendedModules.Contains(item.ModuleName) &&
                     (userPermissions.ContainsKey(item.ModuleName) && userPermissions[item.ModuleName])
                 ).ToList();
 
@@ -1937,7 +1856,10 @@ namespace Kalendarz1
                         Padding = new Padding(5, 0, 5, 10)
                     };
 
-                    var itemsToDisplay = isAdmin ? category.Value : permittedItems;
+                    // Admin widzi wszystko, ale moduły wstrzymane (Komunikator, Spotkania) i tak są pomijane.
+                    var itemsToDisplay = isAdmin
+                        ? category.Value.Where(i => !_suspendedModules.Contains(i.ModuleName))
+                        : permittedItems;
                     foreach (var item in itemsToDisplay)
                     {
                         var buttonPanel = CreateMenuButton(item);
@@ -1993,231 +1915,8 @@ namespace Kalendarz1
             tile.Controls.Add(descriptionLabel);
             tile.Controls.Add(iconLabel);
 
-            // Badge z liczbą nieprzeczytanych wiadomości dla Komunikatora
-            if (config.ModuleName == "KomunikatorFirmowy")
-            {
-                var badgeLabel = new Label
-                {
-                    Text = "0",
-                    Font = new Font("Segoe UI", 9, FontStyle.Bold),
-                    Size = new Size(26, 26),
-                    Location = new Point(tile.Width - 38, 8),
-                    ForeColor = Color.White,
-                    BackColor = Color.FromArgb(0, 168, 132), // Zielony WhatsApp
-                    TextAlign = ContentAlignment.MiddleCenter,
-                    Visible = false,
-                    Cursor = Cursors.Hand
-                };
-
-                // Zaokrąglone rogi badge
-                badgeLabel.Paint += (s, e) =>
-                {
-                    e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-                    using (var path = new GraphicsPath())
-                    {
-                        path.AddEllipse(0, 0, badgeLabel.Width - 1, badgeLabel.Height - 1);
-                        badgeLabel.Region = new Region(path);
-                    }
-                };
-
-                tile.Controls.Add(badgeLabel);
-                badgeLabel.BringToFront();
-                // Badge na kafelku - aktualizowany osobno przez _chatBadgeLabel przy avatarze
-            }
-
-            // Badge z liczbą oczekujących wniosków o zmiany danych
-            if (config.ModuleName == "ZmianyUHodowcow")
-            {
-                var badgeLabel = new Label
-                {
-                    Text = "0",
-                    Font = new Font("Segoe UI", 9, FontStyle.Bold),
-                    Size = new Size(26, 26),
-                    Location = new Point(tile.Width - 38, 8),
-                    ForeColor = Color.White,
-                    BackColor = Color.FromArgb(245, 158, 11), // Amber #F59E0B
-                    TextAlign = ContentAlignment.MiddleCenter,
-                    Visible = false,
-                    Cursor = Cursors.Hand
-                };
-
-                badgeLabel.Paint += (s, e) =>
-                {
-                    e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-                    using (var path = new System.Drawing.Drawing2D.GraphicsPath())
-                    {
-                        path.AddEllipse(0, 0, badgeLabel.Width - 1, badgeLabel.Height - 1);
-                        badgeLabel.Region = new Region(path);
-                    }
-                };
-
-                tile.Controls.Add(badgeLabel);
-                badgeLabel.BringToFront();
-                _crBadgeLabel = badgeLabel;
-            }
-
-            // Badge na kafelku Planowanie Transportu - lewa: oczekujace zmiany, prawa: wolne zamowienia
-            if (config.ModuleName == "UstalanieTranportu")
-            {
-                // Lewa - oczekujace zmiany (amber, zaokraglony prostokat jak reklamacje)
-                var pendingBadge = new Label
-                {
-                    Text = "0 do akc.",
-                    Font = new Font("Segoe UI", 7.5f, FontStyle.Bold),
-                    AutoSize = false,
-                    Size = new Size(76, 18),
-                    Location = new Point(6, 6),
-                    ForeColor = Color.White,
-                    BackColor = Color.FromArgb(245, 158, 11), // Amber #F59E0B
-                    TextAlign = ContentAlignment.MiddleCenter,
-                    Visible = false,
-                    Cursor = Cursors.Hand
-                };
-                pendingBadge.Paint += (s, e) =>
-                {
-                    e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-                    using (var path = new System.Drawing.Drawing2D.GraphicsPath())
-                    {
-                        int r = 9;
-                        path.AddArc(0, 0, r * 2, r * 2, 180, 90);
-                        path.AddArc(pendingBadge.Width - r * 2 - 1, 0, r * 2, r * 2, 270, 90);
-                        path.AddArc(pendingBadge.Width - r * 2 - 1, pendingBadge.Height - r * 2 - 1, r * 2, r * 2, 0, 90);
-                        path.AddArc(0, pendingBadge.Height - r * 2 - 1, r * 2, r * 2, 90, 90);
-                        path.CloseFigure();
-                        pendingBadge.Region = new Region(path);
-                    }
-                };
-                tile.Controls.Add(pendingBadge);
-                pendingBadge.BringToFront();
-                _transportPendingBadge = pendingBadge;
-
-                // Prawa - wolne zamowienia (teal)
-                var freeBadge = new Label
-                {
-                    Text = "0",
-                    Font = new Font("Segoe UI", 8, FontStyle.Bold),
-                    Size = new Size(26, 26),
-                    Location = new Point(tile.Width - 38, 8),
-                    ForeColor = Color.White,
-                    BackColor = Color.FromArgb(0, 131, 143), // Teal #00838F
-                    TextAlign = ContentAlignment.MiddleCenter,
-                    Visible = false,
-                    Cursor = Cursors.Hand
-                };
-                freeBadge.Paint += (s, e) =>
-                {
-                    e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-                    using (var path = new System.Drawing.Drawing2D.GraphicsPath())
-                    {
-                        path.AddEllipse(0, 0, freeBadge.Width - 1, freeBadge.Height - 1);
-                        freeBadge.Region = new Region(path);
-                    }
-                };
-                tile.Controls.Add(freeBadge);
-                freeBadge.BringToFront();
-                _transportFreeBadge = freeBadge;
-            }
-
-            // Badge na kafelku Reklamacje - nowe + oczekujace
-            if (config.ModuleName == "PanelReklamacji")
-            {
-                // Czerwony badge — nowe (prawy gorny)
-                var rekBadge = new Label
-                {
-                    Text = "0 Now.",
-                    Font = new Font("Segoe UI", 7.5f, FontStyle.Bold),
-                    ForeColor = Color.White,
-                    BackColor = Color.FromArgb(231, 76, 60),
-                    AutoSize = false,
-                    Size = new Size(60, 18),
-                    TextAlign = ContentAlignment.MiddleCenter,
-                    Location = new Point(tile.Width - 66, 6),
-                    Anchor = AnchorStyles.Top | AnchorStyles.Right,
-                    Visible = false,
-                    Cursor = Cursors.Hand
-                };
-                rekBadge.Paint += (s, e) =>
-                {
-                    e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-                    using (var path = new System.Drawing.Drawing2D.GraphicsPath())
-                    {
-                        int r = 9;
-                        path.AddArc(0, 0, r * 2, r * 2, 180, 90);
-                        path.AddArc(rekBadge.Width - r * 2 - 1, 0, r * 2, r * 2, 270, 90);
-                        path.AddArc(rekBadge.Width - r * 2 - 1, rekBadge.Height - r * 2 - 1, r * 2, r * 2, 0, 90);
-                        path.AddArc(0, rekBadge.Height - r * 2 - 1, r * 2, r * 2, 90, 90);
-                        path.CloseFigure();
-                        rekBadge.Region = new Region(path);
-                    }
-                };
-                tile.Controls.Add(rekBadge);
-                rekBadge.BringToFront();
-                _reklamacjeBadgeLabel = rekBadge;
-
-                // Zolty badge — oczekujace (pod czerwonym)
-                var oczekBadge = new Label
-                {
-                    Text = "0 oczek.",
-                    Font = new Font("Segoe UI", 7.5f, FontStyle.Bold),
-                    ForeColor = Color.FromArgb(120, 80, 0),
-                    BackColor = Color.FromArgb(255, 193, 7),
-                    AutoSize = false,
-                    Size = new Size(60, 18),
-                    TextAlign = ContentAlignment.MiddleCenter,
-                    Location = new Point(tile.Width - 66, 27),
-                    Anchor = AnchorStyles.Top | AnchorStyles.Right,
-                    Visible = false,
-                    Cursor = Cursors.Hand
-                };
-                oczekBadge.Paint += (s, e) =>
-                {
-                    e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-                    using (var path = new System.Drawing.Drawing2D.GraphicsPath())
-                    {
-                        int r = 9;
-                        path.AddArc(0, 0, r * 2, r * 2, 180, 90);
-                        path.AddArc(oczekBadge.Width - r * 2 - 1, 0, r * 2, r * 2, 270, 90);
-                        path.AddArc(oczekBadge.Width - r * 2 - 1, oczekBadge.Height - r * 2 - 1, r * 2, r * 2, 0, 90);
-                        path.AddArc(0, oczekBadge.Height - r * 2 - 1, r * 2, r * 2, 90, 90);
-                        path.CloseFigure();
-                        oczekBadge.Region = new Region(path);
-                    }
-                };
-                tile.Controls.Add(oczekBadge);
-                oczekBadge.BringToFront();
-                _reklamacjeOczekBadgeLabel = oczekBadge;
-            }
-
-            // Badge na kafelku Cykle Wstawień — ile telefonów do wykonania
-            if (config.ModuleName == "WstawieniaHodowcy")
-            {
-                var wstBadge = new Label
-                {
-                    Text = "0 tel",
-                    Font = new Font("Segoe UI", 7, FontStyle.Bold),
-                    Size = new Size(38, 20),
-                    Location = new Point(tile.Width - 46, 6),
-                    ForeColor = Color.White,
-                    BackColor = Color.FromArgb(220, 53, 69), // Czerwony
-                    TextAlign = ContentAlignment.MiddleCenter,
-                    Visible = false,
-                    Cursor = Cursors.Hand
-                };
-                wstBadge.Paint += (s, e) =>
-                {
-                    e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-                    using (var path = new System.Drawing.Drawing2D.GraphicsPath())
-                    {
-                        path.AddArc(0, 0, wstBadge.Height, wstBadge.Height, 90, 180);
-                        path.AddArc(wstBadge.Width - wstBadge.Height - 1, 0, wstBadge.Height, wstBadge.Height, 270, 180);
-                        path.CloseFigure();
-                        wstBadge.Region = new Region(path);
-                    }
-                };
-                tile.Controls.Add(wstBadge);
-                wstBadge.BringToFront();
-                _wstawieniaBadgeLabel = wstBadge;
-            }
+            // ────────── Badge na kafelkach (przez generyczny helper AttachTileBadge) ──────────
+            AttachBadgeForModule(tile, config.ModuleName);
 
             // Podłącz ikonę do efektu bounce
             tile.SetIconLabel(iconLabel);
@@ -2235,6 +1934,81 @@ namespace Kalendarz1
             attachClickEvent(tile);
 
             return tile;
+        }
+
+        // Dla podanego modułu dokleja odpowiedni badge do kafelka (lub żaden, jeśli moduł nie ma badge).
+        // Wcześniej te 5 if-bloków było wpisanych wprost w CreateMenuButton (~140 linii); teraz osobna metoda
+        // ze switchem — łatwo przejrzeć całość badge w jednym miejscu.
+        private void AttachBadgeForModule(AnimatedTile tile, string moduleName)
+        {
+            switch (moduleName)
+            {
+                case "KomunikatorFirmowy":
+                    // Wstrzymane — kafelek i tak nie powstaje (filter w PopulateColumn).
+                    // Ale gdyby ktoś przywrócił, badge byłby tu (zielony WhatsApp).
+                    AttachTileBadge(tile, "0",
+                        background: Color.FromArgb(0, 168, 132),
+                        size: new Size(26, 26),
+                        location: new Point(tile.Width - 38, 8),
+                        shape: BadgeShape.Ellipse,
+                        font: new Font("Segoe UI", 9, FontStyle.Bold));
+                    break;
+
+                case "ZmianyUHodowcow":
+                    _crBadgeLabel = AttachTileBadge(tile, "0",
+                        background: Color.FromArgb(245, 158, 11), // Amber
+                        size: new Size(26, 26),
+                        location: new Point(tile.Width - 38, 8),
+                        shape: BadgeShape.Ellipse,
+                        font: new Font("Segoe UI", 9, FontStyle.Bold));
+                    break;
+
+                case "UstalanieTranportu":
+                    // Lewa strona — oczekujące zmiany (amber, prostokąt zaokrąglony)
+                    _transportPendingBadge = AttachTileBadge(tile, "0 do akc.",
+                        background: Color.FromArgb(245, 158, 11),
+                        size: new Size(76, 18),
+                        location: new Point(6, 6),
+                        shape: BadgeShape.Rounded,
+                        font: new Font("Segoe UI", 7.5f, FontStyle.Bold));
+                    // Prawa strona — wolne zamówienia (teal, koło)
+                    _transportFreeBadge = AttachTileBadge(tile, "0",
+                        background: Color.FromArgb(0, 131, 143),
+                        size: new Size(26, 26),
+                        location: new Point(tile.Width - 38, 8),
+                        shape: BadgeShape.Ellipse,
+                        font: new Font("Segoe UI", 8, FontStyle.Bold));
+                    break;
+
+                case "PanelReklamacji":
+                    // Górny — nowe (czerwony)
+                    _reklamacjeBadgeLabel = AttachTileBadge(tile, "0 Now.",
+                        background: Color.FromArgb(231, 76, 60),
+                        size: new Size(60, 18),
+                        location: new Point(tile.Width - 66, 6),
+                        shape: BadgeShape.Rounded,
+                        font: new Font("Segoe UI", 7.5f, FontStyle.Bold),
+                        anchor: AnchorStyles.Top | AnchorStyles.Right);
+                    // Dolny — oczekujące (żółty, ciemny tekst dla kontrastu)
+                    _reklamacjeOczekBadgeLabel = AttachTileBadge(tile, "0 oczek.",
+                        background: Color.FromArgb(255, 193, 7),
+                        size: new Size(60, 18),
+                        location: new Point(tile.Width - 66, 27),
+                        shape: BadgeShape.Rounded,
+                        font: new Font("Segoe UI", 7.5f, FontStyle.Bold),
+                        foreground: Color.FromArgb(120, 80, 0),
+                        anchor: AnchorStyles.Top | AnchorStyles.Right);
+                    break;
+
+                case "WstawieniaHodowcy":
+                    _wstawieniaBadgeLabel = AttachTileBadge(tile, "0 tel",
+                        background: Color.FromArgb(220, 53, 69),
+                        size: new Size(38, 20),
+                        location: new Point(tile.Width - 46, 6),
+                        shape: BadgeShape.Pill,
+                        font: new Font("Segoe UI", 7, FontStyle.Bold));
+                    break;
+            }
         }
 
         private void Panel_Click(object sender, EventArgs e)
@@ -2431,34 +2205,26 @@ namespace Kalendarz1
             nameLabel.Click += (s, e) => popup.Close();
 
             // Auto-zamknij po 3 sekundach
-            var closeTimer = new Timer { Interval = 3000 };
+            var closeTimer = new System.Windows.Forms.Timer { Interval = 3000 };
             closeTimer.Tick += (s, e) =>
             {
-                closeTimer.Stop();
-                closeTimer.Dispose();
-                if (!popup.IsDisposed)
+                try
                 {
-                    popup.Close();
+                    closeTimer.Stop();
+                    closeTimer.Dispose();
+                    if (!popup.IsDisposed) popup.Close();
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"avatar closeTimer error: {ex.Message}");
                 }
             };
             closeTimer.Start();
-
-            // Animacja fade-in
-            popup.Opacity = 0;
-            var fadeTimer = new Timer { Interval = 15 };
-            fadeTimer.Tick += (s, e) =>
+            // Jeśli user zamknął popup ręcznie, zatrzymaj/dispose timera żeby nie tikał na disposed obiekcie.
+            popup.FormClosed += (s, e) =>
             {
-                if (popup.Opacity < 1)
-                {
-                    popup.Opacity += 0.1;
-                }
-                else
-                {
-                    fadeTimer.Stop();
-                    fadeTimer.Dispose();
-                }
+                try { closeTimer.Stop(); closeTimer.Dispose(); } catch { }
             };
-            fadeTimer.Start();
 
             popup.Show();
         }

@@ -1156,10 +1156,16 @@ namespace Kalendarz1.Opakowania.Forms
             {
                 Cursor = Cursors.WaitCursor;
                 // Pobierz dokumenty kontrahenta
-                var docs = await _dataService.PobierzSaldoKontrahentaAsync(s.KontrahentId, DateTime.Today.AddMonths(-3), _dtDataDo.Value);
-                var path = await _exportService.EksportujSaldoKontrahentaDoPDFAsync(s.Kontrahent, s.KontrahentId, s, docs, DateTime.Today.AddMonths(-3), _dtDataDo.Value);
-                if (MessageBox.Show($"Zapisano:\n{path}\n\nOtworzyc?", "PDF", MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
-                    _exportService.OtworzPlik(path);
+                var od = DateTime.Today.AddMonths(-3);
+                var docs = await _dataService.PobierzSaldoKontrahentaAsync(s.KontrahentId, od, _dtDataDo.Value);
+                // Saldo otwarcia = stan na KONIEC `od` (zgodnie z SQL "data <= @dataOd"),
+                // bo widoczne dokumenty są BETWEEN @dataOd+1 AND @dataDo. Math: opening + dok = closing.
+                var saldoOtwarcia = await _dataService.PobierzSaldoKontrahentaNaDzienAsync(s.KontrahentId, od);
+                var saldoZamkniecia = await _dataService.PobierzSaldoKontrahentaNaDzienAsync(s.KontrahentId, _dtDataDo.Value);
+                var path = await _exportService.EksportujSaldoKontrahentaDoPDFAsync(
+                    s.Kontrahent, s.KontrahentId, saldoZamkniecia, docs, od, _dtDataDo.Value,
+                    saldoOtwarcia, App.UserFullName);
+                _exportService.OtworzPlik(path);
             }
             catch (Exception ex) { MessageBox.Show("Blad eksportu PDF: " + ex.Message); }
             finally { Cursor = Cursors.Default; }

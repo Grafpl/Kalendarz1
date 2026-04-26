@@ -33,6 +33,14 @@ namespace Kalendarz1
         private DataTable _kontrahenciTable;
         private readonly BindingSource _kontrahenciBS = new BindingSource();
 
+        // Statyczny cache - oba SELECT-y są ciężkie (Hodowcy z 'Dane hodowców$', Kontrahenci z Handel z window function).
+        // Pozostają w pamięci między otwarciami okna; TTL 30 min wystarczy bo zmiany są rzadkie.
+        private static DataTable _kontrahenciCache;
+        private static DateTime _kontrahenciCacheTime = DateTime.MinValue;
+        private static DataTable _hodowcyCache;
+        private static DateTime _hodowcyCacheTime = DateTime.MinValue;
+        private const int CACHE_TTL_MIN = 30;
+
         private readonly Timer _filterTimer = new Timer { Interval = 250 };
         private NazwaZiD nazwaZiD = new NazwaZiD();
         private static ZapytaniaSQL zapytaniasql = new ZapytaniaSQL();
@@ -113,8 +121,14 @@ namespace Kalendarz1
             {
                 // 1) Załaduj LP do ComboBox1
                 ComboBox1.Items.Clear();
+                // Ograniczenie do ostatnich 6 miesięcy - bez tego ComboBox ładuje 10000+ Lp od początku tabeli.
+                // Najnowsze pozycje na górze (DESC) - typowo edytujesz świeże umowy.
+                const string sqlLp = @"
+SELECT DISTINCT Lp FROM dbo.HarmonogramDostaw
+WHERE DataOdbioru >= DATEADD(MONTH, -6, GETDATE())
+ORDER BY Lp DESC";
                 using (var conn = new SqlConnection(_connString))
-                using (var cmd = new SqlCommand("SELECT DISTINCT Lp FROM dbo.HarmonogramDostaw ORDER BY Lp", conn))
+                using (var cmd = new SqlCommand(sqlLp, conn))
                 {
                     await conn.OpenAsync();
                     using (var rd = await cmd.ExecuteReaderAsync())
@@ -451,6 +465,19 @@ SELECT
     [F23]                                   AS F23
   FROM [LibraNet].[dbo].['Dane hodowców$']";
 
+            // Cache: jeśli świeży (<30min) - nie odpytuj 'Dane hodowców$' (ciężka tabela importowana z Excel)
+            bool cacheSwiezy = _hodowcyCache != null
+                && (DateTime.Now - _hodowcyCacheTime).TotalMinutes < CACHE_TTL_MIN;
+
+            if (cacheSwiezy)
+            {
+                _hodowcyTable = _hodowcyCache;
+                _hodowcyBS.DataSource = _hodowcyTable.DefaultView;
+                dataGridViewHodowcy.AutoGenerateColumns = true;
+                dataGridViewHodowcy.DataSource = _hodowcyBS;
+                return;
+            }
+
             try
             {
                 using var conn = new SqlConnection(_connString);
@@ -462,6 +489,8 @@ SELECT
                 dt.Load(rdr);
 
                 _hodowcyTable = dt;
+                _hodowcyCache = dt;
+                _hodowcyCacheTime = DateTime.Now;
                 _hodowcyBS.DataSource = _hodowcyTable.DefaultView;
                 dataGridViewHodowcy.AutoGenerateColumns = true;
                 dataGridViewHodowcy.DataSource = _hodowcyBS;
@@ -476,10 +505,22 @@ SELECT
 
         private async Task WczytajKontrahentowAsync()
         {
+            // Cache: jeśli dane są świeże (<30 min) - nie odpytuj Handelu (ciężki query z window function)
+            bool cacheSwiezy = _kontrahenciCache != null
+                && (DateTime.Now - _kontrahenciCacheTime).TotalMinutes < CACHE_TTL_MIN;
+
+            if (cacheSwiezy)
+            {
+                _kontrahenciTable = _kontrahenciCache;
+                _kontrahenciBS.DataSource = _kontrahenciTable.DefaultView;
+                dataGridViewKontrahenci.DataSource = _kontrahenciBS;
+                return;
+            }
+
             const string sql = @"
 SELECT
     COALESCE(C.Name,'') AS Kontrahent,
-    CASE 
+    CASE
         WHEN LastDocs.seria IN ('sFVS', 'sFVZ') THEN 'VATowiec'
         WHEN LastDocs.seria = 'sFVR' THEN 'Rolnik'
         ELSE LastDocs.seria
@@ -488,7 +529,7 @@ SELECT
     LastDocs.DK_kod AS OstatniKodDokumentu
 FROM [HANDEL].[SSCommon].[STContractors] C
 INNER JOIN (
-    SELECT 
+    SELECT
         DK.khid,
         DK.seria,
         DP.data,
@@ -513,6 +554,8 @@ ORDER BY C.Shortcut;";
                 dt.Load(rdr);
 
                 _kontrahenciTable = dt;
+                _kontrahenciCache = dt;
+                _kontrahenciCacheTime = DateTime.Now;
                 _kontrahenciBS.DataSource = _kontrahenciTable.DefaultView;
                 dataGridViewKontrahenci.DataSource = _kontrahenciBS;
             }

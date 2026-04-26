@@ -1004,10 +1004,16 @@ namespace Kalendarz1.Opakowania.Forms
             try
             {
                 Cursor = Cursors.WaitCursor;
-                var saldo = _saldo ?? new SaldoOpakowania();
-                var path = await _export.EksportujSaldoKontrahentaDoPDFAsync(_nazwa, _id, saldo, _docs, _dtOd.Value, _dtDo.Value);
-                if (MessageBox.Show($"Zapisano:\n{path}\n\nOtworzyc?", "PDF", MessageBoxButtons.YesNo) == DialogResult.Yes)
-                    _export.OtworzPlik(path);
+                // Używamy metody z TĄ SAMĄ konwencją co dokumenty (negacja, magazyn 65559, MW1/MP).
+                // Saldo otwarcia = stan na KONIEC _dtOd (zgodnie z SQL `data <= @dataOd`),
+                // bo dokumenty pokazane w tabeli są BETWEEN @dataOd+1 AND @dataDo (pomijają @dataOd).
+                // Dzięki temu saldo_otwarcia + sum(widoczne dok) = saldo_zamknięcia.
+                var saldoNaDzien = await _ds.PobierzSaldoKontrahentaNaDzienAsync(_id, _dtDo.Value);
+                var saldoOtwarcia = await _ds.PobierzSaldoKontrahentaNaDzienAsync(_id, _dtOd.Value);
+                var path = await _export.EksportujSaldoKontrahentaDoPDFAsync(
+                    _nazwa, _id, saldoNaDzien, _docs, _dtOd.Value, _dtDo.Value,
+                    saldoOtwarcia, App.UserFullName);
+                _export.OtworzPlik(path);
             }
             catch (Exception ex) { MessageBox.Show(ex.Message); }
             finally { Cursor = Cursors.Default; }

@@ -96,7 +96,9 @@ namespace Kalendarz1.Opakowania.Services
             SaldoOpakowania saldo,
             List<DokumentOpakowania> dokumenty,
             DateTime dataOd,
-            DateTime dataDo)
+            DateTime dataDo,
+            SaldoOpakowania saldoPoczatkowe = null,
+            string uzytkownik = null)
         {
             return await Task.Run(() =>
             {
@@ -110,7 +112,9 @@ namespace Kalendarz1.Opakowania.Services
                         dokumenty,
                         null, // potwierdzenia - można dodać później
                         dataOd,
-                        dataDo);
+                        dataDo,
+                        saldoPoczatkowe,
+                        uzytkownik);
 
                     // Folder docelowy: ścieżka bazowa / nazwa kontrahenta
                     string sciezkaBazowa = GetSciezkaZapisu();

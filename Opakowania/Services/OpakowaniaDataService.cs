@@ -588,6 +588,51 @@ ORDER BY d.data DESC";
         }
 
         /// <summary>
+        /// Saldo na koniec wskazanego dnia – używa identycznej konwencji jak <see cref="PobierzSaldoKontrahentaAsync"/>
+        /// (negacja, magazyn 65559, typ_dk MW1/MP). Dzięki temu saldo + suma dokumentów się zgadza.
+        /// </summary>
+        public async Task<SaldoOpakowania> PobierzSaldoKontrahentaNaDzienAsync(int kontrahentId, DateTime data)
+        {
+            const string query = @"
+SELECT
+    -CAST(ISNULL(SUM(CASE WHEN z.kod = 'Pojemnik drobiowy E2' THEN z.ilosc ELSE 0 END), 0) AS INT) AS SaldoE2,
+    -CAST(ISNULL(SUM(CASE WHEN z.kod = 'PALETA H1' THEN z.ilosc ELSE 0 END), 0) AS INT) AS SaldoH1,
+    -CAST(ISNULL(SUM(CASE WHEN z.kod = 'PALETA EURO' THEN z.ilosc ELSE 0 END), 0) AS INT) AS SaldoEURO,
+    -CAST(ISNULL(SUM(CASE WHEN z.kod = 'PALETA PLASTIKOWA' THEN z.ilosc ELSE 0 END), 0) AS INT) AS SaldoPCV,
+    -CAST(ISNULL(SUM(CASE WHEN z.kod = 'Paleta Drewniana' THEN z.ilosc ELSE 0 END), 0) AS INT) AS SaldoDREW
+FROM hm.MG AS d
+JOIN hm.MZ AS z ON d.id = z.super
+WHERE d.khid = @kontrahentId
+  AND d.magazyn = 65559
+  AND d.typ_dk IN ('MW1', 'MP')
+  AND d.anulowany = 0
+  AND d.data <= @data";
+
+            var saldo = new SaldoOpakowania { KontrahentId = kontrahentId };
+            using (var connection = new SqlConnection(_connectionStringHandel))
+            {
+                await connection.OpenAsync();
+                using (var cmd = new SqlCommand(query, connection))
+                {
+                    cmd.Parameters.AddWithValue("@kontrahentId", kontrahentId);
+                    cmd.Parameters.AddWithValue("@data", data);
+                    using (var reader = await cmd.ExecuteReaderAsync())
+                    {
+                        if (await reader.ReadAsync())
+                        {
+                            saldo.SaldoE2 = reader.GetInt32(0);
+                            saldo.SaldoH1 = reader.GetInt32(1);
+                            saldo.SaldoEURO = reader.GetInt32(2);
+                            saldo.SaldoPCV = reader.GetInt32(3);
+                            saldo.SaldoDREW = reader.GetInt32(4);
+                        }
+                    }
+                }
+            }
+            return saldo;
+        }
+
+        /// <summary>
         /// Pobiera salda wszystkich opakowań dla konkretnego kontrahenta
         /// ZOPTYMALIZOWANE z cache'owaniem - drugie wejście w szczegóły jest natychmiastowe
         /// </summary>

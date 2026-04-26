@@ -43,6 +43,9 @@ namespace Kalendarz1.WPF
         private DispatcherTimer? _clockTimer;
         private int _autoCountdown = 40; // 40 sekund
         private TextBlock? _clockText;
+        // Śledzimy aktualny dzień — gdy panel działa parę dni jako kiosk, po przejściu północy
+        // (lub granicy 14:00 z GetDefaultDate) musimy automatycznie przeskoczyć na nowy dzień.
+        private DateTime _lastTrackedDate;
         private TextBlock? _countdownText;
         private ProgressBar? _countdownBar;
         private Grid _mainContainer;
@@ -127,6 +130,7 @@ namespace Kalendarz1.WPF
             _connLibra = connLibra;
             _connHandel = connHandel;
             _selectedDate = GetDefaultDate();
+            _lastTrackedDate = _selectedDate;
 
             // Inicjalizacja LibVLC dla streamingu RTSP - ZOPTYMALIZOWANE
             Core.Initialize();
@@ -690,7 +694,7 @@ namespace Kalendarz1.WPF
             if (_clockTimer == null)
             {
                 _clockTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-                _clockTimer.Tick += (s, e) =>
+                _clockTimer.Tick += async (s, e) =>
                 {
                     if (_clockText != null) _clockText.Text = DateTime.Now.ToString("HH:mm:ss");
                     if (_isAutoPlay && _countdownText != null && _countdownBar != null)
@@ -699,6 +703,25 @@ namespace Kalendarz1.WPF
                         if (_autoCountdown <= 0) _autoCountdown = 40;
                         _countdownText.Text = $"{_autoCountdown}s";
                         _countdownBar.Value = _autoCountdown;
+                    }
+
+                    // Wykryj zmianę dnia (lub granicę 14:00) — gdy panel działa parę dni jako kiosk,
+                    // bez tego data zostaje sprzed paru dni. Aktualizuj tylko jeśli user nie nawigował
+                    // ręcznie do innej daty (czyli wciąż "śledzi" auto-default).
+                    var newDefault = GetDefaultDate();
+                    if (newDefault != _lastTrackedDate && _selectedDate == _lastTrackedDate)
+                    {
+                        _lastTrackedDate = newDefault;
+                        _selectedDate = newDefault;
+                        try
+                        {
+                            await LoadDataAsync();
+                            RefreshContent();
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"PanelPaniJola day-change refresh error: {ex.Message}");
+                        }
                     }
                 };
                 _clockTimer.Start();
@@ -779,7 +802,15 @@ namespace Kalendarz1.WPF
             datePanel.Children.Add(new TextBlock { Text = dzienTygodnia, FontSize = 12, Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 2, 0, 0) });
 
             var btnDzis = new Button { Content = "DZIŚ", FontSize = 12, FontWeight = FontWeights.Bold, Padding = new Thickness(15, 5, 15, 5), Background = new SolidColorBrush(Color.FromRgb(39, 174, 96)), Foreground = Brushes.White, BorderThickness = new Thickness(0), Margin = new Thickness(0, 5, 0, 0), Cursor = System.Windows.Input.Cursors.Hand, HorizontalAlignment = HorizontalAlignment.Center };
-            btnDzis.Click += async (s, e) => { _selectedDate = DateTime.Today; await LoadDataAsync(); RefreshContent(); };
+            btnDzis.Click += async (s, e) =>
+            {
+                // Po kliknięciu DZIŚ wracamy do auto-default i odnawiamy "śledzenie" dnia
+                // — kolejne przejście północy znów automatycznie aktualizuje datę.
+                _selectedDate = GetDefaultDate();
+                _lastTrackedDate = _selectedDate;
+                await LoadDataAsync();
+                RefreshContent();
+            };
             datePanel.Children.Add(btnDzis);
             leftStack.Children.Add(datePanel);
 

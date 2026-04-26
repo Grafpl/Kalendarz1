@@ -2240,12 +2240,44 @@ namespace Kalendarz1
         // GŁÓWNE FUNKCJE ANALITYCZNE
         // ============================================
 
+        // Bezpieczne ustawienie progressBar — chroni przed NullReferenceException w sytuacjach gdy:
+        //  - statusStrip nie jest jeszcze wyrenderowany (ToolStripProgressBar lazy-tworzy wewnętrzny ProgressBar)
+        //  - kontrolka jest disposed gdy AutoLoadData wciąż leci po await
+        //  - wywołanie z innego wątku (Task.Run continuation)
+        private void SetProgress(int? value = null, bool? visible = null)
+        {
+            try
+            {
+                if (IsDisposed || progressBar == null) return;
+
+                // Jeśli wątek nie-UI, marshall przez BeginInvoke (fire-and-forget).
+                if (InvokeRequired)
+                {
+                    BeginInvoke(new Action(() => SetProgress(value, visible)));
+                    return;
+                }
+
+                if (visible.HasValue) progressBar.Visible = visible.Value;
+                if (value.HasValue)
+                {
+                    int v = Math.Max(progressBar.Minimum, Math.Min(progressBar.Maximum, value.Value));
+                    progressBar.Value = v;
+                }
+            }
+            catch (Exception ex)
+            {
+                // Cokolwiek poszło nie tak (NRE w ToolStripProgressBar.set_Value, disposed handle,
+                // niezaalokowany underlying ProgressBar) — log do debug, nie crashuj formularza.
+                System.Diagnostics.Debug.WriteLine($"SetProgress error: {ex.Message}");
+            }
+        }
+
         private async void AutoLoadData()
         {
             if (dtpOd.Value > dtpDo.Value) return;
 
             statusLabel.Text = "Ładowanie danych...";
-            try { progressBar.Visible = true; progressBar.Value = 0; } catch { }
+            SetProgress(value: 0, visible: true);
             DisableButtons();
 
             DateTime od = dtpOd.Value.Date;
@@ -2253,7 +2285,7 @@ namespace Kalendarz1
 
             try
             {
-                try { progressBar.Value = 10; } catch { }
+                SetProgress(10);
 
                 DataTable dtDzienne = null, dtTrendy = null;
                 decimal wydanoSuma = 0, przyjetoSuma = 0;
@@ -2266,30 +2298,34 @@ namespace Kalendarz1
                     FetchKartyStatystyk(od, doDaty, out wydanoSuma, out przyjetoSuma, out dniSuma);
                 });
 
-                try { progressBar.Value = 50; } catch { }
+                if (IsDisposed) return; // form mogła zostać zamknięta podczas await
+
+                SetProgress(50);
                 DisplayDzienneZestawienie(dtDzienne);
 
-                try { progressBar.Value = 70; } catch { }
+                SetProgress(70);
                 DisplayTrendy(dtTrendy);
 
-                try { progressBar.Value = 90; } catch { }
+                SetProgress(90);
                 DisplayKartyStatystyk(wydanoSuma, przyjetoSuma, dniSuma);
 
-                try { progressBar.Value = 100; } catch { }
+                SetProgress(100);
                 lastAnalysisDate = DateTime.Now;
-                statusLabel.Text = $"Dane za {od:dd.MM} - {doDaty:dd.MM.yyyy} | {DateTime.Now:HH:mm:ss}";
+                if (statusLabel != null)
+                    statusLabel.Text = $"Dane za {od:dd.MM} - {doDaty:dd.MM.yyyy} | {DateTime.Now:HH:mm:ss}";
 
                 ShowToast($"Załadowano dane ({dtDzienne?.Rows.Count ?? 0} dni)", SuccessColor);
                 UpdateTabBadges();
             }
             catch (Exception ex)
             {
-                statusLabel.Text = $"Błąd: {ex.Message}";
+                System.Diagnostics.Debug.WriteLine($"AutoLoadData error: {ex}");
+                try { if (statusLabel != null) statusLabel.Text = $"Błąd: {ex.Message}"; } catch { }
             }
             finally
             {
-                try { progressBar.Visible = false; } catch { }
-                EnableButtons();
+                SetProgress(visible: false);
+                try { EnableButtons(); } catch { }
             }
         }
 
@@ -5582,6 +5618,8 @@ namespace Kalendarz1
 
         #region Mroźnie zewnętrzne
 
+        // Ścieżka do STAREGO lokalnego pliku JSON. Po migracji nie istnieje już sensownie,
+        // ale ścieżka potrzebna do jednorazowej migracji starych zatwierdzeń.
         private string GetZatwierdzeniaMrozFilePath()
         {
             string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
@@ -5590,29 +5628,125 @@ namespace Kalendarz1
             return Path.Combine(folder, "zatwierdzenia_mrozni.json");
         }
 
-        private void LoadZatwierdzenia()
+        // Ładuje zatwierdzenia z bazy (kolumna ZatwierdzoneMrozonki w ZamowieniaMieso).
+        // Wcześniej był to lokalny JSON per komputer/per Windows-user — dyrektor zatwierdzał
+        // u siebie, a inni nie widzieli. Teraz centralna baza, wszyscy widzą to samo.
+        private async Task LoadZatwierdzeniaAsync()
         {
+            _zatwierdzoneZamowienia = new HashSet<int>();
             try
             {
-                string path = GetZatwierdzeniaMrozFilePath();
-                if (File.Exists(path))
-                {
-                    string json = File.ReadAllText(path);
-                    var ids = JsonSerializer.Deserialize<List<int>>(json);
-                    _zatwierdzoneZamowienia = ids != null ? new HashSet<int>(ids) : new HashSet<int>();
-                }
+                // Jednorazowa migracja starego JSON (po sukcesie plik kasowany — kolejne uruchomienia pomijają).
+                await MigrateZatwierdzeniaFromJsonIfNeededAsync();
+
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+                await using var cmd = new SqlCommand(
+                    "SELECT Id FROM dbo.ZamowieniaMieso WHERE ZatwierdzoneMrozonki = 1", cn);
+                cmd.CommandTimeout = 10;
+                await using var rdr = await cmd.ExecuteReaderAsync();
+                while (await rdr.ReadAsync())
+                    _zatwierdzoneZamowienia.Add(rdr.GetInt32(0));
             }
-            catch { _zatwierdzoneZamowienia = new HashSet<int>(); }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"LoadZatwierdzeniaAsync error: {ex.Message}");
+            }
         }
 
-        private void SaveZatwierdzenia()
+        // Jednorazowa migracja: jeśli stary plik JSON istnieje, przepisz jego zawartość do DB i skasuj.
+        // Po pierwszym wdrożeniu na każdym komputerze dyrektora — jego lokalne zatwierdzenia trafiają
+        // do centralnej bazy i są widoczne dla wszystkich.
+        private async Task MigrateZatwierdzeniaFromJsonIfNeededAsync()
+        {
+            string path = GetZatwierdzeniaMrozFilePath();
+            if (!File.Exists(path)) return;
+
+            try
+            {
+                string json = File.ReadAllText(path);
+                var ids = JsonSerializer.Deserialize<List<int>>(json);
+                if (ids == null || ids.Count == 0)
+                {
+                    try { File.Delete(path); } catch { }
+                    return;
+                }
+
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+                string user = App.UserID ?? "migracja";
+
+                int migrated = 0;
+                foreach (var id in ids)
+                {
+                    try
+                    {
+                        await using var cmd = new SqlCommand(@"
+                            UPDATE dbo.ZamowieniaMieso
+                            SET ZatwierdzoneMrozonki = 1,
+                                ZatwierdzonePrzez = ISNULL(ZatwierdzonePrzez, @user),
+                                ZatwierdzoneData = ISNULL(ZatwierdzoneData, GETDATE())
+                            WHERE Id = @id", cn);
+                        cmd.Parameters.AddWithValue("@id", id);
+                        cmd.Parameters.AddWithValue("@user", user);
+                        cmd.CommandTimeout = 10;
+                        if (await cmd.ExecuteNonQueryAsync() > 0) migrated++;
+                    }
+                    catch { /* idziemy dalej z resztą — pojedynczy błąd nie blokuje migracji */ }
+                }
+
+                // Po sukcesie kasujemy plik. Jeśli ktoś otworzy app na innym komputerze
+                // gdzie też jest stary JSON, ta sama migracja zadziała tam (ISNULL chroni przed nadpisaniem).
+                try { File.Delete(path); } catch { }
+                System.Diagnostics.Debug.WriteLine($"Zmigrowano {migrated}/{ids.Count} zatwierdzeń z JSON do DB");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"MigrateZatwierdzeniaFromJson error: {ex.Message}");
+                // NIE kasujemy pliku jeśli migracja się nie powiodła — kolejne uruchomienie spróbuje znowu.
+            }
+        }
+
+        // Zapisuje pojedyncze zatwierdzenie do DB. Zwraca true gdy UPDATE objął wiersz.
+        // W przeciwieństwie do starego SaveZatwierdzenia (które cicho połykało błędy),
+        // teraz wywołujący wie czy zapis się powiódł i może pokazać błąd userowi.
+        private async Task<bool> SaveZatwierdzenieAsync(int zamId, bool zatwierdzone, string user)
         {
             try
             {
-                string json = JsonSerializer.Serialize(_zatwierdzoneZamowienia.ToList());
-                File.WriteAllText(GetZatwierdzeniaMrozFilePath(), json);
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+                SqlCommand cmd;
+                if (zatwierdzone)
+                {
+                    cmd = new SqlCommand(@"
+                        UPDATE dbo.ZamowieniaMieso
+                        SET ZatwierdzoneMrozonki = 1,
+                            ZatwierdzonePrzez = @user,
+                            ZatwierdzoneData = GETDATE()
+                        WHERE Id = @id", cn);
+                    cmd.Parameters.AddWithValue("@user", user);
+                }
+                else
+                {
+                    cmd = new SqlCommand(@"
+                        UPDATE dbo.ZamowieniaMieso
+                        SET ZatwierdzoneMrozonki = 0,
+                            ZatwierdzonePrzez = NULL,
+                            ZatwierdzoneData = NULL
+                        WHERE Id = @id", cn);
+                }
+                cmd.Parameters.AddWithValue("@id", zamId);
+                cmd.CommandTimeout = 10;
+                int rows = await cmd.ExecuteNonQueryAsync();
+                cmd.Dispose();
+                return rows > 0;
             }
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"SaveZatwierdzenieAsync error: {ex.Message}");
+                return false;
+            }
         }
 
         private string GetMroznieZewnetrzneFilePath()
@@ -6458,6 +6592,10 @@ namespace Kalendarz1
                     await LoadZamMrozContractorsAsync(filteredOrders, clientIds);
 
                 _zamowieniaMrozone = filteredOrders;
+
+                // Załaduj zatwierdzenia z DB (zamiast lokalnego JSON) — wszyscy widzą stan z bazy.
+                await LoadZatwierdzeniaAsync();
+
                 PopulateZamMrozOrdersGrid();
 
                 var distinctDays = filteredOrders.Select(o => o.DataUboju.Date).Distinct().Count();
@@ -6666,7 +6804,7 @@ namespace Kalendarz1
 
         private void PopulateZamMrozOrdersGrid()
         {
-            LoadZatwierdzenia();
+            // _zatwierdzoneZamowienia jest ładowane wcześniej (LoadZatwierdzeniaAsync w LoadZamowieniaMrozonkiAsync).
 
             var dt = new DataTable();
             dt.Columns.Add("ID", typeof(int));
@@ -6783,7 +6921,7 @@ namespace Kalendarz1
             lblZamMrozLiczbaZam.Text = _zamowieniaMrozone.Count.ToString("#,##0");
         }
 
-        private void DgvZamMrozOrders_CellClick(object sender, DataGridViewCellEventArgs e)
+        private async void DgvZamMrozOrders_CellClick(object sender, DataGridViewCellEventArgs e)
         {
             if (e.RowIndex < 0) return;
             if (!dgvZamMrozOrders.Columns.Contains("Zatwierdzono")) return;
@@ -6804,14 +6942,23 @@ namespace Kalendarz1
             string current = row.Cells["Zatwierdzono"].Value?.ToString() ?? "NIE";
             bool nowZatwierdzone = current != "TAK";
 
+            // Zapisujemy DO BAZY przed aktualizacją UI — jeśli baza odmówi, UI nie kłamie userowi.
+            bool ok = await SaveZatwierdzenieAsync(zamId, nowZatwierdzone, userId);
+            if (!ok)
+            {
+                MessageBox.Show(
+                    "Nie udało się zapisać zatwierdzenia w bazie.\nSprawdź połączenie z SQL i spróbuj ponownie.",
+                    "Błąd zapisu",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            // Lokalny cache + UI dopiero po sukcesie zapisu
             if (nowZatwierdzone)
                 _zatwierdzoneZamowienia.Add(zamId);
             else
                 _zatwierdzoneZamowienia.Remove(zamId);
 
-            SaveZatwierdzenia();
-
-            // Aktualizuj komórkę
             row.Cells["Zatwierdzono"].Value = nowZatwierdzone ? "TAK" : "NIE";
             if (nowZatwierdzone)
             {

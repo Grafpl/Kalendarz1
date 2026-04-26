@@ -50,8 +50,11 @@ namespace Kalendarz1.Services
             _flushTimer = new Timer(_ => FlushAsync().Wait(), null,
                 TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
 
-            // Loguj start aplikacji
+            // Loguj start aplikacji + ścieżkę do logów (przy debugowaniu auto-zamykania
+            // łatwo wskazać użytkownikowi gdzie znaleźć plik).
             Info("=== Aplikacja uruchomiona ===");
+            Info($"Log directory: {_logDirectory}");
+            Info($"Process: PID={Environment.ProcessId}, Machine={Environment.MachineName}, User={Environment.UserName}");
         }
 
         #region Metody logowania
@@ -304,6 +307,19 @@ namespace Kalendarz1.Services
             {
                 LogService.Instance.Error(e.Exception, "Nieobserwowany wyjątek Task");
                 e.SetObserved();
+            };
+
+            // WinForms ThreadException — KLUCZOWE dla menu (WinForms Form). Bez tego nieobsłużone
+            // wyjątki w handlerach (Click, Tick, async void) pokazują standardowy dialog WinForms
+            // z opcją "Zakończ" — i menu samo się zamyka. Z tym handlerem wyjątek tylko leci do logu,
+            // aplikacja przeżywa.
+            System.Windows.Forms.Application.SetUnhandledExceptionMode(
+                System.Windows.Forms.UnhandledExceptionMode.CatchException);
+            System.Windows.Forms.Application.ThreadException += (s, e) =>
+            {
+                LogService.Instance.Critical(e.Exception, "WinForms ThreadException");
+                // NIE rzucamy dalej i NIE pokazujemy dialogu — log wystarczy.
+                // Pokazywanie dialogu mogłoby spowodować re-entrancy i kolejne wyjątki.
             };
 
             _isInitialized = true;

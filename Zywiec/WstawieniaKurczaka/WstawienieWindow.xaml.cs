@@ -17,16 +17,24 @@ namespace Kalendarz1
         private const string connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
 
         public string UserID { get; set; }
-        public double SztWstawienia { get; set; }
+        public int SztWstawienia { get; set; }
         public string Dostawca { get; set; }
         public bool Modyfikacja { get; set; }
         public int LpWstawienia { get; set; }
         public DateTime DataWstawienia { get; set; }
+
+        // Wczytane przy modyfikacji - umożliwia "zachowaj typ ceny bez zmiany"
+        private string BiezacyTypUmowy { get; set; }
+        private string BiezacyTypCeny { get; set; }
         public DaneOstatniegoDostarczonego DaneOstatniegoDostarczonego { get; set; }
 
-        // Flaga informująca czy pobito rekord czasu
-        public bool PobitoRekord { get; private set; } = false;
-        public int NowyRekordSekund { get; private set; } = 0;
+        // Wynik zapisu - odczytywany przez okno macierzyste do toast-a
+        public bool ZapisanoSukces => _zapisanoSukces;
+        public bool ZapiszInfoAuta => _zapiszInfoAuta;
+        public int ZapiszIloscNotatek => _zapiszIloscNotatek;
+        private bool _zapisanoSukces = false;
+        private bool _zapiszInfoAuta = false;
+        private int _zapiszIloscNotatek = 0;
 
         private List<DostawaRow> dostawyRows = new List<DostawaRow>();
         private List<SeriaWstawienRow> seriaRows = new List<SeriaWstawienRow>();
@@ -34,15 +42,16 @@ namespace Kalendarz1
         private bool trybSerii = false;
         private bool isLoading = false;
 
-        // Stoper do mierzenia czasu tworzenia wstawienia
-        private System.Diagnostics.Stopwatch stopwatch = new System.Diagnostics.Stopwatch();
-
         // Kalendarz dostaw - widok tygodniowy
         private int _currentWeekIndex = 0;
         private List<MiniWeekData> _weeksWithDeliveries = new List<MiniWeekData>();
         private Dictionary<DateTime, List<MiniDeliveryItem>> _deliveryDates = new(); // Data -> lista dostaw
         private const int MAX_DAILY_CAPACITY = 80000; // Maksymalna pojemność 80 000 szt./dzień
         private static readonly CultureInfo _plCulture = new CultureInfo("pl-PL");
+
+        // Debounce dla UpdateMiniCalendarPreview - nie wykonuj na każdy keystroke,
+        // czekaj 300ms po ostatniej zmianie
+        private System.Windows.Threading.DispatcherTimer _miniCalendarDebounceTimer;
 
         public WstawienieWindow()
         {
@@ -67,9 +76,6 @@ namespace Kalendarz1
             {
                 txtTrybFormularza.Text = "Nowe";
                 dpDataWstawienia.SelectedDate = DateTime.Today;
-
-                // Start stopera do mierzenia czasu tworzenia
-                stopwatch.Start();
 
                 // ZMIANA: Sprawdź czy przekazano dane z innego okna
                 if (!string.IsNullOrEmpty(Dostawca))
@@ -350,7 +356,7 @@ namespace Kalendarz1
 
             // Data
             var dpData = new DatePicker { Style = (Style)FindResource("ModernDatePicker"), FontSize = 11 };
-            dpData.SelectedDateChanged += (s, e) => { PrzeliczenieRoznicyDni(dostawa); UpdateMiniCalendarPreview(); };
+            dpData.SelectedDateChanged += (s, e) => { PrzeliczenieRoznicyDni(dostawa); ScheduleMiniCalendarRefresh(); };
             Grid.SetColumn(dpData, 2);
             grid.Children.Add(dpData);
             dostawa.DpData = dpData;
@@ -386,7 +392,7 @@ namespace Kalendarz1
             // Sztuki
             var txtSztuki = new TextBox { Style = (Style)FindResource("ModernTextBox"), FontSize = 11 };
             if (dostawa.Sztuki.HasValue) txtSztuki.Text = dostawa.Sztuki.Value.ToString();
-            txtSztuki.TextChanged += (s, e) => { ObliczSumeSztuk(); ObliczAutaWyliczone(dostawa); UpdateMiniCalendarPreview(); };
+            txtSztuki.TextChanged += (s, e) => { ObliczSumeSztuk(); ObliczAutaWyliczone(dostawa); ScheduleMiniCalendarRefresh(); };
             Grid.SetColumn(txtSztuki, 7);
             grid.Children.Add(txtSztuki);
             dostawa.TxtSztuki = txtSztuki;
@@ -500,21 +506,39 @@ namespace Kalendarz1
 
         #region Ładowanie danych
 
+        // Cache statyczny - lista dostawców rzadko się zmienia, ładujemy raz na sesję aplikacji
+        private static List<string> _dostawcyCache = null;
+        private static DateTime _dostawcyCacheTime = DateTime.MinValue;
+        private const int DOSTAWCY_CACHE_TTL_MIN = 30;
+
         private void WczytajDostawcow()
         {
             try
             {
-                using (SqlConnection conn = new SqlConnection(connectionString))
+                bool cacheSwiezy = _dostawcyCache != null
+                    && (DateTime.Now - _dostawcyCacheTime).TotalMinutes < DOSTAWCY_CACHE_TTL_MIN;
+
+                if (!cacheSwiezy)
                 {
-                    conn.Open();
-                    string query = "SELECT DISTINCT Name FROM dbo.DOSTAWCY ORDER BY Name";
-                    using (SqlCommand cmd = new SqlCommand(query, conn))
-                    using (SqlDataReader reader = cmd.ExecuteReader())
+                    var lista = new List<string>();
+                    using (SqlConnection conn = new SqlConnection(connectionString))
                     {
-                        while (reader.Read())
-                            cmbDostawca.Items.Add(reader["Name"].ToString());
+                        conn.Open();
+                        string query = "SELECT DISTINCT Name FROM dbo.DOSTAWCY ORDER BY Name";
+                        using (SqlCommand cmd = new SqlCommand(query, conn))
+                        using (SqlDataReader reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                                lista.Add(reader["Name"].ToString());
+                        }
                     }
+                    _dostawcyCache = lista;
+                    _dostawcyCacheTime = DateTime.Now;
                 }
+
+                cmbDostawca.Items.Clear();
+                foreach (var name in _dostawcyCache)
+                    cmbDostawca.Items.Add(name);
             }
             catch (Exception ex)
             {
@@ -567,14 +591,18 @@ namespace Kalendarz1
                 using (SqlConnection conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
-                    string query = "SELECT Uwagi FROM dbo.WstawieniaKurczakow WHERE Lp = @Lp";
+                    string query = "SELECT Uwagi, TypUmowy, TypCeny FROM dbo.WstawieniaKurczakow WHERE Lp = @Lp";
                     using (SqlCommand cmd = new SqlCommand(query, conn))
                     {
                         cmd.Parameters.AddWithValue("@Lp", LpWstawienia);
-                        object result = cmd.ExecuteScalar();
-                        if (result != null && result != DBNull.Value)
+                        using (var r = cmd.ExecuteReader())
                         {
-                            txtNotatki.Text = result.ToString();
+                            if (r.Read())
+                            {
+                                if (r["Uwagi"] != DBNull.Value) txtNotatki.Text = r["Uwagi"].ToString();
+                                if (r["TypUmowy"] != DBNull.Value) BiezacyTypUmowy = r["TypUmowy"].ToString();
+                                if (r["TypCeny"] != DBNull.Value) BiezacyTypCeny = r["TypCeny"].ToString();
+                            }
                         }
                     }
                 }
@@ -642,6 +670,11 @@ namespace Kalendarz1
 
                 OdswiezNumeracjeDostawy();
                 isLoading = false;
+
+                // Upadki nie są liczone przez TextChanged (był isLoading=true) - oblicz ręcznie
+                if (double.TryParse(txtSztukiWstawienia.Text, out double sw))
+                    txtSztukiUpadki.Text = (sw * 0.97).ToString("0");
+
                 ObliczSumeSztuk();
 
                 foreach (var d in dostawyRows)
@@ -770,13 +803,14 @@ namespace Kalendarz1
 
         private void DpDataWstawienia_SelectedDateChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (dpDataWstawienia.SelectedDate != null && !isLoading)
+            if (dpDataWstawienia.SelectedDate == null || isLoading) return;
+
+            // Doba jest wiążąca: zmiana daty wstawienia przesuwa daty dostaw o offset z TxtDoba.
+            // Wstawienie 1.01 + Doba 1 → DpData 2.01. Po zmianie wstawienia na 2.01 → DpData 3.01.
+            foreach (var dostawa in dostawyRows)
             {
-                foreach (var dostawa in dostawyRows)
-                {
-                    PrzeliczenieDoby(dostawa);
-                    PrzeliczenieRoznicyDni(dostawa);
-                }
+                PrzeliczenieDoby(dostawa);     // TxtDoba (offset) → DpData
+                PrzeliczenieRoznicyDni(dostawa); // odśwież TxtDni
             }
         }
 
@@ -821,11 +855,18 @@ namespace Kalendarz1
 
         private void PrzeliczenieRoznicyDni(DostawaRow dostawa)
         {
-            if (isLoading || dpDataWstawienia.SelectedDate == null || dostawa.DpData == null || dostawa.TxtDni == null) return;
+            if (isLoading || dpDataWstawienia.SelectedDate == null || dostawa.DpData == null) return;
             if (dostawa.DpData.SelectedDate != null)
             {
                 int roznica = (dostawa.DpData.SelectedDate.Value - dpDataWstawienia.SelectedDate.Value).Days;
-                dostawa.TxtDni.Text = roznica.ToString();
+                if (dostawa.TxtDni != null) dostawa.TxtDni.Text = roznica.ToString();
+                // Sync TxtDoba (chroni przed niespójnością gdy save kiedyś znów spróbuje czytać Doba)
+                if (dostawa.TxtDoba != null && dostawa.TxtDoba.Text != roznica.ToString())
+                {
+                    isLoading = true;
+                    try { dostawa.TxtDoba.Text = roznica.ToString(); }
+                    finally { isLoading = false; }
+                }
             }
         }
 
@@ -949,8 +990,9 @@ namespace Kalendarz1
                                 }
                                 trans.Commit();
 
-                                string infoNotatki = maNotatki ? $"\n📝 Dodano {iloscNotatek} notatek" : "";
-                                MessageBox.Show($"✅ Zapisano {zapisane} wstawień z {dostawyRows.Count} dostawami każde{infoNotatki}", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+                                _zapisanoSukces = true;
+                                _zapiszInfoAuta = zapiszAuta;
+                                _zapiszIloscNotatek = iloscNotatek;
                             }
                             else
                             {
@@ -966,7 +1008,10 @@ namespace Kalendarz1
                                     }
 
                                     AktualizujWstawienie(conn, trans, lpW, typUmowy, typCeny, iloscWst);
-                                    UsunStareDostawy(conn, trans, lpW);
+                                    // SynchronizujDostawy zachowuje istniejące Lp (UPDATE+INSERT+DELETE diff)
+                                    // zamiast DELETE+INSERT, co rwało relacje z PartiaDostawca/QC.
+                                    SynchronizujDostawy(conn, trans, lpW,
+                                        dpDataWstawienia.SelectedDate.Value, typUmowy, typCeny, bufor, zapiszAuta);
                                 }
                                 else
                                 {
@@ -979,64 +1024,19 @@ namespace Kalendarz1
                                     }
 
                                     WstawWstawienieDb(conn, trans, lpW, dpDataWstawienia.SelectedDate.Value, iloscWst, typUmowy, typCeny);
-                                }
 
-                                foreach (var dostawa in dostawyRows)
-                                {
-                                    WstawDostaweDb(conn, trans, dostawa, lpW, dpDataWstawienia.SelectedDate.Value, typUmowy, typCeny, bufor, zapiszAuta);
-                                    if (maNotatki) iloscNotatek++;
+                                    foreach (var dostawa in dostawyRows)
+                                    {
+                                        WstawDostaweDb(conn, trans, dostawa, lpW, dpDataWstawienia.SelectedDate.Value, typUmowy, typCeny, bufor, zapiszAuta);
+                                        if (maNotatki) iloscNotatek++;
+                                    }
                                 }
                                 trans.Commit();
 
-                                // Zatrzymaj stoper i oblicz czas
-                                stopwatch.Stop();
-                                var elapsed = stopwatch.Elapsed;
-                                int aktualneSekundy = (int)elapsed.TotalSeconds;
-                                string czasInfo = "";
-                                string rekordInfo = "";
-
-                                if (!Modyfikacja && elapsed.TotalSeconds > 0)
-                                {
-                                    // Sprawdź rekord użytkownika
-                                    int? najlepszyczas = PobierzNajlepszyczas(conn, UserID);
-
-                                    if (elapsed.TotalMinutes >= 1)
-                                        czasInfo = $"\n\n⏱️ Czas tworzenia: {elapsed.Minutes}m {elapsed.Seconds}s";
-                                    else
-                                        czasInfo = $"\n\n⏱️ Czas tworzenia: {elapsed.Seconds}s";
-
-                                    // Sprawdź czy pobito rekord
-                                    if (!najlepszyczas.HasValue || aktualneSekundy < najlepszyczas.Value)
-                                    {
-                                        PobitoRekord = true;
-                                        NowyRekordSekund = aktualneSekundy;
-
-                                        if (!najlepszyczas.HasValue)
-                                        {
-                                            rekordInfo = "\n\n🏆 PIERWSZY REKORD USTANOWIONY! 🎉";
-                                        }
-                                        else
-                                        {
-                                            int roznica = najlepszyczas.Value - aktualneSekundy;
-                                            string[] gratulacje = new[]
-                                            {
-                                                $"🏆 NOWY REKORD! Pobiłeś swój wynik o {roznica}s! 🎉",
-                                                $"🔥 FENOMENALNIE! Rekord pobity o {roznica}s! 🚀",
-                                                $"⚡ BŁYSKAWICA! Nowy rekord - {roznica}s szybciej! 💪",
-                                                $"🌟 MISTRZOSTWO! Poprawiłeś rekord o {roznica}s! 🏅",
-                                                $"🎯 PERFEKCJA! {roznica}s szybciej niż poprzednio! 🎊"
-                                            };
-                                            var random = new Random();
-                                            rekordInfo = $"\n\n{gratulacje[random.Next(gratulacje.Length)]}";
-                                        }
-                                    }
-                                }
-
-                                string infoAuta = zapiszAuta ? "\n\n✅ Auta zostały zapisane" : "\n\n⚠️ Auta NIE zostały zapisane (Wolnyrynek)";
-                                string infoNotatki = maNotatki ? $"\n📝 Dodano {iloscNotatek} notatek do dostaw" : "";
-
-                                string tytul = PobitoRekord ? "🏆 REKORD! 🏆" : "Sukces";
-                                MessageBox.Show($"✅ Zapisano{infoAuta}{infoNotatki}{czasInfo}{rekordInfo}", tytul, MessageBoxButton.OK, MessageBoxImage.Information);
+                                // Komunikat o sukcesie zostanie pokazany jako toast po zamknięciu okna.
+                                _zapisanoSukces = true;
+                                _zapiszInfoAuta = zapiszAuta;
+                                _zapiszIloscNotatek = iloscNotatek;
                             }
 
                             DialogResult = true;
@@ -1087,65 +1087,454 @@ namespace Kalendarz1
                 return false;
             }
 
+            // Walidacja każdego wiersza dostawy: data + sztuki muszą być wypełnione
+            DateTime? dataWst = trybSerii ? null : dpDataWstawienia.SelectedDate;
+            for (int i = 0; i < dostawyRows.Count; i++)
+            {
+                var d = dostawyRows[i];
+                int nr = i + 1;
+
+                if (d.DpData?.SelectedDate == null)
+                {
+                    MessageBox.Show($"Dostawa #{nr}: brak daty odbioru.", "Walidacja", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    d.DpData?.Focus();
+                    return false;
+                }
+
+                if (string.IsNullOrWhiteSpace(d.TxtSztuki?.Text)
+                    || !int.TryParse(d.TxtSztuki.Text, out int sztDostawa)
+                    || sztDostawa <= 0)
+                {
+                    MessageBox.Show($"Dostawa #{nr}: nieprawidłowa ilość sztuk.", "Walidacja", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    d.TxtSztuki?.Focus();
+                    return false;
+                }
+
+                // Data odbioru nie może być wcześniejsza niż data wstawienia
+                if (dataWst.HasValue && d.DpData.SelectedDate.Value.Date < dataWst.Value.Date)
+                {
+                    MessageBox.Show(
+                        $"Dostawa #{nr}: data odbioru ({d.DpData.SelectedDate.Value:yyyy-MM-dd}) " +
+                        $"jest wcześniejsza niż data wstawienia ({dataWst.Value:yyyy-MM-dd}).",
+                        "Walidacja", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    d.DpData.Focus();
+                    return false;
+                }
+            }
+
             return true;
+        }
+
+        // Mapowanie TypCeny → kolor + emoji (używane w przyciskach i etykietach)
+        private static (Color bg, Color fg, string emoji, string opis) StylTypuCeny(string typCeny)
+        {
+            switch ((typCeny ?? "").ToLowerInvariant())
+            {
+                case "łączona":     return (Color.FromRgb(138, 43, 226), Colors.White, "🔗", "łączona");
+                case "rolnicza":    return (Color.FromRgb(92, 138, 58),  Colors.White, "🌾", "rolnicza");
+                case "wolnyrynek":  return (Color.FromRgb(255, 193, 7),  Colors.Black, "💰", "wolnyrynek");
+                case "ministerialna": return (Color.FromRgb(33, 150, 243), Colors.White, "🏛️", "ministerialna");
+                default:            return (Color.FromRgb(120, 120, 120), Colors.White, "❓", typCeny ?? "—");
+            }
+        }
+
+        // bufor zależy od kombinacji TypUmowy + TypCeny
+        private static string BuforDla(string typUmowy)
+        {
+            switch (typUmowy)
+            {
+                case "W.Wolnyrynek": return "B.Wolny.";
+                case "Wolnyrynek":   return "Do wykupienia";
+                case "Kontrakt":     return "B.Kontr.";
+                default:             return "";
+            }
+        }
+
+        // Etykieta typu umowy z ikoną
+        private static string OpisTypuUmowy(string typUmowy)
+        {
+            switch (typUmowy)
+            {
+                case "W.Wolnyrynek": return "Wolny rynek (wierny) ⭐";
+                case "Wolnyrynek":   return "Wolny rynek 💰";
+                case "Kontrakt":     return "Kontrakt 📝";
+                default:             return typUmowy ?? "—";
+            }
         }
 
         private (string, string, string) JakiTypKontraktu()
         {
-            var result = MessageBox.Show("Wolny Rynek?", "Typ", MessageBoxButton.YesNo, MessageBoxImage.Question);
-            if (result == MessageBoxResult.Yes)
+            // Tryb modyfikacji + zachowane wartości → najpierw pytanie czy zmienić.
+            if (Modyfikacja && !string.IsNullOrEmpty(BiezacyTypUmowy) && !string.IsNullOrEmpty(BiezacyTypCeny))
             {
-                var wierny = MessageBox.Show("Wierny?", "Typ", MessageBoxButton.YesNo, MessageBoxImage.Question);
-                return wierny == MessageBoxResult.Yes ? ("W.Wolnyrynek", "wolnyrynek", "B.Wolny.") : ("Wolnyrynek", "wolnyrynek", "Do wykupienia");
+                var dec = PokazPodgladTypuCeny(BiezacyTypUmowy, BiezacyTypCeny);
+                if (dec == PodgladDecyzja.Anuluj) return (null, null, null);
+                if (dec == PodgladDecyzja.Zachowaj)
+                    return (BiezacyTypUmowy, BiezacyTypCeny, BuforDla(BiezacyTypUmowy));
+                // Zmiana → spadamy niżej do wyboru
             }
-            else
+
+            // Krok 1: jaki hodowca
+            var hodowca = WybierzTypHodowcy();
+            if (hodowca == null) return (null, null, null);
+
+            if (hodowca == "Wolnyrynek")
             {
+                // Krok 2a: wierny czy nie
+                bool? wierny = CzyWierny();
+                if (wierny == null) return (null, null, null);
+                return wierny.Value
+                    ? ("W.Wolnyrynek", "wolnyrynek", "B.Wolny.")
+                    : ("Wolnyrynek", "wolnyrynek", "Do wykupienia");
+            }
+            else // "Kontrakt"
+            {
+                // Krok 2b: typ ceny kontraktowej
                 string typCeny = WybierzTypCeny();
-                return !string.IsNullOrEmpty(typCeny) ? ("Kontrakt", typCeny, "B.Kontr.") : (null, null, null);
+                return !string.IsNullOrEmpty(typCeny)
+                    ? ("Kontrakt", typCeny, "B.Kontr.")
+                    : (null, null, null);
             }
+        }
+
+        private enum PodgladDecyzja { Zachowaj, Zmien, Anuluj }
+
+        // Podgląd aktualnego typu z kolorem + pytanie zachować/zmienić
+        private PodgladDecyzja PokazPodgladTypuCeny(string typUmowy, string typCeny)
+        {
+            var (bg, fg, emoji, opis) = StylTypuCeny(typCeny);
+
+            var dialog = new Window
+            {
+                Title = "Bieżący typ ceny",
+                Width = 460,
+                Height = 360,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                ResizeMode = ResizeMode.NoResize,
+                Background = new SolidColorBrush(Color.FromRgb(245, 247, 250))
+            };
+
+            var root = new StackPanel { Margin = new Thickness(20) };
+
+            root.Children.Add(new TextBlock
+            {
+                Text = "💼 Bieżący typ ceny wstawienia",
+                FontSize = 16,
+                FontWeight = FontWeights.SemiBold,
+                Margin = new Thickness(0, 0, 0, 12),
+                Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80))
+            });
+
+            // Karta z aktualnym typem (kolor!)
+            var card = new Border
+            {
+                Background = new SolidColorBrush(bg),
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(20),
+                Margin = new Thickness(0, 0, 0, 16)
+            };
+            var cardStack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
+            cardStack.Children.Add(new TextBlock
+            {
+                Text = emoji,
+                FontSize = 38,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 4)
+            });
+            cardStack.Children.Add(new TextBlock
+            {
+                Text = opis.ToUpper(),
+                FontSize = 22,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(fg),
+                HorizontalAlignment = HorizontalAlignment.Center
+            });
+            cardStack.Children.Add(new TextBlock
+            {
+                Text = OpisTypuUmowy(typUmowy),
+                FontSize = 13,
+                Foreground = new SolidColorBrush(fg),
+                Opacity = 0.9,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 4, 0, 0)
+            });
+            card.Child = cardStack;
+            root.Children.Add(card);
+
+            root.Children.Add(new TextBlock
+            {
+                Text = "Czy chcesz zmienić typ ceny?",
+                FontSize = 13,
+                Foreground = new SolidColorBrush(Color.FromRgb(80, 80, 80)),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 12)
+            });
+
+            var btnRow = new Grid();
+            btnRow.ColumnDefinitions.Add(new ColumnDefinition());
+            btnRow.ColumnDefinitions.Add(new ColumnDefinition());
+
+            var decyzja = PodgladDecyzja.Anuluj;
+
+            var btnZachowaj = new Button
+            {
+                Content = "🔒 Zachowaj",
+                FontSize = 14,
+                FontWeight = FontWeights.SemiBold,
+                Padding = new Thickness(12),
+                Margin = new Thickness(0, 0, 6, 0),
+                Background = new SolidColorBrush(Color.FromRgb(46, 204, 113)),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Cursor = Cursors.Hand
+            };
+            btnZachowaj.Click += (s, e) => { decyzja = PodgladDecyzja.Zachowaj; dialog.DialogResult = true; };
+            Grid.SetColumn(btnZachowaj, 0);
+            btnRow.Children.Add(btnZachowaj);
+
+            var btnZmien = new Button
+            {
+                Content = "✏️ Zmień",
+                FontSize = 14,
+                FontWeight = FontWeights.SemiBold,
+                Padding = new Thickness(12),
+                Margin = new Thickness(6, 0, 0, 0),
+                Background = new SolidColorBrush(Color.FromRgb(243, 156, 18)),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Cursor = Cursors.Hand
+            };
+            btnZmien.Click += (s, e) => { decyzja = PodgladDecyzja.Zmien; dialog.DialogResult = true; };
+            Grid.SetColumn(btnZmien, 1);
+            btnRow.Children.Add(btnZmien);
+
+            root.Children.Add(btnRow);
+            dialog.Content = root;
+            dialog.ShowDialog();
+            return decyzja;
+        }
+
+        // Wybór typu hodowcy: Wolnyrynek vs Kontrakt
+        private string WybierzTypHodowcy()
+        {
+            var dialog = new Window
+            {
+                Title = "Jaki hodowca?",
+                Width = 480,
+                Height = 320,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                ResizeMode = ResizeMode.NoResize,
+                Background = new SolidColorBrush(Color.FromRgb(245, 247, 250))
+            };
+
+            var root = new StackPanel { Margin = new Thickness(20) };
+            root.Children.Add(new TextBlock
+            {
+                Text = "🐔 Jaki hodowca?",
+                FontSize = 18,
+                FontWeight = FontWeights.SemiBold,
+                Margin = new Thickness(0, 0, 0, 16),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80))
+            });
+
+            var btnRow = new Grid();
+            btnRow.ColumnDefinitions.Add(new ColumnDefinition());
+            btnRow.ColumnDefinitions.Add(new ColumnDefinition());
+
+            string wybor = null;
+
+            var btnWolny = StworzDuzyPrzycisk("💰", "Wolnyrynek", Color.FromRgb(255, 193, 7), Colors.Black);
+            btnWolny.Margin = new Thickness(0, 0, 6, 0);
+            btnWolny.Click += (s, e) => { wybor = "Wolnyrynek"; dialog.DialogResult = true; };
+            Grid.SetColumn(btnWolny, 0);
+            btnRow.Children.Add(btnWolny);
+
+            var btnKontr = StworzDuzyPrzycisk("📝", "Kontraktowy", Color.FromRgb(33, 150, 243), Colors.White);
+            btnKontr.Margin = new Thickness(6, 0, 0, 0);
+            btnKontr.Click += (s, e) => { wybor = "Kontrakt"; dialog.DialogResult = true; };
+            Grid.SetColumn(btnKontr, 1);
+            btnRow.Children.Add(btnKontr);
+
+            root.Children.Add(btnRow);
+            dialog.Content = root;
+            dialog.ShowDialog();
+            return wybor;
+        }
+
+        // Wybór: wierny czy nie (dla Wolnyrynek)
+        private bool? CzyWierny()
+        {
+            var dialog = new Window
+            {
+                Title = "Wierny hodowca?",
+                Width = 480,
+                Height = 320,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                ResizeMode = ResizeMode.NoResize,
+                Background = new SolidColorBrush(Color.FromRgb(245, 247, 250))
+            };
+
+            var root = new StackPanel { Margin = new Thickness(20) };
+            root.Children.Add(new TextBlock
+            {
+                Text = "⭐ Czy hodowca jest wierny?",
+                FontSize = 18,
+                FontWeight = FontWeights.SemiBold,
+                Margin = new Thickness(0, 0, 0, 16),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80))
+            });
+
+            var btnRow = new Grid();
+            btnRow.ColumnDefinitions.Add(new ColumnDefinition());
+            btnRow.ColumnDefinitions.Add(new ColumnDefinition());
+
+            bool? wybor = null;
+
+            var btnTak = StworzDuzyPrzycisk("⭐", "Tak — wierny", Color.FromRgb(46, 204, 113), Colors.White);
+            btnTak.Margin = new Thickness(0, 0, 6, 0);
+            btnTak.Click += (s, e) => { wybor = true; dialog.DialogResult = true; };
+            Grid.SetColumn(btnTak, 0);
+            btnRow.Children.Add(btnTak);
+
+            var btnNie = StworzDuzyPrzycisk("🆕", "Nie", Color.FromRgb(149, 165, 166), Colors.White);
+            btnNie.Margin = new Thickness(6, 0, 0, 0);
+            btnNie.Click += (s, e) => { wybor = false; dialog.DialogResult = true; };
+            Grid.SetColumn(btnNie, 1);
+            btnRow.Children.Add(btnNie);
+
+            root.Children.Add(btnRow);
+            dialog.Content = root;
+            dialog.ShowDialog();
+            return wybor;
+        }
+
+        private Button StworzDuzyPrzycisk(string emoji, string label, Color bg, Color fg)
+        {
+            var stack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
+            stack.Children.Add(new TextBlock
+            {
+                Text = emoji,
+                FontSize = 42,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 8)
+            });
+            stack.Children.Add(new TextBlock
+            {
+                Text = label,
+                FontSize = 16,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(fg),
+                HorizontalAlignment = HorizontalAlignment.Center
+            });
+
+            return new Button
+            {
+                Content = stack,
+                Background = new SolidColorBrush(bg),
+                Foreground = new SolidColorBrush(fg),
+                BorderThickness = new Thickness(0),
+                Cursor = Cursors.Hand,
+                Padding = new Thickness(8),
+                MinHeight = 180
+            };
         }
 
         private string WybierzTypCeny()
         {
-            var dialog = new Window { Title = "Typ ceny", Width = 250, Height = 250, WindowStartupLocation = WindowStartupLocation.CenterOwner, Owner = this };
-            var panel = new StackPanel { Margin = new Thickness(15) };
-            string wybrana = null;
-
-            // Kolory dla typów cen: łączona=fioletowy, rolnicza=zielony, wolnyrynek=żółty, ministerialna=niebieski
-            var opcjeKolory = new Dictionary<string, (Color bg, Color fg)>
+            var dialog = new Window
             {
-                { "łączona", (Color.FromRgb(138, 43, 226), Colors.White) },      // fioletowy
-                { "rolnicza", (Color.FromRgb(92, 138, 58), Colors.White) },       // zielony
-                { "wolnyrynek", (Color.FromRgb(255, 193, 7), Colors.Black) },     // żółty
-                { "ministerialna", (Color.FromRgb(33, 150, 243), Colors.White) }  // niebieski
+                Title = "Wybierz typ ceny kontraktowej",
+                Width = 540,
+                Height = 520,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                ResizeMode = ResizeMode.NoResize,
+                Background = new SolidColorBrush(Color.FromRgb(245, 247, 250))
             };
 
-            foreach (var opcja in opcjeKolory)
+            var root = new StackPanel { Margin = new Thickness(20) };
+            root.Children.Add(new TextBlock
             {
+                Text = "📝 Wybierz typ ceny kontraktowej",
+                FontSize = 17,
+                FontWeight = FontWeights.SemiBold,
+                Margin = new Thickness(0, 0, 0, 16),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80))
+            });
+
+            string wybrana = null;
+
+            var opcje = new[]
+            {
+                ("łączona",      "🔗", "Łączona — kombinacja stawek", Color.FromRgb(138, 43, 226), Colors.White),
+                ("rolnicza",     "🌾", "Rolnicza — według GUS",        Color.FromRgb(92, 138, 58),  Colors.White),
+                ("wolnyrynek",   "💰", "Wolnyrynek — cena rynkowa",    Color.FromRgb(255, 193, 7),  Colors.Black),
+                ("ministerialna","🏛️", "Ministerialna — stawka MRiRW", Color.FromRgb(33, 150, 243), Colors.White),
+            };
+
+            foreach (var (key, emoji, opis, bg, fg) in opcje)
+            {
+                var content = new Grid { Margin = new Thickness(8) };
+                content.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(64) });
+                content.ColumnDefinitions.Add(new ColumnDefinition());
+
+                content.Children.Add(new TextBlock
+                {
+                    Text = emoji,
+                    FontSize = 32,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    HorizontalAlignment = HorizontalAlignment.Center
+                });
+
+                var labels = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+                labels.Children.Add(new TextBlock
+                {
+                    Text = key,
+                    FontSize = 18,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = new SolidColorBrush(fg)
+                });
+                labels.Children.Add(new TextBlock
+                {
+                    Text = opis,
+                    FontSize = 12,
+                    Opacity = 0.85,
+                    Foreground = new SolidColorBrush(fg),
+                    Margin = new Thickness(0, 2, 0, 0)
+                });
+                Grid.SetColumn(labels, 1);
+                content.Children.Add(labels);
+
                 var btn = new Button
                 {
-                    Content = opcja.Key,
-                    Margin = new Thickness(0, 5, 0, 5),
-                    Padding = new Thickness(10),
-                    FontSize = 14,
-                    FontWeight = FontWeights.SemiBold,
-                    Background = new SolidColorBrush(opcja.Value.bg),
-                    Foreground = new SolidColorBrush(opcja.Value.fg),
+                    Content = content,
+                    Background = new SolidColorBrush(bg),
+                    Foreground = new SolidColorBrush(fg),
                     BorderThickness = new Thickness(0),
-                    Cursor = Cursors.Hand
+                    Margin = new Thickness(0, 0, 0, 8),
+                    Padding = new Thickness(0),
+                    Cursor = Cursors.Hand,
+                    HorizontalContentAlignment = HorizontalAlignment.Stretch
                 };
-                btn.Click += (s, e) => { wybrana = opcja.Key; dialog.DialogResult = true; };
-                panel.Children.Add(btn);
+                btn.Click += (s, e) => { wybrana = key; dialog.DialogResult = true; };
+                root.Children.Add(btn);
             }
 
-            dialog.Content = panel;
+            dialog.Content = root;
             dialog.ShowDialog();
             return wybrana;
         }
 
         private long NowyNumerWstawienia(SqlConnection conn, SqlTransaction trans)
         {
-            using (var cmd = new SqlCommand("SELECT MAX(Lp) FROM dbo.WstawieniaKurczakow", conn, trans))
+            // UPDLOCK + HOLDLOCK aby równoległe transakcje nie dostały tego samego Lp
+            using (var cmd = new SqlCommand("SELECT MAX(Lp) FROM dbo.WstawieniaKurczakow WITH (UPDLOCK, HOLDLOCK)", conn, trans))
             {
                 object v = cmd.ExecuteScalar();
                 return (v == DBNull.Value) ? 1 : Convert.ToInt64(v) + 1;
@@ -1154,35 +1543,6 @@ namespace Kalendarz1
 
         private void WstawWstawienieDb(SqlConnection conn, SqlTransaction trans, long lpW, DateTime data, int ilosc, string typUmowy, string typCeny)
         {
-            // Pobierz czas tworzenia ze stopera
-            int czasTworzeniaSek = (int)stopwatch.Elapsed.TotalSeconds;
-
-            // Najpierw spróbuj z kolumną CzasTworzeniaSek
-            try
-            {
-                const string sqlZCzasem = @"INSERT INTO dbo.WstawieniaKurczakow (Lp, Dostawca, DataWstawienia, IloscWstawienia, DataUtw, KtoStwo, Uwagi, TypUmowy, TypCeny, CzasTworzeniaSek)
-                    VALUES (@Lp, @D, @DW, @Il, SYSDATETIME(), @Kto, @Uw, @TU, @TC, @Czas)";
-                using (var cmd = new SqlCommand(sqlZCzasem, conn, trans))
-                {
-                    cmd.Parameters.AddWithValue("@Lp", lpW);
-                    cmd.Parameters.AddWithValue("@D", cmbDostawca.SelectedItem.ToString());
-                    cmd.Parameters.AddWithValue("@DW", data);
-                    cmd.Parameters.AddWithValue("@Il", ilosc);
-                    cmd.Parameters.AddWithValue("@Kto", UserID ?? "");
-                    cmd.Parameters.AddWithValue("@Uw", txtNotatki?.Text ?? "");
-                    cmd.Parameters.AddWithValue("@TU", typUmowy);
-                    cmd.Parameters.AddWithValue("@TC", typCeny);
-                    cmd.Parameters.AddWithValue("@Czas", czasTworzeniaSek);
-                    cmd.ExecuteNonQuery();
-                    return;
-                }
-            }
-            catch (SqlException ex) when (ex.Message.Contains("Invalid column name") || ex.Message.Contains("CzasTworzeniaSek"))
-            {
-                // Kolumna nie istnieje - użyj wersji bez niej
-            }
-
-            // Wersja bez kolumny CzasTworzeniaSek
             const string sql = @"INSERT INTO dbo.WstawieniaKurczakow (Lp, Dostawca, DataWstawienia, IloscWstawienia, DataUtw, KtoStwo, Uwagi, TypUmowy, TypCeny)
                 VALUES (@Lp, @D, @DW, @Il, SYSDATETIME(), @Kto, @Uw, @TU, @TC)";
             using (var cmd = new SqlCommand(sql, conn, trans))
@@ -1196,28 +1556,6 @@ namespace Kalendarz1
                 cmd.Parameters.AddWithValue("@TU", typUmowy);
                 cmd.Parameters.AddWithValue("@TC", typCeny);
                 cmd.ExecuteNonQuery();
-            }
-        }
-
-        private int? PobierzNajlepszyczas(SqlConnection conn, string userId)
-        {
-            try
-            {
-                const string sql = @"SELECT MIN(CzasTworzeniaSek) FROM dbo.WstawieniaKurczakow
-                                     WHERE KtoStwo = @Kto AND CzasTworzeniaSek IS NOT NULL AND CzasTworzeniaSek > 0";
-                using (var cmd = new SqlCommand(sql, conn))
-                {
-                    cmd.Parameters.AddWithValue("@Kto", userId ?? "");
-                    var result = cmd.ExecuteScalar();
-                    if (result == null || result == DBNull.Value)
-                        return null;
-                    return Convert.ToInt32(result);
-                }
-            }
-            catch
-            {
-                // Jeśli kolumna nie istnieje lub inny błąd - zwróć null
-                return null;
             }
         }
 
@@ -2057,6 +2395,30 @@ namespace Kalendarz1
         /// <summary>
         /// Aktualizuje mini-kalendarz z podglądem planowanych dostaw z formularza
         /// </summary>
+        // Debounce: zapamiętaj że trzeba odświeżyć, ale wykonaj dopiero po 300ms bezruchu
+        // (zamiast pełnego rebuildu na każdy keystroke).
+        private void ScheduleMiniCalendarRefresh()
+        {
+            if (chkKalendarz?.IsChecked != true) return;
+
+            if (_miniCalendarDebounceTimer == null)
+            {
+                _miniCalendarDebounceTimer = new System.Windows.Threading.DispatcherTimer
+                {
+                    Interval = TimeSpan.FromMilliseconds(300)
+                };
+                _miniCalendarDebounceTimer.Tick += (s, e) =>
+                {
+                    _miniCalendarDebounceTimer.Stop();
+                    UpdateMiniCalendarPreview();
+                };
+            }
+
+            // Restart timera - jeśli user dalej pisze, czekamy
+            _miniCalendarDebounceTimer.Stop();
+            _miniCalendarDebounceTimer.Start();
+        }
+
         private void UpdateMiniCalendarPreview()
         {
             if (chkKalendarz?.IsChecked != true || panelWeeksList == null) return;
@@ -2156,6 +2518,103 @@ namespace Kalendarz1
             }
         }
 
+        // Bezpieczna synchronizacja dostaw przy edycji wstawienia.
+        // Zachowuje istniejące Lp w HarmonogramDostaw aby nie zerwać relacji z PartiaDostawca/QC/itp.
+        private void SynchronizujDostawy(SqlConnection conn, SqlTransaction trans, long lpW,
+            DateTime dataWstawienia, string typUmowy, string typCeny, string bufor, bool zapiszAuta)
+        {
+            // 1. Pobierz Lp dostaw aktualnie istniejących w bazie dla tego wstawienia
+            // CAST + Convert.ToInt64 - kolumna Lp w HarmonogramDostaw jest INT, nie BIGINT
+            var istniejaceLp = new HashSet<long>();
+            using (var cmd = new SqlCommand("SELECT CAST(Lp AS BIGINT) AS Lp FROM dbo.HarmonogramDostaw WHERE LpW = @LpW", conn, trans))
+            {
+                cmd.Parameters.AddWithValue("@LpW", lpW);
+                using (var r = cmd.ExecuteReader())
+                {
+                    while (r.Read()) istniejaceLp.Add(Convert.ToInt64(r[0]));
+                }
+            }
+
+            // 2. UPDATE/INSERT dla każdej dostawy w UI
+            var lpZachowane = new HashSet<long>();
+            foreach (var dostawa in dostawyRows)
+            {
+                if (dostawa.LpDostawy.HasValue && istniejaceLp.Contains(dostawa.LpDostawy.Value))
+                {
+                    AktualizujDostaweDb(conn, trans, dostawa, dostawa.LpDostawy.Value, lpW,
+                        dataWstawienia, typUmowy, typCeny, bufor, zapiszAuta);
+                    lpZachowane.Add(dostawa.LpDostawy.Value);
+                }
+                else
+                {
+                    long noweLp = WstawDostaweDb(conn, trans, dostawa, lpW,
+                        dataWstawienia, typUmowy, typCeny, bufor, zapiszAuta);
+                    dostawa.LpDostawy = noweLp;
+                    lpZachowane.Add(noweLp);
+                }
+            }
+
+            // 3. DELETE dostaw usuniętych w UI
+            foreach (var lp in istniejaceLp)
+            {
+                if (!lpZachowane.Contains(lp))
+                {
+                    using (var cmd = new SqlCommand("DELETE FROM dbo.HarmonogramDostaw WHERE Lp = @Lp", conn, trans))
+                    {
+                        cmd.Parameters.AddWithValue("@Lp", lp);
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+        }
+
+        private void AktualizujDostaweDb(SqlConnection conn, SqlTransaction trans, DostawaRow dostawa,
+            long lpDostawy, long lpW, DateTime dataWstawienia, string typUmowy, string typCeny, string bufor, bool zapiszAuta)
+        {
+            DateTime dataDostawy = dostawa.DpData?.SelectedDate ?? dataWstawienia;
+
+            const string sql = @"UPDATE dbo.HarmonogramDostaw SET
+                Dostawca = @D, DataOdbioru = @DO, KmH = @KmH, WagaDek = @W, SztukiDek = @Szt,
+                TypUmowy = @TU, bufor = @Buf, SztSzuflada = @Szuf, Auta = @Auta, typCeny = @TC,
+                UWAGI = @Uw
+                WHERE Lp = @Lp";
+            using (var cmd = new SqlCommand(sql, conn, trans))
+            {
+                cmd.Parameters.AddWithValue("@Lp", lpDostawy);
+                cmd.Parameters.AddWithValue("@D", cmbDostawca.SelectedItem.ToString());
+                cmd.Parameters.AddWithValue("@DO", dataDostawy);
+                cmd.Parameters.AddWithValue("@KmH", txtKmH?.Text ?? "");
+
+                string wagaText = (dostawa.TxtWaga?.Text ?? "").Replace(',', '.');
+                decimal waga = 0m;
+                if (!string.IsNullOrWhiteSpace(wagaText))
+                    decimal.TryParse(wagaText, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out waga);
+                cmd.Parameters.AddWithValue("@W", waga);
+
+                int sztuki = 0;
+                if (!string.IsNullOrWhiteSpace(dostawa.TxtSztuki?.Text))
+                    int.TryParse(dostawa.TxtSztuki.Text, out sztuki);
+                cmd.Parameters.AddWithValue("@Szt", sztuki);
+
+                cmd.Parameters.AddWithValue("@TU", typUmowy);
+                cmd.Parameters.AddWithValue("@Buf", bufor);
+
+                int sztPoj = 0;
+                if (!string.IsNullOrWhiteSpace(dostawa.TxtSztPoj?.Text))
+                    int.TryParse(dostawa.TxtSztPoj.Text, out sztPoj);
+                cmd.Parameters.AddWithValue("@Szuf", sztPoj);
+
+                int auta = 0;
+                if (zapiszAuta && !string.IsNullOrWhiteSpace(dostawa.TxtAutaReczne?.Text))
+                    int.TryParse(dostawa.TxtAutaReczne.Text, out auta);
+                cmd.Parameters.AddWithValue("@Auta", auta);
+
+                cmd.Parameters.AddWithValue("@TC", typCeny);
+                cmd.Parameters.AddWithValue("@Uw", txtNotatki?.Text ?? "");
+                cmd.ExecuteNonQuery();
+            }
+        }
+
         private int DodajNotatke(SqlConnection conn, SqlTransaction trans, long indeksId, string tresc, string userId)
         {
             if (string.IsNullOrWhiteSpace(tresc))
@@ -2179,17 +2638,17 @@ namespace Kalendarz1
         private long WstawDostaweDb(SqlConnection conn, SqlTransaction trans, DostawaRow dostawa, long lpW, DateTime dataWstawienia, string typUmowy, string typCeny, string bufor, bool zapiszAuta)
         {
             long lp;
-            using (var cmd = new SqlCommand("SELECT MAX(Lp) FROM dbo.HarmonogramDostaw", conn, trans))
+            // UPDLOCK + HOLDLOCK aby równoległe transakcje nie dostały tego samego Lp
+            using (var cmd = new SqlCommand("SELECT MAX(Lp) FROM dbo.HarmonogramDostaw WITH (UPDLOCK, HOLDLOCK)", conn, trans))
             {
                 object v = cmd.ExecuteScalar();
                 lp = (v == DBNull.Value) ? 1 : Convert.ToInt64(v) + 1;
             }
 
+            // DpData jest jedynym źródłem prawdy - PrzeliczenieDoby już synchronizuje DpData
+            // przy edycji TxtDoba, więc nie trzeba ponownie liczyć z TxtDoba (które bywa nieaktualne
+            // gdy użytkownik zmienia DatePicker - PrzeliczenieRoznicyDni nie aktualizuje TxtDoba).
             DateTime dataDostawy = dostawa.DpData?.SelectedDate ?? dataWstawienia;
-            if (dostawa.TxtDoba != null && int.TryParse(dostawa.TxtDoba.Text, out int doba))
-            {
-                dataDostawy = dataWstawienia.AddDays(doba);
-            }
 
             const string sql = @"INSERT INTO dbo.HarmonogramDostaw (Lp, LpW, Dostawca, DataOdbioru, Kmk, KmH, WagaDek, SztukiDek, TypUmowy, bufor, SztSzuflada, Auta, typCeny, UWAGI, DataUtw, KtoStwo)
                 VALUES (@Lp, @LpW, @D, @DO, @KmK, @KmH, @W, @Szt, @TU, @Buf, @Szuf, @Auta, @TC, @Uw, SYSDATETIME(), @Kto)";
@@ -2202,8 +2661,11 @@ namespace Kalendarz1
                 cmd.Parameters.AddWithValue("@KmK", "");
                 cmd.Parameters.AddWithValue("@KmH", txtKmH?.Text ?? "");
 
-                string wagaText = (dostawa.TxtWaga?.Text ?? "0").Replace(',', '.');
-                cmd.Parameters.AddWithValue("@W", decimal.Parse(wagaText, System.Globalization.CultureInfo.InvariantCulture));
+                string wagaText = (dostawa.TxtWaga?.Text ?? "").Replace(',', '.');
+                decimal waga = 0m;
+                if (!string.IsNullOrWhiteSpace(wagaText))
+                    decimal.TryParse(wagaText, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out waga);
+                cmd.Parameters.AddWithValue("@W", waga);
 
                 int sztuki = 0;
                 if (!string.IsNullOrWhiteSpace(dostawa.TxtSztuki?.Text))

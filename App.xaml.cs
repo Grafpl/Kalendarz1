@@ -60,6 +60,7 @@ namespace Kalendarz1
         // Inicjalizacja iTextSharp rozwiązuje problem NullReferenceException
         // w Version.GetInstance() na .NET 8
         private static bool _iTextSharpInitialized = false;
+        private static Assembly _bouncyCastleAssembly;
 
         private static void InitializeITextSharp()
         {
@@ -79,6 +80,18 @@ namespace Kalendarz1
                     var instance = Activator.CreateInstance(versionType, true);
                     versionField.SetValue(null, instance);
                 }
+
+                // KROK 2: Binding redirect dla BouncyCastle.Cryptography
+                // iTextSharp 5.5.13.4 prosi o wersję 2.0.0.0, projekt ma 2.6.2 — w .NET 8
+                // bindingRedirect z app.config nie działa, więc robimy resolver ręcznie
+                try { _bouncyCastleAssembly = Assembly.Load("BouncyCastle.Cryptography"); } catch { }
+                AppDomain.CurrentDomain.AssemblyResolve += (sender, args) =>
+                {
+                    var requested = new AssemblyName(args.Name);
+                    if (requested.Name == "BouncyCastle.Cryptography" && _bouncyCastleAssembly != null)
+                        return _bouncyCastleAssembly;
+                    return null;
+                };
 
                 _iTextSharpInitialized = true;
             }

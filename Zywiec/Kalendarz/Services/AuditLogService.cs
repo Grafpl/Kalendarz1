@@ -1,6 +1,8 @@
 using Microsoft.Data.SqlClient;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -122,14 +124,48 @@ namespace Kalendarz1.Zywiec.Kalendarz.Services
     }
 
     /// <summary>
-    /// Serwis do zarządzania audytem zmian w systemie dostaw
+    /// Klasa wewnętrzna - jeden wpis audytu w kolejce do zapisu.
     /// </summary>
-    public class AuditLogService
+    internal class PendingAuditEntry
+    {
+        public string UserID;
+        public string UserName;
+        public string TableName;
+        public string RecordID;
+        public AuditOperationType OperationType;
+        public AuditChangeSource Source;
+        public string FieldName;
+        public string OldValue;
+        public string NewValue;
+        public string ContextInfoJson;
+        public string Description;
+        public string ComputerName;
+        public DateTime Timestamp = DateTime.Now;
+        public int Attempts = 0;
+    }
+
+    /// <summary>
+    /// Serwis do zarządzania audytem zmian w systemie dostaw.
+    /// Wpisy są kolejkowane i zapisywane przez background worker -
+    /// gwarantuje że nic nie zginie nawet przy chwilowej awarii bazy.
+    /// </summary>
+    public class AuditLogService : IDisposable
     {
         private readonly string _connectionString;
         private readonly string _userId;
         private readonly string _userName;
         private static readonly string _computerName = Environment.MachineName;
+
+        // Kolejka oczekujących wpisów audytu
+        private readonly ConcurrentQueue<PendingAuditEntry> _pendingQueue = new ConcurrentQueue<PendingAuditEntry>();
+        private readonly System.Threading.Timer _flushTimer;
+        private readonly SemaphoreSlim _flushLock = new SemaphoreSlim(1, 1);
+        private bool _disposed = false;
+
+        // Konfiguracja retry
+        private const int MAX_ATTEMPTS = 3;
+        private const int FLUSH_INTERVAL_MS = 2000;
+        private const int IMMEDIATE_FLUSH_THRESHOLD = 10;
 
         /// <summary>
         /// Konstruktor serwisu audytu
@@ -142,6 +178,172 @@ namespace Kalendarz1.Zywiec.Kalendarz.Services
             _connectionString = connectionString;
             _userId = userId;
             _userName = userName;
+
+            // Background flush timer - co FLUSH_INTERVAL_MS
+            _flushTimer = new System.Threading.Timer(
+                callback: async _ => await FlushPendingEntriesAsync(),
+                state: null,
+                dueTime: FLUSH_INTERVAL_MS,
+                period: FLUSH_INTERVAL_MS);
+        }
+
+        /// <summary>
+        /// Zapisz wszystkie oczekujące wpisy. Wywoływać przy zamykaniu okna.
+        /// </summary>
+        public async Task FlushAndWaitAsync(CancellationToken cancellationToken = default)
+        {
+            // Daj kolejce 5 sekund na opróżnienie
+            using (var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
+            {
+                cts.CancelAfter(TimeSpan.FromSeconds(5));
+                try { await FlushPendingEntriesAsync(); } catch { }
+            }
+        }
+
+        /// <summary>
+        /// Ile wpisów czeka w kolejce (do diagnostyki).
+        /// </summary>
+        public int PendingCount => _pendingQueue.Count;
+
+        public void Dispose()
+        {
+            if (_disposed) return;
+            _disposed = true;
+            try { _flushTimer?.Dispose(); } catch { }
+            // Ostatnia próba flush + fallback do pliku jeśli się nie uda
+            try { FlushPendingEntriesAsync().Wait(TimeSpan.FromSeconds(2)); } catch { }
+            DumpRemainingToFile();
+            try { _flushLock?.Dispose(); } catch { }
+        }
+
+        /// <summary>
+        /// Worker - próbuje zapisać oczekujące wpisy do bazy.
+        /// Wpisy które się nie udają trafiają z powrotem do kolejki (do MAX_ATTEMPTS prób).
+        /// </summary>
+        private async Task FlushPendingEntriesAsync()
+        {
+            if (_pendingQueue.IsEmpty) return;
+            if (!await _flushLock.WaitAsync(0)) return; // już ktoś flushuje
+
+            try
+            {
+                // Pobierz batch (maks 50 na raz)
+                var batch = new List<PendingAuditEntry>();
+                while (batch.Count < 50 && _pendingQueue.TryDequeue(out var entry))
+                {
+                    batch.Add(entry);
+                }
+                if (batch.Count == 0) return;
+
+                // Zapisuj jeden po drugim - jak który nie wejdzie, dodaj z powrotem do kolejki
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    try { await conn.OpenAsync(); }
+                    catch
+                    {
+                        // Brak połączenia - wszystkie wracają do kolejki
+                        foreach (var e in batch) RequeueOrDrop(e);
+                        return;
+                    }
+
+                    foreach (var entry in batch)
+                    {
+                        try
+                        {
+                            await InsertOneAsync(conn, entry);
+                        }
+                        catch
+                        {
+                            entry.Attempts++;
+                            RequeueOrDrop(entry);
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Tolerancyjne
+            }
+            finally
+            {
+                _flushLock.Release();
+            }
+        }
+
+        /// <summary>
+        /// Dodaje z powrotem do kolejki, chyba że przekroczono MAX_ATTEMPTS - wtedy zapisuje do pliku.
+        /// </summary>
+        private void RequeueOrDrop(PendingAuditEntry entry)
+        {
+            if (entry.Attempts >= MAX_ATTEMPTS)
+            {
+                DumpEntryToFile(entry);
+                return;
+            }
+            _pendingQueue.Enqueue(entry);
+        }
+
+        private async Task InsertOneAsync(SqlConnection conn, PendingAuditEntry entry)
+        {
+            using (var cmd = new SqlCommand(@"
+                INSERT INTO AuditLog_Dostawy (
+                    UserID, UserName, NazwaTabeli, RekordID, TypOperacji, ZrodloZmiany,
+                    NazwaPola, StaraWartosc, NowaWartosc, DodatkoweInfo, OpisZmiany,
+                    NazwaKomputera, DataZmiany
+                )
+                VALUES (
+                    @UserID, @UserName, @NazwaTabeli, @RekordID, @TypOperacji, @ZrodloZmiany,
+                    @NazwaPola, @StaraWartosc, @NowaWartosc, @DodatkoweInfo, @OpisZmiany,
+                    @NazwaKomputera, @DataZmiany
+                )", conn))
+            {
+                cmd.Parameters.AddWithValue("@UserID", (object)entry.UserID ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@UserName", (object)entry.UserName ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@NazwaTabeli", entry.TableName);
+                cmd.Parameters.AddWithValue("@RekordID", (object)entry.RecordID ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@TypOperacji", entry.OperationType.ToString());
+                cmd.Parameters.AddWithValue("@ZrodloZmiany", entry.Source.ToString());
+                cmd.Parameters.AddWithValue("@NazwaPola", (object)entry.FieldName ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@StaraWartosc", (object)entry.OldValue ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@NowaWartosc", (object)entry.NewValue ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@DodatkoweInfo", (object)entry.ContextInfoJson ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@OpisZmiany", (object)entry.Description ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@NazwaKomputera", (object)entry.ComputerName ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@DataZmiany", entry.Timestamp);
+
+                await cmd.ExecuteNonQueryAsync();
+            }
+        }
+
+        /// <summary>
+        /// Zrzuca wpis do pliku JSON gdy nie da się zapisać do bazy.
+        /// </summary>
+        private static void DumpEntryToFile(PendingAuditEntry entry)
+        {
+            try
+            {
+                string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                string dir = Path.Combine(appData, "Kalendarz1", "audit_failed");
+                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                string file = Path.Combine(dir, $"{DateTime.Now:yyyyMMdd_HHmmss_fff}_{Guid.NewGuid().ToString("N").Substring(0, 8)}.json");
+                File.WriteAllText(file, JsonSerializer.Serialize(entry));
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// Przy Dispose - zrzuć całą resztę kolejki do plików (żeby nic nie ginęło).
+        /// </summary>
+        private void DumpRemainingToFile()
+        {
+            try
+            {
+                while (_pendingQueue.TryDequeue(out var e))
+                {
+                    DumpEntryToFile(e);
+                }
+            }
+            catch { }
         }
 
         #region Główne metody logowania
@@ -635,7 +837,7 @@ namespace Kalendarz1.Zywiec.Kalendarz.Services
         /// <summary>
         /// Główna metoda logowania do bazy danych
         /// </summary>
-        private async Task LogAsync(
+        private Task LogAsync(
             string tableName,
             string recordId,
             AuditOperationType operationType,
@@ -647,46 +849,44 @@ namespace Kalendarz1.Zywiec.Kalendarz.Services
             string description,
             CancellationToken cancellationToken)
         {
+            // Enqueue zamiast synchronicznego INSERTU - gwarantuje że wpis nie zginie
+            // jeśli baza jest chwilowo niedostępna lub okno zostanie zamknięte.
             try
             {
-                using (var conn = new SqlConnection(_connectionString))
+                _pendingQueue.Enqueue(new PendingAuditEntry
                 {
-                    await conn.OpenAsync(cancellationToken);
+                    UserID = _userId,
+                    UserName = _userName,
+                    TableName = tableName,
+                    RecordID = recordId,
+                    OperationType = operationType,
+                    Source = source,
+                    FieldName = fieldName,
+                    OldValue = oldValue,
+                    NewValue = newValue,
+                    ContextInfoJson = contextInfo?.ToJson(),
+                    Description = description,
+                    ComputerName = _computerName,
+                    Timestamp = DateTime.Now
+                });
 
-                    using (var cmd = new SqlCommand(@"
-                        INSERT INTO AuditLog_Dostawy (
-                            UserID, UserName, NazwaTabeli, RekordID, TypOperacji, ZrodloZmiany,
-                            NazwaPola, StaraWartosc, NowaWartosc, DodatkoweInfo, OpisZmiany,
-                            NazwaKomputera
-                        )
-                        VALUES (
-                            @UserID, @UserName, @NazwaTabeli, @RekordID, @TypOperacji, @ZrodloZmiany,
-                            @NazwaPola, @StaraWartosc, @NowaWartosc, @DodatkoweInfo, @OpisZmiany,
-                            @NazwaKomputera
-                        )", conn))
+                // Jeśli kolejka ma > IMMEDIATE_FLUSH_THRESHOLD wpisów - wymuszamy flush teraz
+                // (żeby nie czekać 2s i nie tracić responsywności przy bulk operations)
+                if (_pendingQueue.Count >= IMMEDIATE_FLUSH_THRESHOLD)
+                {
+                    _ = Task.Run(async () =>
                     {
-                        cmd.Parameters.AddWithValue("@UserID", _userId ?? (object)DBNull.Value);
-                        cmd.Parameters.AddWithValue("@UserName", _userName ?? (object)DBNull.Value);
-                        cmd.Parameters.AddWithValue("@NazwaTabeli", tableName);
-                        cmd.Parameters.AddWithValue("@RekordID", recordId);
-                        cmd.Parameters.AddWithValue("@TypOperacji", operationType.ToString());
-                        cmd.Parameters.AddWithValue("@ZrodloZmiany", source.ToString());
-                        cmd.Parameters.AddWithValue("@NazwaPola", fieldName ?? (object)DBNull.Value);
-                        cmd.Parameters.AddWithValue("@StaraWartosc", oldValue ?? (object)DBNull.Value);
-                        cmd.Parameters.AddWithValue("@NowaWartosc", newValue ?? (object)DBNull.Value);
-                        cmd.Parameters.AddWithValue("@DodatkoweInfo", contextInfo?.ToJson() ?? (object)DBNull.Value);
-                        cmd.Parameters.AddWithValue("@OpisZmiany", description ?? (object)DBNull.Value);
-                        cmd.Parameters.AddWithValue("@NazwaKomputera", _computerName ?? (object)DBNull.Value);
-
-                        await cmd.ExecuteNonQueryAsync(cancellationToken);
-                    }
+                        try { await FlushPendingEntriesAsync(); }
+                        catch { }
+                    });
                 }
             }
             catch (Exception ex)
             {
-                // Logowanie błędów audytu nie powinno przerywać głównej operacji
-                System.Diagnostics.Debug.WriteLine($"AuditLog Error: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"AuditLog enqueue error: {ex.Message}");
             }
+
+            return Task.CompletedTask;
         }
 
         /// <summary>

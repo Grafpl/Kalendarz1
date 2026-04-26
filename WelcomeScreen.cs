@@ -93,33 +93,43 @@ namespace Kalendarz1
 
         private void AnimationTimer_Tick(object sender, EventArgs e)
         {
-            switch (animationPhase)
+            // Guard: timer mógł odpalić po zamknięciu okna; bez tego ObjectDisposedException
+            // leci jako unhandled na UI thread → potencjalny crash całej aplikacji.
+            if (IsDisposed) return;
+            try
             {
-                case 0: // Fade in
-                    currentOpacity += 0.1f;
-                    if (currentOpacity >= 1)
-                    {
-                        currentOpacity = 1;
-                        animationPhase = 1;
-                        closeTimer.Start();
-                    }
-                    break;
+                switch (animationPhase)
+                {
+                    case 0: // Fade in
+                        currentOpacity += 0.1f;
+                        if (currentOpacity >= 1)
+                        {
+                            currentOpacity = 1;
+                            animationPhase = 1;
+                            closeTimer.Start();
+                        }
+                        break;
 
-                case 2: // Fade out
-                    currentOpacity -= 0.08f;
-                    if (currentOpacity <= 0)
-                    {
-                        currentOpacity = 0;
-                        animationTimer.Stop();
-                        this.DialogResult = DialogResult.OK;
-                        this.Close();
-                        return;
-                    }
-                    break;
+                    case 2: // Fade out
+                        currentOpacity -= 0.08f;
+                        if (currentOpacity <= 0)
+                        {
+                            currentOpacity = 0;
+                            animationTimer.Stop();
+                            this.DialogResult = DialogResult.OK;
+                            this.Close();
+                            return;
+                        }
+                        break;
+                }
+
+                this.Opacity = currentOpacity;
+                this.Invalidate();
             }
-
-            this.Opacity = currentOpacity;
-            this.Invalidate();
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"WelcomeScreen tick error: {ex.Message}");
+            }
         }
 
         private void WelcomeScreen_Paint(object sender, PaintEventArgs e)

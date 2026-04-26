@@ -106,14 +106,18 @@ namespace Kalendarz1.Reklamacje
         {
             // Workflow V2: widocznosc przyciskow zalezy od zaznaczonej reklamacji + isJakosc
             // (UstawKontekstoweAkcje woli wlasciwe przyciski w SelectionChanged)
+            bool isAdmin = userId == "11111";
 
             // Statystyki - tylko dla jakosci
             if (btnStatystyki != null) btnStatystyki.Visibility = isJakosc ? Visibility.Visible : Visibility.Collapsed;
 
-            // Usuwanie + debug + ustawienia sync - tylko admin
-            if (btnUsun != null) btnUsun.Visibility = userId == "11111" ? Visibility.Visible : Visibility.Collapsed;
-            if (btnDebugSync != null) btnDebugSync.Visibility = userId == "11111" ? Visibility.Visible : Visibility.Collapsed;
-            if (btnUstawieniaSync != null) btnUstawieniaSync.Visibility = userId == "11111" ? Visibility.Visible : Visibility.Collapsed;
+            // Usuwanie + debug + ustawienia sync - tylko admin (UserID 11111)
+            if (btnUsun != null) btnUsun.Visibility = isAdmin ? Visibility.Visible : Visibility.Collapsed;
+            if (btnDebugSync != null) btnDebugSync.Visibility = isAdmin ? Visibility.Visible : Visibility.Collapsed;
+            if (btnUstawieniaSync != null) btnUstawieniaSync.Visibility = isAdmin ? Visibility.Visible : Visibility.Collapsed;
+
+            // Panel jakosci - ZAWSZE widoczny dla wszystkich (bez ograniczen rolowych)
+            if (panelJakosci != null) panelJakosci.Visibility = Visibility.Visible;
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -125,6 +129,9 @@ namespace Kalendarz1.Reklamacje
             WczytajReklamacje();
             WczytajStatystyki();
             PrzelaczZakladke("DO_AKCJI");
+
+            // Footer collapse - schowaj panele akcji bez zaznaczenia
+            if (paneleAkcji != null) paneleAkcji.Visibility = Visibility.Collapsed;
         }
 
         private void WczytajMapowanieHandlowcow()
@@ -227,7 +234,10 @@ namespace Kalendarz1.Reklamacje
                         "KategoriaPrzyczyny NVARCHAR(50) NULL",
                         "PodkategoriaPrzyczyny NVARCHAR(100) NULL",
                         // Handlowiec przypisany do kontrahenta
-                        "Handlowiec NVARCHAR(100) NULL"
+                        "Handlowiec NVARCHAR(100) NULL",
+                        // Kto i kiedy ZAKONCZYL sprawe (Zatwierdz / Odrzuc) — pokazywane w kolumnie "Zakonczyl"
+                        "DataZakonczenia DATETIME NULL",
+                        "UserZakonczenia NVARCHAR(50) NULL"
                     };
 
                     foreach (var def in kolumnyDoDodania)
@@ -489,10 +499,15 @@ namespace Kalendarz1.Reklamacje
                             r.IdFakturyOryginalnej,
                             r.DecyzjaJakosci,
                             ISNULL(r.WymagaUzupelnienia, 0) AS WymagaUzupelnienia,
-                            ISNULL(r.Handlowiec, '') AS Handlowiec
+                            ISNULL(r.Handlowiec, '') AS Handlowiec,
+                            ISNULL(r.UserZakonczenia, '') AS UserZakonczeniaId,
+                            ISNULL(o3.Name, r.UserZakonczenia) AS UserZakonczeniaName,
+                            r.DataZakonczenia,
+                            r.DataAnalizy
                         FROM [dbo].[Reklamacje] r
                         LEFT JOIN [dbo].[operators] o ON r.UserID = o.ID
                         LEFT JOIN [dbo].[operators] o2 ON r.OsobaRozpatrujaca = o2.ID
+                        LEFT JOIN [dbo].[operators] o3 ON r.UserZakonczenia = o3.ID
                         WHERE (r.TypReklamacji <> 'Faktura korygujaca' OR r.DataZgloszenia >= @DataOdKorekt OR ISNULL(r.StatusV2,'ZGLOSZONA') NOT IN ('ZGLOSZONA'))";
 
                     string statusFilter = (cmbStatus.SelectedItem as ComboBoxItem)?.Content?.ToString();
@@ -529,10 +544,12 @@ namespace Kalendarz1.Reklamacje
                         query += " AND r.Opis LIKE @Handlowiec";
                     }
 
+                    // SZUKAJ — zwykle LIKE po kilku polach
                     string szukaj = txtSzukaj?.Text?.Trim();
-                    if (!string.IsNullOrEmpty(szukaj))
+                    bool maSzukaj = !string.IsNullOrEmpty(szukaj);
+                    if (maSzukaj)
                     {
-                        query += " AND (r.NumerDokumentu LIKE @Szukaj OR r.NazwaKontrahenta LIKE @Szukaj OR r.Opis LIKE @Szukaj)";
+                        query += " AND (r.NumerDokumentu LIKE @Szukaj OR r.NazwaKontrahenta LIKE @Szukaj OR r.Opis LIKE @Szukaj OR r.TypReklamacji LIKE @Szukaj OR r.PrzyczynaGlowna LIKE @Szukaj)";
                     }
 
                     query += " ORDER BY r.DataZgloszenia DESC";
@@ -556,10 +573,7 @@ namespace Kalendarz1.Reklamacje
                             cmd.Parameters.AddWithValue("@Priorytet", priorytetFilter);
                         }
 
-                        if (!string.IsNullOrEmpty(szukaj))
-                        {
-                            cmd.Parameters.AddWithValue("@Szukaj", $"%{szukaj}%");
-                        }
+                        if (maSzukaj) cmd.Parameters.AddWithValue("@Szukaj", $"%{szukaj}%");
 
                         if (!string.IsNullOrEmpty(handlowiecFilter) && handlowiecFilter != "Wszyscy")
                         {
@@ -592,10 +606,15 @@ namespace Kalendarz1.Reklamacje
                                     IdFakturyOryginalnej = reader.IsDBNull(17) ? (int?)null : reader.GetInt32(17),
                                     DecyzjaJakosci = reader.IsDBNull(18) ? null : reader.GetString(18),
                                     WymagaUzupelnienia = !reader.IsDBNull(19) && reader.GetBoolean(19),
-                                    Handlowiec = reader.IsDBNull(20) ? "" : reader.GetString(20)
+                                    Handlowiec = reader.IsDBNull(20) ? "" : reader.GetString(20),
+                                    UserZakonczeniaId = reader.IsDBNull(21) ? "" : reader.GetString(21),
+                                    UserZakonczenia = reader.IsDBNull(22) ? "" : reader.GetString(22),
+                                    DataZakonczenia = reader.IsDBNull(23) ? (DateTime?)null : reader.GetDateTime(23),
+                                    DataAnalizy = reader.IsDBNull(24) ? (DateTime?)null : reader.GetDateTime(24)
                                 };
                                 item2.ZglaszajacyAvatar = GetCachedAvatar(item2.ZglaszajacyId, item2.Zglaszajacy);
                                 item2.RozpatrujacyAvatar = GetCachedAvatar(item2.RozpatrujacyId, item2.OsobaRozpatrujaca);
+                                item2.ZakonczylAvatar = GetCachedAvatar(item2.UserZakonczeniaId, item2.UserZakonczenia);
                                 if (!string.IsNullOrEmpty(item2.Handlowiec) && item2.Handlowiec != "-")
                                 {
                                     item2.HandlowiecAvatar = GetHandlowiecAvatar(item2.Handlowiec);
@@ -606,6 +625,9 @@ namespace Kalendarz1.Reklamacje
                     }
                 }
 
+                // Zaladuj miniatury zdjec batchem
+                ZaladujMiniaturyDoListy();
+
                 reklamacjeView?.Refresh();
                 AktualizujLicznikiZakladek();
                 AktualizujLicznikZaznaczenia();
@@ -614,6 +636,99 @@ namespace Kalendarz1.Reklamacje
             {
                 FriendlyError.Pokaz(ex, "Nie udalo sie zaladowac listy reklamacji.", this);
             }
+        }
+
+        // Pobiera 3 najnowsze zdjecia + licznik dla kazdej reklamacji jednym zapytaniem
+        private void ZaladujMiniaturyDoListy()
+        {
+            if (reklamacje == null || reklamacje.Count == 0) return;
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+
+                    // Sprawdz czy DaneZdjecia istnieje
+                    bool maBlob = false;
+                    using (var cmd = new SqlCommand(
+                        "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='ReklamacjeZdjecia' AND COLUMN_NAME='DaneZdjecia'", conn))
+                    {
+                        maBlob = Convert.ToInt32(cmd.ExecuteScalar()) > 0;
+                    }
+
+                    // 1) Liczniki zdjec per reklamacja
+                    using (var cmd = new SqlCommand(@"
+                        SELECT IdReklamacji, COUNT(*) AS Liczba
+                        FROM [dbo].[ReklamacjeZdjecia]
+                        GROUP BY IdReklamacji", conn))
+                    using (var r = cmd.ExecuteReader())
+                    {
+                        var dict = new Dictionary<int, int>();
+                        while (r.Read()) dict[r.GetInt32(0)] = r.GetInt32(1);
+                        foreach (var item in reklamacje)
+                            if (dict.TryGetValue(item.Id, out int n)) item.LiczbaZdjec = n;
+                    }
+
+                    // 2) Top 3 najnowsze zdjecia per reklamacja (jako blob lub sciezka)
+                    string sql = maBlob
+                        ? @"WITH Z AS (
+                                SELECT Id, IdReklamacji, NazwaPliku, SciezkaPliku, DaneZdjecia,
+                                       ROW_NUMBER() OVER (PARTITION BY IdReklamacji ORDER BY DataDodania DESC) AS Rn
+                                FROM [dbo].[ReklamacjeZdjecia]
+                            )
+                            SELECT IdReklamacji, Rn, NazwaPliku, SciezkaPliku, DaneZdjecia FROM Z WHERE Rn <= 3"
+                        : @"WITH Z AS (
+                                SELECT Id, IdReklamacji, NazwaPliku, SciezkaPliku,
+                                       ROW_NUMBER() OVER (PARTITION BY IdReklamacji ORDER BY DataDodania DESC) AS Rn
+                                FROM [dbo].[ReklamacjeZdjecia]
+                            )
+                            SELECT IdReklamacji, Rn, NazwaPliku, SciezkaPliku FROM Z WHERE Rn <= 3";
+
+                    using (var cmd = new SqlCommand(sql, conn))
+                    using (var r = cmd.ExecuteReader())
+                    {
+                        var lookup = reklamacje.ToDictionary(x => x.Id);
+                        while (r.Read())
+                        {
+                            int idRekl = r.GetInt32(0);
+                            int rn = r.GetInt32(1);
+                            if (!lookup.TryGetValue(idRekl, out var item)) continue;
+                            ImageSource img = null;
+                            byte[] blob = maBlob && !r.IsDBNull(4) ? (byte[])r["DaneZdjecia"] : null;
+                            string sciezka = !r.IsDBNull(3) ? r.GetString(3) : null;
+                            try { img = ZbudujMiniaturke(blob, sciezka, 36); } catch { img = null; }
+                            if (img != null)
+                            {
+                                if (rn == 1) item.Miniatura1 = img;
+                                else if (rn == 2) item.Miniatura2 = img;
+                                else if (rn == 3) item.Miniatura3 = img;
+                            }
+                        }
+                    }
+                }
+            }
+            catch { /* nie blokuj listy gdy zdjec nie da sie zaladowac */ }
+        }
+
+        // Buduje miniaturke z blob lub sciezki, decoduje do zadanego rozmiaru
+        private static ImageSource ZbudujMiniaturke(byte[] blob, string sciezka, int wysPx)
+        {
+            try
+            {
+                var bi = new BitmapImage();
+                bi.BeginInit();
+                bi.CacheOption = BitmapCacheOption.OnLoad;
+                bi.DecodePixelHeight = wysPx * 2; // 2x dla retina
+                if (blob != null && blob.Length > 0)
+                    bi.StreamSource = new System.IO.MemoryStream(blob);
+                else if (!string.IsNullOrWhiteSpace(sciezka) && System.IO.File.Exists(sciezka))
+                    bi.UriSource = new Uri(sciezka, UriKind.Absolute);
+                else { return null; }
+                bi.EndInit();
+                if (bi.CanFreeze) bi.Freeze();
+                return bi;
+            }
+            catch { return null; }
         }
 
         private void WczytajStatystyki()
@@ -718,86 +833,464 @@ namespace Kalendarz1.Reklamacje
             {
                 string etykieta = StatusyV2.Etykieta(item.StatusV2);
                 txtZaznaczenie.Text = $"Wybrano: #{item.Id} - {item.NazwaKontrahenta} ({etykieta})";
+                if (paneleAkcji != null) paneleAkcji.Visibility = Visibility.Visible;
             }
             else
             {
-                txtZaznaczenie.Text = "Wybierz reklamacje z listy";
+                txtZaznaczenie.Text = "👈 Wybierz reklamacje z listy aby zobaczyc dostepne akcje";
+                if (paneleAkcji != null) paneleAkcji.Visibility = Visibility.Collapsed;
             }
         }
 
-        // Pokazuje tylko te przyciski ktore maja sens dla biezacego StatusV2.
-        // Przyciski decyzyjne tylko dla dzialu jakosci.
-        private void UstawKontekstoweAkcje(ReklamacjaItem item)
+        // ============================================================
+        // KARTA KLIENTA — sticky panel boczny
+        // ============================================================
+        private void WyswietlKarteKlienta(ReklamacjaItem item)
         {
-            btnPrzekazAnaliza.Visibility = Visibility.Collapsed;
-            btnZasadna.Visibility = Visibility.Collapsed;
-            btnNiezasadna.Visibility = Visibility.Collapsed;
-            btnPowiaz.Visibility = Visibility.Collapsed;
-            btnZamknij.Visibility = Visibility.Collapsed;
-            if (sepWorkflow != null) sepWorkflow.Visibility = Visibility.Collapsed;
-            btnZglosDoKorekty.Visibility = Visibility.Collapsed;
-
-            if (item == null) return;
-
-            // Przycisk "Zglos reklamacje do korekty" - dla handlowca i jakosci
-            // Warunek: korekta z Symfonii + otwarta + niepowiazana
-            bool toKorekta = item.TypReklamacji == "Faktura korygujaca";
-            bool otwarta = item.StatusV2 == StatusyV2.ZGLOSZONA || item.StatusV2 == StatusyV2.W_ANALIZIE;
-            bool niepowiazana = !item.MaPowiazanie;
-            if (toKorekta && otwarta && niepowiazana)
+#if KARTA_KLIENTA_ENABLED
+            if (item == null)
             {
-                btnZglosDoKorekty.Visibility = Visibility.Visible;
+                kkPlaceholder.Visibility = Visibility.Visible;
+                kkContent.Visibility = Visibility.Collapsed;
+                kkNazwa.Text = "Wybierz reklamacje";
+                return;
             }
 
-            if (!isJakosc) return;
+            kkPlaceholder.Visibility = Visibility.Collapsed;
+            kkContent.Visibility = Visibility.Visible;
+            kkNazwa.Text = item.NazwaKontrahenta;
 
+            try
+            {
+                // Pobierz IdKontrahenta z reklamacji
+                int khid = 0;
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    using (var cmd = new SqlCommand("SELECT ISNULL(IdKontrahenta,0) FROM [dbo].[Reklamacje] WHERE Id=@Id", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Id", item.Id);
+                        khid = Convert.ToInt32(cmd.ExecuteScalar() ?? 0);
+                    }
+                }
+
+                // Statystyki YTD reklamacji - zlicz z LOKALNEJ listy reklamacji + DB
+                var rok = DateTime.Today.Year;
+                int liczbaYtd = 0; int liczbaZasadne = 0; decimal stratagYtd = 0; decimal kgYtd = 0;
+                int otwarteTeraz = 0;
+                double sumDni = 0; int countDni = 0;
+                var ostatnie = new List<KkSprawaItem>();
+
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    string sql = khid > 0
+                        ? @"SELECT Id, DataZgloszenia, NumerDokumentu, ISNULL(SumaKg,0) AS Kg, ISNULL(StatusV2,'ZGLOSZONA') AS StatusV2,
+                                  ISNULL(TypReklamacji,'') AS TypReklamacji, DataZakonczenia
+                           FROM [dbo].[Reklamacje]
+                           WHERE IdKontrahenta = @Khid
+                           ORDER BY DataZgloszenia DESC"
+                        : @"SELECT Id, DataZgloszenia, NumerDokumentu, ISNULL(SumaKg,0) AS Kg, ISNULL(StatusV2,'ZGLOSZONA') AS StatusV2,
+                                  ISNULL(TypReklamacji,'') AS TypReklamacji, DataZakonczenia
+                           FROM [dbo].[Reklamacje]
+                           WHERE NazwaKontrahenta = @Nazwa
+                           ORDER BY DataZgloszenia DESC";
+                    using (var cmd = new SqlCommand(sql, conn))
+                    {
+                        if (khid > 0) cmd.Parameters.AddWithValue("@Khid", khid);
+                        else cmd.Parameters.AddWithValue("@Nazwa", item.NazwaKontrahenta ?? "");
+                        using (var r = cmd.ExecuteReader())
+                        {
+                            while (r.Read())
+                            {
+                                int idR = r.GetInt32(0);
+                                DateTime dataR = r.IsDBNull(1) ? DateTime.MinValue : r.GetDateTime(1);
+                                string nrR = r.IsDBNull(2) ? "" : r.GetString(2);
+                                decimal kgR = r.IsDBNull(3) ? 0m : r.GetDecimal(3);
+                                string statR = r.IsDBNull(4) ? "ZGLOSZONA" : r.GetString(4);
+                                string typR = r.IsDBNull(5) ? "" : r.GetString(5);
+                                DateTime? dataKonR = r.IsDBNull(6) ? (DateTime?)null : r.GetDateTime(6);
+
+                                if (dataR.Year == rok)
+                                {
+                                    liczbaYtd++;
+                                    kgYtd += kgR;
+                                    if (statR == "ZASADNA" || statR == "POWIAZANA" || statR == "ZAMKNIETA") liczbaZasadne++;
+                                    if (statR == "ZGLOSZONA" || statR == "W_ANALIZIE") otwarteTeraz++;
+                                    if (dataKonR.HasValue) { sumDni += (dataKonR.Value - dataR).TotalDays; countDni++; }
+                                }
+
+                                if (ostatnie.Count < 5)
+                                {
+                                    var (bg, fg, krotki) = StatusKolory(statR);
+                                    ostatnie.Add(new KkSprawaItem
+                                    {
+                                        Tytul = string.IsNullOrEmpty(nrR) ? $"#{idR}" : nrR,
+                                        Podtytul = $"{dataR:dd.MM.yyyy} • {typR}",
+                                        Kwota = kgR > 0 ? $"{kgR:N1} kg" : "",
+                                        StatusBg = bg, StatusFg = fg, StatusKrotki = krotki
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Strata netto: oszacuj jako kg * 8 zł (placeholder — zastąpienie potem realna kwota z DP)
+                stratagYtd = kgYtd * 8m;
+
+                kkLiczbaYtd.Text = liczbaYtd.ToString();
+                kkLiczbaZasadne.Text = $"{liczbaZasadne} zasadnych";
+                kkStrataYtd.Text = $"{stratagYtd:N0} zl";
+                kkStrataKg.Text = $"{kgYtd:N1} kg";
+                kkOtwarte.Text = otwarteTeraz.ToString();
+                kkSrCzas.Text = countDni > 0 ? $"{sumDni / countDni:N1} dni" : "—";
+
+                // Pobierz obroty z HANDEL (faktury sprzedazy YTD)
+                decimal obrot = 0; string ostFakturaTxt = "—"; string handlowiec = "—";
+                if (khid > 0)
+                {
+                    try
+                    {
+                        using (var connH = new SqlConnection(HandelConnString))
+                        {
+                            connH.Open();
+                            using (var cmd = new SqlCommand(@"
+                                SELECT TOP 1
+                                    (SELECT ISNULL(SUM(ABS(walNetto)),0) FROM [HANDEL].[HM].[DK]
+                                     WHERE khid=@K AND seria NOT LIKE 'sFK%' AND anulowany=0 AND YEAR(data)=@Rok) AS Obrot,
+                                    DK.kod, DK.data,
+                                    ISNULL(WYM.CDim_Handlowiec_Val, '-') AS Handlowiec
+                                FROM [HANDEL].[HM].[DK] DK
+                                LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
+                                WHERE DK.khid=@K AND DK.seria NOT LIKE 'sFK%' AND DK.anulowany=0
+                                ORDER BY DK.data DESC", connH))
+                            {
+                                cmd.Parameters.AddWithValue("@K", khid);
+                                cmd.Parameters.AddWithValue("@Rok", rok);
+                                using (var r = cmd.ExecuteReader())
+                                {
+                                    if (r.Read())
+                                    {
+                                        obrot = r.IsDBNull(0) ? 0m : Convert.ToDecimal(r.GetValue(0));
+                                        string nr = r.IsDBNull(1) ? "" : r.GetString(1);
+                                        DateTime dat = r.IsDBNull(2) ? DateTime.MinValue : r.GetDateTime(2);
+                                        ostFakturaTxt = $"{nr} ({dat:dd.MM.yyyy})";
+                                        handlowiec = r.IsDBNull(3) ? "—" : r.GetString(3);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    catch { }
+                }
+
+                kkObrot.Text = obrot > 0 ? $"{obrot:N0} zl" : "—";
+                kkOstatniaFaktura.Text = ostFakturaTxt;
+                kkHandlowiec.Text = handlowiec;
+
+                // % obrotu (problematycznosc)
+                double procent = obrot > 0 ? (double)(stratagYtd / obrot) * 100 : 0;
+                kkProcent.Text = $"{procent:N1}%";
+                // Pasek: 0% = 0 px, 5% = 100% szerokosci
+                double frac = Math.Min(procent / 5.0, 1.0);
+                kkProcentBar.Width = Math.Max(2, frac * 280);
+                Color barColor = procent < 2 ? Color.FromRgb(0x27, 0xAE, 0x60)
+                              : procent < 5 ? Color.FromRgb(0xF1, 0xC4, 0x0F)
+                              : Color.FromRgb(0xC0, 0x39, 0x2B);
+                kkProcentBar.Background = new SolidColorBrush(barColor);
+
+                // Tag (VIP / Standard / Problematyczny)
+                if (procent >= 5 || liczbaYtd >= 20)
+                {
+                    kkTagBadge.Background = new SolidColorBrush(Color.FromRgb(0xC0, 0x39, 0x2B));
+                    kkTagText.Text = "🚨 PROBLEMATYCZNY";
+                    kkProblematycznoscText.Text = $"{liczbaYtd} reklamacji w {rok}";
+                }
+                else if (obrot > 100000)
+                {
+                    kkTagBadge.Background = new SolidColorBrush(Color.FromRgb(0x9B, 0x59, 0xB6));
+                    kkTagText.Text = "⭐ VIP";
+                    kkProblematycznoscText.Text = $"{obrot/1000:N0}k obrotu";
+                }
+                else
+                {
+                    kkTagBadge.Background = new SolidColorBrush(Color.FromRgb(0x27, 0xAE, 0x60));
+                    kkTagText.Text = "STANDARD";
+                    kkProblematycznoscText.Text = $"{liczbaYtd} reklamacji w {rok}";
+                }
+
+                kkOstatnieSprawy.ItemsSource = ostatnie;
+            }
+            catch (Exception)
+            {
+                // Cicho — karta nie krytyczna
+            }
+#endif
+        }
+
+        private static (Brush bg, Brush fg, string krotki) StatusKolory(string statusV2) => statusV2 switch
+        {
+            "ZGLOSZONA" => (new SolidColorBrush(Color.FromRgb(0xFD, 0xED, 0xEC)), new SolidColorBrush(Color.FromRgb(0xC0, 0x39, 0x2B)), "NEW"),
+            "W_ANALIZIE" => (new SolidColorBrush(Color.FromRgb(0xFF, 0xF8, 0xE1)), new SolidColorBrush(Color.FromRgb(0xE6, 0x7E, 0x22)), "ANL"),
+            "ZASADNA" => (new SolidColorBrush(Color.FromRgb(0xE8, 0xF5, 0xE9)), new SolidColorBrush(Color.FromRgb(0x2E, 0x7D, 0x32)), "OK"),
+            "POWIAZANA" => (new SolidColorBrush(Color.FromRgb(0xF3, 0xE5, 0xF5)), new SolidColorBrush(Color.FromRgb(0x7B, 0x1F, 0xA2)), "PWZ"),
+            "ZAMKNIETA" => (new SolidColorBrush(Color.FromRgb(0xEC, 0xEF, 0xF1)), new SolidColorBrush(Color.FromRgb(0x54, 0x6E, 0x7A)), "END"),
+            "ODRZUCONA" => (new SolidColorBrush(Color.FromRgb(0xFF, 0xEB, 0xEE)), new SolidColorBrush(Color.FromRgb(0xC6, 0x28, 0x28)), "REJ"),
+            _ => (new SolidColorBrush(Colors.LightGray), new SolidColorBrush(Colors.DarkGray), "??")
+        };
+
+        // Model wewnetrzny dla listy ostatnich spraw w karcie klienta
+        public class KkSprawaItem
+        {
+            public string Tytul { get; set; }
+            public string Podtytul { get; set; }
+            public string Kwota { get; set; }
+            public Brush StatusBg { get; set; }
+            public Brush StatusFg { get; set; }
+            public string StatusKrotki { get; set; }
+        }
+
+        // ============================================================
+        // CO DALEJ? — persona-aware sugestie akcji
+        // ============================================================
+        public class CoDalejItem
+        {
+            public string Ikona { get; set; }
+            public string Tytul { get; set; }
+            public string Opis { get; set; }
+            public string Akcja { get; set; } // "filtruj_moje" | "filtruj_nowe" | "filtruj_krytyczne" | "filtruj_powiazz" | "do_akcji"
+        }
+
+        private void OdswiezCoDalej()
+        {
+#if CO_DALEJ_ENABLED
+            try
+            {
+                var sugestie = ZbierzSugestieCoDalej();
+                if (sugestie.Count == 0)
+                {
+                    coDalejPanel.Visibility = Visibility.Collapsed;
+                    return;
+                }
+                coDalejPanel.Visibility = Visibility.Visible;
+                coDalejList.ItemsSource = sugestie;
+            }
+            catch { coDalejPanel.Visibility = Visibility.Collapsed; }
+#endif
+        }
+
+        private List<CoDalejItem> ZbierzSugestieCoDalej()
+        {
+            var lista = new List<CoDalejItem>();
+
+            // 1. Krytyczne czekajace na akcje JAKOSCI (>24h od zgloszenia, status ZGLOSZONA)
+            int krytyczne24h = reklamacje.Count(r =>
+                r.StatusV2 == StatusyV2.ZGLOSZONA
+                && (DateTime.Now - r.DataZgloszenia).TotalHours > 24);
+            if (krytyczne24h > 0)
+            {
+                lista.Add(new CoDalejItem
+                {
+                    Ikona = "🔥",
+                    Tytul = $"{krytyczne24h} zgloszen czeka >24h",
+                    Opis = "kliknij aby pokazac",
+                    Akcja = "filtruj_krytyczne"
+                });
+            }
+
+            // 2. Moje sprawy gdzie jestem rozpatrujacy/zglaszajacy
+            int moje = reklamacje.Count(r =>
+                (r.RozpatrujacyId == userId || r.ZglaszajacyId == userId)
+                && (r.StatusV2 == StatusyV2.ZGLOSZONA || r.StatusV2 == StatusyV2.W_ANALIZIE));
+            if (moje > 0)
+            {
+                lista.Add(new CoDalejItem
+                {
+                    Ikona = "👤",
+                    Tytul = $"{moje} mojich w toku",
+                    Opis = "twoja akcja",
+                    Akcja = "filtruj_moje"
+                });
+            }
+
+            // 3. Zasadne czekajace na korekte z Symfonii
+            int zasadnePowiaz = reklamacje.Count(r =>
+                r.StatusV2 == StatusyV2.ZASADNA && !r.MaPowiazanie);
+            if (zasadnePowiaz > 0)
+            {
+                lista.Add(new CoDalejItem
+                {
+                    Ikona = "🔗",
+                    Tytul = $"{zasadnePowiaz} zasadnych do powiazania",
+                    Opis = "z korekta Symfonii",
+                    Akcja = "filtruj_powiazz"
+                });
+            }
+
+            // 4. Nowe (24h)
+            int nowe = reklamacje.Count(r =>
+                (DateTime.Now - r.DataZgloszenia).TotalHours <= 24);
+            if (nowe > 0)
+            {
+                lista.Add(new CoDalejItem
+                {
+                    Ikona = "🆕",
+                    Tytul = $"{nowe} nowych dzisiaj",
+                    Opis = "ostatnie 24h",
+                    Akcja = "filtruj_nowe"
+                });
+            }
+
+            // 5. Wykrycie partii (jesli jest >=3 reklamacji o ten sam numer dokumentu w 7 dni — wzor partii)
+            var grupy = reklamacje
+                .Where(r => r.DataZgloszenia >= DateTime.Now.AddDays(-7) && !string.IsNullOrEmpty(r.NumerDokumentu))
+                .GroupBy(r => r.NazwaKontrahenta)
+                .Where(g => g.Count() >= 3)
+                .OrderByDescending(g => g.Count())
+                .FirstOrDefault();
+            if (grupy != null)
+            {
+                lista.Add(new CoDalejItem
+                {
+                    Ikona = "🚨",
+                    Tytul = $"WZOR: {grupy.Count()}× {grupy.Key}",
+                    Opis = "ostatnie 7 dni",
+                    Akcja = $"filtruj_klient:{grupy.Key}"
+                });
+            }
+
+            // Pokaz max 4
+            return lista.Take(4).ToList();
+        }
+
+        private void CoDalejAkcja_Click(object sender, RoutedEventArgs e)
+        {
+            if (!(sender is System.Windows.Controls.Button btn) || !(btn.Tag is string akcja)) return;
+            switch (akcja)
+            {
+                case "filtruj_krytyczne":
+                    PrzelaczZakladke("DO_AKCJI");
+                    txtSzukaj.Text = "";
+                    cmbStatus.SelectedIndex = 1; // Zgloszona
+                    break;
+                case "filtruj_moje":
+                    txtSzukaj.Text = "moje";
+                    break;
+                case "filtruj_nowe":
+                    txtSzukaj.Text = "nowe";
+                    PrzelaczZakladke("DO_AKCJI");
+                    break;
+                case "filtruj_powiazz":
+                    cmbStatus.SelectedIndex = 3; // Zasadna
+                    break;
+                default:
+                    if (akcja.StartsWith("filtruj_klient:"))
+                    {
+                        var klient = akcja.Substring("filtruj_klient:".Length);
+                        txtSzukaj.Text = klient;
+                    }
+                    break;
+            }
+        }
+
+        private void BtnCoDalejOdswiez_Click(object sender, RoutedEventArgs e) { /* usuniete z UI */ }
+
+        // Wszystkie przyciski ZAWSZE widoczne. Aktywnosc (IsEnabled) zalezy WYLACZNIE od:
+        //   - czy zaznaczona jest reklamacja
+        //   - czy status pozwala na dana akcje
+        // BEZ ograniczen po roli — kazdy moze klikac kazdy przycisk (na odpowiedzialnosc uzytkownika).
+        private void UstawKontekstoweAkcje(ReklamacjaItem item)
+        {
+            // Reset
+            btnPrzekazAnaliza.IsEnabled = false;
+            btnZasadna.IsEnabled = false;
+            btnNiezasadna.IsEnabled = false;
+            btnPowiaz.IsEnabled = false;
+            btnZamknij.IsEnabled = false;
+            btnPrzekazAnaliza.Visibility = Visibility.Visible;
+            btnZasadna.Visibility = Visibility.Visible;
+            btnNiezasadna.Visibility = Visibility.Visible;
+            btnPowiaz.Visibility = Visibility.Visible;
+            btnZamknij.Visibility = Visibility.Visible;
+            if (sepWorkflow != null) sepWorkflow.Visibility = Visibility.Collapsed;
+
+            // Przycisk "Zglos do tej korekty" - kontekstowo Visible
+            btnZglosDoKorekty.Visibility = Visibility.Collapsed;
+            btnZglosDoKorekty.IsEnabled = false;
+            if (item != null)
+            {
+                bool toKorekta = item.TypReklamacji == "Faktura korygujaca";
+                bool otwarta = item.StatusV2 == StatusyV2.ZGLOSZONA || item.StatusV2 == StatusyV2.W_ANALIZIE;
+                bool niepowiazana = !item.MaPowiazanie;
+                if (toKorekta && otwarta && niepowiazana)
+                {
+                    btnZglosDoKorekty.Visibility = Visibility.Visible;
+                    btnZglosDoKorekty.IsEnabled = true;
+                }
+            }
+
+            // Brak zaznaczenia
+            if (item == null)
+            {
+                if (txtJakoscBrakAkcji != null)
+                {
+                    txtJakoscBrakAkcji.Visibility = Visibility.Visible;
+                    txtJakoscBrakAkcji.Text = "Wybierz reklamacje z listy aby aktywowac przyciski rozpatrywania";
+                }
+                AktualizujPasekStatusu(null);
+                return;
+            }
+
+            // Aktywuj kontekstowe akcje na podstawie statusu
             string s = item.StatusV2 ?? StatusyV2.ZGLOSZONA;
             bool jestKorekta = item.TypReklamacji == "Faktura korygujaca" || item.WymagaUzupelnienia;
 
             switch (s)
             {
                 case StatusyV2.ZGLOSZONA:
-                    // Nowe zgloszenie - jakosc przyjmuje do rozpatrzenia
-                    btnPrzekazAnaliza.Visibility = Visibility.Visible;
-                    btnNiezasadna.Visibility = Visibility.Visible;
-                    if (jestKorekta)
-                    {
-                        if (sepWorkflow != null) sepWorkflow.Visibility = Visibility.Visible;
-                        btnPowiaz.Visibility = Visibility.Visible;
-                    }
+                    btnPrzekazAnaliza.IsEnabled = true;
+                    btnNiezasadna.IsEnabled = true;
+                    if (jestKorekta) btnPowiaz.IsEnabled = true;
                     break;
 
                 case StatusyV2.W_ANALIZIE:
-                    // W trakcie analizy - decyzja zaakceptowana lub odrzucona
-                    btnZasadna.Visibility = Visibility.Visible;
-                    btnNiezasadna.Visibility = Visibility.Visible;
-                    if (jestKorekta)
-                    {
-                        if (sepWorkflow != null) sepWorkflow.Visibility = Visibility.Visible;
-                        btnPowiaz.Visibility = Visibility.Visible;
-                    }
+                    btnZasadna.IsEnabled = true;
+                    btnNiezasadna.IsEnabled = true;
+                    if (jestKorekta) btnPowiaz.IsEnabled = true;
                     break;
 
                 case StatusyV2.ZASADNA:
-                    // Czeka na korekte -> powiazanie lub odrzucenie
-                    btnNiezasadna.Visibility = Visibility.Visible;
-                    if (sepWorkflow != null) sepWorkflow.Visibility = Visibility.Visible;
-                    btnPowiaz.Visibility = Visibility.Visible;
+                    btnNiezasadna.IsEnabled = true;
+                    btnPowiaz.IsEnabled = true;
                     break;
 
                 case StatusyV2.POWIAZANA:
-                    // Powiazana - mozna zamknac (lub odlaczyc)
-                    if (sepWorkflow != null) sepWorkflow.Visibility = Visibility.Visible;
-                    btnPowiaz.Visibility = Visibility.Visible; // do odlaczenia
-                    btnZamknij.Visibility = Visibility.Visible;
+                    btnPowiaz.IsEnabled = true; // do odlaczenia
+                    btnZamknij.IsEnabled = true;
                     break;
 
                 case StatusyV2.ZAMKNIETA:
                 case StatusyV2.ODRZUCONA:
-                    // Finalne - tylko podglad
                     break;
             }
+
+            // Komunikat pomocniczy
+            if (txtJakoscBrakAkcji != null)
+            {
+                bool jakiekolwiek = btnPrzekazAnaliza.IsEnabled || btnZasadna.IsEnabled
+                                  || btnNiezasadna.IsEnabled || btnPowiaz.IsEnabled
+                                  || btnZamknij.IsEnabled;
+                txtJakoscBrakAkcji.Visibility = Visibility.Visible;
+                txtJakoscBrakAkcji.Text = jakiekolwiek
+                    ? $"Aktualny status: '{StatusyV2.Etykieta(s)}' — kliknij aktywny (kolorowy) przycisk aby przejsc do nastepnego kroku"
+                    : $"Status '{StatusyV2.Etykieta(s)}' — sprawa zakonczona, brak dalszych akcji";
+            }
+
+            // Pasek workflow usuniety z UI - no-op
         }
+
+        private void AktualizujPasekStatusu(string status) { /* usuniete z UI */ }
 
         private void DgReklamacje_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
@@ -830,13 +1323,6 @@ namespace Kalendarz1.Reklamacje
 
         private void BtnZmienStatus_Click(object sender, RoutedEventArgs e)
         {
-            if (!isJakosc)
-            {
-                MessageBox.Show("Nie masz uprawnien do zmiany statusu reklamacji.\nTa funkcja jest dostepna tylko dla dzialu jakosci.",
-                    "Brak uprawnien", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
             if (dgReklamacje.SelectedItem is ReklamacjaItem item)
             {
                 var dialog = new Window
@@ -933,13 +1419,6 @@ namespace Kalendarz1.Reklamacje
 
         private void BtnZaakceptuj_Click(object sender, RoutedEventArgs e)
         {
-            if (!isJakosc)
-            {
-                MessageBox.Show("Nie masz uprawnien do zmiany statusu reklamacji.\nTa funkcja jest dostepna tylko dla dzialu jakosci.",
-                    "Brak uprawnien", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
             if (dgReklamacje.SelectedItem is ReklamacjaItem item)
             {
                 // Walidacja przejscia
@@ -962,13 +1441,6 @@ namespace Kalendarz1.Reklamacje
 
         private void BtnOdrzuc_Click(object sender, RoutedEventArgs e)
         {
-            if (!isJakosc)
-            {
-                MessageBox.Show("Nie masz uprawnien do zmiany statusu reklamacji.\nTa funkcja jest dostepna tylko dla dzialu jakosci.",
-                    "Brak uprawnien", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
             if (dgReklamacje.SelectedItem is ReklamacjaItem item)
             {
                 // Walidacja przejscia
@@ -993,11 +1465,10 @@ namespace Kalendarz1.Reklamacje
         // WORKFLOW V2 — 3 przyciski decyzyjne jakosci
         // ========================================
 
-        // PRZYJETE - jakosc przyjmuje do rozpatrzenia, bez komentarza
+        // PRZYJMIJ - rozpoczyna rozpatrywanie (dostepne dla wszystkich)
         private void BtnPrzekazAnaliza_Click(object sender, RoutedEventArgs e)
         {
             if (!(dgReklamacje.SelectedItem is ReklamacjaItem item)) return;
-            if (!isJakosc) { BrakUprawnien(); return; }
 
             if (MessageBox.Show(
                 $"Przyjac reklamacje #{item.Id} do rozpatrzenia?\n\nStatus zmieni sie na 'W analizie'. Pozniej bedziesz mogl zdecydowac o akceptacji lub odrzuceniu.",
@@ -1012,11 +1483,10 @@ namespace Kalendarz1.Reklamacje
             WczytajStatystyki();
         }
 
-        // ZAAKCEPTOWANA - dwa pola: przyczyna + akcje naprawcze
+        // ZATWIERDZ - dwa pola: przyczyna + akcje naprawcze (dostepne dla wszystkich)
         private void BtnZasadna_Click(object sender, RoutedEventArgs e)
         {
             if (!(dgReklamacje.SelectedItem is ReklamacjaItem item)) return;
-            if (!isJakosc) { BrakUprawnien(); return; }
 
             var (ok, przyczyna, akcje) = PokazDialogZaakceptowana(item);
             if (!ok) return;
@@ -1030,11 +1500,10 @@ namespace Kalendarz1.Reklamacje
             WczytajStatystyki();
         }
 
-        // ODRZUCONA - jedno pole: powod odrzucenia
+        // ODRZUC - jedno pole: powod odrzucenia (dostepne dla wszystkich)
         private void BtnNiezasadna_Click(object sender, RoutedEventArgs e)
         {
             if (!(dgReklamacje.SelectedItem is ReklamacjaItem item)) return;
-            if (!isJakosc) { BrakUprawnien(); return; }
 
             var (ok, powod) = PokazDialogOdrzucona(item);
             if (!ok) return;
@@ -1048,11 +1517,10 @@ namespace Kalendarz1.Reklamacje
             WczytajStatystyki();
         }
 
-        // ZAMKNIJ - bez dialogu
+        // ZAMKNIJ - bez dialogu (dostepne dla wszystkich)
         private void BtnZamknij_Click(object sender, RoutedEventArgs e)
         {
             if (!(dgReklamacje.SelectedItem is ReklamacjaItem item)) return;
-            if (!isJakosc) { BrakUprawnien(); return; }
 
             if (MessageBox.Show($"Zamknac reklamacje #{item.Id}?\n\nStatus zostanie zmieniony na ZAMKNIETA.",
                 "Potwierdzenie", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
@@ -1104,6 +1572,23 @@ namespace Kalendarz1.Reklamacje
                             AkcjeNaprawcze = COALESCE(@AkcjeNaprawcze, AkcjeNaprawcze),
                             DataAnalizy = CASE WHEN @UstawDataAnalizy = 1 AND DataAnalizy IS NULL THEN GETDATE() ELSE DataAnalizy END,
                             UserAnalizy = CASE WHEN @UstawDataAnalizy = 1 AND UserAnalizy IS NULL THEN @User ELSE UserAnalizy END,
+                            -- PRZYJMIJ: jezeli przechodzimy do W_ANALIZIE -> ustaw OsobaRozpatrujaca = aktualny user (jezeli pusta)
+                            OsobaRozpatrujaca = CASE
+                                WHEN @StatusV2 = 'W_ANALIZIE' AND (OsobaRozpatrujaca IS NULL OR LEN(OsobaRozpatrujaca) = 0)
+                                THEN @User
+                                ELSE OsobaRozpatrujaca
+                            END,
+                            -- ZAKONCZYL: kazda decyzja koncowa (ZASADNA/ODRZUCONA/ZAMKNIETA) -> kto i kiedy zakonczyl
+                            DataZakonczenia = CASE
+                                WHEN @StatusV2 IN ('ZASADNA','ODRZUCONA','ZAMKNIETA') AND DataZakonczenia IS NULL
+                                THEN GETDATE()
+                                ELSE DataZakonczenia
+                            END,
+                            UserZakonczenia = CASE
+                                WHEN @StatusV2 IN ('ZASADNA','ODRZUCONA','ZAMKNIETA') AND UserZakonczenia IS NULL
+                                THEN @User
+                                ELSE UserZakonczenia
+                            END,
                             WymagaUzupelnienia = CASE WHEN @StatusV2 IN ('W_ANALIZIE','ZASADNA','POWIAZANA','ZAMKNIETA','ODRZUCONA') THEN 0 ELSE WymagaUzupelnienia END
                         WHERE Id = @Id;", conn))
                     {
@@ -1917,6 +2402,64 @@ namespace Kalendarz1.Reklamacje
                 return;
             }
 
+            // === MATCH HELPER === oblicz score dopasowania dla kazdego kandydata
+            // Algorytm: kontrahent (40%) + data ±3 dni (20%) + kg ±10% (20%) + numer dokumentu zawiera fragment (20%)
+            foreach (var k in kandydaci)
+            {
+                int score = 0;
+                // Kontrahent (40%)
+                if (!string.IsNullOrEmpty(item.NazwaKontrahenta) && !string.IsNullOrEmpty(k.NazwaKontrahenta))
+                {
+                    var a = item.NazwaKontrahenta.Trim().ToLowerInvariant();
+                    var b = k.NazwaKontrahenta.Trim().ToLowerInvariant();
+                    if (a == b) score += 40;
+                    else if (a.Length >= 4 && b.Contains(a.Substring(0, Math.Min(8, a.Length)))) score += 30;
+                    else if (a.Length >= 4 && a.Substring(0, 4) == b.Substring(0, Math.Min(4, b.Length))) score += 20;
+                }
+                // Data ±N dni (20%)
+                if (item.DataZgloszenia != DateTime.MinValue && k.DataZgloszenia != DateTime.MinValue)
+                {
+                    var dni = Math.Abs((item.DataZgloszenia - k.DataZgloszenia).TotalDays);
+                    if (dni <= 1) score += 20;
+                    else if (dni <= 3) score += 15;
+                    else if (dni <= 7) score += 10;
+                    else if (dni <= 14) score += 5;
+                }
+                // Kg ±10% (20%)
+                if (item.SumaKg > 0 && k.SumaKg > 0)
+                {
+                    decimal roznicaProc = Math.Abs((item.SumaKg - k.SumaKg) / item.SumaKg);
+                    if (roznicaProc <= 0.05m) score += 20;
+                    else if (roznicaProc <= 0.10m) score += 15;
+                    else if (roznicaProc <= 0.20m) score += 10;
+                    else if (roznicaProc <= 0.50m) score += 5;
+                }
+                // Nr dokumentu zawiera fragment (20%)
+                if (!string.IsNullOrEmpty(item.NumerDokumentu) && !string.IsNullOrEmpty(k.NumerDokumentu))
+                {
+                    var a = item.NumerDokumentu.Trim();
+                    var b = k.NumerDokumentu.Trim();
+                    // Wyciagnij liczby z numeru
+                    var liczbyA = System.Text.RegularExpressions.Regex.Matches(a, @"\d+");
+                    var liczbyB = System.Text.RegularExpressions.Regex.Matches(b, @"\d+");
+                    foreach (System.Text.RegularExpressions.Match mA in liczbyA)
+                    {
+                        foreach (System.Text.RegularExpressions.Match mB in liczbyB)
+                        {
+                            if (mA.Value == mB.Value && mA.Value.Length >= 3)
+                            {
+                                score += 20;
+                                goto endNumer;
+                            }
+                        }
+                    }
+                    endNumer:;
+                }
+                k.MatchScore = Math.Min(100, score);
+            }
+            // Sortuj po score
+            kandydaci = kandydaci.OrderByDescending(k => k.MatchScore).ThenByDescending(k => k.DataZgloszenia).ToList();
+
             // Przygotuj fraze wstepna - pierwsze 7 znakow nazwy kontrahenta
             string frazaWstepna = "";
             if (!string.IsNullOrEmpty(item.NazwaKontrahenta))
@@ -2073,6 +2616,33 @@ namespace Kalendarz1.Reklamacje
                 RowBackground = Brushes.White,
                 AlternatingRowBackground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FAFBFC"))
             };
+            // KOLUMNA MATCH — wizualny score dopasowania
+            var matchCol = new DataGridTemplateColumn { Header = "Match", Width = new DataGridLength(110), SortMemberPath = "MatchScore" };
+            var matchTpl = new DataTemplate();
+            var matchFef = new FrameworkElementFactory(typeof(Border));
+            matchFef.SetValue(Border.CornerRadiusProperty, new CornerRadius(4));
+            matchFef.SetValue(Border.PaddingProperty, new Thickness(6, 2, 6, 2));
+            matchFef.SetValue(Border.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+            matchFef.SetBinding(Border.BackgroundProperty, new System.Windows.Data.Binding("MatchScoreColor"));
+            var matchSp = new FrameworkElementFactory(typeof(StackPanel));
+            var matchTb1 = new FrameworkElementFactory(typeof(TextBlock));
+            matchTb1.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("MatchScoreText"));
+            matchTb1.SetValue(TextBlock.FontSizeProperty, 12.0);
+            matchTb1.SetValue(TextBlock.FontWeightProperty, FontWeights.Bold);
+            matchTb1.SetValue(TextBlock.ForegroundProperty, Brushes.White);
+            matchTb1.SetValue(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+            var matchTb2 = new FrameworkElementFactory(typeof(TextBlock));
+            matchTb2.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("MatchBadge"));
+            matchTb2.SetValue(TextBlock.FontSizeProperty, 8.5);
+            matchTb2.SetValue(TextBlock.ForegroundProperty, Brushes.White);
+            matchTb2.SetValue(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+            matchSp.AppendChild(matchTb1);
+            matchSp.AppendChild(matchTb2);
+            matchFef.AppendChild(matchSp);
+            matchTpl.VisualTree = matchFef;
+            matchCol.CellTemplate = matchTpl;
+            dgKandydaci.Columns.Add(matchCol);
+
             dgKandydaci.Columns.Add(new DataGridTextColumn { Header = "ID", Binding = new System.Windows.Data.Binding("Id"), Width = new DataGridLength(50) });
             dgKandydaci.Columns.Add(new DataGridTextColumn { Header = "Data", Binding = new System.Windows.Data.Binding("DataZgloszenia") { StringFormat = "dd.MM.yyyy" }, Width = new DataGridLength(90) });
             dgKandydaci.Columns.Add(new DataGridTextColumn { Header = "Nr dokumentu", Binding = new System.Windows.Data.Binding("NumerDokumentu"), Width = new DataGridLength(140) });
@@ -2953,6 +3523,238 @@ namespace Kalendarz1.Reklamacje
             if (reklamacjeView != null)
                 foreach (var _ in reklamacjeView) widoczne++;
             txtLiczbaReklamacji.Text = widoczne.ToString();
+        }
+
+        // ========================================
+        // SPLIT BUTTON "+ NOWA REKLAMACJA" - 3 sciezki: faktura / korekta / bez faktury
+        // ========================================
+        private void BtnNowaSplit_Click(object sender, RoutedEventArgs e)
+        {
+            if (popupNowa != null) popupNowa.IsOpen = !popupNowa.IsOpen;
+        }
+
+        private void MenuNowa_DoFaktury_Click(object sender, RoutedEventArgs e)
+        {
+            if (popupNowa != null) popupNowa.IsOpen = false;
+            // Sciezka: kontrahent -> jego ostatnie faktury (BtnNowaBezFaktury startuje od kontrahenta)
+            BtnNowaBezFaktury_Click(sender, e);
+        }
+
+        private void MenuNowa_DoKorekty_Click(object sender, RoutedEventArgs e)
+        {
+            if (popupNowa != null) popupNowa.IsOpen = false;
+            PokazPickerKorekty();
+        }
+
+        private void MenuNowa_BezFaktury_Click(object sender, RoutedEventArgs e)
+        {
+            if (popupNowa != null) popupNowa.IsOpen = false;
+            // Sciezka "bez faktury": ten sam dialog co BtnNowaBezFaktury — uzytkownik moze pominac wybor faktury
+            BtnNowaBezFaktury_Click(sender, e);
+        }
+
+        // Picker korekt z Symfonii — dla "Do istniejacej korekty"
+        private void PokazPickerKorekty()
+        {
+            // Otworz okno z lista korekt FKS / FKSB / FWK z ostatnich 180 dni
+            var korekty = new List<FakturaSprzedazyItem>();
+            try
+            {
+                using (var connH = new SqlConnection(HandelConnString))
+                {
+                    connH.Open();
+                    using (var cmd = new SqlCommand(@"
+                        SELECT TOP 1000
+                               DK.id, DK.kod, DK.data, DK.khid,
+                               C.shortcut AS NazwaKontrahenta,
+                               ABS(ISNULL(DK.walNetto, 0)) AS Wartosc,
+                               ABS(ISNULL((SELECT SUM(DP.ilosc) FROM [HANDEL].[HM].[DP] DP WHERE DP.super = DK.id AND DP.ilosc >= 0), 0)) AS SumaKg,
+                               ISNULL(WYM.CDim_Handlowiec_Val, '-') AS Handlowiec
+                        FROM [HANDEL].[HM].[DK] DK
+                        INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
+                        LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
+                        WHERE DK.seria IN ('sFKS', 'sFKSB', 'sFWK')
+                          AND DK.anulowany = 0
+                          AND DK.data >= DATEADD(DAY, -180, GETDATE())
+                          AND C.shortcut NOT LIKE 'SD/%'
+                        ORDER BY DK.data DESC, DK.id DESC", connH))
+                    using (var r = cmd.ExecuteReader())
+                    {
+                        while (r.Read())
+                        {
+                            var dataK = r.GetDateTime(2);
+                            int dni = (int)Math.Floor((DateTime.Today - dataK.Date).TotalDays);
+                            korekty.Add(new FakturaSprzedazyItem
+                            {
+                                Id = r.GetInt32(0),
+                                NumerDokumentu = r.IsDBNull(1) ? "" : r.GetString(1),
+                                Data = dataK,
+                                IdKontrahenta = r.GetInt32(3),
+                                NazwaKontrahenta = r.IsDBNull(4) ? "" : r.GetString(4),
+                                Wartosc = r.IsDBNull(5) ? 0m : Convert.ToDecimal(r.GetValue(5)),
+                                SumaKg = r.IsDBNull(6) ? 0m : Convert.ToDecimal(r.GetValue(6)),
+                                Handlowiec = r.IsDBNull(7) ? "-" : r.GetString(7),
+                                DniTemu = dni,
+                                EtykietaCzasu = dni == 0 ? "DZIS" : dni == 1 ? "WCZORAJ" : $"{dni} dni"
+                            });
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                FriendlyError.Pokaz(ex, "Nie udalo sie pobrac listy korekt z Symfonii.", this);
+                return;
+            }
+
+            if (korekty.Count == 0)
+            {
+                MessageBox.Show("Brak korekt FKS/FKSB/FWK z ostatnich 180 dni.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            // Prosty dialog z DataGrid
+            var dlg = new Window
+            {
+                Title = "Wybierz korekte z Symfonii",
+                Width = 1100, Height = 720,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F4F6F8")),
+                FontFamily = new FontFamily("Segoe UI")
+            };
+            WindowIconHelper.SetIcon(dlg);
+
+            var root = new Grid();
+            root.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto });
+            root.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            root.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto });
+
+            var hdr = new Border
+            {
+                Padding = new Thickness(20, 14, 20, 14),
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1ABC9C"))
+            };
+            var hdrSp = new StackPanel();
+            hdrSp.Children.Add(new TextBlock { Text = "WYBIERZ KOREKTE", FontSize = 16, FontWeight = FontWeights.Bold, Foreground = Brushes.White });
+            hdrSp.Children.Add(new TextBlock { Text = "Korekty z Symfonii (FKS / FKSB / FWK) — kliknij aby zglosic reklamacje", FontSize = 11.5, Foreground = new SolidColorBrush(Color.FromArgb(220, 255, 255, 255)), Margin = new Thickness(0, 4, 0, 0) });
+            hdr.Child = hdrSp;
+            Grid.SetRow(hdr, 0); root.Children.Add(hdr);
+
+            var dg = new DataGrid
+            {
+                AutoGenerateColumns = false, IsReadOnly = true, CanUserAddRows = false,
+                SelectionMode = DataGridSelectionMode.Single, SelectionUnit = DataGridSelectionUnit.FullRow,
+                HeadersVisibility = DataGridHeadersVisibility.Column, GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
+                Margin = new Thickness(16), AlternatingRowBackground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FAFAFA")),
+                ItemsSource = korekty, RowHeight = 36, FontSize = 12
+            };
+            dg.Columns.Add(new DataGridTextColumn { Header = "Numer korekty", Binding = new System.Windows.Data.Binding("NumerDokumentu") { StringFormat = null }, Width = new DataGridLength(180) });
+            dg.Columns.Add(new DataGridTextColumn { Header = "Data", Binding = new System.Windows.Data.Binding("Data") { StringFormat = "dd.MM.yyyy" }, Width = new DataGridLength(100) });
+            dg.Columns.Add(new DataGridTextColumn { Header = "Czas", Binding = new System.Windows.Data.Binding("EtykietaCzasu"), Width = new DataGridLength(80) });
+            dg.Columns.Add(new DataGridTextColumn { Header = "Kontrahent", Binding = new System.Windows.Data.Binding("NazwaKontrahenta"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+            dg.Columns.Add(new DataGridTextColumn { Header = "Kg", Binding = new System.Windows.Data.Binding("SumaKg") { StringFormat = "N2" }, Width = new DataGridLength(90) });
+            dg.Columns.Add(new DataGridTextColumn { Header = "Wartosc", Binding = new System.Windows.Data.Binding("Wartosc") { StringFormat = "N2" }, Width = new DataGridLength(110) });
+            dg.Columns.Add(new DataGridTextColumn { Header = "Handlowiec", Binding = new System.Windows.Data.Binding("Handlowiec"), Width = new DataGridLength(160) });
+
+            Grid.SetRow(dg, 1); root.Children.Add(dg);
+
+            var stopka = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(16, 0, 16, 16) };
+            var btnAnuluj = new Button { Content = "Anuluj", Width = 100, Height = 36, Margin = new Thickness(0, 0, 8, 0) };
+            btnAnuluj.Click += (s2, e2) => dlg.Close();
+            var btnWybierz = new Button
+            {
+                Content = "Wybierz korekte", Width = 160, Height = 36,
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1ABC9C")),
+                Foreground = Brushes.White, FontWeight = FontWeights.Bold, BorderThickness = new Thickness(0)
+            };
+            btnWybierz.Click += (s2, e2) =>
+            {
+                if (!(dg.SelectedItem is FakturaSprzedazyItem k))
+                {
+                    MessageBox.Show("Wybierz korekte z listy.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+                dlg.Close();
+                OtworzReklamacjeDlaKorekty(k);
+            };
+            stopka.Children.Add(btnAnuluj); stopka.Children.Add(btnWybierz);
+            Grid.SetRow(stopka, 2); root.Children.Add(stopka);
+
+            dg.MouseDoubleClick += (s2, e2) =>
+            {
+                if (dg.SelectedItem is FakturaSprzedazyItem)
+                    btnWybierz.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+            };
+
+            dlg.Content = root;
+            dlg.ShowDialog();
+        }
+
+        // Otwiera FormReklamacjaWindow z przypieta korekta — handlowiec/jakosc opisuje powod
+        private void OtworzReklamacjeDlaKorekty(FakturaSprzedazyItem korekta)
+        {
+            // Znajdz fakture bazowa korekty (iddokkoryg)
+            int idFakturyBazowej = 0;
+            string nrFakturyBazowej = null;
+            try
+            {
+                using (var connH = new SqlConnection(HandelConnString))
+                {
+                    connH.Open();
+                    using (var cmd = new SqlCommand(@"
+                        SELECT TOP 1 DK_BAZA.id, DK_BAZA.kod
+                        FROM [HANDEL].[HM].[DK] DK_KOR
+                        LEFT JOIN [HANDEL].[HM].[DK] DK_BAZA ON DK_BAZA.id = DK_KOR.iddokkoryg
+                        WHERE DK_KOR.id = @Id", connH))
+                    {
+                        cmd.Parameters.AddWithValue("@Id", korekta.Id);
+                        using (var r = cmd.ExecuteReader())
+                        {
+                            if (r.Read() && !r.IsDBNull(0))
+                            {
+                                idFakturyBazowej = r.GetInt32(0);
+                                nrFakturyBazowej = r.IsDBNull(1) ? null : r.GetString(1);
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            // Jesli nie znaleziono faktury bazowej - uzyj danych korekty
+            if (idFakturyBazowej == 0)
+            {
+                idFakturyBazowej = korekta.Id;
+                nrFakturyBazowej = korekta.NumerDokumentu;
+            }
+
+            try
+            {
+                var okno = new FormReklamacjaWindow(
+                    HandelConnString,
+                    idFakturyBazowej,
+                    korekta.IdKontrahenta,
+                    nrFakturyBazowej ?? korekta.NumerDokumentu,
+                    korekta.NazwaKontrahenta,
+                    userId,
+                    connectionString,
+                    idKorekty: korekta.Id,
+                    nrKorekty: korekta.NumerDokumentu,
+                    dataKorekty: korekta.Data,
+                    wartoscKorekty: korekta.Wartosc,
+                    kgKorekty: korekta.SumaKg);
+                okno.Owner = this;
+                if (okno.ShowDialog() == true)
+                {
+                    WczytajReklamacje();
+                    WczytajStatystyki();
+                }
+            }
+            catch (Exception ex)
+            {
+                FriendlyError.Pokaz(ex, "Nie udalo sie otworzyc formularza reklamacji.", this);
+            }
         }
 
         // ========================================
@@ -4820,6 +5622,151 @@ namespace Kalendarz1.Reklamacje
                 cmd.Parameters.AddWithValue("@B", idRekl);
                 cmd.ExecuteNonQuery();
             }
+        }
+
+        // ============================================================
+        // DENSITY TOGGLE — Compact / Normal / Spacious
+        // ============================================================
+        private void DensityCompact_Click(object sender, RoutedEventArgs e) => UstawDensity(28);
+        private void DensityNormal_Click(object sender, RoutedEventArgs e) => UstawDensity(40);
+        private void DensitySpacious_Click(object sender, RoutedEventArgs e) => UstawDensity(52);
+
+        // ============================================================
+        // BULK OPERATIONS — checkbox + floating action bar
+        // ============================================================
+        private void ChkBulk_Click(object sender, RoutedEventArgs e) => OdswiezBulkBar();
+        private void ChkBulkAll_Click(object sender, RoutedEventArgs e)
+        {
+            if (!(sender is CheckBox cb)) return;
+            bool zaznacz = cb.IsChecked == true;
+            // Zastosuj do widocznych (przefiltrowanych) wierszy
+            foreach (var item in reklamacje)
+            {
+                if (item.KategoriaZakladki == aktywnaZakladka)
+                    item.IsBulkSelected = zaznacz;
+            }
+            OdswiezBulkBar();
+        }
+        private void BulkOdznacz_Click(object sender, RoutedEventArgs e)
+        {
+            foreach (var item in reklamacje) item.IsBulkSelected = false;
+            OdswiezBulkBar();
+        }
+        private void BulkExport_Click(object sender, RoutedEventArgs e)
+        {
+            var zaznaczone = reklamacje.Where(r => r.IsBulkSelected).ToList();
+            if (zaznaczone.Count == 0) { MessageBox.Show("Brak zaznaczonych reklamacji.", "Bulk Export", MessageBoxButton.OK, MessageBoxImage.Information); return; }
+            // Tymczasowo zamien ItemsSource na zaznaczone i wywolaj istniejacy export
+            try
+            {
+                var saveDlg = new Microsoft.Win32.SaveFileDialog
+                {
+                    Filter = "CSV (*.csv)|*.csv",
+                    FileName = $"Reklamacje_zaznaczone_{DateTime.Now:yyyyMMdd_HHmm}.csv"
+                };
+                if (saveDlg.ShowDialog() != true) return;
+                using (var sw = new System.IO.StreamWriter(saveDlg.FileName, false, System.Text.Encoding.UTF8))
+                {
+                    sw.WriteLine("ID;Data;NumerDokumentu;Kontrahent;TypReklamacji;Priorytet;Status;Kg;Zglaszajacy;Rozpatruje;Zakonczyl");
+                    foreach (var r in zaznaczone)
+                    {
+                        sw.WriteLine($"{r.Id};{r.DataZgloszenia:yyyy-MM-dd};{Csv(r.NumerDokumentu)};{Csv(r.NazwaKontrahenta)};{Csv(r.TypReklamacji)};{Csv(r.Priorytet)};{Csv(StatusyV2.Etykieta(r.StatusV2))};{r.SumaKg:N2};{Csv(r.Zglaszajacy)};{Csv(r.OsobaRozpatrujaca)};{Csv(r.UserZakonczenia)}");
+                    }
+                }
+                MessageBox.Show($"Wyeksportowano {zaznaczone.Count} reklamacji do {saveDlg.FileName}", "Bulk Export", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex) { FriendlyError.Pokaz(ex, "Blad eksportu CSV.", this); }
+        }
+        private static string Csv(string s) => string.IsNullOrEmpty(s) ? "" : s.Replace(";", ",").Replace("\r", " ").Replace("\n", " ");
+
+        private void BulkZamknij_Click(object sender, RoutedEventArgs e)
+        {
+            var zaznaczone = reklamacje.Where(r => r.IsBulkSelected).ToList();
+            if (zaznaczone.Count == 0) return;
+            if (MessageBox.Show($"Zamknac {zaznaczone.Count} zaznaczonych reklamacji?\n\nStatus zmieni sie na ZAMKNIETA dla wszystkich.",
+                "Bulk Zamknij", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+            int ok = 0;
+            foreach (var r in zaznaczone)
+            {
+                try
+                {
+                    UstawStatusV2Workflow(r.Id, StatusyV2.ZAMKNIETA, null, null, null, null, false);
+                    ok++;
+                }
+                catch { }
+            }
+            MessageBox.Show($"Zamknieto {ok} z {zaznaczone.Count} reklamacji.", "Bulk Zamknij", MessageBoxButton.OK, MessageBoxImage.Information);
+            WczytajReklamacje();
+            WczytajStatystyki();
+        }
+        private void BulkPriorytet_Click(object sender, RoutedEventArgs e)
+        {
+            var zaznaczone = reklamacje.Where(r => r.IsBulkSelected).ToList();
+            if (zaznaczone.Count == 0) return;
+            // Maly dialog wyboru priorytetu
+            var dlg = new Window { Title = "Zmien priorytet", Width = 320, Height = 220, WindowStartupLocation = WindowStartupLocation.CenterOwner, Owner = this, ResizeMode = ResizeMode.NoResize };
+            var sp = new StackPanel { Margin = new Thickness(20) };
+            sp.Children.Add(new TextBlock { Text = $"Priorytet dla {zaznaczone.Count} reklamacji:", FontSize = 13, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 12) });
+            var combo = new System.Windows.Controls.ComboBox { Margin = new Thickness(0, 0, 0, 16), FontSize = 12 };
+            foreach (var p in new[] { "Niski", "Normalny", "Wysoki", "Krytyczny" }) combo.Items.Add(p);
+            combo.SelectedIndex = 1;
+            sp.Children.Add(combo);
+            var btnOk = new System.Windows.Controls.Button { Content = "Zastosuj", Width = 100, Height = 32, HorizontalAlignment = HorizontalAlignment.Right, Background = Brushes.Green, Foreground = Brushes.White };
+            btnOk.Click += (s2, e2) =>
+            {
+                string nowy = combo.SelectedItem?.ToString() ?? "Normalny";
+                int ok = 0;
+                try
+                {
+                    using (var conn = new SqlConnection(connectionString))
+                    {
+                        conn.Open();
+                        foreach (var r in zaznaczone)
+                        {
+                            using (var cmd = new SqlCommand("UPDATE [dbo].[Reklamacje] SET Priorytet = @P WHERE Id = @Id", conn))
+                            {
+                                cmd.Parameters.AddWithValue("@P", nowy);
+                                cmd.Parameters.AddWithValue("@Id", r.Id);
+                                cmd.ExecuteNonQuery();
+                                ok++;
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex) { FriendlyError.Pokaz(ex, "Blad zmiany priorytetu.", this); }
+                MessageBox.Show($"Zmieniono priorytet na '{nowy}' dla {ok} reklamacji.", "Bulk Priorytet", MessageBoxButton.OK, MessageBoxImage.Information);
+                dlg.Close();
+                WczytajReklamacje();
+            };
+            sp.Children.Add(btnOk);
+            dlg.Content = sp;
+            dlg.ShowDialog();
+        }
+
+        private void OdswiezBulkBar()
+        {
+            int n = reklamacje.Count(r => r.IsBulkSelected);
+            if (bulkActionBar != null)
+            {
+                bulkActionBar.Visibility = n > 0 ? Visibility.Visible : Visibility.Collapsed;
+                if (txtBulkCount != null) txtBulkCount.Text = n.ToString();
+            }
+        }
+
+        private void UstawDensity(int rowHeight)
+        {
+            if (dgReklamacje != null) dgReklamacje.RowHeight = rowHeight;
+            // Podswietl aktywny przycisk
+            var inactive = new SolidColorBrush(Colors.Transparent);
+            var inactiveFg = new SolidColorBrush(Color.FromRgb(0x7F, 0x8C, 0x8D));
+            var active = new SolidColorBrush(Color.FromRgb(0x34, 0x98, 0xDB));
+            var activeFg = Brushes.White;
+            if (btnDensityCompact != null) { btnDensityCompact.Background = inactive; ((TextBlock)btnDensityCompact.Content).Foreground = inactiveFg; }
+            if (btnDensityNormal != null) { btnDensityNormal.Background = inactive; ((TextBlock)btnDensityNormal.Content).Foreground = inactiveFg; }
+            if (btnDensitySpacious != null) { btnDensitySpacious.Background = inactive; ((TextBlock)btnDensitySpacious.Content).Foreground = inactiveFg; }
+            if (rowHeight == 28 && btnDensityCompact != null) { btnDensityCompact.Background = active; ((TextBlock)btnDensityCompact.Content).Foreground = activeFg; }
+            else if (rowHeight == 40 && btnDensityNormal != null) { btnDensityNormal.Background = active; ((TextBlock)btnDensityNormal.Content).Foreground = activeFg; }
+            else if (rowHeight == 52 && btnDensitySpacious != null) { btnDensitySpacious.Background = active; ((TextBlock)btnDensitySpacious.Content).Foreground = activeFg; }
         }
     }
 

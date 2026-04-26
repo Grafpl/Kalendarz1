@@ -1,0 +1,248 @@
+<Window x:Class="Kalendarz1.Zywiec.Kalendarz.SkrotyKlawiszoweWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Skróty klawiszowe"
+        Height="560" Width="560"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        KeyDown="Window_KeyDown">
+
+    <Window.Resources>
+        <Style x:Key="ShortcutKeyStyle" TargetType="Border">
+            <Setter Property="Background" Value="#37474F"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="8,3"/>
+            <Setter Property="Margin" Value="0,0,4,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="MinWidth" Value="32"/>
+        </Style>
+        <Style x:Key="ShortcutKeyTextStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="FontFamily" Value="Consolas, Segoe UI"/>
+        </Style>
+        <Style x:Key="ShortcutDescStyle" TargetType="TextBlock">
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="6,0,0,0"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="#263238"/>
+        </Style>
+        <Style x:Key="SectionHeaderStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="#1976D2"/>
+            <Setter Property="Margin" Value="0,12,0,6"/>
+        </Style>
+    </Window.Resources>
+
+    <Border Background="White" CornerRadius="10" BorderBrush="#1976D2" BorderThickness="2">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="20" Opacity="0.4" ShadowDepth="4"/>
+        </Border.Effect>
+
+        <Grid Margin="20,16,20,16">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Nagłówek -->
+            <Grid Grid.Row="0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock Text="⌨️" FontSize="22" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBlock Text="Skróty klawiszowe" FontSize="20" FontWeight="Bold" Foreground="#263238" VerticalAlignment="Center"/>
+                </StackPanel>
+                <Button Grid.Column="1" Content="✕" Click="BtnClose_Click"
+                        Background="Transparent" BorderThickness="0" Cursor="Hand"
+                        FontSize="16" Foreground="#90A4AE" Width="28" Height="28"
+                        ToolTip="Zamknij (Esc)"/>
+            </Grid>
+
+            <!-- Lista skrótów -->
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,8,0,8">
+                <StackPanel>
+
+                    <TextBlock Text="ZAPIS I ODŚWIEŻANIE" Style="{StaticResource SectionHeaderStyle}" Margin="0,0,0,6"/>
+
+                    <Grid Margin="0,0,0,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="180"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Orientation="Horizontal">
+                            <Border Style="{StaticResource ShortcutKeyStyle}"><TextBlock Text="Ctrl" Style="{StaticResource ShortcutKeyTextStyle}"/></Border>
+                            <TextBlock Text="+" VerticalAlignment="Center" Margin="0,0,4,0" FontWeight="Bold"/>
+                            <Border Style="{StaticResource ShortcutKeyStyle}"><TextBlock Text="S" Style="{StaticResource ShortcutKeyTextStyle}"/></Border>
+                        </StackPanel>
+                        <TextBlock Grid.Column="1" Text="Zapisz zaznaczoną dostawę" Style="{StaticResource ShortcutDescStyle}"/>
+                    </Grid>
+
+                    <Grid Margin="0,0,0,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="180"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Orientation="Horizontal">
+                            <Border Style="{StaticResource ShortcutKeyStyle}"><TextBlock Text="Ctrl" Style="{StaticResource ShortcutKeyTextStyle}"/></Border>
+                            <TextBlock Text="+" VerticalAlignment="Center" Margin="0,0,4,0" FontWeight="Bold"/>
+                            <Border Style="{StaticResource ShortcutKeyStyle}"><TextBlock Text="R" Style="{StaticResource ShortcutKeyTextStyle}"/></Border>
+                            <TextBlock Text="lub" VerticalAlignment="Center" Margin="6,0,4,0" Foreground="#90A4AE"/>
+                            <Border Style="{StaticResource ShortcutKeyStyle}"><TextBlock Text="F5" Style="{StaticResource ShortcutKeyTextStyle}"/></Border>
+                        </StackPanel>
+                        <TextBlock Grid.Column="1" Text="Odśwież dane z bazy" Style="{StaticResource ShortcutDescStyle}"/>
+                    </Grid>
+
+                    <TextBlock Text="OPERACJE NA DOSTAWACH" Style="{StaticResource SectionHeaderStyle}"/>
+
+                    <Grid Margin="0,0,0,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="180"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Orientation="Horizontal">
+                            <Border Style="{StaticResource ShortcutKeyStyle}"><TextBlock Text="Ctrl" Style="{StaticResource ShortcutKeyTextStyle}"/></Border>
+                            <TextBlock Text="+" VerticalAlignment="Center" Margin="0,0,4,0" FontWeight="Bold"/>
+                            <Border Style="{StaticResource ShortcutKeyStyle}"><TextBlock Text="N" Style="{StaticResource ShortcutKeyTextStyle}"/></Border>
+                        </StackPanel>
+                        <TextBlock Grid.Column="1" Text="Nowa dostawa (pusta)" Style="{StaticResource ShortcutDescStyle}"/>
+                    </Grid>
+
+                    <Grid Margin="0,0,0,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="180"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Orientation="Horizontal">
+                            <Border Style="{StaticResource ShortcutKeyStyle}"><TextBlock Text="Ctrl" Style="{StaticResource ShortcutKeyTextStyle}"/></Border>
+                            <TextBlock Text="+" VerticalAlignment="Center" Margin="0,0,4,0" FontWeight="Bold"/>
+                            <Border Style="{StaticResource ShortcutKeyStyle}"><TextBlock Text="D" Style="{StaticResource ShortcutKeyTextStyle}"/></Border>
+                        </StackPanel>
+                        <TextBlock Grid.Column="1" Text="Duplikuj zaznaczoną dostawę" Style="{StaticResource ShortcutDescStyle}"/>
+                    </Grid>
+
+                    <Grid Margin="0,0,0,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="180"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Style="{StaticResource ShortcutKeyStyle}" HorizontalAlignment="Left">
+                            <TextBlock Text="Delete" Style="{StaticResource ShortcutKeyTextStyle}"/>
+                        </Border>
+                        <TextBlock Grid.Column="1" Text="Usuń zaznaczoną dostawę" Style="{StaticResource ShortcutDescStyle}"/>
+                    </Grid>
+
+                    <Grid Margin="0,0,0,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="180"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Orientation="Horizontal">
+                            <Border Style="{StaticResource ShortcutKeyStyle}"><TextBlock Text="Alt" Style="{StaticResource ShortcutKeyTextStyle}"/></Border>
+                            <TextBlock Text="+" VerticalAlignment="Center" Margin="0,0,4,0" FontWeight="Bold"/>
+                            <Border Style="{StaticResource ShortcutKeyStyle}"><TextBlock Text="+" Style="{StaticResource ShortcutKeyTextStyle}"/></Border>
+                            <TextBlock Text="/" VerticalAlignment="Center" Margin="2,0,2,0" Foreground="#90A4AE"/>
+                            <Border Style="{StaticResource ShortcutKeyStyle}"><TextBlock Text="−" Style="{StaticResource ShortcutKeyTextStyle}"/></Border>
+                        </StackPanel>
+                        <TextBlock Grid.Column="1" Text="Przesuń datę dostawy o ±1 dzień" Style="{StaticResource ShortcutDescStyle}"/>
+                    </Grid>
+
+                    <TextBlock Text="ZAZNACZANIE I NAWIGACJA" Style="{StaticResource SectionHeaderStyle}"/>
+
+                    <Grid Margin="0,0,0,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="180"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Orientation="Horizontal">
+                            <Border Style="{StaticResource ShortcutKeyStyle}"><TextBlock Text="Ctrl" Style="{StaticResource ShortcutKeyTextStyle}"/></Border>
+                            <TextBlock Text="+" VerticalAlignment="Center" Margin="0,0,4,0" FontWeight="Bold"/>
+                            <Border Style="{StaticResource ShortcutKeyStyle}"><TextBlock Text="A" Style="{StaticResource ShortcutKeyTextStyle}"/></Border>
+                        </StackPanel>
+                        <TextBlock Grid.Column="1" Text="Zaznacz wszystkie dostawy w widoku" Style="{StaticResource ShortcutDescStyle}"/>
+                    </Grid>
+
+                    <Grid Margin="0,0,0,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="180"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Style="{StaticResource ShortcutKeyStyle}" HorizontalAlignment="Left">
+                            <TextBlock Text="Esc" Style="{StaticResource ShortcutKeyTextStyle}"/>
+                        </Border>
+                        <TextBlock Grid.Column="1" Text="Wyczyść zaznaczenie / zamknij popup edycji" Style="{StaticResource ShortcutDescStyle}"/>
+                    </Grid>
+
+                    <Grid Margin="0,0,0,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="180"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Orientation="Horizontal">
+                            <Border Style="{StaticResource ShortcutKeyStyle}"><TextBlock Text="↑" Style="{StaticResource ShortcutKeyTextStyle}"/></Border>
+                            <TextBlock Text="/" VerticalAlignment="Center" Margin="2,0,2,0" Foreground="#90A4AE"/>
+                            <Border Style="{StaticResource ShortcutKeyStyle}"><TextBlock Text="↓" Style="{StaticResource ShortcutKeyTextStyle}"/></Border>
+                        </StackPanel>
+                        <TextBlock Grid.Column="1" Text="Następny / poprzedni wiersz (pomija nagłówki)" Style="{StaticResource ShortcutDescStyle}"/>
+                    </Grid>
+
+                    <TextBlock Text="EDYCJA INLINE" Style="{StaticResource SectionHeaderStyle}"/>
+
+                    <Grid Margin="0,0,0,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="180"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Style="{StaticResource ShortcutKeyStyle}" HorizontalAlignment="Left">
+                            <TextBlock Text="Dwuklik" Style="{StaticResource ShortcutKeyTextStyle}"/>
+                        </Border>
+                        <TextBlock Grid.Column="1" Text="Edycja komórki (Auta, Sztuki, Waga, Cena, Typ, Uwagi)" Style="{StaticResource ShortcutDescStyle}"/>
+                    </Grid>
+
+                    <Grid Margin="0,0,0,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="180"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Style="{StaticResource ShortcutKeyStyle}" HorizontalAlignment="Left">
+                            <TextBlock Text="Enter" Style="{StaticResource ShortcutKeyTextStyle}"/>
+                        </Border>
+                        <TextBlock Grid.Column="1" Text="Zapisz zmianę w popup edycji" Style="{StaticResource ShortcutDescStyle}"/>
+                    </Grid>
+
+                    <TextBlock Text="POMOC" Style="{StaticResource SectionHeaderStyle}"/>
+
+                    <Grid Margin="0,0,0,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="180"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Orientation="Horizontal">
+                            <Border Style="{StaticResource ShortcutKeyStyle}"><TextBlock Text="F1" Style="{StaticResource ShortcutKeyTextStyle}"/></Border>
+                            <TextBlock Text="lub" VerticalAlignment="Center" Margin="6,0,4,0" Foreground="#90A4AE"/>
+                            <Border Style="{StaticResource ShortcutKeyStyle}"><TextBlock Text="?" Style="{StaticResource ShortcutKeyTextStyle}"/></Border>
+                        </StackPanel>
+                        <TextBlock Grid.Column="1" Text="Pokaż / ukryj to okno" Style="{StaticResource ShortcutDescStyle}"/>
+                    </Grid>
+
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Stopka -->
+            <Border Grid.Row="2" Background="#ECEFF1" CornerRadius="6" Padding="10,8" Margin="0,8,0,0">
+                <TextBlock Text="💡 Wskazówka: większość operacji można wykonać prawym klawiszem myszy z menu kontekstowego."
+                           Foreground="#546E7A" FontSize="11" TextWrapping="Wrap"/>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

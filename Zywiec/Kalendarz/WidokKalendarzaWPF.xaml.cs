@@ -130,6 +130,10 @@ namespace Kalendarz1.Zywiec.Kalendarz
         // Serwis audytu zmian
         private AuditLogService _auditService;
 
+        // Preferencje użytkownika (filtry, layout, pozycja okna)
+        private KalendarzUserPreferences _userPrefs = new KalendarzUserPreferences();
+        private bool _prefsLoaded = false;
+
         // ═══════════════════════════════════════════════════════════════
         // POWIADOMIENIA O ZMIANACH (floating popup) + badge nieprzeczytanych
         // ═══════════════════════════════════════════════════════════════
@@ -205,16 +209,24 @@ namespace Kalendarz1.Zywiec.Kalendarz
             // Inicjalizuj serwis audytu
             _auditService = new AuditLogService(ConnectionString, UserID, UserName ?? txtUserName.Text);
 
+            // Załaduj preferencje użytkownika ZANIM ustawimy widoczność kolumn/checkboxów
+            ApplyUserPreferences();
+
             // Ustaw kalendarz na dziś
             calendarMain.SelectedDate = DateTime.Today;
             _selectedDate = DateTime.Today;
             UpdateWeekNumber();
 
-            // Ustaw widoczność następnego tygodnia (checkbox jest domyślnie zaznaczony)
+            // Ustaw widoczność następnego tygodnia (zgodnie z preferencjami / checkboxem)
             if (chkNastepnyTydzien?.IsChecked == true)
             {
                 if (colNastepnyTydzien != null) colNastepnyTydzien.Width = new GridLength(1, GridUnitType.Star);
                 if (borderNastepnyTydzien != null) borderNastepnyTydzien.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                if (colNastepnyTydzien != null) colNastepnyTydzien.Width = new GridLength(0);
+                if (borderNastepnyTydzien != null) borderNastepnyTydzien.Visibility = Visibility.Collapsed;
             }
 
             // Załaduj dane asynchronicznie
@@ -307,7 +319,14 @@ namespace Kalendarz1.Zywiec.Kalendarz
             _mentionsPollTimer.Start();
 
             // Subskrybuj na aktywację/dezaktywację okna aby pauzować polling
-            this.Activated += (s, e) => { _isWindowActive = true; SetLiveIndicator(true); ClearUnreadBadge(); };
+            this.Activated += (s, e) =>
+            {
+                _isWindowActive = true;
+                SetLiveIndicator(true);
+                ClearUnreadBadge();
+                // Zatrzymaj migający pasek zadań po aktywacji okna
+                WindowFlasher.StopFlashing(this);
+            };
             this.Deactivated += (s, e) => { _isWindowActive = false; SetLiveIndicator(false); };
         }
 
@@ -562,6 +581,16 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 {
                     _unreadChangesCount += notifications.Count;
                     Dispatcher.InvokeAsync(() => UpdateUnreadBadge());
+
+                    // FlashWindow: mignij paskiem zadań żeby zwrócić uwagę użytkownika
+                    // gdy okno jest nieaktywne lub zminimalizowane
+                    Dispatcher.InvokeAsync(() =>
+                    {
+                        if (!this.IsActive || this.WindowState == WindowState.Minimized)
+                        {
+                            WindowFlasher.Flash(this, count: 5);
+                        }
+                    });
                 }
             }
             catch (OperationCanceledException) { }
@@ -669,19 +698,19 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
             this.InputBindings.Add(new KeyBinding(
                 new RelayCommand(o => ChangeSelectedDeliveryDate(1)),
-                new KeyGesture(Key.Add)));
+                new KeyGesture(Key.Add, ModifierKeys.Alt)));
 
             this.InputBindings.Add(new KeyBinding(
                 new RelayCommand(o => ChangeSelectedDeliveryDate(-1)),
-                new KeyGesture(Key.Subtract)));
+                new KeyGesture(Key.Subtract, ModifierKeys.Alt)));
 
             this.InputBindings.Add(new KeyBinding(
                 new RelayCommand(o => ChangeSelectedDeliveryDate(1)),
-                new KeyGesture(Key.OemPlus)));
+                new KeyGesture(Key.OemPlus, ModifierKeys.Alt)));
 
             this.InputBindings.Add(new KeyBinding(
                 new RelayCommand(o => ChangeSelectedDeliveryDate(-1)),
-                new KeyGesture(Key.OemMinus)));
+                new KeyGesture(Key.OemMinus, ModifierKeys.Alt)));
         }
 
         private void Window_KeyDown(object sender, KeyEventArgs e)
@@ -704,6 +733,13 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 _ = LoadAllDataAsync();
                 e.Handled = true;
             }
+            // Obsługa F1 lub Shift+? - okno skrótów klawiszowych
+            else if (e.Key == Key.F1 ||
+                     (e.Key == Key.OemQuestion && Keyboard.Modifiers == ModifierKeys.Shift))
+            {
+                ShowSkrotyKlawiszowe();
+                e.Handled = true;
+            }
             // Obsługa Escape - anuluj zaznaczenie
             else if (e.Key == Key.Escape)
             {
@@ -718,6 +754,29 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 SelectAllDeliveries();
                 e.Handled = true;
             }
+        }
+
+        // Singleton - jedno okno pomocy na raz
+        private SkrotyKlawiszoweWindow _skrotyWindow;
+
+        private void ShowSkrotyKlawiszowe()
+        {
+            // Jeśli już otwarte - zamknij (toggle)
+            if (_skrotyWindow != null && _skrotyWindow.IsLoaded)
+            {
+                try { _skrotyWindow.Close(); } catch { }
+                _skrotyWindow = null;
+                return;
+            }
+
+            _skrotyWindow = new SkrotyKlawiszoweWindow { Owner = this };
+            _skrotyWindow.Closed += (s, e) => _skrotyWindow = null;
+            _skrotyWindow.Show();
+        }
+
+        private void BtnSkrotyKlawiszowe_Click(object sender, RoutedEventArgs e)
+        {
+            ShowSkrotyKlawiszowe();
         }
 
         private void SetupDragDrop()
@@ -2012,47 +2071,21 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
         #region Ładowanie danych - Hodowcy (z cache)
 
-        private async Task LoadHodowcyToComboBoxAsync()
+        private async Task LoadHodowcyToComboBoxAsync(bool forceReload = false)
         {
             try
             {
-                // Sprawdź czy cache jest aktualny
-                if (_hodowcyCache != null && DateTime.Now < _hodowcyCacheExpiry)
-                {
-                    await Dispatcher.InvokeAsync(() =>
-                    {
-                        cmbDostawca.Items.Clear();
-                        foreach (var h in _hodowcyCache)
-                            cmbDostawca.Items.Add(h);
-                    });
-                    return;
-                }
-
-                var tempList = new List<string>();
-
-                using (SqlConnection conn = new SqlConnection(ConnectionString))
-                {
-                    await conn.OpenAsync(_cts.Token);
-                    string sql = "SELECT Name FROM [LibraNet].[dbo].[Dostawcy] WHERE Halt = '0' ORDER BY Name";
-                    using (SqlCommand cmd = new SqlCommand(sql, conn))
-                    using (SqlDataReader reader = await cmd.ExecuteReaderAsync(_cts.Token))
-                    {
-                        while (await reader.ReadAsync(_cts.Token))
-                        {
-                            tempList.Add(reader["Name"]?.ToString());
-                        }
-                    }
-                }
-
-                // Zapisz do cache
-                _hodowcyCache = tempList;
-                _hodowcyCacheExpiry = DateTime.Now.Add(CACHE_DURATION);
+                var list = await HodowcyCacheManager.GetAsync(ConnectionString, forceReload);
 
                 await Dispatcher.InvokeAsync(() =>
                 {
                     cmbDostawca.Items.Clear();
-                    foreach (var h in tempList)
+                    foreach (var h in list)
                         cmbDostawca.Items.Add(h);
+
+                    // Backwards compat - synchroniczne pole nadal działa
+                    _hodowcyCache = list;
+                    _hodowcyCacheExpiry = DateTime.Now.Add(CACHE_DURATION);
                 });
             }
             catch { }
@@ -2061,7 +2094,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
         // Stara synchroniczna wersja dla kompatybilności
         private void LoadHodowcyToComboBox()
         {
-            // Użyj cache jeśli dostępny
+            // Synchronicznie z cache jeśli jest, async w tle żeby odświeżyć
             if (_hodowcyCache != null && DateTime.Now < _hodowcyCacheExpiry)
             {
                 cmbDostawca.Items.Clear();
@@ -2086,7 +2119,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                         }
                     }
 
-                    // Zapisz do cache
+                    // Zapisz do cache (lokalny + globalny)
                     _hodowcyCache = tempList;
                     _hodowcyCacheExpiry = DateTime.Now.Add(CACHE_DURATION);
 
@@ -2095,6 +2128,20 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 }
             }
             catch { }
+        }
+
+        /// <summary>
+        /// Ręczne odświeżenie listy hodowców z bazy (przycisk obok ComboBox).
+        /// </summary>
+        private async void BtnRefreshHodowcy_Click(object sender, RoutedEventArgs e)
+        {
+            HodowcyCacheManager.Invalidate();
+            // Zachowaj wybranego hodowcę
+            string previouslySelected = cmbDostawca?.SelectedItem?.ToString();
+            await LoadHodowcyToComboBoxAsync(forceReload: true);
+            if (!string.IsNullOrEmpty(previouslySelected) && cmbDostawca.Items.Contains(previouslySelected))
+                cmbDostawca.SelectedItem = previouslySelected;
+            ShowToast("Lista hodowców odświeżona", ToastType.Success);
         }
 
         private async Task LoadLpWstawieniaForHodowcaAsync(string hodowca)
@@ -2150,6 +2197,176 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
         #region Obsługa kalendarza
 
+        // Pending selekcja - ustawiana przez NawigujDoDaty, użyta po załadowaniu danych
+        private DateTime? _pendingSelectDate;
+        private string _pendingSelectDostawca;
+        private string _pendingSelectLpW;
+        private System.Windows.Threading.DispatcherTimer _selectRetryTimer;
+        private int _selectRetryCount;
+        private const int SELECT_RETRY_INTERVAL_MS = 100;
+        private const int SELECT_RETRY_MAX = 30;  // 30 × 100ms = 3 sekundy
+
+        // Publiczne API: nawigacja do konkretnej daty + opcjonalnie zaznaczenie wiersza dostawy.
+        public void NawigujDoDaty(DateTime data, string dostawca = null, string lpW = null)
+        {
+            try
+            {
+                // Zatrzymaj poprzedni retry (gdy user szybko klika kolejne dostawy)
+                StopSelectRetry();
+
+                _pendingSelectDate = data.Date;
+                _pendingSelectDostawca = dostawca;
+                _pendingSelectLpW = lpW;
+
+                if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
+                Activate();
+                Focus();
+
+                bool sameDate = calendarMain != null
+                    && calendarMain.SelectedDate.HasValue
+                    && calendarMain.SelectedDate.Value.Date == data.Date;
+
+                if (calendarMain != null)
+                {
+                    calendarMain.DisplayDate = data;
+                    calendarMain.SelectedDate = data;
+                }
+
+                Topmost = true;
+                Dispatcher.BeginInvoke(new Action(() => Topmost = false),
+                    System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+
+                // Zawsze startuj retry - to gwarantuje że trafimy nawet gdy:
+                // - data jest ta sama (SelectedDatesChanged nie odpali)
+                // - dane jeszcze ładują (LoadDostawyAsync trwa)
+                // - DataGrid wirtualizuje wiersze (kontener nie istnieje od razu)
+                // - refresh timer właśnie odświeża _dostawy
+                StartSelectRetry();
+            }
+            catch { }
+        }
+
+        // Zaznacz oczekujący wiersz w dgDostawy po załadowaniu danych tygodnia
+        // Próbuje znaleźć i zaznaczyć pending wiersz. Jeśli się nie uda (dane jeszcze ładują, wirtualizacja),
+        // uruchamia retry przez 3s w odstępach 100ms.
+        private void TrySelectPendingDelivery()
+        {
+            if (!_pendingSelectDate.HasValue || dgDostawy == null)
+            {
+                StopSelectRetry();
+                return;
+            }
+
+            var match = ZnajdzPendingMatch();
+            if (match == null)
+            {
+                // Dane jeszcze nie załadowane - uruchom retry
+                StartSelectRetry();
+                return;
+            }
+
+            // Mamy match - selekcja + scroll
+            dgDostawy.SelectedItem = match;
+            dgDostawy.ScrollIntoView(match);
+
+            if (dgDostawy.Columns.Count > 0)
+            {
+                dgDostawy.CurrentCell = new DataGridCellInfo(match, dgDostawy.Columns[0]);
+            }
+
+            // Wirtualizacja: kontener może jeszcze nie istnieć - czekaj na warstwę Loaded.
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                dgDostawy.UpdateLayout();
+                var row = dgDostawy.ItemContainerGenerator.ContainerFromItem(match) as DataGridRow;
+                if (row != null)
+                {
+                    row.Focus();
+                    Keyboard.Focus(row);
+                }
+                else
+                {
+                    // Jeszcze nie ma kontenera - jedna dodatkowa próba po pełnym layoucie
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        var r2 = dgDostawy.ItemContainerGenerator.ContainerFromItem(match) as DataGridRow;
+                        if (r2 != null) { r2.Focus(); Keyboard.Focus(r2); }
+                        else dgDostawy.Focus();
+                    }), System.Windows.Threading.DispatcherPriority.Background);
+                }
+            }), System.Windows.Threading.DispatcherPriority.Loaded);
+
+            // Sukces - posprzątaj
+            StopSelectRetry();
+            _pendingSelectDate = null;
+            _pendingSelectDostawca = null;
+            _pendingSelectLpW = null;
+        }
+
+        private DostawaModel ZnajdzPendingMatch()
+        {
+            if (!_pendingSelectDate.HasValue) return null;
+            var date = _pendingSelectDate.Value;
+
+            // 1. Najprecyzyjniej: po LpW + dacie (kilka dostaw może być tego samego dnia)
+            if (!string.IsNullOrEmpty(_pendingSelectLpW))
+            {
+                var m = _dostawy.FirstOrDefault(d => d.DataOdbioru.Date == date
+                    && d.LpW == _pendingSelectLpW);
+                if (m != null) return m;
+            }
+
+            // 2. Po dostawcy + dacie
+            if (!string.IsNullOrEmpty(_pendingSelectDostawca))
+            {
+                var m = _dostawy.FirstOrDefault(d => d.DataOdbioru.Date == date
+                    && string.Equals(d.Dostawca, _pendingSelectDostawca, StringComparison.OrdinalIgnoreCase));
+                if (m != null) return m;
+            }
+
+            // 3. Fallback: pierwsza dostawa z tą datą
+            return _dostawy.FirstOrDefault(d => d.DataOdbioru.Date == date);
+        }
+
+        private void StartSelectRetry()
+        {
+            if (_selectRetryTimer == null)
+            {
+                _selectRetryTimer = new System.Windows.Threading.DispatcherTimer
+                {
+                    Interval = TimeSpan.FromMilliseconds(SELECT_RETRY_INTERVAL_MS)
+                };
+                _selectRetryTimer.Tick += (s, e) =>
+                {
+                    _selectRetryCount++;
+                    if (_selectRetryCount > SELECT_RETRY_MAX || !_pendingSelectDate.HasValue)
+                    {
+                        // Timeout albo ktoś wyczyścił pending - poddaj się
+                        StopSelectRetry();
+                        _pendingSelectDate = null;
+                        _pendingSelectDostawca = null;
+                        _pendingSelectLpW = null;
+                        return;
+                    }
+                    TrySelectPendingDelivery();
+                };
+            }
+            if (!_selectRetryTimer.IsEnabled)
+            {
+                _selectRetryCount = 0;
+                _selectRetryTimer.Start();
+            }
+        }
+
+        private void StopSelectRetry()
+        {
+            if (_selectRetryTimer != null && _selectRetryTimer.IsEnabled)
+            {
+                _selectRetryTimer.Stop();
+            }
+            _selectRetryCount = 0;
+        }
+
         private async void CalendarMain_SelectedDatesChanged(object sender, SelectionChangedEventArgs e)
         {
             if (calendarMain.SelectedDate.HasValue)
@@ -2168,6 +2385,9 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 GenerateWeekMap();
 
                 await LoadDostawyAsync();
+
+                // Po załadowaniu - zaznacz pending wiersz (jeśli ktoś wywołał NawigujDoDaty)
+                TrySelectPendingDelivery();
             }
         }
 
@@ -2453,6 +2673,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
             if (colCenaNastepny != null)
                 colCenaNastepny.Visibility = showCena;
 
+            SaveUserPreferences();
             await LoadDostawyAsync();
         }
 
@@ -2485,6 +2706,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
                     colNastepnyTydzien.Width = new GridLength(0);
                 }
             }
+
+            SaveUserPreferences();
         }
 
         private void ChkPokazCheckboxy_Changed(object sender, RoutedEventArgs e)
@@ -2499,6 +2722,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
             // Tabela następny tydzień
             if (colCheckConfirm2 != null) colCheckConfirm2.Visibility = visibility;
+
+            SaveUserPreferences();
         }
 
         // Otwieranie menu filtrów
@@ -3188,15 +3413,23 @@ namespace Kalendarz1.Zywiec.Kalendarz
             };
             _inlineEditPopup = popup;
 
+            // Domyślne kolory borderu (zmieniane przez walidację)
+            var defaultBorderBrush = new SolidColorBrush(Color.FromRgb(33, 150, 243));   // niebieski
+            var warnBorderBrush = new SolidColorBrush(Color.FromRgb(245, 158, 11));      // żółty
+            var errorBorderBrush = new SolidColorBrush(Color.FromRgb(211, 47, 47));      // czerwony
+
             var border = new Border
             {
                 Background = Brushes.White,
-                BorderBrush = new SolidColorBrush(Color.FromRgb(33, 150, 243)),
+                BorderBrush = defaultBorderBrush,
                 BorderThickness = new Thickness(2),
                 CornerRadius = new CornerRadius(4),
                 Padding = new Thickness(2),
                 Effect = new DropShadowEffect { BlurRadius = 8, Opacity = 0.3, ShadowDepth = 2 }
             };
+
+            // Layout: TextBox + komunikat walidacji (mały) pod spodem
+            var stack = new StackPanel { Orientation = Orientation.Vertical };
 
             var textBox = new TextBox
             {
@@ -3210,8 +3443,53 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 HorizontalContentAlignment = HorizontalAlignment.Right
             };
 
-            border.Child = textBox;
+            var validationMessage = new TextBlock
+            {
+                FontSize = 10,
+                Margin = new Thickness(6, 1, 6, 2),
+                MaxWidth = 200,
+                TextWrapping = TextWrapping.Wrap,
+                Visibility = Visibility.Collapsed
+            };
+
+            stack.Children.Add(textBox);
+            stack.Children.Add(validationMessage);
+            border.Child = stack;
             popup.Child = border;
+
+            // Stan walidacji - aktualizowany przez TextChanged
+            ValidationLevel currentValidationLevel = ValidationLevel.Ok;
+
+            void RunValidation()
+            {
+                var result = InlineEditValidator.Validate(fieldName, textBox.Text ?? "");
+                currentValidationLevel = result.Level;
+
+                switch (result.Level)
+                {
+                    case ValidationLevel.Ok:
+                        border.BorderBrush = defaultBorderBrush;
+                        validationMessage.Visibility = Visibility.Collapsed;
+                        textBox.ToolTip = null;
+                        break;
+                    case ValidationLevel.Warning:
+                        border.BorderBrush = warnBorderBrush;
+                        validationMessage.Foreground = warnBorderBrush;
+                        validationMessage.Text = "⚠ " + result.Message;
+                        validationMessage.Visibility = Visibility.Visible;
+                        textBox.ToolTip = result.Message;
+                        break;
+                    case ValidationLevel.Error:
+                        border.BorderBrush = errorBorderBrush;
+                        validationMessage.Foreground = errorBorderBrush;
+                        validationMessage.Text = "✗ " + result.Message;
+                        validationMessage.Visibility = Visibility.Visible;
+                        textBox.ToolTip = result.Message;
+                        break;
+                }
+            }
+
+            textBox.TextChanged += (s, e) => RunValidation();
 
             bool saved = false;
             bool cancelled = false;
@@ -3219,10 +3497,19 @@ namespace Kalendarz1.Zywiec.Kalendarz
             async Task SaveValueAsync()
             {
                 if (saved || cancelled) return;
-                saved = true;
                 string newValue = textBox.Text.Trim().Replace(",", ".");
                 if (newValue == currentValue || string.IsNullOrWhiteSpace(newValue))
                     return;
+
+                // Walidacja: blokuj zapis dla Error
+                var validation = InlineEditValidator.Validate(fieldName, newValue);
+                if (validation.Level == ValidationLevel.Error)
+                {
+                    ShowToast($"Błędna wartość: {validation.Message}", ToastType.Error);
+                    return;
+                }
+
+                saved = true;
                 try
                 {
                     // Parsuj wartość przed zapisem
@@ -3301,6 +3588,12 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 if (e.Key == Key.Enter)
                 {
                     e.Handled = true;
+                    // Blokuj zapis przy walidacji Error - pokaż tylko toast i zostaw popup otwarty
+                    if (currentValidationLevel == ValidationLevel.Error)
+                    {
+                        ShowToast("Popraw wartość przed zapisem", ToastType.Warning);
+                        return;
+                    }
                     await SaveValueAsync();
                     if (popup.IsOpen) popup.IsOpen = false;
                 }
@@ -3316,7 +3609,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
             {
                 _inlineEditClosedTime = DateTime.Now;
                 _skipNextDragStart = true;
-                if (!saved && !cancelled)
+                // Auto-save przy zamknięciu - tylko jeśli walidacja przechodzi (Ok lub Warning)
+                if (!saved && !cancelled && currentValidationLevel != ValidationLevel.Error)
                 {
                     string newValue = textBox.Text.Trim().Replace(",", ".");
                     if (newValue != currentValue && !string.IsNullOrWhiteSpace(newValue))
@@ -3916,16 +4210,23 @@ namespace Kalendarz1.Zywiec.Kalendarz
         /// </summary>
         private async Task CheckMentionsTickAsync()
         {
-            if (!_isWindowActive) return;
-
+            // Pollujemy też dla nieaktywnego okna - żeby móc mignąć paskiem zadań
             int count = (await LoadUnreadMentionsAsync()).Count;
             UpdateMentionsBadge(count);
 
-            // Toast tylko przy wzroście (nowa wzmianka)
+            // Toast i flash tylko przy wzroście (nowa wzmianka)
             if (count > _lastMentionCount && _lastMentionCount >= 0)
             {
                 int newCount = count - _lastMentionCount;
-                ShowToast($"🔔 Masz {newCount} now{(newCount == 1 ? "ą wzmiankę" : "e wzmianki")}", ToastType.Info);
+                if (_isWindowActive)
+                {
+                    ShowToast($"🔔 Masz {newCount} now{(newCount == 1 ? "ą wzmiankę" : "e wzmianki")}", ToastType.Info);
+                }
+                else
+                {
+                    // Okno nieaktywne - mignij paskiem zadań żeby zwrócić uwagę
+                    Dispatcher.InvokeAsync(() => WindowFlasher.Flash(this, count: 8));
+                }
             }
             _lastMentionCount = count;
         }
@@ -4174,15 +4475,22 @@ namespace Kalendarz1.Zywiec.Kalendarz
             };
             _inlineEditPopup = popup;
 
+            // Walidacja - kolory borderu
+            var defaultBorderBrush = new SolidColorBrush(Color.FromRgb(33, 150, 243));
+            var warnBorderBrush = new SolidColorBrush(Color.FromRgb(245, 158, 11));
+            var errorBorderBrush = new SolidColorBrush(Color.FromRgb(211, 47, 47));
+
             var border = new Border
             {
                 Background = Brushes.White,
-                BorderBrush = new SolidColorBrush(Color.FromRgb(33, 150, 243)),
+                BorderBrush = defaultBorderBrush,
                 BorderThickness = new Thickness(2),
                 CornerRadius = new CornerRadius(4),
                 Padding = new Thickness(2),
                 Effect = new DropShadowEffect { BlurRadius = 8, Opacity = 0.3, ShadowDepth = 2 }
             };
+
+            var stack = new StackPanel { Orientation = Orientation.Vertical };
 
             var textBox = new TextBox
             {
@@ -4196,8 +4504,51 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 HorizontalContentAlignment = HorizontalAlignment.Right
             };
 
-            border.Child = textBox;
+            var validationMessage = new TextBlock
+            {
+                FontSize = 10,
+                Margin = new Thickness(6, 1, 6, 2),
+                MaxWidth = 200,
+                TextWrapping = TextWrapping.Wrap,
+                Visibility = Visibility.Collapsed
+            };
+
+            stack.Children.Add(textBox);
+            stack.Children.Add(validationMessage);
+            border.Child = stack;
             popup.Child = border;
+
+            ValidationLevel currentValidationLevel = ValidationLevel.Ok;
+
+            void RunValidation()
+            {
+                var result = InlineEditValidator.Validate("Cena", textBox.Text ?? "");
+                currentValidationLevel = result.Level;
+                switch (result.Level)
+                {
+                    case ValidationLevel.Ok:
+                        border.BorderBrush = defaultBorderBrush;
+                        validationMessage.Visibility = Visibility.Collapsed;
+                        textBox.ToolTip = null;
+                        break;
+                    case ValidationLevel.Warning:
+                        border.BorderBrush = warnBorderBrush;
+                        validationMessage.Foreground = warnBorderBrush;
+                        validationMessage.Text = "⚠ " + result.Message;
+                        validationMessage.Visibility = Visibility.Visible;
+                        textBox.ToolTip = result.Message;
+                        break;
+                    case ValidationLevel.Error:
+                        border.BorderBrush = errorBorderBrush;
+                        validationMessage.Foreground = errorBorderBrush;
+                        validationMessage.Text = "✗ " + result.Message;
+                        validationMessage.Visibility = Visibility.Visible;
+                        textBox.ToolTip = result.Message;
+                        break;
+                }
+            }
+
+            textBox.TextChanged += (s, e) => RunValidation();
 
             bool saved = false;
             bool cancelled = false;
@@ -4205,10 +4556,17 @@ namespace Kalendarz1.Zywiec.Kalendarz
             async Task SaveCenaAsync()
             {
                 if (saved || cancelled) return;
-                saved = true;
                 string newValue = textBox.Text.Trim().Replace(",", ".");
                 if (newValue == currentValue || string.IsNullOrWhiteSpace(newValue)) return;
 
+                var validation = InlineEditValidator.Validate("Cena", newValue);
+                if (validation.Level == ValidationLevel.Error)
+                {
+                    ShowToast($"Błędna wartość: {validation.Message}", ToastType.Error);
+                    return;
+                }
+
+                saved = true;
                 try
                 {
                     decimal parsedCena = decimal.Parse(newValue, CultureInfo.InvariantCulture);
@@ -4266,6 +4624,11 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 if (e.Key == Key.Enter)
                 {
                     e.Handled = true;
+                    if (currentValidationLevel == ValidationLevel.Error)
+                    {
+                        ShowToast("Popraw wartość przed zapisem", ToastType.Warning);
+                        return;
+                    }
                     await SaveCenaAsync();
                     if (popup.IsOpen) popup.IsOpen = false;
                 }
@@ -4281,7 +4644,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
             {
                 _inlineEditClosedTime = DateTime.Now;
                 _skipNextDragStart = true;
-                if (!saved && !cancelled)
+                if (!saved && !cancelled && currentValidationLevel != ValidationLevel.Error)
                 {
                     string newValue = textBox.Text.Trim().Replace(",", ".");
                     if (newValue != currentValue && !string.IsNullOrWhiteSpace(newValue))
@@ -5054,10 +5417,22 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
             try
             {
-                var dostawa = new Dostawa("", dateToUse);
-                dostawa.UserID = App.UserID;
-                dostawa.FormClosed += (s, args) => LoadDostawy();
-                dostawa.Show();
+                bool openAnother;
+                do
+                {
+                    openAnother = false;
+                    var window = new NowaDostawaWindow(dateToUse, ConnectionString, UserID, txtUserName?.Text, _auditService)
+                    {
+                        Owner = this
+                    };
+                    bool? result = window.ShowDialog();
+                    if (result == true && window.DeliveryCreated)
+                    {
+                        ShowToast($"Utworzono dostawę LP {window.CreatedLP}", ToastType.Success);
+                        _ = LoadDostawyAsync();
+                        openAnother = window.OpenAnother;
+                    }
+                } while (openAnother);
             }
             catch (Exception ex)
             {
@@ -9002,12 +9377,159 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
         #endregion
 
+        #region Preferencje użytkownika (filtry, layout, pozycja okna)
+
+        /// <summary>
+        /// Wczytuje preferencje z dysku i nakłada je na UI (checkboxy, szerokości kolumn, pozycję okna).
+        /// Wywoływane raz w Window_Loaded zanim zaczniemy ładować dane.
+        /// </summary>
+        private void ApplyUserPreferences()
+        {
+            try
+            {
+                _userPrefs = UserPreferencesService.Load(UserID);
+                _prefsLoaded = false; // Blokuje zapisywanie podczas nakładania ustawień
+
+                // Filtry checkbox
+                if (chkAnulowane != null) chkAnulowane.IsChecked = _userPrefs.ChkAnulowane;
+                if (chkSprzedane != null) chkSprzedane.IsChecked = _userPrefs.ChkSprzedane;
+                if (chkDoWykupienia != null) chkDoWykupienia.IsChecked = _userPrefs.ChkDoWykupienia;
+                if (chkPokazCeny != null) chkPokazCeny.IsChecked = _userPrefs.ChkPokazCeny;
+                if (chkPokazCheckboxy != null) chkPokazCheckboxy.IsChecked = _userPrefs.ChkPokazCheckboxy;
+                if (chkNastepnyTydzien != null) chkNastepnyTydzien.IsChecked = _userPrefs.ChkNastepnyTydzien;
+
+                // Widoczność kolumny ceny zgodna z preferencją
+                var showCena = _userPrefs.ChkPokazCeny ? Visibility.Visible : Visibility.Collapsed;
+                if (colCena != null) colCena.Visibility = showCena;
+                if (colCenaNastepny != null) colCenaNastepny.Visibility = showCena;
+
+                // Widoczność kolumn checkbox potwierdzenia
+                var showCheck = _userPrefs.ChkPokazCheckboxy ? Visibility.Visible : Visibility.Collapsed;
+                if (colCheckConfirm != null) colCheckConfirm.Visibility = showCheck;
+                if (colCheckWstawienie != null) colCheckWstawienie.Visibility = showCheck;
+                if (colCheckConfirm2 != null) colCheckConfirm2.Visibility = showCheck;
+
+                // Szerokości kolumn (tylko numeryczne; gwiazdkowe pomijamy)
+                if (_userPrefs.ColumnWidths != null)
+                {
+                    ApplyColumnWidth("colDostawcaHeader", colDostawcaHeader);
+                    ApplyColumnWidth("colCena", colCena);
+                    ApplyColumnWidth("colDostawcaHeader2", colDostawcaHeader2);
+                    ApplyColumnWidth("colCenaNastepny", colCenaNastepny);
+                }
+
+                // Pozycja okna - tylko jeśli nie maximized i mamy zapisane
+                if (!_userPrefs.WindowMaximized && _userPrefs.WindowLeft >= 0 && _userPrefs.WindowTop >= 0)
+                {
+                    this.WindowState = WindowState.Normal;
+                    this.WindowStartupLocation = WindowStartupLocation.Manual;
+                    this.Left = _userPrefs.WindowLeft;
+                    this.Top = _userPrefs.WindowTop;
+                    this.Width = _userPrefs.WindowWidth;
+                    this.Height = _userPrefs.WindowHeight;
+                }
+            }
+            catch
+            {
+                // Tolerancyjne - jeśli cokolwiek pójdzie źle, zostaw defaultowe ustawienia
+            }
+            finally
+            {
+                _prefsLoaded = true;
+            }
+        }
+
+        private void ApplyColumnWidth(string key, DataGridColumn column)
+        {
+            if (column == null) return;
+            if (_userPrefs.ColumnWidths == null) return;
+            if (!_userPrefs.ColumnWidths.TryGetValue(key, out double width)) return;
+            if (width <= 10 || width > 2000) return; // sanity check
+            try { column.Width = new DataGridLength(width); } catch { }
+        }
+
+        /// <summary>
+        /// Pobiera obecny stan UI do obiektu preferencji (wywoływane przed zapisem).
+        /// </summary>
+        private void CaptureUserPreferences()
+        {
+            if (_userPrefs == null) _userPrefs = new KalendarzUserPreferences();
+
+            // Filtry
+            _userPrefs.ChkAnulowane = chkAnulowane?.IsChecked == true;
+            _userPrefs.ChkSprzedane = chkSprzedane?.IsChecked == true;
+            _userPrefs.ChkDoWykupienia = chkDoWykupienia?.IsChecked == true;
+            _userPrefs.ChkPokazCeny = chkPokazCeny?.IsChecked == true;
+            _userPrefs.ChkPokazCheckboxy = chkPokazCheckboxy?.IsChecked == true;
+            _userPrefs.ChkNastepnyTydzien = chkNastepnyTydzien?.IsChecked == true;
+
+            // Szerokości kolumn (tylko zdefiniowane numerycznie)
+            if (_userPrefs.ColumnWidths == null)
+                _userPrefs.ColumnWidths = new Dictionary<string, double>();
+
+            CaptureColumnWidth("colDostawcaHeader", colDostawcaHeader);
+            CaptureColumnWidth("colCena", colCena);
+            CaptureColumnWidth("colDostawcaHeader2", colDostawcaHeader2);
+            CaptureColumnWidth("colCenaNastepny", colCenaNastepny);
+
+            // Pozycja okna
+            _userPrefs.WindowMaximized = (this.WindowState == WindowState.Maximized);
+            if (this.WindowState == WindowState.Normal)
+            {
+                _userPrefs.WindowLeft = this.Left;
+                _userPrefs.WindowTop = this.Top;
+                _userPrefs.WindowWidth = this.Width;
+                _userPrefs.WindowHeight = this.Height;
+            }
+        }
+
+        private void CaptureColumnWidth(string key, DataGridColumn column)
+        {
+            if (column == null) return;
+            try
+            {
+                if (column.ActualWidth > 10 && column.ActualWidth < 2000)
+                    _userPrefs.ColumnWidths[key] = column.ActualWidth;
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// Zapisuje preferencje na dysk. Używane przy zamykaniu okna i po zmianach checkboxów.
+        /// </summary>
+        private void SaveUserPreferences()
+        {
+            if (!_prefsLoaded) return; // nie zapisuj zanim ApplyUserPreferences nie skończy
+            try
+            {
+                CaptureUserPreferences();
+                UserPreferencesService.Save(UserID, _userPrefs);
+            }
+            catch { /* tolerancyjne */ }
+        }
+
+        #endregion
+
         #region Cleanup
 
         protected override void OnClosed(EventArgs e)
         {
+            // Zapisz preferencje użytkownika (filtry, layout, pozycja okna)
+            try { SaveUserPreferences(); } catch { }
+
             // Odsubskrybuj zdarzenia
             ChangeNotificationPopup.NotificationClicked -= OnNotificationPopupClicked;
+
+            // Flush kolejki audytu - poczekaj max 5s żeby nie zginęły wpisy
+            try
+            {
+                if (_auditService != null)
+                {
+                    _auditService.FlushAndWaitAsync().Wait(TimeSpan.FromSeconds(5));
+                    _auditService.Dispose();
+                }
+            }
+            catch { }
 
             // Anuluj wszystkie async operacje
             _cts?.Cancel();
@@ -9025,334 +9547,5 @@ namespace Kalendarz1.Zywiec.Kalendarz
         }
 
         #endregion
-    }
-
-    #region Helper Classes
-
-    public enum ToastType
-    {
-        Info,
-        Success,
-        Warning,
-        Error
-    }
-
-    public class ToastMessage
-    {
-        public string Message { get; set; }
-        public ToastType Type { get; set; }
-        public string UserId { get; set; }
-        public string UserName { get; set; }
-    }
-
-    public enum ChangeNotificationType
-    {
-        InlineEdit,
-        FormSave,
-        DragDrop,
-        Confirmation,
-        BulkOperation,
-        Delete
-    }
-
-    public class FieldChange
-    {
-        public string FieldName { get; set; }
-        public string OldValue { get; set; }
-        public string NewValue { get; set; }
-    }
-
-    public class ChangeNotificationItem
-    {
-        public string Title { get; set; }
-        public string Dostawca { get; set; }
-        public string LP { get; set; }
-        public string UserId { get; set; }
-        public string UserName { get; set; }
-        public DateTime Timestamp { get; set; } = DateTime.Now;
-        public DateTime? DataOdbioru { get; set; }
-        public ChangeNotificationType NotificationType { get; set; }
-        public List<FieldChange> Changes { get; set; } = new List<FieldChange>();
-    }
-
-    public class RelayCommand : ICommand
-    {
-        private readonly Action<object> _execute;
-        private readonly Func<object, bool> _canExecute;
-
-        public RelayCommand(Action<object> execute, Func<object, bool> canExecute = null)
-        {
-            _execute = execute ?? throw new ArgumentNullException(nameof(execute));
-            _canExecute = canExecute;
-        }
-
-        public event EventHandler CanExecuteChanged
-        {
-            add { CommandManager.RequerySuggested += value; }
-            remove { CommandManager.RequerySuggested -= value; }
-        }
-
-        public bool CanExecute(object parameter) => _canExecute == null || _canExecute(parameter);
-
-        public void Execute(object parameter) => _execute(parameter);
-    }
-
-    #endregion
-
-    #region Modele danych
-
-    public class DostawaModel : INotifyPropertyChanged
-    {
-        public string LP { get; set; }
-        public DateTime DataOdbioru { get; set; }
-        public string Dostawca { get; set; }
-
-        private int _auta;
-        public int Auta { get => _auta; set { _auta = value; OnPropertyChanged(); OnPropertyChanged(nameof(AutaDisplay)); } }
-
-        private double _sztukiDek;
-        public double SztukiDek { get => _sztukiDek; set { _sztukiDek = value; OnPropertyChanged(); OnPropertyChanged(nameof(SztukiDekDisplay)); } }
-
-        private decimal _wagaDek;
-        public decimal WagaDek { get => _wagaDek; set { _wagaDek = value; OnPropertyChanged(); OnPropertyChanged(nameof(WagaDekDisplay)); } }
-
-        public string Bufor { get; set; }
-
-        private string _typCeny;
-        public string TypCeny { get => _typCeny; set { _typCeny = value; OnPropertyChanged(); OnPropertyChanged(nameof(TypCenyDisplay)); } }
-
-        private decimal _cena;
-        public decimal Cena { get => _cena; set { _cena = value; OnPropertyChanged(); OnPropertyChanged(nameof(CenaDisplay)); } }
-        public int Distance { get; set; }
-        private string _uwagi;
-        public string Uwagi { get => _uwagi; set { _uwagi = value; OnPropertyChanged(); OnPropertyChanged(nameof(UwagiDisplay)); } }
-        public string UwagiAutorID { get; set; }
-        public string UwagiAutorName { get; set; }
-        private DateTime? _dataNotatki;
-        public DateTime? DataNotatki { get => _dataNotatki; set { _dataNotatki = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsVeryRecentNote)); OnPropertyChanged(nameof(IsRecentNote)); } }
-        private int? _roznicaDni;
-        public int? RoznicaDni { get => _roznicaDni; set { _roznicaDni = value; OnPropertyChanged(); OnPropertyChanged(nameof(RoznicaDniDisplay)); } }
-        public string LpW { get; set; }
-        public bool PotwWaga { get; set; }
-        public bool PotwSztuki { get; set; }
-        public int Ubytek { get; set; }
-
-        private bool _isConfirmed;
-        public bool IsConfirmed { get => _isConfirmed; set { _isConfirmed = value; OnPropertyChanged(); } }
-
-        private bool _isWstawienieConfirmed;
-        public bool IsWstawienieConfirmed { get => _isWstawienieConfirmed; set { _isWstawienieConfirmed = value; OnPropertyChanged(); } }
-
-        // Kolejność wyświetlania (zachowuje porządek z SQL zamiast alfabetycznego)
-        public int SortOrder { get; set; }
-
-        // Oznaczenie że wiersz został przesunięty w trybie symulacji
-        private bool _isSimulationMoved;
-        public bool IsSimulationMoved { get => _isSimulationMoved; set { _isSimulationMoved = value; OnPropertyChanged(); } }
-
-        public bool IsHeaderRow { get; set; }
-        public bool IsSeparator { get; set; }
-        public bool IsEmptyDay { get; set; }
-
-        // Pola dla sum i średnich w nagłówku dnia
-        private double _sumaAuta;
-        public double SumaAuta { get => _sumaAuta; set { _sumaAuta = value; OnPropertyChanged(); OnPropertyChanged(nameof(AutaDisplay)); } }
-
-        private double _sumaSztuki;
-        public double SumaSztuki { get => _sumaSztuki; set { _sumaSztuki = value; OnPropertyChanged(); OnPropertyChanged(nameof(SztukiDekDisplay)); } }
-
-        private double _sredniaWaga;
-        public double SredniaWaga { get => _sredniaWaga; set { _sredniaWaga = value; OnPropertyChanged(); OnPropertyChanged(nameof(WagaDekDisplay)); } }
-
-        private double _sredniaCena;
-        public double SredniaCena { get => _sredniaCena; set { _sredniaCena = value; OnPropertyChanged(); OnPropertyChanged(nameof(CenaDisplay)); } }
-
-        public double SredniaKM { get; set; }
-        public double SredniaDoby { get; set; }
-        public int SumaUbytek { get; set; }
-        public int LiczbaSprzedanych { get; set; }
-        public int LiczbaAnulowanych { get; set; }
-        public bool HasBothCounts => IsHeaderRow && !IsSeparator && LiczbaSprzedanych > 0 && LiczbaAnulowanych > 0;
-
-        // Główna kolumna - dla nagłówka pokazuje datę, dla danych pokazuje dostawcę
-        private static readonly string[] DniSkrot = { "niedz.", "pon.", "wt.", "śr.", "czw.", "pt.", "sob." };
-        public string DostawcaDisplay => IsHeaderRow && !IsSeparator
-            ? $"{DniSkrot[(int)DataOdbioru.DayOfWeek]} {DataOdbioru:dd.MM}"
-            : (IsSeparator ? "" : Dostawca);
-
-        public string SztukiDekDisplay => IsHeaderRow
-            ? (SumaSztuki > 0 ? $"{SumaSztuki:#,0}" : "")
-            : (SztukiDek > 0 ? $"{SztukiDek:#,0}" : "");
-        public string WagaDekDisplay => IsHeaderRow
-            ? (SredniaWaga > 0 ? $"{SredniaWaga:0.00}" : "")
-            : (WagaDek > 0 ? $"{WagaDek:0.00}" : "");
-        public string CenaDisplay => IsHeaderRow
-            ? (SredniaCena > 0 ? $"{SredniaCena:0.00}" : "")
-            : (Cena > 0 ? $"{Cena:0.00}" : "");
-        public string KmDisplay => IsHeaderRow
-            ? (SredniaKM > 0 ? $"{SredniaKM:0}" : "")
-            : (Distance > 0 ? $"{Distance}" : "");
-        public string RoznicaDniDisplay => IsHeaderRow
-            ? (SumaUbytek > 0 ? $"Ub:{SumaUbytek}" : "")
-            : (RoznicaDni.HasValue ? $"{RoznicaDni}" : "");
-        public string AutaDisplay => IsHeaderRow
-            ? (SumaAuta > 0 ? $"{SumaAuta:0}" : "")
-            : (Auta > 0 ? Auta.ToString() : "");
-        public string TypCenyDisplay => IsHeaderRow ? "" : GetTypCenyAbbrev(TypCeny);
-        private static string GetTypCenyAbbrev(string typ)
-        {
-            if (string.IsNullOrEmpty(typ)) return "";
-            var lower = typ.ToLowerInvariant();
-            if (lower.Contains("wolny")) return "wol.";
-            if (lower.Contains("rolnic")) return "rol.";
-            if (lower.Contains("minister")) return "mini.";
-            if (lower.Contains("łącz") || lower.Contains("laczo")) return "łącz.";
-            return typ;
-        }
-        public string UwagiDisplay => IsHeaderRow && !IsSeparator
-            ? BuildHeaderUwagiDisplay()
-            : Uwagi;
-
-        private string BuildHeaderUwagiDisplay()
-        {
-            var parts = new List<string>();
-            if (LiczbaSprzedanych > 0) parts.Add($"S:{LiczbaSprzedanych}");
-            if (LiczbaAnulowanych > 0) parts.Add($"A:{LiczbaAnulowanych}");
-            return string.Join(" ", parts);
-        }
-
-        // Właściwość sprawdzająca czy notatka została dodana w ciągu ostatnich 3 dni
-        // Notatka z ostatniego 1 dnia - pulsująca czerwona
-        public bool IsVeryRecentNote => DataNotatki.HasValue && (DateTime.Now - DataNotatki.Value).TotalDays <= 1;
-
-        // Notatka z 2-3 dni - żółta bez pulsowania
-        public bool IsRecentNote => DataNotatki.HasValue && (DateTime.Now - DataNotatki.Value).TotalDays > 1 && (DateTime.Now - DataNotatki.Value).TotalDays <= 3;
-
-        public event PropertyChangedEventHandler PropertyChanged;
-        protected void OnPropertyChanged([CallerMemberName] string name = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
-    }
-
-    public class PartiaModel
-    {
-        public string Partia { get; set; }
-        public string PartiaFull { get; set; }
-        public string Dostawca { get; set; }
-        public decimal Srednia { get; set; }
-        public decimal Zywiec { get; set; }
-        public decimal Roznica { get; set; }
-        public int? Skrzydla { get; set; }
-        public int? Nogi { get; set; }
-        public int? Oparzenia { get; set; }
-        public decimal? KlasaB { get; set; }
-        public decimal? Przekarmienie { get; set; }
-        public int PhotoCount { get; set; }
-        public string FolderPath { get; set; }
-
-        public string SredniaDisplay => Srednia > 0 ? $"{Srednia:0.00} poj" : "";
-        public string ZywiecDisplay => Zywiec > 0 ? $"{Zywiec:0.00} kg" : "";
-        public string RoznicaDisplay => $"{Roznica:0.00} kg";
-        public string SkrzydlaDisplay => Skrzydla.HasValue ? $"{Skrzydla} pkt" : "";
-        public string NogiDisplay => Nogi.HasValue ? $"{Nogi} pkt" : "";
-        public string OparzeniaDisplay => Oparzenia.HasValue ? $"{Oparzenia} pkt" : "";
-        public string KlasaBDisplay => KlasaB.HasValue ? $"{KlasaB:0.##} %" : "";
-        public string PrzekarmienieDisplay => Przekarmienie.HasValue ? $"{Przekarmienie:0.00} kg" : "";
-        public string ZdjeciaLink => PhotoCount > 0 ? $"Zdjęcia ({PhotoCount})" : "";
-    }
-
-    public class PojemnoscTuszkiModel
-    {
-        public int Pojemnosc { get; set; }
-        public int Palety { get; set; }
-    }
-
-    public class NotatkaModel
-    {
-        public int NotatkaID { get; set; }
-        public int? ParentNotatkaID { get; set; }
-        public DateTime DataUtworzenia { get; set; }
-        public string DataOdbioru { get; set; }
-        public string Dostawca { get; set; }
-        public string KtoDodal { get; set; }
-        public string KtoDodal_ID { get; set; }
-        public string Tresc { get; set; }
-
-        // #27 Wątki: wyciąg z treści rodzica (dla belki "↳ odp. do...")
-        public string ParentSnippet { get; set; }
-        public bool IsReply => ParentNotatkaID.HasValue;
-        public string ReplyHeaderDisplay => IsReply ? $"↳ odp. do: {ParentSnippet}" : "";
-    }
-
-    public class ZmianaDostawyModel
-    {
-        public DateTime DataZmiany { get; set; }
-        public string UserID { get; set; }
-        public string UserName { get; set; }
-        public string NazwaPola { get; set; }
-        public string StaraWartosc { get; set; }
-        public string NowaWartosc { get; set; }
-    }
-
-    public class RankingModel
-    {
-        public int Pozycja { get; set; }
-        public string Dostawca { get; set; }
-        public string SredniaWaga { get; set; }
-        public int LiczbaD { get; set; }
-        public int Punkty { get; set; }
-    }
-
-    /// <summary>
-    /// Wpis zmiany w trybie symulacji (przesunięcie dostawy)
-    /// </summary>
-    public class SimulationChange
-    {
-        public string LP { get; set; }
-        public string Dostawca { get; set; }
-        public DateTime OldDate { get; set; }
-        public DateTime NewDate { get; set; }
-        public DateTime Timestamp { get; set; }
-
-        private static readonly string[] DniSkrot = { "ndz", "pon", "wt", "śr", "czw", "pt", "sob" };
-
-        // Kompaktowe wyświetlanie dla ListBoxa
-        public string OldDateShort => $"{DniSkrot[(int)OldDate.DayOfWeek]} {OldDate:dd.MM}";
-        public string NewDateShort => $"{DniSkrot[(int)NewDate.DayOfWeek]} {NewDate:dd.MM}";
-
-        public int DayDelta => (NewDate.Date - OldDate.Date).Days;
-        public string DayDeltaDisplay => DayDelta > 0 ? $"+{DayDelta}d" : $"{DayDelta}d";
-        public bool IsForward => DayDelta > 0;
-
-        public string TimeShort => Timestamp.ToString("HH:mm");
-
-        // Format używany w schowku
-        public string Display => $"{Dostawca}: {OldDate:yyyy-MM-dd} {DniSkrot[(int)OldDate.DayOfWeek]} → {NewDate:yyyy-MM-dd} {DniSkrot[(int)NewDate.DayOfWeek]} ({DayDeltaDisplay})";
-    }
-
-    #endregion
-
-    /// <summary>
-    /// Konwerter do wyświetlania inicjałów z imienia i nazwiska
-    /// </summary>
-    public class InitialsConverter : System.Windows.Data.IValueConverter
-    {
-        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
-        {
-            if (value is string name && !string.IsNullOrWhiteSpace(name))
-            {
-                var parts = name.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                if (parts.Length >= 2)
-                    return $"{char.ToUpper(parts[0][0])}{char.ToUpper(parts[1][0])}";
-                else if (parts.Length == 1 && parts[0].Length >= 2)
-                    return $"{char.ToUpper(parts[0][0])}{char.ToUpper(parts[0][1])}";
-                else if (parts.Length == 1)
-                    return parts[0].Substring(0, 1).ToUpper();
-            }
-            return "";
-        }
-
-        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-        {
-            throw new NotImplementedException();
-        }
     }
 }

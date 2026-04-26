@@ -1698,6 +1698,33 @@
                                 </Button.Style>
                             </Button>
                         </Border>
+                        <!-- Pomoc - skróty klawiszowe (F1) -->
+                        <Border Background="#F8FAFC" CornerRadius="4" Padding="1" BorderBrush="#E2E8F0" BorderThickness="1" Margin="0,0,4,0">
+                            <Button Click="BtnSkrotyKlawiszowe_Click" ToolTip="Skróty klawiszowe (F1)" Width="26" Height="26">
+                                <TextBlock Text="?" FontSize="14" FontWeight="Bold" Foreground="#1976D2"/>
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="Background" Value="Transparent"/>
+                                        <Setter Property="BorderThickness" Value="0"/>
+                                        <Setter Property="Cursor" Value="Hand"/>
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border Background="{TemplateBinding Background}" CornerRadius="4">
+                                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                        <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="#DBEAFE"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                        </Border>
                         <!-- Odśwież z licznikiem -->
                         <Border Background="#F8FAFC" CornerRadius="4" Padding="1,1,4,1" BorderBrush="#E2E8F0" BorderThickness="1">
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
@@ -2840,7 +2867,19 @@
                                         </Grid.RowDefinitions>
 
                                         <TextBlock Grid.Row="0" Grid.Column="0" Text="Dostawca:" Style="{StaticResource FormLabelStyle}"/>
-                                        <ComboBox x:Name="cmbDostawca" Grid.Row="0" Grid.Column="1" Style="{StaticResource FormComboBoxStyle}" SelectionChanged="CmbDostawca_SelectionChanged"/>
+                                        <Grid Grid.Row="0" Grid.Column="1">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <ComboBox x:Name="cmbDostawca" Grid.Column="0" Style="{StaticResource FormComboBoxStyle}" SelectionChanged="CmbDostawca_SelectionChanged"/>
+                                            <Button Grid.Column="1" Click="BtnRefreshHodowcy_Click"
+                                                    ToolTip="Odśwież listę hodowców z bazy"
+                                                    Width="22" Height="22" Margin="3,0,0,0"
+                                                    Background="Transparent" BorderThickness="0" Cursor="Hand">
+                                                <TextBlock Text="🔄" FontSize="10"/>
+                                            </Button>
+                                        </Grid>
 
                                         <TextBlock Grid.Row="1" Grid.Column="0" Text="Adres:" Style="{StaticResource FormLabelStyle}"/>
                                         <TextBox x:Name="txtUlicaH" Grid.Row="1" Grid.Column="1" Style="{StaticResource FormTextBoxStyle}"/>

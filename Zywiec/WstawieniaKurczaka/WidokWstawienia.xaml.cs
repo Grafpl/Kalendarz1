@@ -1,4 +1,4 @@
-﻿using Microsoft.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -50,8 +50,20 @@ namespace Kalendarz1
         // Cache dla danych dostaw - ładowany raz przy starcie
         private Dictionary<int, List<DeliveryInfo>> _deliveryCache = new Dictionary<int, List<DeliveryInfo>>();
         private bool _deliveryCacheLoaded = false;
+        private DateTime _deliveryCacheTimestamp = DateTime.MinValue;
+        private const int DELIVERY_CACHE_TTL_SECONDS = 60;
         private const int WSTAWIENIA_DEFAULT_LIMIT = 100;
         private bool _wstawieniaShowAll = false;
+
+        // Cache dla ImageBrush avatarów (zamrożone, można współdzielić między wątkami i wierszami)
+        private static readonly Dictionary<string, ImageBrush> _avatarBrushCache = new Dictionary<string, ImageBrush>();
+        private static readonly HashSet<string> _avatarMissingCache = new HashSet<string>();
+
+        // Cache dla unikalnych hodowców z przyszłymi dostawami (#chkPokazPrzyszle)
+        private List<string> _uniqueSuppliersFutureCache = null;
+
+        // Flaga - czy LoadingRow handler został już podłączony (zapobiega wyciekowi)
+        private bool _loadingRowHandlerAttached = false;
 
         // Aktualnie otwarty tooltip - tylko jeden naraz
         private ToolTip _currentOpenTooltip = null;
@@ -70,9 +82,16 @@ namespace Kalendarz1
             InitializeComponent();
             WindowIconHelper.SetIcon(this);
             LoadLogo();
-            InitializeData();
             SetupEventHandlers();
-            AnimateWindow();
+
+            // Pokaż okno natychmiast - dane ładuj po wyrenderowaniu UI (ContextIdle).
+            // Wcześniej InitializeData blokowało konstruktor 4 SQL-ami,
+            // przez co użytkownik widział "zawieszenie" zanim okno się pojawiło.
+            Loaded += (s, e) =>
+            {
+                Dispatcher.BeginInvoke(new Action(InitializeData),
+                    System.Windows.Threading.DispatcherPriority.ContextIdle);
+            };
         }
 
         private void LoadLogo()
@@ -100,12 +119,6 @@ namespace Kalendarz1
             }
         }
 
-        private void AnimateWindow()
-        {
-            var storyboard = (Storyboard)this.Resources["FadeIn"];
-            storyboard?.Begin(this);
-        }
-
         private void InitializeData()
         {
             PreloadDeliveryCache();
@@ -115,8 +128,15 @@ namespace Kalendarz1
             UpdateStatistics();
         }
 
-        private void PreloadDeliveryCache()
+        private void PreloadDeliveryCache(bool forceReload = false)
         {
+            // Skip jeśli cache świeży (TTL) - chyba że wymuszono reload
+            if (!forceReload && _deliveryCacheLoaded
+                && (DateTime.Now - _deliveryCacheTimestamp).TotalSeconds < DELIVERY_CACHE_TTL_SECONDS)
+            {
+                return;
+            }
+
             try
             {
                 _deliveryCache.Clear();
@@ -176,6 +196,7 @@ namespace Kalendarz1
                     }
                 }
                 _deliveryCacheLoaded = true;
+                _deliveryCacheTimestamp = DateTime.Now;
             }
             catch (Exception ex)
             {
@@ -610,6 +631,8 @@ namespace Kalendarz1
         // ====== ŁADOWANIE DANYCH ======
         private void LoadWstawienia()
         {
+            // Po przeładowaniu wstawień lista hodowców z przyszłymi dostawami może być nieaktualna
+            _uniqueSuppliersFutureCache = null;
             string topClause = _wstawieniaShowAll ? "" : $"TOP {WSTAWIENIA_DEFAULT_LIMIT}";
             string query = $@"
                 SELECT {topClause} W.LP, W.Dostawca,
@@ -657,6 +680,8 @@ namespace Kalendarz1
 
         private void SetupWstawieniaColumns()
         {
+            // Setup raz - kolumny wstawione, kolejne LoadWstawienia tylko podmieniają ItemsSource
+            if (dataGridWstawienia.Columns.Count > 0) return;
             dataGridWstawienia.Columns.Clear();
 
             // Kolumna kropki świeżości kontaktu
@@ -886,6 +911,11 @@ namespace Kalendarz1
 
         private void ApplySupplierGroupingColors()
         {
+            // Handler podpinany tylko raz w cyklu życia okna - zapobiega wyciekowi
+            // (wcześniej każdy LoadWstawienia dodawał nowy handler => kumulacja)
+            if (_loadingRowHandlerAttached) return;
+            _loadingRowHandlerAttached = true;
+
             dataGridWstawienia.LoadingRow += (s, e) =>
             {
                 var row = e.Row.Item as DataRowView;
@@ -1008,28 +1038,42 @@ namespace Kalendarz1
         private void LoadAvatarForRow(DataGridRow row, string userId, string imageName, string borderName)
         {
             if (string.IsNullOrEmpty(userId)) return;
+            if (_avatarMissingCache.Contains(userId)) return; // wiemy że nie ma avatara
 
             try
             {
-                if (UserAvatarManager.HasAvatar(userId))
+                ImageBrush brush;
+                if (!_avatarBrushCache.TryGetValue(userId, out brush))
                 {
-                    var avatarImage = FindVisualChild<Ellipse>(row, imageName);
-                    var avatarBorder = FindVisualChild<Border>(row, borderName);
-
-                    if (avatarImage != null && avatarBorder != null)
+                    if (!UserAvatarManager.HasAvatar(userId))
                     {
-                        using (var avatar = UserAvatarManager.GetAvatarRounded(userId, 40))
-                        {
-                            if (avatar != null)
-                            {
-                                var brush = new ImageBrush(ConvertToImageSource(avatar));
-                                brush.Stretch = Stretch.UniformToFill;
-                                avatarImage.Fill = brush;
-                                avatarImage.Visibility = Visibility.Visible;
-                                avatarBorder.Visibility = Visibility.Collapsed;
-                            }
-                        }
+                        _avatarMissingCache.Add(userId);
+                        return;
                     }
+
+                    using (var avatar = UserAvatarManager.GetAvatarRounded(userId, 40))
+                    {
+                        if (avatar == null)
+                        {
+                            _avatarMissingCache.Add(userId);
+                            return;
+                        }
+                        brush = new ImageBrush(ConvertToImageSource(avatar))
+                        {
+                            Stretch = Stretch.UniformToFill
+                        };
+                        brush.Freeze(); // współdzielony, bezpieczny wątkowo
+                        _avatarBrushCache[userId] = brush;
+                    }
+                }
+
+                var avatarImage = FindVisualChild<Ellipse>(row, imageName);
+                var avatarBorder = FindVisualChild<Border>(row, borderName);
+                if (avatarImage != null && avatarBorder != null)
+                {
+                    avatarImage.Fill = brush;
+                    avatarImage.Visibility = Visibility.Visible;
+                    avatarBorder.Visibility = Visibility.Collapsed;
                 }
             }
             catch { }
@@ -1226,7 +1270,7 @@ namespace Kalendarz1
                 var today = DateTime.Today;
                 foreach (var d in deliveries)
                 {
-                    var rg = new Grid { Margin = new Thickness(5, 1, 0, 1) };
+                    var rg = new Grid { Margin = new Thickness(0) };
                     foreach (var w in colWidths) rg.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(w) });
                     rg.RowDefinitions.Add(new RowDefinition());
 
@@ -1250,7 +1294,32 @@ namespace Kalendarz1
                         var tb = new TextBlock { Text = vals[i].t, FontSize = 11, Foreground = vals[i].c, FontWeight = fw };
                         Grid.SetColumn(tb, i); rg.Children.Add(tb);
                     }
-                    panel.Children.Add(rg);
+
+                    // Wrap w klikalny Border - dwuklik otwiera/aktywuje Kalendarz Dostaw Żywca na danej dacie
+                    var dataDostawy = d.DataOdbioru;
+                    var lpWstawienia = lp;     // LpW dla dostawy = LP wstawienia
+                    var dostawcaName = hodowca;
+                    var clickableBorder = new Border
+                    {
+                        Child = rg,
+                        Background = Brushes.Transparent,
+                        Padding = new Thickness(5, 1, 0, 1),
+                        Cursor = Cursors.Hand,
+                        ToolTip = $"Dwuklik → Kalendarz Dostaw Żywca, {dataDostawy:yyyy-MM-dd}, {dostawcaName}"
+                    };
+                    clickableBorder.MouseEnter += (s, e) =>
+                        clickableBorder.Background = new SolidColorBrush(Color.FromRgb(232, 245, 233));
+                    clickableBorder.MouseLeave += (s, e) =>
+                        clickableBorder.Background = Brushes.Transparent;
+                    clickableBorder.MouseLeftButtonDown += (s, e) =>
+                    {
+                        if (e.ClickCount == 2)
+                        {
+                            e.Handled = true;
+                            OtworzKalendarzDostawNaDacie(dataDostawy, dostawcaName, lpWstawienia);
+                        }
+                    };
+                    panel.Children.Add(clickableBorder);
                 }
 
                 var totalDelSzt = deliveries.Where(x => x.DataOdbioru.Date < today).Sum(x => x.SztukiDek);
@@ -1412,20 +1481,39 @@ namespace Kalendarz1
                 connection.Open();
 
                 // Aktywne przypomnienia (DISTINCT by LP — widok może zwrócić duplikaty)
+                // Counts (IleProb, IleNieOdebral) policzone agregatem zamiast sub-selectów per wiersz.
+                // Ostatnia notatka pobrana w jednym przebiegu przez ROW_NUMBER().
                 string queryAktywne = @"
-                    SELECT DISTINCT
-                        v.LP,
-                        CAST(v.DataWstawienia AS date) AS Data,
-                        v.Dostawca,
-                        v.IloscWstawienia AS Ilosc,
-                        d.Phone1 AS Telefon,
-                        ISNULL((SELECT COUNT(*) FROM dbo.ContactHistory ch WHERE ch.LpWstawienia = v.LP AND ch.CreatedAt >= v.DataWstawienia), 0) AS IleProb,
-                        (SELECT TOP 1 ch.Reason FROM dbo.ContactHistory ch WHERE ch.LpWstawienia = v.LP ORDER BY ch.ContactID DESC) AS OstatNotatka,
-                        ISNULL((SELECT COUNT(*) FROM dbo.ContactHistory ch WHERE ch.LpWstawienia = v.LP AND ch.Reason = 'Brak kontaktu' AND ch.CreatedAt >= v.DataWstawienia), 0) AS IleNieOdebral
-                    FROM dbo.v_WstawieniaDoKontaktu AS v
-                    LEFT JOIN [LibraNet].[dbo].[Dostawcy] AS d
-                           ON d.ShortName = v.Dostawca
-                    ORDER BY Data DESC, Dostawca";
+                    WITH V AS (
+                        SELECT DISTINCT v.LP, v.DataWstawienia, v.Dostawca, v.IloscWstawienia
+                        FROM dbo.v_WstawieniaDoKontaktu v
+                    ),
+                    CH_Agg AS (
+                        SELECT v.LP,
+                               SUM(CASE WHEN ch.CreatedAt >= v.DataWstawienia THEN 1 ELSE 0 END) AS IleProb,
+                               SUM(CASE WHEN ch.CreatedAt >= v.DataWstawienia AND ch.Reason = 'Brak kontaktu' THEN 1 ELSE 0 END) AS IleNieOdebral
+                        FROM V v
+                        LEFT JOIN dbo.ContactHistory ch ON ch.LpWstawienia = v.LP
+                        GROUP BY v.LP
+                    ),
+                    CH_Last AS (
+                        SELECT LpWstawienia, Reason,
+                               ROW_NUMBER() OVER (PARTITION BY LpWstawienia ORDER BY ContactID DESC) AS rn
+                        FROM dbo.ContactHistory
+                    )
+                    SELECT v.LP,
+                           CAST(v.DataWstawienia AS date) AS Data,
+                           v.Dostawca,
+                           v.IloscWstawienia AS Ilosc,
+                           d.Phone1 AS Telefon,
+                           ISNULL(a.IleProb, 0) AS IleProb,
+                           cl.Reason AS OstatNotatka,
+                           ISNULL(a.IleNieOdebral, 0) AS IleNieOdebral
+                    FROM V v
+                    LEFT JOIN CH_Agg a ON a.LP = v.LP
+                    LEFT JOIN CH_Last cl ON cl.LpWstawienia = v.LP AND cl.rn = 1
+                    LEFT JOIN [LibraNet].[dbo].[Dostawcy] d ON d.ShortName = v.Dostawca
+                    ORDER BY Data DESC, v.Dostawca";
 
                 using (var cmd = new SqlCommand(queryAktywne, connection))
                 using (var reader = cmd.ExecuteReader())
@@ -1450,28 +1538,43 @@ namespace Kalendarz1
                 }
 
                 // Oczekujące (snoozed) — posortowane od najkrótszego czasu
+                // Counts liczone agregatem; ostatni wpis (ten z SnoozedUntil) wybrany przez ROW_NUMBER.
                 string queryOczekujace = @"
-                    SELECT
-                        w.LP,
-                        CAST(w.DataWstawienia AS date) AS Data,
-                        w.Dostawca,
-                        w.IloscWstawienia AS Ilosc,
-                        d.Phone1 AS Telefon,
-                        DATEDIFF(day, CAST(GETDATE() AS date), ch.SnoozedUntil) AS ZaDni,
-                        ISNULL((SELECT COUNT(*) FROM dbo.ContactHistory c2 WHERE c2.LpWstawienia = w.LP AND c2.CreatedAt >= w.DataWstawienia), 0) AS IleProb,
-                        ch.Reason AS OstatNotatka,
-                        ISNULL((SELECT COUNT(*) FROM dbo.ContactHistory c3 WHERE c3.LpWstawienia = w.LP AND c3.Reason = 'Brak kontaktu' AND c3.CreatedAt >= w.DataWstawienia), 0) AS IleNieOdebral
-                    FROM dbo.ContactHistory ch
-                    INNER JOIN dbo.WstawieniaKurczakow w ON w.LP = ch.LpWstawienia
-                    LEFT JOIN [LibraNet].[dbo].[Dostawcy] AS d ON d.ShortName = w.Dostawca
-                    WHERE ch.SnoozedUntil > CAST(GETDATE() AS date)
-                      AND ch.ContactID = (
-                          SELECT MAX(ch2.ContactID)
-                          FROM dbo.ContactHistory ch2
-                          WHERE ch2.LpWstawienia = ch.LpWstawienia
-                      )
-                      AND w.LP NOT IN (SELECT v2.LP FROM dbo.v_WstawieniaDoKontaktu v2)
-                    ORDER BY ZaDni ASC, Dostawca";
+                    WITH CH_Last AS (
+                        SELECT LpWstawienia, Reason, SnoozedUntil, ContactID,
+                               ROW_NUMBER() OVER (PARTITION BY LpWstawienia ORDER BY ContactID DESC) AS rn
+                        FROM dbo.ContactHistory
+                    ),
+                    Snoozed AS (
+                        SELECT w.LP, w.DataWstawienia, w.Dostawca, w.IloscWstawienia,
+                               cl.Reason, cl.SnoozedUntil
+                        FROM CH_Last cl
+                        INNER JOIN dbo.WstawieniaKurczakow w ON w.LP = cl.LpWstawienia
+                        WHERE cl.rn = 1
+                          AND cl.SnoozedUntil > CAST(GETDATE() AS date)
+                          AND NOT EXISTS (SELECT 1 FROM dbo.v_WstawieniaDoKontaktu v2 WHERE v2.LP = w.LP)
+                    ),
+                    CH_Agg AS (
+                        SELECT s.LP,
+                               SUM(CASE WHEN ch.CreatedAt >= s.DataWstawienia THEN 1 ELSE 0 END) AS IleProb,
+                               SUM(CASE WHEN ch.CreatedAt >= s.DataWstawienia AND ch.Reason = 'Brak kontaktu' THEN 1 ELSE 0 END) AS IleNieOdebral
+                        FROM Snoozed s
+                        LEFT JOIN dbo.ContactHistory ch ON ch.LpWstawienia = s.LP
+                        GROUP BY s.LP
+                    )
+                    SELECT s.LP,
+                           CAST(s.DataWstawienia AS date) AS Data,
+                           s.Dostawca,
+                           s.IloscWstawienia AS Ilosc,
+                           d.Phone1 AS Telefon,
+                           DATEDIFF(day, CAST(GETDATE() AS date), s.SnoozedUntil) AS ZaDni,
+                           ISNULL(a.IleProb, 0) AS IleProb,
+                           s.Reason AS OstatNotatka,
+                           ISNULL(a.IleNieOdebral, 0) AS IleNieOdebral
+                    FROM Snoozed s
+                    LEFT JOIN CH_Agg a ON a.LP = s.LP
+                    LEFT JOIN [LibraNet].[dbo].[Dostawcy] d ON d.ShortName = s.Dostawca
+                    ORDER BY ZaDni ASC, s.Dostawca";
 
                 using (var cmd = new SqlCommand(queryOczekujace, connection))
                 using (var reader = cmd.ExecuteReader())
@@ -1503,6 +1606,7 @@ namespace Kalendarz1
 
         private void SetupPrzypomieniaColumns()
         {
+            if (dataGridPrzypomnienia.Columns.Count > 0) return;
             dataGridPrzypomnienia.Columns.Clear();
 
             dataGridPrzypomnienia.Columns.Add(new DataGridTextColumn
@@ -1522,14 +1626,14 @@ namespace Kalendarz1
 
             dataGridPrzypomnienia.Columns.Add(new DataGridTextColumn
             {
-                Header = "Ilość", Binding = new Binding("Ilosc") { StringFormat = "# ##0" }, Width = 48
+                Header = "Ilość", Binding = new Binding("Ilosc") { StringFormat = "# ##0" }, Width = 64
             });
 
             dataGridPrzypomnienia.Columns.Add(new DataGridTextColumn
             {
                 Header = "Tel",
                 Binding = new Binding("Telefon") { Converter = new PhoneFormatConverter() },
-                Width = 108
+                Width = 96
             });
 
             // Kolumna 📝 — "X not."
@@ -1692,9 +1796,10 @@ namespace Kalendarz1
 
         private void LoadHistoria()
         {
-            _historiaCutoffDate = null;
+            _historiaCutoffDate = DateTime.Today.AddDays(-90);
+            // Limit do TOP 500 najnowszych z ostatnich 90 dni — tabela rośnie w nieskończoność.
             string query = @"
-                SELECT
+                SELECT TOP 500
                     ch.ContactID,
                     ch.Dostawca,
                     ISNULL(o.Name, ch.UserID) AS UserName,
@@ -1704,6 +1809,7 @@ namespace Kalendarz1
                     ch.CreatedAt
                 FROM dbo.ContactHistory ch
                 LEFT JOIN dbo.operators o ON ch.UserID = o.ID
+                WHERE ch.CreatedAt >= @CutoffDate
                 ORDER BY
                     CASE WHEN ch.ContactDate IS NOT NULL THEN 0 ELSE 1 END,
                     ch.ContactDate DESC,
@@ -1713,6 +1819,7 @@ namespace Kalendarz1
             using (var connection = new SqlConnection(connectionString))
             using (var adapter = new SqlDataAdapter(query, connection))
             {
+                adapter.SelectCommand.Parameters.AddWithValue("@CutoffDate", _historiaCutoffDate.Value);
                 var table = new DataTable();
                 adapter.Fill(table);
 
@@ -1733,6 +1840,7 @@ namespace Kalendarz1
         private void SetupHistoriaColumns()
         {
             dataGridHistoria.RowHeight = double.NaN; // Auto — pozwala na zawijanie tekstu w notatce
+            if (dataGridHistoria.Columns.Count > 0) return;
             dataGridHistoria.Columns.Clear();
 
             dataGridHistoria.Columns.Add(new DataGridTextColumn
@@ -2059,6 +2167,7 @@ namespace Kalendarz1
         }
         private void SetupDoPotwierdzeniaColumns()
         {
+            if (dataGridDoPotwierdzenia.Columns.Count > 0) return;
             dataGridDoPotwierdzenia.Columns.Clear();
 
             dataGridDoPotwierdzenia.Columns.Add(new DataGridTextColumn
@@ -2141,6 +2250,8 @@ namespace Kalendarz1
 
         private void ChkPokazPrzyszle_Changed(object sender, RoutedEventArgs e)
         {
+            // Inwaliduj cache - nowy snapshot listy hodowców z przyszłymi dostawami
+            _uniqueSuppliersFutureCache = null;
             ApplyFilters();
         }
 
@@ -2225,6 +2336,9 @@ namespace Kalendarz1
 
         private List<string> GetUniqueSuppliersWithFutureDeliveries()
         {
+            // Cache - liczone raz, invalidowane gdy chkPokazPrzyszle zmieni stan lub wymuszony refresh.
+            if (_uniqueSuppliersFutureCache != null) return _uniqueSuppliersFutureCache;
+
             var suppliers = new List<string>();
             try
             {
@@ -2260,6 +2374,7 @@ namespace Kalendarz1
             {
                 Console.WriteLine($"Błąd pobierania unikalnych hodowców: {ex.Message}");
             }
+            _uniqueSuppliersFutureCache = suppliers;
             return suppliers;
         }
 
@@ -2329,8 +2444,11 @@ namespace Kalendarz1
                         }
                     }
 
-                    wstawienie.ShowDialog();
-                    RefreshAll();
+                    if (wstawienie.ShowDialog() == true)
+                    {
+                        LoadWstawienia();
+                        PokazToastSukces(wstawienie);
+                    }
                 }
             }
         }
@@ -2370,8 +2488,11 @@ namespace Kalendarz1
                         }
                     }
 
-                    wstawienie.ShowDialog();
-                    RefreshAll();
+                    if (wstawienie.ShowDialog() == true)
+                    {
+                        LoadWstawienia();
+                        PokazToastSukces(wstawienie);
+                    }
                 }
             }
         }
@@ -2398,8 +2519,11 @@ namespace Kalendarz1
                     wstawienie.DaneOstatniegoDostarczonego = daneOstatniego;
                 }
 
-                wstawienie.ShowDialog();
-                RefreshAll();
+                if (wstawienie.ShowDialog() == true)
+                {
+                    LoadWstawienia();
+                    PokazToastSukces(wstawienie);
+                }
             }
         }
 
@@ -2438,8 +2562,11 @@ namespace Kalendarz1
                         }
                     }
 
-                    wstawienie.ShowDialog();
-                    RefreshAll();
+                    if (wstawienie.ShowDialog() == true)
+                    {
+                        LoadWstawienia();
+                        PokazToastSukces(wstawienie);
+                    }
                 }
             }
         }
@@ -2477,8 +2604,11 @@ namespace Kalendarz1
                         }
                     }
 
-                    wstawienie.ShowDialog();
-                    RefreshAll();
+                    if (wstawienie.ShowDialog() == true)
+                    {
+                        LoadWstawienia();
+                        PokazToastSukces(wstawienie);
+                    }
                 }
             }
         }
@@ -2617,10 +2747,33 @@ namespace Kalendarz1
                 UserID = App.UserID
             };
 
-            int lpWstawienia = zapytaniasql.PobierzInformacjeZBazyDanychHarmonogram<int>(lp, "dbo.WstawieniaKurczakow", "Lp");
-            string dostawca = zapytaniasql.PobierzInformacjeZBazyDanychHarmonogram<string>(lp, "dbo.WstawieniaKurczakow", "Dostawca");
-            DateTime dataWstawienia = zapytaniasql.PobierzInformacjeZBazyDanychHarmonogram<DateTime>(lp, "dbo.WstawieniaKurczakow", "DataWstawienia");
-            int sztWstawione = zapytaniasql.PobierzInformacjeZBazyDanychHarmonogram<int>(lp, "dbo.WstawieniaKurczakow", "IloscWstawienia");
+            // Jeden SELECT zamiast 4 round-tripów (wcześniej PobierzInformacjeZBazyDanychHarmonogram × 4)
+            int lpWstawienia = lp;
+            string dostawca = "";
+            DateTime dataWstawienia = DateTime.Today;
+            int sztWstawione = 0;
+            using (var connDane = new SqlConnection(connectionString))
+            {
+                connDane.Open();
+                using (var cmd = new SqlCommand(
+                    "SELECT Lp, Dostawca, DataWstawienia, IloscWstawienia FROM dbo.WstawieniaKurczakow WHERE Lp = @Lp",
+                    connDane))
+                {
+                    cmd.Parameters.AddWithValue("@Lp", lp);
+                    using (var r = cmd.ExecuteReader())
+                    {
+                        if (r.Read())
+                        {
+                            lpWstawienia = Convert.ToInt32(r["Lp"]);
+                            dostawca = r["Dostawca"]?.ToString() ?? "";
+                            dataWstawienia = r["DataWstawienia"] != DBNull.Value
+                                ? Convert.ToDateTime(r["DataWstawienia"]) : DateTime.Today;
+                            sztWstawione = r["IloscWstawienia"] != DBNull.Value
+                                ? Convert.ToInt32(r["IloscWstawienia"]) : 0;
+                        }
+                    }
+                }
+            }
 
             wstawienie.SztWstawienia = sztWstawione;
             wstawienie.Dostawca = dostawca;
@@ -2628,9 +2781,11 @@ namespace Kalendarz1
             wstawienie.DataWstawienia = dataWstawienia;
             wstawienie.Modyfikacja = true;
 
-            wstawienie.ShowDialog();
-
-            RefreshAll();
+            if (wstawienie.ShowDialog() == true)
+            {
+                LoadWstawienia();
+                PokazToastSukces(wstawienie);
+            }
         }
 
         private void MenuUsun_Click(object sender, RoutedEventArgs e)
@@ -2991,7 +3146,7 @@ namespace Kalendarz1
                     "Odłożono kontakt",
                     MessageBoxButton.OK, MessageBoxImage.Information);
 
-                RefreshAll();
+                RefreshAfterContact();
             }
             catch (Exception ex)
             {
@@ -3031,7 +3186,7 @@ namespace Kalendarz1
                     "Odłożono kontakt",
                     MessageBoxButton.OK, MessageBoxImage.Information);
 
-                RefreshAll();
+                RefreshAfterContact();
             }
             catch (Exception ex)
             {
@@ -3072,7 +3227,7 @@ namespace Kalendarz1
                         "Sukces",
                         MessageBoxButton.OK, MessageBoxImage.Information);
 
-                    RefreshAll();
+                    RefreshAfterContact();
                 }
                 catch (Exception ex)
                 {
@@ -3386,7 +3541,7 @@ namespace Kalendarz1
                     MessageBox.Show("Notatka została zaktualizowana.", "Sukces",
                         MessageBoxButton.OK, MessageBoxImage.Information);
 
-                    RefreshAll();
+                    RefreshAfterHistory();
                 }
                 catch (Exception ex)
                 {
@@ -3440,7 +3595,7 @@ namespace Kalendarz1
                     MessageBox.Show("Wpis został usunięty.", "Sukces",
                         MessageBoxButton.OK, MessageBoxImage.Information);
 
-                    RefreshAll();
+                    RefreshAfterHistory();
                 }
                 catch (Exception ex)
                 {
@@ -3574,7 +3729,7 @@ namespace Kalendarz1
                         cmd.ExecuteNonQuery();
                     }
                 }
-                RefreshAll();
+                RefreshAfterPotwierdzenie();
             }
             catch (Exception ex)
             {
@@ -3614,7 +3769,7 @@ namespace Kalendarz1
                 }
 
                 MessageBox.Show("Wstawienie zostało pomyślnie potwierdzone.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
-                RefreshAll();
+                RefreshAfterPotwierdzenie();
             }
             catch (Exception ex)
             {
@@ -3632,17 +3787,10 @@ namespace Kalendarz1
 
             if (wstawienie.ShowDialog() == true)
             {
-                if (wstawienie.PobitoRekord)
-                {
-                    ShowRekordConfetti();
-                }
-                else
-                {
-                    ShowConfetti();
-                }
+                // Tylko wstawienia (delivery cache odświeży się sam dzięki TTL)
+                LoadWstawienia();
+                PokazToastSukces(wstawienie);
             }
-
-            RefreshAll();
         }
 
         // Kalendarz dostaw usunięty - używamy mini-kalendarza w oknie WstawienieWindow
@@ -3674,244 +3822,155 @@ namespace Kalendarz1
             UpdateStatistics();
         }
 
-        // ====== EFEKT KONFETTI ======
-        private void ShowConfetti()
+        // Tylko historia + przypomnienia (po dodaniu/edycji wpisu kontaktu, snooze)
+        private void RefreshAfterContact()
         {
-            var random = new Random();
-            var colors = new[]
-            {
-                Color.FromRgb(255, 107, 107),  // czerwony
-                Color.FromRgb(255, 193, 7),    // żółty
-                Color.FromRgb(76, 175, 80),    // zielony
-                Color.FromRgb(33, 150, 243),   // niebieski
-                Color.FromRgb(156, 39, 176),   // fioletowy
-                Color.FromRgb(255, 152, 0),    // pomarańczowy
-                Color.FromRgb(0, 188, 212),    // cyjan
-                Color.FromRgb(233, 30, 99)     // różowy
-            };
-
-            int confettiCount = 80;
-
-            for (int i = 0; i < confettiCount; i++)
-            {
-                var confetti = new System.Windows.Shapes.Rectangle
-                {
-                    Width = random.Next(8, 14),
-                    Height = random.Next(8, 14),
-                    Fill = new SolidColorBrush(colors[random.Next(colors.Length)]),
-                    RenderTransformOrigin = new Point(0.5, 0.5),
-                    RenderTransform = new RotateTransform(random.Next(0, 360))
-                };
-
-                double startX = random.Next(0, (int)ActualWidth);
-                double startY = -20;
-
-                Canvas.SetLeft(confetti, startX);
-                Canvas.SetTop(confetti, startY);
-                confettiCanvas.Children.Add(confetti);
-
-                // Animacja spadania
-                double endY = ActualHeight + 50;
-                double horizontalDrift = random.Next(-150, 150);
-                double duration = random.NextDouble() * 2 + 2; // 2-4 sekundy
-                double delay = random.NextDouble() * 0.5;
-
-                var fallAnimation = new System.Windows.Media.Animation.DoubleAnimation
-                {
-                    From = startY,
-                    To = endY,
-                    Duration = TimeSpan.FromSeconds(duration),
-                    BeginTime = TimeSpan.FromSeconds(delay),
-                    EasingFunction = new System.Windows.Media.Animation.QuadraticEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseIn }
-                };
-
-                var driftAnimation = new System.Windows.Media.Animation.DoubleAnimation
-                {
-                    From = startX,
-                    To = startX + horizontalDrift,
-                    Duration = TimeSpan.FromSeconds(duration),
-                    BeginTime = TimeSpan.FromSeconds(delay)
-                };
-
-                var rotateAnimation = new System.Windows.Media.Animation.DoubleAnimation
-                {
-                    From = 0,
-                    To = random.Next(360, 720) * (random.Next(2) == 0 ? 1 : -1),
-                    Duration = TimeSpan.FromSeconds(duration),
-                    BeginTime = TimeSpan.FromSeconds(delay)
-                };
-
-                var fadeAnimation = new System.Windows.Media.Animation.DoubleAnimation
-                {
-                    From = 1,
-                    To = 0,
-                    Duration = TimeSpan.FromSeconds(0.5),
-                    BeginTime = TimeSpan.FromSeconds(delay + duration - 0.5)
-                };
-
-                var confettiRef = confetti;
-                fadeAnimation.Completed += (s, e) =>
-                {
-                    confettiCanvas.Children.Remove(confettiRef);
-                };
-
-                confetti.BeginAnimation(Canvas.TopProperty, fallAnimation);
-                confetti.BeginAnimation(Canvas.LeftProperty, driftAnimation);
-                ((RotateTransform)confetti.RenderTransform).BeginAnimation(RotateTransform.AngleProperty, rotateAnimation);
-                confetti.BeginAnimation(UIElement.OpacityProperty, fadeAnimation);
-            }
+            LoadPrzypomnienia();
+            LoadHistoria();
+            UpdateStatistics();
         }
 
-        // ====== SPECJALNE KONFETTI DLA REKORDU ======
-        private void ShowRekordConfetti()
+        // Tylko historia (po edycji/usunięciu pojedynczego wpisu w historii)
+        private void RefreshAfterHistory()
         {
-            var random = new Random();
+            LoadHistoria();
+        }
 
-            // Złote i celebracyjne kolory dla rekordu
-            var colors = new[]
+        // Tylko wstawienia (po (cofnięciu) potwierdzenia / zmianie isConf)
+        private void RefreshAfterPotwierdzenie()
+        {
+            LoadWstawienia();
+        }
+
+        // Otwiera (lub aktywuje istniejące) okno Kalendarza Dostaw Żywca na konkretnej dacie
+        // i zaznacza wiersz dostawy danego dostawcy / wstawienia.
+        private void OtworzKalendarzDostawNaDacie(DateTime data, string dostawca = null, int? lpWstawienia = null)
+        {
+            try
             {
-                Color.FromRgb(255, 215, 0),    // złoty
-                Color.FromRgb(255, 193, 7),    // złoty ciemniejszy
-                Color.FromRgb(255, 245, 157),  // jasny złoty
-                Color.FromRgb(255, 152, 0),    // pomarańczowy
-                Color.FromRgb(255, 255, 255),  // biały
-                Color.FromRgb(255, 223, 0),    // żółty złoty
-                Color.FromRgb(218, 165, 32),   // goldenrod
-                Color.FromRgb(255, 69, 0)      // czerwono-pomarańczowy
-            };
+                string lpW = lpWstawienia?.ToString();
 
-            // Więcej konfetti dla rekordu!
-            int confettiCount = 150;
+                // Sprawdź czy okno już jest otwarte - aktywuj i nawiguj
+                var istniejace = System.Windows.Application.Current.Windows
+                    .OfType<Zywiec.Kalendarz.WidokKalendarzaWPF>()
+                    .FirstOrDefault();
 
-            // Fale konfetti - 3 fale
-            for (int wave = 0; wave < 3; wave++)
-            {
-                double waveDelay = wave * 0.3;
-
-                for (int i = 0; i < confettiCount / 3; i++)
+                if (istniejace != null)
                 {
-                    // Mieszanka kształtów - prostokąty i gwiazdy
-                    System.Windows.Shapes.Shape confetti;
-
-                    if (random.Next(3) == 0)
-                    {
-                        // Gwiazda (używamy wielokąta)
-                        confetti = new System.Windows.Shapes.Polygon
-                        {
-                            Points = CreateStarPoints(random.Next(10, 16)),
-                            Fill = new SolidColorBrush(colors[random.Next(colors.Length)]),
-                            RenderTransformOrigin = new Point(0.5, 0.5),
-                            RenderTransform = new RotateTransform(random.Next(0, 360))
-                        };
-                    }
-                    else
-                    {
-                        confetti = new System.Windows.Shapes.Rectangle
-                        {
-                            Width = random.Next(10, 18),
-                            Height = random.Next(10, 18),
-                            Fill = new SolidColorBrush(colors[random.Next(colors.Length)]),
-                            RenderTransformOrigin = new Point(0.5, 0.5),
-                            RenderTransform = new RotateTransform(random.Next(0, 360))
-                        };
-                    }
-
-                    double startX = random.Next(0, (int)ActualWidth);
-                    double startY = -30;
-
-                    Canvas.SetLeft(confetti, startX);
-                    Canvas.SetTop(confetti, startY);
-                    confettiCanvas.Children.Add(confetti);
-
-                    double endY = ActualHeight + 50;
-                    double horizontalDrift = random.Next(-200, 200);
-                    double duration = random.NextDouble() * 2.5 + 2.5;
-                    double delay = waveDelay + random.NextDouble() * 0.4;
-
-                    var fallAnimation = new System.Windows.Media.Animation.DoubleAnimation
-                    {
-                        From = startY,
-                        To = endY,
-                        Duration = TimeSpan.FromSeconds(duration),
-                        BeginTime = TimeSpan.FromSeconds(delay),
-                        EasingFunction = new System.Windows.Media.Animation.QuadraticEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseIn }
-                    };
-
-                    var driftAnimation = new System.Windows.Media.Animation.DoubleAnimation
-                    {
-                        From = startX,
-                        To = startX + horizontalDrift,
-                        Duration = TimeSpan.FromSeconds(duration),
-                        BeginTime = TimeSpan.FromSeconds(delay)
-                    };
-
-                    var rotateAnimation = new System.Windows.Media.Animation.DoubleAnimation
-                    {
-                        From = 0,
-                        To = random.Next(720, 1440) * (random.Next(2) == 0 ? 1 : -1),
-                        Duration = TimeSpan.FromSeconds(duration),
-                        BeginTime = TimeSpan.FromSeconds(delay)
-                    };
-
-                    // Pulsujący efekt skali dla gwiazd
-                    var scaleTransform = new ScaleTransform(1, 1);
-                    var transformGroup = new TransformGroup();
-                    transformGroup.Children.Add(confetti.RenderTransform);
-                    transformGroup.Children.Add(scaleTransform);
-                    confetti.RenderTransform = transformGroup;
-
-                    var scaleAnimation = new System.Windows.Media.Animation.DoubleAnimation
-                    {
-                        From = 1.0,
-                        To = 1.3,
-                        Duration = TimeSpan.FromSeconds(0.3),
-                        AutoReverse = true,
-                        RepeatBehavior = new System.Windows.Media.Animation.RepeatBehavior(TimeSpan.FromSeconds(duration)),
-                        BeginTime = TimeSpan.FromSeconds(delay)
-                    };
-
-                    var fadeAnimation = new System.Windows.Media.Animation.DoubleAnimation
-                    {
-                        From = 1,
-                        To = 0,
-                        Duration = TimeSpan.FromSeconds(0.5),
-                        BeginTime = TimeSpan.FromSeconds(delay + duration - 0.5)
-                    };
-
-                    var confettiRef = confetti;
-                    fadeAnimation.Completed += (s, e) =>
-                    {
-                        confettiCanvas.Children.Remove(confettiRef);
-                    };
-
-                    confetti.BeginAnimation(Canvas.TopProperty, fallAnimation);
-                    confetti.BeginAnimation(Canvas.LeftProperty, driftAnimation);
-                    ((RotateTransform)((TransformGroup)confetti.RenderTransform).Children[0]).BeginAnimation(RotateTransform.AngleProperty, rotateAnimation);
-                    scaleTransform.BeginAnimation(ScaleTransform.ScaleXProperty, scaleAnimation);
-                    scaleTransform.BeginAnimation(ScaleTransform.ScaleYProperty, scaleAnimation);
-                    confetti.BeginAnimation(UIElement.OpacityProperty, fadeAnimation);
+                    istniejace.NawigujDoDaty(data, dostawca, lpW);
+                    return;
                 }
+
+                // Nowe okno - po Loaded ustaw datę (kalendarz wymaga inicjalizacji)
+                var okno = new Zywiec.Kalendarz.WidokKalendarzaWPF { UserID = App.UserID };
+                okno.Loaded += (s, e) =>
+                {
+                    Dispatcher.BeginInvoke(new Action(() => okno.NawigujDoDaty(data, dostawca, lpW)),
+                        System.Windows.Threading.DispatcherPriority.ContextIdle);
+                };
+                okno.Show();
             }
-        }
-
-        private System.Windows.Media.PointCollection CreateStarPoints(double size)
-        {
-            var points = new System.Windows.Media.PointCollection();
-            double outerRadius = size / 2;
-            double innerRadius = size / 4;
-
-            for (int i = 0; i < 10; i++)
+            catch (Exception ex)
             {
-                double angle = Math.PI / 2 + i * Math.PI / 5;
-                double radius = (i % 2 == 0) ? outerRadius : innerRadius;
-                points.Add(new Point(
-                    size / 2 + radius * Math.Cos(angle),
-                    size / 2 - radius * Math.Sin(angle)
-                ));
+                MessageBox.Show("Nie udało się otworzyć Kalendarza Dostaw: " + ex.Message,
+                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        // Krótki, nieblokujący toast w prawym dolnym rogu (zastępuje MessageBox "Sukces")
+        private void PokazToastSukces(WstawienieWindow wstawienie)
+        {
+            if (!wstawienie.ZapisanoSukces) return;
+
+            string ostrzezenieAuta = wstawienie.ZapiszInfoAuta
+                ? "Auta zapisane"
+                : "Auta NIE zapisane (Wolnyrynek)";
+            string notatki = wstawienie.ZapiszIloscNotatek > 0
+                ? $" • {wstawienie.ZapiszIloscNotatek} notatek"
+                : "";
+            string text = $"✅ Zapisano  •  {ostrzezenieAuta}{notatki}";
+
+            PokazToast(text, wstawienie.ZapiszInfoAuta);
+        }
+
+        private System.Windows.Threading.DispatcherTimer _toastTimer;
+        private Border _toastBorder;
+
+        private void PokazToast(string text, bool sukces)
+        {
+            // Znajdź główny Grid root (zawiera całe okno)
+            var rootGrid = this.Content as Grid;
+            if (rootGrid == null) return;
+
+            // Usuń poprzedni toast jeśli aktywny
+            if (_toastBorder != null)
+            {
+                rootGrid.Children.Remove(_toastBorder);
+                _toastTimer?.Stop();
             }
 
-            return points;
+            var bg = sukces
+                ? new SolidColorBrush(Color.FromRgb(46, 204, 113))   // zielony
+                : new SolidColorBrush(Color.FromRgb(243, 156, 18));  // pomarańczowy
+            bg.Freeze();
+
+            _toastBorder = new Border
+            {
+                Background = bg,
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(20, 12, 20, 12),
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Bottom,
+                Margin = new Thickness(0, 0, 24, 24),
+                IsHitTestVisible = false,
+                Effect = new System.Windows.Media.Effects.DropShadowEffect
+                {
+                    Color = Colors.Black,
+                    BlurRadius = 12,
+                    ShadowDepth = 2,
+                    Opacity = 0.25
+                },
+                Child = new TextBlock
+                {
+                    Text = text,
+                    Foreground = Brushes.White,
+                    FontSize = 14,
+                    FontWeight = FontWeights.SemiBold
+                }
+            };
+
+            // Toast musi być na ostatnim wierszu/kolumnie żeby pokrywał wszystko
+            if (rootGrid.RowDefinitions.Count > 0)
+                Grid.SetRowSpan(_toastBorder, rootGrid.RowDefinitions.Count);
+            if (rootGrid.ColumnDefinitions.Count > 0)
+                Grid.SetColumnSpan(_toastBorder, rootGrid.ColumnDefinitions.Count);
+
+            rootGrid.Children.Add(_toastBorder);
+            Panel.SetZIndex(_toastBorder, 9999);
+
+            // Animacja fade-in
+            var fadeIn = new System.Windows.Media.Animation.DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(180));
+            _toastBorder.BeginAnimation(UIElement.OpacityProperty, fadeIn);
+
+            // Timer ukrycia
+            _toastTimer = new System.Windows.Threading.DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(2.5)
+            };
+            _toastTimer.Tick += (s, e) =>
+            {
+                _toastTimer.Stop();
+                var fadeOut = new System.Windows.Media.Animation.DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(250));
+                fadeOut.Completed += (sf, ef) =>
+                {
+                    if (_toastBorder != null) rootGrid.Children.Remove(_toastBorder);
+                    _toastBorder = null;
+                };
+                _toastBorder?.BeginAnimation(UIElement.OpacityProperty, fadeOut);
+            };
+            _toastTimer.Start();
         }
+
     }
 
     // ====== CONVERTER DLA KOLUMNY POTW. ======
