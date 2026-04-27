@@ -6553,6 +6553,72 @@ namespace Kalendarz1.Zywiec.Kalendarz
             }
         }
 
+        private static readonly string[] DniSkrotSms = { "niedz", "pon", "wt", "śr", "czw", "pt", "sob" };
+
+        private void MenuKopiujSMS_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(_selectedLP))
+            {
+                ShowToast("Wybierz dostawę", ToastType.Warning);
+                return;
+            }
+
+            var dostawa = _dostawy.FirstOrDefault(d => d.LP == _selectedLP)
+                          ?? _dostawyNastepnyTydzien.FirstOrDefault(d => d.LP == _selectedLP);
+            if (dostawa == null || dostawa.IsHeaderRow || dostawa.IsSeparator)
+            {
+                ShowToast("Wybierz dostawę", ToastType.Warning);
+                return;
+            }
+
+            string sms = BuildDostawaSmsText(dostawa);
+
+            try
+            {
+                Clipboard.SetText(sms);
+                ShowToast("📱 SMS skopiowany do schowka", ToastType.Success);
+            }
+            catch
+            {
+                ShowToast("Nie udało się skopiować do schowka", ToastType.Error);
+            }
+
+            MessageBox.Show(sms, "📱 SMS — szczegóły dostawy", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private static string BuildDostawaSmsText(DostawaModel d)
+        {
+            var dataUboj = d.DataOdbioru.Date;
+            var dataTransport = dataUboj.AddDays(-1);
+            string dniUboj = DniSkrotSms[(int)dataUboj.DayOfWeek];
+            string dniTransport = DniSkrotSms[(int)dataTransport.DayOfWeek];
+
+            string dobaInfo;
+            if (d.RoznicaDni.HasValue && d.RoznicaDni.Value > 0)
+            {
+                var dataWstawienia = dataUboj.AddDays(-d.RoznicaDni.Value);
+                dobaInfo = $"{d.RoznicaDni.Value} dni (wstawienie {dataWstawienia:dd.MM.yyyy})";
+            }
+            else
+            {
+                dobaInfo = "brak danych";
+            }
+
+            return
+                $"🚛 Dostawa z {dniTransport} {dataTransport:dd.MM.yyyy} na dzień ubojowy {dniUboj} {dataUboj:dd.MM.yyyy}." + Environment.NewLine +
+                Environment.NewLine +
+                $"📌 Dostawca: {d.Dostawca}" + Environment.NewLine +
+                $"🚚 Auta: {d.Auta}" + Environment.NewLine +
+                $"🐔 Sztuki: {d.SztukiDek:#,0}" + Environment.NewLine +
+                $"⚖️ Waga: {d.WagaDek:0.00} kg" + Environment.NewLine +
+                $"📅 Doba: {dobaInfo}" + Environment.NewLine +
+                Environment.NewLine +
+                "⚠️ Sztuki i waga do potwierdzenia." + Environment.NewLine +
+                "ℹ️ Informacje o transporcie dzień przed załadunkiem." + Environment.NewLine +
+                Environment.NewLine +
+                "Ubojnia Drobiu Piórkowscy";
+        }
+
         private async Task DuplicateDeliveryAsync(string lp)
         {
             // Pobierz info o dostawie dla audytu
@@ -7348,8 +7414,10 @@ namespace Kalendarz1.Zywiec.Kalendarz
         {
             try
             {
+                // Non-modal - bez Owner i bez ShowDialog, żeby nie blokowało innych okien
+                // i żeby kalendarz mógł pozostać używalny.
                 var historiaWindow = new HistoriaZmianWindow(ConnectionString, UserID);
-                historiaWindow.ShowDialog();
+                historiaWindow.Show();
             }
             catch (Exception ex)
             {
@@ -8291,6 +8359,14 @@ namespace Kalendarz1.Zywiec.Kalendarz
         {
             // Usuń podświetlenie
             ClearDropTargetHighlight();
+
+            // Jeśli inline edit (np. Cena) właśnie się zamknął, kliknięcie zatwierdzające
+            // nie powinno otwierać dialogu przenoszenia dostawy.
+            if (_skipNextDragStart || (DateTime.Now - _inlineEditClosedTime).TotalMilliseconds < CONTEXT_MENU_DRAG_BLOCK_MS)
+            {
+                _isDragging = false;
+                return;
+            }
 
             if (!e.Data.GetDataPresent("DostawaModel")) return;
 
@@ -9418,8 +9494,12 @@ namespace Kalendarz1.Zywiec.Kalendarz
                     ApplyColumnWidth("colCenaNastepny", colCenaNastepny);
                 }
 
-                // Pozycja okna - tylko jeśli nie maximized i mamy zapisane
-                if (!_userPrefs.WindowMaximized && _userPrefs.WindowLeft >= 0 && _userPrefs.WindowTop >= 0)
+                // Pozycja okna - tylko jeśli nie maximized i mamy ROZSĄDNY zapisany rozmiar.
+                // Sanity check: ignoruj zapisaną pozycję jeśli wymiary są podejrzanie małe
+                // (mogłoby się zdarzyć po awarii lub złym SW_RESTORE z WinAPI).
+                if (!_userPrefs.WindowMaximized
+                    && _userPrefs.WindowLeft >= 0 && _userPrefs.WindowTop >= 0
+                    && _userPrefs.WindowWidth >= 800 && _userPrefs.WindowHeight >= 600)
                 {
                     this.WindowState = WindowState.Normal;
                     this.WindowStartupLocation = WindowStartupLocation.Manual;
@@ -9472,9 +9552,9 @@ namespace Kalendarz1.Zywiec.Kalendarz
             CaptureColumnWidth("colDostawcaHeader2", colDostawcaHeader2);
             CaptureColumnWidth("colCenaNastepny", colCenaNastepny);
 
-            // Pozycja okna
+            // Pozycja okna - zapisujemy tylko sensowne wymiary (sanity check przeciw awariom WinAPI).
             _userPrefs.WindowMaximized = (this.WindowState == WindowState.Maximized);
-            if (this.WindowState == WindowState.Normal)
+            if (this.WindowState == WindowState.Normal && this.Width >= 800 && this.Height >= 600)
             {
                 _userPrefs.WindowLeft = this.Left;
                 _userPrefs.WindowTop = this.Top;

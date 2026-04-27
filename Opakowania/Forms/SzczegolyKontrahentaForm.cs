@@ -25,6 +25,13 @@ namespace Kalendarz1.Opakowania.Forms
         List<DokumentOpakowania> _docs = new();
         List<PotwierdzenieSalda> _potw = new();
         HashSet<DateTime> _expandedDays = new();
+        // Dni, ktorych dokumenty sa widoczne jako wiersze-dzieci (uzywane do styling-u w FmtGrid).
+        // Multi-doc rozwiniete + WSZYSTKIE single-doc.
+        HashSet<DateTime> _childDays = new();
+        SzczegolyKontrahentaPrefs _prefs;
+        bool _suppressPrefsSave = false;
+        Button _btnExpandAll;
+        CheckBox _chkPokazPusteDni;
 
         // Layout
         Panel _header, _cardStrip, _infoPanel, _bottomBar, _chartHost;
@@ -61,8 +68,29 @@ namespace Kalendarz1.Opakowania.Forms
         public SzczegolyKontrahentaForm(int id, string nazwa, string handlowiec, SaldoOpakowania saldo, string userId, OpakowaniaDataService ds)
         {
             _id = id; _nazwa = nazwa; _handlowiec = handlowiec ?? "-"; _saldo = saldo; _userId = userId; _ds = ds;
+            _prefs = SzczegolyKontrahentaPreferencesService.Load(_userId);
             BuildUI();
             Load += async (_, __) => await LoadAsync();
+            FormClosed += (_, __) => SavePrefs();
+        }
+
+        void SavePrefs()
+        {
+            if (_suppressPrefsSave || _prefs == null) return;
+            try
+            {
+                _prefs.GrupujPoDniach = _chkGrupujDni?.Checked ?? true;
+                _prefs.PokazPusteDni = _chkPokazPusteDni?.Checked ?? false;
+                if (_dtOd != null) _prefs.OstatniDniOd = (int)Math.Round((DateTime.Today - _dtOd.Value.Date).TotalDays);
+                if (_dtDo != null) _prefs.OstatniDniDo = (int)Math.Round((DateTime.Today - _dtDo.Value.Date).TotalDays);
+                _prefs.ColumnWidths.Clear();
+                if (_grid != null)
+                    foreach (DataGridViewColumn c in _grid.Columns)
+                        if (c.AutoSizeMode != DataGridViewAutoSizeColumnMode.Fill && c.AutoSizeMode != DataGridViewAutoSizeColumnMode.AllCells)
+                            _prefs.ColumnWidths[c.Name] = c.Width;
+                SzczegolyKontrahentaPreferencesService.Save(_userId, _prefs);
+            }
+            catch { }
         }
 
         #region Build UI
@@ -89,11 +117,14 @@ namespace Kalendarz1.Opakowania.Forms
             var gridHost = BuildGridHost();
 
             // --- Add in correct order: Fill first, then edges ---
+            // Dock=Top stack: ostatni dodany = najwyzej. Kolejnosc wizualna od gory:
+            // header > cardStrip > dateToolbar > chartHost
             Controls.Add(gridHost);
             Controls.Add(_infoPanel);
             Controls.Add(_bottomBar);
             Controls.Add(_chartHost);
             Controls.Add(_dateToolbar);
+            Controls.Add(_cardStrip);
             Controls.Add(_header);
         }
 
@@ -161,28 +192,60 @@ namespace Kalendarz1.Opakowania.Forms
             var lblOd = new Label { Text = "Od:", AutoSize = true, ForeColor = CMuted, Font = new Font("Segoe UI Semibold", 9), Margin = new Padding(0, 5, 4, 0) };
             var trzyMiesiaceTemu = DateTime.Today.AddMonths(-3);
             var niedzielaOd = trzyMiesiaceTemu.AddDays(-(int)trzyMiesiaceTemu.DayOfWeek);
-            _dtOd = new DateTimePicker { Format = DateTimePickerFormat.Short, Width = 110, Font = new Font("Segoe UI", 9), Value = niedzielaOd, Margin = new Padding(0, 1, 10, 0) };
+            DateTime startOd = _prefs?.OstatniDniOd is int dOd ? DateTime.Today.AddDays(-dOd) : niedzielaOd;
+            DateTime startDo = _prefs?.OstatniDniDo is int dDo ? DateTime.Today.AddDays(-dDo) : DateTime.Today;
+            _dtOd = new DateTimePicker { Format = DateTimePickerFormat.Short, Width = 110, Font = new Font("Segoe UI", 9), Value = startOd, Margin = new Padding(0, 1, 10, 0) };
             var lblDo = new Label { Text = "Do:", AutoSize = true, ForeColor = CMuted, Font = new Font("Segoe UI Semibold", 9), Margin = new Padding(0, 5, 4, 0) };
-            _dtDo = new DateTimePicker { Format = DateTimePickerFormat.Short, Width = 110, Font = new Font("Segoe UI", 9), Value = DateTime.Today, Margin = new Padding(0, 1, 10, 0) };
+            _dtDo = new DateTimePicker { Format = DateTimePickerFormat.Short, Width = 110, Font = new Font("Segoe UI", 9), Value = startDo, Margin = new Padding(0, 1, 10, 0) };
             var btnRefresh = new Button { Text = "Odswież", AutoSize = true, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(59, 130, 246), ForeColor = Color.White, Font = new Font("Segoe UI", 8.5f, FontStyle.Bold), Cursor = Cursors.Hand, Margin = new Padding(6, 1, 0, 0), Padding = new Padding(10, 2, 10, 2) };
             btnRefresh.FlatAppearance.BorderSize = 0;
             btnRefresh.Click += async (_, __) => await ReloadRangeAsync();
-            _dtOd.ValueChanged += async (_, __) => await ReloadRangeAsync();
-            _dtDo.ValueChanged += async (_, __) => await ReloadRangeAsync();
+            _dtOd.ValueChanged += async (_, __) => { await ReloadRangeAsync(); SavePrefs(); };
+            _dtDo.ValueChanged += async (_, __) => { await ReloadRangeAsync(); SavePrefs(); };
             _chkGrupujDni = new CheckBox
             {
                 Text = "  Grupuj po dniach",
                 AutoSize = true,
-                Checked = true,
+                Checked = _prefs?.GrupujPoDniach ?? true,
                 Margin = new Padding(14, 6, 0, 0),
                 Font = new Font("Segoe UI Semibold", 9),
                 ForeColor = Color.FromArgb(67, 56, 202),
                 FlatStyle = FlatStyle.Flat,
                 Cursor = Cursors.Hand
             };
-            _chkGrupujDni.CheckedChanged += (_, __) => RebuildGrid();
+            _chkGrupujDni.CheckedChanged += (_, __) => { RebuildGrid(); UpdateExpandAllBtn(); SavePrefs(); };
+
+            _chkPokazPusteDni = new CheckBox
+            {
+                Text = "  Puste dni",
+                AutoSize = true,
+                Checked = _prefs?.PokazPusteDni ?? false,
+                Margin = new Padding(8, 6, 0, 0),
+                Font = new Font("Segoe UI", 9),
+                ForeColor = Color.FromArgb(100, 116, 139),
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand
+            };
+            _chkPokazPusteDni.CheckedChanged += (_, __) => { RebuildGrid(); SavePrefs(); };
+
+            _btnExpandAll = new Button
+            {
+                AutoSize = false,
+                Size = new Size(120, 26),
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 8.5f, FontStyle.Bold),
+                Margin = new Padding(8, 3, 0, 0),
+                Cursor = Cursors.Hand,
+                BackColor = Color.White,
+                ForeColor = Color.FromArgb(67, 56, 202),
+                Padding = new Padding(0)
+            };
+            _btnExpandAll.FlatAppearance.BorderColor = Color.FromArgb(199, 210, 254);
+            _btnExpandAll.FlatAppearance.BorderSize = 1;
+            _btnExpandAll.Click += (_, __) => ToggleExpandAll();
+
             // Najpierw DatePickery
-            flow.Controls.AddRange(new Control[] { lblOd, _dtOd, lblDo, _dtDo, btnRefresh, _chkGrupujDni });
+            flow.Controls.AddRange(new Control[] { lblOd, _dtOd, lblDo, _dtDo, btnRefresh, _chkGrupujDni, _chkPokazPusteDni, _btnExpandAll });
 
             // Separator
             var sep = new Panel { Size = new Size(1, 26), Margin = new Padding(10, 4, 6, 0), BackColor = CBorder };
@@ -205,6 +268,7 @@ namespace Kalendarz1.Opakowania.Forms
                     _dtOd.Value = DateTime.Today.AddDays(-d);
                     _dtDo.Value = DateTime.Today;
                     await ReloadRangeAsync();
+                    SavePrefs();
                 };
                 flow.Controls.Add(qb);
             }
@@ -215,7 +279,7 @@ namespace Kalendarz1.Opakowania.Forms
         void BuildBottom()
         {
             // Dwa wykresy obok siebie: E2 (czerwony) i H1 (szary)
-            _chartHost = new Panel { Dock = DockStyle.Top, Height = 280, BackColor = Color.White };
+            _chartHost = new Panel { Dock = DockStyle.Top, Height = 220, BackColor = Color.White };
             _chartHost.Paint += (_, e) => { using var p = new Pen(CBorder); e.Graphics.DrawLine(p, 0, _chartHost.Height - 1, _chartHost.Width, _chartHost.Height - 1); };
 
             _chartE2 = new Panel { Dock = DockStyle.Left, BackColor = Color.White, Cursor = Cursors.Cross };
@@ -262,7 +326,7 @@ namespace Kalendarz1.Opakowania.Forms
 
         void BuildInfoPanel()
         {
-            _infoPanel = new Panel { Dock = DockStyle.Right, Width = 240, BackColor = CBg, AutoScroll = true, Padding = new Padding(12, 10, 12, 10) };
+            _infoPanel = new Panel { Dock = DockStyle.Right, Width = 200, BackColor = CBg, AutoScroll = true, Padding = new Padding(10, 10, 10, 10) };
             _infoPanel.Paint += (_, e) => { using var p = new Pen(CBorder); e.Graphics.DrawLine(p, 0, 0, 0, _infoPanel.Height); };
 
             int y = 0;
@@ -294,14 +358,14 @@ namespace Kalendarz1.Opakowania.Forms
 
             Sec("HISTORIA POTWIERDZEN", ref y);
             _lblPotwStatus = Val("Status: --", ref y);
-            _potwHistPanel = new Panel { Location = new Point(14, y), Size = new Size(212, 120), BackColor = Color.Transparent, AutoScroll = true };
+            _potwHistPanel = new Panel { Location = new Point(14, y), Size = new Size(172, 120), BackColor = Color.Transparent, AutoScroll = true };
             _infoPanel.Controls.Add(_potwHistPanel);
         }
 
         void Sec(string t, ref int y) { _infoPanel.Controls.Add(new Label { Text = t, Location = new Point(14, y), AutoSize = true, ForeColor = CMuted, Font = new Font("Segoe UI", 7, FontStyle.Bold), BackColor = Color.Transparent }); y += 15; }
         Label Val(string t, ref int y, Font f = null)
         {
-            var l = new Label { Text = t, Location = new Point(14, y), AutoSize = true, MaximumSize = new Size(222, 0), ForeColor = CSlate, Font = f ?? new Font("Segoe UI", 9.5f), BackColor = Color.Transparent };
+            var l = new Label { Text = t, Location = new Point(14, y), AutoSize = true, MaximumSize = new Size(180, 0), ForeColor = CSlate, Font = f ?? new Font("Segoe UI", 9.5f), BackColor = Color.Transparent };
             _infoPanel.Controls.Add(l); y += (int)(l.Font.Size * 2.2f) + 2; return l;
         }
 
@@ -369,6 +433,10 @@ namespace Kalendarz1.Opakowania.Forms
 
         void RebuildGrid()
         {
+            // Pierwsze otwarcie / przelaczenie grupowania → uzyj preferencji ExpandAllGroups,
+            // by domyslnie wszystkie wielodok. dni byly rozwiniete (lub zwinięte zgodnie z pref).
+            ApplyExpandPrefIfNeeded();
+
             var saldoRows = _docs.Where(d => d.JestSaldem).ToList();
             var allRows = new List<DokumentOpakowania>();
             allRows.AddRange(saldoRows);
@@ -386,19 +454,54 @@ namespace Kalendarz1.Opakowania.Forms
             var grouped = _docs
                 .Where(d => !d.JestSaldem && d.Data.HasValue)
                 .GroupBy(d => d.Data.Value.Date)
-                .OrderByDescending(g => g.Key);
+                .ToDictionary(g => g.Key, g => g);
 
-            foreach (var g in grouped)
+            // Daty do wyswietlenia: te z dokumentami + opcjonalnie pelny zakres _dtOd..._dtDo
+            IEnumerable<DateTime> dni;
+            bool pokazPuste = _chkPokazPusteDni?.Checked ?? false;
+            if (pokazPuste && _dtOd != null && _dtDo != null)
             {
-                bool expanded = _expandedDays.Contains(g.Key);
+                var od = _dtOd.Value.Date;
+                var doo = _dtDo.Value.Date;
+                int span = (int)Math.Min(366, Math.Max(0, (doo - od).TotalDays));
+                dni = Enumerable.Range(0, span + 1).Select(i => doo.AddDays(-i));
+            }
+            else
+            {
+                dni = grouped.Keys.OrderByDescending(d => d);
+            }
+
+            var plPL = new System.Globalization.CultureInfo("pl-PL");
+            _childDays.Clear();
+            foreach (var dzien in dni)
+            {
+                if (!grouped.TryGetValue(dzien, out var g))
+                {
+                    // Pusty dzien — placeholder
+                    var puste = new DokumentOpakowania
+                    {
+                        TypDokumentu = "EMPTY",
+                        Data = dzien,
+                        DzienTyg = dzien.ToString("dddd", plPL),
+                        NrDok = "Brak dokumentów",
+                        Dokumenty = "",
+                        E2 = 0, H1 = 0, EURO = 0, PCV = 0, DREW = 0,
+                        JestSaldem = false
+                    };
+                    allRows.Add(puste);
+                    continue;
+                }
                 int cnt = g.Count();
-                string chevron = cnt > 1 ? (expanded ? "▼ " : "▶ ") : "    ";
+                bool expanded = cnt == 1 || _expandedDays.Contains(g.Key);
+                // single-doc: brak chevronu (nie ma czego rozwijac); multi-doc: chevron stanu
+                string chevron = cnt > 1 ? (expanded ? "▼ " : "▶ ") : "  ";
+                string label = cnt == 1 ? "1 dokument" : $"{cnt} dokumenty";
                 var grp = new DokumentOpakowania
                 {
                     TypDokumentu = "GRP",
                     Data = g.Key,
                     DzienTyg = g.Key.ToString("dddd", new System.Globalization.CultureInfo("pl-PL")),
-                    NrDok = cnt == 1 ? ("    " + (g.First().NrDok ?? "")) : $"{chevron}{cnt} {(cnt == 1 ? "dokument" : "dokumenty")}",
+                    NrDok = $"{chevron}{label}",
                     Dokumenty = string.Join(", ", g.Select(d => d.NrDok).Where(s => !string.IsNullOrEmpty(s))),
                     E2 = g.Sum(d => d.E2),
                     H1 = g.Sum(d => d.H1),
@@ -408,8 +511,11 @@ namespace Kalendarz1.Opakowania.Forms
                     JestSaldem = false
                 };
                 allRows.Add(grp);
-                if (expanded && cnt > 1)
+                if (expanded)
+                {
+                    _childDays.Add(g.Key);
                     allRows.AddRange(g.OrderByDescending(d => d.Data));
+                }
             }
 
             _grid.SuspendLayout();
@@ -421,6 +527,7 @@ namespace Kalendarz1.Opakowania.Forms
                 {
                     if (dd.TypDokumentu == "GRP") _grid.Rows[i].Height = 40;
                     else if (dd.JestSaldem) _grid.Rows[i].Height = 38;
+                    else if (dd.TypDokumentu == "EMPTY") _grid.Rows[i].Height = 24;
                 }
             }
             _grid.ResumeLayout();
@@ -438,6 +545,7 @@ namespace Kalendarz1.Opakowania.Forms
             if (cnt <= 1) return;
             if (!_expandedDays.Add(key)) _expandedDays.Remove(key);
             RebuildGrid();
+            UpdateExpandAllBtn();
         }
 
         ContextMenuStrip BuildCtxMenu()
@@ -451,6 +559,52 @@ namespace Kalendarz1.Opakowania.Forms
             m.Items.Add("Eksport PDF", null, async (_, __) => await ExportPdfAsync());
             m.Items.Add("Wyslij email z saldem", null, (_, __) => SendEmail());
             return m;
+        }
+
+        // ===== Expand/Collapse all =====
+
+        // Dni z >1 dokumentu (kandydaci do rozwijania)
+        IEnumerable<DateTime> MultiDocDays() =>
+            _docs.Where(d => !d.JestSaldem && d.Data.HasValue)
+                 .GroupBy(d => d.Data.Value.Date)
+                 .Where(g => g.Count() > 1)
+                 .Select(g => g.Key);
+
+        bool _expandPrefApplied = false;
+
+        void ApplyExpandPrefIfNeeded()
+        {
+            if (_expandPrefApplied || _docs == null || _docs.Count == 0) return;
+            _expandPrefApplied = true;
+            if (_prefs?.ExpandAllGroups ?? true)
+            {
+                _expandedDays.Clear();
+                foreach (var d in MultiDocDays()) _expandedDays.Add(d);
+            }
+            else _expandedDays.Clear();
+            UpdateExpandAllBtn();
+        }
+
+        void ToggleExpandAll()
+        {
+            var multi = MultiDocDays().ToList();
+            bool allExpanded = multi.Count > 0 && multi.All(d => _expandedDays.Contains(d));
+            _expandedDays.Clear();
+            if (!allExpanded) foreach (var d in multi) _expandedDays.Add(d);
+            if (_prefs != null) _prefs.ExpandAllGroups = !allExpanded;
+            SavePrefs();
+            RebuildGrid();
+            UpdateExpandAllBtn();
+        }
+
+        void UpdateExpandAllBtn()
+        {
+            if (_btnExpandAll == null) return;
+            var multi = MultiDocDays().ToList();
+            bool grupuj = _chkGrupujDni?.Checked ?? true;
+            _btnExpandAll.Enabled = grupuj && multi.Count > 0;
+            bool allExpanded = multi.Count > 0 && multi.All(d => _expandedDays.Contains(d));
+            _btnExpandAll.Text = allExpanded ? "▼  Zwiń wszystko" : "▶  Rozwiń wszystko";
         }
 
         #endregion
@@ -467,10 +621,11 @@ namespace Kalendarz1.Opakowania.Forms
             if (cn == "Bar")
             {
                 e.Handled = true;
-                Color bar = d.TypDokumentu == "GRP" ? Color.FromArgb(99, 102, 241) : d.JestSaldem ? CYellow : d.TypDokumentu == "MW1" ? CRed : CGreen;
+                Color bar = d.TypDokumentu == "GRP" ? Color.FromArgb(99, 102, 241) : d.TypDokumentu == "EMPTY" ? Color.FromArgb(226, 232, 240) : d.JestSaldem ? CYellow : d.TypDokumentu == "MW1" ? CRed : CGreen;
                 bool sel = e.State.HasFlag(DataGridViewElementStates.Selected);
                 Color bgCol = sel ? e.CellStyle.SelectionBackColor
                     : d.TypDokumentu == "GRP" ? Color.FromArgb(238, 242, 255)
+                    : d.TypDokumentu == "EMPTY" ? Color.FromArgb(250, 250, 250)
                     : d.JestSaldem ? Color.FromArgb(255, 251, 235)
                     : e.CellStyle.BackColor;
                 using (var bg = new SolidBrush(bgCol)) e.Graphics.FillRectangle(bg, e.CellBounds);
@@ -485,11 +640,13 @@ namespace Kalendarz1.Opakowania.Forms
                 bool sel = e.State.HasFlag(DataGridViewElementStates.Selected);
                 Color cellBg = d.JestSaldem ? Color.FromArgb(255, 251, 235)
                     : d.TypDokumentu == "GRP" ? Color.FromArgb(238, 242, 255)
+                    : d.TypDokumentu == "EMPTY" ? Color.FromArgb(250, 250, 250)
                     : e.CellStyle.BackColor;
                 using (var bg = new SolidBrush(sel ? e.CellStyle.SelectionBackColor : cellBg)) e.Graphics.FillRectangle(bg, e.CellBounds);
 
                 string txt; Color col; Font fnt;
                 if (d.TypDokumentu == "GRP") { txt = "DZIEŃ"; col = Color.FromArgb(67, 56, 202); fnt = new Font("Segoe UI", 8.5f, FontStyle.Bold); }
+                else if (d.TypDokumentu == "EMPTY") { txt = "—"; col = Color.FromArgb(156, 163, 175); fnt = new Font("Segoe UI", 9, FontStyle.Bold); }
                 else if (d.JestSaldem) { txt = "SALDO"; col = Color.FromArgb(161, 98, 7); fnt = new Font("Segoe UI", 8, FontStyle.Bold); }
                 else if (d.TypDokumentu == "MW1") { txt = "Wydanie"; col = CRed; fnt = new Font("Segoe UI", 8.5f, FontStyle.Bold); }
                 else { txt = "Przyjęcie"; col = CGreen; fnt = new Font("Segoe UI", 8.5f, FontStyle.Bold); }
@@ -526,15 +683,20 @@ namespace Kalendarz1.Opakowania.Forms
             // Kolumny numeryczne — kolor + tekst zalezny od typu wiersza
             if (cn is "E2" or "H1" or "EURO" or "PCV" or "DREW" && e.Value is int v)
             {
-                if (v == 0) { e.Value = "0"; e.CellStyle.ForeColor = Color.FromArgb(200, 200, 200); }
+                if (dok != null && dok.TypDokumentu == "EMPTY")
+                {
+                    e.Value = ""; // pusty placeholder — bez "0"
+                    e.FormattingApplied = true;
+                }
+                else if (v == 0) { e.Value = "0"; e.CellStyle.ForeColor = Color.FromArgb(200, 200, 200); e.FormattingApplied = true; }
                 else
                 {
                     e.CellStyle.ForeColor = v < 0 ? CRed : CGreen;
                     var unit = cn == "E2" ? " poj." : " pal.";
                     // Salda: "Wisi"/"My winni"; dokumenty i sumy dnia: "Wydalismy"/"Oddal"
                     e.Value = (dok != null && dok.JestSaldem) ? FmtSaldo(v, unit) : FmtDoc(v, unit);
+                    e.FormattingApplied = true;
                 }
-                e.FormattingApplied = true;
             }
 
             // Stylowanie wierszy
@@ -547,6 +709,12 @@ namespace Kalendarz1.Opakowania.Forms
                     if (cn is not "E2" and not "H1" and not "EURO" and not "PCV" and not "DREW")
                         e.CellStyle.ForeColor = Color.FromArgb(67, 56, 202);
                 }
+                else if (dok.TypDokumentu == "EMPTY")
+                {
+                    e.CellStyle.BackColor = Color.FromArgb(250, 250, 250);
+                    e.CellStyle.Font = new Font("Segoe UI", 9f, FontStyle.Italic);
+                    e.CellStyle.ForeColor = Color.FromArgb(156, 163, 175);
+                }
                 else if (dok.JestSaldem)
                 {
                     e.CellStyle.BackColor = Color.FromArgb(255, 251, 235);
@@ -554,8 +722,8 @@ namespace Kalendarz1.Opakowania.Forms
                 }
                 else
                 {
-                    // Dziecko rozwinietej grupy — lekki indent + tlumione tlo
-                    bool isChild = (_chkGrupujDni?.Checked ?? true) && dok.Data.HasValue && _expandedDays.Contains(dok.Data.Value.Date);
+                    // Dziecko grupy (rozwinietej multi-doc lub single-doc) — lekki indent + tlumione tlo
+                    bool isChild = (_chkGrupujDni?.Checked ?? true) && dok.Data.HasValue && _childDays.Contains(dok.Data.Value.Date);
                     if (isChild)
                     {
                         e.CellStyle.BackColor = Color.FromArgb(250, 250, 252);
@@ -630,7 +798,7 @@ namespace Kalendarz1.Opakowania.Forms
                     var lbl = new Label
                     {
                         Text = $"{p.DataPotwierdzenia:dd.MM.yy} {p.KodOpakowania}: {p.IloscPotwierdzona} ({p.StatusPotwierdzenia})",
-                        Location = new Point(14, py), AutoSize = true, MaximumSize = new Size(195, 0),
+                        Location = new Point(14, py), AutoSize = true, MaximumSize = new Size(155, 0),
                         Font = new Font("Segoe UI", 8), ForeColor = CSlate, BackColor = Color.Transparent
                     };
                     var lblUser = new Label
@@ -657,7 +825,9 @@ namespace Kalendarz1.Opakowania.Forms
             var plPL = new System.Globalization.CultureInfo("pl-PL");
             foreach (var d in _docs)
                 if (d.Data.HasValue) d.DzienTyg = d.Data.Value.ToString("dddd", plPL);
+            _expandPrefApplied = false; // re-apply expand-all pref na nowych danych
             RebuildGrid();
+            UpdateExpandAllBtn();
 
             // Statystyki
             int wydania = _docs.Count(d => !d.JestSaldem && d.TypDokumentu == "MW1");
@@ -665,9 +835,9 @@ namespace Kalendarz1.Opakowania.Forms
             int docCount = _docs.Count(d => !d.JestSaldem);
             _lblCount.Text = $"  Dokumenty ({docCount})   |   Wydania: {wydania}   Przyjecia: {przyjecia}";
 
-            var lastSaldo = _docs.FirstOrDefault(d => d.JestSaldem);
-            if (lastSaldo != null)
-                _lblSaldoEnd.Text = $"  Saldo:  E2={FmtSaldo(lastSaldo.E2, " poj.")}   H1={FmtSaldo(lastSaldo.H1, " pal.")}   EURO={FmtSaldo(lastSaldo.EURO, " pal.")}   PCV={FmtSaldo(lastSaldo.PCV, " pal.")}   DREW={FmtSaldo(lastSaldo.DREW, " pal.")}";
+            // Saldo z tabeli pokazujemy w kartach u gory; bottom bar zostaje pusty
+            // (uzywany tylko do status-message "Skopiowano!" itp.)
+            _lblSaldoEnd.Text = "";
 
             _lblStatWyd.Text = $"Wydania: {wydania} dok.";
             _lblStatPrzyj.Text = $"Przyjecia: {przyjecia} dok.";

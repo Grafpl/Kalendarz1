@@ -1,45 +1,47 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
-using System.Drawing.Drawing2D;
 using System.Linq;
+using System.Reflection;
 using System.Windows.Forms;
-using Microsoft.Data.SqlClient;
 
 namespace Kalendarz1
 {
     public partial class SprawdzalkaUmow : Form
     {
-        private readonly string connectionString =
-            "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+        // === REPOZYTORIUM (zamiast hardcoded SQL) ===
+        private readonly HarmonogramDostawRepository _repo = new HarmonogramDostawRepository();
 
-        // Kolory do stylizacji UI
-        private readonly Color _primaryColor = Color.FromArgb(92, 138, 58);
-        private readonly Color _hoverColor = Color.FromArgb(75, 115, 47);
+        // Cache avatarów (id+name → Image)
+        private readonly Dictionary<string, Image> _avatarCache = new Dictionary<string, Image>();
 
-        // Cache avatarów
-        private Dictionary<string, Image> _avatarCache = new Dictionary<string, Image>();
+        // Cache nazw operatorów (id → name) - do uzupełniania KtoUtw/KtoWysl/KtoOtrzym
+        private readonly Dictionary<int, string> _operatorNameCache = new Dictionary<int, string>();
 
-        // Rozmiar avatara
-        private const int AVATAR_SIZE = 24;
-
-        // Cache nazw operatorów (id → name) - używany do uzupełniania KtoUtw/KtoWysl/KtoOtrzym
-        // przy lokalnym update wiersza, żeby uniknąć pełnego SQL reload.
-        private Dictionary<int, string> _operatorNameCache = new Dictionary<int, string>();
-
-        // Filtr archiwalnych: false = ostatnie 6 miesięcy (znacznie szybciej), true = wszystko od 2021
+        // === FILTRY ===
+        // Pokaż archiwalne (>6 mies)
         private bool _pokazArchiwalne = false;
         private const int DOMYSLNY_ZAKRES_MIESIECY = 6;
         private CheckBox _chkPokazArchiwalne;
         private Label _lblStats;
 
+        // Quick-filter chip (jeden naraz, null = brak)
+        private QuickFilter _aktywnyChip = QuickFilter.Brak;
+        private readonly Dictionary<QuickFilter, Button> _chipy = new Dictionary<QuickFilter, Button>();
+
+        // === DANE ===
         // Oryginalna tabela z SQL (bez wierszy-nagłówków). Filtrowanie rebuilduje display tabelę.
         private DataTable _originalRows;
-        private static readonly System.Globalization.CultureInfo _plCulture =
-            new System.Globalization.CultureInfo("pl-PL");
-        private const int HEADER_ROW_HEIGHT = 32;
-        private const int DATA_ROW_HEIGHT = 36;
+
+        // === DEBOUNCE TXT SEARCH (#3) ===
+        private readonly Timer _searchDebounce = new Timer { Interval = 250 };
+
+        // === CONTEXT MENU dla audit log (#23) ===
+        private ContextMenuStrip _rowContextMenu;
+
+        // Stała kolumna `_isHeader` (bool) dodawana do tabel - eliminuje boxing w hot loops (#4).
+        private const string COL_IS_HEADER = "_isHeader";
 
         public string UserID { get; set; } = "";
 
@@ -51,7 +53,19 @@ namespace Kalendarz1
 
             dgvContracts.CurrentCellDirtyStateChanged += DataGridViewKalendarz_CurrentCellDirtyStateChanged;
             dgvContracts.CellContentClick += DataGridViewKalendarz_CellContentClick;
+            dgvContracts.CellDoubleClick += DataGridViewKalendarz_CellDoubleClick; // #12
+            dgvContracts.CellMouseDown += DataGridViewKalendarz_CellMouseDown;     // #23 prawy klik
             chkShowOnlyIncomplete.CheckedChanged += (s, e) => ApplyCombinedFilter();
+
+            // #3 - debounce search
+            _searchDebounce.Tick += (s, e) =>
+            {
+                _searchDebounce.Stop();
+                ApplyCombinedFilter();
+            };
+
+            // #23 - context menu
+            BudujContextMenu();
 
             LoadDataGridKalendarz();
         }
@@ -59,12 +73,11 @@ namespace Kalendarz1
         private void ApplyCustomStyles()
         {
             ConfigureDataGridView(dgvContracts);
-            btnAddContract.MouseEnter += (s, e) => btnAddContract.BackColor = _hoverColor;
-            btnAddContract.MouseLeave += (s, e) => btnAddContract.BackColor = _primaryColor;
+            btnAddContract.MouseEnter += (s, e) => btnAddContract.BackColor = SprawdzalkaUmowStyles.PrimaryHover;
+            btnAddContract.MouseLeave += (s, e) => btnAddContract.BackColor = SprawdzalkaUmowStyles.Primary;
             dgvContracts.CellPainting += DgvContracts_CellPainting;
-            dgvContracts.RowTemplate.Height = 36; // Zwiększ wysokość wierszy dla avatarów
+            dgvContracts.RowTemplate.Height = SprawdzalkaUmowStyles.DataRowHeight;
 
-            // Reorganizacja kontrolek nad tabelą (programatically, żeby nie nadpisywać Designer-a)
             ReorganizujPanelGorny();
         }
 
@@ -73,40 +86,65 @@ namespace Kalendarz1
             var panel = chkShowOnlyIncomplete.Parent as Panel;
             if (panel == null) return;
 
-            // Powiększ panel żeby zmieściły się statystyki + lepszy układ
-            panel.Height = 90;
+            // Kompaktowy panel: 76px (było 130) - 2 zwarte rzędy
+            panel.Height = 76;
+            panel.BackColor = Color.FromArgb(250, 251, 253);  // bardzo jasny tint
 
-            // 1. PRZYCISK "Dodaj umowę" - lewy róg, większy z ikoną
-            btnAddContract.Location = new Point(20, 18);
-            btnAddContract.Size = new Size(170, 55);
+            // ─── ROW 1 (y=8, h=32): Add button + Search + Stats ───
+            btnAddContract.Location = new Point(12, 8);
+            btnAddContract.Size = new Size(130, 32);
             btnAddContract.Text = "📑  Dodaj umowę";
             btnAddContract.TextAlign = ContentAlignment.MiddleCenter;
-            btnAddContract.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
+            btnAddContract.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            btnAddContract.FlatAppearance.BorderSize = 0;
 
-            // 2. SZUKAJ - środek, większy
-            lblSearch.Location = new Point(220, 18);
-            lblSearch.Text = "🔍  Szukaj po dostawcy lub osobie";
-            lblSearch.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-            lblSearch.ForeColor = Color.FromArgb(80, 80, 80);
-            lblSearch.AutoSize = true;
-            txtSearch.Location = new Point(220, 40);
-            txtSearch.Size = new Size(280, 30);
-            txtSearch.Font = new Font("Segoe UI", 11F, FontStyle.Regular);
+            // Search bez osobnego labela - użyj placeholder
+            lblSearch.Visible = false;
+            txtSearch.Location = new Point(150, 8);
+            txtSearch.Size = new Size(260, 32);
+            txtSearch.Font = new Font("Segoe UI", 9.5F);
+            try { txtSearch.PlaceholderText = "🔍  Szukaj po dostawcy lub osobie..."; } catch { }
+            txtSearch.BorderStyle = BorderStyle.FixedSingle;
 
-            // 3. CHECKBOXY filtrów - prawo
+            // Debounced TextChanged
+            txtSearch.TextChanged -= textBoxSearch_TextChanged;
+            txtSearch.TextChanged += (s, e) =>
+            {
+                _searchDebounce.Stop();
+                _searchDebounce.Start();
+            };
+
+            // STATS - prawy róg górnego rzędu, mniejszy font
+            _lblStats = new Label
+            {
+                Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                AutoSize = false,
+                Size = new Size(560, 32),
+                Location = new Point(panel.Width - 572, 8),
+                Font = new Font("Segoe UI", 8.5F),
+                ForeColor = SprawdzalkaUmowStyles.TextMuted,
+                TextAlign = ContentAlignment.MiddleRight,
+                Text = "Ładowanie..."
+            };
+            panel.Controls.Add(_lblStats);
+
+            // ─── ROW 2 (y=44, h=26): Chips + Checkboxes ───
+            BudujChipy(panel);
+
             chkShowOnlyIncomplete.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            chkShowOnlyIncomplete.Location = new Point(panel.Width - 220, 20);
-            chkShowOnlyIncomplete.Text = "☐ Tylko nieuzupełnione";
-            chkShowOnlyIncomplete.Font = new Font("Segoe UI", 9.75F);
+            chkShowOnlyIncomplete.Location = new Point(panel.Width - 380, 47);
+            chkShowOnlyIncomplete.Text = "Tylko niekompletne";
+            chkShowOnlyIncomplete.Font = new Font("Segoe UI", 8.5F);
+            chkShowOnlyIncomplete.AutoSize = true;
 
             _chkPokazArchiwalne = new CheckBox
             {
                 Anchor = AnchorStyles.Top | AnchorStyles.Right,
                 AutoSize = true,
-                Font = new Font("Segoe UI", 9.75F, FontStyle.Regular, GraphicsUnit.Point, 238),
-                ForeColor = Color.FromArgb(44, 62, 80),
-                Location = new Point(panel.Width - 220, 50),
-                Text = $"📦 Pokaż archiwalne (>{DOMYSLNY_ZAKRES_MIESIECY} mies.)",
+                Font = new Font("Segoe UI", 8.5F, FontStyle.Regular, GraphicsUnit.Point, 238),
+                ForeColor = SprawdzalkaUmowStyles.TextDark,
+                Location = new Point(panel.Width - 220, 47),
+                Text = $"Archiwalne (>{DOMYSLNY_ZAKRES_MIESIECY} mies.)",
                 Checked = false,
                 UseVisualStyleBackColor = true,
                 TabIndex = 156
@@ -118,31 +156,112 @@ namespace Kalendarz1
             };
             panel.Controls.Add(_chkPokazArchiwalne);
 
-            // 4. STATYSTYKI - środek-prawo (między szukaj a checkbox-ami)
-            _lblStats = new Label
-            {
-                Anchor = AnchorStyles.Top | AnchorStyles.Right,
-                AutoSize = false,
-                Size = new Size(450, 60),
-                Location = new Point(panel.Width - 700, 18),
-                Font = new Font("Segoe UI", 9F, FontStyle.Regular),
-                ForeColor = Color.FromArgb(80, 80, 80),
-                TextAlign = ContentAlignment.MiddleLeft,
-                Text = "Ładowanie..."
-            };
-            panel.Controls.Add(_lblStats);
-
-            // Subtelna dolna linia oddzielająca panel od tabeli
+            // Subtelne wykończenie - akcentowa linia po lewej (4px primary green)
+            // + cienki separator pomiędzy rzędami + dolna ramka
             panel.Paint += (s, e) =>
             {
-                using (var pen = new Pen(Color.FromArgb(220, 224, 228), 1))
-                {
-                    e.Graphics.DrawLine(pen, 0, panel.Height - 1, panel.Width, panel.Height - 1);
-                }
+                // Lewy pasek akcentowy
+                using (var brush = new SolidBrush(SprawdzalkaUmowStyles.Primary))
+                    e.Graphics.FillRectangle(brush, 0, 0, 4, panel.Height);
+                // Subtelny separator pomiędzy rzędami
+                using (var pen = new Pen(Color.FromArgb(232, 234, 237), 1))
+                    e.Graphics.DrawLine(pen, 12, 41, panel.Width - 12, 41);
+                // Dolna ramka (cień 1px)
+                e.Graphics.DrawLine(SprawdzalkaUmowStyles.BorderPen, 0, panel.Height - 1, panel.Width, panel.Height - 1);
             };
         }
 
-        // Aktualizuj statystyki - liczone z ORYGINALNEJ tabeli (bez headerów + bez wpływu filtra)
+        // Quick-filter chips - kompaktowe (88x26 było 130x30)
+        private void BudujChipy(Panel panel)
+        {
+            int x = 12;
+            int y = 44;
+            (QuickFilter id, string label)[] defs =
+            {
+                (QuickFilter.Dzis, "📅 Dziś"),
+                (QuickFilter.Jutro, "➡ Jutro"),
+                (QuickFilter.TenTydzien, "📆 Tydzień"),
+                (QuickFilter.Spoznione, "⚠ Spóźnione"),
+                (QuickFilter.TylkoMoje, "👤 Moje"),
+            };
+
+            foreach (var (id, label) in defs)
+            {
+                var btn = new Button
+                {
+                    Text = label,
+                    Location = new Point(x, y),
+                    Size = new Size(88, 26),
+                    Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
+                    BackColor = SprawdzalkaUmowStyles.ChipInactiveBg,
+                    ForeColor = SprawdzalkaUmowStyles.ChipInactiveFg,
+                    FlatStyle = FlatStyle.Flat,
+                    Cursor = Cursors.Hand,
+                    TextAlign = ContentAlignment.MiddleCenter,
+                    Tag = id
+                };
+                btn.FlatAppearance.BorderSize = 0;
+                btn.FlatAppearance.MouseOverBackColor = Color.FromArgb(220, 224, 228);
+                btn.Click += Chip_Click;
+                _chipy[id] = btn;
+                panel.Controls.Add(btn);
+                x += 92;  // 88 + 4 spacing
+            }
+        }
+
+        private void Chip_Click(object sender, EventArgs e)
+        {
+            var btn = (Button)sender;
+            var clicked = (QuickFilter)btn.Tag;
+
+            // Toggle: jeśli już aktywny → wyłącz, inaczej zmień
+            _aktywnyChip = (_aktywnyChip == clicked) ? QuickFilter.Brak : clicked;
+            OdswiezChipy();
+            ApplyCombinedFilter();
+        }
+
+        private void OdswiezChipy()
+        {
+            foreach (var kvp in _chipy)
+            {
+                bool aktywny = kvp.Key == _aktywnyChip;
+                kvp.Value.BackColor = aktywny ? SprawdzalkaUmowStyles.ChipActiveBg : SprawdzalkaUmowStyles.ChipInactiveBg;
+                kvp.Value.ForeColor = aktywny ? SprawdzalkaUmowStyles.ChipActiveFg : SprawdzalkaUmowStyles.ChipInactiveFg;
+            }
+        }
+
+        // #23 - context menu: Pokaż historię zmian / Skopiuj LP
+        private void BudujContextMenu()
+        {
+            _rowContextMenu = new ContextMenuStrip();
+            var miHistoria = new ToolStripMenuItem("📜  Pokaż historię zmian");
+            miHistoria.Click += (s, e) => PokazHistorieAktualnegoWiersza();
+            var miKopiuj = new ToolStripMenuItem("📋  Skopiuj LP");
+            miKopiuj.Click += (s, e) =>
+            {
+                if (dgvContracts.CurrentRow == null) return;
+                var v = dgvContracts.CurrentRow.Cells["ID"]?.Value;
+                if (v != null && v != DBNull.Value)
+                    Clipboard.SetText(v.ToString());
+            };
+            _rowContextMenu.Items.Add(miHistoria);
+            _rowContextMenu.Items.Add(miKopiuj);
+        }
+
+        private void PokazHistorieAktualnegoWiersza()
+        {
+            if (dgvContracts.CurrentRow == null) return;
+            var row = dgvContracts.CurrentRow;
+            if (IsHeaderRow(row)) return;
+
+            int lp = Convert.ToInt32(row.Cells["ID"].Value);
+            string dostawca = row.Cells["Dostawca"]?.Value?.ToString() ?? "?";
+            var history = _repo.GetAuditHistory(lp);
+            using var dlg = new AuditHistoryDialog(lp, dostawca, history);
+            dlg.ShowDialog(this);
+        }
+
+        // Aktualizuj statystyki - liczone z ORYGINALNEJ tabeli (bez wpływu filtra)
         private void OdswiezStatystyki()
         {
             if (_lblStats == null || _originalRows == null) return;
@@ -151,7 +270,6 @@ namespace Kalendarz1
 
             foreach (DataRow r in _originalRows.Rows)
             {
-                if (r["ID"] != DBNull.Value && Convert.ToInt32(r["ID"]) == -1) continue; // header
                 total++;
                 bool u = r["Utworzone"] != DBNull.Value && Convert.ToBoolean(r["Utworzone"]);
                 bool w = r["Wysłane"] != DBNull.Value && Convert.ToBoolean(r["Wysłane"]);
@@ -166,94 +284,99 @@ namespace Kalendarz1
             }
 
             _lblStats.Text =
-                $"📋  {total} dostaw     " +
-                $"✅ {kompletne} kompletne     " +
-                $"📝 {doUtworzenia} do utworzenia     " +
-                $"📤 {doWyslania} do wysłania     " +
-                $"📥 {doOdebrania} do odebrania     " +
-                $"🤝 {posrednicy} pośrednicy";
+                $"📋  {total}  ·  " +
+                $"✅ {kompletne}  ·  " +
+                $"📝 {doUtworzenia} utw  ·  " +
+                $"📤 {doWyslania} wys  ·  " +
+                $"📥 {doOdebrania} odb  ·  " +
+                $"🤝 {posrednicy} pośr";
         }
 
         private void ConfigureDataGridView(DataGridView dgv)
         {
-            // DisplayedCells - mierzy tylko widoczne wiersze (znacznie szybsze niż AllCells przy 500+ wierszach)
+            // #6 DoubleBuffered (eliminuje flicker przy scrollu) - wymaga reflection bo property protected.
+            typeof(DataGridView)
+                .GetProperty("DoubleBuffered", BindingFlags.Instance | BindingFlags.NonPublic)
+                ?.SetValue(dgv, true);
+
             dgv.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
             dgv.RowHeadersWidthSizeMode = DataGridViewRowHeadersWidthSizeMode.DisableResizing;
-            // Edycja tylko programatyczna (klikamy checkboxy w handlerze) - nie pokazuje editing controls
             dgv.EditMode = DataGridViewEditMode.EditProgrammatically;
-            dgv.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(245, 247, 249);
-            dgv.DefaultCellStyle.SelectionBackColor = _hoverColor;
+            dgv.AlternatingRowsDefaultCellStyle.BackColor = SprawdzalkaUmowStyles.RowAlternate;
+            dgv.DefaultCellStyle.SelectionBackColor = SprawdzalkaUmowStyles.PrimaryHover;
             dgv.DefaultCellStyle.SelectionForeColor = Color.White;
             dgv.RowPrePaint += Dgv_RowPrePaint;
 
-            // Blokada zmiany szerokości kolumn i wysokości wierszy
             dgv.AllowUserToResizeColumns = false;
             dgv.AllowUserToResizeRows = false;
             dgv.AllowUserToOrderColumns = false;
-            dgv.RowHeadersVisible = false;          // brak lewej kolumny ze strzałką (oszczędza miejsce)
+            dgv.RowHeadersVisible = false;
 
-            // Grupowanie wizualne po dacie - rysuj grubą górną linię gdy data się zmienia
             dgv.RowPostPaint += Dgv_RowPostPaint;
             dgv.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
         }
 
-        // Rysuje wiersz-nagłówek (data + dzień tygodnia) jako baner across całego wiersza.
-        // Dla zwykłych wierszy nic nie robi.
+        // Rysuje wiersz-nagłówek (data + dzień tygodnia) jako baner.
+        // Dodatkowo: dla wszystkich wierszy z dzisiejszą datą (header + dane) → czerwone obramowanie.
         private void Dgv_RowPostPaint(object sender, DataGridViewRowPostPaintEventArgs e)
         {
             var dgv = sender as DataGridView;
             if (dgv == null || e.RowIndex < 0) return;
-
-            var row = dgv.Rows[e.RowIndex];
-            if (!IsHeaderRow(row)) return;
             if (!dgv.Columns.Contains("DataOdbioru")) return;
 
+            var row = dgv.Rows[e.RowIndex];
             var dateVal = row.Cells["DataOdbioru"].Value;
             if (dateVal == null || dateVal == DBNull.Value) return;
 
             DateTime data = Convert.ToDateTime(dateVal);
-            string dzienTygodnia = data.ToString("dddd", _plCulture).ToUpper();
-            string dataPelna = data.ToString("d MMMM yyyy", _plCulture);
-            int diff = (data.Date - DateTime.Today).Days;
-            string wzgledna = diff switch
-            {
-                0 => "  •  DZIŚ",
-                1 => "  •  JUTRO",
-                -1 => "  •  WCZORAJ",
-                _ when diff > 0 && diff <= 7 => $"  •  za {diff} dni",
-                _ when diff < 0 && diff >= -7 => $"  •  {-diff} dni temu",
-                _ => ""
-            };
+            bool isToday = data.Date == DateTime.Today;
 
-            // Tło banera - gradient grafitowy (slate)
-            using (var brush = new System.Drawing.Drawing2D.LinearGradientBrush(
-                e.RowBounds, Color.FromArgb(55, 71, 79), Color.FromArgb(84, 110, 122),
-                System.Drawing.Drawing2D.LinearGradientMode.Horizontal))
+            // ===== HEADER ROW (banner z datą) =====
+            if (IsHeaderRow(row))
             {
-                e.Graphics.FillRectangle(brush, e.RowBounds);
-            }
+                string dzienTygodnia = data.ToString("dddd", SprawdzalkaUmowStyles.PlCulture).ToUpper();
+                string dataPelna = data.ToString("d MMMM yyyy", SprawdzalkaUmowStyles.PlCulture);
+                int diff = (data.Date - DateTime.Today).Days;
+                string wzgledna = diff switch
+                {
+                    0 => "  •  DZIŚ",
+                    1 => "  •  JUTRO",
+                    -1 => "  •  WCZORAJ",
+                    _ when diff > 0 && diff <= 7 => $"  •  za {diff} dni",
+                    _ when diff < 0 && diff >= -7 => $"  •  {-diff} dni temu",
+                    _ => ""
+                };
 
-            // Lewa pionowa kreska akcentowa - bursztynowa (kontrast do grafitowego tła)
-            using (var accent = new SolidBrush(Color.FromArgb(255, 152, 0)))
-            {
-                e.Graphics.FillRectangle(accent, e.RowBounds.Left, e.RowBounds.Top, 4, e.RowBounds.Height);
-            }
+                // Tło: żółty gradient dla DZIŚ, slate dla pozostałych
+                if (isToday)
+                {
+                    using var brush = SprawdzalkaUmowStyles.CreateTodayHeaderBgBrush(e.RowBounds);
+                    e.Graphics.FillRectangle(brush, e.RowBounds);
+                }
+                else
+                {
+                    using var brush = SprawdzalkaUmowStyles.CreateHeaderBgBrush(e.RowBounds);
+                    e.Graphics.FillRectangle(brush, e.RowBounds);
+                    e.Graphics.FillRectangle(SprawdzalkaUmowStyles.HeaderAccentBrush, e.RowBounds.Left, e.RowBounds.Top, 4, e.RowBounds.Height);
+                }
 
-            // Tekst: "📅 WTOREK • 28 KWIETNIA 2026 • DZIŚ"
-            string label = $"📅  {dzienTygodnia}  •  {dataPelna}{wzgledna}";
-            using (var font = new Font("Segoe UI", 11.5F, FontStyle.Bold))
-            using (var textBrush = new SolidBrush(Color.White))
-            using (var sf = new StringFormat
-            {
-                Alignment = StringAlignment.Near,
-                LineAlignment = StringAlignment.Center,
-                FormatFlags = StringFormatFlags.NoWrap
-            })
-            {
+                string label = $"📅  {dzienTygodnia}  •  {dataPelna}{wzgledna}";
                 var textRect = new Rectangle(
                     e.RowBounds.Left + 16, e.RowBounds.Top,
                     e.RowBounds.Width - 32, e.RowBounds.Height);
-                e.Graphics.DrawString(label, font, textBrush, textRect, sf);
+                var textBrush = isToday ? SprawdzalkaUmowStyles.TodayHeaderTextBrush : SprawdzalkaUmowStyles.HeaderTextBrush;
+                e.Graphics.DrawString(label, SprawdzalkaUmowStyles.HeaderBannerFont,
+                    textBrush, textRect, SprawdzalkaUmowStyles.HeaderBannerFormat);
+            }
+
+            // ===== CZERWONE OBRAMOWANIE dla wszystkich wierszy z dzisiejszą datą =====
+            // (header + wszystkie dane dostaw na dzisiaj)
+            if (isToday)
+            {
+                var rect = new Rectangle(
+                    e.RowBounds.Left, e.RowBounds.Top,
+                    e.RowBounds.Width - 1, e.RowBounds.Height - 1);
+                e.Graphics.DrawRectangle(SprawdzalkaUmowStyles.TodayBorderPen, rect);
             }
         }
 
@@ -263,73 +386,44 @@ namespace Kalendarz1
             if (preserveState)
                 state = CaptureGridState();
 
-            // Zakres dat: domyślnie ostatnie 6 mies. (znacznie szybciej niż od 2021).
-            // Użytkownik może wymusić archiwalne checkbox-em "Pokaż archiwalne".
-            string dolnaGranica = _pokazArchiwalne
-                ? "'2021-01-01'"
-                : "DATEADD(MONTH, -" + DOMYSLNY_ZAKRES_MIESIECY + ", GETDATE())";
+            var table = _repo.LoadDostawy(_pokazArchiwalne, DOMYSLNY_ZAKRES_MIESIECY);
 
-            string query = $@"
-                SELECT
-                    h.[LP] AS ID, h.[DataOdbioru], h.[Dostawca],
-                    CAST(ISNULL(h.[Utworzone],0) AS bit) AS Utworzone,
-                    CAST(ISNULL(h.[Wysłane],0) AS bit) AS Wysłane,
-                    CAST(ISNULL(h.[Otrzymane],0) AS bit) AS Otrzymane,
-                    CAST(ISNULL(h.[Posrednik],0) AS bit) AS Posrednik,
-                    h.[Auta], h.[SztukiDek], h.[WagaDek], h.[SztSzuflada],
-                    ISNULL(u1.Name, h.KtoUtw) AS KtoUtw, h.[KiedyUtw],
-                    CAST(h.KtoUtw AS VARCHAR(50)) AS KtoUtwID,
-                    ISNULL(u2.Name, h.KtoWysl) AS KtoWysl, h.[KiedyWysl],
-                    CAST(h.KtoWysl AS VARCHAR(50)) AS KtoWyslID,
-                    ISNULL(u3.Name, h.KtoOtrzym) AS KtoOtrzym, h.[KiedyOtrzm],
-                    CAST(h.KtoOtrzym AS VARCHAR(50)) AS KtoOtrzymID
-                FROM [LibraNet].[dbo].[HarmonogramDostaw] h
-                LEFT JOIN [LibraNet].[dbo].[operators] u1 ON TRY_CAST(h.KtoUtw AS INT) = u1.ID
-                LEFT JOIN [LibraNet].[dbo].[operators] u2 ON TRY_CAST(h.KtoWysl AS INT) = u2.ID
-                LEFT JOIN [LibraNet].[dbo].[operators] u3 ON TRY_CAST(h.KtoOtrzym AS INT) = u3.ID
-                WHERE h.Bufor = 'Potwierdzony'
-                  AND h.DataOdbioru BETWEEN {dolnaGranica} AND DATEADD(DAY, 2, GETDATE())
-                ORDER BY h.DataOdbioru DESC;";
+            // #4 - dodaj kolumnę _isHeader (bool, wszystkie dane = false)
+            if (!table.Columns.Contains(COL_IS_HEADER))
+                table.Columns.Add(COL_IS_HEADER, typeof(bool));
+            foreach (DataRow r in table.Rows)
+                r[COL_IS_HEADER] = false;
 
-            using (var connection = new SqlConnection(connectionString))
-            using (var adapter = new SqlDataAdapter(query, connection))
+            dgvContracts.SuspendLayout();
+            dgvContracts.AutoGenerateColumns = false;
+
+            if (dgvContracts.Columns.Count == 0)
             {
-                var table = new DataTable();
-                adapter.Fill(table);
-
-                dgvContracts.SuspendLayout();
-                dgvContracts.AutoGenerateColumns = false;
-
-                if (dgvContracts.Columns.Count == 0)
-                {
-                    dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "ID", Name = "ID", Visible = false, ReadOnly = true });
-                    dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "DataOdbioru", Name = "DataOdbioru", HeaderText = "Data", DefaultCellStyle = { Format = "yyyy-MM-dd" }, Width = 100, ReadOnly = true });
-                    dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "Dostawca", Name = "Dostawca", HeaderText = "Dostawca", Width = 200, ReadOnly = true });
-                    // 4 checkboxy - jedyne edytowalne kolumny
-                    dgvContracts.Columns.Add(MakeCheckColumn("Utworzone"));
-                    dgvContracts.Columns.Add(MakeCheckColumn("Wysłane"));
-                    dgvContracts.Columns.Add(MakeCheckColumn("Otrzymane"));
-                    dgvContracts.Columns.Add(MakeCheckColumn("Posrednik", "Pośrednik"));
-                    // Od Aut do końca - read-only, ustawione szerokości (bez AutoSize)
-                    dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "Auta", Name = "Auta", HeaderText = "Aut", Width = 50, ReadOnly = true });
-                    dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "SztukiDek", Name = "SztukiDek", HeaderText = "Sztuki", Width = 75, ReadOnly = true });
-                    dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "WagaDek", Name = "WagaDek", HeaderText = "Waga", Width = 75, ReadOnly = true });
-                    dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "SztSzuflada", Name = "SztSzuflada", HeaderText = "sztPoj", Width = 60, ReadOnly = true });
-                    dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "KtoUtw", Name = "KtoUtw", HeaderText = "Kto utworzył", Width = 180, ReadOnly = true });
-                    dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "KtoUtwID", Name = "KtoUtwID", Visible = false, ReadOnly = true });
-                    dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "KiedyUtw", Name = "KiedyUtw", HeaderText = "Kiedy utworzył", Width = 130, DefaultCellStyle = { Format = "yyyy-MM-dd HH:mm" }, ReadOnly = true });
-                    dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "KtoWysl", Name = "KtoWysl", HeaderText = "Kto wysłał", Width = 180, ReadOnly = true });
-                    dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "KtoWyslID", Name = "KtoWyslID", Visible = false, ReadOnly = true });
-                    dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "KiedyWysl", Name = "KiedyWysl", HeaderText = "Kiedy wysłał", Width = 130, DefaultCellStyle = { Format = "yyyy-MM-dd HH:mm" }, ReadOnly = true });
-                    dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "KtoOtrzym", Name = "KtoOtrzym", HeaderText = "Kto otrzymał", Width = 180, ReadOnly = true });
-                    dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "KtoOtrzymID", Name = "KtoOtrzymID", Visible = false, ReadOnly = true });
-                    dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "KiedyOtrzm", Name = "KiedyOtrzm", HeaderText = "Kiedy otrzymał", Width = 130, DefaultCellStyle = { Format = "yyyy-MM-dd HH:mm" }, ReadOnly = true });
-                }
-
-                _originalRows = table;
-                RebuildDisplayTable();
-                dgvContracts.ResumeLayout();
+                dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "ID", Name = "ID", Visible = false, ReadOnly = true });
+                dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "DataOdbioru", Name = "DataOdbioru", HeaderText = "Data", DefaultCellStyle = { Format = "yyyy-MM-dd" }, Width = 100, ReadOnly = true });
+                dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "Dostawca", Name = "Dostawca", HeaderText = "Dostawca", Width = 200, ReadOnly = true });
+                dgvContracts.Columns.Add(MakeCheckColumn("Utworzone"));
+                dgvContracts.Columns.Add(MakeCheckColumn("Wysłane"));
+                dgvContracts.Columns.Add(MakeCheckColumn("Otrzymane"));
+                dgvContracts.Columns.Add(MakeCheckColumn("Posrednik", "Pośrednik"));
+                dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "Auta", Name = "Auta", HeaderText = "Aut", Width = 50, ReadOnly = true });
+                dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "SztukiDek", Name = "SztukiDek", HeaderText = "Sztuki", Width = 75, ReadOnly = true });
+                dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "WagaDek", Name = "WagaDek", HeaderText = "Waga", Width = 75, ReadOnly = true });
+                dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "SztSzuflada", Name = "SztSzuflada", HeaderText = "sztPoj", Width = 60, ReadOnly = true });
+                dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "KtoUtw", Name = "KtoUtw", HeaderText = "Kto utworzył", Width = 180, ReadOnly = true });
+                dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "KtoUtwID", Name = "KtoUtwID", Visible = false, ReadOnly = true });
+                dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "KiedyUtw", Name = "KiedyUtw", HeaderText = "Kiedy utworzył", Width = 130, DefaultCellStyle = { Format = "yyyy-MM-dd HH:mm" }, ReadOnly = true });
+                dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "KtoWysl", Name = "KtoWysl", HeaderText = "Kto wysłał", Width = 180, ReadOnly = true });
+                dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "KtoWyslID", Name = "KtoWyslID", Visible = false, ReadOnly = true });
+                dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "KiedyWysl", Name = "KiedyWysl", HeaderText = "Kiedy wysłał", Width = 130, DefaultCellStyle = { Format = "yyyy-MM-dd HH:mm" }, ReadOnly = true });
+                dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "KtoOtrzym", Name = "KtoOtrzym", HeaderText = "Kto otrzymał", Width = 180, ReadOnly = true });
+                dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "KtoOtrzymID", Name = "KtoOtrzymID", Visible = false, ReadOnly = true });
+                dgvContracts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "KiedyOtrzm", Name = "KiedyOtrzm", HeaderText = "Kiedy otrzymał", Width = 130, DefaultCellStyle = { Format = "yyyy-MM-dd HH:mm" }, ReadOnly = true });
             }
+
+            _originalRows = table;
+            RebuildDisplayTable();
+            dgvContracts.ResumeLayout();
 
             if (preserveState)
                 RestoreGridState(state);
@@ -338,18 +432,15 @@ namespace Kalendarz1
         }
 
         // Buduje tabelę wyświetlaną w gridzie: filtr + wstawienie wierszy-nagłówków per data.
-        // Wywoływane po Load i po każdej zmianie filtra/checkboxa.
         private void RebuildDisplayTable()
         {
             if (_originalRows == null) return;
 
-            // 1. Zastosuj filtr na oryginalnych wierszach
+            // 1. Zastosuj filtr (txtSearch + chkShowOnlyIncomplete + quick-chip)
             string filter = BuildRowFilter();
-            DataRow[] visibleRows;
-            if (string.IsNullOrEmpty(filter))
-                visibleRows = _originalRows.Select("", "DataOdbioru DESC");
-            else
-                visibleRows = _originalRows.Select(filter, "DataOdbioru DESC");
+            DataRow[] visibleRows = string.IsNullOrEmpty(filter)
+                ? _originalRows.Select("", "DataOdbioru DESC")
+                : _originalRows.Select(filter, "DataOdbioru DESC");
 
             // 2. Zbuduj nową tabelę z separatorami dat
             var display = _originalRows.Clone();
@@ -360,10 +451,10 @@ namespace Kalendarz1
                 if (!Equals(currDate, prevDate))
                 {
                     var sep = display.NewRow();
-                    sep["ID"] = -1;                     // marker wiersza-nagłówka
+                    sep["ID"] = -1;
+                    sep[COL_IS_HEADER] = true;        // #4 - flag bool zamiast porównań ID
                     sep["DataOdbioru"] = currDate;
                     sep["Dostawca"] = DBNull.Value;
-                    // DataGridViewCheckBoxColumn wymaga bool (nie akceptuje DBNull) - inaczej FormatException
                     sep["Utworzone"] = false;
                     sep["Wysłane"] = false;
                     sep["Otrzymane"] = false;
@@ -376,16 +467,15 @@ namespace Kalendarz1
 
             dgvContracts.DataSource = display.DefaultView;
 
-            // Wysokości wierszy: nagłówki niższe (32px), dane standardowe (36px)
+            // Wysokości wierszy: nagłówki niższe, dane standardowe
             for (int i = 0; i < dgvContracts.Rows.Count; i++)
             {
-                var idVal = dgvContracts.Rows[i].Cells["ID"].Value;
-                bool isHeader = idVal != null && idVal != DBNull.Value && Convert.ToInt32(idVal) == -1;
-                dgvContracts.Rows[i].Height = isHeader ? HEADER_ROW_HEIGHT : DATA_ROW_HEIGHT;
+                bool isHeader = IsHeaderRow(dgvContracts.Rows[i]);
+                dgvContracts.Rows[i].Height = isHeader ? SprawdzalkaUmowStyles.HeaderRowHeight : SprawdzalkaUmowStyles.DataRowHeight;
                 if (isHeader)
                 {
                     dgvContracts.Rows[i].DefaultCellStyle.SelectionBackColor = Color.FromArgb(220, 230, 215);
-                    dgvContracts.Rows[i].DefaultCellStyle.SelectionForeColor = Color.FromArgb(44, 62, 80);
+                    dgvContracts.Rows[i].DefaultCellStyle.SelectionForeColor = SprawdzalkaUmowStyles.TextDark;
                 }
             }
         }
@@ -396,16 +486,25 @@ namespace Kalendarz1
             Name = dataProperty,
             HeaderText = header ?? dataProperty,
             Width = 80,
-            ReadOnly = false,                       // jedyne edytowalne
+            ReadOnly = false,
             DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter }
         };
 
-        // Czy wiersz to "nagłówek daty" (separator) - sprawdzane po ID = -1
+        // #4 - flag-based check zamiast Convert.ToInt32(ID) == -1
         private static bool IsHeaderRow(DataGridViewRow row)
         {
-            if (row == null || !row.DataGridView.Columns.Contains("ID")) return false;
-            var v = row.Cells["ID"].Value;
-            return v != null && v != DBNull.Value && Convert.ToInt32(v) == -1;
+            if (row == null) return false;
+            var dgv = row.DataGridView;
+            if (dgv == null) return false;
+            if (dgv.Columns.Contains(COL_IS_HEADER))
+            {
+                var v = row.Cells[COL_IS_HEADER].Value;
+                return v is bool b && b;
+            }
+            // Fallback (gdyby kolumna jeszcze nie istniała)
+            if (!dgv.Columns.Contains("ID")) return false;
+            var idVal = row.Cells["ID"].Value;
+            return idVal != null && idVal != DBNull.Value && Convert.ToInt32(idVal) == -1;
         }
 
         private void Dgv_RowPrePaint(object sender, DataGridViewRowPrePaintEventArgs e)
@@ -415,12 +514,11 @@ namespace Kalendarz1
 
             var row = dgv.Rows[e.RowIndex];
 
-            // Wiersz-nagłówek daty - rysujemy baner i nie aplikujemy normalnego stylowania
             if (IsHeaderRow(row))
             {
-                row.DefaultCellStyle.BackColor = Color.FromArgb(55, 71, 79);    // grafitowy slate
+                row.DefaultCellStyle.BackColor = SprawdzalkaUmowStyles.HeaderBgStart;
                 row.DefaultCellStyle.ForeColor = Color.White;
-                row.DefaultCellStyle.SelectionBackColor = Color.FromArgb(55, 71, 79);
+                row.DefaultCellStyle.SelectionBackColor = SprawdzalkaUmowStyles.HeaderBgStart;
                 row.DefaultCellStyle.SelectionForeColor = Color.White;
                 return;
             }
@@ -430,20 +528,32 @@ namespace Kalendarz1
             bool okO = GetBool(dgv, e.RowIndex, "Otrzymane");
             bool isPosrednik = GetBool(dgv, e.RowIndex, "Posrednik");
 
-            // Pośrednik = od razu zielone (nie wymaga wysłania/otrzymania) + zamroź pozostałe checkboxy
+            // Sprawdź czy to dzisiejsza data (żółte tło - tylko dla niezakończonych)
+            bool isToday = false;
+            if (dgv.Columns.Contains("DataOdbioru"))
+            {
+                var dv = row.Cells["DataOdbioru"].Value;
+                if (dv is DateTime dt) isToday = dt.Date == DateTime.Today;
+            }
+
             if (isPosrednik || (okU && okW && okO))
             {
-                row.DefaultCellStyle.BackColor = Color.FromArgb(46, 204, 113); // zielony
+                row.DefaultCellStyle.BackColor = SprawdzalkaUmowStyles.RowComplete;
                 row.DefaultCellStyle.ForeColor = Color.White;
+            }
+            else if (isToday)
+            {
+                // Dziś + niekompletne → żółte tło (alarmuje że trzeba domknąć dzisiaj)
+                row.DefaultCellStyle.BackColor = SprawdzalkaUmowStyles.TodayRowBg;
+                row.DefaultCellStyle.ForeColor = SprawdzalkaUmowStyles.TextDark;
             }
             else
             {
-                row.DefaultCellStyle.ForeColor = Color.FromArgb(44, 62, 80);
+                row.DefaultCellStyle.ForeColor = SprawdzalkaUmowStyles.TextDark;
                 row.DefaultCellStyle.BackColor = (e.RowIndex % 2 == 0) ? Color.White : dgv.AlternatingRowsDefaultCellStyle.BackColor;
             }
 
             // Zamroź pozostałe 3 checkboxy gdy Pośrednik=true
-            // (Pośrednik wyklucza Wysłane/Otrzymane bo dostawca jest przez pośrednika)
             string[] checkCols = { "Utworzone", "Wysłane", "Otrzymane" };
             foreach (var col in checkCols)
             {
@@ -452,12 +562,12 @@ namespace Kalendarz1
                 cell.ReadOnly = isPosrednik;
                 if (isPosrednik)
                 {
-                    cell.Style.BackColor = Color.FromArgb(200, 230, 201);
-                    cell.Style.ForeColor = Color.FromArgb(189, 195, 199);
+                    cell.Style.BackColor = SprawdzalkaUmowStyles.FrozenCheckBg;
+                    cell.Style.ForeColor = SprawdzalkaUmowStyles.FrozenCheckFg;
                 }
             }
 
-            // Pogrubiona data tylko dla pierwszego wiersza danej daty (uzupełnia separator z RowPostPaint)
+            // #2 - cached fonty zamiast new Font() per repaint
             if (dgv.Columns.Contains("DataOdbioru"))
             {
                 bool isFirstOfDate = e.RowIndex == 0;
@@ -468,11 +578,11 @@ namespace Kalendarz1
                     isFirstOfDate = !Equals(curr, prev);
                 }
                 row.Cells["DataOdbioru"].Style.Font = isFirstOfDate
-                    ? new Font(dgv.Font, FontStyle.Bold)
-                    : new Font(dgv.Font, FontStyle.Regular);
+                    ? SprawdzalkaUmowStyles.CellBoldFont
+                    : SprawdzalkaUmowStyles.CellRegularFont;
                 if (isFirstOfDate && !isPosrednik && !(okU && okW && okO))
                 {
-                    row.Cells["DataOdbioru"].Style.ForeColor = Color.FromArgb(92, 138, 58);
+                    row.Cells["DataOdbioru"].Style.ForeColor = SprawdzalkaUmowStyles.Primary;
                 }
             }
         }
@@ -503,24 +613,17 @@ namespace Kalendarz1
             if (col.Name != "Utworzone" && col.Name != "Wysłane" && col.Name != "Otrzymane" && col.Name != "Posrednik") return;
 
             var row = grid.Rows[e.RowIndex];
-
-            // Wiersz-nagłówek daty - ignoruj klik
             if (IsHeaderRow(row)) return;
-
-            // Jeśli klikany checkbox jest ReadOnly (np. zamrożone bo Pośrednik=true) - ignoruj
             if (row.Cells[col.Name].ReadOnly) return;
             if (!grid.Columns.Contains("ID")) return;
             int id = Convert.ToInt32(row.Cells["ID"].Value);
 
-            // Explicit toggle - z EditMode=EditProgrammatically klik nie zmienia wartości checkboxa,
-            // EditedFormattedValue zwraca stary stan. Czytamy aktualną wartość i odwracamy.
             bool currentValue = false;
             var rawVal = row.Cells[col.Name].Value;
             if (rawVal != null && rawVal != DBNull.Value)
                 currentValue = Convert.ToBoolean(rawVal);
             bool newValue = !currentValue;
 
-            // NATYCHMIASTOWY visual update - checkbox zmienia stan zanim pojawi się MessageBox
             row.Cells[col.Name].Value = newValue;
 
             string dostawca = row.Cells["Dostawca"]?.Value?.ToString() ?? "?";
@@ -530,23 +633,18 @@ namespace Kalendarz1
                 : string.Format("Cofnąć '{0}' dla {1} ({2})?", col.HeaderText, dostawca, dataStr);
             if (MessageBox.Show(msg, "Potwierdzenie", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
             {
-                // User anulował - cofnij wizualną zmianę
                 row.Cells[col.Name].Value = currentValue;
                 return;
             }
 
-            string ktoCol = null, kiedyCol = null;
-            switch (col.Name)
-            {
-                case "Utworzone": ktoCol = "KtoUtw"; kiedyCol = "KiedyUtw"; break;
-                case "Wysłane": ktoCol = "KtoWysl"; kiedyCol = "KiedyWysl"; break;
-                case "Otrzymane": ktoCol = "KtoOtrzym"; kiedyCol = "KiedyOtrzm"; break;
-            }
-
             try
             {
-                UpdateKalendarzFlag_NoReload(id, col.Name, newValue);
-                // Lokalna aktualizacja wiersza - bez pełnego SQL reload (oszczędza 500-1500ms)
+                int? userIdInt = null;
+                if (int.TryParse(UserID, out int parsedUid)) userIdInt = parsedUid;
+
+                _repo.UpdateFlag(id, col.Name, newValue, userIdInt, out bool? oldValue);
+                _repo.InsertAuditLog(id, col.Name, oldValue, newValue, userIdInt); // #23
+
                 UpdateRowLocally(id, col.Name, newValue);
             }
             catch (Exception ex)
@@ -556,54 +654,106 @@ namespace Kalendarz1
             }
         }
 
+        // #12 - dwuklik wiersza otwiera UmowyForm dla danego LP
+        private void DataGridViewKalendarz_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < 0) return;
+            var row = dgvContracts.Rows[e.RowIndex];
+            if (IsHeaderRow(row)) return;
+
+            // Ignoruj dwuklik na kolumnach checkboxów (toggle handler się tym zajmuje)
+            string colName = e.ColumnIndex >= 0 ? dgvContracts.Columns[e.ColumnIndex].Name : "";
+            if (colName == "Utworzone" || colName == "Wysłane" || colName == "Otrzymane" || colName == "Posrednik") return;
+
+            var cellVal = row.Cells["ID"]?.Value;
+            if (cellVal == null || cellVal == DBNull.Value) return;
+            string lp = cellVal.ToString();
+
+            var form = new UmowyForm(initialLp: lp, initialIdLibra: null) { UserID = App.UserID };
+            form.FormClosed += (s, args) => LoadDataGridKalendarz();
+            form.Show(this);
+        }
+
+        // #23 - prawy klik = pokaż context menu (Pokaż historię / Skopiuj LP)
+        private void DataGridViewKalendarz_CellMouseDown(object sender, DataGridViewCellMouseEventArgs e)
+        {
+            if (e.Button != MouseButtons.Right) return;
+            if (e.RowIndex < 0) return;
+
+            var row = dgvContracts.Rows[e.RowIndex];
+            if (IsHeaderRow(row)) return;
+
+            // Zaznacz wiersz pod kursorem
+            dgvContracts.CurrentCell = row.Cells[Math.Max(e.ColumnIndex, 0)];
+            _rowContextMenu.Show(Cursor.Position);
+        }
+
         private string BuildRowFilter()
         {
-            string filterText = txtSearch.Text.Trim().Replace("'", "''");
-            string textFilter = string.IsNullOrEmpty(filterText) ? string.Empty : $"Dostawca LIKE '%{filterText}%' OR CONVERT(DataOdbioru, 'System.String') LIKE '%{filterText}%' OR KtoUtw LIKE '%{filterText}%' OR KtoWysl LIKE '%{filterText}%' OR KtoOtrzym LIKE '%{filterText}%'";
-            string incompleteFilter = "[Utworzone] = false OR [Wysłane] = false OR [Otrzymane] = false";
+            var parts = new List<string>();
 
+            // 1. Search
+            string filterText = txtSearch.Text.Trim().Replace("'", "''");
+            if (!string.IsNullOrEmpty(filterText))
+            {
+                parts.Add($"(Dostawca LIKE '%{filterText}%' OR CONVERT(DataOdbioru, 'System.String') LIKE '%{filterText}%' OR KtoUtw LIKE '%{filterText}%' OR KtoWysl LIKE '%{filterText}%' OR KtoOtrzym LIKE '%{filterText}%')");
+            }
+
+            // 2. Tylko nieuzupełnione
             if (chkShowOnlyIncomplete.Checked)
             {
-                return string.IsNullOrEmpty(textFilter) ? incompleteFilter : $"({textFilter}) AND ({incompleteFilter})";
+                parts.Add("([Utworzone] = false OR [Wysłane] = false OR [Otrzymane] = false)");
             }
-            return textFilter;
+
+            // 3. Quick-filter chip (#9)
+            string chipFilter = BuildChipFilter();
+            if (!string.IsNullOrEmpty(chipFilter))
+            {
+                parts.Add(chipFilter);
+            }
+
+            return string.Join(" AND ", parts);
+        }
+
+        private string BuildChipFilter()
+        {
+            DateTime today = DateTime.Today;
+            switch (_aktywnyChip)
+            {
+                case QuickFilter.Dzis:
+                    return $"DataOdbioru = #{today:yyyy-MM-dd}#";
+
+                case QuickFilter.Jutro:
+                    return $"DataOdbioru = #{today.AddDays(1):yyyy-MM-dd}#";
+
+                case QuickFilter.TenTydzien:
+                    // Pon-Niedz danego tygodnia
+                    int daysFromMonday = ((int)today.DayOfWeek + 6) % 7;
+                    DateTime mon = today.AddDays(-daysFromMonday);
+                    DateTime sun = mon.AddDays(6);
+                    return $"DataOdbioru >= #{mon:yyyy-MM-dd}# AND DataOdbioru <= #{sun:yyyy-MM-dd}#";
+
+                case QuickFilter.Spoznione:
+                    // data <= dziś AND nie kompletne (brak min. 1 z 3) AND nie pośrednik
+                    return $"DataOdbioru <= #{today:yyyy-MM-dd}# AND ([Utworzone] = false OR [Wysłane] = false OR [Otrzymane] = false) AND [Posrednik] = false";
+
+                case QuickFilter.TylkoMoje:
+                    if (string.IsNullOrEmpty(UserID)) return "";
+                    return $"(KtoUtwID = '{UserID}' OR KtoWyslID = '{UserID}' OR KtoOtrzymID = '{UserID}')";
+
+                default:
+                    return "";
+            }
         }
 
         private void ApplyCombinedFilter()
         {
-            // Zamiast filtra na DataView - rebuilduj display tabelę żeby separator-wiersze daty
-            // były spójne z aktualnym widokiem (bez orphan headerów).
             RebuildDisplayTable();
         }
 
-        // Pobiera nazwę operatora z cache (lub z bazy, jeśli pierwszy raz)
-        private string GetOperatorName(int userId)
-        {
-            if (_operatorNameCache.TryGetValue(userId, out var cached)) return cached;
-            try
-            {
-                using (var conn = new SqlConnection(connectionString))
-                using (var cmd = new SqlCommand("SELECT TOP 1 Name FROM dbo.operators WHERE ID = @id", conn))
-                {
-                    cmd.Parameters.AddWithValue("@id", userId);
-                    conn.Open();
-                    var v = cmd.ExecuteScalar();
-                    string name = v == null || v == DBNull.Value ? userId.ToString() : v.ToString();
-                    _operatorNameCache[userId] = name;
-                    return name;
-                }
-            }
-            catch
-            {
-                return userId.ToString();
-            }
-        }
-
         // Aktualizuj wiersz w lokalnym DataTable bez pełnego reload SQL.
-        // Eliminuje 500-1500ms opóźnienia + ogromne CPU używane przez RestoreGridState.
         private void UpdateRowLocally(int id, string columnName, bool value)
         {
-            // Znajdź wiersz w ORYGINALNEJ tabeli (display table jest rebuildowane przy filtrze)
             if (_originalRows == null) return;
             DataRow targetRow = null;
             foreach (DataRow r in _originalRows.Rows)
@@ -631,7 +781,7 @@ namespace Kalendarz1
             {
                 if (value && int.TryParse(UserID, out int uid))
                 {
-                    targetRow[ktoCol] = GetOperatorName(uid);
+                    targetRow[ktoCol] = GetOperatorNameCached(uid);
                     targetRow[ktoCol + "ID"] = uid.ToString();
                     targetRow[kiedyCol] = DateTime.Now;
                 }
@@ -665,41 +815,23 @@ namespace Kalendarz1
                 }
             }
 
-            // Wymuś repaint wszystkich widocznych wierszy (kolory + ReadOnly checkboxów zależą od stanu).
-            // Invalidate wystarczy - WPF/WinForms wykona PrePaint który ustawia kolory.
             dgvContracts.Invalidate();
-
             OdswiezStatystyki();
         }
 
-        private void UpdateKalendarzFlag_NoReload(int id, string columnName, bool value)
+        // Cache wrapper dla _repo.GetOperatorName
+        private string GetOperatorNameCached(int userId)
         {
-            string[] allowed = { "Utworzone", "Wysłane", "Otrzymane", "Posrednik" };
-            if (Array.IndexOf(allowed, columnName) < 0) throw new InvalidOperationException("Nieobsługiwana kolumna: " + columnName);
-
-            string? ktoCol = null, kiedyCol = null;
-            switch (columnName)
+            if (_operatorNameCache.TryGetValue(userId, out var cached)) return cached;
+            try
             {
-                case "Utworzone": ktoCol = "KtoUtw"; kiedyCol = "KiedyUtw"; break;
-                case "Wysłane": ktoCol = "KtoWysl"; kiedyCol = "KiedyWysl"; break;
-                case "Otrzymane": ktoCol = "KtoOtrzym"; kiedyCol = "KiedyOtrzm"; break;
+                var name = _repo.GetOperatorName(userId);
+                _operatorNameCache[userId] = name;
+                return name;
             }
-
-            if (value && ktoCol != null && !int.TryParse(UserID, out int userIdInt)) throw new InvalidOperationException("UserID musi być liczbą.");
-
-            string sql = ktoCol == null
-                ? $@"UPDATE dbo.HarmonogramDostaw SET [{columnName}] = @val WHERE [LP] = @id;"
-                : $@"UPDATE dbo.HarmonogramDostaw SET [{columnName}] = @val, [{ktoCol}] = CASE WHEN @val = 1 THEN @kto ELSE NULL END, [{kiedyCol}] = CASE WHEN @val = 1 THEN GETDATE() ELSE NULL END WHERE [LP] = @id;";
-
-            using (var conn = new SqlConnection(connectionString))
-            using (var cmd = new SqlCommand(sql, conn))
+            catch
             {
-                cmd.Parameters.AddWithValue("@val", value);
-                cmd.Parameters.AddWithValue("@id", id);
-                if (ktoCol != null) cmd.Parameters.AddWithValue("@kto", (object)int.Parse(UserID));
-
-                conn.Open();
-                if (cmd.ExecuteNonQuery() != 1) throw new Exception("Zaktualizowano nieprawidłową liczbę wierszy.");
+                return userId.ToString();
             }
         }
 
@@ -755,14 +887,16 @@ namespace Kalendarz1
 
         private void textBoxSearch_TextChanged(object sender, EventArgs e)
         {
-            ApplyCombinedFilter();
+            // Kept for Designer compatibility - rzeczywisty handler jest podpięty w ReorganizujPanelGorny (debounced)
+            _searchDebounce.Stop();
+            _searchDebounce.Start();
         }
 
-        private void DgvContracts_CellPainting(object sender, DataGridViewCellPaintingEventArgs e)
+        private void DgvContracts_CellPainting(object sender, System.Windows.Forms.DataGridViewCellPaintingEventArgs e)
         {
             if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
 
-            // Wiersz-nagłówek: nie renderuj zawartości komórek - cały rysunek robimy w RowPostPaint.
+            // #6 - skip cells poza viewport (dla wierszy nagłówka tylko)
             if (IsHeaderRow(dgvContracts.Rows[e.RowIndex]))
             {
                 e.Handled = true;
@@ -772,7 +906,6 @@ namespace Kalendarz1
             string colName = dgvContracts.Columns[e.ColumnIndex].Name;
             if (colName != "KtoUtw" && colName != "KtoWysl" && colName != "KtoOtrzym") return;
 
-            // Określ kolumnę z ID
             string idColName = colName switch
             {
                 "KtoUtw" => "KtoUtwID",
@@ -785,33 +918,28 @@ namespace Kalendarz1
             string name = row.Cells[colName]?.Value?.ToString();
             string odbiorcaId = idColName != null ? row.Cells[idColName]?.Value?.ToString() : null;
 
-            if (string.IsNullOrWhiteSpace(name))
-            {
-                return; // Pozwól na domyślne renderowanie pustych komórek
-            }
+            if (string.IsNullOrWhiteSpace(name)) return;
 
             e.PaintBackground(e.ClipBounds, true);
 
             var g = e.Graphics;
-            g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
 
-            // Pobierz lub wygeneruj avatar
             Image avatar = GetOrCreateAvatar(odbiorcaId, name);
             if (avatar != null)
             {
-                int avatarY = e.CellBounds.Y + (e.CellBounds.Height - AVATAR_SIZE) / 2;
+                int avatarY = e.CellBounds.Y + (e.CellBounds.Height - SprawdzalkaUmowStyles.AvatarSize) / 2;
                 int avatarX = e.CellBounds.X + 6;
-                g.DrawImage(avatar, avatarX, avatarY, AVATAR_SIZE, AVATAR_SIZE);
+                g.DrawImage(avatar, avatarX, avatarY, SprawdzalkaUmowStyles.AvatarSize, SprawdzalkaUmowStyles.AvatarSize);
 
-                // Narysuj tekst obok avatara
                 var textBounds = new Rectangle(
-                    avatarX + AVATAR_SIZE + 6,
+                    avatarX + SprawdzalkaUmowStyles.AvatarSize + 6,
                     e.CellBounds.Y,
-                    e.CellBounds.Width - AVATAR_SIZE - 18,
+                    e.CellBounds.Width - SprawdzalkaUmowStyles.AvatarSize - 18,
                     e.CellBounds.Height);
 
                 bool isSelected = (e.State & DataGridViewElementStates.Selected) != 0;
-                Color textColor = isSelected ? Color.White : Color.FromArgb(44, 62, 80);
+                Color textColor = isSelected ? Color.White : SprawdzalkaUmowStyles.TextDark;
 
                 TextRenderer.DrawText(g, name, e.CellStyle.Font, textBounds, textColor,
                     TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
@@ -823,41 +951,44 @@ namespace Kalendarz1
         private Image GetOrCreateAvatar(string odbiorcaId, string name)
         {
             string cacheKey = odbiorcaId ?? name ?? "unknown";
-
             if (_avatarCache.TryGetValue(cacheKey, out Image cachedAvatar))
                 return cachedAvatar;
 
             Image avatar = null;
-
-            // Spróbuj pobrać avatar z UserAvatarManager
             if (!string.IsNullOrWhiteSpace(odbiorcaId))
-            {
-                avatar = UserAvatarManager.GetAvatarRounded(odbiorcaId, AVATAR_SIZE);
-            }
+                avatar = UserAvatarManager.GetAvatarRounded(odbiorcaId, SprawdzalkaUmowStyles.AvatarSize);
 
-            // Jeśli brak avatara, wygeneruj domyślny z inicjałami
             if (avatar == null && !string.IsNullOrWhiteSpace(name))
-            {
-                avatar = UserAvatarManager.GenerateDefaultAvatar(name, cacheKey, AVATAR_SIZE);
-            }
+                avatar = UserAvatarManager.GenerateDefaultAvatar(name, cacheKey, SprawdzalkaUmowStyles.AvatarSize);
 
             if (avatar != null)
-            {
                 _avatarCache[cacheKey] = avatar;
-            }
 
             return avatar;
         }
 
         protected override void OnFormClosed(FormClosedEventArgs e)
         {
-            // Zwolnij zasoby avatarów
+            _searchDebounce?.Stop();
+            _searchDebounce?.Dispose();
+            _rowContextMenu?.Dispose();
+
             foreach (var avatar in _avatarCache.Values)
-            {
                 avatar?.Dispose();
-            }
             _avatarCache.Clear();
+
             base.OnFormClosed(e);
+        }
+
+        // === ENUM dla quick-filter chipów (#9) ===
+        private enum QuickFilter
+        {
+            Brak,
+            Dzis,
+            Jutro,
+            TenTydzien,
+            Spoznione,
+            TylkoMoje
         }
     }
 }

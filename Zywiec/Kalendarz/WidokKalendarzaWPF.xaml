@@ -719,6 +719,7 @@
                                 <MenuItem Header="📦 DOSTAWA" IsEnabled="False" FontWeight="Bold" FontSize="10" Foreground="#6B7280"/>
                                 <MenuItem Header="➕ Nowa dostawa na ten dzień" Click="MenuItemNowaDostawaZDaty_Click" FontWeight="SemiBold" InputGestureText="Ctrl+N"/>
                                 <MenuItem Header="📋 Duplikuj dostawę" Click="BtnDuplikuj_Click" InputGestureText="Ctrl+D"/>
+                                <MenuItem Header="📱 Kopiuj SMS o szczegółach dostawy" Click="MenuKopiujSMS_Click"/>
                                 <Separator/>
 
                                 <!-- SEKCJA: Przesuwanie daty -->
@@ -1079,6 +1080,7 @@
                                 <MenuItem Header="📦 DOSTAWA" IsEnabled="False" FontWeight="Bold" FontSize="10" Foreground="#6B7280"/>
                                 <MenuItem Header="➕ Nowa dostawa na ten dzień" Click="MenuItemNowaDostawaZDaty_Click" FontWeight="SemiBold" InputGestureText="Ctrl+N"/>
                                 <MenuItem Header="📋 Duplikuj dostawę" Click="BtnDuplikuj_Click" InputGestureText="Ctrl+D"/>
+                                <MenuItem Header="📱 Kopiuj SMS o szczegółach dostawy" Click="MenuKopiujSMS_Click"/>
                                 <Separator/>
 
                                 <!-- SEKCJA: Przesuwanie daty -->

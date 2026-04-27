@@ -119,6 +119,17 @@ namespace Kalendarz1.HandlowiecDashboard.Views
         #region Performance Optimization Methods
 
         /// <summary>
+        /// Sargowalny zakres dat dla danego miesiąca: [start, koniec).
+        /// Używaj zamiast WHERE YEAR(data)=@r AND MONTH(data)=@m — pozwala SQL Serverowi
+        /// wykorzystać indeks na kolumnie data zamiast pełnego skanu.
+        /// </summary>
+        private static (DateTime Od, DateTime Do) MonthRange(int rok, int miesiac)
+        {
+            var od = new DateTime(rok, miesiac, 1);
+            return (od, od.AddMonths(1));
+        }
+
+        /// <summary>
         /// Debounce - czeka 300ms po ostatniej zmianie przed wykonaniem akcji
         /// </summary>
         private async Task DebounceAsync(Func<Task> action)
@@ -218,8 +229,30 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 axisYPorown.LabelFormatter = ZlFormatter;
                 axisYTrend.LabelFormatter = ZlFormatter;
 
+                // Pobierz lookups (handlowcy, towary) i mapping avatarów RÓWNOLEGLE — wcześniej te
+                // 3 zapytania szły synchronicznie na wątku UI, blokując okno na ~0,5–1s.
+                var handlowcyTask = WypelnijHandlowcowAsync();
+                var towary1Task = LoadTowaryAsync();
+                var towary2Task = LoadTowaryAsync();
+                var mappingTask = EnsureHandlowiecMappingLoadedAsync();
+                await Task.WhenAll(handlowcyTask, towary1Task, towary2Task, mappingTask);
+
+                ApplyHandlowcyToCombos(await handlowcyTask);
+                ApplyTowaryToCombo(cmbTowarTop10, await towary1Task);
+                ApplyTowaryToCombo(cmbTowarCeny, await towary2Task);
+
                 WypelnijLataIMiesiace();
                 _isInitialized = true;
+
+                // Avatary znanych handlowców rozgrzewamy w tle, zanim user otworzy zakładkę
+                _ = Task.Run(() =>
+                {
+                    foreach (var nazwa in _handlowiecKolory.Keys.ToList())
+                    {
+                        try { Dispatcher.Invoke(() => EnsureAvatarCached(nazwa)); }
+                        catch { }
+                    }
+                });
 
                 // 1. Najpierw załaduj pierwszą zakładkę (widoczną)
                 await OdswiezSprzedazMiesiecznaAsync();
@@ -256,7 +289,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             cmbMiesiacTop10.DisplayMemberPath = "Text";
             cmbMiesiacTop10.SelectedValuePath = "Value";
             cmbMiesiacTop10.SelectedValue = DateTime.Now.Month;
-            WypelnijTowary(cmbTowarTop10);
+            // Towary cmbTowarTop10 są ładowane async z Window_Loaded
 
             // Udzial handlowcow - zawsze 5 miesiecy do tylu
             cmbRokUdzialOd.ItemsSource = lata;
@@ -276,7 +309,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             cmbMiesiacCeny.DisplayMemberPath = "Text";
             cmbMiesiacCeny.SelectedValuePath = "Value";
             cmbMiesiacCeny.SelectedValue = DateTime.Now.Month;
-            WypelnijTowary(cmbTowarCeny);
+            // Towary cmbTowarCeny są ładowane async z Window_Loaded
 
             // Swieze vs Mrozone
             cmbRokSM.ItemsSource = lata;
@@ -296,53 +329,48 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             cmbOkres.ItemsSource = new[] { 3, 6, 9, 12, 18, 24 };
             cmbOkres.SelectedItem = 12;
 
-            // Opakowania i Platnosci - wczytaj liste handlowcow
-            WypelnijHandlowcow();
+            // Inicjalizuj date pickers dla opakowan (handlowcy są wypełniani z Window_Loaded)
+            InicjalizujDatyOpak();
         }
 
-        private void WypelnijHandlowcow()
+        private async Task<List<ComboItem>> WypelnijHandlowcowAsync()
         {
             var handlowcy = new List<ComboItem> { new ComboItem { Value = 0, Text = "Wszyscy handlowcy" } };
             try
             {
-                using var cn = new SqlConnection(_connectionStringHandel);
-                cn.Open();
+                await using var cn = new SqlConnection(_connectionStringHandel);
+                await cn.OpenAsync();
                 var sql = @"SELECT DISTINCT WYM.CDim_Handlowiec_Val AS Handlowiec
                            FROM [HANDEL].[SSCommon].[ContractorClassification] WYM
                            WHERE WYM.CDim_Handlowiec_Val IS NOT NULL
                              AND WYM.CDim_Handlowiec_Val NOT IN ('Ogolne', 'Ogólne')
                            ORDER BY Handlowiec";
-                using var cmd = new SqlCommand(sql, cn);
-                using var reader = cmd.ExecuteReader();
+                await using var cmd = new SqlCommand(sql, cn);
+                await using var reader = await cmd.ExecuteReaderAsync();
                 int idx = 1;
-                while (reader.Read())
+                while (await reader.ReadAsync())
                 {
                     var handlowiec = reader.GetString(0);
                     handlowcy.Add(new ComboItem { Value = idx++, Text = handlowiec });
-                    // Inicjalizuj globalne kolory dla handlowcow
                     if (!_handlowiecKolory.ContainsKey(handlowiec))
-                    {
-                        _handlowiecKolory[handlowiec] = _kolory[(_handlowiecKolory.Count) % _kolory.Length];
-                    }
+                        _handlowiecKolory[handlowiec] = _kolory[_handlowiecKolory.Count % _kolory.Length];
                 }
-                // Dodaj kolor dla "Nieprzypisany"
                 if (!_handlowiecKolory.ContainsKey("Nieprzypisany"))
-                {
                     _handlowiecKolory["Nieprzypisany"] = _kolory[_handlowiecKolory.Count % _kolory.Length];
-                }
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Blad pobierania handlowcow:\n{ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+            return handlowcy;
+        }
 
+        private void ApplyHandlowcyToCombos(List<ComboItem> handlowcy)
+        {
             cmbHandlowiecOpak.ItemsSource = handlowcy;
             cmbHandlowiecOpak.DisplayMemberPath = "Text";
             cmbHandlowiecOpak.SelectedValuePath = "Value";
             cmbHandlowiecOpak.SelectedIndex = 0;
-
-            // Inicjalizuj date pickers dla opakowan
-            InicjalizujDatyOpak();
 
             cmbHandlowiecPlat.ItemsSource = handlowcy;
             cmbHandlowiecPlat.DisplayMemberPath = "Text";
@@ -350,27 +378,32 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             cmbHandlowiecPlat.SelectedIndex = 0;
         }
 
-        private void WypelnijTowary(ComboBox cmb)
+        private async Task<List<ComboItem>> LoadTowaryAsync()
         {
             var towary = new List<ComboItem> { new ComboItem { Value = 0, Text = "Wszystkie towary" } };
             try
             {
-                using var cn = new SqlConnection(_connectionStringHandel);
-                cn.Open();
+                await using var cn = new SqlConnection(_connectionStringHandel);
+                await cn.OpenAsync();
                 var sql = @"SELECT TW.ID, TW.kod, TW.kod + ' - ' + ISNULL(TW.nazwa, '') as Nazwa
                            FROM [HANDEL].[HM].[TW] TW
                            WHERE TW.katalog IN (67095, 67153)
                            GROUP BY TW.ID, TW.kod, TW.nazwa
                            ORDER BY TW.kod";
-                using var cmd = new SqlCommand(sql, cn);
-                using var reader = cmd.ExecuteReader();
-                while (reader.Read())
+                await using var cmd = new SqlCommand(sql, cn);
+                await using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
                     towary.Add(new ComboItem { Value = reader.GetInt32(0), Text = reader.GetString(2) });
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Blad pobierania towarow:\n{ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+            return towary;
+        }
+
+        private void ApplyTowaryToCombo(ComboBox cmb, List<ComboItem> towary)
+        {
             cmb.ItemsSource = towary;
             cmb.DisplayMemberPath = "Text";
             cmb.SelectedValuePath = "Value";
@@ -555,6 +588,57 @@ namespace Kalendarz1.HandlowiecDashboard.Views
 
         #region Sprzedaz Miesieczna
 
+        // POCO trzymane w cache — niezależne od WPF, bezpieczne do reuse między zakładkami
+        private class SprzedazMiesiecznaSnapshot
+        {
+            public Dictionary<string, List<(string Klient, decimal Wartosc)>> DaneHandlowcow { get; set; }
+            public decimal Suma { get; set; }
+        }
+
+        private async Task<SprzedazMiesiecznaSnapshot> FetchSprzedazMiesiecznaAsync(int rok, int miesiac)
+        {
+            var dane = new Dictionary<string, List<(string Klient, decimal Wartosc)>>();
+            decimal suma = 0;
+            var (od, doData) = MonthRange(rok, miesiac);
+
+            await using var cn = new SqlConnection(_connectionStringHandel);
+            await cn.OpenAsync();
+
+            // Sargowalny WHERE data >= @Od AND data < @Do — pozwala użyć indeksu na DK.data
+            var sql = @"
+                SELECT ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany') AS Handlowiec,
+                       C.shortcut AS Kontrahent, SUM(DP.wartNetto) AS WartoscSprzedazy
+                FROM [HANDEL].[HM].[DK] DK
+                INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
+                INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
+                LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
+                WHERE DK.data >= @Od AND DK.data < @Do
+                  AND WYM.CDim_Handlowiec_Val IS NOT NULL
+                  AND WYM.CDim_Handlowiec_Val NOT IN ('Ogolne', 'Ogólne')
+                GROUP BY ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany'), C.shortcut
+                ORDER BY Handlowiec, WartoscSprzedazy DESC";
+
+            await using var cmd = new SqlCommand(sql, cn);
+            cmd.Parameters.Add("@Od", System.Data.SqlDbType.DateTime).Value = od;
+            cmd.Parameters.Add("@Do", System.Data.SqlDbType.DateTime).Value = doData;
+
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                var handlowiec = reader.GetString(0);
+                var klient = reader.GetString(1);
+                var wartosc = reader.IsDBNull(2) ? 0m : Convert.ToDecimal(reader.GetValue(2));
+
+                if (!dane.ContainsKey(handlowiec))
+                    dane[handlowiec] = new List<(string, decimal)>();
+
+                dane[handlowiec].Add((klient, wartosc));
+                suma += wartosc;
+            }
+
+            return new SprzedazMiesiecznaSnapshot { DaneHandlowcow = dane, Suma = suma };
+        }
+
         private async System.Threading.Tasks.Task OdswiezSprzedazMiesiecznaAsync()
         {
             if (cmbRokSprzedaz.SelectedItem == null || cmbMiesiacSprzedaz.SelectedValue == null) return;
@@ -564,47 +648,25 @@ namespace Kalendarz1.HandlowiecDashboard.Views
 
             var series = new SeriesCollection();
             var labels = new List<string>();
-            decimal suma = 0;
-            var daneHandlowcow = new Dictionary<string, List<(string Klient, decimal Wartosc)>>();
+
+            SprzedazMiesiecznaSnapshot snap;
+            try
+            {
+                snap = await _cache.GetOrLoadAsync(
+                    $"SprzedazMiesieczna_{rok}_{miesiac}",
+                    () => FetchSprzedazMiesiecznaAsync(rok, miesiac));
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Blad sprzedazy miesiecznej:\n{ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            var daneHandlowcow = snap.DaneHandlowcow;
+            decimal suma = snap.Suma;
 
             try
             {
-                await using var cn = new SqlConnection(_connectionStringHandel);
-                await cn.OpenAsync();
-
-                var sql = @"
-                    SELECT ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany') AS Handlowiec,
-                           C.shortcut AS Kontrahent, SUM(DP.wartNetto) AS WartoscSprzedazy
-                    FROM [HANDEL].[HM].[DK] DK
-                    INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
-                    INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
-                    LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
-                    WHERE YEAR(DK.data) = @Rok AND MONTH(DK.data) = @Miesiac
-                      AND WYM.CDim_Handlowiec_Val IS NOT NULL
-                      AND WYM.CDim_Handlowiec_Val NOT IN ('Ogolne', 'Ogólne')
-                    GROUP BY ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany'), C.shortcut
-                    ORDER BY Handlowiec, WartoscSprzedazy DESC";
-
-                await using var cmd = new SqlCommand(sql, cn);
-                cmd.Parameters.AddWithValue("@Rok", rok);
-                cmd.Parameters.AddWithValue("@Miesiac", miesiac);
-
-                await using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
-                {
-                    var handlowiec = reader.GetString(0);
-                    var klient = reader.GetString(1);
-                    var wartosc = reader.IsDBNull(2) ? 0m : Convert.ToDecimal(reader.GetValue(2));
-
-                    if (!daneHandlowcow.ContainsKey(handlowiec))
-                        daneHandlowcow[handlowiec] = new List<(string, decimal)>();
-
-                    daneHandlowcow[handlowiec].Add((klient, wartosc));
-                    suma += wartosc;
-                }
-
-                // Zaladuj avatary handlowcow
-                await EnsureHandlowiecMappingLoadedAsync();
                 _sprzedazChartData = new List<(string Handlowiec, double Wartosc)>();
 
                 foreach (var h in daneHandlowcow.OrderByDescending(x => x.Value.Sum(v => v.Wartosc)))
@@ -683,6 +745,54 @@ namespace Kalendarz1.HandlowiecDashboard.Views
 
         #region Top 10 Odbiorcy
 
+        private class Top15Snapshot
+        {
+            public List<(string Kontrahent, string Handlowiec, decimal Kg, decimal Wartosc)> Dane { get; set; }
+            public decimal SumaKg { get; set; }
+            public decimal SumaWartosc { get; set; }
+        }
+
+        private async Task<Top15Snapshot> FetchTop15Async(int rok, int miesiac, int? towarId)
+        {
+            var dane = new List<(string Kontrahent, string Handlowiec, decimal Kg, decimal Wartosc)>();
+            decimal sumaKg = 0, sumaWartosc = 0;
+            var (od, doData) = MonthRange(rok, miesiac);
+
+            await using var cn = new SqlConnection(_connectionStringHandel);
+            await cn.OpenAsync();
+
+            var sql = @"
+                SELECT TOP 15 C.shortcut AS Kontrahent,
+                       ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany') AS Handlowiec,
+                       SUM(DP.ilosc) AS SumaKg, SUM(DP.wartNetto) AS SumaWartosc
+                FROM [HANDEL].[HM].[DK] DK
+                INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
+                INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
+                LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
+                WHERE DK.data >= @Od AND DK.data < @Do
+                  AND (@TowarID IS NULL OR DP.idtw = @TowarID)
+                GROUP BY C.shortcut, ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany')
+                ORDER BY SumaWartosc DESC";
+
+            await using var cmd = new SqlCommand(sql, cn);
+            cmd.Parameters.Add("@Od", System.Data.SqlDbType.DateTime).Value = od;
+            cmd.Parameters.Add("@Do", System.Data.SqlDbType.DateTime).Value = doData;
+            cmd.Parameters.AddWithValue("@TowarID", (object)towarId ?? DBNull.Value);
+
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                var kontrahent = reader.GetString(0);
+                var handlowiec = reader.GetString(1);
+                var kg = reader.IsDBNull(2) ? 0m : Convert.ToDecimal(reader.GetValue(2));
+                var wartosc = reader.IsDBNull(3) ? 0m : Convert.ToDecimal(reader.GetValue(3));
+                dane.Add((kontrahent, handlowiec, kg, wartosc));
+                sumaKg += kg;
+                sumaWartosc += wartosc;
+            }
+            return new Top15Snapshot { Dane = dane, SumaKg = sumaKg, SumaWartosc = sumaWartosc };
+        }
+
         private async System.Threading.Tasks.Task OdswiezTop10Async()
         {
             if (cmbRokTop10.SelectedItem == null || cmbMiesiacTop10.SelectedValue == null) return;
@@ -694,51 +804,26 @@ namespace Kalendarz1.HandlowiecDashboard.Views
 
             var series = new SeriesCollection();
             var labels = new List<string>();
-            decimal sumaKg = 0;
-            decimal sumaWartosc = 0;
 
-            // Lista danych do odwrocenia (najwyzszy na gorze)
-            var daneTop10 = new List<(string Kontrahent, string Handlowiec, decimal Kg, decimal Wartosc)>();
+            Top15Snapshot snap;
+            try
+            {
+                snap = await _cache.GetOrLoadAsync(
+                    $"Top15_{rok}_{miesiac}_{towarId ?? 0}",
+                    () => FetchTop15Async(rok, miesiac, towarId));
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Blad Top 10:\n{ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            var daneTop10 = snap.Dane;
+            decimal sumaKg = snap.SumaKg;
+            decimal sumaWartosc = snap.SumaWartosc;
 
             try
             {
-                await using var cn = new SqlConnection(_connectionStringHandel);
-                await cn.OpenAsync();
-
-                var sql = @"
-                    SELECT TOP 15 C.shortcut AS Kontrahent,
-                           ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany') AS Handlowiec,
-                           SUM(DP.ilosc) AS SumaKg, SUM(DP.wartNetto) AS SumaWartosc
-                    FROM [HANDEL].[HM].[DK] DK
-                    INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
-                    INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
-                    LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
-                    WHERE YEAR(DK.data) = @Rok AND MONTH(DK.data) = @Miesiac
-                      AND (@TowarID IS NULL OR DP.idtw = @TowarID)
-                    GROUP BY C.shortcut, ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany')
-                    ORDER BY SumaWartosc DESC";
-
-                await using var cmd = new SqlCommand(sql, cn);
-                cmd.Parameters.AddWithValue("@Rok", rok);
-                cmd.Parameters.AddWithValue("@Miesiac", miesiac);
-                cmd.Parameters.AddWithValue("@TowarID", (object)towarId ?? DBNull.Value);
-
-                await using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
-                {
-                    var kontrahent = reader.GetString(0);
-                    var handlowiec = reader.GetString(1);
-                    var kg = reader.IsDBNull(2) ? 0m : Convert.ToDecimal(reader.GetValue(2));
-                    var wartosc = reader.IsDBNull(3) ? 0m : Convert.ToDecimal(reader.GetValue(3));
-
-                    daneTop10.Add((kontrahent, handlowiec, kg, wartosc));
-                    sumaKg += kg;
-                    sumaWartosc += wartosc;
-                }
-
-                // Zaladuj avatary
-                await EnsureHandlowiecMappingLoadedAsync();
-
                 // Buduj liste etykiet i wartosci (od najnizszej do najwyzszej wartosci)
                 int liczbaElementow = daneTop10.Count;
                 var wartosci = new ChartValues<double>();
@@ -866,6 +951,60 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             cmbMiesiacUdzialDo.SelectedValue = teraz.Month;
         }
 
+        private class UdzialSnapshot
+        {
+            public Dictionary<string, Dictionary<string, decimal>> DaneHandlowcow { get; set; }
+            public List<string> Labels { get; set; }
+            public Dictionary<string, decimal> SumyMiesieczne { get; set; }
+        }
+
+        private async Task<UdzialSnapshot> FetchUdzialAsync(int rokOd, int miesiacOd, int rokDo, int miesiacDo)
+        {
+            var dane = new Dictionary<string, Dictionary<string, decimal>>();
+            var labels = new List<string>();
+            var sumy = new Dictionary<string, decimal>();
+            var od = new DateTime(rokOd, miesiacOd, 1);
+            var doData = new DateTime(rokDo, miesiacDo, 1).AddMonths(1);
+
+            await using var cn = new SqlConnection(_connectionStringHandel);
+            await cn.OpenAsync();
+
+            // Sargowalny zakres dat zamiast (YEAR*100+MONTH) — pozwala wykorzystać indeks na DK.data
+            var sql = @"
+                SELECT WYM.CDim_Handlowiec_Val AS Handlowiec, YEAR(DK.data) AS Rok, MONTH(DK.data) AS Miesiac,
+                       SUM(DP.wartNetto) AS WartoscSprzedazy
+                FROM [HANDEL].[HM].[DK] DK
+                INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
+                INNER JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
+                WHERE DK.data >= @Od AND DK.data < @Do
+                  AND WYM.CDim_Handlowiec_Val IS NOT NULL
+                  AND WYM.CDim_Handlowiec_Val NOT IN ('Ogolne', 'Ogólne')
+                GROUP BY WYM.CDim_Handlowiec_Val, YEAR(DK.data), MONTH(DK.data)
+                ORDER BY Rok, Miesiac, Handlowiec";
+
+            await using var cmd = new SqlCommand(sql, cn);
+            cmd.Parameters.Add("@Od", System.Data.SqlDbType.DateTime).Value = od;
+            cmd.Parameters.Add("@Do", System.Data.SqlDbType.DateTime).Value = doData;
+
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                var handlowiec = reader.GetString(0);
+                var rok = reader.GetInt32(1);
+                var miesiac = reader.GetInt32(2);
+                var wartosc = reader.IsDBNull(3) ? 0m : Convert.ToDecimal(reader.GetValue(3));
+
+                var klucz = $"{_nazwyMiesiecy[miesiac]} {rok}";
+                if (!labels.Contains(klucz)) labels.Add(klucz);
+                if (!dane.ContainsKey(handlowiec)) dane[handlowiec] = new Dictionary<string, decimal>();
+                dane[handlowiec][klucz] = wartosc;
+                if (!sumy.ContainsKey(klucz)) sumy[klucz] = 0;
+                sumy[klucz] += wartosc;
+            }
+
+            return new UdzialSnapshot { DaneHandlowcow = dane, Labels = labels, SumyMiesieczne = sumy };
+        }
+
         private async System.Threading.Tasks.Task OdswiezUdzialHandlowcowAsync()
         {
             if (cmbRokUdzialOd.SelectedItem == null || cmbMiesiacUdzialOd.SelectedValue == null ||
@@ -877,55 +1016,26 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             int miesiacDo = (int)cmbMiesiacUdzialDo.SelectedValue;
 
             var series = new SeriesCollection();
-            var labels = new List<string>();
-            var daneHandlowcow = new Dictionary<string, Dictionary<string, decimal>>();
+
+            UdzialSnapshot snap;
+            try
+            {
+                snap = await _cache.GetOrLoadAsync(
+                    $"UdzialHandlowcow_{rokOd}_{miesiacOd}_{rokDo}_{miesiacDo}",
+                    () => FetchUdzialAsync(rokOd, miesiacOd, rokDo, miesiacDo));
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Blad udzialu handlowcow:\n{ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            var daneHandlowcow = snap.DaneHandlowcow;
+            var labels = snap.Labels;
+            var sumyMiesieczne = snap.SumyMiesieczne;
 
             try
             {
-                await using var cn = new SqlConnection(_connectionStringHandel);
-                await cn.OpenAsync();
-
-                var sql = @"
-                    SELECT WYM.CDim_Handlowiec_Val AS Handlowiec, YEAR(DK.data) AS Rok, MONTH(DK.data) AS Miesiac,
-                           SUM(DP.wartNetto) AS WartoscSprzedazy
-                    FROM [HANDEL].[HM].[DK] DK
-                    INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
-                    INNER JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
-                    WHERE (YEAR(DK.data) * 100 + MONTH(DK.data)) >= @OdData
-                      AND (YEAR(DK.data) * 100 + MONTH(DK.data)) <= @DoData
-                      AND WYM.CDim_Handlowiec_Val IS NOT NULL
-                      AND WYM.CDim_Handlowiec_Val NOT IN ('Ogolne', 'Ogólne')
-                    GROUP BY WYM.CDim_Handlowiec_Val, YEAR(DK.data), MONTH(DK.data)
-                    ORDER BY Rok, Miesiac, Handlowiec";
-
-                await using var cmd = new SqlCommand(sql, cn);
-                cmd.Parameters.AddWithValue("@OdData", rokOd * 100 + miesiacOd);
-                cmd.Parameters.AddWithValue("@DoData", rokDo * 100 + miesiacDo);
-
-                var sumyMiesieczne = new Dictionary<string, decimal>();
-
-                await using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
-                {
-                    var handlowiec = reader.GetString(0);
-                    var rok = reader.GetInt32(1);
-                    var miesiac = reader.GetInt32(2);
-                    var wartosc = reader.IsDBNull(3) ? 0m : Convert.ToDecimal(reader.GetValue(3));
-
-                    var klucz = $"{_nazwyMiesiecy[miesiac]} {rok}";
-
-                    if (!labels.Contains(klucz))
-                        labels.Add(klucz);
-
-                    if (!daneHandlowcow.ContainsKey(handlowiec))
-                        daneHandlowcow[handlowiec] = new Dictionary<string, decimal>();
-
-                    daneHandlowcow[handlowiec][klucz] = wartosc;
-
-                    if (!sumyMiesieczne.ContainsKey(klucz))
-                        sumyMiesieczne[klucz] = 0;
-                    sumyMiesieczne[klucz] += wartosc;
-                }
 
                 // Znajdz maksymalny procent dla osi Y
                 double maxProcent = 0;
@@ -964,15 +1074,12 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 // Ustaw os Y do maksymalnego punktu + 10%
                 axisYUdzial.MaxValue = maxProcent * 1.1;
 
-                // Dodaj etykiety procentowe na wszystkich punktach + nazwe handlowca na koncu
+                // Etykiety procentowe na każdym punkcie + nazwę handlowca przy ostatnim punkcie linii
                 idx = 0;
                 foreach (LineSeries ls in series)
                 {
                     var handlowiecNazwa = ls.Title;
-                    var color = _kolory[idx % _kolory.Length];
                     var valuesCount = ls.Values.Count;
-
-                    // Ustaw etykiete na kazdym punkcie: % na wszystkich, + nazwe na ostatnim
                     ls.LabelPoint = p =>
                     {
                         if (p.Key == valuesCount - 1)
@@ -983,8 +1090,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                     idx++;
                 }
 
-                // Pobierz mapowanie i zaladuj avatary
-                await EnsureHandlowiecMappingLoadedAsync();
+                // Avatary są ładowane raz na starcie okna; tu tylko fallback dla nowo pojawiających się handlowców
                 foreach (var h in daneHandlowcow.Keys)
                     EnsureAvatarCached(h);
 
@@ -1430,6 +1536,58 @@ namespace Kalendarz1.HandlowiecDashboard.Views
 
         private List<string> _analizaCenyLabels = new List<string>();
 
+        private async Task<List<HandlowiecCenyRow>> FetchAnalizaCenAsync(int rok, int miesiac, int? towarId)
+        {
+            var rows = new List<HandlowiecCenyRow>();
+            var (od, doData) = MonthRange(rok, miesiac);
+
+            await using var cn = new SqlConnection(_connectionStringHandel);
+            await cn.OpenAsync();
+
+            var sql = @"
+                SELECT WYM.CDim_Handlowiec_Val AS Handlowiec,
+                       CASE WHEN SUM(DP.ilosc) > 0 THEN SUM(DP.wartNetto) / SUM(DP.ilosc) ELSE 0 END AS SredniaCena,
+                       SUM(DP.ilosc) AS SumaKg,
+                       MIN(DP.cena) AS MinCena,
+                       MAX(DP.cena) AS MaxCena,
+                       SUM(DP.wartNetto) AS SumaWartosc,
+                       COUNT(*) AS LiczbaTransakcji,
+                       COUNT(DISTINCT DK.khid) AS LiczbaKontrahentow
+                FROM [HANDEL].[HM].[DK] DK
+                INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
+                INNER JOIN [HANDEL].[HM].[TW] TW ON DP.idtw = TW.ID
+                LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
+                WHERE DK.data >= @Od AND DK.data < @Do
+                  AND TW.katalog IN (67095, 67153)
+                  AND (@TowarID IS NULL OR DP.idtw = @TowarID)
+                  AND WYM.CDim_Handlowiec_Val IS NOT NULL
+                  AND WYM.CDim_Handlowiec_Val NOT IN ('Ogolne', 'Ogólne')
+                GROUP BY WYM.CDim_Handlowiec_Val
+                ORDER BY SredniaCena DESC";
+
+            await using var cmd = new SqlCommand(sql, cn);
+            cmd.Parameters.Add("@Od", System.Data.SqlDbType.DateTime).Value = od;
+            cmd.Parameters.Add("@Do", System.Data.SqlDbType.DateTime).Value = doData;
+            cmd.Parameters.AddWithValue("@TowarID", (object)towarId ?? DBNull.Value);
+
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                rows.Add(new HandlowiecCenyRow
+                {
+                    Handlowiec = reader.GetString(0),
+                    SredniaCena = reader.IsDBNull(1) ? 0m : Convert.ToDecimal(reader.GetValue(1)),
+                    SumaKg = reader.IsDBNull(2) ? 0m : Convert.ToDecimal(reader.GetValue(2)),
+                    MinCena = reader.IsDBNull(3) ? 0m : Convert.ToDecimal(reader.GetValue(3)),
+                    MaxCena = reader.IsDBNull(4) ? 0m : Convert.ToDecimal(reader.GetValue(4)),
+                    SumaWartosc = reader.IsDBNull(5) ? 0m : Convert.ToDecimal(reader.GetValue(5)),
+                    LiczbaTransakcji = reader.GetInt32(6),
+                    LiczbaKontrahentow = reader.GetInt32(7)
+                });
+            }
+            return rows;
+        }
+
         private async System.Threading.Tasks.Task OdswiezAnalizeCenAsync()
         {
             if (cmbRokCeny.SelectedItem == null || cmbMiesiacCeny.SelectedValue == null) return;
@@ -1442,77 +1600,35 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             var seriesCeny = new SeriesCollection();
             var seriesKg = new SeriesCollection();
             var labels = new List<string>();
-            var daneTabeli = new List<HandlowiecCenyRow>();
+
+            List<HandlowiecCenyRow> daneTabeli;
+            try
+            {
+                daneTabeli = await _cache.GetOrLoadAsync(
+                    $"AnalizaCen_{rok}_{miesiac}_{towarId ?? 0}",
+                    () => FetchAnalizaCenAsync(rok, miesiac, towarId));
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Blad analizy cen:\n{ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
 
             try
             {
-                await using var cn = new SqlConnection(_connectionStringHandel);
-                await cn.OpenAsync();
-
-                var sql = @"
-                    SELECT WYM.CDim_Handlowiec_Val AS Handlowiec,
-                           CASE WHEN SUM(DP.ilosc) > 0 THEN SUM(DP.wartNetto) / SUM(DP.ilosc) ELSE 0 END AS SredniaCena,
-                           SUM(DP.ilosc) AS SumaKg,
-                           MIN(DP.cena) AS MinCena,
-                           MAX(DP.cena) AS MaxCena,
-                           SUM(DP.wartNetto) AS SumaWartosc,
-                           COUNT(*) AS LiczbaTransakcji,
-                           COUNT(DISTINCT DK.khid) AS LiczbaKontrahentow
-                    FROM [HANDEL].[HM].[DK] DK
-                    INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
-                    INNER JOIN [HANDEL].[HM].[TW] TW ON DP.idtw = TW.ID
-                    LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
-                    WHERE YEAR(DK.data) = @Rok AND MONTH(DK.data) = @Miesiac
-                      AND TW.katalog IN (67095, 67153)
-                      AND (@TowarID IS NULL OR DP.idtw = @TowarID)
-                      AND WYM.CDim_Handlowiec_Val IS NOT NULL
-                      AND WYM.CDim_Handlowiec_Val NOT IN ('Ogolne', 'Ogólne')
-                    GROUP BY WYM.CDim_Handlowiec_Val
-                    ORDER BY SredniaCena DESC";
-
-                await using var cmd = new SqlCommand(sql, cn);
-                cmd.Parameters.AddWithValue("@Rok", rok);
-                cmd.Parameters.AddWithValue("@Miesiac", miesiac);
-                cmd.Parameters.AddWithValue("@TowarID", (object)towarId ?? DBNull.Value);
-
-                // Zaladuj avatary
-                await EnsureHandlowiecMappingLoadedAsync();
                 _cenyChartData = new List<(string Handlowiec, double Wartosc)>();
-
                 var wartosciCeny = new ChartValues<decimal>();
                 var wartosciKg = new ChartValues<decimal>();
                 var tempHandlowcy = new List<string>();
 
-                await using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
+                foreach (var row in daneTabeli)
                 {
-                    var handlowiec = reader.GetString(0);
-                    var sredniaCena = reader.IsDBNull(1) ? 0m : Convert.ToDecimal(reader.GetValue(1));
-                    var sumaKg = reader.IsDBNull(2) ? 0m : Convert.ToDecimal(reader.GetValue(2));
-                    var minCena = reader.IsDBNull(3) ? 0m : Convert.ToDecimal(reader.GetValue(3));
-                    var maxCena = reader.IsDBNull(4) ? 0m : Convert.ToDecimal(reader.GetValue(4));
-                    var sumaWartosc = reader.IsDBNull(5) ? 0m : Convert.ToDecimal(reader.GetValue(5));
-                    var liczbaTransakcji = reader.GetInt32(6);
-                    var liczbaKontrahentow = reader.GetInt32(7);
-
-                    labels.Add(handlowiec);
-                    tempHandlowcy.Add(handlowiec);
-                    wartosciCeny.Add(sredniaCena);
-                    wartosciKg.Add(sumaKg);
-                    EnsureAvatarCached(handlowiec);
-                    _cenyChartData.Add((handlowiec, (double)sredniaCena));
-
-                    daneTabeli.Add(new HandlowiecCenyRow
-                    {
-                        Handlowiec = handlowiec,
-                        SumaKg = sumaKg,
-                        SredniaCena = sredniaCena,
-                        MinCena = minCena,
-                        MaxCena = maxCena,
-                        SumaWartosc = sumaWartosc,
-                        LiczbaTransakcji = liczbaTransakcji,
-                        LiczbaKontrahentow = liczbaKontrahentow
-                    });
+                    labels.Add(row.Handlowiec);
+                    tempHandlowcy.Add(row.Handlowiec);
+                    wartosciCeny.Add(row.SredniaCena);
+                    wartosciKg.Add(row.SumaKg);
+                    EnsureAvatarCached(row.Handlowiec);
+                    _cenyChartData.Add((row.Handlowiec, (double)row.SredniaCena));
                 }
 
                 // StackedColumnSeries per handlowiec - kazdy z wlasnym kolorem
@@ -1590,6 +1706,39 @@ namespace Kalendarz1.HandlowiecDashboard.Views
 
         #region Swieze vs Mrozone
 
+        private class SwiezeMrozoneSnapshot { public decimal SwiezeKg { get; set; } public decimal MrozoneKg { get; set; } }
+
+        private async Task<SwiezeMrozoneSnapshot> FetchSwiezeMrozoneAsync(int rok, int miesiac)
+        {
+            var (od, doData) = MonthRange(rok, miesiac);
+            await using var cn = new SqlConnection(_connectionStringHandel);
+            await cn.OpenAsync();
+
+            var sql = @"
+                SELECT CASE WHEN TW.katalog = 67153 THEN 'Mrozone' ELSE 'Swieze' END AS Typ,
+                       SUM(DP.ilosc) AS SumaKg
+                FROM [HANDEL].[HM].[DK] DK
+                INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
+                INNER JOIN [HANDEL].[HM].[TW] TW ON DP.idtw = TW.ID
+                WHERE DK.data >= @Od AND DK.data < @Do
+                  AND TW.katalog IN (67095, 67153)
+                GROUP BY CASE WHEN TW.katalog = 67153 THEN 'Mrozone' ELSE 'Swieze' END";
+
+            await using var cmd = new SqlCommand(sql, cn);
+            cmd.Parameters.Add("@Od", System.Data.SqlDbType.DateTime).Value = od;
+            cmd.Parameters.Add("@Do", System.Data.SqlDbType.DateTime).Value = doData;
+
+            var snap = new SwiezeMrozoneSnapshot();
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                var typ = reader.GetString(0);
+                var kg = reader.IsDBNull(1) ? 0m : Convert.ToDecimal(reader.GetValue(1));
+                if (typ == "Mrozone") snap.MrozoneKg = kg; else snap.SwiezeKg = kg;
+            }
+            return snap;
+        }
+
         private async System.Threading.Tasks.Task OdswiezSwiezeMrozoneAsync()
         {
             if (cmbRokSM.SelectedItem == null || cmbMiesiacSM.SelectedValue == null) return;
@@ -1599,37 +1748,22 @@ namespace Kalendarz1.HandlowiecDashboard.Views
 
             var series = new SeriesCollection();
 
+            SwiezeMrozoneSnapshot snap;
             try
             {
-                await using var cn = new SqlConnection(_connectionStringHandel);
-                await cn.OpenAsync();
+                snap = await _cache.GetOrLoadAsync(
+                    $"SwiezeMrozone_{rok}_{miesiac}",
+                    () => FetchSwiezeMrozoneAsync(rok, miesiac));
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Blad swieze vs mrozone:\n{ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+            decimal swiezeKg = snap.SwiezeKg, mrozoneKg = snap.MrozoneKg;
 
-                var sql = @"
-                    SELECT CASE WHEN TW.katalog = 67153 THEN 'Mrozone' ELSE 'Swieze' END AS Typ,
-                           SUM(DP.ilosc) AS SumaKg, SUM(DP.wartNetto) AS WartoscNetto
-                    FROM [HANDEL].[HM].[DK] DK
-                    INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
-                    INNER JOIN [HANDEL].[HM].[TW] TW ON DP.idtw = TW.ID
-                    WHERE YEAR(DK.data) = @Rok AND MONTH(DK.data) = @Miesiac
-                      AND TW.katalog IN (67095, 67153)
-                    GROUP BY CASE WHEN TW.katalog = 67153 THEN 'Mrozone' ELSE 'Swieze' END";
-
-                await using var cmd = new SqlCommand(sql, cn);
-                cmd.Parameters.AddWithValue("@Rok", rok);
-                cmd.Parameters.AddWithValue("@Miesiac", miesiac);
-
-                var dane = new Dictionary<string, (decimal Kg, decimal Wartosc)>();
-                await using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
-                {
-                    var typ = reader.GetString(0);
-                    var kg = reader.IsDBNull(1) ? 0m : Convert.ToDecimal(reader.GetValue(1));
-                    var wartosc = reader.IsDBNull(2) ? 0m : Convert.ToDecimal(reader.GetValue(2));
-                    dane[typ] = (kg, wartosc);
-                }
-
-                var swiezeKg = dane.ContainsKey("Swieze") ? dane["Swieze"].Kg : 0m;
-                var mrozoneKg = dane.ContainsKey("Mrozone") ? dane["Mrozone"].Kg : 0m;
+            try
+            {
 
                 series.Add(new ColumnSeries
                 {
@@ -1664,6 +1798,45 @@ namespace Kalendarz1.HandlowiecDashboard.Views
 
         #region Porownanie okresow
 
+        private class PorownanieSnapshot { public decimal[] Rok1 { get; set; } public decimal[] Rok2 { get; set; } }
+
+        private async Task<PorownanieSnapshot> FetchPorownanieAsync(int rok1, int rok2)
+        {
+            var snap = new PorownanieSnapshot { Rok1 = new decimal[12], Rok2 = new decimal[12] };
+
+            // Sargowalny zakres dat: bierzemy oba lata jednym range, partycjonujemy w pamięci
+            int rokMin = Math.Min(rok1, rok2);
+            int rokMax = Math.Max(rok1, rok2);
+            var od = new DateTime(rokMin, 1, 1);
+            var doData = new DateTime(rokMax + 1, 1, 1);
+
+            await using var cn = new SqlConnection(_connectionStringHandel);
+            await cn.OpenAsync();
+
+            var sql = @"
+                SELECT YEAR(DK.data) AS Rok, MONTH(DK.data) AS Miesiac, SUM(DP.wartNetto) AS Wartosc
+                FROM [HANDEL].[HM].[DK] DK
+                INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
+                WHERE DK.data >= @Od AND DK.data < @Do
+                GROUP BY YEAR(DK.data), MONTH(DK.data)
+                ORDER BY Rok, Miesiac";
+
+            await using var cmd = new SqlCommand(sql, cn);
+            cmd.Parameters.Add("@Od", System.Data.SqlDbType.DateTime).Value = od;
+            cmd.Parameters.Add("@Do", System.Data.SqlDbType.DateTime).Value = doData;
+
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                var rok = reader.GetInt32(0);
+                var miesiac = reader.GetInt32(1);
+                var wartosc = reader.IsDBNull(2) ? 0m : Convert.ToDecimal(reader.GetValue(2));
+                if (rok == rok1 && miesiac >= 1 && miesiac <= 12) snap.Rok1[miesiac - 1] = wartosc;
+                else if (rok == rok2 && miesiac >= 1 && miesiac <= 12) snap.Rok2[miesiac - 1] = wartosc;
+            }
+            return snap;
+        }
+
         private async System.Threading.Tasks.Task OdswiezPorownanieAsync()
         {
             if (cmbRokPorown1.SelectedItem == null || cmbRokPorown2.SelectedItem == null) return;
@@ -1674,43 +1847,25 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             var series = new SeriesCollection();
             var labels = _nazwyMiesiecy.Skip(1).ToList();
 
+            PorownanieSnapshot snap;
             try
             {
-                await using var cn = new SqlConnection(_connectionStringHandel);
-                await cn.OpenAsync();
+                snap = await _cache.GetOrLoadAsync(
+                    $"Porownanie_{rok1}_{rok2}",
+                    () => FetchPorownanieAsync(rok1, rok2));
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Blad porownania:\n{ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
 
-                var sql = @"
-                    SELECT YEAR(DK.data) AS Rok, MONTH(DK.data) AS Miesiac, SUM(DP.wartNetto) AS Wartosc
-                    FROM [HANDEL].[HM].[DK] DK
-                    INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
-                    WHERE YEAR(DK.data) IN (@Rok1, @Rok2)
-                    GROUP BY YEAR(DK.data), MONTH(DK.data)
-                    ORDER BY Rok, Miesiac";
-
-                await using var cmd = new SqlCommand(sql, cn);
-                cmd.Parameters.AddWithValue("@Rok1", rok1);
-                cmd.Parameters.AddWithValue("@Rok2", rok2);
-
-                var daneRok1 = new decimal[12];
-                var daneRok2 = new decimal[12];
-
-                await using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
-                {
-                    var rok = reader.GetInt32(0);
-                    var miesiac = reader.GetInt32(1);
-                    var wartosc = reader.IsDBNull(2) ? 0m : Convert.ToDecimal(reader.GetValue(2));
-
-                    if (rok == rok1 && miesiac >= 1 && miesiac <= 12)
-                        daneRok1[miesiac - 1] = wartosc;
-                    else if (rok == rok2 && miesiac >= 1 && miesiac <= 12)
-                        daneRok2[miesiac - 1] = wartosc;
-                }
-
+            try
+            {
                 series.Add(new LineSeries
                 {
                     Title = rok1.ToString(),
-                    Values = new ChartValues<decimal>(daneRok1),
+                    Values = new ChartValues<decimal>(snap.Rok1),
                     Stroke = new SolidColorBrush(_kolory[0]),
                     Fill = Brushes.Transparent,
                     PointGeometry = DefaultGeometries.Circle,
@@ -1723,7 +1878,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 series.Add(new LineSeries
                 {
                     Title = rok2.ToString(),
-                    Values = new ChartValues<decimal>(daneRok2),
+                    Values = new ChartValues<decimal>(snap.Rok2),
                     Stroke = new SolidColorBrush(_kolory[1]),
                     Fill = Brushes.Transparent,
                     PointGeometry = DefaultGeometries.Square,
@@ -1746,6 +1901,39 @@ namespace Kalendarz1.HandlowiecDashboard.Views
 
         #region Trend sprzedazy
 
+        private class TrendSnapshot { public List<string> Labels { get; set; } public List<decimal> Wartosci { get; set; } }
+
+        private async Task<TrendSnapshot> FetchTrendAsync(int okres)
+        {
+            var snap = new TrendSnapshot { Labels = new List<string>(), Wartosci = new List<decimal>() };
+            var dataOd = DateTime.Now.AddMonths(-okres);
+
+            await using var cn = new SqlConnection(_connectionStringHandel);
+            await cn.OpenAsync();
+
+            var sql = @"
+                SELECT YEAR(DK.data) AS Rok, MONTH(DK.data) AS Miesiac, SUM(DP.wartNetto) AS Wartosc
+                FROM [HANDEL].[HM].[DK] DK
+                INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
+                WHERE DK.data >= @DataOd
+                GROUP BY YEAR(DK.data), MONTH(DK.data)
+                ORDER BY Rok, Miesiac";
+
+            await using var cmd = new SqlCommand(sql, cn);
+            cmd.Parameters.Add("@DataOd", System.Data.SqlDbType.DateTime).Value = new DateTime(dataOd.Year, dataOd.Month, 1);
+
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                var rok = reader.GetInt32(0);
+                var miesiac = reader.GetInt32(1);
+                var wartosc = reader.IsDBNull(2) ? 0m : Convert.ToDecimal(reader.GetValue(2));
+                snap.Labels.Add($"{_nazwyMiesiecy[miesiac]} {rok}");
+                snap.Wartosci.Add(wartosc);
+            }
+            return snap;
+        }
+
         private async System.Threading.Tasks.Task OdswiezTrendAsync()
         {
             if (cmbOkres.SelectedItem == null) return;
@@ -1753,42 +1941,27 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             int okres = (int)cmbOkres.SelectedItem;
 
             var series = new SeriesCollection();
-            var labels = new List<string>();
+
+            TrendSnapshot snap;
+            try
+            {
+                // Cache na 5 min uwzględnia bieżący miesiąc — kluczem jest okres + bieżący YYYY-MM
+                snap = await _cache.GetOrLoadAsync(
+                    $"Trend_{okres}_{DateTime.Now:yyyyMM}",
+                    () => FetchTrendAsync(okres));
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Blad trendu:\n{ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
 
             try
             {
-                await using var cn = new SqlConnection(_connectionStringHandel);
-                await cn.OpenAsync();
-
-                var dataOd = DateTime.Now.AddMonths(-okres);
-
-                var sql = @"
-                    SELECT YEAR(DK.data) AS Rok, MONTH(DK.data) AS Miesiac, SUM(DP.wartNetto) AS Wartosc
-                    FROM [HANDEL].[HM].[DK] DK
-                    INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
-                    WHERE DK.data >= @DataOd
-                    GROUP BY YEAR(DK.data), MONTH(DK.data)
-                    ORDER BY Rok, Miesiac";
-
-                await using var cmd = new SqlCommand(sql, cn);
-                cmd.Parameters.AddWithValue("@DataOd", new DateTime(dataOd.Year, dataOd.Month, 1));
-
-                var wartosci = new ChartValues<decimal>();
-                await using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
-                {
-                    var rok = reader.GetInt32(0);
-                    var miesiac = reader.GetInt32(1);
-                    var wartosc = reader.IsDBNull(2) ? 0m : Convert.ToDecimal(reader.GetValue(2));
-
-                    labels.Add($"{_nazwyMiesiecy[miesiac]} {rok}");
-                    wartosci.Add(wartosc);
-                }
-
                 series.Add(new LineSeries
                 {
                     Title = "Trend sprzedazy",
-                    Values = wartosci,
+                    Values = new ChartValues<decimal>(snap.Wartosci),
                     Stroke = new SolidColorBrush(_kolory[4]),
                     Fill = new SolidColorBrush(Color.FromArgb(50, _kolory[4].R, _kolory[4].G, _kolory[4].B)),
                     PointGeometry = DefaultGeometries.Circle,
@@ -1805,7 +1978,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             }
 
             chartTrend.Series = series;
-            axisXTrend.Labels = labels;
+            axisXTrend.Labels = snap.Labels;
         }
 
         #endregion
@@ -1898,22 +2071,14 @@ WHERE MZ.data >= '2020-01-01' AND MZ.data <= @DataDo AND MG.anulowany = 0
             }
         }
 
-        private async System.Threading.Tasks.Task OdswiezOpakowaniaAsync()
+        private async Task<List<OpakowanieRow>> FetchOpakowaniaAsync(DateTime data1, DateTime data2)
         {
-            string wybranyHandlowiec = null;
-            if (cmbHandlowiecOpak.SelectedItem is ComboItem item && item.Value > 0)
-                wybranyHandlowiec = item.Text;
+            var wynik = new List<OpakowanieRow>();
+            var saldoNaData1 = new Dictionary<string, (decimal E2, decimal H1)>();
+            var saldoNaData2 = new Dictionary<string, (decimal E2, decimal H1)>();
 
-            DateTime data1 = dpOpakOd.SelectedDate ?? DateTime.Today.AddDays(-7);
-            DateTime data2 = dpOpakDo.SelectedDate ?? DateTime.Today;
-
-            _opakowaniaData = new List<OpakowanieRow>();
-
-            try
-            {
-                // Multiple Result Sets - oba zapytania w jednym wykonaniu
-                var sqlCombined = @"
--- Saldo na date 1
+            // Multiple Result Sets - oba zapytania w jednym wykonaniu
+            var sqlCombined = @"
 SELECT
     C.shortcut AS Kontrahent,
     CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Pojemnik Drobiowy E2' THEN MZ.Ilosc ELSE 0 END), 0) AS DECIMAL(18,0)) AS E2,
@@ -1927,7 +2092,6 @@ WHERE MZ.data <= @DataDo1 AND MG.anulowany = 0
 GROUP BY C.shortcut
 HAVING SUM(MZ.Ilosc) <> 0;
 
--- Saldo na date 2
 SELECT
     C.shortcut AS Kontrahent,
     CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Pojemnik Drobiowy E2' THEN MZ.Ilosc ELSE 0 END), 0) AS DECIMAL(18,0)) AS E2,
@@ -1941,61 +2105,63 @@ WHERE MZ.data <= @DataDo2 AND MG.anulowany = 0
 GROUP BY C.shortcut
 HAVING SUM(MZ.Ilosc) <> 0;";
 
-                var saldoNaData1 = new Dictionary<string, (decimal E2, decimal H1)>();
-                var saldoNaData2 = new Dictionary<string, (decimal E2, decimal H1)>();
+            await using var cn = new SqlConnection(_connectionStringHandel);
+            await cn.OpenAsync();
 
-                await using var cn = new SqlConnection(_connectionStringHandel);
-                await cn.OpenAsync();
+            await using var cmd = new SqlCommand(sqlCombined, cn);
+            cmd.CommandTimeout = 60;
+            cmd.Parameters.Add("@DataDo1", System.Data.SqlDbType.DateTime).Value = data1;
+            cmd.Parameters.Add("@DataDo2", System.Data.SqlDbType.DateTime).Value = data2;
 
-                // Multiple Result Sets - jedno polaczenie, dwa zestawy wynikow
-                await using var cmd = new SqlCommand(sqlCombined, cn);
-                cmd.CommandTimeout = 60;
-                cmd.Parameters.AddWithValue("@DataDo1", data1);
-                cmd.Parameters.AddWithValue("@DataDo2", data2);
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                saldoNaData1[reader.GetString(0)] = (
+                    reader.IsDBNull(1) ? 0m : reader.GetDecimal(1),
+                    reader.IsDBNull(2) ? 0m : reader.GetDecimal(2));
+            }
+            await reader.NextResultAsync();
+            while (await reader.ReadAsync())
+            {
+                saldoNaData2[reader.GetString(0)] = (
+                    reader.IsDBNull(1) ? 0m : reader.GetDecimal(1),
+                    reader.IsDBNull(2) ? 0m : reader.GetDecimal(2));
+            }
 
-                await using var reader = await cmd.ExecuteReaderAsync();
-
-                // Pierwszy zestaw wynikow - saldo na date 1
-                while (await reader.ReadAsync())
+            foreach (var kontrahent in saldoNaData1.Keys.Union(saldoNaData2.Keys).Distinct())
+            {
+                var d1 = saldoNaData1.GetValueOrDefault(kontrahent, (0, 0));
+                var d2 = saldoNaData2.GetValueOrDefault(kontrahent, (0, 0));
+                wynik.Add(new OpakowanieRow
                 {
-                    var kontrahent = reader.GetString(0);
-                    var e2 = reader.IsDBNull(1) ? 0m : reader.GetDecimal(1);
-                    var h1 = reader.IsDBNull(2) ? 0m : reader.GetDecimal(2);
-                    saldoNaData1[kontrahent] = (e2, h1);
-                }
+                    Kontrahent = kontrahent,
+                    Handlowiec = "",
+                    PojemnikiE2 = d2.E2,
+                    PaletaH1 = d2.H1,
+                    Razem = d2.E2 + d2.H1,
+                    E2Zmiana = d2.E2 - d1.E2,
+                    H1Zmiana = d2.H1 - d1.H1,
+                    ZmianaE2Tydzien = d2.E2 - d1.E2,
+                    ZmianaH1Tydzien = d2.H1 - d1.H1
+                });
+            }
+            return wynik;
+        }
 
-                // Przejdz do drugiego zestawu wynikow - saldo na date 2
-                await reader.NextResultAsync();
-                while (await reader.ReadAsync())
-                {
-                    var kontrahent = reader.GetString(0);
-                    var e2 = reader.IsDBNull(1) ? 0m : reader.GetDecimal(1);
-                    var h1 = reader.IsDBNull(2) ? 0m : reader.GetDecimal(2);
-                    saldoNaData2[kontrahent] = (e2, h1);
-                }
+        private async System.Threading.Tasks.Task OdswiezOpakowaniaAsync()
+        {
+            string wybranyHandlowiec = null;
+            if (cmbHandlowiecOpak.SelectedItem is ComboItem item && item.Value > 0)
+                wybranyHandlowiec = item.Text;
 
-                // Polacz wyniki - unikalne kontrahenty
-                var wszystkieKontrahenty = saldoNaData1.Keys.Union(saldoNaData2.Keys).Distinct().ToList();
-                foreach (var kontrahent in wszystkieKontrahenty)
-                {
-                    var d1 = saldoNaData1.GetValueOrDefault(kontrahent, (0, 0));
-                    var d2 = saldoNaData2.GetValueOrDefault(kontrahent, (0, 0));
+            DateTime data1 = dpOpakOd.SelectedDate ?? DateTime.Today.AddDays(-7);
+            DateTime data2 = dpOpakDo.SelectedDate ?? DateTime.Today;
 
-                    _opakowaniaData.Add(new OpakowanieRow
-                    {
-                        Kontrahent = kontrahent,
-                        Handlowiec = "",
-                        PojemnikiE2 = d2.E2,
-                        PaletaH1 = d2.H1,
-                        Razem = d2.E2 + d2.H1,
-                        E2Zmiana = d2.E2 - d1.E2,
-                        H1Zmiana = d2.H1 - d1.H1,
-                        ZmianaE2Tydzien = d2.E2 - d1.E2,
-                        ZmianaH1Tydzien = d2.H1 - d1.H1
-                    });
-                }
-
-                // Odswiezamy UI
+            try
+            {
+                _opakowaniaData = await _cache.GetOrLoadAsync(
+                    $"Opakowania_{data1:yyyyMMdd}_{data2:yyyyMMdd}",
+                    () => FetchOpakowaniaAsync(data1, data2));
                 OdswiezOpakowaniaUI();
             }
             catch (Exception ex)
@@ -2363,22 +2529,16 @@ WHERE MZ.data >= '2020-01-01' AND MZ.data <= @DataDo{i} AND MG.anulowany = 0
             return "90+";
         }
 
-        private async System.Threading.Tasks.Task OdswiezPlatnosciAsync()
+        private class PlatnosciSnapshot { public List<PlatnoscRow> Dane { get; set; } public AgingData Aging { get; set; } }
+
+        private async Task<PlatnosciSnapshot> FetchPlatnosciAsync(string wybranyHandlowiec)
         {
-            string wybranyHandlowiec = null;
-            if (cmbHandlowiecPlat.SelectedItem is ComboItem item && item.Value > 0)
-                wybranyHandlowiec = item.Text;
+            var snap = new PlatnosciSnapshot { Dane = new List<PlatnoscRow>(), Aging = new AgingData() };
 
-            var dane = new List<PlatnoscRow>();
-            var agingData = new AgingData();
+            await using var cn = new SqlConnection(_connectionStringHandel);
+            await cn.OpenAsync();
 
-            try
-            {
-                await using var cn = new SqlConnection(_connectionStringHandel);
-                await cn.OpenAsync();
-
-                // Multiple Result Sets - oba zapytania w jednym wykonaniu
-                var sqlCombined = @"
+            var sqlCombined = @"
 -- Glowne zapytanie z liczba faktur
 WITH PNAgg AS (
     SELECT PN.dkid, SUM(ISNULL(PN.kwotarozl,0)) AS KwotaRozliczona, MAX(PN.Termin) AS TerminPrawdziwy
@@ -2443,61 +2603,83 @@ SELECT
     SUM(CASE WHEN DniPrzeterminowania > 21 THEN 1 ELSE 0 END) AS Faktur21Plus
 FROM FakturyPrzeterminowane;";
 
-                await using var cmd = new SqlCommand(sqlCombined, cn);
-                cmd.CommandTimeout = 60;
-                cmd.Parameters.AddWithValue("@Handlowiec", (object)wybranyHandlowiec ?? DBNull.Value);
+            await using var cmd = new SqlCommand(sqlCombined, cn);
+            cmd.CommandTimeout = 60;
+            cmd.Parameters.AddWithValue("@Handlowiec", (object)wybranyHandlowiec ?? DBNull.Value);
 
-                await using var reader = await cmd.ExecuteReaderAsync();
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                var kontrahent = reader.GetString(0);
+                var handlowiec = reader.GetString(1);
+                var limitKredytu = reader.IsDBNull(2) ? 0m : Convert.ToDecimal(reader.GetValue(2));
+                var doZaplaty = reader.IsDBNull(3) ? 0m : Convert.ToDecimal(reader.GetValue(3));
+                var terminowe = reader.IsDBNull(4) ? 0m : Convert.ToDecimal(reader.GetValue(4));
+                var przeterminowane = reader.IsDBNull(5) ? 0m : Convert.ToDecimal(reader.GetValue(5));
+                var dniPrzeterminowania = reader.IsDBNull(6) ? (int?)null : Convert.ToInt32(reader.GetValue(6));
+                var liczbaFaktur = reader.IsDBNull(7) ? 0 : Convert.ToInt32(reader.GetValue(7));
+                var liczbaFakturPrzet = reader.IsDBNull(8) ? 0 : Convert.ToInt32(reader.GetValue(8));
 
-                // Pierwszy zestaw wynikow - glowne dane platnosci
-                while (await reader.ReadAsync())
+                var przekroczonyLimit = limitKredytu > 0 && doZaplaty > limitKredytu ? doZaplaty - limitKredytu : 0;
+                var procentLimitu = limitKredytu > 0 ? (doZaplaty / limitKredytu) * 100 : 0;
+
+                snap.Dane.Add(new PlatnoscRow
                 {
-                    var kontrahent = reader.GetString(0);
-                    var handlowiec = reader.GetString(1);
-                    var limitKredytu = reader.IsDBNull(2) ? 0m : Convert.ToDecimal(reader.GetValue(2));
-                    var doZaplaty = reader.IsDBNull(3) ? 0m : Convert.ToDecimal(reader.GetValue(3));
-                    var terminowe = reader.IsDBNull(4) ? 0m : Convert.ToDecimal(reader.GetValue(4));
-                    var przeterminowane = reader.IsDBNull(5) ? 0m : Convert.ToDecimal(reader.GetValue(5));
-                    var dniPrzeterminowania = reader.IsDBNull(6) ? (int?)null : Convert.ToInt32(reader.GetValue(6));
-                    var liczbaFaktur = reader.IsDBNull(7) ? 0 : Convert.ToInt32(reader.GetValue(7));
-                    var liczbaFakturPrzet = reader.IsDBNull(8) ? 0 : Convert.ToInt32(reader.GetValue(8));
+                    Kontrahent = kontrahent,
+                    Handlowiec = handlowiec,
+                    LimitKredytu = limitKredytu,
+                    DoZaplaty = doZaplaty,
+                    Terminowe = terminowe,
+                    Przeterminowane = przeterminowane,
+                    PrzekroczonyLimit = przekroczonyLimit,
+                    DniPrzeterminowania = dniPrzeterminowania,
+                    PrzeterminowaneAlert = przeterminowane > 0,
+                    PrzekroczonyLimitAlert = przekroczonyLimit > 0,
+                    KategoriaWiekowa = GetKategoriaWiekowa(dniPrzeterminowania),
+                    LiczbaFaktur = liczbaFaktur,
+                    LiczbaFakturPrzeterminowanych = liczbaFakturPrzet,
+                    ProcentLimitu = procentLimitu
+                });
+            }
+            await reader.NextResultAsync();
+            if (await reader.ReadAsync())
+            {
+                snap.Aging.Kwota17 = reader.IsDBNull(0) ? 0 : Convert.ToDecimal(reader.GetValue(0));
+                snap.Aging.Kwota814 = reader.IsDBNull(1) ? 0 : Convert.ToDecimal(reader.GetValue(1));
+                snap.Aging.Kwota1521 = reader.IsDBNull(2) ? 0 : Convert.ToDecimal(reader.GetValue(2));
+                snap.Aging.Kwota21Plus = reader.IsDBNull(3) ? 0 : Convert.ToDecimal(reader.GetValue(3));
+                snap.Aging.Faktur17 = reader.IsDBNull(4) ? 0 : Convert.ToInt32(reader.GetValue(4));
+                snap.Aging.Faktur814 = reader.IsDBNull(5) ? 0 : Convert.ToInt32(reader.GetValue(5));
+                snap.Aging.Faktur1521 = reader.IsDBNull(6) ? 0 : Convert.ToInt32(reader.GetValue(6));
+                snap.Aging.Faktur21PlusNew = reader.IsDBNull(7) ? 0 : Convert.ToInt32(reader.GetValue(7));
+            }
+            return snap;
+        }
 
-                    var przekroczonyLimit = limitKredytu > 0 && doZaplaty > limitKredytu ? doZaplaty - limitKredytu : 0;
-                    var procentLimitu = limitKredytu > 0 ? (doZaplaty / limitKredytu) * 100 : 0;
+        private async System.Threading.Tasks.Task OdswiezPlatnosciAsync()
+        {
+            string wybranyHandlowiec = null;
+            if (cmbHandlowiecPlat.SelectedItem is ComboItem item && item.Value > 0)
+                wybranyHandlowiec = item.Text;
 
-                    dane.Add(new PlatnoscRow
-                    {
-                        Kontrahent = kontrahent,
-                        Handlowiec = handlowiec,
-                        LimitKredytu = limitKredytu,
-                        DoZaplaty = doZaplaty,
-                        Terminowe = terminowe,
-                        Przeterminowane = przeterminowane,
-                        PrzekroczonyLimit = przekroczonyLimit,
-                        DniPrzeterminowania = dniPrzeterminowania,
-                        PrzeterminowaneAlert = przeterminowane > 0,
-                        PrzekroczonyLimitAlert = przekroczonyLimit > 0,
-                        KategoriaWiekowa = GetKategoriaWiekowa(dniPrzeterminowania),
-                        LiczbaFaktur = liczbaFaktur,
-                        LiczbaFakturPrzeterminowanych = liczbaFakturPrzet,
-                        ProcentLimitu = procentLimitu
-                    });
-                }
+            PlatnosciSnapshot snap;
+            try
+            {
+                snap = await _cache.GetOrLoadAsync(
+                    $"Platnosci_{wybranyHandlowiec ?? "ALL"}",
+                    () => FetchPlatnosciAsync(wybranyHandlowiec));
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Blad wczytywania platnosci:\n{ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
 
-                // Drugi zestaw wynikow - aging data z nowymi przedzialami
-                await reader.NextResultAsync();
-                if (await reader.ReadAsync())
-                {
-                    agingData.Kwota17 = reader.IsDBNull(0) ? 0 : Convert.ToDecimal(reader.GetValue(0));
-                    agingData.Kwota814 = reader.IsDBNull(1) ? 0 : Convert.ToDecimal(reader.GetValue(1));
-                    agingData.Kwota1521 = reader.IsDBNull(2) ? 0 : Convert.ToDecimal(reader.GetValue(2));
-                    agingData.Kwota21Plus = reader.IsDBNull(3) ? 0 : Convert.ToDecimal(reader.GetValue(3));
-                    agingData.Faktur17 = reader.IsDBNull(4) ? 0 : Convert.ToInt32(reader.GetValue(4));
-                    agingData.Faktur814 = reader.IsDBNull(5) ? 0 : Convert.ToInt32(reader.GetValue(5));
-                    agingData.Faktur1521 = reader.IsDBNull(6) ? 0 : Convert.ToInt32(reader.GetValue(6));
-                    agingData.Faktur21PlusNew = reader.IsDBNull(7) ? 0 : Convert.ToInt32(reader.GetValue(7));
-                }
+            var dane = snap.Dane;
+            var agingData = snap.Aging;
 
+            try
+            {
                 // Statystyki glowne
                 var sumaDoZaplaty = dane.Sum(d => d.DoZaplaty);
                 var sumaTerminowe = dane.Sum(d => d.Terminowe);

@@ -1230,7 +1230,7 @@ namespace Kalendarz1
             groupBox2.Controls.Add(label25);
             groupBox2.Controls.Add(label8);
             groupBox2.Controls.Add(label6);
-            groupBox2.Location = new System.Drawing.Point(640, 12);
+            groupBox2.Location = new System.Drawing.Point(1260, 12);
             groupBox2.Name = "groupBox2";
             groupBox2.Size = new System.Drawing.Size(348, 607);
             groupBox2.TabIndex = 176;
@@ -1298,7 +1298,10 @@ namespace Kalendarz1
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(1000, 908);
+            ClientSize = new System.Drawing.Size(1500, 1000);
+            MinimumSize = new System.Drawing.Size(1200, 800);
+            WindowState = FormWindowState.Maximized;
+            StartPosition = FormStartPosition.CenterScreen;
             Controls.Add(groupBox2);
             Controls.Add(groupBox1);
             Controls.Add(label30);
@@ -1308,7 +1311,7 @@ namespace Kalendarz1
             Controls.Add(label2);
             Controls.Add(textBoxFiltrKontrahent);
             Name = "UmowyForm";
-            Text = "UmowyForm";
+            Text = "Umowa Zakupu Żywca";
             ((System.ComponentModel.ISupportInitialize)dataGridViewKontrahenci).EndInit();
             ((System.ComponentModel.ISupportInitialize)dataGridViewHodowcy).EndInit();
             groupBox1.ResumeLayout(false);

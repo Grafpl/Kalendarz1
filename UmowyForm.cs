@@ -45,6 +45,44 @@ namespace Kalendarz1
         private NazwaZiD nazwaZiD = new NazwaZiD();
         private static ZapytaniaSQL zapytaniasql = new ZapytaniaSQL();
 
+        // Panel "Sugerowane warunki" (#B) - karty z danymi z FarmerCalc (specyfikacja przyjętego żywca)
+        private System.Windows.Forms.Label _lblNaglowek;
+        private System.Windows.Forms.Button _btnZastosujSugerowane;
+        private readonly Timer _historiaDebounce = new Timer { Interval = 300 };
+        private string _ostatnioPobranyDostawca = "";
+
+        // 5 kart sugerowanych (Cena usunięta - pokazujemy ją tylko w tabeli specyfikacji)
+        private SugCard _cardTypCeny;
+        private SugCard _cardDodatek;
+        private SugCard _cardUbytek;
+        private SugCard _cardCzyjaWaga;
+        private SugCard _cardPiK;
+
+        // Tabela "Specyfikacje z dnia DataOdbioru" - wszyscy dostawcy przyjęci tego dnia
+        private System.Windows.Forms.Label _lblDzien;
+        private DataGridView _dgvDzien;
+        private DateTime? _ostatnioPobranaData;
+
+        // Sugerowane wartości (najczęstsze z historii) - wypełniane po wczytaniu danych,
+        // używane przez przycisk "Zastosuj sugerowane".
+        private string _sugTypCeny;
+        private decimal? _sugDodatek;
+        private decimal? _sugUbytek;
+        private bool? _sugPiK;
+        private string _sugCzyjaWaga;   // pochodne od Ubytek: >0 → "Hodowca", =0 → "Ubojnia"
+
+        // Helper - wszystkie kontrolki jednej karty w jednym obiekcie
+        private class SugCard
+        {
+            public Panel Panel;
+            public System.Windows.Forms.Label Value;
+            public System.Windows.Forms.Label Hint;
+            public System.Windows.Forms.Label Freq;   // badge "8/10" w prawym górnym rogu
+            public CardKind Kind;                     // jakie pole reprezentuje (do drill-down)
+        }
+
+        private enum CardKind { TypCeny, Dodatek, Ubytek, CzyjaWaga, PiK }
+
         public UmowyForm() : this(null, null) { }
 
         public UmowyForm(string? initialLp, string? initialIdLibra)
@@ -88,6 +126,28 @@ namespace Kalendarz1
             comboBoxDostawca.SelectedIndexChanged += comboBoxDostawca_SelectedIndexChanged;
 
             buttonZapisz.Click += buttonZapisz_Click;
+
+            // Panel historii (#B): zbuduj UI + podpiąć debounce
+            BudujPanelHistorii();
+            // Reorganizacja dolnej części: dgvHodowcy + dgvKontrahenci obok siebie do dołu
+            RearrangeBottomGrids();
+            _historiaDebounce.Tick += async (s, e) =>
+            {
+                _historiaDebounce.Stop();
+                await WczytajHistorieDostawcyAsync(Dostawca1.Text?.Trim() ?? "");
+                _dgvDzien?.Invalidate();  // odśwież highlight wiersza dostawcy
+            };
+            Dostawca1.TextChanged += (s, e) =>
+            {
+                _historiaDebounce.Stop();
+                _historiaDebounce.Start();
+            };
+
+            // Przy zmianie daty odbioru - przeładuj specyfikacje z tego dnia
+            dtpData.ValueChanged += async (s, e) =>
+            {
+                await WczytajSpecyfikacjeZDniaAsync(dtpData.Value);
+            };
         }
 
         #region Load / init
@@ -183,6 +243,9 @@ ORDER BY Lp DESC";
                 await WczytajHodowcowAsync();
                 ApplyFilter(string.Empty);
 
+                // 5b) Specyfikacje z dnia DataOdbioru
+                await WczytajSpecyfikacjeZDniaAsync(dtpData.Value);
+
                 // 6) AUTO-POWIĄZANIE: jeżeli w LibraNet.Dostawcy dla bieżącego ID jest IdSymf -> ustaw combobox i wczytaj z Symfonii
                 if (!string.IsNullOrWhiteSpace(IDLibra.Text))
                 {
@@ -261,6 +324,12 @@ ORDER BY Lp DESC";
                 }
 
                 DtpData_ValueChanged(dtpData, EventArgs.Empty);
+
+                // Wymuś odświeżenie tablicy specyfikacji dla DataOdbioru tego LP.
+                // Bez tego, jeśli nowy LP ma tę samą DataOdbioru co poprzedni, ValueChanged się nie odpala
+                // i tablica nie reaguje na zmianę LP.
+                _ostatnioPobranaData = null;
+                _ = WczytajSpecyfikacjeZDniaAsync(dtpData.Value);
             }
             catch (Exception ex)
             {
@@ -1118,6 +1187,805 @@ WHERE ID = @ID;";
         private void CommandButton_Update_Click_1(object sender, EventArgs e)
         {
 
+        }
+
+        // ==================================================================
+        // PANEL "HISTORIA WARUNKÓW TEGO HODOWCY" (#B)
+        // ==================================================================
+
+        private void BudujPanelHistorii()
+        {
+            // groupBox2 przeniesiony na x=1260, więc panel zajmuje teraz miejsce gdzie był groupBox2.
+            // Dzięki temu jest widoczny tuż obok groupBox1 (Dane Hodowcy) - mocno w lewo.
+            const int x = 640;
+            const int width = 600;
+            const int yStart = 12;
+            const int cardHeight = 64;
+            const int cardSpacing = 4;
+
+            // === TABLICA "Specyfikacje z dnia DataOdbioru" - GÓRA (ważniejsza) ===
+            _lblDzien = new System.Windows.Forms.Label
+            {
+                Text = "📅  Specyfikacje z dnia (wybierz datę odbioru)",
+                Location = new System.Drawing.Point(x, yStart),
+                Size = new System.Drawing.Size(width, 22),
+                Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold),
+                ForeColor = System.Drawing.Color.FromArgb(44, 62, 80),
+                Anchor = AnchorStyles.Top | AnchorStyles.Left
+            };
+            Controls.Add(_lblDzien);
+
+            _dgvDzien = new DataGridView
+            {
+                Location = new System.Drawing.Point(x, yStart + 26),
+                Size = new System.Drawing.Size(width, 320),
+                Anchor = AnchorStyles.Top | AnchorStyles.Left,
+                AllowUserToAddRows = false,
+                AllowUserToDeleteRows = false,
+                AllowUserToResizeRows = false,
+                AllowUserToResizeColumns = true,
+                ReadOnly = true,
+                AutoGenerateColumns = false,
+                RowHeadersVisible = false,
+                BackgroundColor = System.Drawing.Color.White,
+                BorderStyle = BorderStyle.FixedSingle,
+                CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal,
+                EnableHeadersVisualStyles = false,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                MultiSelect = false,
+                ColumnHeadersHeight = 30,
+                RowTemplate = { Height = 24 },
+                AlternatingRowsDefaultCellStyle = { BackColor = System.Drawing.Color.FromArgb(248, 249, 250) }
+            };
+            _dgvDzien.ColumnHeadersDefaultCellStyle.BackColor = System.Drawing.Color.FromArgb(38, 50, 56);
+            _dgvDzien.ColumnHeadersDefaultCellStyle.ForeColor = System.Drawing.Color.White;
+            _dgvDzien.ColumnHeadersDefaultCellStyle.Font = new System.Drawing.Font("Segoe UI", 8.5F, System.Drawing.FontStyle.Bold);
+            _dgvDzien.ColumnHeadersDefaultCellStyle.Padding = new Padding(4, 0, 4, 0);
+            _dgvDzien.DefaultCellStyle.Font = new System.Drawing.Font("Segoe UI", 8.75F);
+            _dgvDzien.DefaultCellStyle.SelectionBackColor = System.Drawing.Color.FromArgb(197, 225, 165);
+            _dgvDzien.DefaultCellStyle.SelectionForeColor = System.Drawing.Color.FromArgb(33, 33, 33);
+            _dgvDzien.RowTemplate.Height = 28;
+            _dgvDzien.GridColor = System.Drawing.Color.FromArgb(238, 238, 238);
+
+            _dgvDzien.Columns.Add(new DataGridViewTextBoxColumn { Name = "LP", DataPropertyName = "LP", HeaderText = "LP", Width = 35,
+                DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleCenter } });
+            _dgvDzien.Columns.Add(new DataGridViewTextBoxColumn { Name = "Dostawca", DataPropertyName = "Dostawca", HeaderText = "Dostawca", Width = 130 });
+            _dgvDzien.Columns.Add(new DataGridViewTextBoxColumn { Name = "TypCeny", DataPropertyName = "TypCeny", HeaderText = "Typ", Width = 75 });
+            _dgvDzien.Columns.Add(new DataGridViewTextBoxColumn { Name = "Cena", DataPropertyName = "Cena", HeaderText = "Cena", Width = 55,
+                DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleRight, Format = "0.00",
+                    Font = new System.Drawing.Font("Segoe UI", 8.5F, System.Drawing.FontStyle.Bold) } });
+            _dgvDzien.Columns.Add(new DataGridViewTextBoxColumn { Name = "Dodatek", DataPropertyName = "Dodatek", HeaderText = "Dod.", Width = 55,
+                DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleRight, Format = "0.00" } });
+            _dgvDzien.Columns.Add(new DataGridViewTextBoxColumn { Name = "Ubytek", DataPropertyName = "Ubytek", HeaderText = "Ub%", Width = 45,
+                DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleRight, Format = "0.0" } });
+            _dgvDzien.Columns.Add(new DataGridViewTextBoxColumn { Name = "PiK", DataPropertyName = "PiK", HeaderText = "PiK", Width = 40,
+                DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleCenter } });
+            _dgvDzien.Columns.Add(new DataGridViewTextBoxColumn { Name = "WagaHod", DataPropertyName = "WagaHod", HeaderText = "Hod (kg)", Width = 70,
+                DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleRight, Format = "N0" } });
+            _dgvDzien.Columns.Add(new DataGridViewTextBoxColumn { Name = "WagaUbojnia", DataPropertyName = "WagaUbojnia", HeaderText = "Uboj (kg)", Width = 70,
+                DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleRight, Format = "N0" } });
+
+            // PiK bool → TAK/NIE
+            _dgvDzien.CellFormatting += (s, e) =>
+            {
+                if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
+                if (_dgvDzien.Columns[e.ColumnIndex].Name != "PiK") return;
+                if (e.Value == null || e.Value == DBNull.Value) { e.Value = "—"; e.FormattingApplied = true; return; }
+                bool b = Convert.ToBoolean(e.Value);
+                e.Value = b ? "TAK" : "NIE";
+                e.CellStyle.ForeColor = b ? System.Drawing.Color.FromArgb(46, 125, 50) : System.Drawing.Color.FromArgb(127, 140, 141);
+                e.CellStyle.Font = new System.Drawing.Font("Segoe UI", 8.5F, System.Drawing.FontStyle.Bold);
+                e.FormattingApplied = true;
+            };
+
+            // Wyróżnij wiersz bieżącego dostawcy (na żółto)
+            _dgvDzien.RowPrePaint += (s, e) =>
+            {
+                if (e.RowIndex < 0 || e.RowIndex >= _dgvDzien.RowCount) return;
+                var r = _dgvDzien.Rows[e.RowIndex];
+                var d = r.Cells["Dostawca"]?.Value?.ToString()?.Trim();
+                if (!string.IsNullOrEmpty(d)
+                    && !string.IsNullOrEmpty(Dostawca1?.Text)
+                    && string.Equals(d, Dostawca1.Text.Trim(), StringComparison.OrdinalIgnoreCase))
+                {
+                    r.DefaultCellStyle.BackColor = System.Drawing.Color.FromArgb(255, 245, 157);  // żółty highlight
+                    r.DefaultCellStyle.Font = new System.Drawing.Font("Segoe UI", 8.5F, System.Drawing.FontStyle.Bold);
+                }
+            };
+
+            Controls.Add(_dgvDzien);
+
+            // === SUGEROWANE WARUNKI - układ 2-kolumnowy + colored icon boxes ===
+            int yNagl = yStart + 26 + 320 + 18;
+
+            // Pasek nagłówka z ikoną (granatowy gradient look)
+            var naglowekTlo = new Panel
+            {
+                Location = new System.Drawing.Point(x, yNagl),
+                Size = new System.Drawing.Size(width, 36),
+                BackColor = System.Drawing.Color.FromArgb(38, 50, 56),
+                Anchor = AnchorStyles.Top | AnchorStyles.Left
+            };
+            Controls.Add(naglowekTlo);
+
+            _lblNaglowek = new System.Windows.Forms.Label
+            {
+                Text = "💡  SUGEROWANE WARUNKI",
+                Location = new System.Drawing.Point(12, 0),
+                Size = new System.Drawing.Size(width - 24, 36),
+                Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold),
+                ForeColor = System.Drawing.Color.White,
+                BackColor = System.Drawing.Color.Transparent,
+                TextAlign = System.Drawing.ContentAlignment.MiddleLeft
+            };
+            naglowekTlo.Controls.Add(_lblNaglowek);
+
+            // 2-kolumnowy układ: 2 cols × 295px + 10px spacing = 600 width
+            int cardY = yNagl + 36 + 8;
+            int cardWidth = (width - cardSpacing) / 2;     // 298px
+            int xCol1 = x;
+            int xCol2 = x + cardWidth + cardSpacing;
+
+            // Każda karta ma swój kolor (Material Design palette)
+            var colTypCeny    = System.Drawing.Color.FromArgb(63, 81, 181);   // indigo
+            var colDodatek    = System.Drawing.Color.FromArgb(76, 175, 80);   // green
+            var colUbytek     = System.Drawing.Color.FromArgb(255, 152, 0);   // orange
+            var colCzyjaWaga  = System.Drawing.Color.FromArgb(156, 39, 176);  // purple
+            var colPiK        = System.Drawing.Color.FromArgb(244, 67, 54);   // red
+
+            // Row 1: TypCeny + Dodatek
+            _cardTypCeny    = BudujKarte(xCol1, cardY, cardWidth, cardHeight, "💰", "TYP CENY", colTypCeny);
+            _cardTypCeny.Kind = CardKind.TypCeny;
+            _cardDodatek    = BudujKarte(xCol2, cardY, cardWidth, cardHeight, "➕", "DODATEK", colDodatek);
+            _cardDodatek.Kind = CardKind.Dodatek;
+            cardY += cardHeight + cardSpacing;
+
+            // Row 2: Ubytek + CzyjaWaga
+            _cardUbytek     = BudujKarte(xCol1, cardY, cardWidth, cardHeight, "📉", "UBYTEK", colUbytek);
+            _cardUbytek.Kind = CardKind.Ubytek;
+            _cardCzyjaWaga  = BudujKarte(xCol2, cardY, cardWidth, cardHeight, "⚖", "CZYJA WAGA", colCzyjaWaga);
+            _cardCzyjaWaga.Kind = CardKind.CzyjaWaga;
+            cardY += cardHeight + cardSpacing;
+
+            // Row 3: PiK (full width - bo ma długi tekst "TAK → Sprzedającego")
+            _cardPiK        = BudujKarte(xCol1, cardY, width, cardHeight, "🐔", "PiK · PADŁE I KONFISKATY", colPiK);
+            _cardPiK.Kind = CardKind.PiK;
+            cardY += cardHeight + cardSpacing;
+
+            // Hook click na każdą kartę → drill-down do historycznych dostaw
+            foreach (var c in new[] { _cardTypCeny, _cardDodatek, _cardUbytek, _cardCzyjaWaga, _cardPiK })
+            {
+                var card = c;  // capture for closure
+                HookClickRekurencyjnie(card.Panel, async (s, e) => await PokazHistorieKartyAsync(card));
+            }
+
+            // Apply button - większy, gradient look
+            _btnZastosujSugerowane = new System.Windows.Forms.Button
+            {
+                Text = "✓   ZASTOSUJ WSZYSTKIE SUGESTIE",
+                Location = new System.Drawing.Point(x, cardY + 8),
+                Size = new System.Drawing.Size(width, 48),
+                Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Bold),
+                BackColor = System.Drawing.Color.FromArgb(76, 175, 80),
+                ForeColor = System.Drawing.Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand,
+                Enabled = false,
+                Anchor = AnchorStyles.Top | AnchorStyles.Left
+            };
+            _btnZastosujSugerowane.FlatAppearance.BorderSize = 0;
+            _btnZastosujSugerowane.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(56, 142, 60);
+            _btnZastosujSugerowane.FlatAppearance.MouseDownBackColor = System.Drawing.Color.FromArgb(46, 125, 50);
+            _btnZastosujSugerowane.Click += (s, e) => ZastosujSugerowane();
+            Controls.Add(_btnZastosujSugerowane);
+        }
+
+        // Wczytaj specyfikacje (FarmerCalc) z konkretnego dnia - wszyscy dostawcy przyjęci tego dnia.
+        // Pomocne do porównania warunków - "Co dziś dostali inni hodowcy?".
+        private async Task WczytajSpecyfikacjeZDniaAsync(DateTime data)
+        {
+            // Skip jeśli ta sama data już pobrana
+            if (_ostatnioPobranaData.HasValue && _ostatnioPobranaData.Value.Date == data.Date)
+            {
+                _dgvDzien?.Invalidate();  // odśwież podświetlenie wiersza (bo Dostawca1 mógł się zmienić)
+                return;
+            }
+
+            _lblDzien.Text = $"📅  Specyfikacje z dnia {data:yyyy-MM-dd} — ładuję...";
+
+            const string sql = @"
+SELECT
+    fc.CarLp                                          AS LP,
+    LTRIM(RTRIM(ISNULL(custReal.ShortName, custReal.Name))) AS Dostawca,
+    pt.Name                                            AS TypCeny,
+    fc.Price                                           AS Cena,
+    fc.Addition                                        AS Dodatek,
+    fc.Loss * 100                                      AS Ubytek,
+    fc.IncDeadConf                                     AS PiK,
+    fc.NettoFarmWeight                                 AS WagaHod,
+    fc.NettoWeight                                     AS WagaUbojnia
+FROM [LibraNet].[dbo].[FarmerCalc] fc
+LEFT JOIN [LibraNet].[dbo].[Dostawcy] custReal
+       ON custReal.ID = ISNULL(fc.CustomerRealGID, fc.CustomerGID)
+LEFT JOIN [LibraNet].[dbo].[PriceType] pt ON fc.PriceTypeID = pt.ID
+WHERE CAST(fc.CalcDate AS DATE) = CAST(@data AS DATE)
+ORDER BY fc.CarLp;";
+
+            try
+            {
+                using var conn = new SqlConnection(_connString);
+                using var cmd = new SqlCommand(sql, conn);
+                cmd.Parameters.AddWithValue("@data", data.Date);
+                await conn.OpenAsync();
+                using var rd = await cmd.ExecuteReaderAsync();
+                var dt = new DataTable();
+                dt.Load(rd);
+
+                _dgvDzien.DataSource = dt;
+                _ostatnioPobranaData = data.Date;
+
+                if (dt.Rows.Count == 0)
+                {
+                    _lblDzien.Text = $"📭  Brak specyfikacji z dnia {data:yyyy-MM-dd}";
+                }
+                else
+                {
+                    // Statystyka dnia: ile dostawców, łączna waga
+                    decimal sumaHod = dt.AsEnumerable()
+                        .Where(r => r["WagaHod"] != DBNull.Value)
+                        .Sum(r => Convert.ToDecimal(r["WagaHod"]));
+                    _lblDzien.Text = $"📅  Specyfikacje z dnia {data:yyyy-MM-dd} — {dt.Rows.Count} dostawców, łącznie {sumaHod:N0} kg";
+                }
+            }
+            catch (Exception ex)
+            {
+                _lblDzien.Text = "❌  Błąd: " + ex.Message;
+                _dgvDzien.DataSource = null;
+            }
+        }
+
+        // Karta: kolorowy icon-box (lewa) + title/value (środek) + freq badge (prawy górny róg)
+        private SugCard BudujKarte(int x, int y, int width, int height, string icon, string title, System.Drawing.Color iconColor)
+        {
+            // Główny panel - białe tło, subtelny border (efekt "kafla")
+            var panel = new Panel
+            {
+                Location = new System.Drawing.Point(x, y),
+                Size = new System.Drawing.Size(width, height),
+                BackColor = System.Drawing.Color.White,
+                BorderStyle = BorderStyle.FixedSingle,
+                Anchor = AnchorStyles.Top | AnchorStyles.Left
+            };
+
+            // ICON BOX - kolorowy kwadrat z lewej strony (jak avatar)
+            int iconSize = height - 2;
+            var iconBox = new Panel
+            {
+                Location = new System.Drawing.Point(0, 0),
+                Size = new System.Drawing.Size(iconSize, iconSize),
+                BackColor = iconColor
+            };
+            var lblIcon = new System.Windows.Forms.Label
+            {
+                Text = icon,
+                Dock = DockStyle.Fill,
+                Font = new System.Drawing.Font("Segoe UI Emoji", 18F, System.Drawing.FontStyle.Regular),
+                ForeColor = System.Drawing.Color.White,
+                BackColor = System.Drawing.Color.Transparent,
+                TextAlign = System.Drawing.ContentAlignment.MiddleCenter
+            };
+            iconBox.Controls.Add(lblIcon);
+            panel.Controls.Add(iconBox);
+
+            // TITLE - mała, uppercase, kolor w tonie ikony (subtle)
+            var lblTitle = new System.Windows.Forms.Label
+            {
+                Text = title,
+                Location = new System.Drawing.Point(iconSize + 10, 6),
+                Size = new System.Drawing.Size(width - iconSize - 70, 16),
+                Font = new System.Drawing.Font("Segoe UI", 8F, System.Drawing.FontStyle.Bold),
+                ForeColor = iconColor,
+                TextAlign = System.Drawing.ContentAlignment.MiddleLeft
+            };
+            panel.Controls.Add(lblTitle);
+
+            // VALUE - duża, bold, ciemna
+            var lblValue = new System.Windows.Forms.Label
+            {
+                Text = "—",
+                Location = new System.Drawing.Point(iconSize + 10, 22),
+                Size = new System.Drawing.Size(width - iconSize - 20, 22),
+                Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold),
+                ForeColor = System.Drawing.Color.FromArgb(33, 33, 33),
+                TextAlign = System.Drawing.ContentAlignment.MiddleLeft
+            };
+            panel.Controls.Add(lblValue);
+
+            // HINT - drobna, italic, na dole
+            var lblHint = new System.Windows.Forms.Label
+            {
+                Text = "",
+                Location = new System.Drawing.Point(iconSize + 10, 44),
+                Size = new System.Drawing.Size(width - iconSize - 20, 16),
+                Font = new System.Drawing.Font("Segoe UI", 7.5F, System.Drawing.FontStyle.Italic),
+                ForeColor = System.Drawing.Color.FromArgb(140, 140, 140),
+                TextAlign = System.Drawing.ContentAlignment.MiddleLeft
+            };
+            panel.Controls.Add(lblHint);
+
+            // FREQ BADGE - prawy górny róg, kolorowe tło
+            var lblFreq = new System.Windows.Forms.Label
+            {
+                Text = "",
+                Location = new System.Drawing.Point(width - 60, 6),
+                Size = new System.Drawing.Size(54, 16),
+                Font = new System.Drawing.Font("Segoe UI", 7.5F, System.Drawing.FontStyle.Bold),
+                ForeColor = iconColor,
+                BackColor = System.Drawing.Color.FromArgb(245, 245, 245),
+                TextAlign = System.Drawing.ContentAlignment.MiddleCenter,
+                BorderStyle = BorderStyle.None,
+                Visible = false
+            };
+            panel.Controls.Add(lblFreq);
+            lblFreq.BringToFront();
+
+            Controls.Add(panel);
+            return new SugCard { Panel = panel, Value = lblValue, Hint = lblHint, Freq = lblFreq };
+        }
+
+        private async Task WczytajHistorieDostawcyAsync(string dostawca)
+        {
+            if (string.IsNullOrWhiteSpace(dostawca))
+            {
+                _lblNaglowek.Text = "💡  Sugerowane warunki - wybierz hodowcę";
+                ResetujKarty();
+                _btnZastosujSugerowane.Enabled = false;
+                return;
+            }
+
+            if (string.Equals(dostawca, _ostatnioPobranyDostawca, StringComparison.OrdinalIgnoreCase)) return;
+
+            _lblNaglowek.Text = "💡  Ładuję dane...";
+
+            // Źródło prawdy: dbo.FarmerCalc (specyfikacja przyjętego żywca).
+            // Tu są RZECZYWIŚCIE zastosowane warunki - cena/dodatek/ubytek/PiK z faktycznych przyjęć.
+            const string sql = @"
+SELECT TOP 30
+    fc.CalcDate    AS DataOdbioru,
+    pt.Name        AS TypCeny,
+    fc.Price       AS Cena,
+    fc.Addition    AS Dodatek,
+    fc.Loss * 100  AS Ubytek,
+    fc.IncDeadConf AS PiK
+FROM [LibraNet].[dbo].[FarmerCalc] fc
+LEFT JOIN [LibraNet].[dbo].[Dostawcy] d
+       ON fc.CustomerRealGID = d.ID OR fc.CustomerGID = d.ID
+LEFT JOIN [LibraNet].[dbo].[PriceType] pt ON fc.PriceTypeID = pt.ID
+WHERE (LTRIM(RTRIM(d.Name)) = @dostawca OR LTRIM(RTRIM(d.ShortName)) = @dostawca)
+  AND fc.Price > 0
+ORDER BY fc.CalcDate DESC;";
+
+            try
+            {
+                using var conn = new SqlConnection(_connString);
+                using var cmd = new SqlCommand(sql, conn);
+                cmd.Parameters.AddWithValue("@dostawca", dostawca);
+                await conn.OpenAsync();
+                using var rd = await cmd.ExecuteReaderAsync();
+                var dt = new DataTable();
+                dt.Load(rd);
+
+                _ostatnioPobranyDostawca = dostawca;
+
+                if (dt.Rows.Count == 0)
+                {
+                    _lblNaglowek.Text = $"📭  Brak specyfikacji dla \"{dostawca}\"";
+                    ResetujKarty();
+                    _btnZastosujSugerowane.Enabled = false;
+                    _sugTypCeny = null; _sugDodatek = null; _sugUbytek = null; _sugPiK = null; _sugCzyjaWaga = null;
+                }
+                else
+                {
+                    _lblNaglowek.Text = $"💡  Sugerowane dla {dostawca} — na podstawie {Math.Min(dt.Rows.Count, 10)} ostatnich przyjęć";
+                    _sugTypCeny = null; _sugDodatek = null; _sugUbytek = null; _sugPiK = null; _sugCzyjaWaga = null;
+                    ObliczSugerowane(dt);
+                }
+            }
+            catch (Exception ex)
+            {
+                _lblNaglowek.Text = "❌  Błąd: " + ex.Message;
+                ResetujKarty();
+                _btnZastosujSugerowane.Enabled = false;
+            }
+        }
+
+        // Przenosi dgvHodowcy + dgvKontrahenci do TableLayoutPanel (50/50, anchor Top|Bottom|Left|Right).
+        // Dzięki temu obie tabele są obok siebie i rosną do dołu okna gdy formularz zostanie powiększony.
+        private void RearrangeBottomGrids()
+        {
+            // Odepnij oryginalne pozycje (były w Form.Controls z InitializeComponent)
+            Controls.Remove(label29);
+            Controls.Remove(label30);
+            Controls.Remove(dataGridViewHodowcy);
+            Controls.Remove(dataGridViewKontrahenci);
+
+            // Reset styli labeli - mają być ładne nagłówki nad gridami (a nie pionowe etykiety obok)
+            label29.AutoSize = false;
+            label29.Dock = DockStyle.Fill;
+            label29.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            label29.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
+            label29.Padding = new Padding(8, 0, 0, 0);
+            label29.BackColor = System.Drawing.Color.FromArgb(238, 242, 245);
+            label29.ForeColor = System.Drawing.Color.FromArgb(44, 62, 80);
+            label29.Text = "📋  TABELA · DANE HODOWCY";
+
+            label30.AutoSize = false;
+            label30.Dock = DockStyle.Fill;
+            label30.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            label30.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
+            label30.Padding = new Padding(8, 0, 0, 0);
+            label30.BackColor = System.Drawing.Color.FromArgb(238, 242, 245);
+            label30.ForeColor = System.Drawing.Color.FromArgb(44, 62, 80);
+            label30.Text = "📋  TABELA · BAZA SYMFONIA";
+
+            // Gridy mają wypełniać komórki TLP
+            dataGridViewHodowcy.Dock = DockStyle.Fill;
+            dataGridViewKontrahenci.Dock = DockStyle.Fill;
+
+            // TableLayoutPanel: 2 kolumny 50/50 + 2 wiersze (label 24px + grid wypełnia resztę)
+            // Anchor wszystkie 4 strony - rośnie razem z formą.
+            // Designer ClientSize = 1500x1000. Pozycja y=695, więc do dołu mamy 1000-695-12=293px.
+            var tlp = new TableLayoutPanel
+            {
+                Location = new System.Drawing.Point(12, 695),
+                Size = new System.Drawing.Size(1476, 293),
+                Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right,
+                ColumnCount = 2,
+                RowCount = 2,
+                BackColor = System.Drawing.Color.Transparent,
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+            };
+            tlp.ColumnStyles.Clear();
+            tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
+            tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
+            tlp.RowStyles.Clear();
+            tlp.RowStyles.Add(new RowStyle(SizeType.Absolute, 24f));
+            tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+
+            // Padding w komórkach żeby labels/gridy nie kleiły się do siebie
+            tlp.Padding = new Padding(0);
+
+            tlp.Controls.Add(label29, 0, 0);
+            tlp.Controls.Add(label30, 1, 0);
+            tlp.Controls.Add(dataGridViewHodowcy, 0, 1);
+            tlp.Controls.Add(dataGridViewKontrahenci, 1, 1);
+
+            Controls.Add(tlp);
+        }
+
+        // Rekurencyjnie podpina handler Click do panelu i wszystkich jego dzieci.
+        // Bez tego klik na Label/iconBox nie wywoła handlera ustawionego na samym Panelu.
+        private static void HookClickRekurencyjnie(System.Windows.Forms.Control parent, EventHandler handler)
+        {
+            parent.Click += handler;
+            parent.Cursor = Cursors.Hand;
+            foreach (System.Windows.Forms.Control c in parent.Controls)
+                HookClickRekurencyjnie(c, handler);
+        }
+
+        // Klik na kartę → otwórz dialog z listą historycznych dostaw spełniających dany warunek.
+        private async System.Threading.Tasks.Task PokazHistorieKartyAsync(SugCard card)
+        {
+            string dostawca = Dostawca1.Text?.Trim() ?? "";
+            if (string.IsNullOrEmpty(dostawca))
+            {
+                MessageBox.Show("Najpierw wybierz hodowcę.", "Brak dostawcy", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            // Dla każdego rodzaju karty: zbuduj warunek SQL + opis nagłówka + co podświetlić
+            string warunek = "1=1";
+            string opisPola = "";
+            string podswietl = "";
+            var paramy = new System.Collections.Generic.List<Microsoft.Data.SqlClient.SqlParameter>();
+
+            switch (card.Kind)
+            {
+                case CardKind.TypCeny:
+                    if (string.IsNullOrEmpty(_sugTypCeny)) return;
+                    warunek = "LOWER(LTRIM(RTRIM(pt.Name))) = LOWER(@val)";
+                    paramy.Add(new Microsoft.Data.SqlClient.SqlParameter("@val", _sugTypCeny));
+                    opisPola = "Typ Ceny = " + _sugTypCeny;
+                    podswietl = _sugTypCeny;
+                    break;
+
+                case CardKind.Dodatek:
+                    if (!_sugDodatek.HasValue) return;
+                    warunek = "ROUND(ISNULL(fc.Addition, 0), 2) = @val";
+                    paramy.Add(new Microsoft.Data.SqlClient.SqlParameter("@val", _sugDodatek.Value));
+                    opisPola = "Dodatek = " + _sugDodatek.Value.ToString("0.00") + " zł";
+                    podswietl = _sugDodatek.Value.ToString("0.00");
+                    break;
+
+                case CardKind.Ubytek:
+                    if (!_sugUbytek.HasValue) return;
+                    warunek = "ROUND(fc.Loss * 100, 1) = @val";
+                    paramy.Add(new Microsoft.Data.SqlClient.SqlParameter("@val", _sugUbytek.Value));
+                    opisPola = "Ubytek = " + _sugUbytek.Value.ToString("0.0") + "%";
+                    podswietl = _sugUbytek.Value.ToString("0.0");
+                    break;
+
+                case CardKind.CzyjaWaga:
+                    if (string.IsNullOrEmpty(_sugCzyjaWaga)) return;
+                    // Hodowca: Ubytek > 0  /  Ubojnia: Ubytek = 0
+                    warunek = _sugCzyjaWaga == "Hodowca" ? "fc.Loss > 0" : "ISNULL(fc.Loss, 0) = 0";
+                    opisPola = "Waga loco " + _sugCzyjaWaga;
+                    break;
+
+                case CardKind.PiK:
+                    if (!_sugPiK.HasValue) return;
+                    warunek = "ISNULL(fc.IncDeadConf, 0) = @val";
+                    paramy.Add(new Microsoft.Data.SqlClient.SqlParameter("@val", _sugPiK.Value));
+                    opisPola = "PiK = " + (_sugPiK.Value ? "TAK" : "NIE");
+                    podswietl = _sugPiK.Value ? "TAK" : "NIE";
+                    break;
+            }
+
+            try
+            {
+                var dt = await PobierzHistorieZWarunkiemAsync(dostawca, warunek, paramy);
+                using var dlg = new HistoriaWartosciDialog(opisPola, dostawca, podswietl, dt);
+                dlg.ShowDialog(this);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Błąd: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // Pobierz historyczne dostawy z FarmerCalc dla danego dostawcy z dodatkowym warunkiem (np. Loss>0).
+        private async System.Threading.Tasks.Task<DataTable> PobierzHistorieZWarunkiemAsync(
+            string dostawca, string warunek, System.Collections.Generic.List<Microsoft.Data.SqlClient.SqlParameter> paramy)
+        {
+            string sql = @"
+SELECT TOP 50
+    fc.CalcDate            AS Data,
+    pt.Name                AS TypCeny,
+    fc.Price               AS Cena,
+    fc.Addition            AS Dodatek,
+    fc.Loss * 100          AS Ubytek,
+    fc.IncDeadConf         AS PiK,
+    fc.NettoFarmWeight     AS WagaHod,
+    fc.NettoWeight         AS WagaUbojnia
+FROM [LibraNet].[dbo].[FarmerCalc] fc
+LEFT JOIN [LibraNet].[dbo].[Dostawcy] d
+       ON d.ID = ISNULL(fc.CustomerRealGID, fc.CustomerGID)
+LEFT JOIN [LibraNet].[dbo].[PriceType] pt ON fc.PriceTypeID = pt.ID
+WHERE (LTRIM(RTRIM(d.Name)) = @dostawca OR LTRIM(RTRIM(d.ShortName)) = @dostawca)
+  AND fc.Price > 0
+  AND (" + warunek + @")
+ORDER BY fc.CalcDate DESC;";
+
+            using var conn = new Microsoft.Data.SqlClient.SqlConnection(_connString);
+            using var cmd = new Microsoft.Data.SqlClient.SqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@dostawca", dostawca);
+            foreach (var p in paramy) cmd.Parameters.Add(p);
+
+            await conn.OpenAsync();
+            using var rd = await cmd.ExecuteReaderAsync();
+            var dt = new DataTable();
+            dt.Load(rd);
+            return dt;
+        }
+
+        private void ResetujKarty()
+        {
+            foreach (var c in new[] { _cardTypCeny, _cardDodatek, _cardUbytek, _cardCzyjaWaga, _cardPiK })
+            {
+                if (c == null) continue;
+                c.Value.Text = "—";
+                c.Hint.Text = "";
+                if (c.Freq != null) c.Freq.Visible = false;
+            }
+        }
+
+        // Oblicz NAJCZĘSTSZE wartości dla każdego pola - to są domyślne warunki tego hodowcy.
+        // Używamy tylko ostatnich 10 dostaw (mniej "starości"), priorytet dla aktualnych warunków.
+        private void ObliczSugerowane(DataTable dt)
+        {
+            var ostatnie = dt.AsEnumerable().Take(10).ToList();
+            if (ostatnie.Count == 0)
+            {
+                _btnZastosujSugerowane.Enabled = false;
+                return;
+            }
+            int total = ostatnie.Count;
+
+            // ─── TypCeny ─────────────────────────────────────────
+            var typG = ostatnie
+                .Select(r => r["TypCeny"]?.ToString()?.Trim())
+                .Where(s => !string.IsNullOrEmpty(s))
+                .GroupBy(s => s, StringComparer.OrdinalIgnoreCase)
+                .OrderByDescending(g => g.Count()).FirstOrDefault();
+            _sugTypCeny = typG?.Key;
+            UstawKarte(_cardTypCeny,
+                _sugTypCeny != null ? char.ToUpper(_sugTypCeny[0]) + _sugTypCeny.Substring(1) : "—",
+                typG != null ? $"najczęstszy typ ceny dla tego hodowcy" : "brak danych",
+                typG != null ? $"{typG.Count()}/{total}" : "");
+
+            // ─── Dodatek ─────────────────────────────────────────
+            var dodAll = ostatnie
+                .Where(r => r["Dodatek"] != DBNull.Value)
+                .Select(r => Math.Round(Convert.ToDecimal(r["Dodatek"]), 2))
+                .ToList();
+            var dodG = dodAll
+                .GroupBy(v => v)
+                .OrderByDescending(g => g.Count()).FirstOrDefault();
+            _sugDodatek = dodG?.Key;
+            string dodHint;
+            if (dodAll.Count == 0)
+                dodHint = "brak danych";
+            else if (_sugDodatek == 0)
+                dodHint = "zazwyczaj bez dodatku";
+            else
+                dodHint = $"zakres: {dodAll.Min():0.00}–{dodAll.Max():0.00} zł";
+            UstawKarte(_cardDodatek,
+                _sugDodatek.HasValue ? $"{_sugDodatek:0.00} zł" : "—",
+                dodHint,
+                dodG != null ? $"{dodG.Count()}/{total}" : "");
+
+            // ─── Ubytek ──────────────────────────────────────────
+            var ubAll = ostatnie
+                .Where(r => r["Ubytek"] != DBNull.Value)
+                .Select(r => Math.Round(Convert.ToDecimal(r["Ubytek"]), 1))
+                .ToList();
+            var ubG = ubAll
+                .GroupBy(v => v)
+                .OrderByDescending(g => g.Count()).FirstOrDefault();
+            _sugUbytek = ubG?.Key;
+            string ubHint = ubAll.Count > 0
+                ? $"zakres: {ubAll.Min():0.0}–{ubAll.Max():0.0} %"
+                : "brak danych";
+            UstawKarte(_cardUbytek,
+                _sugUbytek.HasValue ? $"{_sugUbytek:0.0} %" : "—",
+                ubHint,
+                ubG != null ? $"{ubG.Count()}/{total}" : "");
+
+            // ─── CzyjaWaga (pochodna od Ubytek) ─────────────────
+            // Zasada z PDF specyfikacji (WidokSpecyfikacje.xaml.cs:6524):
+            //   Ubytek > 0  → "Waga loco Hodowca" (waży u hodowcy, ubytek transportowy)
+            //   Ubytek == 0 → "Waga loco Ubojnia" (waży dopiero ubojnia)
+            if (_sugUbytek.HasValue)
+            {
+                _sugCzyjaWaga = _sugUbytek.Value > 0 ? "Hodowca" : "Ubojnia";
+                string opis = _sugUbytek.Value > 0
+                    ? $"Ubytek > 0 → loco hodowca"
+                    : $"Ubytek = 0 → loco ubojnia";
+                UstawKarte(_cardCzyjaWaga, _sugCzyjaWaga.ToUpper(), opis, "");
+            }
+            else
+            {
+                _sugCzyjaWaga = null;
+                UstawKarte(_cardCzyjaWaga, "—", "brak danych", "");
+            }
+
+            // ─── PiK ─────────────────────────────────────────────
+            // IncDeadConf=TRUE → padłe wliczone w wagę → Odbiorcę obciążony
+            // IncDeadConf=FALSE → padłe niewliczone → Sprzedającego obciążony
+            var pikG = ostatnie
+                .Where(r => r["PiK"] != DBNull.Value)
+                .Select(r => Convert.ToBoolean(r["PiK"]))
+                .GroupBy(v => v)
+                .OrderByDescending(g => g.Count()).FirstOrDefault();
+            _sugPiK = pikG?.Key;
+            if (_sugPiK.HasValue)
+            {
+                string val = _sugPiK.Value ? "TAK" : "NIE";
+                string kogoObciazyc = _sugPiK.Value ? "Odbiorcę" : "Sprzedającego";
+                UstawKarte(_cardPiK,
+                    $"{val}   →   obciążenie: {kogoObciazyc}",
+                    "wliczanie padłych i konfiskat do wagi",
+                    $"{pikG.Count()}/{total}");
+            }
+            else
+            {
+                UstawKarte(_cardPiK, "—", "brak danych", "");
+            }
+
+            _btnZastosujSugerowane.Enabled = true;
+        }
+
+        private void UstawKarte(SugCard card, string value, string hint, string freq)
+        {
+            if (card == null) return;
+            card.Value.Text = value;
+            card.Hint.Text = hint;
+            if (card.Freq != null)
+            {
+                if (string.IsNullOrEmpty(freq))
+                {
+                    card.Freq.Visible = false;
+                }
+                else
+                {
+                    card.Freq.Text = freq;
+                    card.Freq.Visible = true;
+                }
+            }
+        }
+
+        // Wypełnij pola formularza sugerowanymi wartościami (po kliknięciu przycisku).
+        private void ZastosujSugerowane()
+        {
+            int zmieniono = 0;
+
+            if (!string.IsNullOrEmpty(_sugTypCeny))
+            {
+                // Case-insensitive match w ComboBox typCeny ("wolnorynkowa" w bazie ↔ "Wolnorynkowa" w combo)
+                for (int i = 0; i < typCeny.Items.Count; i++)
+                {
+                    if (string.Equals(typCeny.Items[i]?.ToString(), _sugTypCeny, StringComparison.OrdinalIgnoreCase))
+                    {
+                        typCeny.SelectedIndex = i;
+                        zmieniono++;
+                        break;
+                    }
+                }
+            }
+
+            if (_sugDodatek.HasValue)
+            {
+                dodatek.Text = _sugDodatek.Value.ToString("0.00", CultureInfo.GetCultureInfo("pl-PL"));
+                zmieniono++;
+            }
+
+            if (_sugUbytek.HasValue)
+            {
+                Ubytek.Text = _sugUbytek.Value.ToString("0.0", CultureInfo.GetCultureInfo("pl-PL"));
+                zmieniono++;
+            }
+
+            if (_sugPiK.HasValue)
+            {
+                // PiK=TRUE → "Odbiorcę"; PiK=FALSE → "Sprzedającego"
+                string konfText = _sugPiK.Value ? "Odbiorcę" : "Sprzedającego";
+                for (int i = 0; i < KonfPadl.Items.Count; i++)
+                {
+                    if (string.Equals(KonfPadl.Items[i]?.ToString(), konfText, StringComparison.OrdinalIgnoreCase))
+                    {
+                        KonfPadl.SelectedIndex = i;
+                        zmieniono++;
+                        break;
+                    }
+                }
+            }
+
+            // CzyjaWaga - z reguły o ubytku (Ubytek > 0 → "Hodowca", = 0 → "Ubojnia")
+            if (!string.IsNullOrEmpty(_sugCzyjaWaga))
+            {
+                for (int i = 0; i < CzyjaWaga.Items.Count; i++)
+                {
+                    if (string.Equals(CzyjaWaga.Items[i]?.ToString(), _sugCzyjaWaga, StringComparison.OrdinalIgnoreCase))
+                    {
+                        CzyjaWaga.SelectedIndex = i;
+                        zmieniono++;
+                        break;
+                    }
+                }
+            }
+
+            MessageBox.Show(
+                $"Zastosowano {zmieniono} sugerowanych wartości.\n\nSprawdź pola formularza i koryguj jeśli trzeba.",
+                "Sugerowane warunki", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        protected override void OnFormClosed(FormClosedEventArgs e)
+        {
+            _historiaDebounce?.Stop();
+            _historiaDebounce?.Dispose();
+            _filterTimer?.Stop();
+            _filterTimer?.Dispose();
+            base.OnFormClosed(e);
         }
 
         private void comboBoxDostawcaS_SelectedIndexChanged(object sender, EventArgs e)

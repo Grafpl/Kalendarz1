@@ -5,38 +5,65 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Data;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Text.Json;
+using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 
 namespace Kalendarz1.WPF
 {
     public partial class PanelFakturWindow : Window, INotifyPropertyChanged
     {
-        private readonly string _connLibra = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
-        private readonly string _connHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
-        private readonly string _connTransport = "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+        // ────────────────────────────────────────────────────────────
+        // Połączenia
+        // ────────────────────────────────────────────────────────────
+        private readonly string _connLibra     = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True;Connection Timeout=8";
+        private readonly string _connHandel    = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True;Connection Timeout=8";
+        private readonly string _connTransport = "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True;Connection Timeout=8";
 
         public string UserID { get; set; } = string.Empty;
 
+        // ────────────────────────────────────────────────────────────
+        // Stan UI
+        // ────────────────────────────────────────────────────────────
         private DateTime _selectedDate;
         private int? _currentOrderId;
         private bool _showFakturowane = false;
-        private readonly DataTable _dtDetails = new();
-        private readonly List<Button> _dayButtons = new();
-        private readonly Dictionary<Button, DateTime> _dayButtonDates = new();
-        private readonly Dictionary<int, (string Name, string Salesman)> _contractorsCache = new();
-        private readonly Dictionary<int, string> _productsCache = new();
         private int? _selectedProductId = null;
         private bool _isRefreshing = false;
         private bool _pendingRefresh = false;
 
-        public ObservableCollection<ZamowienieViewModel> ZamowieniaList { get; } = new();
+        private readonly DataTable _dtDetails = new();
+
+        // Cache (static — przeżywa zamknięcia okna)
+        private static readonly Dictionary<int, (string Name, string Salesman)> _contractorsCache = new();
+        private static readonly Dictionary<int, string> _productCodeCache = new();   // Id → kod
+        private static readonly Dictionary<int, string> _productNameCache = new();   // Id → nazwa (pełna)
+        private static bool _columnsEnsured = false;
+        private static DateTime _contractorsCacheLoadedAt = DateTime.MinValue;
+
+        // CancellationToken dla SelectionChanged (likwiduje race condition)
+        private CancellationTokenSource? _detailsCts;
+
+        // Undo
+        private DispatcherTimer? _undoTimer;
+        private Func<Task>? _undoAction;
+
+        // Layout state (do persistence)
+        private double _savedRightWidth = 520;
+        private string _density = "Compact";   // Domyślnie kompaktowa — clean, dużo wierszy widocznych
+
+        public ObservableCollection<ZamowienieViewModel> ZamowieniaList { get; private set; } = new();
 
         public event PropertyChangedEventHandler? PropertyChanged;
         protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
@@ -48,146 +75,275 @@ namespace Kalendarz1.WPF
             WindowIconHelper.SetIcon(this);
             DataContext = this;
             Loaded += PanelFakturWindow_Loaded;
+            Closed += PanelFakturWindow_Closed;
+            KeyDown += PanelFakturWindow_KeyDown;
         }
 
+        // ════════════════════════════════════════════════════════════
+        // ŻYCIE OKNA
+        // ════════════════════════════════════════════════════════════
         private async void PanelFakturWindow_Loaded(object sender, RoutedEventArgs e)
         {
+            LoadSettings();
+            ApplyDensity(_density, persist: false);
+
             _selectedDate = DateTime.Today;
-            SetupDayButtons();
-            await LoadContractorsCacheAsync();
-            await LoadProductsCacheAsync();
+            UpdateDateDisplay();
+
+            // Lookups równolegle (wcześniej szły szeregowo)
+            await Task.WhenAll(
+                LoadContractorsCacheAsync(),
+                LoadProductsCacheAsync()
+            );
+            BuildProductCombo();
+
+            // EnsureColumnsExist tylko raz na uruchomienie aplikacji (nie per refresh!)
+            if (!_columnsEnsured)
+            {
+                try
+                {
+                    await using var cn = new SqlConnection(_connLibra);
+                    await cn.OpenAsync();
+                    await EnsureColumnsExistAsync(cn);
+                    _columnsEnsured = true;
+                }
+                catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"EnsureColumns error: {ex.Message}"); }
+            }
+
+            ApplyResponsiveLayout(ActualWidth);
             await RefreshDataAsync();
         }
 
-        private void SetupDayButtons()
+        private void PanelFakturWindow_Closed(object? sender, EventArgs e)
         {
-            panelDays.Children.Clear();
-            _dayButtons.Clear();
-            _dayButtonDates.Clear();
-
-            string[] dayNames = { "Pon", "Wt", "Śr", "Czw", "Pt", "Sob", "Nd" };
-
-            // Przycisk Dziś
-            var btnToday = new Button
-            {
-                Content = new StackPanel
-                {
-                    Children =
-                    {
-                        new TextBlock { Text = "Dziś", FontSize = 10, FontWeight = FontWeights.Bold, HorizontalAlignment = HorizontalAlignment.Center },
-                        new TextBlock { Text = DateTime.Today.ToString("dd.MM"), FontSize = 9, HorizontalAlignment = HorizontalAlignment.Center }
-                    }
-                },
-                Style = (Style)FindResource("DayButtonStyle"),
-                Background = new SolidColorBrush(Color.FromRgb(25, 118, 210)),
-                Foreground = Brushes.White
-            };
-            btnToday.Click += (s, e) =>
-            {
-                _selectedDate = DateTime.Today;
-                UpdateDayButtonDates();
-                _ = RefreshDataAsync();
-            };
-            panelDays.Children.Add(btnToday);
-
-            // Separator
-            panelDays.Children.Add(new Separator { Width = 2, Margin = new Thickness(5, 0, 5, 0) });
-
-            // Przyciski dni tygodnia
-            for (int i = 0; i < 7; i++)
-            {
-                var btn = new Button { Style = (Style)FindResource("DayButtonStyle") };
-                var stack = new StackPanel();
-                stack.Children.Add(new TextBlock { Text = dayNames[i], FontSize = 9, FontWeight = FontWeights.Bold, HorizontalAlignment = HorizontalAlignment.Center });
-                stack.Children.Add(new TextBlock { Text = DateTime.Today.AddDays(i).ToString("dd.MM"), FontSize = 9, HorizontalAlignment = HorizontalAlignment.Center });
-                btn.Content = stack;
-                btn.Click += DayButton_Click;
-                _dayButtonDates[btn] = DateTime.Today.AddDays(i);
-                _dayButtons.Add(btn);
-                panelDays.Children.Add(btn);
-            }
-
-            UpdateDayButtonDates();
+            _detailsCts?.Cancel();
+            _undoTimer?.Stop();
+            SaveSettings();
         }
 
-        private void UpdateDayButtonDates()
+        // ════════════════════════════════════════════════════════════
+        // RESPONSYWNY LAYOUT (Wide / Medium / Narrow)
+        // ════════════════════════════════════════════════════════════
+        private void Window_SizeChanged(object sender, SizeChangedEventArgs e)
+            => ApplyResponsiveLayout(e.NewSize.Width);
+
+        private void ApplyResponsiveLayout(double width)
         {
-            int delta = ((int)_selectedDate.DayOfWeek + 6) % 7;
-            DateTime startOfWeek = _selectedDate.AddDays(-delta);
+            if (rootGrid == null || colSplitter == null || colRight == null || splitter == null || paneRight == null)
+                return;
 
-            string[] dayNames = { "Pon", "Wt", "Śr", "Czw", "Pt", "Sob", "Nd" };
-
-            for (int i = 0; i < _dayButtons.Count; i++)
+            if (width >= 1200)
             {
-                var date = startOfWeek.AddDays(i);
-                _dayButtonDates[_dayButtons[i]] = date;
+                // WIDE: pełne split
+                colSplitter.Width = new GridLength(6);
+                colRight.Width    = new GridLength(Math.Max(420, _savedRightWidth));
+                splitter.Visibility = Visibility.Visible;
+                paneRight.Visibility = Visibility.Visible;
+            }
+            else if (width >= 700)
+            {
+                // MEDIUM: prawy panel węższy, splitter ukryty (auto width)
+                colSplitter.Width = new GridLength(0);
+                colRight.Width    = new GridLength(400);
+                splitter.Visibility = Visibility.Collapsed;
+                paneRight.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                // NARROW: tylko lewa, prawy ukryty
+                colSplitter.Width = new GridLength(0);
+                colRight.Width    = new GridLength(0);
+                splitter.Visibility = Visibility.Collapsed;
+                paneRight.Visibility = Visibility.Collapsed;
+            }
+        }
 
-                var stack = new StackPanel();
-                stack.Children.Add(new TextBlock
-                {
-                    Text = dayNames[i],
-                    FontSize = 9,
-                    FontWeight = FontWeights.Bold,
-                    HorizontalAlignment = HorizontalAlignment.Center
-                });
-                stack.Children.Add(new TextBlock
-                {
-                    Text = date.ToString("dd.MM"),
-                    FontSize = 9,
-                    HorizontalAlignment = HorizontalAlignment.Center
-                });
-                _dayButtons[i].Content = stack;
+        // ════════════════════════════════════════════════════════════
+        // DENSITY (Compact / Default / Comfort) — 3-segment toggle
+        // ════════════════════════════════════════════════════════════
+        private bool _densitySyncing = false;
 
-                if (date.Date == _selectedDate.Date)
+        private void DensityRadio_Checked(object sender, RoutedEventArgs e)
+        {
+            if (_densitySyncing) return;
+            if (sender is RadioButton rb && rb.Tag is string tag)
+                ApplyDensity(tag, persist: true);
+        }
+
+        private void ApplyDensity(string density, bool persist)
+        {
+            _density = density;
+            switch (density)
+            {
+                case "Compact":
+                    Resources["Density.Row.Height"]        = 30.0;
+                    Resources["Density.Row.HeightDetails"] = 24.0;
+                    Resources["Density.Row.Font"]          = 11.0;
+                    Resources["Density.Cell.Pad"]          = new Thickness(8, 3, 8, 3);
+                    break;
+                case "Comfort":
+                    Resources["Density.Row.Height"]        = 52.0;
+                    Resources["Density.Row.HeightDetails"] = 40.0;
+                    Resources["Density.Row.Font"]          = 14.0;
+                    Resources["Density.Cell.Pad"]          = new Thickness(14, 10, 14, 10);
+                    break;
+                default: // Default
+                    Resources["Density.Row.Height"]        = 40.0;
+                    Resources["Density.Row.HeightDetails"] = 32.0;
+                    Resources["Density.Row.Font"]          = 12.0;
+                    Resources["Density.Cell.Pad"]          = new Thickness(10, 6, 10, 6);
+                    break;
+            }
+
+            // Sync radiobuttonów jeśli zmiana z code-behind (przy starcie z settings)
+            _densitySyncing = true;
+            try
+            {
+                if (rbDensityCompact != null) rbDensityCompact.IsChecked = density == "Compact";
+                if (rbDensityDefault != null) rbDensityDefault.IsChecked = density == "Default";
+                if (rbDensityComfort != null) rbDensityComfort.IsChecked = density == "Comfort";
+            }
+            finally { _densitySyncing = false; }
+
+            if (persist) SaveSettings();
+        }
+
+        // ════════════════════════════════════════════════════════════
+        // PERSISTENCE (settings.json)
+        // ════════════════════════════════════════════════════════════
+        private static string SettingsPath => Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Kalendarz1", "PanelFaktur.settings.json");
+
+        private class PanelSettings
+        {
+            public string? Density { get; set; }
+            public double? RightWidth { get; set; }
+        }
+
+        private void LoadSettings()
+        {
+            try
+            {
+                if (!File.Exists(SettingsPath)) return;
+                var json = File.ReadAllText(SettingsPath);
+                var s = JsonSerializer.Deserialize<PanelSettings>(json);
+                if (s != null)
                 {
-                    _dayButtons[i].Background = new SolidColorBrush(Color.FromRgb(25, 118, 210));
-                    _dayButtons[i].Foreground = Brushes.White;
+                    if (!string.IsNullOrEmpty(s.Density)) _density = s.Density;
+                    if (s.RightWidth.HasValue && s.RightWidth.Value >= 420 && s.RightWidth.Value <= 780)
+                        _savedRightWidth = s.RightWidth.Value;
                 }
-                else if (date.Date == DateTime.Today)
+            }
+            catch { /* settings opcjonalne */ }
+        }
+
+        private void SaveSettings()
+        {
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(SettingsPath)!);
+                // Aktualna szerokość prawego panelu (gdy w trybie Wide)
+                double rightWidth = _savedRightWidth;
+                if (colRight != null && colRight.ActualWidth >= 420 && splitter?.Visibility == Visibility.Visible)
+                    rightWidth = colRight.ActualWidth;
+
+                var s = new PanelSettings
                 {
-                    _dayButtons[i].Background = new SolidColorBrush(Color.FromRgb(200, 230, 255));
-                    _dayButtons[i].Foreground = Brushes.Black;
+                    Density = _density,
+                    RightWidth = rightWidth
+                };
+                File.WriteAllText(SettingsPath, JsonSerializer.Serialize(s, new JsonSerializerOptions { WriteIndented = true }));
+            }
+            catch { }
+        }
+
+        // ════════════════════════════════════════════════════════════
+        // NAWIGACJA DAT — DatePicker (Popup z Calendar) + ‹ › prev/next + Dziś
+        // ════════════════════════════════════════════════════════════
+        private static readonly string[] _dniTygodnia =
+            { "Niedziela", "Poniedziałek", "Wtorek", "Środa", "Czwartek", "Piątek", "Sobota" };
+        private static readonly string[] _miesiace =
+            { "", "stycznia", "lutego", "marca", "kwietnia", "maja", "czerwca",
+              "lipca", "sierpnia", "września", "października", "listopada", "grudnia" };
+        private static readonly string[] _miesiaceSkrot =
+            { "", "sty", "lut", "mar", "kwi", "maj", "cze", "lip", "sie", "wrz", "paź", "lis", "gru" };
+
+        private void UpdateDateDisplay()
+        {
+            // Hero: "Czwartek, 18 marca 2026"
+            var dn = _dniTygodnia[(int)_selectedDate.DayOfWeek];
+            txtSelectedDate.Text = $"{dn}, {_selectedDate.Day} {_miesiace[_selectedDate.Month]} {_selectedDate.Year}";
+
+            // Helper: "Tydzień 12 · 18-24 mar"
+            int week = ISOWeek.GetWeekOfYear(_selectedDate);
+            int delta = ((int)_selectedDate.DayOfWeek + 6) % 7; // pon = 0
+            DateTime startOfWeek = _selectedDate.AddDays(-delta);
+            DateTime endOfWeek   = startOfWeek.AddDays(6);
+            string range = startOfWeek.Month == endOfWeek.Month
+                ? $"{startOfWeek.Day}–{endOfWeek.Day} {_miesiaceSkrot[endOfWeek.Month]}"
+                : $"{startOfWeek.Day} {_miesiaceSkrot[startOfWeek.Month]} – {endOfWeek.Day} {_miesiaceSkrot[endOfWeek.Month]}";
+            txtWeekInfo.Text = $"Tydzień {week}  ·  {range}";
+        }
+
+        private void BtnDate_Click(object sender, RoutedEventArgs e)
+        {
+            calendarPicker.SelectedDate = _selectedDate;
+            calendarPicker.DisplayDate = _selectedDate;
+            popupCalendar.IsOpen = true;
+        }
+
+        private async void Calendar_SelectedDatesChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (calendarPicker.SelectedDate.HasValue)
+            {
+                var d = calendarPicker.SelectedDate.Value.Date;
+                if (d != _selectedDate)
+                {
+                    _selectedDate = d;
+                    UpdateDateDisplay();
+                    popupCalendar.IsOpen = false;
+                    await RefreshDataAsync();
                 }
                 else
                 {
-                    _dayButtons[i].Background = Brushes.White;
-                    _dayButtons[i].Foreground = Brushes.Black;
+                    popupCalendar.IsOpen = false;
                 }
             }
         }
 
-        private async void DayButton_Click(object sender, RoutedEventArgs e)
+        private async void BtnPrevDay_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is Button btn && _dayButtonDates.TryGetValue(btn, out var date))
-            {
-                _selectedDate = date;
-                UpdateDayButtonDates();
-                await RefreshDataAsync();
-            }
-        }
-
-        private void BtnPrevWeek_Click(object sender, RoutedEventArgs e)
-        {
-            _selectedDate = _selectedDate.AddDays(-7);
-            UpdateDayButtonDates();
-            _ = RefreshDataAsync();
-        }
-
-        private void BtnNextWeek_Click(object sender, RoutedEventArgs e)
-        {
-            _selectedDate = _selectedDate.AddDays(7);
-            UpdateDayButtonDates();
-            _ = RefreshDataAsync();
-        }
-
-        private async void BtnRefresh_Click(object sender, RoutedEventArgs e)
-        {
+            _selectedDate = _selectedDate.AddDays(-1);
+            UpdateDateDisplay();
             await RefreshDataAsync();
         }
 
+        private async void BtnNextDay_Click(object sender, RoutedEventArgs e)
+        {
+            _selectedDate = _selectedDate.AddDays(1);
+            UpdateDateDisplay();
+            await RefreshDataAsync();
+        }
+
+        private async void BtnToday_Click(object sender, RoutedEventArgs e)
+        {
+            _selectedDate = DateTime.Today;
+            UpdateDateDisplay();
+            await RefreshDataAsync();
+        }
+
+        private async void BtnRefresh_Click(object sender, RoutedEventArgs e) => await RefreshDataAsync();
+
+        // ════════════════════════════════════════════════════════════
+        // CACHE LOOKUPS (kontrahenci, towary)
+        // ════════════════════════════════════════════════════════════
         private async Task LoadContractorsCacheAsync()
         {
-            _contractorsCache.Clear();
+            // Static cache — odśwież raz na 30 min
+            if (_contractorsCache.Count > 0 && (DateTime.Now - _contractorsCacheLoadedAt).TotalMinutes < 30)
+                return;
+
             try
             {
                 await using var cn = new SqlConnection(_connHandel);
@@ -197,6 +353,7 @@ namespace Kalendarz1.WPF
                                      LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] wym ON c.Id = wym.ElementId";
                 await using var cmd = new SqlCommand(sql, cn);
                 await using var reader = await cmd.ExecuteReaderAsync();
+                _contractorsCache.Clear();
                 while (await reader.ReadAsync())
                 {
                     int id = reader.GetInt32(0);
@@ -204,50 +361,45 @@ namespace Kalendarz1.WPF
                     string salesman = reader.IsDBNull(2) ? "" : reader.GetString(2);
                     _contractorsCache[id] = (shortcut, salesman);
                 }
+                _contractorsCacheLoadedAt = DateTime.Now;
             }
-            catch { }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"LoadContractors error: {ex.Message}"); }
         }
 
         private async Task LoadProductsCacheAsync()
         {
-            _productsCache.Clear();
+            if (_productCodeCache.Count > 0 && _productNameCache.Count > 0) return;
+
             try
             {
                 await using var cn = new SqlConnection(_connHandel);
                 await cn.OpenAsync();
-                // Pobierz tylko produkty z katalogów mięsnych (Świeże=67095, Mrożone=67153)
-                const string sql = @"SELECT ID, kod FROM [HANDEL].[HM].[TW]
+                // Pełne dane towarów w jednym zapytaniu — likwiduje N+1 z LoadOrderDetails
+                const string sql = @"SELECT ID, kod, ISNULL(nazwa, '') FROM [HANDEL].[HM].[TW]
                                      WHERE katalog IN (67095, 67153)
                                      ORDER BY kod";
                 await using var cmd = new SqlCommand(sql, cn);
                 await using var reader = await cmd.ExecuteReaderAsync();
+                _productCodeCache.Clear();
+                _productNameCache.Clear();
                 while (await reader.ReadAsync())
                 {
                     int id = reader.GetInt32(0);
                     string kod = reader.IsDBNull(1) ? "" : reader.GetString(1);
-                    if (!string.IsNullOrWhiteSpace(kod))
-                        _productsCache[id] = kod;
+                    string nazwa = reader.IsDBNull(2) ? "" : reader.GetString(2);
+                    if (!string.IsNullOrWhiteSpace(kod)) _productCodeCache[id] = kod;
+                    _productNameCache[id] = !string.IsNullOrWhiteSpace(nazwa) ? nazwa : kod;
                 }
-
-                GenerateProductButtons();
             }
-            catch { }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"LoadProducts error: {ex.Message}"); }
         }
 
-        private void GenerateProductButtons()
+        private void BuildProductCombo()
         {
-            // Wypełnij ComboBox produktami
             cmbProduct.Items.Clear();
-
-            // Dodaj opcję "Wszystkie"
             cmbProduct.Items.Add(new ComboBoxItem { Content = "Wszystkie", Tag = (int?)null });
-
-            foreach (var product in _productsCache.OrderBy(x => x.Value))
-            {
-                cmbProduct.Items.Add(new ComboBoxItem { Content = product.Value, Tag = product.Key });
-            }
-
-            // Ustaw domyślnie "Wszystkie"
+            foreach (var p in _productCodeCache.OrderBy(x => x.Value))
+                cmbProduct.Items.Add(new ComboBoxItem { Content = p.Value, Tag = p.Key });
             cmbProduct.SelectedIndex = 0;
         }
 
@@ -260,15 +412,12 @@ namespace Kalendarz1.WPF
             }
         }
 
+        // ════════════════════════════════════════════════════════════
+        // GŁÓWNE ŁADOWANIE ZAMÓWIEŃ
+        // ════════════════════════════════════════════════════════════
         private async Task RefreshDataAsync()
         {
-            // Zapobiega równoczesnym odświeżeniom które powodują duplikaty
-            if (_isRefreshing)
-            {
-                _pendingRefresh = true;
-                return;
-            }
-
+            if (_isRefreshing) { _pendingRefresh = true; return; }
             _isRefreshing = true;
             _pendingRefresh = false;
 
@@ -280,27 +429,17 @@ namespace Kalendarz1.WPF
             finally
             {
                 _isRefreshing = false;
-
-                // Jeśli było żądanie odświeżenia podczas pracy, odśwież ponownie
-                if (_pendingRefresh)
-                {
-                    _pendingRefresh = false;
-                    await RefreshDataAsync();
-                }
+                if (_pendingRefresh) { _pendingRefresh = false; await RefreshDataAsync(); }
             }
         }
 
         private async Task LoadOrdersAsync()
         {
-            ZamowieniaList.Clear();
-
             try
             {
+                txtStatusInfo.Text = "Ładowanie...";
                 await using var cn = new SqlConnection(_connLibra);
                 await cn.OpenAsync();
-
-                // Upewnij się że kolumny istnieją
-                await EnsureColumnsExistAsync(cn);
 
                 string productFilter = _selectedProductId.HasValue ? "AND zmt.KodTowaru = @ProductId " : "";
 
@@ -335,16 +474,14 @@ namespace Kalendarz1.WPF
 
                 var kursIds = new HashSet<long>();
                 var tempList = new List<ZamowienieInfo>();
-                var seenIds = new HashSet<int>(); // Zapobiega duplikatom
+                var seenIds = new HashSet<int>();
 
                 await using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
                 {
                     int id = reader.GetInt32(0);
+                    if (!seenIds.Add(id)) continue;
 
-                    // Pomijamy jeśli już widzieliśmy to zamówienie
-                    if (!seenIds.Add(id))
-                        continue;
                     int clientId = reader.IsDBNull(1) ? 0 : reader.GetInt32(1);
                     decimal ilosc = reader.IsDBNull(2) ? 0 : reader.GetDecimal(2);
                     decimal wartosc = reader.IsDBNull(3) ? 0 : reader.GetDecimal(3);
@@ -364,32 +501,21 @@ namespace Kalendarz1.WPF
 
                     var info = new ZamowienieInfo
                     {
-                        Id = id,
-                        KlientId = clientId,
-                        Klient = name,
-                        Handlowiec = salesman,
-                        TotalIlosc = ilosc,
-                        Wartosc = wartosc,
-                        DataZamowienia = dataZam,
-                        DataUboju = dataUboju,
-                        Status = status,
-                        UtworzonePrzez = idUser,
-                        CzyZafakturowane = czyZafakturowane,
-                        NumerFaktury = numerFaktury,
+                        Id = id, KlientId = clientId, Klient = name, Handlowiec = salesman,
+                        TotalIlosc = ilosc, Wartosc = wartosc,
+                        DataZamowienia = dataZam, DataUboju = dataUboju,
+                        Status = status, UtworzonePrzez = idUser,
+                        CzyZafakturowane = czyZafakturowane, NumerFaktury = numerFaktury,
                         TransportKursID = transportKursId,
                         CzyZmodyfikowaneDlaFaktur = czyZmodyfikowane,
                         DataOstatniejModyfikacji = dataModyfikacji,
-                        ModyfikowalPrzez = modyfikowalPrzez,
-                        CzyMaCeny = czyMaCeny
+                        ModyfikowalPrzez = modyfikowalPrzez, CzyMaCeny = czyMaCeny
                     };
 
-                    if (transportKursId.HasValue)
-                        kursIds.Add(transportKursId.Value);
-
+                    if (transportKursId.HasValue) kursIds.Add(transportKursId.Value);
                     tempList.Add(info);
                 }
 
-                // Pobierz info o transporcie
                 if (kursIds.Count > 0)
                 {
                     var transportInfo = await LoadTransportInfoAsync(kursIds);
@@ -404,21 +530,41 @@ namespace Kalendarz1.WPF
                     }
                 }
 
-                // Filtruj i dodaj do listy
+                // BATCH update — zamiast Clear() + 50× Add() (= 51 powiadomień CollectionChanged)
+                var newList = new ObservableCollection<ZamowienieViewModel>();
                 foreach (var info in tempList)
                 {
-                    if (!_showFakturowane && info.CzyZafakturowane)
-                        continue;
-
-                    ZamowieniaList.Add(new ZamowienieViewModel(info));
+                    if (!_showFakturowane && info.CzyZafakturowane) continue;
+                    newList.Add(new ZamowienieViewModel(info));
                 }
+                ZamowieniaList = newList;
+                OnPropertyChanged(nameof(ZamowieniaList));
+                dgOrders.ItemsSource = ZamowieniaList;
 
-                txtOrdersCount.Text = $"{ZamowieniaList.Count} zamówień";
+                UpdateContextCounters(tempList);
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Błąd ładowania zamówień: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                txtStatusInfo.Text = "Błąd ładowania";
             }
+        }
+
+        private void UpdateContextCounters(List<ZamowienieInfo> all)
+        {
+            int doFaktury = all.Count(z => !z.CzyZafakturowane && !z.CzyZmodyfikowaneDlaFaktur);
+            int zafakt    = all.Count(z =>  z.CzyZafakturowane);
+            int zmian     = all.Count(z =>  z.CzyZmodyfikowaneDlaFaktur);
+            decimal kwotaDoFaktury = all.Where(z => !z.CzyZafakturowane).Sum(z => z.Wartosc);
+
+            txtCntDoFaktury.Text = $"{doFaktury} do faktury";
+            txtCntZafakt.Text    = $"{zafakt} zafakt.";
+            txtCntZmian.Text     = $"{zmian} ⚠ zmian";
+            txtCntKwota.Text     = $"{kwotaDoFaktury:N0} zł";
+
+            txtStatusInfo.Text =
+                $"{_selectedDate:dd.MM.yyyy} (dz.{(int)_selectedDate.DayOfWeek}) • " +
+                $"łącznie {all.Count} zam. • do faktury: {kwotaDoFaktury:N0} zł";
         }
 
         private async Task<Dictionary<long, (string GodzWyjazdu, string Kierowca, string Pojazd)>> LoadTransportInfoAsync(HashSet<long> kursIds)
@@ -445,27 +591,21 @@ namespace Kalendarz1.WPF
 
                 await using var cmd = new SqlCommand(sql, cn);
                 await using var reader = await cmd.ExecuteReaderAsync();
-
                 while (await reader.ReadAsync())
                 {
                     long kursId = reader.GetInt64(0);
-                    TimeSpan? godzWyjazdu = reader.IsDBNull(1) ? null : reader.GetTimeSpan(1);
-                    DateTime? dataKursu = reader.IsDBNull(2) ? null : reader.GetDateTime(2);
+                    TimeSpan? godz = reader.IsDBNull(1) ? null : reader.GetTimeSpan(1);
+                    DateTime? data = reader.IsDBNull(2) ? null : reader.GetDateTime(2);
                     string kierowca = reader.IsDBNull(3) ? "" : reader.GetString(3);
-                    string pojazd = reader.IsDBNull(4) ? "" : reader.GetString(4);
+                    string pojazd   = reader.IsDBNull(4) ? "" : reader.GetString(4);
 
-                    string godzWyjazduStr = "";
-                    if (godzWyjazdu.HasValue && dataKursu.HasValue)
-                    {
-                        string miesiac = polskieMiesiace[dataKursu.Value.Month];
-                        godzWyjazduStr = $"{godzWyjazdu.Value:hh\\:mm} {miesiac} {dataKursu.Value.Day}";
-                    }
-                    else if (godzWyjazdu.HasValue)
-                    {
-                        godzWyjazduStr = godzWyjazdu.Value.ToString(@"hh\:mm");
-                    }
+                    string godzStr = "";
+                    if (godz.HasValue && data.HasValue)
+                        godzStr = $"{godz.Value:hh\\:mm} {polskieMiesiace[data.Value.Month]} {data.Value.Day}";
+                    else if (godz.HasValue)
+                        godzStr = godz.Value.ToString(@"hh\:mm");
 
-                    result[kursId] = (godzWyjazduStr, kierowca, pojazd);
+                    result[kursId] = (godzStr, kierowca, pojazd);
                 }
             }
             catch { }
@@ -478,231 +618,372 @@ namespace Kalendarz1.WPF
             _ = RefreshDataAsync();
         }
 
+        // ════════════════════════════════════════════════════════════
+        // SZCZEGÓŁY ZAMÓWIENIA — z CancellationToken (race-safe)
+        // ════════════════════════════════════════════════════════════
         private async void DgOrders_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (dgOrders.SelectedItem is ZamowienieViewModel vm)
+            if (dgOrders.SelectedItem is not ZamowienieViewModel vm)
             {
-                _currentOrderId = vm.Info.Id;
-                await LoadOrderDetailsAsync(vm.Info.Id);
-
-                btnMarkFakturowane.IsEnabled = !vm.Info.CzyZafakturowane;
-                btnCofnijFakturowanie.IsEnabled = vm.Info.CzyZafakturowane;
-
-                // Pokaż/ukryj panel zmiany
-                if (vm.Info.CzyZmodyfikowaneDlaFaktur)
-                {
-                    borderZmiana.Visibility = Visibility.Visible;
-                    string czasZmiany = vm.Info.DataOstatniejModyfikacji.HasValue
-                        ? $" o godz. {vm.Info.DataOstatniejModyfikacji.Value:HH:mm}" : "";
-                    string ktoZmienil = !string.IsNullOrEmpty(vm.Info.ModyfikowalPrzez)
-                        ? $"\nZmienił: {vm.Info.ModyfikowalPrzez}" : "";
-                    txtZmianaInfo.Text = $"Zamówienie zostało zmodyfikowane{czasZmiany}.{ktoZmienil}";
-
-                    // Załaduj szczegóły zmian
-                    var zmiany = await LoadChangeHistoryAsync(vm.Info.Id);
-                    icZmianyList.ItemsSource = zmiany;
-                }
-                else
-                {
-                    borderZmiana.Visibility = Visibility.Collapsed;
-                    icZmianyList.ItemsSource = null;
-                }
-
-                if (vm.Info.CzyZafakturowane)
-                {
-                    txtInvoiceStatus.Text = $"Zamówienie zafakturowane.\nNr: {vm.Info.NumerFaktury}";
-                }
-                else if (vm.Info.CzyZmodyfikowaneDlaFaktur)
-                {
-                    txtInvoiceStatus.Text = "Zamówienie wymaga zatwierdzenia zmiany.";
-                }
-                else
-                {
-                    txtInvoiceStatus.Text = "Zamówienie gotowe do zafakturowania.";
-                }
+                ClearDetails();
                 return;
             }
-            ClearDetails();
+
+            _currentOrderId = vm.Info.Id;
+            btnMarkFakturowane.IsEnabled = !vm.Info.CzyZafakturowane;
+            btnCofnijFakturowanie.IsEnabled = vm.Info.CzyZafakturowane;
+
+            // Cancel poprzednie pobranie szczegółów (race condition)
+            _detailsCts?.Cancel();
+            _detailsCts = new CancellationTokenSource();
+            var ct = _detailsCts.Token;
+
+            try
+            {
+                await LoadOrderDetailsAsync(vm, ct);
+                if (ct.IsCancellationRequested) return;
+
+                if (vm.Info.CzyZmodyfikowaneDlaFaktur)
+                    await LoadChangesAsync(vm.Info.Id, ct);
+                else
+                    ShowNoChanges();
+
+                if (ct.IsCancellationRequested) return;
+                await LoadSaldoKlientaAsync(vm.Info.KlientId, ct);
+            }
+            catch (OperationCanceledException) { }
         }
 
-        private async Task<List<string>> LoadChangeHistoryAsync(int orderId)
+        private void ShowNoChanges()
         {
-            var changes = new List<string>();
+            panelNoChanges.Visibility = Visibility.Visible;
+            panelChangesDiff.Visibility = Visibility.Collapsed;
+            icHistoryList.ItemsSource = null;
+        }
+
+        private async Task LoadOrderDetailsAsync(ZamowienieViewModel vm, CancellationToken ct)
+        {
+            _dtDetails.Clear();
+            _dtDetails.Columns.Clear();
+            _dtDetails.Columns.Add("Produkt", typeof(string));
+            _dtDetails.Columns.Add("Ilosc", typeof(decimal));
+            _dtDetails.Columns.Add("Cena", typeof(string));
+            _dtDetails.Columns.Add("Wartosc", typeof(decimal));
+
+            txtOdbiorca.Text = vm.Info.Klient;
+            txtHandlowiec.Text = $"Handlowiec: {(string.IsNullOrEmpty(vm.Info.Handlowiec) ? "brak" : vm.Info.Handlowiec)}";
+            txtDataZamowienia.Text = vm.Info.DataZamowienia.HasValue
+                ? $"Zamówienie: {vm.Info.DataZamowienia.Value:dd.MM.yyyy}"
+                : "";
+
+            if (!string.IsNullOrEmpty(vm.Info.GodzWyjazdu) || !string.IsNullOrEmpty(vm.Info.Kierowca))
+            {
+                borderTransport.Visibility = Visibility.Visible;
+                txtGodzWyjazdu.Text = vm.Info.GodzWyjazdu ?? "";
+                txtKierowca.Text = vm.Info.Kierowca ?? "";
+                txtPojazd.Text = vm.Info.Pojazd ?? "";
+            }
+            else
+            {
+                borderTransport.Visibility = Visibility.Collapsed;
+            }
+
             try
             {
                 await using var cn = new SqlConnection(_connLibra);
-                await cn.OpenAsync();
+                await cn.OpenAsync(ct);
 
-                // Pobierz ostatnie zmiany od ostatniego zatwierdzenia (typ EDYCJA)
-                string sql = @"
-                    SELECT TOP 10 OpisZmiany, UzytkownikNazwa, DataZmiany
-                    FROM [dbo].[HistoriaZmianZamowien]
-                    WHERE ZamowienieId = @OrderId AND TypZmiany = 'EDYCJA'
-                    ORDER BY DataZmiany DESC";
+                const string sql = "SELECT KodTowaru, Ilosc, Cena FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = @OrderId";
+                await using var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@OrderId", vm.Info.Id);
+                await using var reader = await cmd.ExecuteReaderAsync(ct);
 
+                while (await reader.ReadAsync(ct))
+                {
+                    int kod = reader.GetInt32(0);
+                    decimal ilosc = reader.IsDBNull(1) ? 0 : reader.GetDecimal(1);
+                    string cena = reader.IsDBNull(2) ? "" : reader.GetString(2);
+
+                    decimal cenaNum = 0;
+                    decimal.TryParse(cena.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out cenaNum);
+
+                    string nazwa = _productNameCache.TryGetValue(kod, out var n) ? n
+                                 : _productCodeCache.TryGetValue(kod, out var c) ? c
+                                 : $"Towar {kod}";
+
+                    var row = _dtDetails.NewRow();
+                    row["Produkt"] = nazwa;
+                    row["Ilosc"]   = ilosc;
+                    row["Cena"]    = cena;
+                    row["Wartosc"] = ilosc * cenaNum;
+                    _dtDetails.Rows.Add(row);
+                }
+
+                if (ct.IsCancellationRequested) return;
+                SetupDetailsGrid();
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
+            {
+                if (!ct.IsCancellationRequested)
+                    MessageBox.Show($"Błąd ładowania pozycji: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void SetupDetailsGrid()
+        {
+            dgDetails.ItemsSource = _dtDetails.DefaultView;
+            dgDetails.Columns.Clear();
+
+            var rightStyle = new Style(typeof(TextBlock));
+            rightStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Right));
+
+            dgDetails.Columns.Add(new DataGridTextColumn { Header = "Produkt", Binding = new System.Windows.Data.Binding("Produkt"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+            dgDetails.Columns.Add(new DataGridTextColumn { Header = "Ilość", Binding = new System.Windows.Data.Binding("Ilosc")   { StringFormat = "N2" }, Width = new DataGridLength(1, DataGridLengthUnitType.Auto), MinWidth = 70, ElementStyle = rightStyle });
+            dgDetails.Columns.Add(new DataGridTextColumn { Header = "Cena",  Binding = new System.Windows.Data.Binding("Cena"),                            Width = new DataGridLength(1, DataGridLengthUnitType.Auto), MinWidth = 60, ElementStyle = rightStyle });
+            dgDetails.Columns.Add(new DataGridTextColumn { Header = "Wartość", Binding = new System.Windows.Data.Binding("Wartosc") { StringFormat = "N2" }, Width = new DataGridLength(1, DataGridLengthUnitType.Auto), MinWidth = 80, ElementStyle = rightStyle });
+        }
+
+        // ════════════════════════════════════════════════════════════
+        // ZMIANY — DIFF (parsuje OpisZmiany na "Pole | Było | Jest | Δ")
+        // ════════════════════════════════════════════════════════════
+        private async Task LoadChangesAsync(int orderId, CancellationToken ct)
+        {
+            var cards = new List<DiffCardModel>();
+            var historyRows = new List<HistoryRow>();
+            string[] polskieMiesiace = { "", "sty", "lut", "mar", "kwi", "maj", "cze", "lip", "sie", "wrz", "paź", "lis", "gru" };
+
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync(ct);
+
+                const string sql = @"SELECT TOP 30 OpisZmiany, UzytkownikNazwa, DataZmiany
+                                     FROM [dbo].[HistoriaZmianZamowien]
+                                     WHERE ZamowienieId = @OrderId AND TypZmiany = 'EDYCJA'
+                                     ORDER BY DataZmiany DESC";
                 await using var cmd = new SqlCommand(sql, cn);
                 cmd.Parameters.AddWithValue("@OrderId", orderId);
-                await using var reader = await cmd.ExecuteReaderAsync();
 
-                string[] polskieMiesiace = { "", "sty", "lut", "mar", "kwi", "maj", "cze", "lip", "sie", "wrz", "paź", "lis", "gru" };
-
-                while (await reader.ReadAsync())
+                await using var reader = await cmd.ExecuteReaderAsync(ct);
+                while (await reader.ReadAsync(ct))
                 {
                     string opis = reader.IsDBNull(0) ? "" : reader.GetString(0);
-                    string kto = reader.IsDBNull(1) ? "" : reader.GetString(1);
+                    string kto  = reader.IsDBNull(1) ? "" : reader.GetString(1);
                     DateTime? kiedy = reader.IsDBNull(2) ? null : reader.GetDateTime(2);
-
                     string kiedyStr = kiedy.HasValue
                         ? $"{polskieMiesiace[kiedy.Value.Month]} {kiedy.Value.Day} {kiedy.Value:HH:mm}"
                         : "";
 
-                    if (!string.IsNullOrEmpty(opis))
+                    historyRows.Add(new HistoryRow
                     {
-                        string change = $"{opis}";
-                        if (!string.IsNullOrEmpty(kiedyStr))
-                            change += $" ({kiedyStr})";
-                        changes.Add(change);
+                        Opis = string.IsNullOrEmpty(opis) ? "(brak opisu)" : opis,
+                        Meta = string.IsNullOrEmpty(kto) ? kiedyStr : $"{kto} • {kiedyStr}"
+                    });
+
+                    // Parse OpisZmiany do listy kart, każda z meta info kto/kiedy
+                    foreach (var row in ParseDiff(opis))
+                    {
+                        cards.Add(new DiffCardModel
+                        {
+                            Pole  = row.Pole,
+                            Bylo  = row.Bylo,
+                            Jest  = row.Jest,
+                            Delta = row.Delta,
+                            Icon  = ChooseIcon(row.Pole),
+                            Kto   = kto,
+                            Kiedy = kiedyStr,
+                            DeltaSign = ComputeDeltaSign(row.Bylo, row.Jest)
+                        });
+                    }
+                }
+            }
+            catch (OperationCanceledException) { return; }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"LoadChanges error: {ex.Message}"); }
+
+            if (ct.IsCancellationRequested) return;
+
+            txtZmianaNaglowek.Text = $"Wykryto {historyRows.Count} {PluralPl(historyRows.Count, "zmianę", "zmiany", "zmian")} w zamówieniu";
+            txtChangesCount.Text   = $"{cards.Count} {PluralPl(cards.Count, "zmiana", "zmiany", "zmian")}";
+
+            if (cards.Count > 0)
+            {
+                icChangesCards.ItemsSource = cards;
+                panelChangesDiff.Visibility = Visibility.Visible;
+                panelNoChanges.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                ShowNoChanges();
+            }
+            icHistoryList.ItemsSource = historyRows;
+        }
+
+        // Polska deklinacja liczebnika: 1 zmiana, 2-4 zmiany, 5+ zmian
+        private static string PluralPl(int n, string one, string few, string many)
+        {
+            int mod10 = n % 10, mod100 = n % 100;
+            if (n == 1) return one;
+            if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return few;
+            return many;
+        }
+
+        // Wybierz unicode glyph na podstawie nazwy zmienionego pola
+        private static string ChooseIcon(string pole)
+        {
+            var p = (pole ?? "").ToLowerInvariant();
+            if (p.Contains("ilość") || p.Contains("ilosc") || p.Contains("kg")) return "Σ";
+            if (p.Contains("cena") || p.Contains("zł") || p.Contains("zl"))    return "$";
+            if (p.Contains("data") || p.Contains("termin") || p.Contains("godz")) return "◷";
+            if (p.Contains("status"))                                            return "◉";
+            if (p.Contains("transport") || p.Contains("kierowca"))               return "▣";
+            if (p.Contains("klient") || p.Contains("odbior"))                    return "◐";
+            if (p.Contains("towar") || p.Contains("produkt"))                    return "▦";
+            return "✎"; // generic edit
+        }
+
+        // Znak różnicy do kolorowania badge'a
+        private static int? ComputeDeltaSign(string bylo, string jest)
+        {
+            if (decimal.TryParse((bylo ?? "").Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out var b) &&
+                decimal.TryParse((jest ?? "").Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out var j))
+            {
+                if (j > b) return  1;
+                if (j < b) return -1;
+                return 0;
+            }
+            return null;
+        }
+
+
+        // Próbuje wykryć w tekście wzorzec "pole: było → jest" w różnych wariantach
+        private static readonly Regex[] _diffPatterns = new[]
+        {
+            new Regex(@"^(?<pole>[^:→\-=]+?)[:\s]+(?<bylo>[^→\-]+?)\s*[→]\s*(?<jest>.+)$",      RegexOptions.Compiled),
+            new Regex(@"^(?<pole>[^:→\-=]+?)[:\s]+(?<bylo>[^→\-]+?)\s*->\s*(?<jest>.+)$",        RegexOptions.Compiled),
+            new Regex(@"^(?<pole>[^:→\-=]+?)\s*z\s+(?<bylo>[^→\-]+?)\s+na\s+(?<jest>.+)$",       RegexOptions.Compiled | RegexOptions.IgnoreCase)
+        };
+
+        private static IEnumerable<DiffRow> ParseDiff(string opis)
+        {
+            if (string.IsNullOrWhiteSpace(opis)) yield break;
+
+            // Może być wiele zmian w jednym opisie (oddzielone ; lub nową linią)
+            foreach (var line in opis.Split(new[] { ';', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                var trimmed = line.Trim();
+                if (string.IsNullOrEmpty(trimmed)) continue;
+
+                DiffRow? matched = null;
+                foreach (var rx in _diffPatterns)
+                {
+                    var m = rx.Match(trimmed);
+                    if (m.Success)
+                    {
+                        var bylo = m.Groups["bylo"].Value.Trim();
+                        var jest = m.Groups["jest"].Value.Trim();
+                        matched = new DiffRow
+                        {
+                            Pole = m.Groups["pole"].Value.Trim(),
+                            Bylo = bylo,
+                            Jest = jest,
+                            Delta = ComputeDelta(bylo, jest)
+                        };
+                        break;
                     }
                 }
 
-                if (changes.Count == 0)
-                    changes.Add("Brak szczegółowych informacji o zmianach");
+                yield return matched ?? new DiffRow { Pole = trimmed, Bylo = "", Jest = "", Delta = "" };
             }
-            catch
+        }
+
+        private static string ComputeDelta(string bylo, string jest)
+        {
+            if (decimal.TryParse(bylo.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out var b) &&
+                decimal.TryParse(jest.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out var j))
             {
-                changes.Add("Nie udało się pobrać historii zmian");
+                var d = j - b;
+                return d == 0 ? "—" : (d > 0 ? $"+{d:N2}" : $"{d:N2}");
             }
-            return changes;
+            return "";
+        }
+
+        // ════════════════════════════════════════════════════════════
+        // SALDO KLIENTA (placeholder — ToDo: pełne dane z Handel)
+        // ════════════════════════════════════════════════════════════
+        private async Task LoadSaldoKlientaAsync(int klientId, CancellationToken ct)
+        {
+            txtSaldoInfo.Text = "Ładowanie...";
+            try
+            {
+                await using var cn = new SqlConnection(_connHandel);
+                await cn.OpenAsync(ct);
+
+                const string sql = @"
+                    WITH PNAgg AS (
+                        SELECT PN.dkid, SUM(ISNULL(PN.kwotarozl,0)) AS KwotaRozliczona, MAX(PN.Termin) AS TerminPrawdziwy
+                        FROM [HANDEL].[HM].[PN] PN WITH (NOLOCK) GROUP BY PN.dkid
+                    )
+                    SELECT
+                      CAST(SUM(DK.walbrutto - ISNULL(PA.KwotaRozliczona, 0)) AS DECIMAL(18,2)) AS DoZaplaty,
+                      CAST(SUM(CASE WHEN GETDATE() > ISNULL(PA.TerminPrawdziwy, DK.plattermin)
+                                    THEN (DK.walbrutto - ISNULL(PA.KwotaRozliczona, 0)) ELSE 0 END) AS DECIMAL(18,2)) AS Przeterminowane,
+                      MAX(CASE WHEN GETDATE() > ISNULL(PA.TerminPrawdziwy, DK.plattermin)
+                               THEN DATEDIFF(day, ISNULL(PA.TerminPrawdziwy, DK.plattermin), GETDATE()) ELSE 0 END) AS MaxDni
+                    FROM [HANDEL].[HM].[DK] DK WITH (NOLOCK)
+                    LEFT JOIN PNAgg PA ON PA.dkid = DK.id
+                    WHERE DK.khid = @KlientId AND DK.anulowany = 0
+                      AND (DK.walbrutto - ISNULL(PA.KwotaRozliczona, 0)) > 0.01";
+
+                await using var cmd = new SqlCommand(sql, cn);
+                cmd.CommandTimeout = 8;
+                cmd.Parameters.AddWithValue("@KlientId", klientId);
+
+                await using var reader = await cmd.ExecuteReaderAsync(ct);
+                if (await reader.ReadAsync(ct))
+                {
+                    decimal doZap = reader.IsDBNull(0) ? 0 : reader.GetDecimal(0);
+                    decimal przet = reader.IsDBNull(1) ? 0 : reader.GetDecimal(1);
+                    int maxDni    = reader.IsDBNull(2) ? 0 : Convert.ToInt32(reader.GetValue(2));
+
+                    if (doZap == 0)
+                    {
+                        txtSaldoInfo.Text = "✓ Klient nie ma zaległych faktur";
+                        txtSaldoInfo.Foreground = (Brush)FindResource("Brush.Success");
+                    }
+                    else if (przet > 0)
+                    {
+                        txtSaldoInfo.Text = $"🔴 {doZap:N0} zł do zapłaty\n   z czego {przet:N0} zł po terminie ({maxDni} dni max)";
+                        txtSaldoInfo.Foreground = (Brush)FindResource("Brush.Danger");
+                    }
+                    else
+                    {
+                        txtSaldoInfo.Text = $"💛 {doZap:N0} zł do zapłaty (terminowo)";
+                        txtSaldoInfo.Foreground = (Brush)FindResource("Brush.WarningText");
+                    }
+                }
+                else
+                {
+                    txtSaldoInfo.Text = "✓ Brak otwartych faktur";
+                    txtSaldoInfo.Foreground = (Brush)FindResource("Brush.TextSecondary");
+                }
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
+            {
+                txtSaldoInfo.Text = "(nie udało się pobrać salda)";
+                System.Diagnostics.Debug.WriteLine($"LoadSaldo error: {ex.Message}");
+            }
         }
 
         private void DgOrders_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
             if (_currentOrderId.HasValue)
             {
-                var widokZamowienia = new Kalendarz1.WidokZamowienia(UserID, _currentOrderId.Value);
-                widokZamowienia.ShowDialog();
+                var widok = new Kalendarz1.WidokZamowienia(UserID, _currentOrderId.Value);
+                widok.ShowDialog();
                 _ = RefreshDataAsync();
             }
-        }
-
-        private async Task LoadOrderDetailsAsync(int orderId)
-        {
-            _dtDetails.Clear();
-            _dtDetails.Columns.Clear();
-
-            _dtDetails.Columns.Add("Produkt", typeof(string));
-            _dtDetails.Columns.Add("Ilosc", typeof(decimal));
-            _dtDetails.Columns.Add("Cena", typeof(string));
-            _dtDetails.Columns.Add("Wartosc", typeof(decimal));
-
-            try
-            {
-                var vm = ZamowieniaList.FirstOrDefault(z => z.Info.Id == orderId);
-                if (vm != null)
-                {
-                    txtOdbiorca.Text = vm.Info.Klient;
-                    txtHandlowiec.Text = $"Handlowiec: {vm.Info.Handlowiec ?? "brak"}";
-                    txtDataZamowienia.Text = vm.Info.DataZamowienia.HasValue
-                        ? $"Data zamówienia: {vm.Info.DataZamowienia.Value:dd.MM.yyyy}" : "";
-
-                    if (!string.IsNullOrEmpty(vm.Info.GodzWyjazdu) || !string.IsNullOrEmpty(vm.Info.Kierowca) || !string.IsNullOrEmpty(vm.Info.Pojazd))
-                    {
-                        borderTransport.Visibility = Visibility.Visible;
-                        txtGodzWyjazdu.Text = vm.Info.GodzWyjazdu ?? "";
-                        txtKierowca.Text = vm.Info.Kierowca ?? "";
-                        txtPojazd.Text = vm.Info.Pojazd ?? "";
-                    }
-                    else
-                    {
-                        borderTransport.Visibility = Visibility.Collapsed;
-                    }
-                }
-
-                await using var cn = new SqlConnection(_connLibra);
-                await cn.OpenAsync();
-
-                var productNames = new Dictionary<int, string>();
-                await using (var cnHandel = new SqlConnection(_connHandel))
-                {
-                    await cnHandel.OpenAsync();
-                    await using var cmdProd = new SqlCommand("SELECT ID, nazwa FROM [HANDEL].[HM].[TW]", cnHandel);
-                    await using var readerProd = await cmdProd.ExecuteReaderAsync();
-                    while (await readerProd.ReadAsync())
-                    {
-                        productNames[readerProd.GetInt32(0)] = readerProd.IsDBNull(1) ? "" : readerProd.GetString(1);
-                    }
-                }
-
-                string sql = @"SELECT KodTowaru, Ilosc, Cena FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = @OrderId";
-                await using var cmd = new SqlCommand(sql, cn);
-                cmd.Parameters.AddWithValue("@OrderId", orderId);
-                await using var reader = await cmd.ExecuteReaderAsync();
-
-                while (await reader.ReadAsync())
-                {
-                    int kodTowaru = reader.GetInt32(0);
-                    decimal ilosc = reader.IsDBNull(1) ? 0 : reader.GetDecimal(1);
-                    string cena = reader.IsDBNull(2) ? "" : reader.GetString(2);
-
-                    decimal cenaDecimal = 0;
-                    decimal.TryParse(cena.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out cenaDecimal);
-
-                    string produktNazwa = productNames.TryGetValue(kodTowaru, out var name) ? name : $"Produkt {kodTowaru}";
-
-                    var row = _dtDetails.NewRow();
-                    row["Produkt"] = produktNazwa;
-                    row["Ilosc"] = ilosc;
-                    row["Cena"] = cena;
-                    row["Wartosc"] = ilosc * cenaDecimal;
-                    _dtDetails.Rows.Add(row);
-                }
-
-                SetupDetailsDataGrid();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd ładowania szczegółów: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        private void SetupDetailsDataGrid()
-        {
-            dgDetails.ItemsSource = _dtDetails.DefaultView;
-            dgDetails.Columns.Clear();
-
-            dgDetails.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Produkt",
-                Binding = new System.Windows.Data.Binding("Produkt"),
-                Width = new DataGridLength(1, DataGridLengthUnitType.Star)
-            });
-
-            var rightStyle = new Style(typeof(TextBlock));
-            rightStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Right));
-
-            dgDetails.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Ilość",
-                Binding = new System.Windows.Data.Binding("Ilosc") { StringFormat = "N2" },
-                Width = new DataGridLength(100),
-                ElementStyle = rightStyle
-            });
-
-            dgDetails.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Cena",
-                Binding = new System.Windows.Data.Binding("Cena"),
-                Width = new DataGridLength(70),
-                ElementStyle = rightStyle
-            });
-
-            dgDetails.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Wartość",
-                Binding = new System.Windows.Data.Binding("Wartosc") { StringFormat = "N2" },
-                Width = new DataGridLength(80),
-                ElementStyle = rightStyle
-            });
         }
 
         private void ClearDetails()
@@ -715,170 +996,187 @@ namespace Kalendarz1.WPF
             dgDetails.ItemsSource = null;
             btnMarkFakturowane.IsEnabled = false;
             btnCofnijFakturowanie.IsEnabled = false;
-            txtInvoiceStatus.Text = "Wybierz zamówienie z listy";
             borderTransport.Visibility = Visibility.Collapsed;
-            borderZmiana.Visibility = Visibility.Collapsed;
-            icZmianyList.ItemsSource = null;
+            ShowNoChanges();
+            txtSaldoInfo.Text = "(wybierz zamówienie)";
+            txtSaldoInfo.Foreground = (Brush)FindResource("Brush.TextSecondary");
         }
 
+        // ════════════════════════════════════════════════════════════
+        // AKCJE BIZNESOWE z UNDO
+        // ════════════════════════════════════════════════════════════
         private async void BtnAcceptChange_Click(object sender, RoutedEventArgs e)
         {
             if (!_currentOrderId.HasValue) return;
+            var orderId = _currentOrderId.Value;
 
-            var vm = ZamowieniaList.FirstOrDefault(z => z.Info.Id == _currentOrderId.Value);
-            if (vm == null) return;
-
-            var result = MessageBox.Show(
-                $"Czy potwierdzasz, że wiesz o zmianach w zamówieniu '{vm.Info.Klient}'?\n\n" +
-                "Kliknięcie 'Tak' oznaczy zmianę jako przyjętą do wiadomości.",
-                "Potwierdzenie przyjęcia zmiany - Faktury",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Question);
-
-            if (result == MessageBoxResult.Yes)
+            try
             {
-                try
+                await UpdateZamowienieFlagAsync(orderId, "CzyZmodyfikowaneDlaFaktur", false);
+                ShowUndoBanner("Zmiana przyjęta", async () =>
                 {
-                    await using var cn = new SqlConnection(_connLibra);
-                    await cn.OpenAsync();
-
-                    string sql = "UPDATE [dbo].[ZamowieniaMieso] SET CzyZmodyfikowaneDlaFaktur = 0 WHERE Id = @Id";
-                    await using var cmd = new SqlCommand(sql, cn);
-                    cmd.Parameters.AddWithValue("@Id", _currentOrderId.Value);
-                    await cmd.ExecuteNonQueryAsync();
-
-                    MessageBox.Show("Zmiana została przyjęta.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
-                    await RefreshDataAsync();
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Błąd podczas akceptacji zmiany:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
+                    await UpdateZamowienieFlagAsync(orderId, "CzyZmodyfikowaneDlaFaktur", true);
+                });
+                await RefreshDataAsync();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
         private async void BtnMarkFakturowane_Click(object sender, RoutedEventArgs e)
         {
             if (!_currentOrderId.HasValue) return;
+            var orderId = _currentOrderId.Value;
 
-            var result = MessageBox.Show(
-                "Czy na pewno chcesz oznaczyć to zamówienie jako zafakturowane?",
-                "Potwierdzenie",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Question);
-
-            if (result == MessageBoxResult.Yes)
+            try
             {
-                try
+                await UpdateZamowienieFlagAsync(orderId, "CzyZafakturowane", true);
+                ShowUndoBanner("Oznaczono jako zafakturowane", async () =>
                 {
-                    await using var cn = new SqlConnection(_connLibra);
-                    await cn.OpenAsync();
-
-                    string sql = "UPDATE [dbo].[ZamowieniaMieso] SET CzyZafakturowane = 1 WHERE Id = @Id";
-                    await using var cmd = new SqlCommand(sql, cn);
-                    cmd.Parameters.AddWithValue("@Id", _currentOrderId.Value);
-                    await cmd.ExecuteNonQueryAsync();
-
-                    MessageBox.Show("Zamówienie zostało oznaczone jako zafakturowane.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
-                    await RefreshDataAsync();
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
+                    await UpdateZamowienieFakturaAsync(orderId, false, null);
+                });
+                await RefreshDataAsync();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
         private async void BtnCofnijFakturowanie_Click(object sender, RoutedEventArgs e)
         {
             if (!_currentOrderId.HasValue) return;
+            var orderId = _currentOrderId.Value;
 
-            var vm = ZamowieniaList.FirstOrDefault(z => z.Info.Id == _currentOrderId.Value);
-            if (vm == null) return;
-
-            var result = MessageBox.Show(
-                $"Czy na pewno chcesz cofnąć fakturowanie zamówienia '{vm.Info.Klient}'?\n\n" +
-                "Zamówienie wróci do listy do zafakturowania.",
-                "Potwierdzenie cofnięcia fakturowania",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Question);
-
-            if (result == MessageBoxResult.Yes)
-            {
-                try
-                {
-                    await using var cn = new SqlConnection(_connLibra);
-                    await cn.OpenAsync();
-
-                    string sql = "UPDATE [dbo].[ZamowieniaMieso] SET CzyZafakturowane = 0, NumerFaktury = NULL WHERE Id = @Id";
-                    await using var cmd = new SqlCommand(sql, cn);
-                    cmd.Parameters.AddWithValue("@Id", _currentOrderId.Value);
-                    await cmd.ExecuteNonQueryAsync();
-
-                    MessageBox.Show("Cofnięto fakturowanie zamówienia.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
-                    await RefreshDataAsync();
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
-            }
-        }
-
-        private async Task EnsureColumnsExistAsync(SqlConnection cn)
-        {
             try
             {
-                string sql = @"
-                    IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'ZamowieniaMieso' AND COLUMN_NAME = 'CzyZafakturowane')
-                        ALTER TABLE [dbo].[ZamowieniaMieso] ADD CzyZafakturowane BIT DEFAULT 0;
-                    IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'ZamowieniaMieso' AND COLUMN_NAME = 'NumerFaktury')
-                        ALTER TABLE [dbo].[ZamowieniaMieso] ADD NumerFaktury NVARCHAR(50) NULL;
-                    IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'ZamowieniaMieso' AND COLUMN_NAME = 'CzyZmodyfikowaneDlaFaktur')
-                        ALTER TABLE [dbo].[ZamowieniaMieso] ADD CzyZmodyfikowaneDlaFaktur BIT DEFAULT 0;
-                    IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'ZamowieniaMieso' AND COLUMN_NAME = 'DataOstatniejModyfikacji')
-                        ALTER TABLE [dbo].[ZamowieniaMieso] ADD DataOstatniejModyfikacji DATETIME NULL;
-                    IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'ZamowieniaMieso' AND COLUMN_NAME = 'ModyfikowalPrzez')
-                        ALTER TABLE [dbo].[ZamowieniaMieso] ADD ModyfikowalPrzez NVARCHAR(100) NULL;
-                    IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'ZamowieniaMieso' AND COLUMN_NAME = 'TransportKursID')
-                        ALTER TABLE [dbo].[ZamowieniaMieso] ADD TransportKursID BIGINT NULL;
-                    IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'ZamowieniaMieso' AND COLUMN_NAME = 'CzyZmodyfikowaneDlaMagazynu')
-                        ALTER TABLE [dbo].[ZamowieniaMieso] ADD CzyZmodyfikowaneDlaMagazynu BIT DEFAULT 0;
-                    IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'ZamowieniaMieso' AND COLUMN_NAME = 'CzyZmodyfikowaneDlaProdukcji')
-                        ALTER TABLE [dbo].[ZamowieniaMieso] ADD CzyZmodyfikowaneDlaProdukcji BIT DEFAULT 0;";
-                await using var cmd = new SqlCommand(sql, cn);
-                await cmd.ExecuteNonQueryAsync();
+                await UpdateZamowienieFakturaAsync(orderId, false, null);
+                ShowUndoBanner("Cofnięto fakturowanie", async () =>
+                {
+                    await UpdateZamowienieFlagAsync(orderId, "CzyZafakturowane", true);
+                });
+                await RefreshDataAsync();
             }
-            catch { }
-        }
-
-        #region Avatar Helpers
-
-        [DllImport("gdi32.dll")]
-        private static extern bool DeleteObject(IntPtr hObject);
-
-        private static BitmapSource ConvertToBitmapSource(System.Drawing.Image image)
-        {
-            if (image == null) return null;
-            using (var bitmap = new System.Drawing.Bitmap(image))
+            catch (Exception ex)
             {
-                var hBitmap = bitmap.GetHbitmap();
-                try
-                {
-                    return System.Windows.Interop.Imaging.CreateBitmapSourceFromHBitmap(
-                        hBitmap, IntPtr.Zero, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
-                }
-                finally
-                {
-                    DeleteObject(hBitmap);
-                }
+                MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
-        #endregion
+        private async Task UpdateZamowienieFlagAsync(int orderId, string columnName, bool value)
+        {
+            // columnName z whitelistą — chroni przed SQL injection
+            string allowed = columnName switch
+            {
+                "CzyZafakturowane" => "CzyZafakturowane",
+                "CzyZmodyfikowaneDlaFaktur" => "CzyZmodyfikowaneDlaFaktur",
+                _ => throw new ArgumentException("Nieobsługiwana kolumna")
+            };
+            await using var cn = new SqlConnection(_connLibra);
+            await cn.OpenAsync();
+            await using var cmd = new SqlCommand($"UPDATE [dbo].[ZamowieniaMieso] SET [{allowed}] = @V WHERE Id = @Id", cn);
+            cmd.Parameters.AddWithValue("@V", value);
+            cmd.Parameters.AddWithValue("@Id", orderId);
+            await cmd.ExecuteNonQueryAsync();
+        }
 
-        #region Data Classes
+        private async Task UpdateZamowienieFakturaAsync(int orderId, bool zafakturowane, string? numerFaktury)
+        {
+            await using var cn = new SqlConnection(_connLibra);
+            await cn.OpenAsync();
+            await using var cmd = new SqlCommand(
+                "UPDATE [dbo].[ZamowieniaMieso] SET CzyZafakturowane = @V, NumerFaktury = @N WHERE Id = @Id", cn);
+            cmd.Parameters.AddWithValue("@V", zafakturowane);
+            cmd.Parameters.AddWithValue("@N", (object?)numerFaktury ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@Id", orderId);
+            await cmd.ExecuteNonQueryAsync();
+        }
 
+        // ════════════════════════════════════════════════════════════
+        // UNDO BANNER (5 sek)
+        // ════════════════════════════════════════════════════════════
+        private void ShowUndoBanner(string message, Func<Task> undoAction)
+        {
+            txtUndoMsg.Text = message;
+            undoBanner.Visibility = Visibility.Visible;
+            _undoAction = async () => { try { await undoAction(); } catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Undo error: {ex.Message}"); } };
+
+            _undoTimer?.Stop();
+            _undoTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+            _undoTimer.Tick += (s, e) =>
+            {
+                _undoTimer?.Stop();
+                undoBanner.Visibility = Visibility.Collapsed;
+                _undoAction = null;
+            };
+            _undoTimer.Start();
+        }
+
+        private async void BtnUndo_Click(object sender, RoutedEventArgs e)
+        {
+            _undoTimer?.Stop();
+            undoBanner.Visibility = Visibility.Collapsed;
+            var act = _undoAction;
+            _undoAction = null;
+            if (act != null)
+            {
+                await act();
+                await RefreshDataAsync();
+            }
+        }
+
+        // ════════════════════════════════════════════════════════════
+        // KEYBOARD (skróty są w toolTipach, więc warto mieć)
+        // ════════════════════════════════════════════════════════════
+        private void PanelFakturWindow_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Handled) return;
+            if (e.OriginalSource is TextBox || e.OriginalSource is ComboBox) return;
+
+            if (e.Key == Key.F5)        { _ = RefreshDataAsync(); e.Handled = true; }
+            else if (e.Key == Key.Left  && Keyboard.Modifiers == ModifierKeys.None) { BtnPrevDay_Click(this, new RoutedEventArgs()); e.Handled = true; }
+            else if (e.Key == Key.Right && Keyboard.Modifiers == ModifierKeys.None) { BtnNextDay_Click(this, new RoutedEventArgs()); e.Handled = true; }
+            else if (e.Key == Key.Home  && Keyboard.Modifiers == ModifierKeys.None) { BtnToday_Click(this, new RoutedEventArgs()); e.Handled = true; }
+            else if (_currentOrderId.HasValue)
+            {
+                if (e.Key == Key.F && btnMarkFakturowane.IsEnabled) { BtnMarkFakturowane_Click(this, new RoutedEventArgs()); e.Handled = true; }
+                else if (e.Key == Key.U && btnCofnijFakturowanie.IsEnabled) { BtnCofnijFakturowanie_Click(this, new RoutedEventArgs()); e.Handled = true; }
+                else if (e.Key == Key.Space && tabZmiany.IsSelected && panelChangesDiff.Visibility == Visibility.Visible)
+                { BtnAcceptChange_Click(this, new RoutedEventArgs()); e.Handled = true; }
+            }
+        }
+
+        // ════════════════════════════════════════════════════════════
+        // DDL (raz na uruchomienie aplikacji)
+        // ════════════════════════════════════════════════════════════
+        private async Task EnsureColumnsExistAsync(SqlConnection cn)
+        {
+            const string sql = @"
+                IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'ZamowieniaMieso' AND COLUMN_NAME = 'CzyZafakturowane')
+                    ALTER TABLE [dbo].[ZamowieniaMieso] ADD CzyZafakturowane BIT DEFAULT 0;
+                IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'ZamowieniaMieso' AND COLUMN_NAME = 'NumerFaktury')
+                    ALTER TABLE [dbo].[ZamowieniaMieso] ADD NumerFaktury NVARCHAR(50) NULL;
+                IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'ZamowieniaMieso' AND COLUMN_NAME = 'CzyZmodyfikowaneDlaFaktur')
+                    ALTER TABLE [dbo].[ZamowieniaMieso] ADD CzyZmodyfikowaneDlaFaktur BIT DEFAULT 0;
+                IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'ZamowieniaMieso' AND COLUMN_NAME = 'DataOstatniejModyfikacji')
+                    ALTER TABLE [dbo].[ZamowieniaMieso] ADD DataOstatniejModyfikacji DATETIME NULL;
+                IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'ZamowieniaMieso' AND COLUMN_NAME = 'ModyfikowalPrzez')
+                    ALTER TABLE [dbo].[ZamowieniaMieso] ADD ModyfikowalPrzez NVARCHAR(100) NULL;
+                IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'ZamowieniaMieso' AND COLUMN_NAME = 'TransportKursID')
+                    ALTER TABLE [dbo].[ZamowieniaMieso] ADD TransportKursID BIGINT NULL;
+                IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'ZamowieniaMieso' AND COLUMN_NAME = 'CzyZmodyfikowaneDlaMagazynu')
+                    ALTER TABLE [dbo].[ZamowieniaMieso] ADD CzyZmodyfikowaneDlaMagazynu BIT DEFAULT 0;
+                IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'ZamowieniaMieso' AND COLUMN_NAME = 'CzyZmodyfikowaneDlaProdukcji')
+                    ALTER TABLE [dbo].[ZamowieniaMieso] ADD CzyZmodyfikowaneDlaProdukcji BIT DEFAULT 0;";
+            await using var cmd = new SqlCommand(sql, cn);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        // ════════════════════════════════════════════════════════════
+        // DATA CLASSES
+        // ════════════════════════════════════════════════════════════
         public class ZamowienieInfo
         {
             public int Id { get; set; }
@@ -903,31 +1201,141 @@ namespace Kalendarz1.WPF
             public bool CzyMaCeny { get; set; }
         }
 
+        public class DiffRow
+        {
+            public string Pole { get; set; } = "";
+            public string Bylo { get; set; } = "";
+            public string Jest { get; set; } = "";
+            public string Delta { get; set; } = "";
+        }
+
+        // Karta rozwijalna w zakładce Zmiany
+        public class DiffCardModel : INotifyPropertyChanged
+        {
+            private static readonly Brush _green     = Freeze(new SolidColorBrush(Color.FromRgb(0x06, 0x5F, 0x46)));
+            private static readonly Brush _red       = Freeze(new SolidColorBrush(Color.FromRgb(0x99, 0x1B, 0x1B)));
+            private static readonly Brush _gray      = Freeze(new SolidColorBrush(Color.FromRgb(0x47, 0x55, 0x69)));
+            private static readonly Brush _greenSoft = Freeze(new SolidColorBrush(Color.FromRgb(0xEC, 0xFD, 0xF5)));
+            private static readonly Brush _redSoft   = Freeze(new SolidColorBrush(Color.FromRgb(0xFE, 0xF2, 0xF2)));
+            private static readonly Brush _graySoft  = Freeze(new SolidColorBrush(Color.FromRgb(0xF1, 0xF5, 0xF9)));
+            private static Brush Freeze(SolidColorBrush b) { b.Freeze(); return b; }
+
+            public string Pole  { get; set; } = "";
+            public string Bylo  { get; set; } = "";
+            public string Jest  { get; set; } = "";
+            public string Delta { get; set; } = "";
+            public string Icon  { get; set; } = "•";
+            public string Kto   { get; set; } = "";
+            public string Kiedi { get => Kiedy; set => Kiedy = value; }
+            public string Kiedy { get; set; } = "";
+
+            // Compact summary widoczny gdy karta zwinięta
+            public string ShortSummary
+            {
+                get
+                {
+                    if (string.IsNullOrEmpty(Bylo) && string.IsNullOrEmpty(Jest)) return "";
+                    return $"{Bylo}  →  {Jest}";
+                }
+            }
+
+            // 0 = positive (green), <0 = negative (red), null = neutral
+            public int? DeltaSign { get; set; }
+
+            public Brush DeltaColor => DeltaSign switch
+            {
+                > 0 => _green,
+                < 0 => _red,
+                _   => _gray
+            };
+            public Brush DeltaBgColor => DeltaSign switch
+            {
+                > 0 => _greenSoft,
+                < 0 => _redSoft,
+                _   => _graySoft
+            };
+
+            public bool HasDelta => !string.IsNullOrEmpty(Delta);
+            public bool HasMeta  => !string.IsNullOrEmpty(Kto) || !string.IsNullOrEmpty(Kiedy);
+
+            public event PropertyChangedEventHandler? PropertyChanged;
+        }
+
+        public class HistoryRow
+        {
+            public string Opis { get; set; } = "";
+            public string Meta { get; set; } = "";
+        }
+
+        // ────────────────────────────────────────────────────────────
+        // ViewModel — wszystkie Brushe statyczne (frozen) i cache'owane
+        // ────────────────────────────────────────────────────────────
         public class ZamowienieViewModel : INotifyPropertyChanged
         {
-            private static readonly string[] _polskieMiesiace = { "", "sty", "lut", "mar", "kwi", "maj", "cze", "lip", "sie", "wrz", "paź", "lis", "gru" };
+            // Cache statycznych Brushy — frozen, bezpieczne dla UI thread
+            private static readonly Brush _brushWarning   = Freeze(new SolidColorBrush(Color.FromRgb(0xEA, 0x58, 0x0C)));
+            private static readonly Brush _brushSuccess   = Freeze(new SolidColorBrush(Color.FromRgb(0x16, 0xA3, 0x4A)));
+            private static readonly Brush _brushDanger    = Freeze(new SolidColorBrush(Color.FromRgb(0xDC, 0x26, 0x26)));
+            private static readonly Brush _brushPrimary   = Freeze(new SolidColorBrush(Color.FromRgb(0x25, 0x63, 0xEB)));
+            private static readonly Brush _brushTransp    = Brushes.Transparent;
+            private static readonly Brush _brushTextDark  = Freeze(new SolidColorBrush(Color.FromRgb(0x1E, 0x29, 0x3B)));
+            private static readonly Brush _brushTextMuted = Freeze(new SolidColorBrush(Color.FromRgb(0x94, 0xA3, 0xB8)));
+
+            // Status badge brushes
+            private static readonly Brush _bgZafakt   = Freeze(new SolidColorBrush(Color.FromRgb(0xDC, 0xFC, 0xE7)));
+            private static readonly Brush _txtZafakt  = Freeze(new SolidColorBrush(Color.FromRgb(0x16, 0x65, 0x34)));
+            private static readonly Brush _bgZmiana   = Freeze(new SolidColorBrush(Color.FromRgb(0xFE, 0xD7, 0xAA)));
+            private static readonly Brush _txtZmiana  = Freeze(new SolidColorBrush(Color.FromRgb(0xC2, 0x41, 0x0C)));
+            private static readonly Brush _bgWydano   = Freeze(new SolidColorBrush(Color.FromRgb(0xDB, 0xEA, 0xFE)));
+            private static readonly Brush _txtWydano  = Freeze(new SolidColorBrush(Color.FromRgb(0x1E, 0x40, 0xAF)));
+            private static readonly Brush _bgZreal    = Freeze(new SolidColorBrush(Color.FromRgb(0xDC, 0xFC, 0xE7)));
+            private static readonly Brush _txtZreal   = Freeze(new SolidColorBrush(Color.FromRgb(0x16, 0x65, 0x34)));
+            private static readonly Brush _bgNowe     = Freeze(new SolidColorBrush(Color.FromRgb(0xFE, 0xF3, 0xC7)));
+            private static readonly Brush _txtNowe    = Freeze(new SolidColorBrush(Color.FromRgb(0x92, 0x40, 0x0E)));
+            private static readonly Brush _bgDefault  = Freeze(new SolidColorBrush(Color.FromRgb(0xEC, 0xEF, 0xF1)));
+            private static readonly Brush _txtDefault = Freeze(new SolidColorBrush(Color.FromRgb(0x54, 0x6E, 0x7A)));
+
+            // Row backgrounds — clean: białe wszystko, status pokazuje pasek + badge
+            // Tylko zafakturowane mają bardzo subtelne wyszarzenie (już zrobione, nieaktywne wizualnie)
+            private static readonly Brush _rowZafakt  = Freeze(new SolidColorBrush(Color.FromRgb(0xF8, 0xFA, 0xFC)));
+            private static readonly Brush _rowZmiana  = Brushes.White;
+            private static readonly Brush _rowDefault = Brushes.White;
+
+            // Strip colors (lewa pionowa kreska 4px)
+            private static readonly Brush _stripWarn = Freeze(new SolidColorBrush(Color.FromRgb(0xEA, 0x58, 0x0C)));
+            private static readonly Brush _stripDang = Freeze(new SolidColorBrush(Color.FromRgb(0xDC, 0x26, 0x26)));
+            private static readonly Brush _stripOk   = Freeze(new SolidColorBrush(Color.FromRgb(0x16, 0xA3, 0x4A)));
+            private static readonly Brush _stripBlue = Freeze(new SolidColorBrush(Color.FromRgb(0x25, 0x63, 0xEB)));
+            private static readonly Brush _stripGray = Freeze(new SolidColorBrush(Color.FromRgb(0xCB, 0xD5, 0xE1)));
+
+            private static Brush Freeze(SolidColorBrush b) { b.Freeze(); return b; }
 
             public ZamowienieInfo Info { get; }
             public ZamowienieViewModel(ZamowienieInfo info) { Info = info; }
 
-            // Klient z wykrzyknikiem gdy jest zmiana
-            public string Klient => Info.CzyZmodyfikowaneDlaFaktur ? $"⚠️ {Info.Klient}" : Info.Klient;
-
-            // Kolor nazwy klienta - pomarańczowy gdy zmiana, czarny normalnie
-            public Brush KlientColor => Info.CzyZmodyfikowaneDlaFaktur ? Brushes.OrangeRed : Brushes.Black;
-
+            public string KlientName => Info.Klient;
+            public bool   HasChange  => Info.CzyZmodyfikowaneDlaFaktur;
             public string Handlowiec => Info.Handlowiec;
             public decimal TotalIlosc => Info.TotalIlosc;
-            public decimal Wartosc => Info.Wartosc;
+            public decimal Wartosc    => Info.Wartosc;
+            public bool HasTransport => !string.IsNullOrEmpty(Info.GodzWyjazdu);
+            public string GodzWyjazdu => Info.GodzWyjazdu ?? "";
+            public string Kierowca    => Info.Kierowca ?? "";
 
-            // Status wyświetlany
+            public string CenaDisplay => Info.CzyMaCeny ? "✓" : "✗";
+            public Brush  CenaColor   => Info.CzyMaCeny ? _brushSuccess : _brushDanger;
+
+            // Wartość PLN — szara gdy 0 (brak cen)
+            public Brush WartoscColor => Info.Wartosc > 0 ? _brushTextDark : _brushTextMuted;
+
+            // Status display + kolory
             public string StatusDisplay
             {
                 get
                 {
                     if (Info.CzyZafakturowane) return "Zafakturowane";
                     if (Info.CzyZmodyfikowaneDlaFaktur) return "⚠ Do zatwierdzenia";
-                    return Info.Status;
+                    return string.IsNullOrEmpty(Info.Status) ? "—" : Info.Status;
                 }
             }
 
@@ -935,13 +1343,16 @@ namespace Kalendarz1.WPF
             {
                 get
                 {
-                    if (Info.CzyZmodyfikowaneDlaFaktur) return new SolidColorBrush(Color.FromRgb(230, 81, 0)); // Pomarańczowy
-                    if (Info.CzyZafakturowane) return new SolidColorBrush(Color.FromRgb(46, 125, 50)); // Zielony
-                    if (Info.Status == "Wydano") return new SolidColorBrush(Color.FromRgb(2, 119, 189)); // Niebieski
-                    if (Info.Status == "Zrealizowane") return new SolidColorBrush(Color.FromRgb(56, 142, 60)); // Zielony
-                    if (Info.Status == "W realizacji") return new SolidColorBrush(Color.FromRgb(25, 118, 210)); // Niebieski
-                    if (Info.Status == "Nowe") return new SolidColorBrush(Color.FromRgb(245, 124, 0)); // Pomarańczowy
-                    return new SolidColorBrush(Color.FromRgb(84, 110, 122));
+                    if (Info.CzyZmodyfikowaneDlaFaktur) return _txtZmiana;
+                    if (Info.CzyZafakturowane) return _txtZafakt;
+                    return Info.Status switch
+                    {
+                        "Wydano"       => _txtWydano,
+                        "Zrealizowane" => _txtZreal,
+                        "W realizacji" => _txtWydano,
+                        "Nowe"         => _txtNowe,
+                        _              => _txtDefault
+                    };
                 }
             }
 
@@ -949,104 +1360,46 @@ namespace Kalendarz1.WPF
             {
                 get
                 {
-                    if (Info.CzyZmodyfikowaneDlaFaktur) return new SolidColorBrush(Color.FromRgb(255, 243, 224)); // #FFF3E0
-                    if (Info.CzyZafakturowane) return new SolidColorBrush(Color.FromRgb(200, 230, 201)); // #C8E6C9
-                    if (Info.Status == "Wydano") return new SolidColorBrush(Color.FromRgb(225, 245, 254)); // #E1F5FE
-                    if (Info.Status == "Zrealizowane") return new SolidColorBrush(Color.FromRgb(232, 245, 233)); // #E8F5E9
-                    if (Info.Status == "W realizacji") return new SolidColorBrush(Color.FromRgb(227, 242, 253)); // #E3F2FD
-                    if (Info.Status == "Nowe") return new SolidColorBrush(Color.FromRgb(255, 248, 225)); // #FFF8E1
-                    return new SolidColorBrush(Color.FromRgb(236, 239, 241)); // #ECEFF1
-                }
-            }
-
-            // Kolumna ostatniej zmiany - format: sty 12 12:00
-            public string OstatniaZmiana
-            {
-                get
-                {
-                    if (!Info.CzyZmodyfikowaneDlaFaktur) return "";
-                    if (Info.DataOstatniejModyfikacji.HasValue)
+                    if (Info.CzyZmodyfikowaneDlaFaktur) return _bgZmiana;
+                    if (Info.CzyZafakturowane) return _bgZafakt;
+                    return Info.Status switch
                     {
-                        var d = Info.DataOstatniejModyfikacji.Value;
-                        return $"{_polskieMiesiace[d.Month]} {d.Day} {d:HH:mm}";
-                    }
-                    return "Zmiana";
+                        "Wydano"       => _bgWydano,
+                        "Zrealizowane" => _bgZreal,
+                        "W realizacji" => _bgWydano,
+                        "Nowe"         => _bgNowe,
+                        _              => _bgDefault
+                    };
                 }
             }
 
-            public Brush ZmianaColor => Info.CzyZmodyfikowaneDlaFaktur ? Brushes.OrangeRed : Brushes.Transparent;
-
-            // Kto zmienił - imię i nazwisko
-            public string KtoZmienil => Info.ModyfikowalPrzez ?? "";
-
-            // Avatar osoby która zmieniła
-            private BitmapSource _ktoZmienilAvatar;
-            private bool _avatarLoaded;
-            public BitmapSource KtoZmienilAvatar
-            {
-                get
-                {
-                    if (!_avatarLoaded && !string.IsNullOrEmpty(Info.ModyfikowalPrzez))
-                    {
-                        _avatarLoaded = true;
-                        try
-                        {
-                            // Próbuj załadować avatar używając nazwy jako ID
-                            var avatarId = Info.ModyfikowalPrzez.Replace(" ", "");
-                            if (UserAvatarManager.HasAvatar(avatarId))
-                            {
-                                using var img = UserAvatarManager.GetAvatarRounded(avatarId, 24);
-                                if (img != null)
-                                    _ktoZmienilAvatar = ConvertToBitmapSource(img);
-                            }
-
-                            // Jeśli nie znaleziono, wygeneruj domyślny z inicjałami
-                            if (_ktoZmienilAvatar == null)
-                            {
-                                using var img = UserAvatarManager.GenerateDefaultAvatar(Info.ModyfikowalPrzez, avatarId, 24);
-                                _ktoZmienilAvatar = ConvertToBitmapSource(img);
-                            }
-                        }
-                        catch { }
-                    }
-                    return _ktoZmienilAvatar;
-                }
-            }
-
-            // Czy wszystkie towary mają ceny - ✓ lub ✗
-            public string CenaDisplay => Info.CzyMaCeny ? "✓" : "✗";
-            public Brush CenaColor => Info.CzyMaCeny
-                ? new SolidColorBrush(Color.FromRgb(46, 125, 50))   // Zielony dla ✓
-                : new SolidColorBrush(Color.FromRgb(198, 40, 40));  // Czerwony dla ✗
-
-            // Wyjazd
-            public string GodzWyjazdu => Info.GodzWyjazdu ?? "";
-            public string Kierowca => Info.Kierowca ?? "";
-            public string Pojazd => Info.Pojazd ?? "";
-
-            // Kolor tła wiersza - zgodny z WidokZamowienia
+            // Tło wiersza — subtelne, nie ostre
             public Brush RowBackground
             {
                 get
                 {
-                    if (Info.CzyZmodyfikowaneDlaFaktur)
-                        return new SolidColorBrush(Color.FromRgb(255, 243, 224)); // Pomarańczowe tło dla zmian
-                    if (Info.CzyZafakturowane)
-                        return new SolidColorBrush(Color.FromRgb(200, 230, 201)); // Ciemniejszy zielony
-                    if (Info.Status == "Wydano")
-                        return new SolidColorBrush(Color.FromRgb(225, 245, 254)); // Jasnoniebieski
-                    if (Info.Status == "Zrealizowane")
-                        return new SolidColorBrush(Color.FromRgb(232, 245, 233)); // Jasnozielony
-                    if (Info.Status == "W realizacji")
-                        return new SolidColorBrush(Color.FromRgb(227, 242, 253)); // Jasnoniebieski
-                    // Nowe - żółte tło
-                    return new SolidColorBrush(Color.FromRgb(255, 248, 225));
+                    if (Info.CzyZmodyfikowaneDlaFaktur) return _rowZmiana;
+                    if (Info.CzyZafakturowane) return _rowZafakt;
+                    return _rowDefault;
+                }
+            }
+
+            // 4px lewy pasek priorytetu — najważniejszy wskaźnik bo widoczny zawsze
+            public Brush PriorityStripColor
+            {
+                get
+                {
+                    if (Info.CzyZmodyfikowaneDlaFaktur) return _stripWarn;   // pomarańczowy = wymaga uwagi
+                    if (!Info.CzyMaCeny) return _stripDang;                  // czerwony = brak cen
+                    if (Info.CzyZafakturowane) return _stripOk;              // zielony = załatwione
+                    if (Info.Status == "Nowe") return _stripBlue;            // niebieski = nowe
+                    return _stripGray;                                       // szary = neutralne
                 }
             }
 
             public event PropertyChangedEventHandler? PropertyChanged;
         }
 
-        #endregion
+        [DllImport("gdi32.dll")] private static extern bool DeleteObject(IntPtr hObject);
     }
 }

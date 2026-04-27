@@ -133,7 +133,8 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 INNER JOIN [HANDEL].[HM].[TW] TW ON DP.idtw = TW.ID
                 INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
                 LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
-                WHERE YEAR(DK.data) = @Rok AND MONTH(DK.data) = @Miesiac
+                WHERE DK.data >= DATEFROMPARTS(@Rok, @Miesiac, 1)
+                  AND DK.data <  DATEADD(MONTH, 1, DATEFROMPARTS(@Rok, @Miesiac, 1))
                   AND TW.katalog IN (67095, 67153)
                   AND WYM.CDim_Handlowiec_Val = @Handlowiec
                 ORDER BY DK.data DESC, DK.kod";
@@ -207,7 +208,8 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
                 INNER JOIN [HANDEL].[HM].[TW] TW ON DP.idtw = TW.ID
                 LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
-                WHERE YEAR(DK.data) = @Rok AND MONTH(DK.data) = @Miesiac
+                WHERE DK.data >= DATEFROMPARTS(@Rok, @Miesiac, 1)
+                  AND DK.data <  DATEADD(MONTH, 1, DATEFROMPARTS(@Rok, @Miesiac, 1))
                   AND TW.katalog IN (67095, 67153)
                   AND WYM.CDim_Handlowiec_Val = @Handlowiec";
 
@@ -256,7 +258,8 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
                 INNER JOIN [HANDEL].[HM].[TW] TW ON DP.idtw = TW.ID
                 LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
-                WHERE YEAR(DK.data) = @Rok AND MONTH(DK.data) = @Miesiac
+                WHERE DK.data >= DATEFROMPARTS(@Rok, @Miesiac, 1)
+                  AND DK.data <  DATEADD(MONTH, 1, DATEFROMPARTS(@Rok, @Miesiac, 1))
                   AND TW.katalog IN (67095, 67153)
                   AND WYM.CDim_Handlowiec_Val = @Handlowiec
                 GROUP BY CAST(DK.data AS DATE)
@@ -317,7 +320,8 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
                 INNER JOIN [HANDEL].[HM].[TW] TW ON DP.idtw = TW.ID
                 LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
-                WHERE YEAR(DK.data) = @Rok AND MONTH(DK.data) = @Miesiac
+                WHERE DK.data >= DATEFROMPARTS(@Rok, @Miesiac, 1)
+                  AND DK.data <  DATEADD(MONTH, 1, DATEFROMPARTS(@Rok, @Miesiac, 1))
                   AND TW.katalog IN (67095, 67153)
                   AND WYM.CDim_Handlowiec_Val = @Handlowiec
                 GROUP BY TW.kod, TW.nazwa
@@ -364,7 +368,8 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 INNER JOIN [HANDEL].[HM].[TW] TW ON DP.idtw = TW.ID
                 INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
                 LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
-                WHERE YEAR(DK.data) = @Rok AND MONTH(DK.data) = @Miesiac
+                WHERE DK.data >= DATEFROMPARTS(@Rok, @Miesiac, 1)
+                  AND DK.data <  DATEADD(MONTH, 1, DATEFROMPARTS(@Rok, @Miesiac, 1))
                   AND TW.katalog IN (67095, 67153)
                   AND WYM.CDim_Handlowiec_Val = @Handlowiec
                 GROUP BY C.shortcut
@@ -415,7 +420,8 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
                 INNER JOIN [HANDEL].[HM].[TW] TW ON DP.idtw = TW.ID
                 LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
-                WHERE YEAR(DK.data) = @Rok AND MONTH(DK.data) = @Miesiac
+                WHERE DK.data >= DATEFROMPARTS(@Rok, @Miesiac, 1)
+                  AND DK.data <  DATEADD(MONTH, 1, DATEFROMPARTS(@Rok, @Miesiac, 1))
                   AND TW.katalog IN (67095, 67153)
                   AND WYM.CDim_Handlowiec_Val = @Handlowiec
                 GROUP BY TW.kod, TW.nazwa
