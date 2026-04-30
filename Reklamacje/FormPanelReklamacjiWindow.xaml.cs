@@ -283,12 +283,109 @@ namespace Kalendarz1.Reklamacje
                           AND WymagaUzupelnienia = 0
                           AND StatusV2 NOT IN ('ZAMKNIETA','ODRZUCONA');
 
-                        -- Powiazane = POWIAZANA
+                        -- Powiazane = POWIAZANA — TYLKO dla synfonijnych korekt (handlowiecka strona zachowuje swoj workflow)
+                        -- Wczesniej UPDATE bez warunku TypReklamacji bledne flipowal swiezo utworzone reklamacje
+                        -- (handlowiec -> Do korekty) na POWIAZANA, przez co trafialy do zakladki ZAMKNIETE
+                        -- zanim jakosc je rozpatrzyla.
                         UPDATE [dbo].[Reklamacje]
                         SET StatusV2 = 'POWIAZANA'
                         WHERE PowiazanaReklamacjaId IS NOT NULL
                           AND PowiazanaReklamacjaId > 0
+                          AND TypReklamacji = 'Faktura korygujaca'
                           AND StatusV2 NOT IN ('ZAMKNIETA','ODRZUCONA');
+
+                        -- One-time repair: przywroc bledne pofliplowane reczne reklamacje do ZGLOSZONA
+                        -- (linkowane do korekty, ale nie-korekta i nigdy nie zakonczone)
+                        UPDATE [dbo].[Reklamacje]
+                        SET StatusV2 = 'ZGLOSZONA'
+                        WHERE StatusV2 = 'POWIAZANA'
+                          AND TypReklamacji <> 'Faktura korygujaca'
+                          AND DataZakonczenia IS NULL;
+
+                        -- Defensywny sync: gdyby gdziekolwiek Status sie rozjechal ze StatusV2,
+                        -- wyrownaj StatusV2 na podstawie Status (zrodlo prawdy = stary Status, jezeli sa rozne)
+                        -- Wymusza to spojnosc nawet gdy jakis kod aktualizuje tylko Status bez StatusV2.
+                        UPDATE [dbo].[Reklamacje]
+                        SET StatusV2 = CASE Status
+                            WHEN 'Nowa' THEN 'ZGLOSZONA'
+                            WHEN 'Przyjeta' THEN 'W_ANALIZIE'
+                            WHEN 'W trakcie' THEN 'W_ANALIZIE'
+                            WHEN 'W analizie' THEN 'W_ANALIZIE'
+                            WHEN 'W trakcie realizacji' THEN 'W_ANALIZIE'
+                            WHEN 'Oczekuje na dostawce' THEN 'W_ANALIZIE'
+                            WHEN 'Zaakceptowana' THEN 'ZASADNA'
+                            WHEN 'Odrzucona' THEN 'ODRZUCONA'
+                            WHEN 'Zamknieta' THEN 'ZAMKNIETA'
+                            WHEN 'Zamknięta' THEN 'ZAMKNIETA'
+                            ELSE StatusV2
+                        END
+                        WHERE
+                            -- Pomin korekty z Symfonii flagowane jako POWIAZANA (oczekiwane: Status='Nowa', StatusV2='POWIAZANA')
+                            NOT (StatusV2 = 'POWIAZANA' AND TypReklamacji = 'Faktura korygujaca')
+                            -- Aktualizuj tylko jezeli stary Status sugeruje COS INNEGO niz biezacy StatusV2
+                            AND (
+                                (Status = 'Przyjeta' AND ISNULL(StatusV2,'') NOT IN ('W_ANALIZIE','ZAMKNIETA','ODRZUCONA','ZASADNA','POWIAZANA'))
+                                OR (Status = 'W analizie' AND ISNULL(StatusV2,'') NOT IN ('W_ANALIZIE','ZAMKNIETA','ODRZUCONA','ZASADNA','POWIAZANA'))
+                                OR (Status = 'W trakcie' AND ISNULL(StatusV2,'') NOT IN ('W_ANALIZIE','ZAMKNIETA','ODRZUCONA','ZASADNA','POWIAZANA'))
+                                OR (Status = 'W trakcie realizacji' AND ISNULL(StatusV2,'') NOT IN ('W_ANALIZIE','ZAMKNIETA','ODRZUCONA','ZASADNA','POWIAZANA'))
+                                OR (Status = 'Oczekuje na dostawce' AND ISNULL(StatusV2,'') NOT IN ('W_ANALIZIE','ZAMKNIETA','ODRZUCONA','ZASADNA','POWIAZANA'))
+                                OR (Status = 'Zaakceptowana' AND ISNULL(StatusV2,'') NOT IN ('ZASADNA','ZAMKNIETA','POWIAZANA'))
+                                OR (Status = 'Odrzucona' AND ISNULL(StatusV2,'') <> 'ODRZUCONA')
+                                OR (Status IN ('Zamknieta','Zamknięta') AND ISNULL(StatusV2,'') <> 'ZAMKNIETA')
+                            );
+
+                        -- Defensywny sync 2: dla rekordow ze statusem finalnym ale brakiem UserZakonczenia,
+                        -- wypelnij UserZakonczenia z OsobaRozpatrujaca (jezeli jest) zeby wiersze poprawnie
+                        -- pokazywaly sie w kolumnie 'Zakonczyl'.
+                        UPDATE [dbo].[Reklamacje]
+                        SET UserZakonczenia = OsobaRozpatrujaca,
+                            DataZakonczenia = COALESCE(DataZakonczenia, DataAnalizy, DataZgloszenia, GETDATE())
+                        WHERE ISNULL(StatusV2,'') IN ('ZASADNA','ODRZUCONA','ZAMKNIETA')
+                          AND (UserZakonczenia IS NULL OR UserZakonczenia = '')
+                          AND OsobaRozpatrujaca IS NOT NULL
+                          AND OsobaRozpatrujaca <> '';
+
+                        -- Defensywny sync 3: skopiuj dane osobowe z drugiej strony pary do korekt Symfonia POWIAZANA.
+                        -- Korekty z Symfonii nie maja Zglaszajacego/Rozpatrujacego/Zakonczyl bo to import automatyczny.
+                        -- Zamiast pustych kolumn — pokazuj dane z reki (handlowca) do ktorej sa dolinkowane.
+                        UPDATE k
+                        SET k.UserID            = COALESCE(NULLIF(k.UserID,''),            r.UserID),
+                            k.OsobaRozpatrujaca = COALESCE(NULLIF(k.OsobaRozpatrujaca,''), r.OsobaRozpatrujaca),
+                            k.UserZakonczenia   = COALESCE(NULLIF(k.UserZakonczenia,''),   r.UserZakonczenia),
+                            k.DataZakonczenia   = COALESCE(k.DataZakonczenia,              r.DataZakonczenia),
+                            k.DataAnalizy       = COALESCE(k.DataAnalizy,                  r.DataAnalizy),
+                            k.UserAnalizy       = COALESCE(NULLIF(k.UserAnalizy,''),       r.UserAnalizy)
+                        FROM [dbo].[Reklamacje] k
+                        INNER JOIN [dbo].[Reklamacje] r ON r.Id = k.PowiazanaReklamacjaId
+                        WHERE k.TypReklamacji = 'Faktura korygujaca'
+                          AND k.StatusV2 = 'POWIAZANA'
+                          AND r.TypReklamacji <> 'Faktura korygujaca';
+
+                        -- Defensywny sync 3b: wyczysc osierocone linki (partner usuniety).
+                        -- Korekta z PowiazanaReklamacjaId wskazujacym na nieistniejacy rekord wraca do DO_AKCJI.
+                        UPDATE k
+                        SET k.PowiazanaReklamacjaId = NULL,
+                            k.StatusV2 = CASE WHEN k.TypReklamacji = 'Faktura korygujaca' THEN 'ZGLOSZONA' ELSE k.StatusV2 END,
+                            k.WymagaUzupelnienia = CASE WHEN k.TypReklamacji = 'Faktura korygujaca' THEN 1 ELSE k.WymagaUzupelnienia END,
+                            k.DataPowiazania = NULL,
+                            k.UserPowiazania = NULL
+                        FROM [dbo].[Reklamacje] k
+                        LEFT JOIN [dbo].[Reklamacje] r ON r.Id = k.PowiazanaReklamacjaId
+                        WHERE k.PowiazanaReklamacjaId IS NOT NULL
+                          AND r.Id IS NULL;
+
+                        -- Defensywny sync 4: jezeli ktos uzupelnil PrzyczynaGlowna i/lub AkcjeNaprawcze
+                        -- (czyli rozpatrzyl sprawe), ale OsobaRozpatrujaca pusta — skopiuj z UserAnalizy.
+                        -- Dzieki temu sprawa trafi do PRZYJETE zamiast siedziec w DO_AKCJI.
+                        UPDATE [dbo].[Reklamacje]
+                        SET OsobaRozpatrujaca = UserAnalizy
+                        WHERE (OsobaRozpatrujaca IS NULL OR OsobaRozpatrujaca = '')
+                          AND UserAnalizy IS NOT NULL AND UserAnalizy <> ''
+                          AND (
+                                (PrzyczynaGlowna IS NOT NULL AND LEN(LTRIM(RTRIM(PrzyczynaGlowna))) > 0)
+                             OR (AkcjeNaprawcze   IS NOT NULL AND LEN(LTRIM(RTRIM(AkcjeNaprawcze)))   > 0)
+                          )
+                          AND ISNULL(StatusV2,'ZGLOSZONA') NOT IN ('ZAMKNIETA','ODRZUCONA','POWIAZANA');
 
                         -- Fix: zdejmij WymagaUzupelnienia dla juz rozpatrzonych (nie-ZGLOSZONA)
                         UPDATE [dbo].[Reklamacje]
@@ -503,12 +600,18 @@ namespace Kalendarz1.Reklamacje
                             ISNULL(r.UserZakonczenia, '') AS UserZakonczeniaId,
                             ISNULL(o3.Name, r.UserZakonczenia) AS UserZakonczeniaName,
                             r.DataZakonczenia,
-                            r.DataAnalizy
+                            r.DataAnalizy,
+                            -- Info o powiazanej korekcie (jezeli reklamacja ma partnera typu 'Faktura korygujaca')
+                            kor.NumerDokumentu AS NumerKorekty,
+                            kor.DataZgloszenia AS DataKorekty
                         FROM [dbo].[Reklamacje] r
                         LEFT JOIN [dbo].[operators] o ON r.UserID = o.ID
                         LEFT JOIN [dbo].[operators] o2 ON r.OsobaRozpatrujaca = o2.ID
                         LEFT JOIN [dbo].[operators] o3 ON r.UserZakonczenia = o3.ID
-                        WHERE (r.TypReklamacji <> 'Faktura korygujaca' OR r.DataZgloszenia >= @DataOdKorekt OR ISNULL(r.StatusV2,'ZGLOSZONA') NOT IN ('ZGLOSZONA'))";
+                        LEFT JOIN [dbo].[Reklamacje] kor ON kor.Id = r.PowiazanaReklamacjaId AND kor.TypReklamacji = 'Faktura korygujaca'
+                        WHERE (r.TypReklamacji <> 'Faktura korygujaca' OR r.DataZgloszenia >= @DataOdKorekt OR ISNULL(r.StatusV2,'ZGLOSZONA') NOT IN ('ZGLOSZONA'))
+                          -- Ukryj korekty z Symfonii ze statusem POWIAZANA — sprawa jest u handlowca, nie potrzeba duplikatu
+                          AND NOT (r.TypReklamacji = 'Faktura korygujaca' AND ISNULL(r.StatusV2,'') = 'POWIAZANA')";
 
                     string statusFilter = (cmbStatus.SelectedItem as ComboBoxItem)?.Content?.ToString();
                     string statusV2Filter = statusFilter switch
@@ -610,7 +713,9 @@ namespace Kalendarz1.Reklamacje
                                     UserZakonczeniaId = reader.IsDBNull(21) ? "" : reader.GetString(21),
                                     UserZakonczenia = reader.IsDBNull(22) ? "" : reader.GetString(22),
                                     DataZakonczenia = reader.IsDBNull(23) ? (DateTime?)null : reader.GetDateTime(23),
-                                    DataAnalizy = reader.IsDBNull(24) ? (DateTime?)null : reader.GetDateTime(24)
+                                    DataAnalizy = reader.IsDBNull(24) ? (DateTime?)null : reader.GetDateTime(24),
+                                    NumerKorektyPowiazanej = reader.IsDBNull(25) ? null : reader.GetString(25),
+                                    DataKorektyPowiazanej = reader.IsDBNull(26) ? (DateTime?)null : reader.GetDateTime(26)
                                 };
                                 item2.ZglaszajacyAvatar = GetCachedAvatar(item2.ZglaszajacyId, item2.Zglaszajacy);
                                 item2.RozpatrujacyAvatar = GetCachedAvatar(item2.RozpatrujacyId, item2.OsobaRozpatrujaca);
@@ -743,22 +848,30 @@ namespace Kalendarz1.Reklamacje
 
                     DateTime dataOdKorekt = PobierzDataOdKorekt();
 
-                    // Licz wg KategoriaZakladki - dokladnie tak jak zakladki
+                    // Licz wg KategoriaZakladki — logika zsynchronizowana ze StatusyV2.KategoriaZakladki:
+                    //  ZAMKNIETE: ktos zakonczyl LUB status finalny
+                    //  W_TOKU:    ktos rozpatruje LUB W_ANALIZIE
+                    //  DO_AKCJI:  pozostale
                     string query = @"
                         SELECT
                             CASE
+                                WHEN UserZakonczenia IS NOT NULL AND LEN(LTRIM(RTRIM(UserZakonczenia))) > 0 THEN 'ZAMKNIETE'
                                 WHEN ISNULL(StatusV2,'ZGLOSZONA') IN ('ZAMKNIETA','ODRZUCONA','POWIAZANA','ZASADNA') THEN 'ZAMKNIETE'
-                                WHEN ISNULL(StatusV2,'ZGLOSZONA') = 'ZGLOSZONA' OR ISNULL(WymagaUzupelnienia,0) = 1 THEN 'DO_AKCJI'
-                                ELSE 'W_TOKU'
+                                WHEN OsobaRozpatrujaca IS NOT NULL AND LEN(LTRIM(RTRIM(OsobaRozpatrujaca))) > 0 THEN 'W_TOKU'
+                                WHEN ISNULL(StatusV2,'ZGLOSZONA') = 'W_ANALIZIE' THEN 'W_TOKU'
+                                ELSE 'DO_AKCJI'
                             END AS Kategoria,
                             COUNT(*) AS Liczba
                         FROM [dbo].[Reklamacje]
                         WHERE (TypReklamacji <> 'Faktura korygujaca' OR DataZgloszenia >= @DataOdKorekt OR ISNULL(StatusV2,'ZGLOSZONA') NOT IN ('ZGLOSZONA'))
+                          AND NOT (TypReklamacji = 'Faktura korygujaca' AND ISNULL(StatusV2,'') = 'POWIAZANA')
                         GROUP BY
                             CASE
+                                WHEN UserZakonczenia IS NOT NULL AND LEN(LTRIM(RTRIM(UserZakonczenia))) > 0 THEN 'ZAMKNIETE'
                                 WHEN ISNULL(StatusV2,'ZGLOSZONA') IN ('ZAMKNIETA','ODRZUCONA','POWIAZANA','ZASADNA') THEN 'ZAMKNIETE'
-                                WHEN ISNULL(StatusV2,'ZGLOSZONA') = 'ZGLOSZONA' OR ISNULL(WymagaUzupelnienia,0) = 1 THEN 'DO_AKCJI'
-                                ELSE 'W_TOKU'
+                                WHEN OsobaRozpatrujaca IS NOT NULL AND LEN(LTRIM(RTRIM(OsobaRozpatrujaca))) > 0 THEN 'W_TOKU'
+                                WHEN ISNULL(StatusV2,'ZGLOSZONA') = 'W_ANALIZIE' THEN 'W_TOKU'
+                                ELSE 'DO_AKCJI'
                             END";
 
                     using (SqlCommand cmd = new SqlCommand(query, conn))
@@ -821,15 +934,22 @@ namespace Kalendarz1.Reklamacje
 
         private void DgReklamacje_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            bool selected = dgReklamacje.SelectedItem != null;
-            btnUzupelnij.IsEnabled = selected;
-            btnSzczegoly.IsEnabled = selected;
-            btnUsun.IsEnabled = selected;
+            int n = dgReklamacje.SelectedItems?.Count ?? 0;
+            bool selected = n >= 1;
+            bool single = n == 1;
+            btnUzupelnij.IsEnabled = single;
+            btnSzczegoly.IsEnabled = single;
+            btnUsun.IsEnabled = single;
 
-            // Workflow V2: kontekstowa widocznosc przyciskow
-            UstawKontekstoweAkcje(dgReklamacje.SelectedItem as ReklamacjaItem);
+            // Workflow V2: kontekstowa widocznosc przyciskow (tylko dla pojedynczego zaznaczenia)
+            UstawKontekstoweAkcje(single ? dgReklamacje.SelectedItem as ReklamacjaItem : null);
 
-            if (selected && dgReklamacje.SelectedItem is ReklamacjaItem item)
+            if (n >= 2)
+            {
+                txtZaznaczenie.Text = $"Zaznaczono {n} reklamacji — uzyj paska akcji masowych powyzej";
+                if (paneleAkcji != null) paneleAkcji.Visibility = Visibility.Collapsed;
+            }
+            else if (single && dgReklamacje.SelectedItem is ReklamacjaItem item)
             {
                 string etykieta = StatusyV2.Etykieta(item.StatusV2);
                 txtZaznaczenie.Text = $"Wybrano: #{item.Id} - {item.NazwaKontrahenta} ({etykieta})";
@@ -837,9 +957,11 @@ namespace Kalendarz1.Reklamacje
             }
             else
             {
-                txtZaznaczenie.Text = "👈 Wybierz reklamacje z listy aby zobaczyc dostepne akcje";
+                txtZaznaczenie.Text = "👈 Wybierz reklamacje z listy (Ctrl+klik / Shift+klik = wiele)";
                 if (paneleAkcji != null) paneleAkcji.Visibility = Visibility.Collapsed;
             }
+
+            OdswiezBulkBar();
         }
 
         // ============================================================
@@ -1246,10 +1368,15 @@ namespace Kalendarz1.Reklamacje
             string s = item.StatusV2 ?? StatusyV2.ZGLOSZONA;
             bool jestKorekta = item.TypReklamacji == "Faktura korygujaca" || item.WymagaUzupelnienia;
 
+            // Jezeli ktos juz przyjal (wpisany jako OsobaRozpatrujaca), traktuj sprawe jako 'w toku'
+            // niezaleznie od StatusV2 — w tej sytuacji powinno byc mozna zatwierdzic/odrzucic.
+            bool ktosRozpatruje = !string.IsNullOrWhiteSpace(item.OsobaRozpatrujaca);
+
             switch (s)
             {
                 case StatusyV2.ZGLOSZONA:
-                    btnPrzekazAnaliza.IsEnabled = true;
+                    btnPrzekazAnaliza.IsEnabled = !ktosRozpatruje; // jezeli juz ktos przyjal — chowamy Przyjmij
+                    btnZasadna.IsEnabled = ktosRozpatruje;          // mozna zatwierdzic od razu jezeli juz ktos sie zajal
                     btnNiezasadna.IsEnabled = true;
                     if (jestKorekta) btnPowiaz.IsEnabled = true;
                     break;
@@ -3453,17 +3580,17 @@ namespace Kalendarz1.Reklamacje
 
             txtOpisZakladki.Text = kategoria switch
             {
-                "DO_AKCJI" => "Nowe zgloszenia + korekty bez reklamacji — wymagaja decyzji",
-                "W_TOKU" => "Przyjete do rozpatrzenia przez dzial jakosci",
-                "ZAMKNIETE" => "Zaakceptowane, odrzucone, powiazane lub zamkniete",
+                "DO_AKCJI" => "Nowe zgloszenia czekaja az ktos je przyjmie",
+                "W_TOKU" => "Sprawy w trakcie rozpatrywania",
+                "ZAMKNIETE" => "Sprawy zakonczone — uznane, odrzucone lub zamkniete",
                 _ => ""
             };
 
             txtTytulListy.Text = kategoria switch
             {
-                "DO_AKCJI" => "DO AKCJI - wymagaja decyzji",
-                "W_TOKU" => "PRZYJETE - w trakcie rozpatrywania",
-                "ZAMKNIETE" => "ZAMKNIETE",
+                "DO_AKCJI" => "Do zrobienia",
+                "W_TOKU" => "W toku",
+                "ZAMKNIETE" => "Historia",
                 _ => "Lista reklamacji"
             };
 
@@ -3530,7 +3657,9 @@ namespace Kalendarz1.Reklamacje
         // ========================================
         private void BtnNowaSplit_Click(object sender, RoutedEventArgs e)
         {
-            if (popupNowa != null) popupNowa.IsOpen = !popupNowa.IsOpen;
+            // Smart wizard - bez wyboru typu, tylko: 1) wybierz klienta, 2) system pokaze co mozna zrobic
+            if (popupNowa != null) popupNowa.IsOpen = false;
+            BtnNowaBezFaktury_Click(sender, e);
         }
 
         private void MenuNowa_DoFaktury_Click(object sender, RoutedEventArgs e)
@@ -3757,6 +3886,26 @@ namespace Kalendarz1.Reklamacje
             }
         }
 
+        // Substring match dla wyszukiwarki kontrahentow — bez polskich znakow, niewrazliwe na wielkosc
+        private static string NormalizujDoSzukania(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return "";
+            var formD = s.Normalize(System.Text.NormalizationForm.FormD);
+            var sb = new System.Text.StringBuilder(formD.Length);
+            foreach (var ch in formD)
+            {
+                var uc = System.Globalization.CharUnicodeInfo.GetUnicodeCategory(ch);
+                if (uc != System.Globalization.UnicodeCategory.NonSpacingMark) sb.Append(ch);
+            }
+            return sb.ToString().Normalize(System.Text.NormalizationForm.FormC).ToLowerInvariant();
+        }
+
+        private static bool KontrahentPasuje(string pole, string fragment)
+        {
+            if (string.IsNullOrWhiteSpace(pole)) return false;
+            return NormalizujDoSzukania(pole).Contains(NormalizujDoSzukania(fragment));
+        }
+
         // ========================================
         // ETAP 3: Zgloszenie BEZ faktury korygujacej
         // Flow: wybierz kontrahenta -> pokaz jego 15 ostatnich faktur -> wybierz
@@ -3772,7 +3921,7 @@ namespace Kalendarz1.Reklamacje
                 {
                     connH.Open();
                     using (var cmd = new SqlCommand(@"
-                        SELECT TOP 2000 id, shortcut, ISNULL(name, shortcut) AS name
+                        SELECT id, shortcut, ISNULL(name, shortcut) AS name
                         FROM [HANDEL].[SSCommon].[STContractors]
                         WHERE shortcut NOT LIKE 'SD/%'
                         ORDER BY shortcut", connH))
@@ -3827,12 +3976,12 @@ namespace Kalendarz1.Reklamacje
             var hdrStack = new StackPanel();
             hdrStack.Children.Add(new TextBlock
             {
-                Text = "NOWA REKLAMACJA - BEZ FAKTURY KORYGUJACEJ",
+                Text = "NOWA REKLAMACJA",
                 FontSize = 16, FontWeight = FontWeights.Bold, Foreground = Brushes.White
             });
             hdrStack.Children.Add(new TextBlock
             {
-                Text = "1) Wybierz kontrahenta   2) Wybierz fakture bazowa z jego 15 ostatnich   3) Wypelnij reklamacje",
+                Text = "1) Wybierz klienta   2) System sprawdzi czy ma niepowiazane korekty   3) Wybierz fakture lub zglos bez faktury",
                 FontSize = 11.5,
                 Foreground = new SolidColorBrush(Color.FromArgb(220, 255, 255, 255)),
                 Margin = new Thickness(0, 4, 0, 0)
@@ -3843,12 +3992,13 @@ namespace Kalendarz1.Reklamacje
 
             // Body — pionowy grid zeby DataGrid z towarami mogl rozciagac sie na *
             var form = new Grid { Margin = new Thickness(28, 20, 28, 14) };
-            form.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto });
-            form.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto });
-            form.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto });
-            form.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto });
-            form.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto });
-            form.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            form.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto }); // 0: lblKontr
+            form.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto }); // 1: cbKontrahent
+            form.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto }); // 2: BANNER niepowiazanych korekt (Auto-podpowiedz)
+            form.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto }); // 3: lblFakt
+            form.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto }); // 4: cbFaktura
+            form.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto }); // 5: txtStatus
+            form.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // 6: towary card
 
             TextBlock Label(string text) => new TextBlock
             {
@@ -3866,22 +4016,99 @@ namespace Kalendarz1.Reklamacje
             var cbKontrahent = new ComboBox
             {
                 IsEditable = true,
-                IsTextSearchEnabled = true,
+                IsTextSearchEnabled = false,
                 StaysOpenOnEdit = true,
                 FontSize = 14,
                 Padding = new Thickness(12, 10, 12, 10),
                 Margin = new Thickness(0, 0, 0, 16),
-                ItemsSource = kontrahenci,
-                DisplayMemberPath = "Shortcut",
+                MaxDropDownHeight = 360,
                 BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#DDE2E6")),
                 BorderThickness = new Thickness(1.5)
             };
+
+            // ItemTemplate: skrot (pogrubiony) + pelna nazwa (mniejsza, szara) — handlowiec widzi obie wersje z Symfonii
+            var dtKontr = new DataTemplate();
+            var spK = new FrameworkElementFactory(typeof(StackPanel));
+            spK.SetValue(StackPanel.MarginProperty, new Thickness(2));
+            var tbShortcut = new FrameworkElementFactory(typeof(TextBlock));
+            tbShortcut.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("Shortcut"));
+            tbShortcut.SetValue(TextBlock.FontWeightProperty, FontWeights.SemiBold);
+            tbShortcut.SetValue(TextBlock.FontSizeProperty, 12.5);
+            tbShortcut.SetValue(TextBlock.ForegroundProperty, new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2C3E50")));
+            spK.AppendChild(tbShortcut);
+            var tbName = new FrameworkElementFactory(typeof(TextBlock));
+            tbName.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("Name"));
+            tbName.SetValue(TextBlock.FontSizeProperty, 10.5);
+            tbName.SetValue(TextBlock.ForegroundProperty, new SolidColorBrush((Color)ColorConverter.ConvertFromString("#7F8C8D")));
+            tbName.SetValue(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis);
+            spK.AppendChild(tbName);
+            dtKontr.VisualTree = spK;
+            cbKontrahent.ItemTemplate = dtKontr;
+
+            // CollectionView z filtrem — szuka po skrocie I po pelnej nazwie, fragment, bez polskich znakow, niewrazliwe na wielkosc
+            var kontrView = System.Windows.Data.CollectionViewSource.GetDefaultView(kontrahenci);
+            string aktualnyFiltrKontr = "";
+            kontrView.Filter = obj =>
+            {
+                if (string.IsNullOrWhiteSpace(aktualnyFiltrKontr)) return true;
+                if (obj is not KontrahentItem k) return false;
+                return KontrahentPasuje(k.Shortcut, aktualnyFiltrKontr) || KontrahentPasuje(k.Name, aktualnyFiltrKontr);
+            };
+            cbKontrahent.ItemsSource = kontrView;
             Grid.SetRow(cbKontrahent, 1);
             form.Children.Add(cbKontrahent);
 
+            // Filtrowanie + auto-otwieranie dropdownu podczas pisania
+            bool aktualizacjaTekstuZWyboru = false;
+            cbKontrahent.AddHandler(System.Windows.Controls.Primitives.TextBoxBase.TextChangedEvent,
+                new TextChangedEventHandler((s, ev) =>
+                {
+                    if (aktualizacjaTekstuZWyboru) return;
+                    aktualnyFiltrKontr = cbKontrahent.Text?.Trim() ?? "";
+                    kontrView.Refresh();
+                    cbKontrahent.IsDropDownOpen = !string.IsNullOrWhiteSpace(aktualnyFiltrKontr);
+                }));
+            cbKontrahent.AddHandler(System.Windows.Controls.Primitives.Selector.SelectionChangedEvent,
+                new SelectionChangedEventHandler((s, ev) =>
+                {
+                    if (cbKontrahent.SelectedItem is KontrahentItem)
+                    {
+                        aktualizacjaTekstuZWyboru = true;
+                        try { cbKontrahent.Dispatcher.BeginInvoke(new Action(() => aktualizacjaTekstuZWyboru = false), DispatcherPriority.Background); }
+                        catch { aktualizacjaTekstuZWyboru = false; }
+                    }
+                }));
+
+            // BANNER niepowiazanych korekt klienta — auto-podpowiedz powiazania
+            var bannerKorekt = new Border
+            {
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFF8E1")),
+                BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F39C12")),
+                BorderThickness = new Thickness(1.5),
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(14, 10, 14, 10),
+                Margin = new Thickness(0, 0, 0, 14),
+                Visibility = Visibility.Collapsed,
+                Cursor = Cursors.Hand
+            };
+            var bannerStack = new StackPanel { Orientation = Orientation.Horizontal };
+            var bannerIkona = new TextBlock { Text = "⚠", FontSize = 22, Margin = new Thickness(0, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center, Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E67E22")) };
+            var bannerTextStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            var bannerTitle = new TextBlock { Text = "Klient ma niepowiazane korekty z Symfonii", FontWeight = FontWeights.Bold, FontSize = 13, Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#7E5109")) };
+            var bannerSubtitle = new TextBlock { Text = "", FontSize = 11, Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#9C640C")), Margin = new Thickness(0, 2, 0, 0) };
+            bannerTextStack.Children.Add(bannerTitle);
+            bannerTextStack.Children.Add(bannerSubtitle);
+            bannerStack.Children.Add(bannerIkona);
+            bannerStack.Children.Add(bannerTextStack);
+            var bannerArrow = new TextBlock { Text = " →  Pokaz", FontSize = 12, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(20, 0, 0, 0), Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#D35400")) };
+            bannerStack.Children.Add(bannerArrow);
+            bannerKorekt.Child = bannerStack;
+            Grid.SetRow(bannerKorekt, 2);
+            form.Children.Add(bannerKorekt);
+
             // FAKTURA
             var lblFakt = Label("FAKTURA BAZOWA * (15 ostatnich dla wybranego kontrahenta)");
-            Grid.SetRow(lblFakt, 2);
+            Grid.SetRow(lblFakt, 3);
             form.Children.Add(lblFakt);
 
             var cbFaktura = new ComboBox
@@ -3893,7 +4120,7 @@ namespace Kalendarz1.Reklamacje
                 BorderThickness = new Thickness(1.5),
                 IsEnabled = false
             };
-            Grid.SetRow(cbFaktura, 3);
+            Grid.SetRow(cbFaktura, 4);
             form.Children.Add(cbFaktura);
 
             var txtStatus = new TextBlock
@@ -3904,7 +4131,7 @@ namespace Kalendarz1.Reklamacje
                 Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#95A5A6")),
                 Margin = new Thickness(2, 0, 0, 12)
             };
-            Grid.SetRow(txtStatus, 4);
+            Grid.SetRow(txtStatus, 5);
             form.Children.Add(txtStatus);
 
             // SEKCJA TOWARÓW (pojawia się po wyborze faktury)
@@ -4021,7 +4248,7 @@ namespace Kalendarz1.Reklamacje
             towaryRoot.Children.Add(towaryFooter);
 
             towaryCard.Child = towaryRoot;
-            Grid.SetRow(towaryCard, 5);
+            Grid.SetRow(towaryCard, 6);
             form.Children.Add(towaryCard);
 
             // Empty state - pokazywany gdy nic nie wybrano
@@ -4035,7 +4262,7 @@ namespace Kalendarz1.Reklamacje
                 VerticalAlignment = VerticalAlignment.Center,
                 Visibility = Visibility.Visible
             };
-            Grid.SetRow(towaryEmpty, 5);
+            Grid.SetRow(towaryEmpty, 6);
             form.Children.Add(towaryEmpty);
 
             Grid.SetRow(form, 1);
@@ -4077,6 +4304,19 @@ namespace Kalendarz1.Reklamacje
                 Margin = new Thickness(0, 0, 10, 0),
                 IsCancel = true
             };
+            // Przycisk "Bez faktury" — wymagane dla zgloszen prewencyjnych (faktura jeszcze niewystawiona)
+            var btnBezFaktury = new Button
+            {
+                Content = "Bez faktury  ›",
+                Padding = new Thickness(20, 10, 20, 10),
+                FontSize = 12,
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#9B59B6")),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Cursor = Cursors.Hand,
+                Margin = new Thickness(0, 0, 10, 0),
+                ToolTip = "Zglos reklamacje bez wskazywania faktury (np. faktura jeszcze niewystawiona)"
+            };
             var btnDalej = new Button
             {
                 Content = "Dalej  →",
@@ -4090,6 +4330,7 @@ namespace Kalendarz1.Reklamacje
                 IsEnabled = false
             };
             footerStack.Children.Add(btnAnuluj);
+            footerStack.Children.Add(btnBezFaktury);
             footerStack.Children.Add(btnDalej);
             Grid.SetColumn(footerStack, 1);
             footerGrid.Children.Add(footerStack);
@@ -4171,18 +4412,62 @@ namespace Kalendarz1.Reklamacje
                 txtStatus.Text = $"Zaladowano {faktury.Count} ostatnich faktur. Wybierz z listy.";
             };
 
+            // Sprawdz niepowiazane korekty Symfonia dla klienta
+            Action<KontrahentItem> sprawdzNiepowiazaneKorekty = (kh) =>
+            {
+                bannerKorekt.Visibility = Visibility.Collapsed;
+                if (kh == null) return;
+                try
+                {
+                    using (var conn = new SqlConnection(connectionString))
+                    {
+                        conn.Open();
+                        // Znajdz niepowiazane korekty z Symfonii dla tego klienta
+                        using (var cmd = new SqlCommand(@"
+                            SELECT COUNT(*)
+                            FROM [dbo].[Reklamacje]
+                            WHERE TypReklamacji = 'Faktura korygujaca'
+                              AND IdKontrahenta = @Khid
+                              AND ISNULL(StatusV2,'ZGLOSZONA') = 'ZGLOSZONA'
+                              AND ISNULL(WymagaUzupelnienia,0) = 1
+                              AND (PowiazanaReklamacjaId IS NULL OR PowiazanaReklamacjaId = 0)", conn))
+                        {
+                            cmd.Parameters.AddWithValue("@Khid", kh.Id);
+                            int n = Convert.ToInt32(cmd.ExecuteScalar() ?? 0);
+                            if (n > 0)
+                            {
+                                bannerSubtitle.Text = $"{n} niepowiazana(e) korekta(y) — chcesz powiazac z ktoras zamiast tworzyc nowa?";
+                                bannerKorekt.Visibility = Visibility.Visible;
+                            }
+                        }
+                    }
+                }
+                catch { }
+            };
+            // Klik na banner → zamknij wizard, otworz picker korekt
+            bannerKorekt.MouseLeftButtonUp += (s, ev) =>
+            {
+                dialog.Close();
+                PokazPickerKorekty();
+            };
+
             cbKontrahent.SelectionChanged += (s, ev) =>
             {
-                if (cbKontrahent.SelectedItem is KontrahentItem k) zaladujFaktury(k);
+                if (cbKontrahent.SelectedItem is KontrahentItem k)
+                {
+                    zaladujFaktury(k);
+                    sprawdzNiepowiazaneKorekty(k);
+                }
             };
-            // Pozwalamy tez na zatwierdzenie po wyszukaniu przez text (edit box)
+            // Pozwalamy tez na zatwierdzenie po wyszukaniu przez text (edit box) — najpierw exact, potem startsWith, potem substring po skrocie LUB nazwie
             cbKontrahent.LostFocus += (s, ev) =>
             {
                 if (cbKontrahent.SelectedItem == null && !string.IsNullOrWhiteSpace(cbKontrahent.Text))
                 {
                     string tekst = cbKontrahent.Text.Trim();
-                    var dopasowany = kontrahenci.FirstOrDefault(x => x.Shortcut != null && x.Shortcut.Equals(tekst, StringComparison.OrdinalIgnoreCase))
-                                  ?? kontrahenci.FirstOrDefault(x => x.Shortcut != null && x.Shortcut.StartsWith(tekst, StringComparison.OrdinalIgnoreCase));
+                    var dopasowany = kontrahenci.FirstOrDefault(x => !string.IsNullOrEmpty(x.Shortcut) && x.Shortcut.Equals(tekst, StringComparison.OrdinalIgnoreCase))
+                                  ?? kontrahenci.FirstOrDefault(x => !string.IsNullOrEmpty(x.Shortcut) && x.Shortcut.StartsWith(tekst, StringComparison.OrdinalIgnoreCase))
+                                  ?? kontrahenci.FirstOrDefault(x => KontrahentPasuje(x.Shortcut, tekst) || KontrahentPasuje(x.Name, tekst));
                     if (dopasowany != null)
                     {
                         cbKontrahent.SelectedItem = dopasowany;
@@ -4285,6 +4570,35 @@ namespace Kalendarz1.Reklamacje
                     wybrana.IdKontrahenta,
                     wybrana.NumerDokumentu,
                     wybrana.NazwaKontrahenta,
+                    userId,
+                    connectionString);
+                okno.Owner = this;
+                if (okno.ShowDialog() == true)
+                {
+                    WczytajReklamacje();
+                    WczytajStatystyki();
+                }
+            };
+
+            // BEZ FAKTURY — wymaga tylko klienta, otwiera formularz reklamacji bez wskazania dokumentu
+            btnBezFaktury.Click += (s, ev) =>
+            {
+                if (!(cbKontrahent.SelectedItem is KontrahentItem kh))
+                {
+                    MessageBox.Show("Najpierw wybierz klienta.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+                if (MessageBox.Show(
+                    $"Utworzyc reklamacje bez faktury dla klienta {kh.Shortcut}?\n\nMozesz pozniej powiazac z faktura przez panel jakosci.",
+                    "Bez faktury", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+
+                dialog.Close();
+                var okno = new FormReklamacjaWindow(
+                    HandelConnString,
+                    0,                  // idDokumentu = 0 (bez faktury)
+                    kh.Id,
+                    "",                 // numer dokumentu pusty
+                    kh.Shortcut,
                     userId,
                     connectionString);
                 okno.Owner = this;
@@ -5647,14 +5961,20 @@ namespace Kalendarz1.Reklamacje
             }
             OdswiezBulkBar();
         }
+        private List<ReklamacjaItem> PobierzZaznaczoneBulk()
+        {
+            if (dgReklamacje?.SelectedItems == null) return new List<ReklamacjaItem>();
+            return dgReklamacje.SelectedItems.OfType<ReklamacjaItem>().ToList();
+        }
+
         private void BulkOdznacz_Click(object sender, RoutedEventArgs e)
         {
-            foreach (var item in reklamacje) item.IsBulkSelected = false;
+            dgReklamacje?.UnselectAll();
             OdswiezBulkBar();
         }
         private void BulkExport_Click(object sender, RoutedEventArgs e)
         {
-            var zaznaczone = reklamacje.Where(r => r.IsBulkSelected).ToList();
+            var zaznaczone = PobierzZaznaczoneBulk();
             if (zaznaczone.Count == 0) { MessageBox.Show("Brak zaznaczonych reklamacji.", "Bulk Export", MessageBoxButton.OK, MessageBoxImage.Information); return; }
             // Tymczasowo zamien ItemsSource na zaznaczone i wywolaj istniejacy export
             try
@@ -5679,9 +5999,79 @@ namespace Kalendarz1.Reklamacje
         }
         private static string Csv(string s) => string.IsNullOrEmpty(s) ? "" : s.Replace(";", ",").Replace("\r", " ").Replace("\n", " ");
 
+        private void BulkPrzyjmij_Click(object sender, RoutedEventArgs e)
+        {
+            var zaznaczone = PobierzZaznaczoneBulk();
+            if (zaznaczone.Count == 0) return;
+            if (MessageBox.Show($"Przyjac do rozpatrzenia {zaznaczone.Count} reklamacji?\n\nStatus -> W_ANALIZIE, jako rozpatrujacy zostaniesz przypisany Ty (jezeli pole bylo puste).",
+                "Bulk Przyjmij", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+            int ok = 0;
+            foreach (var r in zaznaczone)
+            {
+                try { UstawStatusV2Workflow(r.Id, StatusyV2.W_ANALIZIE, null, null, null, null, true); ok++; } catch { }
+            }
+            MessageBox.Show($"Przyjeto {ok} z {zaznaczone.Count} reklamacji.", "Bulk Przyjmij", MessageBoxButton.OK, MessageBoxImage.Information);
+            WczytajReklamacje();
+            WczytajStatystyki();
+        }
+        private void BulkZatwierdz_Click(object sender, RoutedEventArgs e)
+        {
+            var zaznaczone = PobierzZaznaczoneBulk();
+            if (zaznaczone.Count == 0) return;
+            if (MessageBox.Show($"Zatwierdzic {zaznaczone.Count} reklamacji jako zasadne?\n\nStatus -> ZASADNA dla wszystkich.",
+                "Bulk Zatwierdz", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+            int ok = 0;
+            foreach (var r in zaznaczone)
+            {
+                try { UstawStatusV2Workflow(r.Id, StatusyV2.ZASADNA, null, null, null, null, true); ok++; } catch { }
+            }
+            MessageBox.Show($"Zatwierdzono {ok} z {zaznaczone.Count} reklamacji.", "Bulk Zatwierdz", MessageBoxButton.OK, MessageBoxImage.Information);
+            WczytajReklamacje();
+            WczytajStatystyki();
+        }
+        private void BulkOdrzuc_Click(object sender, RoutedEventArgs e)
+        {
+            var zaznaczone = PobierzZaznaczoneBulk();
+            if (zaznaczone.Count == 0) return;
+
+            // Wymagamy podania powodu (zostanie dopisany do NotatkiJakosci kazdej reklamacji)
+            var dlg = new Window { Title = "Odrzucic zaznaczone reklamacje", Width = 480, Height = 280, WindowStartupLocation = WindowStartupLocation.CenterOwner, Owner = this, ResizeMode = ResizeMode.NoResize, Background = Brushes.WhiteSmoke };
+            var sp = new StackPanel { Margin = new Thickness(20) };
+            sp.Children.Add(new TextBlock { Text = $"Odrzucic {zaznaczone.Count} reklamacji?", FontSize = 14, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 6) });
+            sp.Children.Add(new TextBlock { Text = "Powod odrzucenia (zostanie dopisany do notatki jakosci):", FontSize = 11, Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#7F8C8D")), Margin = new Thickness(0, 0, 0, 6) });
+            var txt = new TextBox { Height = 90, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, FontSize = 12, Padding = new Thickness(8) };
+            sp.Children.Add(txt);
+            var bp = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 14, 0, 0) };
+            var btnAnu = new Button { Content = "Anuluj", Width = 90, Height = 32, Margin = new Thickness(0, 0, 8, 0), IsCancel = true };
+            var btnOk = new Button { Content = "Odrzuc", Width = 110, Height = 32, Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E74C3C")), Foreground = Brushes.White, FontWeight = FontWeights.SemiBold, IsDefault = true };
+            btnAnu.Click += (s2, e2) => dlg.Close();
+            btnOk.Click += (s2, e2) =>
+            {
+                string powod = txt.Text?.Trim();
+                if (string.IsNullOrEmpty(powod))
+                {
+                    MessageBox.Show("Podaj powod odrzucenia.", "Brak powodu", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+                int ok = 0;
+                foreach (var r in zaznaczone)
+                {
+                    try { UstawStatusV2Workflow(r.Id, StatusyV2.ODRZUCONA, null, powod, null, null, true); ok++; } catch { }
+                }
+                dlg.Close();
+                MessageBox.Show($"Odrzucono {ok} z {zaznaczone.Count} reklamacji.", "Bulk Odrzuc", MessageBoxButton.OK, MessageBoxImage.Information);
+                WczytajReklamacje();
+                WczytajStatystyki();
+            };
+            bp.Children.Add(btnAnu);
+            bp.Children.Add(btnOk);
+            sp.Children.Add(bp);
+            dlg.Content = sp;
+            dlg.ShowDialog();
+        }
         private void BulkZamknij_Click(object sender, RoutedEventArgs e)
         {
-            var zaznaczone = reklamacje.Where(r => r.IsBulkSelected).ToList();
+            var zaznaczone = PobierzZaznaczoneBulk();
             if (zaznaczone.Count == 0) return;
             if (MessageBox.Show($"Zamknac {zaznaczone.Count} zaznaczonych reklamacji?\n\nStatus zmieni sie na ZAMKNIETA dla wszystkich.",
                 "Bulk Zamknij", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
@@ -5701,7 +6091,7 @@ namespace Kalendarz1.Reklamacje
         }
         private void BulkPriorytet_Click(object sender, RoutedEventArgs e)
         {
-            var zaznaczone = reklamacje.Where(r => r.IsBulkSelected).ToList();
+            var zaznaczone = PobierzZaznaczoneBulk();
             if (zaznaczone.Count == 0) return;
             // Maly dialog wyboru priorytetu
             var dlg = new Window { Title = "Zmien priorytet", Width = 320, Height = 220, WindowStartupLocation = WindowStartupLocation.CenterOwner, Owner = this, ResizeMode = ResizeMode.NoResize };
@@ -5745,10 +6135,11 @@ namespace Kalendarz1.Reklamacje
 
         private void OdswiezBulkBar()
         {
-            int n = reklamacje.Count(r => r.IsBulkSelected);
+            int n = dgReklamacje?.SelectedItems?.Count ?? 0;
             if (bulkActionBar != null)
             {
-                bulkActionBar.Visibility = n > 0 ? Visibility.Visible : Visibility.Collapsed;
+                // Pokazujemy bar dopiero przy >=2 zaznaczonych — przy jednym wierszu wyswietlamy panele akcji szczegolowe
+                bulkActionBar.Visibility = n >= 2 ? Visibility.Visible : Visibility.Collapsed;
                 if (txtBulkCount != null) txtBulkCount.Text = n.ToString();
             }
         }

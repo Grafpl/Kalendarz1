@@ -1,0 +1,489 @@
+//"zestawienie_AS.sc","ITE Zestawienie pojemników_AS","\Procedury\Raporty z menu kartotek\Magazyn\",0,2.1.2,SYSTEM
+/////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////
+#define MAGAZYN_ID 65559
+/////////////////////////////
+ 
+str.Wydruk(0,-1,0)
+Strona 80, 100, 80, 100
+
+
+Long line_nr, i_idkh, i_cnt
+String i_idkhs
+ 
+
+String datap,datak
+String data_aktualna
+
+datak=data()
+datap="2025-01-01"
+
+string zawartosc,nip_kontrahenta,koszty_wydzialowe_miesiaca
+int   plik_we,i
+int id(3)
+string strmsg,nazwaPliku,s1,data_dok,numer_dok
+string sn,cenas,cenacennikowas,nazwa_pliku,sciezka,sciezka2,sTmp
+string adres_edi
+int  nErr,nErr2
+dispatch xTw =xFactory.NewObject("BTowar")
+Dispatch d,conn, rs,rs2
+conn = GetAdoConnection()
+rs2 = "ADODB.Recordset"
+
+Limit 32767
+float paleta
+int wynik_form,err,licznik
+string data_dostawy,godzina_dostawy,data_zamowienia,numer_zamowienia,kto_zamowil
+float wartosc_zamowienia
+string zapytanie1,zapytanie2,kodobcy
+int iErrRs, iErrRs2
+string numer_zos
+long 	kolor = 253
+long 	kolor2 = 254
+long 	colFrame = 16711680
+int ilosc_wz,ilosc_wz_podsumowanie
+
+////tablice
+
+int id_err,id_err2
+/// koniec tablic
+string adres_dostawy(1)
+
+
+//******************************************************************
+
+form "SZABLON ZESTAWIENIE OPAKOWAŃ", 560, 150
+		ground 80,200,200
+
+Datedit "Data początkowa: ",datap,150,20,100,22
+Datedit "Data końcowa: ",   datak,350,20,100,22
+
+	button "&OK", 	  50, 70, 200, 30,2
+	button "&Anuluj", 300, 70, 200, 30, -1
+wynik_form=ExecForm 
+
+if wynik_form<1 then
+	Error ""
+endif
+
+
+
+
+dispatch grid
+/////////////////////////////////   
+
+
+int sub OnExport()
+///////Export zaznaczonych pozycji do excela
+
+Dispatch e
+Limit 32767
+e.Create("Excel.Application")
+e.Workbooks.Add
+e.ActiveWorkbook.Sheets(1).Activate
+e.ActiveWindow.Zoom=170
+e.Visible=1
+//e.DisplayFullScreen=1
+//e.CommandBars("Worksheet Menu Bar").Enabled = 1
+//e.Application.DisplayFormulaBar = 1
+
+int licznik=1
+float licznik_excela=1
+//data_operacjis=d.Range(d.Cells(i,2).address).text
+e.Range(e.Cells(licznik_excela,1).address).value="LP"
+e.Range(e.Cells(licznik_excela,2).address).value="Kontrahent"
+e.Range(e.Cells(licznik_excela,3).address).value="Nr Dokumentu"
+e.Range(e.Cells(licznik_excela,4).address).value="Data Dok."
+e.Range(e.Cells(licznik_excela,5).address).value="opis"
+e.Range(e.Cells(licznik_excela,6).address).value="E2"
+e.Range(e.Cells(licznik_excela,7).address).value="H1"
+e.Range(e.Cells(licznik_excela,8).address).value="Euro"
+e.Range(e.Cells(licznik_excela,9).address).value="Plast."
+e.Range(e.Cells(licznik_excela,10).address).value="Drewno"
+
+e.Range(e.Cells(licznik_excela,1).address).Interior.Color=RGB(200,210,255)
+e.Range(e.Cells(licznik_excela,1).address).Borders.LineStyle = 1
+e.Range(e.Cells(licznik_excela,2).address).Interior.Color=RGB(200,210,255)
+e.Range(e.Cells(licznik_excela,2).address).Borders.LineStyle = 1
+e.Range(e.Cells(licznik_excela,3).address).Interior.Color=RGB(200,210,255)
+e.Range(e.Cells(licznik_excela,3).address).Borders.LineStyle = 1
+e.Range(e.Cells(licznik_excela,4).address).Interior.Color=RGB(200,210,255)
+e.Range(e.Cells(licznik_excela,4).address).Borders.LineStyle = 1
+e.Range(e.Cells(licznik_excela,5).address).Interior.Color=RGB(200,210,255)
+e.Range(e.Cells(licznik_excela,5).address).Borders.LineStyle = 1
+e.Range(e.Cells(licznik_excela,6).address).Interior.Color=RGB(200,210,255)
+e.Range(e.Cells(licznik_excela,6).address).Borders.LineStyle = 1
+e.Range(e.Cells(licznik_excela,7).address).Interior.Color=RGB(200,210,255)
+e.Range(e.Cells(licznik_excela,7).address).Borders.LineStyle = 1
+e.Range(e.Cells(licznik_excela,8).address).Interior.Color=RGB(200,210,255)
+e.Range(e.Cells(licznik_excela,8).address).Borders.LineStyle = 1
+e.Range(e.Cells(licznik_excela,9).address).Interior.Color=RGB(200,210,255)
+e.Range(e.Cells(licznik_excela,9).address).Borders.LineStyle = 1
+e.Range(e.Cells(licznik_excela,10).address).Interior.Color=RGB(200,210,255)
+e.Range(e.Cells(licznik_excela,10).address).Borders.LineStyle = 1
+
+licznik_excela+=1
+
+for licznik=0 to licznik>= grid.RowCount
+	if  grid.Rows(licznik).Tagged ==-1 then 	
+
+		e.Range(e.Cells(licznik_excela,1).address).value=licznik_excela-1
+			e.Range(e.Cells(licznik_excela,1).address).Borders.LineStyle = 1
+		e.Range(e.Cells(licznik_excela,2).address).value=grid.Rows(licznik).Value(1)
+			e.Range(e.Cells(licznik_excela,2).address).Borders.LineStyle = 1
+		e.Range(e.Cells(licznik_excela,3).address).value=grid.Rows(licznik).Value(2)
+			e.Range(e.Cells(licznik_excela,3).address).Borders.LineStyle = 1
+		e.Range(e.Cells(licznik_excela,4).address).value=grid.Rows(licznik).Value(3)
+			e.Range(e.Cells(licznik_excela,4).address).Borders.LineStyle = 1
+		e.Range(e.Cells(licznik_excela,5).address).value=grid.Rows(licznik).Value(4)
+			e.Range(e.Cells(licznik_excela,5).address).Borders.LineStyle = 1
+		e.Range(e.Cells(licznik_excela,6).address).value=grid.Rows(licznik).Value(5)
+			e.Range(e.Cells(licznik_excela,6).address).Borders.LineStyle = 1
+		e.Range(e.Cells(licznik_excela,7).address).value=grid.Rows(licznik).Value(6)
+			e.Range(e.Cells(licznik_excela,7).address).Borders.LineStyle = 1
+		e.Range(e.Cells(licznik_excela,8).address).value=grid.Rows(licznik).Value(7)
+			e.Range(e.Cells(licznik_excela,8).address).Borders.LineStyle = 1
+		e.Range(e.Cells(licznik_excela,9).address).value=grid.Rows(licznik).Value(8)
+			e.Range(e.Cells(licznik_excela,9).address).Borders.LineStyle = 1
+		e.Range(e.Cells(licznik_excela,10).address).value=grid.Rows(licznik).Value(9)
+			e.Range(e.Cells(licznik_excela,10).address).Borders.LineStyle = 1
+
+
+
+	licznik_excela+=1
+endif
+next licznik
+
+
+e.Columns("A:J").AutoFit
+OnExport = 2     
+endsub
+
+
+
+int sub OnCommand(int id, int msg)
+
+
+/////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////
+#define MAGAZYN_ID 65559
+/////////////////////////////
+
+
+
+
+
+i=1
+int nErr
+float cenaBazowaERP,cenaERP
+String ilosc_odczytana,nazwaERP,IdERP
+String kod_towaru
+
+Dispatch d,conn,conn2,conn3, rs,rs2,rs3
+int iErrRs1
+
+String sQuery1,sQuery2,sQuery3,sQuery4
+String skrot
+
+Limit 32767
+
+float ilosc_suma,ilosc_sumap
+String sIlosc_suma,sIlosc_sumap
+String kod1
+float iloscp
+String sIlosc,sIloscP
+float suma_ilosci,suma_iloscip,RWPP_suma,RWP2_suma
+String sSuma_ilosci,sSuma_iloscip,RWPP_sumas
+
+	Long a_magazyn
+	a_magazyn=MAGAZYN_ID
+	String nr_dokumentu, data_dokumentu, opis
+	Long i_iddk
+
+	Long wydano_E2, wydano_H1, wydano_EURO, wydano_PADR
+	Long wydano_dkE2, wydano_dkH1, wydano_dkEURO, wydano_dkPADR
+	Long wydano_Plastik,wydano_dkPlastik	
+	Long wydano_Drewno,wydano_dkDrewno
+
+
+	Long przyjeto_E2, przyjeto_H1, przyjeto_EURO, przyjeto_PADR
+	Long przyjeto_dkE2, przyjeto_dkH1, przyjeto_dkEURO, przyjeto_dkPADR
+	Long przyjeto_Plastik,przyjeto_dkPlastik
+	Long przyjeto_Drewno,przyjeto_dkDrewno
+
+	String tw_kod, saldo_E2, saldo_H1, saldo_EURO, saldo_PADR,saldo_Plastik,saldo_Drewno
+	Long ilosc
+
+	Dispatch cnn = GetAdoConnection()
+	Dispatch rs_dok = "ADODB.recordset"
+	Dispatch rs_poz = "ADODB.recordset"
+	String s_qry
+
+//// odczyt linijki kontrahenta
+	line_nr = SetTaggedPos(FS)
+//// pobranie id kontrahenta
+	i_idkh = GetLineId(line_nr)
+
+///// obiekt kontrahent - zaczytanie danych 
+	Dispatch xKontrahent = xFactory.NewObject("BKontrahent")
+//	xKontrahent = GetObjectById("BKontrahent",i_idkh)
+	i_idkhs=using "%l",i_idkh
+	xKontrahent.Load("id="+i_idkhs)
+
+	if id == 0 && msg == 0 then
+		grid.rowHeader = 3 //htTag
+		grid.ColumnCount = 10
+		err = 0
+			grid.Zoom=135
+			grid.Locked=1
+			grid.Columns(0).name = "Lp"
+			grid.Columns(1).name = "Kontrahent"
+
+			grid.Columns(2).name = "Nr Dokumentu"
+			grid.Columns(3).name = "Data dokumentu"
+			grid.Columns(4).name = "opis"
+			grid.Columns(5).name = "E2"
+			grid.Columns(6).name = "H1"
+			grid.Columns(7).name = "EURO"
+			grid.Columns(8).name = "Plastik."
+			grid.Columns(9).name = "Drewno."
+
+
+  		grid.Columns(0).width = 50
+  		grid.Columns(1).width = 200
+		grid.Columns(2).width = 100
+		grid.Columns(3).width = 100
+		grid.Columns(4).width = 100
+		grid.Columns(5).width = 75
+		grid.Columns(6).width = 40
+		grid.Columns(7).width = 40
+		grid.Columns(8).width = 40
+		grid.Columns(9).width = 40
+	
+		grid.Columns(0).FieldType(0,2) 
+		grid.Columns(1).FieldType(0,40)
+		grid.Columns(2).FieldType(0,26)
+		grid.Columns(3).FieldType(0,26)
+		grid.Columns(4).FieldType(0,13)
+		grid.Columns(5).FieldType(0,45)
+		grid.Columns(6).FieldType(10,20) 
+		grid.Columns(7).FieldType(0,50)
+		grid.Columns(8).FieldType(0,26) 
+		grid.Columns(9).FieldType(0,26) 		
+
+		
+
+
+
+While line_nr
+	PopUp(1,"Wykonanie raportu ...")
+	PopUp(2,(using "Pozycja ...%l",i_cnt+=1))
+	i_idkh = GetLineId(line_nr)
+
+i=1
+	s_qry = "SELECT id, kod, data, opis FROM hm.MG "
+//	s_qry += (using "WHERE khid=%l AND magazyn=%l AND typ_dk IN ('MW1','MP') AND anulowany=0 ORDER BY data desc ",i_idkh,a_magazyn)
+	s_qry +=  "WHERE khid="+(using "%l",i_idkh)+" AND magazyn="+(using "%l",a_magazyn)+" AND typ_dk IN ('MW1','MP') AND anulowany=0 AND data between '"+datap+"' and '"+datak+"' ORDER BY data desc"
+	rs_dok.open(s_qry,cnn,3)
+
+
+	While !rs_dok.EOF
+
+        wydano_dkPlastik=wydano_dkDrewno=wydano_dkE2 = wydano_dkH1 = wydano_dkEURO = wydano_dkPADR = 0
+		przyjeto_dkPlastik=przyjeto_dkDrewno=przyjeto_dkE2 = przyjeto_dkH1 = przyjeto_dkEURO = przyjeto_dkPADR = 0
+
+		
+
+		i_iddk = rs_dok.fields("id").value
+
+		nr_dokumentu = rs_dok.fields("kod").value
+		data_dokumentu = rs_dok.fields("data").value
+		opis = rs_dok.fields("opis").value
+
+
+		s_qry = "SELECT kod, ilosc FROM hm.MZ WHERE super="+(using "%l",i_iddk)
+
+
+		rs_poz.open(s_qry,cnn,3)
+
+		While !rs_poz.EOF
+
+			tw_kod = rs_poz.fields("kod").value
+			ilosc = rs_poz.fields("ilosc").value
+
+
+         If ilosc > 0 Then
+				Select Case tw_kod
+					Case "Pojemnik drobiowy E2"
+	                    wydano_E2 = wydano_E2 + ilosc
+	                    wydano_dkE2 = wydano_dkE2 + ilosc
+					Case "PALETA H1"
+	                    wydano_H1 = wydano_H1 + ilosc
+	                    wydano_dkH1 = wydano_dkH1 + ilosc
+					Case "PALETA EURO"
+	                    wydano_EURO = wydano_EURO + ilosc
+	                    wydano_dkEURO = wydano_dkEURO + ilosc
+					Case "PALETA DREWNIANA JEDNORAZOWA"
+	                   wydano_PADR = wydano_PADR + ilosc
+ 	                   wydano_dkPADR = wydano_dkPADR + ilosc
+					Case "Paleta plastikowa"
+	                   wydano_Plastik = wydano_Plastik + ilosc
+ 	                   wydano_dkPlastik = wydano_dkPlastik + ilosc
+					Case "Paleta Drewniana"
+	                   wydano_Drewno = wydano_Drewno + ilosc
+ 	                   wydano_dkDrewno = wydano_dkDrewno + ilosc
+
+				EndSelect	
+            Else
+				Select Case tw_kod
+					Case "Pojemnik drobiowy E2"
+	                    przyjeto_E2 = przyjeto_E2 - ilosc
+	                    przyjeto_dkE2 = przyjeto_dkE2 - ilosc
+					Case "PALETA H1"
+	                    przyjeto_H1 = przyjeto_H1 - ilosc
+	                    przyjeto_dkH1 = przyjeto_dkH1 - ilosc
+					Case "PALETA EURO"
+	                    przyjeto_EURO = przyjeto_EURO - ilosc
+	                    przyjeto_dkEURO = przyjeto_dkEURO - ilosc
+					Case "PALETA DREWNIANA JEDNORAZOWA"
+	                   przyjeto_PADR = przyjeto_PADR - ilosc
+ 	                   przyjeto_dkPADR = przyjeto_dkPADR - ilosc
+					Case "Paleta plastikowa"
+	                   przyjeto_Plastik = przyjeto_Plastik - ilosc
+ 	                   przyjeto_dkPlastik = przyjeto_dkPlastik - ilosc
+					Case "Paleta Drewniana"
+	                   przyjeto_Drewno = przyjeto_Drewno - ilosc
+ 	                   przyjeto_dkDrewno = przyjeto_dkDrewno - ilosc
+
+				EndSelect	
+            EndIf
+
+			rs_poz.moveNext()
+		wend
+
+        If (wydano_dkE2 + przyjeto_dkE2) != 0 Then
+            saldo_E2 = (using "%l",-(wydano_dkE2 - przyjeto_dkE2))
+        Else
+            saldo_E2 = ""
+        EndIf
+
+        If (wydano_dkH1 + przyjeto_dkH1) != 0 Then
+            saldo_H1 = (using "%l",-(wydano_dkH1 - przyjeto_dkH1))
+        Else
+            saldo_H1 = ""
+        EndIf
+
+        If (wydano_dkEURO + przyjeto_dkEURO) != 0 Then
+            saldo_EURO = (using "%l",-(wydano_dkEURO - przyjeto_dkEURO))
+        Else
+            saldo_EURO = ""
+        EndIf
+
+        If (wydano_dkPADR + przyjeto_dkPADR) != 0 Then
+            saldo_PADR = (using "%l",-(wydano_dkPADR - przyjeto_dkPADR))
+        Else
+            saldo_PADR = ""
+        EndIf
+
+        If (wydano_dkPlastik + przyjeto_dkPLastik) != 0 Then
+            saldo_Plastik = (using "%l",-(wydano_dkPlastik - przyjeto_dkPlastik))
+        Else
+            saldo_Plastik = ""
+        EndIf
+
+      If (wydano_dkDrewno + przyjeto_dkDrewno) != 0 Then
+            saldo_Drewno = (using "%l",-(wydano_dkDrewno - przyjeto_dkDrewno))
+        Else
+            saldo_Drewno = ""
+        EndIf
+
+  
+//////////////////// wczytanie pozycji do GRIDA z pozycji dokumentów ( HM.MZ )
+
+
+						grid.InsertRow(grid.RowCount)   /// dodanie nowej linijki
+						//grid.rows(grid.RowCount-1).cell(2).SetTextColor(Kolor)
+						grid.rows(grid.RowCount-1).cell(0).Alignment = 0
+						grid.rows(grid.RowCount-1).cell(1).Alignment = 0
+
+						grid.rows(grid.RowCount-1).cell(2).Alignment = 0
+						grid.rows(grid.RowCount-1).cell(3).Alignment = 0
+						grid.rows(grid.RowCount-1).cell(4).Alignment = 0
+						grid.rows(grid.RowCount-1).cell(8).Alignment = 0
+						grid.rows(grid.RowCount-1).cell(9).Alignment = 0
+						grid.rows(grid.RowCount-1).cell(5).Alignment = 0
+						grid.rows(grid.RowCount-1).cell(6).Alignment = 0
+						grid.rows(grid.RowCount-1).cell(7).Alignment = 0
+						grid.rows(grid.RowCount-1).cell(8).Alignment = 0
+					//	grid.rows(grid.RowCount-1).cell(7).FrameColor = colFrame
+					//	grid.rows(grid.RowCount-1).cell(7).Alignment = 0
+					//	grid.rows(grid.RowCount-1).cell(7).Bitmap = 14
+                /////////////////wiele pozycji zamówienia			
+						grid.Rows(grid.RowCount-1).Value(0) = using "%.0f",i
+						grid.Rows(grid.RowCount-1).Value(1) = xKontrahent.Nazwa
+
+						grid.Rows(grid.RowCount-1).Value(2) = nr_dokumentu   ////data dokumentu
+ 					    grid.Rows(grid.RowCount-1).Value(3) = data_dokumentu   ////Numer
+					    grid.Rows(grid.RowCount-1).Value(4) = opis///rs.Fields("Wystapienie").Value
+					    grid.Rows(grid.RowCount-1).Value(5) = saldo_E2
+					    grid.Rows(grid.RowCount-1).Value(6) = saldo_H1
+					    grid.Rows(grid.RowCount-1).Value(7) = saldo_EURO
+					    grid.Rows(grid.RowCount-1).Value(8) = saldo_Plastik
+					    grid.Rows(grid.RowCount-1).Value(9) = saldo_Drewno
+i+=1
+
+
+
+ //       Tabela #tbl_2
+ //           Kolumna 1, nr_dokumentu
+ //           Kolumna 2, data_dokumentu
+ //           Kolumna 3, opis
+ //           Kolumna 4, saldo_E2
+ //           Kolumna 5, saldo_H1
+ //           Kolumna 6, saldo_EURO
+ //           Kolumna 7, saldo_PADR
+ //       Koniec
+
+		If rs_poz.state() Then rs_poz.close()
+		rs_dok.moveNext()
+	wend
+
+//	Tabela #tbl_2
+//	    Kolumna 1, ""
+	//    Kolumna 2, ""
+	//    Kolumna 3, "RAZEM:"
+	//    Kolumna 4, (using "%l",wydano_E2 - przyjeto_E2)
+	//    Kolumna 5, (using "%l",wydano_H1 - przyjeto_H1)
+	 //   Kolumna 6, (using "%l",wydano_EURO - przyjeto_EURO)
+	 //   Kolumna 7, (using "%l",wydano_PADR - przyjeto_PADR)//
+//	Koniec
+
+
+	grid.Footer.RowCount=1
+	grid.Footer.Rows(0).Value(4)="SUMA WSZYSTKICH : "
+	grid.Footer.Rows(0).Value(5)=(using "%l",-(wydano_E2 - przyjeto_E2))
+	grid.Footer.Rows(0).Value(6)=(using "%l",-(wydano_H1 - przyjeto_H1))
+	grid.Footer.Rows(0).Value(7)=(using "%l",-(wydano_EURO - przyjeto_EURO))
+	grid.Footer.Rows(0).Value(8)=(using "%l",-(wydano_Plastik - przyjeto_Plastik))
+	grid.Footer.Rows(0).Value(9)=(using "%l",-(wydano_Drewno - przyjeto_Drewno))
+rs_dok.close()
+
+    line_nr = SetTaggedPos(NX)
+Wend
+
+
+
+endif
+//d.Workbooks.close
+//d.quit  
+endsub
+
+
+Form "GENEROWANIE ZESTAWIENIA - OKRES - OD:  "+datap+"     DO:   "+datak, 900, 750
+Control "grid", grid,  10,  10, 975, 605    /// rozliczenie produkcji 
+Button "ANULUJ",		     450, 680, 400, 25, 2
+Button "EXPORT DO EXCELA - ZAZNACZONE DOKUMENTY",     10, 680 ,400, 25, OnExport()
+int rv = ExecForm OnCommand
+
+
+error ""

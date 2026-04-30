@@ -372,16 +372,13 @@
                     <!-- NOWA REKLAMACJA (split) -->
                     <Grid Grid.Column="10" Margin="0,12,6,0" VerticalAlignment="Bottom" Height="30">
                         <Button x:Name="btnNowaSplit" Click="BtnNowaSplit_Click"
-                                Padding="12,4" FontSize="11" FontWeight="Bold"
+                                Padding="14,4" FontSize="11" FontWeight="Bold"
                                 Background="#E74C3C" Foreground="White" BorderThickness="0" Cursor="Hand"
-                                ToolTip="Wybierz typ nowej reklamacji">
+                                ToolTip="Nowa reklamacja - wybierz klienta">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
                                     <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="+ NOWA" FontSize="11" FontWeight="Bold" VerticalAlignment="Center"/>
-                                            <TextBlock Text=" ▾" FontSize="10" Margin="4,0,0,0" VerticalAlignment="Center" Opacity="0.85"/>
-                                        </StackPanel>
+                                        <TextBlock Text="+ NOWA REKLAMACJA" FontSize="11" FontWeight="Bold" VerticalAlignment="Center" Foreground="White"/>
                                     </Border>
                                     <ControlTemplate.Triggers>
                                         <Trigger Property="IsMouseOver" Value="True">
@@ -551,7 +548,7 @@
                                 <ControlTemplate TargetType="Button">
                                     <Border x:Name="tabBorder" Background="#E74C3C" CornerRadius="10" Padding="18,11">
                                         <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="DO AKCJI" FontSize="12" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                                            <TextBlock Text="DO ZROBIENIA" FontSize="12" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
                                             <Border Background="#FFFFFF" CornerRadius="10" Padding="9,2" Margin="10,0,0,0">
                                                 <TextBlock x:Name="txtCntDoAkcji" Text="0" FontSize="11" FontWeight="Bold" Foreground="#E74C3C"/>
                                             </Border>
@@ -567,7 +564,7 @@
                                 <ControlTemplate TargetType="Button">
                                     <Border x:Name="tabBorder" Background="#ECEFF1" CornerRadius="10" Padding="18,11">
                                         <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="PRZYJETE" FontSize="12" FontWeight="Bold" Foreground="#546E7A" VerticalAlignment="Center"/>
+                                            <TextBlock Text="W TOKU" FontSize="12" FontWeight="Bold" Foreground="#546E7A" VerticalAlignment="Center"/>
                                             <Border Background="#546E7A" CornerRadius="10" Padding="9,2" Margin="10,0,0,0">
                                                 <TextBlock x:Name="txtCntWToku" Text="0" FontSize="11" FontWeight="Bold" Foreground="White"/>
                                             </Border>
@@ -583,7 +580,7 @@
                                 <ControlTemplate TargetType="Button">
                                     <Border x:Name="tabBorder" Background="#ECEFF1" CornerRadius="10" Padding="18,11">
                                         <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="ZAMKNIETE" FontSize="12" FontWeight="Bold" Foreground="#546E7A" VerticalAlignment="Center"/>
+                                            <TextBlock Text="HISTORIA" FontSize="12" FontWeight="Bold" Foreground="#546E7A" VerticalAlignment="Center"/>
                                             <Border Background="#546E7A" CornerRadius="10" Padding="9,2" Margin="10,0,0,0">
                                                 <TextBlock x:Name="txtCntZamkniete" Text="0" FontSize="11" FontWeight="Bold" Foreground="White"/>
                                             </Border>
@@ -630,6 +627,8 @@
                                   Style="{StaticResource ModernDataGrid}"
                                   ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
                                   CellStyle="{StaticResource DataGridCellStyle}"
+                                  SelectionMode="Extended"
+                                  SelectionUnit="FullRow"
                                   SelectionChanged="DgReklamacje_SelectionChanged"
                                   MouseDoubleClick="DgReklamacje_MouseDoubleClick">
                             <DataGrid.RowStyle>
@@ -646,11 +645,17 @@
                             </DataGrid.RowStyle>
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Data" Binding="{Binding DataZgloszenia, StringFormat=yyyy-MM-dd}" Width="90"/>
-                                <DataGridTemplateColumn Header="Nr dokumentu" Width="SizeToCells" MinWidth="120" SortMemberPath="NumerDokumentu">
+                                <DataGridTemplateColumn Header="Nr dokumentu" Width="SizeToCells" MinWidth="140" SortMemberPath="NumerDokumentu">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <StackPanel VerticalAlignment="Center">
                                                 <TextBlock Text="{Binding NumerDokumentu}" FontWeight="SemiBold" FontSize="11"/>
+                                                <!-- Sub-info: numer korekty z ksiegowosci (gdy reklamacja ma partnera) -->
+                                                <TextBlock Text="{Binding KorektaSubInfoText}" FontSize="9.5" Foreground="#27AE60"
+                                                           FontWeight="SemiBold"
+                                                           Visibility="{Binding KorektaSubInfoVis}"
+                                                           ToolTip="Polaczona korekta z Symfonii"/>
+                                                <!-- Stary fallback: faktura bazowa (gdy korekta odwoluje sie do faktury sprzedazy) -->
                                                 <TextBlock FontSize="9" Foreground="#F39C12" FontStyle="Italic"
                                                            Visibility="{Binding FakturaBazowaVis}">
                                                     <Run Text="↳ do: "/>
@@ -700,57 +705,17 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTextColumn Header="Typ" Binding="{Binding TypReklamacji}" Width="180"/>
-                                <!-- Powiazanie -->
-                                <DataGridTemplateColumn Header="Powiazanie" Width="95" SortMemberPath="MaPowiazanie">
+                                <DataGridTextColumn Header="Typ" Binding="{Binding TypReklamacjiEtykieta}" Width="180"/>
+                                <!-- Korekta (ikonka 🔗 gdy reklamacja ma powiazana korekte z ksiegowosci) -->
+                                <DataGridTemplateColumn Header="Korekta" Width="60" SortMemberPath="MaPowiazanie">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <Border x:Name="powBorder" CornerRadius="10" Padding="6,2" HorizontalAlignment="Center"
-                                                    Background="#FFEBEE">
-                                                <TextBlock x:Name="powText" Text="{Binding TekstPowiazania}" FontWeight="SemiBold" FontSize="9.5"
-                                                           HorizontalAlignment="Center" Foreground="#C62828"/>
-                                            </Border>
-                                            <DataTemplate.Triggers>
-                                                <DataTrigger Binding="{Binding MaPowiazanie}" Value="True">
-                                                    <Setter TargetName="powBorder" Property="Background" Value="#E8F5E9"/>
-                                                    <Setter TargetName="powText" Property="Foreground" Value="#2E7D32"/>
-                                                </DataTrigger>
-                                            </DataTemplate.Triggers>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-                                <!-- DOWODY: 3 mini-zdjecia inline -->
-                                <DataGridTemplateColumn Header="Dowody" Width="135" SortMemberPath="LiczbaZdjec">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" ToolTip="{Binding ZdjeciaTooltip}">
-                                                <!-- Brak zdjec — placeholder -->
-                                                <Border Visibility="{Binding BrakZdjecVis}" Background="#FAFAFA" BorderBrush="#E0E5E8" BorderThickness="1" CornerRadius="4" Padding="6,3">
-                                                    <TextBlock Text="bez zdjec" FontSize="9" Foreground="#95A5A6" FontStyle="Italic"/>
-                                                </Border>
-                                                <!-- Miniaturka 1 -->
-                                                <Border Visibility="{Binding Miniatura1Vis}" Width="34" Height="34" CornerRadius="3" Margin="0,0,2,0" BorderBrush="#3498DB" BorderThickness="1.5" ClipToBounds="True">
-                                                    <Border.Background>
-                                                        <ImageBrush ImageSource="{Binding Miniatura1}" Stretch="UniformToFill"/>
-                                                    </Border.Background>
-                                                </Border>
-                                                <!-- Miniaturka 2 -->
-                                                <Border Visibility="{Binding Miniatura2Vis}" Width="34" Height="34" CornerRadius="3" Margin="0,0,2,0" BorderBrush="#BDC3C7" BorderThickness="1" ClipToBounds="True">
-                                                    <Border.Background>
-                                                        <ImageBrush ImageSource="{Binding Miniatura2}" Stretch="UniformToFill"/>
-                                                    </Border.Background>
-                                                </Border>
-                                                <!-- Miniaturka 3 -->
-                                                <Border Visibility="{Binding Miniatura3Vis}" Width="34" Height="34" CornerRadius="3" Margin="0,0,2,0" BorderBrush="#BDC3C7" BorderThickness="1" ClipToBounds="True">
-                                                    <Border.Background>
-                                                        <ImageBrush ImageSource="{Binding Miniatura3}" Stretch="UniformToFill"/>
-                                                    </Border.Background>
-                                                </Border>
-                                                <!-- +N nadmiar -->
-                                                <Border Visibility="{Binding WiecejZdjecVis}" Background="#34495E" CornerRadius="10" Padding="5,2" VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding WiecejZdjecText}" FontSize="9" FontWeight="Bold" Foreground="White"/>
-                                                </Border>
-                                            </StackPanel>
+                                            <TextBlock x:Name="powIcon"
+                                                       Text="🔗" FontSize="14"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                       Foreground="#27AE60"
+                                                       Visibility="{Binding PowiazanieIkonaVis}"
+                                                       ToolTip="{Binding PowiazanieTooltip}"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
@@ -876,7 +841,7 @@
                 </Grid>
             </Border>
 
-            <!-- BULK ACTION BAR - widoczny gdy zaznaczono N>0 wierszy checkboxem -->
+            <!-- BULK ACTION BAR - widoczny gdy zaznaczono >=2 wiersze (Ctrl+klik / Shift+klik) -->
             <Border x:Name="bulkActionBar" Grid.Row="2" Visibility="Collapsed"
                     Background="#34495E" CornerRadius="10" Padding="14,8" Margin="6,0,6,4">
                 <Border.Effect>
@@ -892,28 +857,46 @@
                         <Border Background="#3498DB" CornerRadius="12" Padding="8,2" Margin="0,0,8,0">
                             <TextBlock x:Name="txtBulkCount" Text="0" FontSize="13" FontWeight="Bold" Foreground="White"/>
                         </Border>
-                        <TextBlock Text="zaznaczonych reklamacji" FontSize="12" Foreground="White" VerticalAlignment="Center"/>
+                        <TextBlock Text="zaznaczonych  •  Ctrl+klik / Shift+klik = wiele wierszy" FontSize="11.5" Foreground="#ECF0F1" VerticalAlignment="Center"/>
                     </StackPanel>
                     <StackPanel Grid.Column="2" Orientation="Horizontal">
-                        <Button Click="BulkExport_Click" Padding="10,5" Margin="0,0,6,0" FontSize="11" Background="#27AE60" Foreground="White" BorderThickness="0" Cursor="Hand" ToolTip="Eksportuj zaznaczone do Excel">
+                        <Button Click="BulkPrzyjmij_Click" Padding="10,5" Margin="0,0,6,0" FontSize="11" Background="#3498DB" Foreground="White" BorderThickness="0" Cursor="Hand" ToolTip="Przyjmij do rozpatrzenia (W_ANALIZIE) — przypisuje aktualnego usera jako rozpatrujacego">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
                                     <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
-                                        <TextBlock Text="📊 Eksport" FontSize="11" FontWeight="SemiBold" Foreground="White"/>
+                                        <TextBlock Text="① Przyjmij" FontSize="11" FontWeight="SemiBold" Foreground="White"/>
                                     </Border>
                                 </ControlTemplate>
                             </Button.Template>
                         </Button>
-                        <Button Click="BulkZamknij_Click" Padding="10,5" Margin="0,0,6,0" FontSize="11" Background="#546E7A" Foreground="White" BorderThickness="0" Cursor="Hand" ToolTip="Zamknij zaznaczone reklamacje">
+                        <Button Click="BulkZatwierdz_Click" Padding="10,5" Margin="0,0,6,0" FontSize="11" Background="#27AE60" Foreground="White" BorderThickness="0" Cursor="Hand" ToolTip="Zatwierdz jako zasadne (ZASADNA)">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
                                     <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
-                                        <TextBlock Text="🏁 Zamknij wszystkie" FontSize="11" FontWeight="SemiBold" Foreground="White"/>
+                                        <TextBlock Text="✓ Zatwierdz" FontSize="11" FontWeight="SemiBold" Foreground="White"/>
                                     </Border>
                                 </ControlTemplate>
                             </Button.Template>
                         </Button>
-                        <Button Click="BulkPriorytet_Click" Padding="10,5" Margin="0,0,6,0" FontSize="11" Background="#F39C12" Foreground="White" BorderThickness="0" Cursor="Hand" ToolTip="Zmien priorytet zaznaczonych">
+                        <Button Click="BulkOdrzuc_Click" Padding="10,5" Margin="0,0,6,0" FontSize="11" Background="#E74C3C" Foreground="White" BorderThickness="0" Cursor="Hand" ToolTip="Odrzuc (ODRZUCONA) — wymaga podania powodu">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                        <TextBlock Text="✕ Odrzuc" FontSize="11" FontWeight="SemiBold" Foreground="White"/>
+                                    </Border>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                        <Button Click="BulkZamknij_Click" Padding="10,5" Margin="0,0,12,0" FontSize="11" Background="#546E7A" Foreground="White" BorderThickness="0" Cursor="Hand" ToolTip="Zamknij (ZAMKNIETA)">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                        <TextBlock Text="🏁 Zamknij" FontSize="11" FontWeight="SemiBold" Foreground="White"/>
+                                    </Border>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                        <Button Click="BulkPriorytet_Click" Padding="10,5" Margin="0,0,6,0" FontSize="11" Background="#F39C12" Foreground="White" BorderThickness="0" Cursor="Hand" ToolTip="Zmien priorytet">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
                                     <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
@@ -922,7 +905,16 @@
                                 </ControlTemplate>
                             </Button.Template>
                         </Button>
-                        <Button Click="BulkOdznacz_Click" Padding="10,5" FontSize="11" Background="Transparent" BorderBrush="White" BorderThickness="1" Foreground="White" Cursor="Hand" ToolTip="Odznacz wszystkie">
+                        <Button Click="BulkExport_Click" Padding="10,5" Margin="0,0,6,0" FontSize="11" Background="#16A085" Foreground="White" BorderThickness="0" Cursor="Hand" ToolTip="Eksportuj zaznaczone do CSV">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                        <TextBlock Text="📊 Eksport" FontSize="11" FontWeight="SemiBold" Foreground="White"/>
+                                    </Border>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                        <Button Click="BulkOdznacz_Click" Padding="10,5" FontSize="11" Background="Transparent" BorderBrush="White" BorderThickness="1" Foreground="White" Cursor="Hand" ToolTip="Odznacz wszystkie (Esc)">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
                                     <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6" Padding="{TemplateBinding Padding}">

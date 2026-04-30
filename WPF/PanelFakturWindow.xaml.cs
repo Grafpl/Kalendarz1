@@ -22,6 +22,55 @@ using System.Windows.Threading;
 
 namespace Kalendarz1.WPF
 {
+    // ════════════════════════════════════════════════════════════
+    // Convertery dla nagłówków grup statusów
+    // ════════════════════════════════════════════════════════════
+    public class StatusToIconConverter : System.Windows.Data.IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+            => (value as string) switch
+            {
+                "⚠ Do zatwierdzenia"                  => "⚠",
+                "⚠ Zafakturowane — zmiana po fakturze" => "⚠",
+                "Nowe"                                 => "✦",
+                "W realizacji"                         => "◐",
+                "Zrealizowane"                         => "✓",
+                "Wydano"                               => "▶",
+                "Zafakturowane"                        => "✓✓",
+                _                                      => "•"
+            };
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            => throw new NotImplementedException();
+    }
+
+    public class StatusToColorConverter : System.Windows.Data.IValueConverter
+    {
+        private static readonly Brush _warning = Freeze(new SolidColorBrush(Color.FromRgb(0xD9, 0x77, 0x06))); // amber
+        private static readonly Brush _danger  = Freeze(new SolidColorBrush(Color.FromRgb(0xDC, 0x26, 0x26))); // red - dla zmian po fakturze (poważne!)
+        private static readonly Brush _newClr  = Freeze(new SolidColorBrush(Color.FromRgb(0x85, 0x4D, 0x0E))); // yellow-700
+        private static readonly Brush _running = Freeze(new SolidColorBrush(Color.FromRgb(0x25, 0x63, 0xEB))); // blue
+        private static readonly Brush _done    = Freeze(new SolidColorBrush(Color.FromRgb(0x05, 0x96, 0x69))); // emerald
+        private static readonly Brush _shipped = Freeze(new SolidColorBrush(Color.FromRgb(0x1E, 0x40, 0xAF))); // dark blue
+        private static readonly Brush _invoiced= Freeze(new SolidColorBrush(Color.FromRgb(0x06, 0x5F, 0x46))); // emerald-800
+        private static readonly Brush _other   = Freeze(new SolidColorBrush(Color.FromRgb(0x94, 0xA3, 0xB8))); // gray
+        private static Brush Freeze(SolidColorBrush b) { b.Freeze(); return b; }
+
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+            => (value as string) switch
+            {
+                "⚠ Do zatwierdzenia"                  => _warning,
+                "⚠ Zafakturowane — zmiana po fakturze" => _danger,
+                "Nowe"                                 => _newClr,
+                "W realizacji"                         => _running,
+                "Zrealizowane"                         => _done,
+                "Wydano"                               => _shipped,
+                "Zafakturowane"                        => _invoiced,
+                _                                      => _other
+            };
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            => throw new NotImplementedException();
+    }
+
     public partial class PanelFakturWindow : Window, INotifyPropertyChanged
     {
         // ────────────────────────────────────────────────────────────
@@ -38,17 +87,24 @@ namespace Kalendarz1.WPF
         // ────────────────────────────────────────────────────────────
         private DateTime _selectedDate;
         private int? _currentOrderId;
-        private bool _showFakturowane = false;
+        private bool _showFakturowane = true;   // ZAWSZE true - zafakturowane zawsze widoczne (na dole grupowania)
         private int? _selectedProductId = null;
         private bool _isRefreshing = false;
         private bool _pendingRefresh = false;
 
         private readonly DataTable _dtDetails = new();
+        private readonly DataTable _dtInvoice = new();
 
         // Cache (static — przeżywa zamknięcia okna)
         private static readonly Dictionary<int, (string Name, string Salesman)> _contractorsCache = new();
         private static readonly Dictionary<int, string> _productCodeCache = new();   // Id → kod
         private static readonly Dictionary<int, string> _productNameCache = new();   // Id → nazwa (pełna)
+        private static readonly Dictionary<int, BitmapImage> _productImagesCache = new(); // Id → obrazek (z dbo.TowarZdjecia)
+        private static bool _productImagesLoaded = false;
+
+        // Avatary handlowców (jak w MainWindow + HandlowiecDashboardWindow)
+        private static readonly Dictionary<string, BitmapSource> _handlowiecAvatarCache = new(StringComparer.OrdinalIgnoreCase);
+        private static Dictionary<string, string>? _handlowiecMapowanie = null;
         private static bool _columnsEnsured = false;
         private static DateTime _contractorsCacheLoadedAt = DateTime.MinValue;
 
@@ -93,7 +149,9 @@ namespace Kalendarz1.WPF
             // Lookups równolegle (wcześniej szły szeregowo)
             await Task.WhenAll(
                 LoadContractorsCacheAsync(),
-                LoadProductsCacheAsync()
+                LoadProductsCacheAsync(),
+                LoadProductImagesAsync(),
+                EnsureHandlowiecMappingLoadedAsync()
             );
             BuildProductCombo();
 
@@ -333,6 +391,23 @@ namespace Kalendarz1.WPF
             await RefreshDataAsync();
         }
 
+        // Otwiera okno nowego zamowienia (jak "+Nowe" w MainWindow → Zamowienia Klientow)
+        private async void BtnNoweZamowienie_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var widok = new Kalendarz1.WidokZamowienia(UserID, null);
+                widok.ShowDialog();
+                // Po zamknieciu okna - odswiez liste, bo moglo powstac nowe zamowienie
+                await RefreshDataAsync();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Nie udało się otworzyć okna nowego zamówienia:\n{ex.Message}",
+                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
         private async void BtnRefresh_Click(object sender, RoutedEventArgs e) => await RefreshDataAsync();
 
         // ════════════════════════════════════════════════════════════
@@ -394,6 +469,125 @@ namespace Kalendarz1.WPF
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"LoadProducts error: {ex.Message}"); }
         }
 
+        // Ładuje obrazki towarów z LibraNet.dbo.TowarZdjecia (raz na uruchomienie)
+        // Wzorzec skopiowany z MagazynPanel.xaml.cs
+        private async Task LoadProductImagesAsync()
+        {
+            if (_productImagesLoaded) return;
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                // Sprawdź czy tabela istnieje
+                await using var cmdCheck = new SqlCommand(
+                    "SELECT CASE WHEN EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'TowarZdjecia') THEN 1 ELSE 0 END", cn);
+                if ((int)(await cmdCheck.ExecuteScalarAsync())! == 0)
+                {
+                    _productImagesLoaded = true; // brak tabeli = nigdy nie próbuj ponownie
+                    return;
+                }
+
+                await using var cmd = new SqlCommand("SELECT TowarId, Zdjecie FROM dbo.TowarZdjecia WHERE Aktywne = 1", cn);
+                cmd.CommandTimeout = 30;
+                await using var rdr = await cmd.ExecuteReaderAsync();
+                while (await rdr.ReadAsync())
+                {
+                    int towarId = rdr.GetInt32(0);
+                    if (rdr.IsDBNull(1)) continue;
+                    try
+                    {
+                        byte[] data = (byte[])rdr[1];
+                        using var ms = new System.IO.MemoryStream(data);
+                        var bi = new BitmapImage();
+                        bi.BeginInit();
+                        bi.StreamSource = ms;
+                        bi.DecodePixelWidth = 80;   // miniatura — wystarczy do wierszy
+                        bi.CacheOption = BitmapCacheOption.OnLoad;
+                        bi.EndInit();
+                        bi.Freeze();
+                        _productImagesCache[towarId] = bi;
+                    }
+                    catch (Exception exImg)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[PanelFaktur] Błąd dekodowania obrazka TowarId={towarId}: {exImg.Message}");
+                    }
+                }
+                _productImagesLoaded = true;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[PanelFaktur] Błąd ładowania obrazków: {ex.Message}");
+            }
+        }
+
+        // Ładuje mapping HandlowiecName → UserID z LibraNet.UserHandlowcy
+        private async Task EnsureHandlowiecMappingLoadedAsync()
+        {
+            if (_handlowiecMapowanie != null) return;
+            _handlowiecMapowanie = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+                await using var cmd = new SqlCommand("SELECT HandlowiecName, UserID FROM UserHandlowcy", cn);
+                await using var rd = await cmd.ExecuteReaderAsync();
+                while (await rd.ReadAsync())
+                    _handlowiecMapowanie[rd.GetString(0)] = rd.GetString(1);
+            }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"LoadHandlowiecMapping error: {ex.Message}"); }
+        }
+
+        // Cache'uje avatar handlowca (taki sam wzorzec jak w MainWindow + HandlowiecDashboard)
+        private void EnsureHandlowiecAvatarCached(string handlowiec, int size = 48)
+        {
+            if (string.IsNullOrEmpty(handlowiec)) return;
+            if (_handlowiecAvatarCache.ContainsKey(handlowiec)) return;
+            if (_handlowiecMapowanie == null) return;
+
+            BitmapSource? avatarBmp = null;
+            if (_handlowiecMapowanie.TryGetValue(handlowiec, out var uid))
+            {
+                try
+                {
+                    if (UserAvatarManager.HasAvatar(uid))
+                        using (var av = UserAvatarManager.GetAvatarRounded(uid, size))
+                            if (av != null) avatarBmp = ConvertImageToBitmapSource(av);
+                    if (avatarBmp == null)
+                        using (var defAv = UserAvatarManager.GenerateDefaultAvatar(handlowiec, uid, size))
+                            avatarBmp = ConvertImageToBitmapSource(defAv);
+                }
+                catch { }
+            }
+            if (avatarBmp == null)
+            {
+                try
+                {
+                    using (var defAv = UserAvatarManager.GenerateDefaultAvatar(handlowiec, handlowiec, size))
+                        avatarBmp = ConvertImageToBitmapSource(defAv);
+                }
+                catch { }
+            }
+            if (avatarBmp != null)
+            {
+                avatarBmp.Freeze();
+                _handlowiecAvatarCache[handlowiec] = avatarBmp;
+            }
+        }
+
+        private static BitmapSource? ConvertImageToBitmapSource(System.Drawing.Image image)
+        {
+            if (image == null) return null;
+            using var bitmap = new System.Drawing.Bitmap(image);
+            var hBitmap = bitmap.GetHbitmap();
+            try
+            {
+                return System.Windows.Interop.Imaging.CreateBitmapSourceFromHBitmap(
+                    hBitmap, IntPtr.Zero, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
+            }
+            finally { DeleteObject(hBitmap); }
+        }
+
         private void BuildProductCombo()
         {
             cmbProduct.Items.Clear();
@@ -437,7 +631,6 @@ namespace Kalendarz1.WPF
         {
             try
             {
-                txtStatusInfo.Text = "Ładowanie...";
                 await using var cn = new SqlConnection(_connLibra);
                 await cn.OpenAsync();
 
@@ -454,6 +647,7 @@ namespace Kalendarz1.WPF
                            ISNULL(zm.CzyZmodyfikowaneDlaFaktur, 0) AS CzyZmodyfikowaneDlaFaktur,
                            zm.DataOstatniejModyfikacji,
                            zm.ModyfikowalPrzez,
+                           ISNULL(zm.Waluta, 'PLN') AS Waluta,
                            CASE WHEN COUNT(zmt.Id) = 0 THEN 0
                                 WHEN SUM(CASE WHEN zmt.Cena IS NULL OR zmt.Cena = '' OR CAST(zmt.Cena AS decimal(18,2)) = 0 THEN 1 ELSE 0 END) = 0 THEN 1
                                 ELSE 0 END AS CzyMaCeny
@@ -464,7 +658,8 @@ namespace Kalendarz1.WPF
                       {productFilter}
                     GROUP BY zm.Id, zm.KlientId, zm.DataZamowienia, zm.DataUboju, zm.Status, zm.IdUser,
                              zm.CzyZafakturowane, zm.NumerFaktury, zm.TransportKursID,
-                             zm.CzyZmodyfikowaneDlaFaktur, zm.DataOstatniejModyfikacji, zm.ModyfikowalPrzez
+                             zm.CzyZmodyfikowaneDlaFaktur, zm.DataOstatniejModyfikacji, zm.ModyfikowalPrzez,
+                             zm.Waluta
                     ORDER BY zm.Id";
 
                 await using var cmd = new SqlCommand(sql, cn);
@@ -495,7 +690,8 @@ namespace Kalendarz1.WPF
                     bool czyZmodyfikowane = !reader.IsDBNull(11) && Convert.ToBoolean(reader.GetValue(11));
                     DateTime? dataModyfikacji = reader.IsDBNull(12) ? null : reader.GetDateTime(12);
                     string modyfikowalPrzez = reader.IsDBNull(13) ? "" : reader.GetString(13);
-                    bool czyMaCeny = !reader.IsDBNull(14) && Convert.ToInt32(reader.GetValue(14)) == 1;
+                    string waluta = reader.IsDBNull(14) ? "PLN" : reader.GetString(14);
+                    bool czyMaCeny = !reader.IsDBNull(15) && Convert.ToInt32(reader.GetValue(15)) == 1;
 
                     var (name, salesman) = _contractorsCache.TryGetValue(clientId, out var c) ? c : ($"Klient {clientId}", "");
 
@@ -509,7 +705,8 @@ namespace Kalendarz1.WPF
                         TransportKursID = transportKursId,
                         CzyZmodyfikowaneDlaFaktur = czyZmodyfikowane,
                         DataOstatniejModyfikacji = dataModyfikacji,
-                        ModyfikowalPrzez = modyfikowalPrzez, CzyMaCeny = czyMaCeny
+                        ModyfikowalPrzez = modyfikowalPrzez, CzyMaCeny = czyMaCeny,
+                        Waluta = waluta
                     };
 
                     if (transportKursId.HasValue) kursIds.Add(transportKursId.Value);
@@ -530,41 +727,170 @@ namespace Kalendarz1.WPF
                     }
                 }
 
-                // BATCH update — zamiast Clear() + 50× Add() (= 51 powiadomień CollectionChanged)
+                // Załaduj avatary unikalnych handlowców (zanim zbudujemy VM, żeby HandlowiecAvatar miał dane)
+                foreach (var h in tempList.Select(z => z.Handlowiec).Where(s => !string.IsNullOrEmpty(s)).Distinct())
+                    EnsureHandlowiecAvatarCached(h);
+
+                // Weryfikacja faktur (klient + suma kg) - PRZED budową VM, żeby ikony były od razu
+                await VerifyInvoicesAsync(tempList);
+
+                // BATCH update — zafakturowane zawsze pokazujemy (są na dole grupowania)
                 var newList = new ObservableCollection<ZamowienieViewModel>();
                 foreach (var info in tempList)
                 {
-                    if (!_showFakturowane && info.CzyZafakturowane) continue;
                     newList.Add(new ZamowienieViewModel(info));
                 }
                 ZamowieniaList = newList;
                 OnPropertyChanged(nameof(ZamowieniaList));
-                dgOrders.ItemsSource = ZamowieniaList;
+
+                // Wpinamy CollectionView z grupowaniem po statusie (priorytet: pilne na górze)
+                var view = new System.Windows.Data.ListCollectionView(ZamowieniaList);
+                view.GroupDescriptions.Add(new System.Windows.Data.PropertyGroupDescription(nameof(ZamowienieViewModel.StatusDisplay)));
+                view.CustomSort = Comparer<object>.Create((a, b) =>
+                {
+                    if (a is not ZamowienieViewModel x || b is not ZamowienieViewModel y) return 0;
+                    int gx = StatusGroupOrder(x.StatusDisplay);
+                    int gy = StatusGroupOrder(y.StatusDisplay);
+                    if (gx != gy) return gx.CompareTo(gy);
+                    return x.Info.Id.CompareTo(y.Info.Id);
+                });
+                dgOrders.ItemsSource = view;
 
                 UpdateContextCounters(tempList);
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Błąd ładowania zamówień: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-                txtStatusInfo.Text = "Błąd ładowania";
             }
         }
+
+        // Kolejność grup statusu (mniejszy = wyżej). Priorytet: zmiany wymagające reakcji,
+        // potem nowe/w trakcie, na końcu zafakturowane.
+        // "Zafakturowane ze zmianą" jest TUŻ NAD "Zafakturowane" — wymaga uwagi (zmiana post-faktura).
+        // ════════════════════════════════════════════════════════════
+        // WERYFIKACJA: dla każdego zamówienia z NumerFaktury sprawdza
+        // czy w Symfonii istnieje taka faktura, czy klient się zgadza
+        // i czy suma kg jest zbliżona. Wyniki ustawia bezpośrednio na ZamowienieInfo.
+        // ════════════════════════════════════════════════════════════
+        private async Task VerifyInvoicesAsync(List<ZamowienieInfo> orders)
+        {
+            // Wybierz tylko zamówienia z numerem faktury
+            var nrFakturList = orders
+                .Where(o => !string.IsNullOrWhiteSpace(o.NumerFaktury))
+                .Select(o => o.NumerFaktury)
+                .Distinct()
+                .ToList();
+
+            if (nrFakturList.Count == 0) return;
+
+            // Mapa: NumerFaktury → (khid, nazwa klienta, suma kg) z Symfonii
+            var dict = new Dictionary<string, (int Khid, string KhName, decimal Suma)>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                await using var cn = new SqlConnection(_connHandel);
+                await cn.OpenAsync();
+
+                // Parametryzacja po liście — buduję IN (...) z named params dla bezpieczeństwa
+                var paramNames = nrFakturList.Select((_, i) => $"@k{i}").ToList();
+                string sql = $@"SELECT dk.kod, dk.khid,
+                                       ISNULL(kh.Name, '') AS KhName,
+                                       COALESCE(SUM(dp.ilosc), 0) AS Suma
+                                FROM HM.DK dk
+                                LEFT JOIN HM.DP dp ON dp.super = dk.id
+                                LEFT JOIN SSCommon.STContractors kh ON kh.Id = dk.khid
+                                WHERE dk.kod IN ({string.Join(",", paramNames)})
+                                  AND ISNULL(dk.anulowany, 0) = 0
+                                GROUP BY dk.kod, dk.khid, kh.Name";
+
+                await using var cmd = new SqlCommand(sql, cn);
+                for (int i = 0; i < nrFakturList.Count; i++)
+                    cmd.Parameters.AddWithValue(paramNames[i], nrFakturList[i]);
+
+                await using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    string kod    = reader.IsDBNull(0) ? "" : reader.GetString(0);
+                    int khid      = reader.IsDBNull(1) ? 0 : reader.GetInt32(1);
+                    string khName = reader.IsDBNull(2) ? "" : reader.GetString(2);
+                    decimal suma  = reader.IsDBNull(3) ? 0 : Convert.ToDecimal(reader.GetValue(3));
+                    if (!string.IsNullOrEmpty(kod)) dict[kod] = (khid, khName, suma);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"VerifyInvoices error: {ex.Message}");
+                return;  // bez weryfikacji — wszystkie zostają None
+            }
+
+            // Tolerancja porównania kg: 1 kg lub 0.5%
+            const decimal QTY_TOL_KG = 1m;
+            const decimal QTY_TOL_PCT = 0.005m;
+
+            foreach (var o in orders)
+            {
+                if (string.IsNullOrWhiteSpace(o.NumerFaktury))
+                {
+                    o.MatchStatus = InvoiceMatchStatus.None;
+                    continue;
+                }
+                if (!dict.TryGetValue(o.NumerFaktury, out var inv))
+                {
+                    o.MatchStatus = InvoiceMatchStatus.NotFound;
+                    continue;
+                }
+                o.InvoiceKhId       = inv.Khid;
+                o.InvoiceKhName     = inv.KhName;
+                o.InvoiceTotalIlosc = inv.Suma;
+
+                if (inv.Khid != o.KlientId)
+                {
+                    o.MatchStatus = InvoiceMatchStatus.ClientMismatch;
+                    continue;
+                }
+                decimal diff = Math.Abs(inv.Suma - o.TotalIlosc);
+                decimal allowed = Math.Max(QTY_TOL_KG, o.TotalIlosc * QTY_TOL_PCT);
+                o.MatchStatus = diff <= allowed ? InvoiceMatchStatus.Ok : InvoiceMatchStatus.QtyMismatch;
+            }
+        }
+
+        private static int StatusGroupOrder(string statusDisplay) => statusDisplay switch
+        {
+            "⚠ Do zatwierdzenia"                  => 0,
+            "Nowe"                                 => 1,
+            "W realizacji"                         => 2,
+            "Zrealizowane"                         => 3,
+            "Wydano"                               => 4,
+            "⚠ Zafakturowane — zmiana po fakturze" => 8,
+            "Zafakturowane"                        => 9,
+            _                                      => 5
+        };
 
         private void UpdateContextCounters(List<ZamowienieInfo> all)
         {
             int doFaktury = all.Count(z => !z.CzyZafakturowane && !z.CzyZmodyfikowaneDlaFaktur);
             int zafakt    = all.Count(z =>  z.CzyZafakturowane);
             int zmian     = all.Count(z =>  z.CzyZmodyfikowaneDlaFaktur);
-            decimal kwotaDoFaktury = all.Where(z => !z.CzyZafakturowane).Sum(z => z.Wartosc);
+
+            // Rozbicie kwoty na PLN i EUR (per Waluta zamówienia)
+            var doFaktSrc = all.Where(z => !z.CzyZafakturowane);
+            decimal kwotaPln = doFaktSrc.Where(z => (z.Waluta ?? "PLN") != "EUR").Sum(z => z.Wartosc);
+            decimal kwotaEur = doFaktSrc.Where(z => z.Waluta == "EUR").Sum(z => z.Wartosc);
 
             txtCntDoFaktury.Text = $"{doFaktury} do faktury";
             txtCntZafakt.Text    = $"{zafakt} zafakt.";
-            txtCntZmian.Text     = $"{zmian} ⚠ zmian";
-            txtCntKwota.Text     = $"{kwotaDoFaktury:N0} zł";
+            txtCntZmian.Text     = $"{zmian} zmian";
+            txtCntKwota.Text     = $"{kwotaPln:N0} zł";
 
-            txtStatusInfo.Text =
-                $"{_selectedDate:dd.MM.yyyy} (dz.{(int)_selectedDate.DayOfWeek}) • " +
-                $"łącznie {all.Count} zam. • do faktury: {kwotaDoFaktury:N0} zł";
+            // Pokaż badge EUR tylko gdy są zamówienia w euro
+            if (kwotaEur > 0)
+            {
+                badgeKwotaEur.Visibility = Visibility.Visible;
+                txtCntKwotaEur.Text = $"{kwotaEur:N0} €";
+            }
+            else
+            {
+                badgeKwotaEur.Visibility = Visibility.Collapsed;
+            }
         }
 
         private async Task<Dictionary<long, (string GodzWyjazdu, string Kierowca, string Pojazd)>> LoadTransportInfoAsync(HashSet<long> kursIds)
@@ -649,32 +975,210 @@ namespace Kalendarz1.WPF
                     ShowNoChanges();
 
                 if (ct.IsCancellationRequested) return;
-                await LoadSaldoKlientaAsync(vm.Info.KlientId, ct);
+                await LoadOrderUwagiAsync(vm.Info.Id, ct);
+
+                if (ct.IsCancellationRequested) return;
+                await LoadInvoiceItemsAsync(vm.Info.NumerFaktury, ct);
             }
             catch (OperationCanceledException) { }
         }
+
+        // Pobiera kolumnę Uwagi z dbo.ZamowieniaMieso i wpisuje do txtNotatki
+        private async Task LoadOrderUwagiAsync(int orderId, CancellationToken ct)
+        {
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync(ct);
+                await using var cmd = new SqlCommand("SELECT ISNULL(Uwagi, '') FROM dbo.ZamowieniaMieso WHERE Id = @Id", cn);
+                cmd.Parameters.AddWithValue("@Id", orderId);
+                var uwagi = await cmd.ExecuteScalarAsync(ct);
+                if (ct.IsCancellationRequested) return;
+                _suppressNotatkiSave = true;
+                txtNotatki.Text = uwagi?.ToString() ?? "";
+                _suppressNotatkiSave = false;
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"LoadOrderUwagi error: {ex.Message}"); }
+        }
+
+        // ════════════════════════════════════════════════════════════
+        // POZYCJE FAKTURY — czyta z Symfonii (192.168.0.112) HM.DK + HM.DP
+        // Identyfikacja faktury po HM.DK.kod = ZamowieniaMieso.NumerFaktury
+        // Pokazuje dodatkowo nazwę klienta z faktury (do weryfikacji).
+        // ════════════════════════════════════════════════════════════
+        private async Task LoadInvoiceItemsAsync(string? numerFaktury, CancellationToken ct)
+        {
+            _dtInvoice.Clear();
+            _dtInvoice.Columns.Clear();
+            _dtInvoice.Columns.Add("Image",   typeof(BitmapImage));
+            _dtInvoice.Columns.Add("Produkt", typeof(string));
+            _dtInvoice.Columns.Add("Ilosc",   typeof(decimal));
+            _dtInvoice.Columns.Add("Cena",    typeof(string));
+            _dtInvoice.Columns.Add("Wartosc", typeof(decimal));
+
+            // Reset header
+            invoiceHeader.Visibility = Visibility.Collapsed;
+            txtInvoiceMatchTag.Visibility = Visibility.Collapsed;
+
+            // Brak numeru faktury → placeholder "Zamówienie jeszcze nie zafakturowane"
+            if (string.IsNullOrWhiteSpace(numerFaktury))
+            {
+                txtInvoiceHint.Text = "Zamówienie jeszcze nie zafakturowane";
+                panelInvoiceEmpty.Visibility = Visibility.Visible;
+                dgInvoiceItems.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            // Klient zamówienia (do porównania z klientem faktury)
+            string orderClientName = "";
+            int orderKlientId = 0;
+            if (dgOrders.SelectedItem is ZamowienieViewModel selVm)
+            {
+                orderClientName = selVm.Info.Klient ?? "";
+                orderKlientId   = selVm.Info.KlientId;
+            }
+
+            int rowsLoaded = 0;
+            int invKhid = 0;
+            string invKhName = "";
+
+            try
+            {
+                await using var cn = new SqlConnection(_connHandel);
+                await cn.OpenAsync(ct);
+
+                // Najpierw header faktury (klient + ID nagłówka)
+                const string headerSql = @"SELECT TOP 1 dk.khid, ISNULL(kh.Name, '') AS KhName
+                                           FROM HM.DK dk
+                                           LEFT JOIN SSCommon.STContractors kh ON kh.Id = dk.khid
+                                           WHERE dk.kod = @kod AND ISNULL(dk.anulowany, 0) = 0";
+                await using (var cmdHdr = new SqlCommand(headerSql, cn))
+                {
+                    cmdHdr.Parameters.AddWithValue("@kod", numerFaktury);
+                    await using var rdrHdr = await cmdHdr.ExecuteReaderAsync(ct);
+                    if (await rdrHdr.ReadAsync(ct))
+                    {
+                        invKhid   = rdrHdr.IsDBNull(0) ? 0 : rdrHdr.GetInt32(0);
+                        invKhName = rdrHdr.IsDBNull(1) ? "" : rdrHdr.GetString(1);
+                    }
+                }
+
+                // Pozycje
+                const string sql = @"SELECT dp.idtw, dp.ilosc, dp.cena, dp.wartNetto
+                                     FROM HM.DP dp
+                                     INNER JOIN HM.DK dk ON dk.id = dp.super
+                                     WHERE dk.kod = @kod
+                                     ORDER BY dp.lp";
+                await using var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@kod", numerFaktury);
+                await using var reader = await cmd.ExecuteReaderAsync(ct);
+
+                while (await reader.ReadAsync(ct))
+                {
+                    int twId = reader.GetInt32(0);
+                    decimal ilosc   = reader.IsDBNull(1) ? 0 : Convert.ToDecimal(reader.GetValue(1));
+                    decimal cenaNum = reader.IsDBNull(2) ? 0 : Convert.ToDecimal(reader.GetValue(2));
+                    decimal wart    = reader.IsDBNull(3) ? 0 : Convert.ToDecimal(reader.GetValue(3));
+
+                    string nazwa = _productCodeCache.TryGetValue(twId, out var c) ? c
+                                 : _productNameCache.TryGetValue(twId, out var n) ? n
+                                 : $"Towar {twId}";
+
+                    var row = _dtInvoice.NewRow();
+                    row["Image"]   = _productImagesCache.TryGetValue(twId, out var img) ? (object)img : DBNull.Value;
+                    row["Produkt"] = nazwa;
+                    row["Ilosc"]   = ilosc;
+                    row["Cena"]    = cenaNum.ToString("N2", CultureInfo.InvariantCulture);
+                    row["Wartosc"] = wart;
+                    _dtInvoice.Rows.Add(row);
+                    rowsLoaded++;
+                }
+
+                if (ct.IsCancellationRequested) return;
+
+                if (rowsLoaded == 0)
+                {
+                    txtInvoiceHint.Text = $"Nie znaleziono faktury {numerFaktury} w Symfonii";
+                    panelInvoiceEmpty.Visibility = Visibility.Visible;
+                    dgInvoiceItems.Visibility = Visibility.Collapsed;
+                    invoiceHeader.Visibility = Visibility.Collapsed;
+                }
+                else
+                {
+                    // Wypełnij header
+                    txtInvoiceNumer.Text = numerFaktury;
+                    txtInvoiceKlient.Text = string.IsNullOrEmpty(invKhName)
+                        ? $"khid={invKhid}"
+                        : invKhName;
+
+                    // Tag dopasowania klienta - zielony OK / czerwony MISMATCH
+                    if (orderKlientId > 0 && invKhid > 0)
+                    {
+                        bool zgodny = invKhid == orderKlientId;
+                        txtInvoiceMatchTag.Text = zgodny ? "✓ ZGODNY" : "✖ NIEZGODNY Z ZAMÓWIENIEM";
+                        txtInvoiceMatchTag.Foreground = zgodny ? Brushes.White : Brushes.White;
+                        txtInvoiceMatchTag.Background = zgodny
+                            ? new SolidColorBrush(Color.FromRgb(0x16, 0xA3, 0x4A))
+                            : new SolidColorBrush(Color.FromRgb(0xDC, 0x26, 0x26));
+                        txtInvoiceMatchTag.Visibility = Visibility.Visible;
+                        // Kolor nazwy klienta dla mocniejszego sygnału
+                        txtInvoiceKlient.Foreground = zgodny
+                            ? (Brush)FindResource("Brush.Text")
+                            : new SolidColorBrush(Color.FromRgb(0xDC, 0x26, 0x26));
+                    }
+
+                    invoiceHeader.Visibility = Visibility.Visible;
+                    panelInvoiceEmpty.Visibility = Visibility.Collapsed;
+                    dgInvoiceItems.Visibility = Visibility.Visible;
+                    SetupItemsGridColumns(dgInvoiceItems, _dtInvoice, "zł");
+                }
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"LoadInvoiceItems error: {ex.Message}");
+                if (!ct.IsCancellationRequested)
+                {
+                    txtInvoiceHint.Text = $"Błąd odczytu faktury: {ex.Message}";
+                    panelInvoiceEmpty.Visibility = Visibility.Visible;
+                    dgInvoiceItems.Visibility = Visibility.Collapsed;
+                    invoiceHeader.Visibility = Visibility.Collapsed;
+                }
+            }
+        }
+
+        private bool _suppressNotatkiSave = false;
+        // Notatki sa tylko-do-odczytu — TxtNotatki_LostFocus zostal usuniety,
+        // ale zachowujemy _suppressNotatkiSave bo LoadOrderUwagiAsync go uzywa
+        // (na wypadek gdyby ktos w przyszlosci dodal edycje, _suppressNotatkiSave zapobiega saveowaniu podczas LOAD).
 
         private void ShowNoChanges()
         {
             panelNoChanges.Visibility = Visibility.Visible;
             panelChangesDiff.Visibility = Visibility.Collapsed;
-            icHistoryList.ItemsSource = null;
+            badgeChanges.Visibility = Visibility.Collapsed;
+            tabZmiany.Tag = null;   // wyłącz pomarańczowe podświetlenie
         }
 
         private async Task LoadOrderDetailsAsync(ZamowienieViewModel vm, CancellationToken ct)
         {
             _dtDetails.Clear();
             _dtDetails.Columns.Clear();
+            _dtDetails.Columns.Add("Image",   typeof(BitmapImage));   // miniaturka towaru (nullable)
             _dtDetails.Columns.Add("Produkt", typeof(string));
-            _dtDetails.Columns.Add("Ilosc", typeof(decimal));
-            _dtDetails.Columns.Add("Cena", typeof(string));
+            _dtDetails.Columns.Add("Ilosc",   typeof(decimal));
+            _dtDetails.Columns.Add("Cena",    typeof(string));
             _dtDetails.Columns.Add("Wartosc", typeof(decimal));
 
+            // Info wybranego zamówienia w toolbarze (paneOrderInfo zawsze visible — tylko teksty się zmieniają)
             txtOdbiorca.Text = vm.Info.Klient;
-            txtHandlowiec.Text = $"Handlowiec: {(string.IsNullOrEmpty(vm.Info.Handlowiec) ? "brak" : vm.Info.Handlowiec)}";
-            txtDataZamowienia.Text = vm.Info.DataZamowienia.HasValue
-                ? $"Zamówienie: {vm.Info.DataZamowienia.Value:dd.MM.yyyy}"
-                : "";
+
+            // Meta jako single-line: "Handlowiec · 18.03.2026"
+            var metaParts = new List<string>();
+            if (!string.IsNullOrEmpty(vm.Info.Handlowiec)) metaParts.Add(vm.Info.Handlowiec);
+            if (vm.Info.DataZamowienia.HasValue) metaParts.Add(vm.Info.DataZamowienia.Value.ToString("dd.MM.yyyy"));
+            txtOrderMeta.Text = string.Join("  ·  ", metaParts);
 
             if (!string.IsNullOrEmpty(vm.Info.GodzWyjazdu) || !string.IsNullOrEmpty(vm.Info.Kierowca))
             {
@@ -707,11 +1211,13 @@ namespace Kalendarz1.WPF
                     decimal cenaNum = 0;
                     decimal.TryParse(cena.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out cenaNum);
 
-                    string nazwa = _productNameCache.TryGetValue(kod, out var n) ? n
-                                 : _productCodeCache.TryGetValue(kod, out var c) ? c
+                    // Nazwa produktu = kolumna 'kod' z HM.TW (jak w oknie nowego zamówienia)
+                    string nazwa = _productCodeCache.TryGetValue(kod, out var c) ? c
+                                 : _productNameCache.TryGetValue(kod, out var n) ? n
                                  : $"Towar {kod}";
 
                     var row = _dtDetails.NewRow();
+                    row["Image"]   = _productImagesCache.TryGetValue(kod, out var img) ? (object)img : DBNull.Value;
                     row["Produkt"] = nazwa;
                     row["Ilosc"]   = ilosc;
                     row["Cena"]    = cena;
@@ -720,6 +1226,7 @@ namespace Kalendarz1.WPF
                 }
 
                 if (ct.IsCancellationRequested) return;
+                _currentWalutaSymbol = vm.WalutaSymbol;   // synchronizuj nagłówki kolumn z walutą zamówienia
                 SetupDetailsGrid();
             }
             catch (OperationCanceledException) { }
@@ -730,18 +1237,66 @@ namespace Kalendarz1.WPF
             }
         }
 
+        private string _currentWalutaSymbol = "zł";
+
         private void SetupDetailsGrid()
         {
-            dgDetails.ItemsSource = _dtDetails.DefaultView;
-            dgDetails.Columns.Clear();
+            SetupItemsGridColumns(dgDetails, _dtDetails, _currentWalutaSymbol);
+        }
+
+        // Wspolny builder kolumn dla "Pozycje zamowienia" i "Pozycje faktury".
+        // Wymaga zeby DataTable mial kolumny: Image, Produkt, Ilosc, Cena, Wartosc.
+        private void SetupItemsGridColumns(DataGrid dg, DataTable source, string walutaSymbol)
+        {
+            dg.ItemsSource = source.DefaultView;
+            dg.Columns.Clear();
 
             var rightStyle = new Style(typeof(TextBlock));
             rightStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Right));
+            rightStyle.Setters.Add(new Setter(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center));
+            rightStyle.Setters.Add(new Setter(TextBlock.TextWrappingProperty, TextWrapping.Wrap));
 
-            dgDetails.Columns.Add(new DataGridTextColumn { Header = "Produkt", Binding = new System.Windows.Data.Binding("Produkt"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-            dgDetails.Columns.Add(new DataGridTextColumn { Header = "Ilość", Binding = new System.Windows.Data.Binding("Ilosc")   { StringFormat = "N2" }, Width = new DataGridLength(1, DataGridLengthUnitType.Auto), MinWidth = 70, ElementStyle = rightStyle });
-            dgDetails.Columns.Add(new DataGridTextColumn { Header = "Cena",  Binding = new System.Windows.Data.Binding("Cena"),                            Width = new DataGridLength(1, DataGridLengthUnitType.Auto), MinWidth = 60, ElementStyle = rightStyle });
-            dgDetails.Columns.Add(new DataGridTextColumn { Header = "Wartość", Binding = new System.Windows.Data.Binding("Wartosc") { StringFormat = "N2" }, Width = new DataGridLength(1, DataGridLengthUnitType.Auto), MinWidth = 80, ElementStyle = rightStyle });
+            // Kolumna PRODUKT — image + nazwa razem (auto-wrap dla długich nazw)
+            var spFactory = new FrameworkElementFactory(typeof(StackPanel));
+            spFactory.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
+            spFactory.SetValue(StackPanel.VerticalAlignmentProperty, VerticalAlignment.Center);
+
+            var borderImgFactory = new FrameworkElementFactory(typeof(Border));
+            borderImgFactory.SetValue(Border.WidthProperty, 32.0);
+            borderImgFactory.SetValue(Border.HeightProperty, 32.0);
+            borderImgFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(4));
+            borderImgFactory.SetValue(Border.BorderBrushProperty, (Brush)FindResource("Brush.Border"));
+            borderImgFactory.SetValue(Border.BorderThicknessProperty, new Thickness(1));
+            borderImgFactory.SetValue(Border.BackgroundProperty, Brushes.White);
+            borderImgFactory.SetValue(Border.MarginProperty, new Thickness(0, 0, 8, 0));
+            borderImgFactory.SetValue(Border.ClipToBoundsProperty, true);
+
+            var imgFactory = new FrameworkElementFactory(typeof(System.Windows.Controls.Image));
+            imgFactory.SetBinding(System.Windows.Controls.Image.SourceProperty, new System.Windows.Data.Binding("Image"));
+            imgFactory.SetValue(System.Windows.Controls.Image.StretchProperty, Stretch.Uniform);
+            imgFactory.SetValue(RenderOptions.BitmapScalingModeProperty, BitmapScalingMode.HighQuality);
+            borderImgFactory.AppendChild(imgFactory);
+            spFactory.AppendChild(borderImgFactory);
+
+            var tbFactory = new FrameworkElementFactory(typeof(TextBlock));
+            tbFactory.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("Produkt"));
+            tbFactory.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+            tbFactory.SetValue(TextBlock.TextWrappingProperty, TextWrapping.Wrap);
+            tbFactory.SetValue(TextBlock.FontWeightProperty, FontWeights.Medium);
+            spFactory.AppendChild(tbFactory);
+
+            var produktTemplate = new DataTemplate { VisualTree = spFactory };
+
+            dg.Columns.Add(new DataGridTemplateColumn
+            {
+                Header = "Produkt",
+                CellTemplate = produktTemplate,
+                Width = new DataGridLength(1, DataGridLengthUnitType.Star),
+                MinWidth = 90
+            });
+            dg.Columns.Add(new DataGridTextColumn { Header = "Ilość",                          Binding = new System.Windows.Data.Binding("Ilosc")   { StringFormat = "N2" },     Width = new DataGridLength(1, DataGridLengthUnitType.Auto), MinWidth = 95,  ElementStyle = rightStyle });
+            dg.Columns.Add(new DataGridTextColumn { Header = $"Cena ({walutaSymbol})",         Binding = new System.Windows.Data.Binding("Cena"),                                  Width = new DataGridLength(1, DataGridLengthUnitType.Auto), MinWidth = 85,  ElementStyle = rightStyle });
+            dg.Columns.Add(new DataGridTextColumn { Header = $"Wartość ({walutaSymbol})",      Binding = new System.Windows.Data.Binding("Wartosc") { StringFormat = "N2" },     Width = new DataGridLength(1, DataGridLengthUnitType.Auto), MinWidth = 110, ElementStyle = rightStyle });
         }
 
         // ════════════════════════════════════════════════════════════
@@ -793,7 +1348,8 @@ namespace Kalendarz1.WPF
                             Icon  = ChooseIcon(row.Pole),
                             Kto   = kto,
                             Kiedy = kiedyStr,
-                            DeltaSign = ComputeDeltaSign(row.Bylo, row.Jest)
+                            DeltaSign = ComputeDeltaSign(row.Bylo, row.Jest),
+                            TowarImage = TryFindTowarImage(row.Pole, row.Bylo, row.Jest)
                         });
                     }
                 }
@@ -803,20 +1359,20 @@ namespace Kalendarz1.WPF
 
             if (ct.IsCancellationRequested) return;
 
-            txtZmianaNaglowek.Text = $"Wykryto {historyRows.Count} {PluralPl(historyRows.Count, "zmianę", "zmiany", "zmian")} w zamówieniu";
-            txtChangesCount.Text   = $"{cards.Count} {PluralPl(cards.Count, "zmiana", "zmiany", "zmian")}";
+            txtChangesCount.Text = cards.Count.ToString();
 
             if (cards.Count > 0)
             {
                 icChangesCards.ItemsSource = cards;
                 panelChangesDiff.Visibility = Visibility.Visible;
                 panelNoChanges.Visibility = Visibility.Collapsed;
+                badgeChanges.Visibility = Visibility.Visible;
+                tabZmiany.Tag = "highlight";   // pomarańczowe podświetlenie zakładki
             }
             else
             {
                 ShowNoChanges();
             }
-            icHistoryList.ItemsSource = historyRows;
         }
 
         // Polska deklinacja liczebnika: 1 zmiana, 2-4 zmiany, 5+ zmian
@@ -828,17 +1384,55 @@ namespace Kalendarz1.WPF
             return many;
         }
 
-        // Wybierz unicode glyph na podstawie nazwy zmienionego pola
+        // Próbuje dopasować nazwę pola lub jedną z wartości do nazwy towaru z cache.
+        // Jeśli któraś z fraz zawiera pełną nazwę towaru → zwraca obraz.
+        private static BitmapImage? TryFindTowarImage(string pole, string bylo, string jest)
+        {
+            if (_productImagesCache.Count == 0) return null;
+
+            // Łączymy 3 teksty żeby dać szansę matchowi w dowolnym z nich
+            var haystack = $"{pole} {bylo} {jest}".ToLowerInvariant();
+            if (string.IsNullOrWhiteSpace(haystack)) return null;
+
+            // Szukaj nazwy towaru >= 3 znaki, która jest substring'iem haystack'a
+            foreach (var kv in _productNameCache)
+            {
+                var name = (kv.Value ?? "").Trim().ToLowerInvariant();
+                if (name.Length < 3) continue;
+                if (haystack.Contains(name) && _productImagesCache.TryGetValue(kv.Key, out var img))
+                    return img;
+            }
+
+            // Fallback — kod towaru (krótszy match wymaga: separator z obu stron)
+            foreach (var kv in _productCodeCache)
+            {
+                var kod = (kv.Value ?? "").Trim().ToLowerInvariant();
+                if (kod.Length < 3) continue;
+                // Whole-word match
+                int idx = haystack.IndexOf(kod, StringComparison.Ordinal);
+                if (idx < 0) continue;
+                bool leftOk  = idx == 0 || !char.IsLetterOrDigit(haystack[idx - 1]);
+                bool rightOk = idx + kod.Length == haystack.Length || !char.IsLetterOrDigit(haystack[idx + kod.Length]);
+                if (leftOk && rightOk && _productImagesCache.TryGetValue(kv.Key, out var img))
+                    return img;
+            }
+
+            return null;
+        }
+
+        // Wybierz emoji/glyph na podstawie nazwy zmienionego pola
         private static string ChooseIcon(string pole)
         {
             var p = (pole ?? "").ToLowerInvariant();
-            if (p.Contains("ilość") || p.Contains("ilosc") || p.Contains("kg")) return "Σ";
-            if (p.Contains("cena") || p.Contains("zł") || p.Contains("zl"))    return "$";
-            if (p.Contains("data") || p.Contains("termin") || p.Contains("godz")) return "◷";
-            if (p.Contains("status"))                                            return "◉";
-            if (p.Contains("transport") || p.Contains("kierowca"))               return "▣";
-            if (p.Contains("klient") || p.Contains("odbior"))                    return "◐";
-            if (p.Contains("towar") || p.Contains("produkt"))                    return "▦";
+            if (p.Contains("notatk") || p.Contains("notes") || p.Contains("uwag") || p.Contains("komentarz")) return "📝";
+            if (p.Contains("data") || p.Contains("termin") || p.Contains("godz")  || p.Contains("kalendarz")) return "📅";
+            if (p.Contains("ilość") || p.Contains("ilosc") || p.Contains("kg"))                                return "Σ";
+            if (p.Contains("cena")  || p.Contains("zł")    || p.Contains("zl"))                                return "$";
+            if (p.Contains("status"))                                                                          return "◉";
+            if (p.Contains("transport") || p.Contains("kierowca") || p.Contains("pojazd"))                     return "🚛";
+            if (p.Contains("klient") || p.Contains("odbior") || p.Contains("kontrahent"))                      return "◐";
+            if (p.Contains("towar") || p.Contains("produkt"))                                                  return "▦";
+            if (p.Contains("adres") || p.Contains("miast"))                                                    return "◎";
             return "✎"; // generic edit
         }
 
@@ -856,12 +1450,24 @@ namespace Kalendarz1.WPF
         }
 
 
-        // Próbuje wykryć w tekście wzorzec "pole: było → jest" w różnych wariantach
+        // Wzorce wykrywania w opisie zmiany — od najbardziej specyficznego do najogólniejszego
         private static readonly Regex[] _diffPatterns = new[]
         {
-            new Regex(@"^(?<pole>[^:→\-=]+?)[:\s]+(?<bylo>[^→\-]+?)\s*[→]\s*(?<jest>.+)$",      RegexOptions.Compiled),
-            new Regex(@"^(?<pole>[^:→\-=]+?)[:\s]+(?<bylo>[^→\-]+?)\s*->\s*(?<jest>.+)$",        RegexOptions.Compiled),
-            new Regex(@"^(?<pole>[^:→\-=]+?)\s*z\s+(?<bylo>[^→\-]+?)\s+na\s+(?<jest>.+)$",       RegexOptions.Compiled | RegexOptions.IgnoreCase)
+            // "X: A → B"  /  "X: A -> B"
+            new Regex(@"^(?<pole>[^:→\-=]+?)[:\s]+(?<bylo>.+?)\s*→\s*(?<jest>.+)$",                                            RegexOptions.Compiled),
+            new Regex(@"^(?<pole>[^:→\-=]+?)[:\s]+(?<bylo>.+?)\s*->\s*(?<jest>.+)$",                                           RegexOptions.Compiled),
+            // "X z A na B"
+            new Regex(@"^(?<pole>[^:→\-=]+?)\s+z\s+(?<bylo>.+?)\s+na\s+(?<jest>.+)$",                                          RegexOptions.Compiled | RegexOptions.IgnoreCase),
+            // "Zmieniono X z A na B"
+            new Regex(@"^(?:Zmieniono|Zaktualizowano|Edytowano)\s+(?<pole>.+?)\s+z\s+['""]?(?<bylo>.+?)['""]?\s+na\s+['""]?(?<jest>.+?)['""]?$", RegexOptions.Compiled | RegexOptions.IgnoreCase),
+            // "Zmieniono X: A → B"  /  "Zmieniono X: A -> B"
+            new Regex(@"^(?:Zmieniono|Zaktualizowano|Edytowano)\s+(?<pole>[^:]+?)[:\s]+(?<bylo>.+?)\s*[→\-]>?\s*(?<jest>.+)$", RegexOptions.Compiled | RegexOptions.IgnoreCase),
+            // "Ustawiono X na B"  /  "Dodano X: B"  (brak starej wartości)
+            new Regex(@"^(?:Ustawiono|Dodano|Wpisano)\s+(?<pole>.+?)\s+(?:na|=|:)\s+['""]?(?<jest>.+?)['""]?$",                RegexOptions.Compiled | RegexOptions.IgnoreCase),
+            // "Usunięto X" / "Wyczyszczono X" (brak nowej wartości)
+            new Regex(@"^(?:Usunięto|Wyczyszczono|Skasowano)\s+(?<pole>.+)$",                                                  RegexOptions.Compiled | RegexOptions.IgnoreCase),
+            // "Zmieniono X" (zostało zmodyfikowane, brak A→B w opisie — np. notatka)
+            new Regex(@"^(?:Zmieniono|Zaktualizowano|Edytowano)\s+(?<pole>.+)$",                                               RegexOptions.Compiled | RegexOptions.IgnoreCase)
         };
 
         private static IEnumerable<DiffRow> ParseDiff(string opis)
@@ -878,24 +1484,29 @@ namespace Kalendarz1.WPF
                 foreach (var rx in _diffPatterns)
                 {
                     var m = rx.Match(trimmed);
-                    if (m.Success)
+                    if (!m.Success) continue;
+
+                    var pole = m.Groups["pole"].Value.Trim().TrimEnd(':', '.', ',');
+                    var bylo = m.Groups["bylo"].Success ? m.Groups["bylo"].Value.Trim().Trim('"', '\'') : "";
+                    var jest = m.Groups["jest"].Success ? m.Groups["jest"].Value.Trim().Trim('"', '\'') : "";
+
+                    matched = new DiffRow
                     {
-                        var bylo = m.Groups["bylo"].Value.Trim();
-                        var jest = m.Groups["jest"].Value.Trim();
-                        matched = new DiffRow
-                        {
-                            Pole = m.Groups["pole"].Value.Trim(),
-                            Bylo = bylo,
-                            Jest = jest,
-                            Delta = ComputeDelta(bylo, jest)
-                        };
-                        break;
-                    }
+                        Pole  = CapitalizeFirst(pole),
+                        Bylo  = bylo,
+                        Jest  = jest,
+                        Delta = ComputeDelta(bylo, jest)
+                    };
+                    break;
                 }
 
-                yield return matched ?? new DiffRow { Pole = trimmed, Bylo = "", Jest = "", Delta = "" };
+                // Fallback: gdy żaden wzorzec nie pasuje — pokazujemy surowy tekst jako "Pole" (nic nie ginie)
+                yield return matched ?? new DiffRow { Pole = CapitalizeFirst(trimmed), Bylo = "", Jest = "", Delta = "" };
             }
         }
+
+        private static string CapitalizeFirst(string s)
+            => string.IsNullOrEmpty(s) ? s : char.ToUpper(s[0]) + s.Substring(1);
 
         private static string ComputeDelta(string bylo, string jest)
         {
@@ -906,74 +1517,6 @@ namespace Kalendarz1.WPF
                 return d == 0 ? "—" : (d > 0 ? $"+{d:N2}" : $"{d:N2}");
             }
             return "";
-        }
-
-        // ════════════════════════════════════════════════════════════
-        // SALDO KLIENTA (placeholder — ToDo: pełne dane z Handel)
-        // ════════════════════════════════════════════════════════════
-        private async Task LoadSaldoKlientaAsync(int klientId, CancellationToken ct)
-        {
-            txtSaldoInfo.Text = "Ładowanie...";
-            try
-            {
-                await using var cn = new SqlConnection(_connHandel);
-                await cn.OpenAsync(ct);
-
-                const string sql = @"
-                    WITH PNAgg AS (
-                        SELECT PN.dkid, SUM(ISNULL(PN.kwotarozl,0)) AS KwotaRozliczona, MAX(PN.Termin) AS TerminPrawdziwy
-                        FROM [HANDEL].[HM].[PN] PN WITH (NOLOCK) GROUP BY PN.dkid
-                    )
-                    SELECT
-                      CAST(SUM(DK.walbrutto - ISNULL(PA.KwotaRozliczona, 0)) AS DECIMAL(18,2)) AS DoZaplaty,
-                      CAST(SUM(CASE WHEN GETDATE() > ISNULL(PA.TerminPrawdziwy, DK.plattermin)
-                                    THEN (DK.walbrutto - ISNULL(PA.KwotaRozliczona, 0)) ELSE 0 END) AS DECIMAL(18,2)) AS Przeterminowane,
-                      MAX(CASE WHEN GETDATE() > ISNULL(PA.TerminPrawdziwy, DK.plattermin)
-                               THEN DATEDIFF(day, ISNULL(PA.TerminPrawdziwy, DK.plattermin), GETDATE()) ELSE 0 END) AS MaxDni
-                    FROM [HANDEL].[HM].[DK] DK WITH (NOLOCK)
-                    LEFT JOIN PNAgg PA ON PA.dkid = DK.id
-                    WHERE DK.khid = @KlientId AND DK.anulowany = 0
-                      AND (DK.walbrutto - ISNULL(PA.KwotaRozliczona, 0)) > 0.01";
-
-                await using var cmd = new SqlCommand(sql, cn);
-                cmd.CommandTimeout = 8;
-                cmd.Parameters.AddWithValue("@KlientId", klientId);
-
-                await using var reader = await cmd.ExecuteReaderAsync(ct);
-                if (await reader.ReadAsync(ct))
-                {
-                    decimal doZap = reader.IsDBNull(0) ? 0 : reader.GetDecimal(0);
-                    decimal przet = reader.IsDBNull(1) ? 0 : reader.GetDecimal(1);
-                    int maxDni    = reader.IsDBNull(2) ? 0 : Convert.ToInt32(reader.GetValue(2));
-
-                    if (doZap == 0)
-                    {
-                        txtSaldoInfo.Text = "✓ Klient nie ma zaległych faktur";
-                        txtSaldoInfo.Foreground = (Brush)FindResource("Brush.Success");
-                    }
-                    else if (przet > 0)
-                    {
-                        txtSaldoInfo.Text = $"🔴 {doZap:N0} zł do zapłaty\n   z czego {przet:N0} zł po terminie ({maxDni} dni max)";
-                        txtSaldoInfo.Foreground = (Brush)FindResource("Brush.Danger");
-                    }
-                    else
-                    {
-                        txtSaldoInfo.Text = $"💛 {doZap:N0} zł do zapłaty (terminowo)";
-                        txtSaldoInfo.Foreground = (Brush)FindResource("Brush.WarningText");
-                    }
-                }
-                else
-                {
-                    txtSaldoInfo.Text = "✓ Brak otwartych faktur";
-                    txtSaldoInfo.Foreground = (Brush)FindResource("Brush.TextSecondary");
-                }
-            }
-            catch (OperationCanceledException) { }
-            catch (Exception ex)
-            {
-                txtSaldoInfo.Text = "(nie udało się pobrać salda)";
-                System.Diagnostics.Debug.WriteLine($"LoadSaldo error: {ex.Message}");
-            }
         }
 
         private void DgOrders_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
@@ -989,17 +1532,91 @@ namespace Kalendarz1.WPF
         private void ClearDetails()
         {
             _currentOrderId = null;
-            txtOdbiorca.Text = "Wybierz zamówienie...";
-            txtHandlowiec.Text = "";
-            txtDataZamowienia.Text = "";
+            // paneOrderInfo zostaje widoczny — tylko teksty wracają do "pustego" stanu
+            txtOdbiorca.Text = "— wybierz zamówienie z listy —";
+            txtOrderMeta.Text = "";
             _dtDetails.Clear();
             dgDetails.ItemsSource = null;
+            _dtInvoice.Clear();
+            dgInvoiceItems.ItemsSource = null;
+            dgInvoiceItems.Visibility = Visibility.Collapsed;
+            panelInvoiceEmpty.Visibility = Visibility.Visible;
+            txtInvoiceHint.Text = "Zamówienie jeszcze nie zafakturowane";
+            invoiceHeader.Visibility = Visibility.Collapsed;
+            txtInvoiceMatchTag.Visibility = Visibility.Collapsed;
             btnMarkFakturowane.IsEnabled = false;
             btnCofnijFakturowanie.IsEnabled = false;
             borderTransport.Visibility = Visibility.Collapsed;
             ShowNoChanges();
-            txtSaldoInfo.Text = "(wybierz zamówienie)";
-            txtSaldoInfo.Foreground = (Brush)FindResource("Brush.TextSecondary");
+            badgeChanges.Visibility = Visibility.Collapsed;
+            _suppressNotatkiSave = true;
+            txtNotatki.Text = "";
+            _suppressNotatkiSave = false;
+        }
+
+        // ════════════════════════════════════════════════════════════
+        // CONTEXT MENU - Dopasuj fakturę / wyczyść
+        // ════════════════════════════════════════════════════════════
+        private async void MenuItem_DopasujFakture_Click(object sender, RoutedEventArgs e)
+        {
+            if (dgOrders.SelectedItem is not ZamowienieViewModel vm) return;
+            var info = vm.Info;
+
+            if (info.KlientId <= 0)
+            {
+                MessageBox.Show(this, "Brak ID klienta dla tego zamówienia.", "Nie można dopasować",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var dlg = new DopasujFaktureWindow(
+                _connHandel,
+                info.KlientId,
+                info.Klient,
+                info.Id,
+                info.TotalIlosc,
+                info.NumerFaktury)
+            {
+                Owner = this
+            };
+
+            if (dlg.ShowDialog() != true) return;
+            if (string.IsNullOrWhiteSpace(dlg.SelectedNumerFaktury)) return;
+
+            try
+            {
+                await UpdateZamowienieFakturaAsync(info.Id, true, dlg.SelectedNumerFaktury);
+                await RefreshDataAsync();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, $"Błąd zapisu: {ex.Message}", "Błąd",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async void MenuItem_WyczyscFakture_Click(object sender, RoutedEventArgs e)
+        {
+            if (dgOrders.SelectedItem is not ZamowienieViewModel vm) return;
+            var info = vm.Info;
+
+            if (string.IsNullOrEmpty(info.NumerFaktury) && !info.CzyZafakturowane) return;
+
+            var ok = MessageBox.Show(this,
+                $"Wyczyścić numer faktury i oznaczyć zamówienie #{info.Id} jako niezafakturowane?",
+                "Potwierdzenie", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (ok != MessageBoxResult.Yes) return;
+
+            try
+            {
+                await UpdateZamowienieFakturaAsync(info.Id, false, null);
+                await RefreshDataAsync();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, $"Błąd zapisu: {ex.Message}", "Błąd",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         // ════════════════════════════════════════════════════════════
@@ -1139,6 +1756,7 @@ namespace Kalendarz1.WPF
             else if (e.Key == Key.Left  && Keyboard.Modifiers == ModifierKeys.None) { BtnPrevDay_Click(this, new RoutedEventArgs()); e.Handled = true; }
             else if (e.Key == Key.Right && Keyboard.Modifiers == ModifierKeys.None) { BtnNextDay_Click(this, new RoutedEventArgs()); e.Handled = true; }
             else if (e.Key == Key.Home  && Keyboard.Modifiers == ModifierKeys.None) { BtnToday_Click(this, new RoutedEventArgs()); e.Handled = true; }
+            else if (e.Key == Key.N     && Keyboard.Modifiers == ModifierKeys.Control) { BtnNoweZamowienie_Click(this, new RoutedEventArgs()); e.Handled = true; }
             else if (_currentOrderId.HasValue)
             {
                 if (e.Key == Key.F && btnMarkFakturowane.IsEnabled) { BtnMarkFakturowane_Click(this, new RoutedEventArgs()); e.Handled = true; }
@@ -1199,6 +1817,22 @@ namespace Kalendarz1.WPF
             public DateTime? DataOstatniejModyfikacji { get; set; }
             public string ModyfikowalPrzez { get; set; } = "";
             public bool CzyMaCeny { get; set; }
+            public string Waluta { get; set; } = "PLN";
+
+            // Wyniki weryfikacji faktura ↔ zamówienie (uzupełniane po VerifyInvoicesAsync)
+            public InvoiceMatchStatus MatchStatus { get; set; } = InvoiceMatchStatus.None;
+            public int? InvoiceKhId { get; set; }
+            public string InvoiceKhName { get; set; } = "";
+            public decimal? InvoiceTotalIlosc { get; set; }
+        }
+
+        public enum InvoiceMatchStatus
+        {
+            None,           // brak NumerFaktury - nic nie pokazuj
+            NotFound,       // NumerFaktury jest, ale brak takiej w Symfonii (alarm)
+            ClientMismatch, // klient zamówienia != klient faktury (alarm)
+            QtyMismatch,    // klient OK, ilość się nie zgadza (ostrzeżenie)
+            Ok              // wszystko gra
         }
 
         public class DiffRow
@@ -1228,6 +1862,10 @@ namespace Kalendarz1.WPF
             public string Kto   { get; set; } = "";
             public string Kiedi { get => Kiedy; set => Kiedy = value; }
             public string Kiedy { get; set; } = "";
+            public BitmapImage? TowarImage { get; set; }    // wypełnione gdy zmiana dotyczy konkretnego towaru
+            public bool HasImage => TowarImage != null;
+            public Visibility ImageVis => HasImage ? Visibility.Visible : Visibility.Collapsed;
+            public Visibility IconVis  => HasImage ? Visibility.Collapsed : Visibility.Visible;
 
             // Compact summary widoczny gdy karta zwinięta
             public string ShortSummary
@@ -1316,16 +1954,59 @@ namespace Kalendarz1.WPF
             public string KlientName => Info.Klient;
             public bool   HasChange  => Info.CzyZmodyfikowaneDlaFaktur;
             public string Handlowiec => Info.Handlowiec;
+            public BitmapSource? HandlowiecAvatar => string.IsNullOrEmpty(Info.Handlowiec)
+                ? null
+                : (_handlowiecAvatarCache.TryGetValue(Info.Handlowiec, out var av) ? av : null);
+            public Visibility HasAvatarVis => HandlowiecAvatar != null ? Visibility.Visible : Visibility.Collapsed;
             public decimal TotalIlosc => Info.TotalIlosc;
             public decimal Wartosc    => Info.Wartosc;
             public bool HasTransport => !string.IsNullOrEmpty(Info.GodzWyjazdu);
             public string GodzWyjazdu => Info.GodzWyjazdu ?? "";
             public string Kierowca    => Info.Kierowca ?? "";
+            public string NumerFaktury => Info.NumerFaktury ?? "";
+
+            // ─── Status dopasowania faktury (ikona + kolor + tooltip obok klienta) ───
+            public string MatchIcon => Info.MatchStatus switch
+            {
+                InvoiceMatchStatus.NotFound       => "⚠",
+                InvoiceMatchStatus.ClientMismatch => "✖",
+                InvoiceMatchStatus.QtyMismatch    => "⚠",
+                InvoiceMatchStatus.Ok             => "✓",
+                _ => ""
+            };
+            private static readonly Brush _matchOk     = Freeze(new SolidColorBrush(Color.FromRgb(0x16, 0xA3, 0x4A)));
+            private static readonly Brush _matchWarn   = Freeze(new SolidColorBrush(Color.FromRgb(0xEA, 0x58, 0x0C)));
+            private static readonly Brush _matchAlarm  = Freeze(new SolidColorBrush(Color.FromRgb(0xDC, 0x26, 0x26)));
+            public Brush MatchBrush => Info.MatchStatus switch
+            {
+                InvoiceMatchStatus.NotFound       => _matchAlarm,
+                InvoiceMatchStatus.ClientMismatch => _matchAlarm,
+                InvoiceMatchStatus.QtyMismatch    => _matchWarn,
+                InvoiceMatchStatus.Ok             => _matchOk,
+                _ => Brushes.Transparent
+            };
+            public string MatchTooltip => Info.MatchStatus switch
+            {
+                InvoiceMatchStatus.NotFound       => $"Faktura {Info.NumerFaktury} nie istnieje w Symfonii",
+                InvoiceMatchStatus.ClientMismatch => $"✖ Klient na fakturze: {(string.IsNullOrEmpty(Info.InvoiceKhName) ? $"khid={Info.InvoiceKhId}" : Info.InvoiceKhName)}\nKlient zamówienia: {Info.Klient}",
+                InvoiceMatchStatus.QtyMismatch    => $"⚠ Suma kg na fakturze ({Info.InvoiceTotalIlosc:N0}) ≠ na zamówieniu ({Info.TotalIlosc:N0})\nKlient na fakturze: {Info.InvoiceKhName}",
+                InvoiceMatchStatus.Ok             => $"✓ Faktura {Info.NumerFaktury}\nKlient: {Info.InvoiceKhName}\nSuma kg: {Info.InvoiceTotalIlosc:N0}",
+                _ => ""
+            };
+            public Visibility MatchVis => Info.MatchStatus == InvoiceMatchStatus.None
+                ? Visibility.Collapsed : Visibility.Visible;
 
             public string CenaDisplay => Info.CzyMaCeny ? "✓" : "✗";
             public Brush  CenaColor   => Info.CzyMaCeny ? _brushSuccess : _brushDanger;
 
-            // Wartość PLN — szara gdy 0 (brak cen)
+            // Waluta — symbol dla wyświetlania
+            public string Waluta => Info.Waluta ?? "PLN";
+            public string WalutaSymbol => Waluta == "EUR" ? "€" : "zł";
+
+            // Wartość sformatowana z walutą — np. "1 500,00 zł" lub "350,00 €"
+            public string WartoscDisplay => $"{Info.Wartosc:N2} {WalutaSymbol}";
+
+            // Wartość — szara gdy 0 (brak cen)
             public Brush WartoscColor => Info.Wartosc > 0 ? _brushTextDark : _brushTextMuted;
 
             // Status display + kolory
@@ -1333,6 +2014,9 @@ namespace Kalendarz1.WPF
             {
                 get
                 {
+                    // Najpierw kombinacja: zafakturowane + zmiana = wyższy priorytet, własna grupa
+                    if (Info.CzyZafakturowane && Info.CzyZmodyfikowaneDlaFaktur)
+                        return "⚠ Zafakturowane — zmiana po fakturze";
                     if (Info.CzyZafakturowane) return "Zafakturowane";
                     if (Info.CzyZmodyfikowaneDlaFaktur) return "⚠ Do zatwierdzenia";
                     return string.IsNullOrEmpty(Info.Status) ? "—" : Info.Status;

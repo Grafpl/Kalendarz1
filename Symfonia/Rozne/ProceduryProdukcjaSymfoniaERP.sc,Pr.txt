@@ -1,0 +1,85 @@
+//"ProceduryProdukcjaSymfoniaERP.sc","Procedury Produkcja","\Produkcja\",0,3.0.0,SYSTEM
+//Copyright (c) 1993-2023 Symfonia sp. z o.o.. Wszelkie prawa zastrzeżone.
+
+dispatch con = GetAdoConnection()
+dispatch rsDocs = "ADODB.RecordSet"
+
+string lsql, sSerial
+
+Int sub CheckDokWarehouse(long lidDokMag, int iKomunikat)
+	string sMessage
+	string lsql = "SELECT HM.MG.kod, HM.MG.id FROM HM.MG "
+	lsql = lsql + using "WHERE (HM.MG.id = '%l') AND ProductionOrderID is not null",lidDokMag 
+	if rsDocs.State() == 1 then rsDocs.close()
+	rsDocs.Open(lsql, con)
+	if !rsDocs.Eof() then
+		if rsDocs.Fields("id").Value == lidDokMag then
+			CheckDokWarehouse = -6000
+			if iKomunikat == 1 then 
+				sMessage = using "Dokument %s pochodzi z systemu Symfonia Zarządzanie Produkcją\nEdycja dokumentu nie jest możliwa Ico: s", rsDocs.Fields("kod").Value
+			else
+				sMessage = using "Dokument %s pochodzi z systemu Symfonia Zarządzanie Produkcją\nUsunięcie dokumentu nie jest możliwe Ico: s", rsDocs.Fields("kod").Value
+			endif
+			message sMessage
+		else
+			CheckDokWarehouse = 0
+		endif
+	endif
+EndSub
+
+String Sub FormChangeOpis(string sOpisDok)	
+	int Fx,Fy,x, y, dx, dy	
+	Fx = 300 : Fy = 110 
+	Form "Opis dokumentu",Fx, Fy
+		Edit "", sOpisDok, 10, Fy - 100, 270,20
+		Button "&Zapisz",Fx-185, Fy-65, 80, 24,2	
+		Button "&Anuluj",Fx-100,Fy-65,80,24,-1
+	if ExecForm == -1 then 
+		error ""
+	else
+		FormChangeOpis = sOpisDok
+	endif
+EndSub
+
+String Sub GetOpisDocument(long lidDokMag)	
+	string lsql = "SELECT HM.MG.opis FROM HM.MG "
+	lsql = lsql + using "WHERE (HM.MG.id = '%l')",lidDokMag
+	if rsDocs.State() == 1 then rsDocs.close()
+	rsDocs.Open(lsql, con)
+	if !rsDocs.Eof() then GetOpisDocument = rsDocs.Fields("opis").Value
+EndSub
+
+Int Sub SetOpisDocument(long lidDokMag, string sOpis)
+	string lsql = "UPDATE [HM].[MG] "
+	lsql = lsql + using "SET [opis] = '%s' ", sOpis
+	lsql = lsql + using "WHERE (HM.MG.id = '%l')",lidDokMag
+	con.Execute(lsql)
+	if rsDocs.State() == 1 then rsDocs.close()
+EndSub
+
+Int Sub GetSetOpisDocument(long lidDokMag)	
+	String sSetTmpOpis	
+	String sTmpOpis = GetOpisDocument(lidDokMag)
+	sSetTmpOpis = FormChangeOpis(sTmpOpis)
+	if sSetTmpOpis != sTmpOpis then
+		if len(sSetTmpOpis) <= 80 then SetOpisDocument(lidDokMag, sSetTmpOpis)
+	endif
+EndSub
+
+int Sub OnAfterInsertZMO(long lId)
+	lsql= USING " exec MF.SP_InsertSalesOrder %l", lId
+	con.Execute(lsql)
+	OnAfterInsertZMO = 0
+EndSub
+
+int Sub OnAfterUpdateZMO(long lId)
+	lsql= USING " exec MF.SP_UpdateSalesOrder %l", lId
+	con.Execute(lsql)
+	OnAfterUpdateZMO = 0
+EndSub
+
+int Sub OnAfterDeleteZMO(long lId)
+	lsql= USING " exec MF.SP_DeleteSalesOrder %l", lId
+	con.Execute(lsql)
+	OnAfterDeleteZMO = 0
+EndSub

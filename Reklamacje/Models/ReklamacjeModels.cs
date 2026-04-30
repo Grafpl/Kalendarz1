@@ -21,23 +21,27 @@ namespace Kalendarz1.Reklamacje
 
         public static string Etykieta(string status) => status switch
         {
-            ZGLOSZONA => "Zgloszona",
-            W_ANALIZIE => "W analizie",
-            ZASADNA => "Zasadna",
-            POWIAZANA => "Powiazana",
+            ZGLOSZONA => "Nowa",
+            W_ANALIZIE => "Rozpatrywana",
+            ZASADNA => "Uznana",
+            POWIAZANA => "Polaczona",
             ZAMKNIETA => "Zamknieta",
             ODRZUCONA => "Odrzucona",
             _ => status ?? ""
         };
 
-        public static string KategoriaZakladki(string statusV2, bool wymagaUzupelnienia)
+        // Priorytet klasyfikacji oparty o osoby (rozpatruje / zakonczyl), z fallbackiem na StatusV2:
+        //  ZAMKNIETE  — ktos zakonczyl (UserZakonczenia) LUB status finalny (ZAMKNIETA/ODRZUCONA/POWIAZANA/ZASADNA)
+        //  W_TOKU     — ktos rozpatruje (OsobaRozpatrujaca) LUB status W_ANALIZIE
+        //  DO_AKCJI   — pozostale (ZGLOSZONA, NULL, lub wymaga uzupelnienia)
+        public static string KategoriaZakladki(string statusV2, bool wymagaUzupelnienia, string osobaRozpatrujaca, string userZakonczenia)
         {
+            if (!string.IsNullOrWhiteSpace(userZakonczenia)) return "ZAMKNIETE";
             if (statusV2 == ZAMKNIETA || statusV2 == ODRZUCONA || statusV2 == POWIAZANA || statusV2 == ZASADNA)
                 return "ZAMKNIETE";
-            if (statusV2 == ZGLOSZONA || wymagaUzupelnienia)
-                return "DO_AKCJI";
-            // W_ANALIZIE = Przyjeta
-            return "W_TOKU";
+            if (!string.IsNullOrWhiteSpace(osobaRozpatrujaca)) return "W_TOKU";
+            if (statusV2 == W_ANALIZIE) return "W_TOKU";
+            return "DO_AKCJI";
         }
     }
 
@@ -87,8 +91,30 @@ namespace Kalendarz1.Reklamacje
                 ? "Oczekuje"
                 : StatusyV2.Etykieta(StatusV2);
         public string Zglaszajacy { get => _zglaszajacy; set { _zglaszajacy = value; OnPropertyChanged(nameof(Zglaszajacy)); } }
-        public string OsobaRozpatrujaca { get => _osobaRozpatrujaca; set { _osobaRozpatrujaca = value; OnPropertyChanged(nameof(OsobaRozpatrujaca)); } }
-        public string TypReklamacji { get => _typReklamacji; set { _typReklamacji = value; OnPropertyChanged(nameof(TypReklamacji)); } }
+        public string OsobaRozpatrujaca
+        {
+            get => _osobaRozpatrujaca;
+            set
+            {
+                _osobaRozpatrujaca = value;
+                OnPropertyChanged(nameof(OsobaRozpatrujaca));
+                OnPropertyChanged(nameof(KategoriaZakladki));
+                OnPropertyChanged(nameof(RozpatrujacyVis));
+            }
+        }
+        public string TypReklamacji
+        {
+            get => _typReklamacji;
+            set { _typReklamacji = value; OnPropertyChanged(nameof(TypReklamacji)); OnPropertyChanged(nameof(TypReklamacjiEtykieta)); }
+        }
+        // Wyswietlana etykieta typu — przyjazna nazwa zamiast technicznej
+        public string TypReklamacjiEtykieta => _typReklamacji switch
+        {
+            "Faktura korygujaca" => "Korekta z ksiegowosci",
+            null => "",
+            "" => "",
+            _ => _typReklamacji
+        };
         public string Priorytet { get => _priorytet; set { _priorytet = value; OnPropertyChanged(nameof(Priorytet)); } }
         public int? PowiazanaReklamacjaId { get => _powiazanaReklamacjaId; set { _powiazanaReklamacjaId = value; OnPropertyChanged(nameof(PowiazanaReklamacjaId)); OnPropertyChanged(nameof(MaPowiazanie)); OnPropertyChanged(nameof(TekstPowiazania)); } }
 
@@ -109,7 +135,7 @@ namespace Kalendarz1.Reklamacje
             }
         }
 
-        public string KategoriaZakladki => StatusyV2.KategoriaZakladki(StatusV2, WymagaUzupelnienia);
+        public string KategoriaZakladki => StatusyV2.KategoriaZakladki(StatusV2, WymagaUzupelnienia, OsobaRozpatrujaca, UserZakonczenia);
 
         // Handlowiec przypisany do kontrahenta
         public string Handlowiec
@@ -164,6 +190,24 @@ namespace Kalendarz1.Reklamacje
 
         public bool MaPowiazanie => PowiazanaReklamacjaId.HasValue && PowiazanaReklamacjaId.Value > 0;
         public string TekstPowiazania => MaPowiazanie ? $"#{PowiazanaReklamacjaId}" : "Brak";
+        public Visibility PowiazanieIkonaVis => MaPowiazanie ? Visibility.Visible : Visibility.Collapsed;
+        public string PowiazanieTooltip
+        {
+            get
+            {
+                if (!MaPowiazanie) return "";
+                if (!string.IsNullOrEmpty(NumerKorektyPowiazanej))
+                    return $"Polaczona z korekta {NumerKorektyPowiazanej}";
+                return $"Polaczona ze sprawa #{PowiazanaReklamacjaId}";
+            }
+        }
+        // Dane korekty z partnera (uzupelnione przez WczytajReklamacje JOIN)
+        public string NumerKorektyPowiazanej { get; set; }
+        public DateTime? DataKorektyPowiazanej { get; set; }
+        public Visibility KorektaSubInfoVis => !string.IsNullOrEmpty(NumerKorektyPowiazanej) ? Visibility.Visible : Visibility.Collapsed;
+        public string KorektaSubInfoText => !string.IsNullOrEmpty(NumerKorektyPowiazanej)
+            ? $"📑 Korekta: {NumerKorektyPowiazanej}"
+            : "";
 
         // Avatar support
         public string ZglaszajacyId { get; set; }

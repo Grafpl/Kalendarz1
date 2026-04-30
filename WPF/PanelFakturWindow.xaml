@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:sys="clr-namespace:System;assembly=mscorlib"
+        xmlns:local="clr-namespace:Kalendarz1.WPF"
         mc:Ignorable="d"
         Title="Panel Faktur — Zamówienia Klientów"
         MinHeight="500" MinWidth="700"
@@ -98,6 +99,8 @@
             <Thickness  x:Key="Density.Cell.Pad">10,6</Thickness>
 
             <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+            <local:StatusToIconConverter  x:Key="StatusToIcon"/>
+            <local:StatusToColorConverter x:Key="StatusToColor"/>
 
             <!-- Bardzo subtelne cienie — czysty, płaski look -->
             <DropShadowEffect x:Key="Fx.Card"   BlurRadius="6" ShadowDepth="1" Opacity="0.05" Direction="270"/>
@@ -482,10 +485,9 @@
                 </Style.Triggers>
             </Style>
 
-            <!-- Wiersze szczegółów (prawy panel) — STAŁA wysokość niezależna od density głównej tabeli.
-                 Prawy panel jest wąski → wiersze muszą być wysokie żeby tekst się mieścił czytelnie. -->
+            <!-- Wiersze szczegółów (prawy panel) — kompaktowe, niezależne od density głównej tabeli -->
             <Style x:Key="CompactRow" TargetType="DataGridRow">
-                <Setter Property="MinHeight" Value="40"/>
+                <Setter Property="MinHeight" Value="32"/>
                 <Setter Property="FontSize"  Value="{StaticResource Font.Sm}"/>
                 <Style.Triggers>
                     <Trigger Property="IsMouseOver" Value="True">
@@ -494,9 +496,9 @@
                 </Style.Triggers>
             </Style>
 
-            <!-- Komórki w prawym panelu — większy padding żeby tekst nie przylegał do krawędzi -->
+            <!-- Komórki w prawym panelu -->
             <Style x:Key="DetailCell" TargetType="DataGridCell">
-                <Setter Property="Padding" Value="12,9"/>
+                <Setter Property="Padding" Value="8,5"/>
                 <Setter Property="BorderThickness" Value="0"/>
                 <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
                 <Setter Property="VerticalAlignment" Value="Stretch"/>
@@ -537,7 +539,7 @@
                 <Setter Property="FontSize" Value="{StaticResource Font.Sm}"/>
                 <Setter Property="FontWeight" Value="SemiBold"/>
                 <Setter Property="Foreground" Value="{StaticResource Brush.TextSecondary}"/>
-                <Setter Property="Padding" Value="18,12"/>
+                <Setter Property="Padding" Value="14,11"/>
                 <Setter Property="Background" Value="Transparent"/>
                 <Setter Property="BorderThickness" Value="0"/>
                 <Setter Property="Cursor" Value="Hand"/>
@@ -558,6 +560,20 @@
                                     <Setter Property="Foreground" Value="{StaticResource Brush.Primary}"/>
                                     <Setter TargetName="ind" Property="Visibility" Value="Visible"/>
                                 </Trigger>
+                                <!-- Highlight gdy Tag="highlight" (zmiany do uwagi) — pomarańczowe tło + tekst -->
+                                <Trigger Property="Tag" Value="highlight">
+                                    <Setter Property="Foreground" Value="{StaticResource Brush.WarningText}"/>
+                                    <Setter TargetName="b" Property="Background" Value="{StaticResource Brush.WarningSoft}"/>
+                                    <Setter TargetName="ind" Property="Fill" Value="{StaticResource Brush.Warning}"/>
+                                </Trigger>
+                                <MultiTrigger>
+                                    <MultiTrigger.Conditions>
+                                        <Condition Property="Tag" Value="highlight"/>
+                                        <Condition Property="IsSelected" Value="True"/>
+                                    </MultiTrigger.Conditions>
+                                    <Setter Property="Foreground" Value="{StaticResource Brush.WarningText}"/>
+                                    <Setter TargetName="ind" Property="Visibility" Value="Visible"/>
+                                </MultiTrigger>
                             </ControlTemplate.Triggers>
                         </ControlTemplate>
                     </Setter.Value>
@@ -597,8 +613,7 @@
         <Grid Grid.Column="0">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>  <!-- ToolBarTray -->
-                <RowDefinition Height="*"/>      <!-- DataGrid -->
-                <RowDefinition Height="Auto"/>  <!-- Status bar / Undo toast -->
+                <RowDefinition Height="*"/>      <!-- DataGrid pełnowymiarowy -->
             </Grid.RowDefinitions>
 
             <!-- ───── TOOLBAR — Light Pro: białe tło z subtle border ───── -->
@@ -607,24 +622,25 @@
                     Padding="16,12">
                 <StackPanel>
 
-                    <!-- ROW 1: Date hero + helper + Today -->
+                    <!-- ROW 1: pasek nawigacji + akcje + info wybranego zamowienia -->
                     <Grid Margin="0,0,0,10">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>  <!-- 0 prev -->
+                            <ColumnDefinition Width="Auto"/>  <!-- 1 date hero -->
+                            <ColumnDefinition Width="Auto"/>  <!-- 2 next -->
+                            <ColumnDefinition Width="Auto"/>  <!-- 3 today -->
+                            <ColumnDefinition Width="Auto"/>  <!-- 4 +nowe -->
+                            <ColumnDefinition Width="Auto"/>  <!-- 5 density toggle -->
+                            <ColumnDefinition Width="Auto"/>  <!-- 6 refresh -->
+                            <ColumnDefinition Width="*"/>     <!-- 7 spacer -->
+                            <ColumnDefinition Width="Auto"/>  <!-- 8 paneOrderInfo -->
                         </Grid.ColumnDefinitions>
 
-                        <!-- Prev day -->
                         <Button x:Name="btnPrevDay" Grid.Column="0"
                                 Content="‹" Style="{StaticResource BtnIcon}"
                                 FontSize="{StaticResource Font.Lg}"
                                 Click="BtnPrevDay_Click" ToolTip="Poprzedni dzień (←)"/>
 
-                        <!-- Date hero button -->
                         <Button x:Name="btnDate" Grid.Column="1"
                                 Style="{StaticResource BtnDateHero}"
                                 Margin="6,0"
@@ -640,7 +656,6 @@
                             </StackPanel>
                         </Button>
 
-                        <!-- Calendar popup -->
                         <Popup x:Name="popupCalendar" PlacementTarget="{Binding ElementName=btnDate}"
                                Placement="Bottom" StaysOpen="False" AllowsTransparency="True">
                             <Border Background="White" BorderBrush="{StaticResource Brush.Border}"
@@ -651,53 +666,42 @@
                             </Border>
                         </Popup>
 
-                        <!-- Next day -->
                         <Button x:Name="btnNextDay" Grid.Column="2"
                                 Content="›" Style="{StaticResource BtnIcon}"
                                 FontSize="{StaticResource Font.Lg}"
                                 Click="BtnNextDay_Click" ToolTip="Następny dzień (→)"/>
 
-                        <!-- Helper: tydzień + zakres -->
-                        <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center" Margin="20,0,0,0">
-                            <TextBlock x:Name="txtWeekInfo" Text="—"
-                                       FontSize="{StaticResource Font.Xs}" Foreground="{StaticResource Brush.TextSecondary}"
-                                       FontWeight="Medium" VerticalAlignment="Center"/>
-                        </StackPanel>
-
-                        <!-- Today (right-aligned) -->
-                        <Button x:Name="btnToday" Grid.Column="5" Content="Dziś"
+                        <Button x:Name="btnToday" Grid.Column="3" Content="Dziś"
                                 Style="{StaticResource BtnIcon}"
                                 FontWeight="Medium" FontSize="{StaticResource Font.Sm}"
+                                Margin="14,0,0,0"
                                 Click="BtnToday_Click" ToolTip="Skocz do dziś (Home)"/>
-                    </Grid>
 
-                    <!-- ROW 2: Filtry + density + refresh -->
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
+                        <!-- Nowy przycisk: Stwórz zamówienie (mniejszy) -->
+                        <Button x:Name="btnNoweZamowienie" Grid.Column="4" Content="+ Nowe"
+                                FontWeight="SemiBold" FontSize="{StaticResource Font.Xs}"
+                                Foreground="White" Background="#16A34A"
+                                BorderThickness="0" Padding="10,5" Cursor="Hand"
+                                Margin="10,0,0,0" MinHeight="{StaticResource Size.Btn.Md}"
+                                Click="BtnNoweZamowienie_Click"
+                                ToolTip="Stwórz nowe zamówienie (Ctrl+N)">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="b" Background="{TemplateBinding Background}" CornerRadius="6"
+                                            Padding="{TemplateBinding Padding}">
+                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="b" Property="Background" Value="#15803D"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
 
-                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
-                            <TextBlock Text="Towar" VerticalAlignment="Center" Margin="0,0,8,0"
-                                       Foreground="{StaticResource Brush.TextSecondary}" FontSize="{StaticResource Font.Xs}" FontWeight="Medium"/>
-                            <ComboBox x:Name="cmbProduct" MinWidth="160" MinHeight="{StaticResource Size.Btn.Md}"
-                                      FontSize="{StaticResource Font.Sm}"
-                                      SelectionChanged="CmbProduct_SelectionChanged"/>
-                        </StackPanel>
-
-                        <CheckBox Grid.Column="1" x:Name="chkShowFakturowane"
-                                  Content="Pokaż zafakturowane"
-                                  VerticalAlignment="Center" Foreground="{StaticResource Brush.Text}"
-                                  FontSize="{StaticResource Font.Sm}"
-                                  Checked="ChkShowFakturowane_Changed" Unchecked="ChkShowFakturowane_Changed"/>
-
-                        <!-- Density jako 3-segment toggle -->
-                        <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
+                        <!-- Density toggle przeniesiony z ROW 2 do ROW 1 obok "Stwórz zamówienie" -->
+                        <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,0,0">
                             <RadioButton x:Name="rbDensityCompact" GroupName="Density"
                                          Style="{StaticResource SegmentBtnFirst}"
                                          Content="≡" ToolTip="Kompaktowa"
@@ -712,68 +716,77 @@
                                          Checked="DensityRadio_Checked" Tag="Comfort"/>
                         </StackPanel>
 
-                        <Button Grid.Column="5" x:Name="btnRefresh" Content="Odśwież"
+                        <Button Grid.Column="6" x:Name="btnRefresh" Content="Odśwież"
                                 Style="{StaticResource BtnIcon}"
                                 FontWeight="Medium" FontSize="{StaticResource Font.Sm}"
+                                Margin="10,0,0,0"
                                 Click="BtnRefresh_Click" ToolTip="Odśwież dane (F5)"/>
+
+                        <!-- Hidden compat (code-behind nadal pisze do txtWeekInfo) -->
+                        <TextBlock x:Name="txtWeekInfo" Visibility="Collapsed"/>
+
+                        <!-- WYBRANE ZAMÓWIENIE (po prawej) — ZAWSZE widoczne (puste gdy nic nie wybrane) -->
+                        <Border x:Name="paneOrderInfo" Grid.Column="8"
+                                VerticalAlignment="Center" HorizontalAlignment="Right"
+                                Width="460" Height="80"
+                                Background="{StaticResource Brush.SurfaceAlt}"
+                                BorderBrush="{StaticResource Brush.Border}" BorderThickness="1"
+                                CornerRadius="6" Padding="14,9">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                    <TextBlock x:Name="txtOdbiorca" Text="—"
+                                               FontSize="{StaticResource Font.Lg}" FontWeight="SemiBold"
+                                               Foreground="{StaticResource Brush.Text}" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock x:Name="txtOrderMeta" Text=""
+                                               FontSize="{StaticResource Font.Sm}"
+                                               Foreground="{StaticResource Brush.TextSecondary}"
+                                               Margin="0,4,0,0" TextTrimming="CharacterEllipsis"/>
+                                    <!-- ukryte (zachowane dla compatibility z code-behind) -->
+                                    <TextBlock x:Name="txtHandlowiec" Visibility="Collapsed"/>
+                                    <TextBlock x:Name="txtDataZamowienia" Visibility="Collapsed"/>
+                                </StackPanel>
+                                <Border x:Name="borderTransport" Grid.Column="1"
+                                        Background="White" BorderBrush="{StaticResource Brush.Border}" BorderThickness="1"
+                                        CornerRadius="4" Padding="8,4" Margin="10,0,0,0"
+                                        Visibility="Collapsed">
+                                    <StackPanel>
+                                        <TextBlock x:Name="txtGodzWyjazdu" Text="" FontSize="{StaticResource Font.Sm}"
+                                                   FontWeight="SemiBold" Foreground="{StaticResource Brush.PrimaryDark}"/>
+                                        <TextBlock x:Name="txtKierowca" Text="" FontSize="10"
+                                                   Foreground="{StaticResource Brush.TextSecondary}"/>
+                                        <TextBlock x:Name="txtPojazd" Text="" FontSize="10"
+                                                   Foreground="{StaticResource Brush.TextMuted}"/>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+                        </Border>
                     </Grid>
+
+                    <!-- ROW 2 i ROW 3 usuniete - wszystko przeniesione do ROW 1.
+                         Hidden compat elements (code-behind nadal pisze do nich, ale nie sa wyswietlane). -->
+                    <StackPanel Visibility="Collapsed">
+                        <ComboBox x:Name="cmbProduct" SelectionChanged="CmbProduct_SelectionChanged"/>
+                        <CheckBox x:Name="chkShowFakturowane" IsChecked="True"
+                                  Checked="ChkShowFakturowane_Changed" Unchecked="ChkShowFakturowane_Changed"/>
+                        <TextBlock x:Name="txtCntDoFaktury"/>
+                        <TextBlock x:Name="txtCntZafakt"/>
+                        <TextBlock x:Name="txtCntZmian"/>
+                        <TextBlock x:Name="txtCntKwota"/>
+                        <Border x:Name="badgeKwotaEur"><TextBlock x:Name="txtCntKwotaEur"/></Border>
+                    </StackPanel>
 
                 </StackPanel>
             </Border>
 
-            <!-- ───── DataGrid w karcie ───── -->
-            <Border Grid.Row="1" Background="White" Margin="10,10,5,4"
+            <!-- ───── DataGrid pełnowymiarowy (bez nagłówka karty — przeniesione do toolbara) ───── -->
+            <Border Grid.Row="1" Background="White" Margin="10,10,5,10"
                     CornerRadius="{StaticResource Radius.Card}" Effect="{StaticResource Fx.Card}">
                 <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-
-                    <!-- Nagłówek karty z licznikami kontekstowymi -->
-                    <Border Grid.Row="0" Background="White" Padding="16,12"
-                            CornerRadius="{StaticResource Radius.CardTop}"
-                            BorderBrush="{StaticResource Brush.Border}" BorderThickness="0,0,0,1">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-
-                            <TextBlock Text="Zamówienia" FontSize="{StaticResource Font.Md}" FontWeight="SemiBold"
-                                       Foreground="{StaticResource Brush.Text}" VerticalAlignment="Center"/>
-
-                            <!-- Liczniki kontekstowe — minimalne: kropka + tekst, bez kolorowych tłeł -->
-                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                <StackPanel Orientation="Horizontal" Margin="0,0,16,0" VerticalAlignment="Center">
-                                    <Ellipse Width="7" Height="7" Fill="{StaticResource Brush.Warning}" Margin="0,0,6,0" VerticalAlignment="Center"/>
-                                    <TextBlock x:Name="txtCntDoFaktury" Text="0 do faktury"
-                                               FontSize="{StaticResource Font.Xs}" FontWeight="Medium"
-                                               Foreground="{StaticResource Brush.TextSecondary}" VerticalAlignment="Center"/>
-                                </StackPanel>
-                                <StackPanel Orientation="Horizontal" Margin="0,0,16,0" VerticalAlignment="Center">
-                                    <Ellipse Width="7" Height="7" Fill="{StaticResource Brush.Success}" Margin="0,0,6,0" VerticalAlignment="Center"/>
-                                    <TextBlock x:Name="txtCntZafakt" Text="0 zafakt."
-                                               FontSize="{StaticResource Font.Xs}" FontWeight="Medium"
-                                               Foreground="{StaticResource Brush.TextSecondary}" VerticalAlignment="Center"/>
-                                </StackPanel>
-                                <StackPanel Orientation="Horizontal" Margin="0,0,16,0" VerticalAlignment="Center">
-                                    <Ellipse Width="7" Height="7" Fill="{StaticResource Brush.Danger}" Margin="0,0,6,0" VerticalAlignment="Center"/>
-                                    <TextBlock x:Name="txtCntZmian" Text="0 zmian"
-                                               FontSize="{StaticResource Font.Xs}" FontWeight="Medium"
-                                               Foreground="{StaticResource Brush.TextSecondary}" VerticalAlignment="Center"/>
-                                </StackPanel>
-                                <Border Background="{StaticResource Brush.PrimarySoft}" CornerRadius="4" Padding="8,3" VerticalAlignment="Center">
-                                    <TextBlock x:Name="txtCntKwota" Text="0 zł"
-                                               FontSize="{StaticResource Font.Xs}" FontWeight="SemiBold"
-                                               Foreground="{StaticResource Brush.PrimaryDark}"/>
-                                </Border>
-                            </StackPanel>
-                        </Grid>
-                    </Border>
-
-                    <!-- DataGrid -->
-                    <DataGrid x:Name="dgOrders" Grid.Row="1"
+                    <DataGrid x:Name="dgOrders"
                               Style="{StaticResource ProDataGrid}"
                               ColumnHeaderStyle="{StaticResource ProColHeader}"
                               CellStyle="{StaticResource ProCell}"
@@ -781,41 +794,115 @@
                               ItemsSource="{Binding ZamowieniaList}"
                               SelectionChanged="DgOrders_SelectionChanged"
                               MouseDoubleClick="DgOrders_MouseDoubleClick">
+
+                        <DataGrid.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Dopasuj fakturę do klienta..."
+                                          Click="MenuItem_DopasujFakture_Click"/>
+                                <MenuItem Header="Wyczyść numer faktury (cofnij dopasowanie)"
+                                          Click="MenuItem_WyczyscFakture_Click"/>
+                            </ContextMenu>
+                        </DataGrid.ContextMenu>
+
+                        <!-- Grupowanie po statusie — header z ikoną + nazwą + licznikiem -->
+                        <DataGrid.GroupStyle>
+                            <GroupStyle>
+                                <GroupStyle.HeaderTemplate>
+                                    <DataTemplate>
+                                        <Border Background="{StaticResource Brush.SurfaceAlt}"
+                                                BorderBrush="{StaticResource Brush.Border}" BorderThickness="0,1,0,1"
+                                                Padding="14,8">
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <!-- Kropka koloru statusu -->
+                                                <Ellipse Width="9" Height="9" Margin="0,0,8,0"
+                                                         Fill="{Binding Name, Converter={StaticResource StatusToColor}}"
+                                                         VerticalAlignment="Center"/>
+                                                <!-- Glyph statusu (ikona Unicode) -->
+                                                <TextBlock Text="{Binding Name, Converter={StaticResource StatusToIcon}}"
+                                                           FontSize="{StaticResource Font.Md}" FontWeight="Bold"
+                                                           Foreground="{Binding Name, Converter={StaticResource StatusToColor}}"
+                                                           Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                                <!-- Nazwa statusu -->
+                                                <TextBlock Text="{Binding Name}"
+                                                           FontSize="{StaticResource Font.Sm}" FontWeight="SemiBold"
+                                                           Foreground="{StaticResource Brush.Text}"
+                                                           VerticalAlignment="Center"/>
+                                                <!-- Licznik -->
+                                                <Border Background="White"
+                                                        BorderBrush="{StaticResource Brush.Border}" BorderThickness="1"
+                                                        CornerRadius="10" Padding="7,1" Margin="10,0,0,0">
+                                                    <TextBlock Text="{Binding ItemCount}"
+                                                               FontSize="11" FontWeight="Medium"
+                                                               Foreground="{StaticResource Brush.TextSecondary}"/>
+                                                </Border>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </GroupStyle.HeaderTemplate>
+                            </GroupStyle>
+                        </DataGrid.GroupStyle>
                         <DataGrid.Columns>
-                            <!-- Klient — bez emoji, sygnał zmiany przez kolor + bold -->
+                            <!-- Klient — z ikoną statusu dopasowania faktury -->
                             <DataGridTemplateColumn Header="Klient" Width="*" MinWidth="160">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <TextBlock Text="{Binding KlientName}" FontWeight="Medium"
-                                                   FontSize="{DynamicResource Density.Row.Font}"
-                                                   Foreground="{StaticResource Brush.Text}"
-                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding MatchIcon}"
+                                                       Foreground="{Binding MatchBrush}"
+                                                       FontWeight="Bold" FontSize="14"
+                                                       Margin="0,0,6,0" VerticalAlignment="Center"
+                                                       Visibility="{Binding MatchVis}"
+                                                       ToolTip="{Binding MatchTooltip}"/>
+                                            <TextBlock Text="{Binding KlientName}" FontWeight="Medium"
+                                                       FontSize="{DynamicResource Density.Row.Font}"
+                                                       Foreground="{StaticResource Brush.Text}"
+                                                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
-                            <!-- Handlowiec -->
-                            <DataGridTextColumn Header="Handl." Binding="{Binding Handlowiec}"
-                                                Width="Auto" MinWidth="56"
-                                                ElementStyle="{StaticResource ResourceKey={x:Type TextBlock}}"/>
+                            <!-- Handlowiec — z avatarem (jak w Zamowieniach Klientow) -->
+                            <DataGridTemplateColumn Header="Handl." Width="Auto" MinWidth="80">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Border Width="24" Height="24" CornerRadius="12"
+                                                    BorderBrush="{StaticResource Brush.Border}" BorderThickness="1"
+                                                    Background="White" Margin="0,0,6,0"
+                                                    ClipToBounds="True"
+                                                    Visibility="{Binding HasAvatarVis}">
+                                                <Image Source="{Binding HandlowiecAvatar}"
+                                                       Stretch="UniformToFill"
+                                                       RenderOptions.BitmapScalingMode="HighQuality"/>
+                                            </Border>
+                                            <TextBlock Text="{Binding Handlowiec}"
+                                                       FontSize="{DynamicResource Density.Row.Font}"
+                                                       Foreground="{StaticResource Brush.TextSecondary}"
+                                                       VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
 
-                            <!-- Ilość -->
-                            <DataGridTemplateColumn Header="Ilość kg" Width="Auto" MinWidth="80">
+                            <!-- Ilość — szersza, żeby liczby w stylu "12 500" się mieściły -->
+                            <DataGridTemplateColumn Header="Ilość kg" Width="Auto" MinWidth="110">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding TotalIlosc, StringFormat=N0}"
                                                    FontWeight="Bold" FontSize="{DynamicResource Density.Row.Font}"
                                                    Foreground="{StaticResource Brush.Text}"
-                                                   HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                   HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                   Padding="0,0,8,0"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
-                            <!-- Wartość PLN -->
-                            <DataGridTemplateColumn Header="Wartość PLN" Width="Auto" MinWidth="100">
+                            <!-- Wartość — z walutą (PLN/EUR per zamówienie) -->
+                            <DataGridTemplateColumn Header="Wartość" Width="Auto" MinWidth="110">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <TextBlock Text="{Binding Wartosc, StringFormat=N2}"
+                                        <TextBlock Text="{Binding WartoscDisplay}"
                                                    FontWeight="Bold" FontSize="{DynamicResource Density.Row.Font}"
                                                    Foreground="{Binding WartoscColor}"
                                                    HorizontalAlignment="Right" VerticalAlignment="Center"/>
@@ -834,20 +921,7 @@
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
-                            <!-- Status — minimal: kropka + tekst, bez kolorowego tła -->
-                            <DataGridTemplateColumn Header="Status" Width="Auto" MinWidth="120">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                            <Ellipse Width="7" Height="7" Fill="{Binding StatusColor}"
-                                                     Margin="0,0,7,0" VerticalAlignment="Center"/>
-                                            <TextBlock Text="{Binding StatusDisplay}" Foreground="{StaticResource Brush.Text}"
-                                                       FontSize="{StaticResource Font.Xs}" FontWeight="Medium"
-                                                       VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
+                            <!-- Status zostal usuniety (grupowanie po statusie pokazuje to w naglowkach grup) -->
 
                             <!-- Wyjazd — czysty tekst bez tła -->
                             <DataGridTemplateColumn Header="Wyjazd" Width="Auto" MinWidth="90">
@@ -864,56 +938,47 @@
                             <!-- Kierowca -->
                             <DataGridTextColumn Header="Kierowca" Binding="{Binding Kierowca}"
                                                 Width="Auto" MinWidth="100"/>
+
+                            <!-- Nr faktury (z Symfonii, po eksporcie) -->
+                            <DataGridTextColumn Header="Nr faktury" Binding="{Binding NumerFaktury}"
+                                                Width="Auto" MinWidth="120"/>
                         </DataGrid.Columns>
                     </DataGrid>
                 </Grid>
             </Border>
 
-            <!-- ───── STATUS BAR z miejscem na Undo toast ───── -->
-            <Border Grid.Row="2" Background="White" Margin="10,0,5,10" Padding="12,8"
-                    CornerRadius="{StaticResource Radius.CardBottom}"
-                    BorderBrush="{StaticResource Brush.Border}" BorderThickness="0,1,0,0">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-
-                    <TextBlock x:Name="txtStatusInfo" Grid.Column="0"
-                               FontSize="{StaticResource Font.Xs}" Foreground="{StaticResource Brush.TextSecondary}"
-                               VerticalAlignment="Center"
-                               Text="Gotowy"/>
-
-                    <!-- Undo banner -->
-                    <Border x:Name="undoBanner" Grid.Column="1"
-                            Background="#1E293B" CornerRadius="6" Padding="12,6"
-                            Visibility="Collapsed">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock x:Name="txtUndoMsg" Text="Wykonano akcję" Foreground="White"
-                                       VerticalAlignment="Center" FontSize="{StaticResource Font.Sm}"
-                                       Margin="0,0,12,0"/>
-                            <Button Content="Cofnij" Click="BtnUndo_Click"
-                                    Background="Transparent" Foreground="#7DD3FC"
-                                    BorderThickness="0" Padding="8,2" Cursor="Hand"
-                                    FontSize="{StaticResource Font.Sm}" FontWeight="Bold">
-                                <Button.Template>
-                                    <ControlTemplate TargetType="Button">
-                                        <Border x:Name="b" Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
-                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="b" Property="Background" Value="#0EA5E9"/>
-                                                <Setter Property="Foreground" Value="White"/>
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </Button.Template>
-                            </Button>
-                        </StackPanel>
-                    </Border>
-                </Grid>
+            <!-- Undo banner — floating overlay nad DataGridem (niewidoczny domyślnie) -->
+            <Border x:Name="undoBanner" Grid.Row="1"
+                    HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                    Margin="0,0,16,16"
+                    Background="#1E293B" CornerRadius="6" Padding="14,8"
+                    Effect="{StaticResource Fx.Card}"
+                    Visibility="Collapsed">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock x:Name="txtUndoMsg" Text="Wykonano akcję" Foreground="White"
+                               VerticalAlignment="Center" FontSize="{StaticResource Font.Sm}"
+                               Margin="0,0,14,0"/>
+                    <Button Content="Cofnij" Click="BtnUndo_Click"
+                            Background="Transparent" Foreground="#7DD3FC"
+                            BorderThickness="0" Padding="10,3" Cursor="Hand"
+                            FontSize="{StaticResource Font.Sm}" FontWeight="Bold">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="b" Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="b" Property="Background" Value="#0EA5E9"/>
+                                        <Setter Property="Foreground" Value="White"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                </StackPanel>
             </Border>
+
         </Grid>
 
         <!-- ═════════════ SPLITTER (tylko w trybie Wide) ═════════════ -->
@@ -922,125 +987,72 @@
                       Background="Transparent"
                       Cursor="SizeWE" ResizeBehavior="PreviousAndNext"/>
 
-        <!-- ═════════════ PRAWA STRONA — TabControl ═════════════ -->
+        <!-- ═════════════ PRAWA STRONA — TabControl 3 zakładki + akcje ═════════════ -->
         <Border x:Name="paneRight" Grid.Column="2" Background="White" Margin="5,10,10,10"
                 CornerRadius="{StaticResource Radius.Card}" Effect="{StaticResource Fx.Card}">
             <Grid>
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>  <!-- Header z info klienta -->
-                    <RowDefinition Height="*"/>      <!-- TabControl -->
+                    <RowDefinition Height="*"/>     <!-- TabControl -->
+                    <RowDefinition Height="Auto"/>  <!-- Notatki zamowienia -->
                     <RowDefinition Height="Auto"/>  <!-- Akcje -->
                 </Grid.RowDefinitions>
 
-                <!-- Header — biały, hierarchiczny -->
-                <Border Grid.Row="0" Background="{StaticResource Brush.Surface}"
-                        CornerRadius="{StaticResource Radius.CardTop}"
-                        BorderBrush="{StaticResource Brush.Border}" BorderThickness="0,0,0,1"
-                        Padding="18,16">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <StackPanel Grid.Column="0">
-                            <TextBlock x:Name="txtOdbiorca" Text="Wybierz zamówienie"
-                                       FontSize="{StaticResource Font.Xl}" FontWeight="SemiBold"
-                                       Foreground="{StaticResource Brush.Text}" TextTrimming="CharacterEllipsis"
-                                       LineHeight="24"/>
-                            <TextBlock x:Name="txtHandlowiec" Text=""
-                                       FontSize="{StaticResource Font.Sm}" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,6,0,0"/>
-                            <TextBlock x:Name="txtDataZamowienia" Text=""
-                                       FontSize="{StaticResource Font.Xs}" Foreground="{StaticResource Brush.TextMuted}" Margin="0,2,0,0"/>
-                        </StackPanel>
+                <TabControl x:Name="tabsDetail" Grid.Row="0" Style="{StaticResource DetailTabs}">
 
-                        <Border x:Name="borderTransport" Grid.Column="1" Background="{StaticResource Brush.SurfaceAlt}"
-                                BorderBrush="{StaticResource Brush.Border}" BorderThickness="1"
-                                CornerRadius="6" Padding="12,8" Visibility="Collapsed">
-                            <StackPanel>
-                                <TextBlock x:Name="txtGodzWyjazdu" Text="" FontSize="{StaticResource Font.Md}"
-                                           FontWeight="SemiBold" Foreground="{StaticResource Brush.PrimaryDark}" HorizontalAlignment="Center"/>
-                                <TextBlock x:Name="txtKierowca" Text="" FontSize="{StaticResource Font.Xs}"
-                                           Foreground="{StaticResource Brush.TextSecondary}" HorizontalAlignment="Center" Margin="0,3,0,0"/>
-                                <TextBlock x:Name="txtPojazd" Text="" FontSize="{StaticResource Font.Xs}"
-                                           Foreground="{StaticResource Brush.TextMuted}" HorizontalAlignment="Center"/>
-                            </StackPanel>
-                        </Border>
-                    </Grid>
-                </Border>
-
-                <!-- TabControl -->
-                <TabControl x:Name="tabsDetail" Grid.Row="1" Style="{StaticResource DetailTabs}">
-
-                    <!-- TAB: Pozycje -->
-                    <TabItem Header="Pozycje" Style="{StaticResource DetailTabItem}">
-                        <DataGrid x:Name="dgDetails" Margin="0,4,0,0"
+                    <!-- TAB 1: Pozycje zamówienia -->
+                    <TabItem Header="Pozycje zamówienia" Style="{StaticResource DetailTabItem}">
+                        <DataGrid x:Name="dgDetails"
                                   Style="{StaticResource ProDataGrid}"
                                   ColumnHeaderStyle="{StaticResource DetailColHeader}"
                                   CellStyle="{StaticResource DetailCell}"
                                   RowStyle="{StaticResource CompactRow}"/>
                     </TabItem>
 
-                    <!-- TAB: Zmiany — diff side-by-side -->
-                    <TabItem x:Name="tabZmiany" Header="Zmiany" Style="{StaticResource DetailTabItem}">
+                    <!-- TAB 2: Zmiany (highlightowana gdy są zmiany — Tag="highlight" w code-behind) -->
+                    <TabItem x:Name="tabZmiany" Style="{StaticResource DetailTabItem}">
+                        <TabItem.Header>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="Zmiany" VerticalAlignment="Center"/>
+                                <Border x:Name="badgeChanges" Background="{StaticResource Brush.Warning}"
+                                        CornerRadius="9" MinWidth="20" Padding="6,1" Margin="7,0,0,0"
+                                        VerticalAlignment="Center" Visibility="Collapsed">
+                                    <TextBlock x:Name="txtChangesCount" Text="0"
+                                               FontSize="10" FontWeight="Bold" Foreground="White"
+                                               HorizontalAlignment="Center"/>
+                                </Border>
+                            </StackPanel>
+                        </TabItem.Header>
                         <Grid>
                             <!-- Brak zmian -->
                             <StackPanel x:Name="panelNoChanges" VerticalAlignment="Center" HorizontalAlignment="Center">
-                                <Border Width="56" Height="56" CornerRadius="28"
-                                        Background="{StaticResource Brush.SuccessSoft}"
-                                        HorizontalAlignment="Center">
-                                    <TextBlock Text="✓" FontSize="28" FontWeight="Bold"
+                                <Border Width="48" Height="48" CornerRadius="24"
+                                        Background="{StaticResource Brush.SuccessSoft}" HorizontalAlignment="Center">
+                                    <TextBlock Text="✓" FontSize="24" FontWeight="Bold"
                                                Foreground="{StaticResource Brush.Success}"
                                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Border>
-                                <TextBlock Text="Brak nowych zmian"
+                                <TextBlock Text="Brak zmian"
                                            FontSize="{StaticResource Font.Md}" FontWeight="Medium"
                                            Foreground="{StaticResource Brush.Text}"
-                                           HorizontalAlignment="Center" Margin="0,14,0,0"/>
-                                <TextBlock Text="Wszystko aktualne"
+                                           HorizontalAlignment="Center" Margin="0,12,0,0"/>
+                                <TextBlock Text="Zamówienie nie było modyfikowane"
                                            FontSize="{StaticResource Font.Sm}" Foreground="{StaticResource Brush.TextMuted}"
-                                           HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                                           HorizontalAlignment="Center" Margin="0,3,0,0"/>
                             </StackPanel>
 
-                            <!-- Diff cards — każda zmiana jako rozwijalna karta -->
+                            <!-- Lista zmian -->
                             <Grid x:Name="panelChangesDiff" Visibility="Collapsed">
                                 <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="*"/>
                                     <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
-
-                                <!-- Banner ostrzeżenia -->
-                                <Border Grid.Row="0" Background="{StaticResource Brush.WarningSoft}"
-                                        BorderBrush="{StaticResource Brush.Warning}" BorderThickness="0,0,0,2"
-                                        Padding="16,12">
-                                    <StackPanel Orientation="Horizontal">
-                                        <Ellipse Width="8" Height="8" Fill="{StaticResource Brush.Warning}"
-                                                 VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                        <TextBlock x:Name="txtZmianaNaglowek" Text="Wykryto zmiany"
-                                                   FontSize="{StaticResource Font.Md}" FontWeight="SemiBold"
-                                                   Foreground="{StaticResource Brush.WarningText}"
-                                                   VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                </Border>
-
-                                <!-- Licznik zmian -->
-                                <Border Grid.Row="1" Padding="14,7"
-                                        BorderBrush="{StaticResource Brush.Border}" BorderThickness="0,0,0,1">
-                                    <TextBlock x:Name="txtChangesCount" Text="0 zmian"
-                                               FontSize="{StaticResource Font.Xs}" FontWeight="Medium"
-                                               Foreground="{StaticResource Brush.TextSecondary}"
-                                               VerticalAlignment="Center"/>
-                                </Border>
-
-                                <!-- Lista pasków zmian (bez rozwijania, wszystko widoczne) -->
-                                <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Padding="10,8">
+                                <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
                                     <ItemsControl x:Name="icChangesCards">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <Border Background="White" CornerRadius="6" Margin="0,0,0,5"
-                                                        BorderBrush="{StaticResource Brush.Border}" BorderThickness="1"
-                                                        Padding="11,9">
+                                                <Border BorderBrush="{StaticResource Brush.Border}"
+                                                        BorderThickness="0,0,0,1"
+                                                        Padding="14,9">
                                                     <Grid>
                                                         <Grid.ColumnDefinitions>
                                                             <ColumnDefinition Width="Auto"/>
@@ -1048,65 +1060,46 @@
                                                             <ColumnDefinition Width="Auto"/>
                                                         </Grid.ColumnDefinitions>
 
-                                                        <!-- Mała ikona pola -->
-                                                        <Border Grid.Column="0" Width="26" Height="26" CornerRadius="13"
-                                                                Background="{StaticResource Brush.PrimarySoft}"
-                                                                Margin="0,0,10,0" VerticalAlignment="Top">
-                                                            <TextBlock Text="{Binding Icon}" FontSize="{StaticResource Font.Sm}"
-                                                                       FontWeight="Bold"
-                                                                       Foreground="{StaticResource Brush.PrimaryDark}"
-                                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                                        </Border>
+                                                        <!-- Obrazek towaru lub unicode/emoji ikona -->
+                                                        <Grid Grid.Column="0" Width="32" Height="32"
+                                                              Margin="0,2,10,0" VerticalAlignment="Top">
+                                                            <Border CornerRadius="4" ClipToBounds="True"
+                                                                    BorderBrush="{StaticResource Brush.Border}" BorderThickness="1"
+                                                                    Background="White"
+                                                                    Visibility="{Binding ImageVis}">
+                                                                <Image Source="{Binding TowarImage}"
+                                                                       Stretch="Uniform"
+                                                                       RenderOptions.BitmapScalingMode="HighQuality"/>
+                                                            </Border>
+                                                            <Border Width="26" Height="26" CornerRadius="13"
+                                                                    Background="{StaticResource Brush.PrimarySoft}"
+                                                                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                    Visibility="{Binding IconVis}">
+                                                                <TextBlock Text="{Binding Icon}" FontSize="14"
+                                                                           Foreground="{StaticResource Brush.PrimaryDark}"
+                                                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                            </Border>
+                                                        </Grid>
 
-                                                        <!-- Środek: pole + diff inline + meta -->
+                                                        <!-- Pole + zmiana + meta -->
                                                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                                            <!-- Nazwa pola -->
-                                                            <TextBlock Text="{Binding Pole}"
-                                                                       FontSize="{StaticResource Font.Sm}" FontWeight="SemiBold"
-                                                                       Foreground="{StaticResource Brush.Text}"
-                                                                       TextWrapping="Wrap"/>
-
-                                                            <!-- BYŁO → JEST inline (kolorowe pillsy) -->
-                                                            <WrapPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                                                <Border Background="{StaticResource Brush.DangerSoft}"
-                                                                        CornerRadius="3" Padding="6,2" Margin="0,0,6,3">
-                                                                    <TextBlock Text="{Binding Bylo}"
-                                                                               FontSize="{StaticResource Font.Xs}" FontWeight="SemiBold"
-                                                                               Foreground="{StaticResource Brush.DangerText}"
-                                                                               TextWrapping="Wrap"/>
-                                                                </Border>
-                                                                <TextBlock Text="⟶"
-                                                                           FontSize="{StaticResource Font.Sm}"
-                                                                           Foreground="{StaticResource Brush.TextMuted}"
-                                                                           VerticalAlignment="Center"
-                                                                           Margin="0,0,6,3"/>
-                                                                <Border Background="{StaticResource Brush.SuccessSoft}"
-                                                                        CornerRadius="3" Padding="6,2" Margin="0,0,0,3">
-                                                                    <TextBlock Text="{Binding Jest}"
-                                                                               FontSize="{StaticResource Font.Xs}" FontWeight="SemiBold"
-                                                                               Foreground="{StaticResource Brush.SuccessText}"
-                                                                               TextWrapping="Wrap"/>
-                                                                </Border>
-                                                            </WrapPanel>
-
-                                                            <!-- Meta info (kto • kiedy) -->
-                                                            <TextBlock Margin="0,4,0,0"
+                                                            <TextBlock TextWrapping="Wrap" FontSize="{StaticResource Font.Sm}">
+                                                                <Run Text="{Binding Pole, Mode=OneWay}" FontWeight="SemiBold" Foreground="{StaticResource Brush.Text}"/><Run Text="   "/><Run Text="{Binding Bylo, Mode=OneWay}" Foreground="{StaticResource Brush.TextSecondary}"/><Run Text=" → " Foreground="{StaticResource Brush.TextMuted}"/><Run Text="{Binding Jest, Mode=OneWay}" FontWeight="Medium" Foreground="{StaticResource Brush.Text}"/>
+                                                            </TextBlock>
+                                                            <TextBlock Margin="0,3,0,0"
                                                                        FontSize="{StaticResource Font.Xs}"
                                                                        Foreground="{StaticResource Brush.TextMuted}"
-                                                                       TextWrapping="Wrap"
+                                                                       TextTrimming="CharacterEllipsis"
                                                                        Visibility="{Binding HasMeta, Converter={StaticResource BoolToVis}}">
-                                                                <Run Text="{Binding Kto, Mode=OneWay}" Foreground="{StaticResource Brush.TextSecondary}" FontWeight="Medium"/><Run Text=" · "/><Run Text="{Binding Kiedy, Mode=OneWay}"/>
+                                                                <Run Text="{Binding Kto, Mode=OneWay}"/><Run Text="  ·  "/><Run Text="{Binding Kiedy, Mode=OneWay}"/>
                                                             </TextBlock>
                                                         </StackPanel>
 
-                                                        <!-- Delta badge (po prawej, jeśli numeryczna) -->
-                                                        <Border Grid.Column="2" Background="{Binding DeltaBgColor}"
-                                                                CornerRadius="3" Padding="7,3"
-                                                                VerticalAlignment="Top" Margin="8,0,0,0"
-                                                                Visibility="{Binding HasDelta, Converter={StaticResource BoolToVis}}">
-                                                            <TextBlock Text="{Binding Delta}" FontSize="10"
-                                                                       FontWeight="Bold" Foreground="{Binding DeltaColor}"/>
-                                                        </Border>
+                                                        <TextBlock Grid.Column="2" Text="{Binding Delta}"
+                                                                   FontSize="{StaticResource Font.Sm}" FontWeight="SemiBold"
+                                                                   Foreground="{Binding DeltaColor}"
+                                                                   VerticalAlignment="Top" Margin="10,1,0,0"
+                                                                   Visibility="{Binding HasDelta, Converter={StaticResource BoolToVis}}"/>
                                                     </Grid>
                                                 </Border>
                                             </DataTemplate>
@@ -1114,61 +1107,100 @@
                                     </ItemsControl>
                                 </ScrollViewer>
 
-                                <!-- Akcja akceptacji -->
-                                <Border Grid.Row="3" Padding="16,14"
+                                <Border Grid.Row="1" Padding="14,10"
                                         Background="{StaticResource Brush.SurfaceAlt}"
                                         BorderBrush="{StaticResource Brush.Border}" BorderThickness="0,1,0,0">
                                     <Button x:Name="btnAcceptChange" Content="Przyjmuję wszystkie zmiany"
                                             Style="{StaticResource BtnSuccess}"
-                                            MinHeight="42"
+                                            MinHeight="38"
                                             Click="BtnAcceptChange_Click"
-                                            ToolTip="Potwierdź przyjęcie zmian do wiadomości (skrót: Spacja)"/>
+                                            ToolTip="Potwierdź przyjęcie zmian (skrót: Spacja)"/>
                                 </Border>
                             </Grid>
                         </Grid>
                     </TabItem>
 
-                    <!-- TAB: Płatności klienta -->
-                    <TabItem Header="Płatności" Style="{StaticResource DetailTabItem}">
-                        <StackPanel x:Name="panelPlatnosci" Margin="18,16">
-                            <TextBlock Text="Saldo klienta"
-                                       FontSize="{StaticResource Font.Xs}" FontWeight="Medium"
-                                       Foreground="{StaticResource Brush.TextSecondary}"/>
-                            <TextBlock x:Name="txtSaldoInfo" Text="(wybierz zamówienie)"
-                                       FontSize="{StaticResource Font.Md}" FontWeight="Medium"
-                                       Foreground="{StaticResource Brush.TextSecondary}"
-                                       Margin="0,8,0,0" TextWrapping="Wrap" LineHeight="22"/>
-                        </StackPanel>
-                    </TabItem>
+                    <!-- TAB 3: Pozycje faktury — odczyt z Symfonii (192.168.0.112) -->
+                    <TabItem Header="Pozycje faktury" Style="{StaticResource DetailTabItem}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>  <!-- Header z numerem + klientem faktury -->
+                                <RowDefinition Height="*"/>     <!-- Grid lub placeholder -->
+                            </Grid.RowDefinitions>
 
-                    <!-- TAB: Historia -->
-                    <TabItem Header="Historia" Style="{StaticResource DetailTabItem}">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="14,12">
-                            <ItemsControl x:Name="icHistoryList">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border Background="White"
-                                                CornerRadius="6" Padding="14,12" Margin="0,0,0,8"
-                                                BorderBrush="{StaticResource Brush.Border}" BorderThickness="1">
-                                            <StackPanel>
-                                                <TextBlock Text="{Binding Opis}" FontSize="{StaticResource Font.Sm}"
-                                                           FontWeight="Medium"
-                                                           Foreground="{StaticResource Brush.Text}" TextWrapping="Wrap"
-                                                           LineHeight="20"/>
-                                                <TextBlock Text="{Binding Meta}" FontSize="{StaticResource Font.Xs}"
-                                                           Foreground="{StaticResource Brush.TextMuted}" Margin="0,6,0,0"/>
-                                            </StackPanel>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </ScrollViewer>
-                    </TabItem>
+                            <!-- Header faktury (widoczny gdy faktura załadowana) -->
+                            <Border Grid.Row="0" x:Name="invoiceHeader" Visibility="Collapsed"
+                                    Background="{StaticResource Brush.SurfaceAlt}"
+                                    BorderBrush="{StaticResource Brush.Border}" BorderThickness="0,0,0,1"
+                                    Padding="14,10">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="Faktura: " FontSize="{StaticResource Font.Sm}"
+                                               Foreground="{StaticResource Brush.TextMuted}"
+                                               VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="txtInvoiceNumer" Text=""
+                                               FontSize="{StaticResource Font.Md}" FontWeight="SemiBold"
+                                               Foreground="{StaticResource Brush.Text}"
+                                               VerticalAlignment="Center" Margin="0,0,18,0"/>
+                                    <TextBlock Text="Klient: " FontSize="{StaticResource Font.Sm}"
+                                               Foreground="{StaticResource Brush.TextMuted}"
+                                               VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="txtInvoiceKlient" Text=""
+                                               FontSize="{StaticResource Font.Md}" FontWeight="SemiBold"
+                                               VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="txtInvoiceMatchTag" Text=""
+                                               FontSize="{StaticResource Font.Xs}" FontWeight="Bold"
+                                               VerticalAlignment="Center" Margin="10,0,0,0"
+                                               Padding="6,2"
+                                               Visibility="Collapsed"/>
+                                </StackPanel>
+                            </Border>
 
+                            <Grid Grid.Row="1">
+                                <StackPanel x:Name="panelInvoiceEmpty" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                    <Border Width="48" Height="48" CornerRadius="24"
+                                            Background="{StaticResource Brush.SurfaceAlt}" HorizontalAlignment="Center">
+                                        <TextBlock Text="📄" FontSize="22"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Text="Brak danych faktury"
+                                               FontSize="{StaticResource Font.Md}" FontWeight="Medium"
+                                               Foreground="{StaticResource Brush.Text}"
+                                               HorizontalAlignment="Center" Margin="0,12,0,0"/>
+                                    <TextBlock x:Name="txtInvoiceHint" Text="Zamówienie jeszcze nie zafakturowane"
+                                               FontSize="{StaticResource Font.Sm}" Foreground="{StaticResource Brush.TextMuted}"
+                                               HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                                </StackPanel>
+                                <DataGrid x:Name="dgInvoiceItems" Visibility="Collapsed"
+                                          Style="{StaticResource ProDataGrid}"
+                                          ColumnHeaderStyle="{StaticResource DetailColHeader}"
+                                          CellStyle="{StaticResource DetailCell}"
+                                          RowStyle="{StaticResource CompactRow}"/>
+                            </Grid>
+                        </Grid>
+                    </TabItem>
                 </TabControl>
 
-                <!-- Akcje na dole -->
-                <Border Grid.Row="2" Background="{StaticResource Brush.SurfaceAlt}" Padding="16,14"
+                <!-- Notatki zamowienia (kolumna Uwagi z dbo.ZamowieniaMieso) — TYLKO PODGLAD -->
+                <Border Grid.Row="1" Background="{StaticResource Brush.Surface}" Padding="14,10"
+                        BorderBrush="{StaticResource Brush.Border}" BorderThickness="0,1,0,0">
+                    <StackPanel>
+                        <TextBlock Text="NOTATKI ZAMÓWIENIA (tylko podgląd)" FontSize="{StaticResource Font.Xs}" FontWeight="Bold"
+                                   Foreground="{StaticResource Brush.TextSecondary}" Margin="0,0,0,6"/>
+                        <TextBox x:Name="txtNotatki"
+                                 IsReadOnly="True"
+                                 MinHeight="50" MaxHeight="100"
+                                 FontSize="{StaticResource Font.Sm}"
+                                 Background="{StaticResource Brush.SurfaceAlt}"
+                                 Foreground="{StaticResource Brush.Text}"
+                                 TextWrapping="Wrap" AcceptsReturn="True"
+                                 VerticalScrollBarVisibility="Auto"
+                                 BorderBrush="{StaticResource Brush.Border}" BorderThickness="1"
+                                 Padding="8,6"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Akcje główne na dole -->
+                <Border Grid.Row="2" Background="{StaticResource Brush.SurfaceAlt}" Padding="14,12"
                         CornerRadius="{StaticResource Radius.CardBottom}"
                         BorderBrush="{StaticResource Brush.Border}" BorderThickness="0,1,0,0">
                     <Grid>
@@ -1179,17 +1211,18 @@
                         <Button x:Name="btnMarkFakturowane" Grid.Column="0"
                                 Content="Zafakturowane"
                                 Style="{StaticResource BtnPrimary}"
-                                MinHeight="42" Margin="0,0,6,0"
+                                MinHeight="40" Margin="0,0,5,0"
                                 Click="BtnMarkFakturowane_Click" IsEnabled="False"
                                 ToolTip="Oznacz zamówienie jako zafakturowane (skrót: F)"/>
                         <Button x:Name="btnCofnijFakturowanie" Grid.Column="1"
                                 Content="Cofnij"
                                 Style="{StaticResource BtnWarning}"
-                                MinHeight="42" Margin="6,0,0,0"
+                                MinHeight="40" Margin="5,0,0,0"
                                 Click="BtnCofnijFakturowanie_Click" IsEnabled="False"
                                 ToolTip="Cofnij status zafakturowane (skrót: U)"/>
                     </Grid>
                 </Border>
+
             </Grid>
         </Border>
     </Grid>

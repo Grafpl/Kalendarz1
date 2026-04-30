@@ -1,0 +1,233 @@
+//"zmiana_dt.sc","Zmiana dostawcy","Procedury\Raporty operacje kartotek\Towary\",0,1.0.0,SYSTEM
+/////////////////////////////////////////
+// Zmiana dostawcy
+// zmiana_dt.sc
+/////////////////////////////////////////
+
+#define ANULUJ -1
+
+#define PR_OPERACJE_GR   2274 
+if !xFactory.prawa.czyjestprawo(PR_OPERACJE_GR) then error Message(using "Użytkownik %s nie ma prawa wykonywania operacji grupowych",xFactory.user)
+
+#include "Wydruki - include"
+#include "Wybór obiektu - include"
+
+
+string KH_edit
+int iWybrWiersz, err, i
+int iLicz
+int btn_choose(2)
+int btn_setFocus(2)
+Dispatch xTw
+string strKod
+
+record rTowar
+	long id
+	string kod[50]
+    long subtypi
+endrec
+
+rTowar TabTowar(1)
+i = 1
+iWybrWiersz = SetTaggedPos(FS)
+
+While iWybrWiersz
+	buf = GetLine(iWybrWiersz)
+	if !find regular pattern ( 6, "{*}\t") then error "Błędne dane w tabelce!"
+	strKod = regular 2
+
+	xTw = GetObjByKod("BTw", strKod)
+	if (xTw) then
+		if (i > 1) then grow TabTowar, 1
+		TabTowar(i).kod = strKod
+		TabTowar(i).id = xTw.id
+		TabTowar(i).subtypi = xTw.typ
+		i = i + 1
+	endif
+
+	iWybrWiersz=SetTaggedPos(NX)
+wend
+
+int sub WyborKontrahenta()
+	Enable(btn_choose(1),0)
+	save
+	string kod = WybierzKH(KH_edit)
+	if kod != "" then KH_edit = kod :load
+	Enable(btn_choose(1),1)
+	SetActive( btn_setFocus(1) )
+endsub
+
+int sub Check()
+	Dispatch xKh
+
+	Check=1
+	if !(xKh=GetObjByKod("BKh",KH_edit)) then 
+		Message "Kontrahent o kodzie '"+KH_edit+"' nie istnieje."
+		exit
+	endif
+	Check=0
+endsub
+
+int sub CheckData()
+	CheckData=1
+	Save
+	if Len(KH_edit)>40 then KH_edit=mid(KH_edit,1,40)
+	Load
+	if !Kh_edit then Message "Nie podano kodu kontrahenta" : exit
+	if Check() then exit
+	CheckData=2
+endsub
+
+int sub CheckSubtyp(rTowar tw)
+	CheckSubtyp = 0
+	if tw.subtypi == 0 then
+		CheckSubtyp = 1
+	endif
+	if tw.subtypi == 1 then
+	  print Using "Towaru o kodzie '%s' jest typu 'usługa' i został pominięty.\n", TabTowar(i).kod
+	endif
+	if tw.subtypi == 2 then
+	  print Using "Towaru o kodzie '%s' jest typu 'zestaw' i został pominięty.\n", TabTowar(i).kod
+	endif
+	if tw.subtypi == 3 then
+	  print Using "Towaru o kodzie '%s' jest typu 'komplet' i został pominięty.\n", TabTowar(i).kod
+	endif
+endsub
+
+
+int sub Dodaj()
+	Dodaj = CheckData()
+	
+	long ile, j
+	Dispatch xParametry, xKh, xDosTw
+	
+	if Dodaj == 2 then
+		iLicz = 0
+		if (message "Wskazany kontrahent zostanie dodany do listy dostawców dla zaznaczonych towarów.\nCzy kontynuować?{{icon=? buttons=(&Nie:2)[&Tak:1]}}") == 2 then error ""
+		
+		xKh = GetObjByKod("BKontrahent", KH_edit)
+		
+		xParametry = xFactory.NewObject("XDosTwParams")	
+		print using "\n------------------------Dodawanie dostawcy-----------------------\n"
+		print using "Operacja nie powiodła się dla następująch towarów: \n"
+
+		for i = 1 to i > size(TabTowar)
+			if (CheckSubtyp(TabTowar(i))) then
+				xParametry.Clear()
+				xParametry.id=TabTowar(i).id	
+				xDosTw=xFactory.NewObject("BDosTw") 
+				err = xDosTw.Load("", xParametry) //Załaduj parametry obiektu
+				xParametry.Clear()
+				if err then
+					print using "Towar '%s': błąd nr %l\n", TabTowar(i).kod, err
+					iLicz = iLicz + 1
+				else
+					WriteStatusBar(using "Dodawanie dostawcy : '%s' do towaru : '%s'", xKh.kod, TabTowar(i).kod)
+
+					ile = xDosTw.Count             
+					
+					for j = 1 to j > ile
+						if xDosTw.item(j).idkh == xKh.id then 
+							print Using "Istnieje już dostawca o kodzie '%s' dla towaru o kodzie '%s'.\n", KH_edit, TabTowar(i).kod
+							err = 1
+							iLicz = iLicz + 1
+						endif
+					next j
+					
+					if err != 1 then
+						xDosTw.AddNew() //dodaj nowy element listy
+						xDosTw.item(ile+1).idkh = xKh.id
+						xDosTw.item(ile+1).kodKh = xKh.kod
+						// wpisanie nazwy i znacznika aktywnosci powoduje blad raportu
+						// xDosTw.item(ile+1).nazwaKh = xKh.nazwa
+						// xDosTw.item(ile+1).aktywnyKh = xKh.aktywny
+						xDosTw.item(ile+1).idtw = TabTowar(i).id
+						err = xDosTw.item(ile+1).Save() // Zapisz dostawcę na liście
+						if err != 0 then 
+							print using "Towar '%s': błąd nr %l\n", TabTowar(i).kod, err
+							iLicz = iLicz + 1
+						endif
+					endif
+				endIf
+			else
+				iLicz = iLicz + 1
+			endif
+		next i
+	endif
+endsub
+
+int sub Usun()
+	Usun = CheckData()
+	
+	long ile, j
+	Dispatch xParametry, xKh, xDosTw
+	int nWasDeleted
+	
+	if Usun == 2 then
+		iLicz = 0
+		if (message " Wskazany kontrahent zostanie usunięty z listy dostawców dla zaznaczonych towarów.\nCzy kontynuować?{{icon=? buttons=(&Nie:2)[&Tak:1]}}") == 2 then error ""
+		
+		xKh = GetObjByKod("BKontrahent", KH_edit)
+		
+		xParametry = xFactory.NewObject("XDosTwParams")	
+		print using "\n------------------------Usuwanie dostawcy-----------------------\n"
+		print using "Operacja nie powiodła się dla następująch towarów: \n"
+
+		for i = 1 to i > size(TabTowar)
+			if (CheckSubtyp(TabTowar(i))) then
+				xParametry.Clear()
+				xParametry.id=TabTowar(i).id	
+				xDosTw = xFactory.NewObject("BDosTw") 
+				err = xDosTw.Load("", xParametry) //Załaduj parametry obiektu
+				
+				xParametry.Clear()
+				if err then
+					print using "Towar '%s': błąd nr %l\n", TabTowar(i).kod, err
+					iLicz = iLicz + 1
+				else
+					WriteStatusBar(using "Usuwanie dostawcy : '%s' towaru : '%s'", xKh.kod, TabTowar(i).kod)
+					
+					ile = xDosTw.Count
+				
+					nWasDeleted = 0
+					for j = 1 to j > ile
+						if xDosTw.item(j).idkh == xKh.id then 
+							err = xDosTw.item(j).Delete() // Usuń dostawcę
+							if err != 0 then 
+								print using "Towar '%s': błąd nr %l\n", TabTowar(i).kod, err
+								iLicz = iLicz + 1
+							else
+								nWasDeleted = 1
+								exit
+							endif
+						endif                  
+					next j
+					
+					if nWasDeleted == 0 then 
+						print Using "Towar '%s' nie posiada dostawcy '%s'.\n", TabTowar(i).kod, KH_edit
+						iLicz = iLicz + 1
+					endif
+				endif
+			else
+				iLicz = iLicz + 1
+			endif               
+		next i
+	endif
+endsub
+
+form "  " +GetReportName(),320,150
+
+Group "",10,5,295,65
+Text "Zmiana dostawcy : ",20,20,100,20
+btn_setFocus(1) = Edit "",KH_edit,20,35,180,18
+Button "&Dodaj dostawcę",20,80,90,25,Dodaj() 
+Button "&Usuń dostawcę",120,80,90,25,Usun()
+Button "&Anuluj",220,80,70,25,ANULUJ
+
+btn_choose(1) = Button "&Wybierz...",210,33,60,22,WyborKontrahenta()
+if ExecForm == ANULUJ then error ""
+
+print Using "\n--------------------Podsumowanie--------------------------\n"
+print Using "Liczba towarów dla których operacja była wykonywana '%d'.\n", size(TabTowar)
+print Using "Liczba towarów dla których operacja nie powiodła się '%d'.\n", iLicz
+print Using "----------------------------------------------------------\n"

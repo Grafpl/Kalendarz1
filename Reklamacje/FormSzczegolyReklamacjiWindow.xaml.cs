@@ -76,6 +76,7 @@ namespace Kalendarz1.Reklamacje
                     WczytajKomentarze(conn);
                 }
                 WybierzPierwszyTab();
+                AktualizujKontekstoweAkcje();
             }
             catch (Exception ex)
             {
@@ -85,6 +86,11 @@ namespace Kalendarz1.Reklamacje
         }
 
         private string aktualnyStatus = "";
+        private string aktualnyStatusV2 = "";
+        private string aktualnaOsobaRozpatrujaca = "";
+        private string aktualnyTypReklamacji = "";
+        private bool aktualnyMaPowiazanie = false;
+        private int aktualnaPowiazanaId = 0;
 
         private void WczytajPodstawoweInfo(SqlConnection conn)
         {
@@ -93,10 +99,12 @@ namespace Kalendarz1.Reklamacje
                 string query = @"
                     SELECT r.*,
                         ISNULL(o1.Name, r.UserID) AS ZglaszajacyNazwa,
-                        ISNULL(o2.Name, r.OsobaRozpatrujaca) AS RozpatrujacyNazwa
+                        ISNULL(o2.Name, r.OsobaRozpatrujaca) AS RozpatrujacyNazwa,
+                        ISNULL(o3.Name, r.UserZakonczenia) AS ZakonczylNazwa
                     FROM [dbo].[Reklamacje] r
                     LEFT JOIN [dbo].[operators] o1 ON r.UserID = o1.ID
                     LEFT JOIN [dbo].[operators] o2 ON r.OsobaRozpatrujaca = o2.ID
+                    LEFT JOIN [dbo].[operators] o3 ON r.UserZakonczenia = o3.ID
                     WHERE r.Id = @Id";
 
                 using (var cmd = new SqlCommand(query, conn))
@@ -133,6 +141,13 @@ namespace Kalendarz1.Reklamacje
                             bool otwarta = statusV2 == "ZGLOSZONA" || statusV2 == "W_ANALIZIE" || string.IsNullOrEmpty(statusV2);
                             if (btnZglosDoKorekty != null)
                                 btnZglosDoKorekty.Visibility = (toKorekta && niepowiazana && otwarta) ? Visibility.Visible : Visibility.Collapsed;
+
+                            // Zapisz biezacy stan dla AktualizujKontekstoweAkcje
+                            aktualnyStatusV2 = string.IsNullOrEmpty(statusV2) ? "ZGLOSZONA" : statusV2;
+                            aktualnaOsobaRozpatrujaca = SafeGet(reader, "OsobaRozpatrujaca");
+                            aktualnyTypReklamacji = typRekl ?? "";
+                            aktualnyMaPowiazanie = !niepowiazana;
+                            aktualnaPowiazanaId = powiazanaReklamacjaId ?? 0;
                             decimal sumaKg = SafeGetDecimal(reader, "SumaKg");
                             decimal sumaWartosc = SafeGetDecimal(reader, "SumaWartosc");
                             DateTime dataZgl = SafeGetDateTime(reader, "DataZgloszenia");
@@ -158,18 +173,53 @@ namespace Kalendarz1.Reklamacje
 
                             string zglaszajacyId = SafeGet(reader, "UserID");
                             string rozpatrujacyId = SafeGet(reader, "OsobaRozpatrujaca");
+                            string zakonczylId = SafeGet(reader, "UserZakonczenia");
+                            string zakonczylNazwa = SafeGet(reader, "ZakonczylNazwa");
 
-                            // Avatary w headerze
+                            // === 3 avatary w headerze: ZGLOSIL -> PRZYJAL -> ZAKONCZYL + skutek ===
+                            // 1. Zglosil
                             UstawAvatar(avatarZglaszajacyHeader, txtAvatarZglaszajacyHeader, zglaszajacyNazwa);
-                            txtAvatarZglaszajacyNazwa.Text = zglaszajacyNazwa;
+                            txtAvatarZglaszajacyNazwa.Text = string.IsNullOrEmpty(zglaszajacyNazwa) ? "—" : zglaszajacyNazwa;
                             UstawAvatarPhoto(zglaszajacyId, zglaszajacyNazwa, 80,
                                 imgBrushZglaszajacyHeader, ellipseAvatarZglaszajacyHeader);
-                            if (!string.IsNullOrEmpty(rozpatrujacyNazwa))
+
+                            // 2. Przyjal — pokaz tylko gdy ktos przyjal (ma wpisana OsobaRozpatrujaca)
+                            bool maPrzyjal = !string.IsNullOrWhiteSpace(rozpatrujacyNazwa);
+                            avatarPrzyjalGroup.Visibility = maPrzyjal ? Visibility.Visible : Visibility.Collapsed;
+                            sepZglosil_Przyjal.Visibility = maPrzyjal ? Visibility.Visible : Visibility.Collapsed;
+                            if (maPrzyjal)
                             {
                                 UstawAvatar(avatarRozpatrujacyHeader, txtAvatarRozpatrujacyHeader, rozpatrujacyNazwa);
                                 txtAvatarRozpatrujacyNazwa.Text = rozpatrujacyNazwa;
                                 UstawAvatarPhoto(rozpatrujacyId, rozpatrujacyNazwa, 80,
                                     imgBrushRozpatrujacyHeader, ellipseAvatarRozpatrujacyHeader);
+                            }
+
+                            // 3. Zakonczyl + skutek (StatusV2 finalny -> kolor + etykieta)
+                            bool maZakonczyl = !string.IsNullOrWhiteSpace(zakonczylNazwa);
+                            avatarZakonczylGroup.Visibility = maZakonczyl ? Visibility.Visible : Visibility.Collapsed;
+                            sepPrzyjal_Zakonczyl.Visibility = maZakonczyl ? Visibility.Visible : Visibility.Collapsed;
+                            if (maZakonczyl)
+                            {
+                                UstawAvatar(avatarZakonczylHeader, txtAvatarZakonczylHeader, zakonczylNazwa);
+                                txtAvatarZakonczylNazwa.Text = zakonczylNazwa;
+                                UstawAvatarPhoto(zakonczylId, zakonczylNazwa, 80,
+                                    imgBrushZakonczylHeader, ellipseAvatarZakonczylHeader);
+
+                                // Skutek (z jakim wynikiem zakonczyl)
+                                string skutekText;
+                                string skutekKolor;
+                                switch (statusV2)
+                                {
+                                    case "ZASADNA": skutekText = "✓ UZNANA"; skutekKolor = "#27AE60"; break;
+                                    case "ODRZUCONA": skutekText = "✕ ODRZUCONA"; skutekKolor = "#E74C3C"; break;
+                                    case "ZAMKNIETA": skutekText = "🏁 ZAMKNIETA"; skutekKolor = "#7F8C8D"; break;
+                                    case "POWIAZANA": skutekText = "🔗 POLACZONA"; skutekKolor = "#27AE60"; break;
+                                    default: skutekText = StatusyV2.Etykieta(statusV2 ?? ""); skutekKolor = "#7F8C8D"; break;
+                                }
+                                txtSkutek.Text = skutekText;
+                                badgeSkutek.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(skutekKolor));
+                                badgeSkutek.Visibility = Visibility.Visible;
                             }
 
                             // Karty informacyjne
@@ -1310,6 +1360,291 @@ namespace Kalendarz1.Reklamacje
             {
                 MessageBox.Show($"Blad generowania raportu:\n{ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        // ========================================
+        // PANEL JAKOSCI - workflow V2 (analogiczny do glownego panelu)
+        // ========================================
+
+        // ========================================
+        // KONTEKSTOWE POKAZYWANIE PRZYCISKOW WORKFLOW + STATUS BADGE
+        // ========================================
+        private void AktualizujKontekstoweAkcje()
+        {
+            string s = string.IsNullOrEmpty(aktualnyStatusV2) ? "ZGLOSZONA" : aktualnyStatusV2;
+            bool ktosRozpatruje = !string.IsNullOrWhiteSpace(aktualnaOsobaRozpatrujaca);
+            bool zakonczona = s == StatusyV2.ZASADNA || s == StatusyV2.ODRZUCONA
+                              || s == StatusyV2.ZAMKNIETA || s == StatusyV2.POWIAZANA;
+
+            // Domyslnie wszystkie schowane
+            if (btnQ_Przyjmij != null) btnQ_Przyjmij.Visibility = Visibility.Collapsed;
+            if (btnQ_Zatwierdz != null) btnQ_Zatwierdz.Visibility = Visibility.Collapsed;
+            if (btnQ_Odrzuc != null) btnQ_Odrzuc.Visibility = Visibility.Collapsed;
+
+            // Pokaz tylko te przyciski ktore maja sens
+            if (!zakonczona)
+            {
+                if (s == StatusyV2.ZGLOSZONA && !ktosRozpatruje)
+                {
+                    // Nikt jeszcze nie przyjal — pokaz Przyjmij + Odrzuc
+                    if (btnQ_Przyjmij != null) btnQ_Przyjmij.Visibility = Visibility.Visible;
+                    if (btnQ_Odrzuc != null) btnQ_Odrzuc.Visibility = Visibility.Visible;
+                }
+                else
+                {
+                    // W toku (W_ANALIZIE lub ZGLOSZONA z Rozpatrujacym) — pokaz Zatwierdz + Odrzuc
+                    if (btnQ_Zatwierdz != null) btnQ_Zatwierdz.Visibility = Visibility.Visible;
+                    if (btnQ_Odrzuc != null) btnQ_Odrzuc.Visibility = Visibility.Visible;
+                }
+            }
+
+            // Status badge w stopce
+            if (badgeStatusFooter != null && txtStatusFooter != null)
+            {
+                txtStatusFooter.Text = StatusyV2.Etykieta(s);
+                string kolor = s switch
+                {
+                    StatusyV2.ZGLOSZONA => "#3498DB",
+                    StatusyV2.W_ANALIZIE => "#F39C12",
+                    StatusyV2.ZASADNA => "#27AE60",
+                    StatusyV2.ODRZUCONA => "#E74C3C",
+                    StatusyV2.POWIAZANA => "#27AE60",
+                    StatusyV2.ZAMKNIETA => "#7F8C8D",
+                    _ => "#3498DB"
+                };
+                badgeStatusFooter.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(kolor));
+            }
+
+            // Podpowiedz w stopce
+            if (txtFooterHint != null)
+            {
+                txtFooterHint.Text = (s, ktosRozpatruje) switch
+                {
+                    (StatusyV2.ZGLOSZONA, false) => "Co dalej? Kliknij PRZYJMIJ aby przejac sprawe lub ODRZUC z powodem",
+                    (StatusyV2.ZGLOSZONA, true) => "Sprawa w toku — kliknij ZATWIERDZ lub ODRZUC aby zakonczyc",
+                    (StatusyV2.W_ANALIZIE, _) => "Sprawa w toku — kliknij ZATWIERDZ lub ODRZUC aby zakonczyc",
+                    (StatusyV2.ZASADNA, _) => "Sprawa uznana — brak dalszych akcji",
+                    (StatusyV2.ODRZUCONA, _) => "Sprawa odrzucona — brak dalszych akcji",
+                    (StatusyV2.POWIAZANA, _) => "Sprawa polaczona z inna — brak dalszych akcji",
+                    (StatusyV2.ZAMKNIETA, _) => "Sprawa zamknieta — brak dalszych akcji",
+                    _ => ""
+                };
+            }
+        }
+
+        private void BtnWiecej_Click(object sender, RoutedEventArgs e)
+        {
+            if (popupWiecej != null) popupWiecej.IsOpen = !popupWiecej.IsOpen;
+        }
+
+        private void WykonajZmianeStatusuV2(string nowyStatusV2, string decyzja, string notatka,
+            string przyczyna, string akcje, bool ustawDataAnalizy)
+        {
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    using (var cmd = new SqlCommand(@"
+                        UPDATE [dbo].[Reklamacje]
+                        SET StatusV2 = @StatusV2,
+                            Status = CASE @StatusV2
+                                WHEN 'ZGLOSZONA' THEN 'Nowa'
+                                WHEN 'W_ANALIZIE' THEN 'W analizie'
+                                WHEN 'ZASADNA' THEN 'Zaakceptowana'
+                                WHEN 'POWIAZANA' THEN 'Zaakceptowana'
+                                WHEN 'ZAMKNIETA' THEN 'Zamknieta'
+                                WHEN 'ODRZUCONA' THEN 'Odrzucona'
+                                ELSE Status
+                            END,
+                            DecyzjaJakosci = COALESCE(@Decyzja, DecyzjaJakosci),
+                            NotatkaJakosci = CASE
+                                WHEN @Notatka IS NOT NULL AND LEN(@Notatka) > 0
+                                THEN ISNULL(NotatkaJakosci + CHAR(13) + CHAR(10), '') + @Stempel + @Notatka
+                                ELSE NotatkaJakosci
+                            END,
+                            PrzyczynaGlowna = COALESCE(@PrzyczynaGlowna, PrzyczynaGlowna),
+                            AkcjeNaprawcze = COALESCE(@AkcjeNaprawcze, AkcjeNaprawcze),
+                            DataAnalizy = CASE WHEN @UstawDataAnalizy = 1 AND DataAnalizy IS NULL THEN GETDATE() ELSE DataAnalizy END,
+                            UserAnalizy = CASE WHEN @UstawDataAnalizy = 1 AND UserAnalizy IS NULL THEN @User ELSE UserAnalizy END,
+                            OsobaRozpatrujaca = CASE
+                                WHEN @StatusV2 = 'W_ANALIZIE' AND (OsobaRozpatrujaca IS NULL OR LEN(OsobaRozpatrujaca) = 0)
+                                THEN @User
+                                ELSE OsobaRozpatrujaca
+                            END,
+                            DataZakonczenia = CASE
+                                WHEN @StatusV2 IN ('ZASADNA','ODRZUCONA','ZAMKNIETA') AND DataZakonczenia IS NULL
+                                THEN GETDATE()
+                                ELSE DataZakonczenia
+                            END,
+                            UserZakonczenia = CASE
+                                WHEN @StatusV2 IN ('ZASADNA','ODRZUCONA','ZAMKNIETA') AND UserZakonczenia IS NULL
+                                THEN @User
+                                ELSE UserZakonczenia
+                            END,
+                            WymagaUzupelnienia = CASE WHEN @StatusV2 IN ('W_ANALIZIE','ZASADNA','POWIAZANA','ZAMKNIETA','ODRZUCONA') THEN 0 ELSE WymagaUzupelnienia END
+                        WHERE Id = @Id;", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Id", idReklamacji);
+                        cmd.Parameters.AddWithValue("@StatusV2", nowyStatusV2);
+                        cmd.Parameters.AddWithValue("@Decyzja", (object)decyzja ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@Notatka", (object)notatka ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@PrzyczynaGlowna", (object)przyczyna ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@AkcjeNaprawcze", (object)akcje ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@Stempel", $"[{DateTime.Now:yyyy-MM-dd HH:mm} {userId}] ");
+                        cmd.Parameters.AddWithValue("@UstawDataAnalizy", ustawDataAnalizy ? 1 : 0);
+                        cmd.Parameters.AddWithValue("@User", userId ?? "");
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    // Wpis do historii
+                    using (var cmd = new SqlCommand(@"
+                        INSERT INTO [dbo].[ReklamacjeHistoria] (IdReklamacji, UserID, PoprzedniStatus, StatusNowy, Komentarz, TypAkcji)
+                        VALUES (@Id, @User, '', @Status, @Komentarz, 'PanelJakosci')", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Id", idReklamacji);
+                        cmd.Parameters.AddWithValue("@User", userId ?? "");
+                        cmd.Parameters.AddWithValue("@Status", nowyStatusV2);
+                        cmd.Parameters.AddWithValue("@Komentarz", (object)(notatka ?? decyzja ?? "") ?? DBNull.Value);
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+                StatusZmieniony = true;
+                ResetujSekcje();
+                WczytajSzczegoly();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Blad zmiany statusu:\n{ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        // Handler dla nowego przycisku "EDYTUJ DANE" (panel handlowca)
+        private void BtnH_Edytuj_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var window = new UzupelnijReklamacjeWindow(connectionString, idReklamacji, userId);
+                window.Owner = this;
+                if (window.ShowDialog() == true)
+                {
+                    StatusZmieniony = true;
+                    WczytajSzczegoly();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Blad otwarcia edytora:\n{ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void BtnQ_Przyjmij_Click(object sender, RoutedEventArgs e)
+        {
+            if (MessageBox.Show(
+                "Przyjac reklamacje do rozpatrzenia?\n\nZostaniesz przypisany jako rozpatrujacy. Status zmieni sie na 'Rozpatrywana'.",
+                "Przyjecie", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+            WykonajZmianeStatusuV2("W_ANALIZIE", null, null, null, null, true);
+        }
+
+        private void BtnQ_Zatwierdz_Click(object sender, RoutedEventArgs e)
+        {
+            var (ok, przyczyna, akcje) = PokazDialogZasadnaQ();
+            if (!ok) return;
+            WykonajZmianeStatusuV2("ZASADNA", "Zasadna", null, przyczyna, akcje, true);
+        }
+
+        private void BtnQ_Odrzuc_Click(object sender, RoutedEventArgs e)
+        {
+            var (ok, powod) = PokazDialogOdrzucQ();
+            if (!ok) return;
+            WykonajZmianeStatusuV2("ODRZUCONA", "Niezasadna", powod, null, null, true);
+        }
+
+        // Maly dialog dla Zatwierdz: przyczyna + akcje naprawcze
+        private (bool ok, string przyczyna, string akcje) PokazDialogZasadnaQ()
+        {
+            var dlg = new Window
+            {
+                Title = "Zatwierdz reklamacje",
+                Width = 480, Height = 380,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this, ResizeMode = ResizeMode.NoResize,
+                Background = Brushes.WhiteSmoke
+            };
+            var sp = new StackPanel { Margin = new Thickness(20) };
+            sp.Children.Add(new TextBlock { Text = "Zatwierdzic jako Uznana (zasadna)?", FontSize = 14, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 12) });
+            sp.Children.Add(new TextBlock { Text = "Przyczyna glowna *", FontSize = 11, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 4) });
+            var txtPrzyczyna = new TextBox { Height = 60, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, FontSize = 12, Padding = new Thickness(8), Margin = new Thickness(0, 0, 0, 10) };
+            sp.Children.Add(txtPrzyczyna);
+            sp.Children.Add(new TextBlock { Text = "Akcje naprawcze *", FontSize = 11, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 4) });
+            var txtAkcje = new TextBox { Height = 60, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, FontSize = 12, Padding = new Thickness(8) };
+            sp.Children.Add(txtAkcje);
+
+            var bp = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 14, 0, 0) };
+            var btnAnu = new Button { Content = "Anuluj", Width = 90, Height = 32, Margin = new Thickness(0, 0, 8, 0), IsCancel = true };
+            var btnOk = new Button { Content = "Zatwierdz", Width = 110, Height = 32, Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#27AE60")), Foreground = Brushes.White, FontWeight = FontWeights.SemiBold, IsDefault = true };
+            bool wynik = false;
+            string p = "", a = "";
+            btnAnu.Click += (s, e) => dlg.Close();
+            btnOk.Click += (s, e) =>
+            {
+                p = txtPrzyczyna.Text?.Trim() ?? "";
+                a = txtAkcje.Text?.Trim() ?? "";
+                if (string.IsNullOrEmpty(p) || string.IsNullOrEmpty(a))
+                {
+                    MessageBox.Show("Wypelnij oba pola.", "Brak danych", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+                wynik = true;
+                dlg.Close();
+            };
+            bp.Children.Add(btnAnu);
+            bp.Children.Add(btnOk);
+            sp.Children.Add(bp);
+            dlg.Content = sp;
+            dlg.ShowDialog();
+            return (wynik, p, a);
+        }
+
+        // Maly dialog dla Odrzuc: powod
+        private (bool ok, string powod) PokazDialogOdrzucQ()
+        {
+            var dlg = new Window
+            {
+                Title = "Odrzuc reklamacje",
+                Width = 460, Height = 260,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this, ResizeMode = ResizeMode.NoResize,
+                Background = Brushes.WhiteSmoke
+            };
+            var sp = new StackPanel { Margin = new Thickness(20) };
+            sp.Children.Add(new TextBlock { Text = "Odrzucic reklamacje?", FontSize = 14, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 6) });
+            sp.Children.Add(new TextBlock { Text = "Powod odrzucenia (zostanie dopisany do notatki jakosci)", FontSize = 11, Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#7F8C8D")), Margin = new Thickness(0, 0, 0, 6) });
+            var txt = new TextBox { Height = 80, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, FontSize = 12, Padding = new Thickness(8) };
+            sp.Children.Add(txt);
+            var bp = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 14, 0, 0) };
+            var btnAnu = new Button { Content = "Anuluj", Width = 90, Height = 32, Margin = new Thickness(0, 0, 8, 0), IsCancel = true };
+            var btnOk = new Button { Content = "Odrzuc", Width = 110, Height = 32, Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E74C3C")), Foreground = Brushes.White, FontWeight = FontWeights.SemiBold, IsDefault = true };
+            bool wynik = false;
+            string powod = "";
+            btnAnu.Click += (s, e) => dlg.Close();
+            btnOk.Click += (s, e) =>
+            {
+                powod = txt.Text?.Trim() ?? "";
+                if (string.IsNullOrEmpty(powod))
+                {
+                    MessageBox.Show("Podaj powod odrzucenia.", "Brak danych", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+                wynik = true;
+                dlg.Close();
+            };
+            bp.Children.Add(btnAnu);
+            bp.Children.Add(btnOk);
+            sp.Children.Add(bp);
+            dlg.Content = sp;
+            dlg.ShowDialog();
+            return (wynik, powod);
         }
 
         // ========================================

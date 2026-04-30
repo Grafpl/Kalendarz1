@@ -116,7 +116,7 @@
             <RowDefinition Height="4"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>  <!-- Jedna linia akcji -->
         </Grid.RowDefinitions>
 
         <!-- RED ACCENT -->
@@ -151,46 +151,85 @@
                                FontSize="10.5" Foreground="#D5F5E3" Margin="0,2,0,0"/>
                 </StackPanel>
 
-                <!-- Avatars -->
+                <!-- Avatars: Zglosil -> Przyjal -> Zakonczyl + skutek -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal"
                             HorizontalAlignment="Center" VerticalAlignment="Center">
+
+                    <!-- 1. ZGLOSIL -->
                     <StackPanel HorizontalAlignment="Center">
-                        <Grid Width="36" Height="36" HorizontalAlignment="Center">
-                            <Border x:Name="avatarZglaszajacyHeader" Width="36" Height="36" CornerRadius="18"
-                                    Background="#3498DB">
+                        <TextBlock Text="ZGLOSIL" Foreground="#A9DFBF" FontSize="8" FontWeight="Bold"
+                                   HorizontalAlignment="Center" Margin="0,0,0,3" Opacity="0.85"/>
+                        <Grid Width="40" Height="40" HorizontalAlignment="Center">
+                            <Border x:Name="avatarZglaszajacyHeader" Width="40" Height="40" CornerRadius="20"
+                                    Background="#3498DB" BorderBrush="White" BorderThickness="2">
                                 <TextBlock x:Name="txtAvatarZglaszajacyHeader" Text="?"
-                                           Foreground="White" FontWeight="Bold" FontSize="13"
+                                           Foreground="White" FontWeight="Bold" FontSize="14"
                                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
-                            <Ellipse x:Name="ellipseAvatarZglaszajacyHeader" Width="36" Height="36" Visibility="Collapsed">
+                            <Ellipse x:Name="ellipseAvatarZglaszajacyHeader" Width="40" Height="40" Visibility="Collapsed">
                                 <Ellipse.Fill>
                                     <ImageBrush x:Name="imgBrushZglaszajacyHeader" Stretch="UniformToFill"/>
                                 </Ellipse.Fill>
                             </Ellipse>
                         </Grid>
                         <TextBlock x:Name="txtAvatarZglaszajacyNazwa" Text="Zglaszajacy"
-                                   Foreground="#D5F5E3" FontSize="8.5" HorizontalAlignment="Center"
-                                   Margin="0,2,0,0" MaxWidth="80" TextTrimming="CharacterEllipsis"/>
+                                   Foreground="White" FontSize="9" FontWeight="SemiBold" HorizontalAlignment="Center"
+                                   Margin="0,3,0,0" MaxWidth="90" TextTrimming="CharacterEllipsis"/>
                     </StackPanel>
-                    <TextBlock Text="&#x25B6;" Foreground="#A9DFBF" FontSize="14"
-                               VerticalAlignment="Center" Margin="10,0,10,10"/>
-                    <StackPanel HorizontalAlignment="Center">
-                        <Grid Width="36" Height="36" HorizontalAlignment="Center">
-                            <Border x:Name="avatarRozpatrujacyHeader" Width="36" Height="36" CornerRadius="18"
-                                    Background="#95A5A6">
+
+                    <!-- separator strzalka -->
+                    <TextBlock x:Name="sepZglosil_Przyjal" Text="&#x25B6;" Foreground="#A9DFBF" FontSize="14"
+                               VerticalAlignment="Center" Margin="12,12,12,0"/>
+
+                    <!-- 2. PRZYJAL -->
+                    <StackPanel x:Name="avatarPrzyjalGroup" HorizontalAlignment="Center">
+                        <TextBlock Text="PRZYJAL" Foreground="#A9DFBF" FontSize="8" FontWeight="Bold"
+                                   HorizontalAlignment="Center" Margin="0,0,0,3" Opacity="0.85"/>
+                        <Grid Width="40" Height="40" HorizontalAlignment="Center">
+                            <Border x:Name="avatarRozpatrujacyHeader" Width="40" Height="40" CornerRadius="20"
+                                    Background="#F39C12" BorderBrush="White" BorderThickness="2">
                                 <TextBlock x:Name="txtAvatarRozpatrujacyHeader" Text="?"
-                                           Foreground="White" FontWeight="Bold" FontSize="13"
+                                           Foreground="White" FontWeight="Bold" FontSize="14"
                                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
-                            <Ellipse x:Name="ellipseAvatarRozpatrujacyHeader" Width="36" Height="36" Visibility="Collapsed">
+                            <Ellipse x:Name="ellipseAvatarRozpatrujacyHeader" Width="40" Height="40" Visibility="Collapsed">
                                 <Ellipse.Fill>
                                     <ImageBrush x:Name="imgBrushRozpatrujacyHeader" Stretch="UniformToFill"/>
                                 </Ellipse.Fill>
                             </Ellipse>
                         </Grid>
-                        <TextBlock x:Name="txtAvatarRozpatrujacyNazwa" Text="Rozpatrujacy"
-                                   Foreground="#D5F5E3" FontSize="8.5" HorizontalAlignment="Center"
-                                   Margin="0,2,0,0" MaxWidth="80" TextTrimming="CharacterEllipsis"/>
+                        <TextBlock x:Name="txtAvatarRozpatrujacyNazwa" Text="—"
+                                   Foreground="White" FontSize="9" FontWeight="SemiBold" HorizontalAlignment="Center"
+                                   Margin="0,3,0,0" MaxWidth="90" TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
+
+                    <!-- separator strzalka -->
+                    <TextBlock x:Name="sepPrzyjal_Zakonczyl" Text="&#x25B6;" Foreground="#A9DFBF" FontSize="14"
+                               VerticalAlignment="Center" Margin="12,12,12,0"/>
+
+                    <!-- 3. ZAKONCZYL + skutek -->
+                    <StackPanel x:Name="avatarZakonczylGroup" HorizontalAlignment="Center">
+                        <TextBlock Text="ZAKONCZYL" Foreground="#A9DFBF" FontSize="8" FontWeight="Bold"
+                                   HorizontalAlignment="Center" Margin="0,0,0,3" Opacity="0.85"/>
+                        <Grid Width="40" Height="40" HorizontalAlignment="Center">
+                            <Border x:Name="avatarZakonczylHeader" Width="40" Height="40" CornerRadius="20"
+                                    Background="#27AE60" BorderBrush="White" BorderThickness="2">
+                                <TextBlock x:Name="txtAvatarZakonczylHeader" Text="?"
+                                           Foreground="White" FontWeight="Bold" FontSize="14"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <Ellipse x:Name="ellipseAvatarZakonczylHeader" Width="40" Height="40" Visibility="Collapsed">
+                                <Ellipse.Fill>
+                                    <ImageBrush x:Name="imgBrushZakonczylHeader" Stretch="UniformToFill"/>
+                                </Ellipse.Fill>
+                            </Ellipse>
+                        </Grid>
+                        <TextBlock x:Name="txtAvatarZakonczylNazwa" Text="—"
+                                   Foreground="White" FontSize="9" FontWeight="SemiBold" HorizontalAlignment="Center"
+                                   Margin="0,3,0,0" MaxWidth="90" TextTrimming="CharacterEllipsis"/>
+                        <Border x:Name="badgeSkutek" CornerRadius="6" Padding="6,1" Margin="0,3,0,0" HorizontalAlignment="Center">
+                            <TextBlock x:Name="txtSkutek" Text="" FontSize="9" FontWeight="Bold" Foreground="White"/>
+                        </Border>
                     </StackPanel>
                 </StackPanel>
 
@@ -791,36 +830,179 @@
             </Grid>
         </Grid>
 
-        <!-- FOOTER -->
-        <Border Grid.Row="3" Padding="16,10" BorderThickness="0,1,0,0" BorderBrush="#D5F5E3">
-            <Border.Background>
-                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                    <GradientStop Color="#F0FFF0" Offset="0"/>
-                    <GradientStop Color="#E8F5E9" Offset="1"/>
-                </LinearGradientBrush>
-            </Border.Background>
+        <!-- JEDNA LINIA: status + kontekstowe przyciski + menu Wiecej + Zamknij -->
+        <Border Grid.Row="3" Background="#F8F9FA" Padding="16,12" BorderThickness="0,1,0,0" BorderBrush="#D0D7DE">
             <Grid>
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
-                    <Button x:Name="btnZglosDoKorekty" Content="Zglos reklamacje do tej korekty"
-                            Style="{StaticResource ActionButton}" Background="#3498DB"
-                            Click="BtnZglosDoKorekty_Click" Visibility="Collapsed"
-                            FontWeight="Bold"/>
-                    <Button Content="Rozpatrz" Style="{StaticResource ActionButton}"
-                            Background="#8E44AD" Click="BtnRozpatrz_Click"/>
-                    <Button Content="Zmien status" Style="{StaticResource ActionButton}"
-                            Background="#F39C12" Click="BtnZmienStatus_Click"/>
-                    <Button Content="Otworz folder" Style="{StaticResource ActionButton}"
-                            Background="#27AE60" Click="BtnOtworzFolder_Click"/>
-                    <Button Content="Eksport PDF" Style="{StaticResource ActionButton}"
-                            Background="#C0392B" Click="BtnExportPDF_Click"/>
-                    <Button Content="Wyslij email" Style="{StaticResource ActionButton}"
-                            Background="#E74C3C" Click="BtnEmail_Click"/>
-                    <Button Content="Drukuj protokol" Style="{StaticResource ActionButton}"
-                            Background="#2C3E50" Click="BtnDrukuj_Click"/>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- LEWA: status + podpowiedz -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Status:" FontSize="11.5" Foreground="#7F8C8D" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                    <Border x:Name="badgeStatusFooter" CornerRadius="10" Padding="10,3" Background="#3498DB" Margin="0,0,12,0" VerticalAlignment="Center">
+                        <TextBlock x:Name="txtStatusFooter" Text="Nowa" FontSize="11" FontWeight="Bold" Foreground="White"/>
+                    </Border>
+                    <TextBlock x:Name="txtFooterHint" Text="Co dalej? Kliknij decyzje po prawej." FontSize="11.5" FontStyle="Italic" Foreground="#5D6D7E" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                 </StackPanel>
-                <Button Content="Zamknij" Style="{StaticResource ActionButton}"
-                        Background="#7F8C8D" HorizontalAlignment="Right"
-                        Click="BtnZamknij_Click"/>
+
+                <!-- PRAWA: kontekstowe akcje -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+
+                    <!-- WORKFLOW: pojawiaja sie tylko gdy maja sens -->
+                    <Button x:Name="btnQ_Przyjmij" Click="BtnQ_Przyjmij_Click"
+                            Padding="16,8" Margin="0,0,6,0" FontSize="12" FontWeight="Bold"
+                            Background="#3498DB" Foreground="White" BorderThickness="0" Cursor="Hand"
+                            Visibility="Collapsed"
+                            ToolTip="Przyjmij do rozpatrzenia (przypisuje Cie jako rozpatrujacego)">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                    <TextBlock Text="① PRZYJMIJ" FontSize="12" FontWeight="Bold" Foreground="White"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                    <Button x:Name="btnQ_Zatwierdz" Click="BtnQ_Zatwierdz_Click"
+                            Padding="16,8" Margin="0,0,6,0" FontSize="12" FontWeight="Bold"
+                            Background="#27AE60" Foreground="White" BorderThickness="0" Cursor="Hand"
+                            Visibility="Collapsed"
+                            ToolTip="Uznaj jako zasadna - wymaga przyczyny i akcji naprawczych">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                    <TextBlock Text="✓ ZATWIERDZ" FontSize="12" FontWeight="Bold" Foreground="White"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                    <Button x:Name="btnQ_Odrzuc" Click="BtnQ_Odrzuc_Click"
+                            Padding="16,8" Margin="0,0,12,0" FontSize="12" FontWeight="Bold"
+                            Background="#E74C3C" Foreground="White" BorderThickness="0" Cursor="Hand"
+                            Visibility="Collapsed"
+                            ToolTip="Odrzuc - wymaga podania powodu">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                    <TextBlock Text="✕ ODRZUC" FontSize="12" FontWeight="Bold" Foreground="White"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+
+                    <!-- WIECEJ: dropdown menu z narzedziami -->
+                    <Button x:Name="btnWiecej" Click="BtnWiecej_Click"
+                            Padding="14,8" Margin="0,0,6,0" FontSize="12" FontWeight="SemiBold"
+                            Background="#ECF0F1" Foreground="#2C3E50" BorderThickness="0" Cursor="Hand"
+                            ToolTip="Wiecej akcji: edytuj, PDF, e-mail, folder">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                    <TextBlock Text="⋯ Wiecej" FontSize="12" FontWeight="SemiBold" Foreground="#2C3E50"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                    <Popup x:Name="popupWiecej" PlacementTarget="{Binding ElementName=btnWiecej}" Placement="Top" StaysOpen="False" AllowsTransparency="True" PopupAnimation="Fade">
+                        <Border Background="White" CornerRadius="8" BorderBrush="#BDC3C7" BorderThickness="1" Padding="6">
+                            <Border.Effect>
+                                <DropShadowEffect ShadowDepth="3" Color="#000000" Opacity="0.25" BlurRadius="14"/>
+                            </Border.Effect>
+                            <StackPanel Width="240">
+                                <Button Click="BtnH_Edytuj_Click" Background="Transparent" BorderThickness="0" Cursor="Hand" Padding="12,9" HorizontalContentAlignment="Left">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="bd" Background="Transparent" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="📝" FontSize="15" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                                    <TextBlock Text="Edytuj dane" FontSize="12" Foreground="#2C3E50" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="bd" Property="Background" Value="#F8F9FA"/></Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                                <Button Click="BtnExportPDF_Click" Background="Transparent" BorderThickness="0" Cursor="Hand" Padding="12,9" HorizontalContentAlignment="Left">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="bd" Background="Transparent" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="🖨" FontSize="15" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                                    <TextBlock Text="Generuj PDF" FontSize="12" Foreground="#2C3E50" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="bd" Property="Background" Value="#F8F9FA"/></Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                                <Button Click="BtnEmail_Click" Background="Transparent" BorderThickness="0" Cursor="Hand" Padding="12,9" HorizontalContentAlignment="Left">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="bd" Background="Transparent" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="✉" FontSize="15" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                                    <TextBlock Text="Wyslij e-mail klientowi" FontSize="12" Foreground="#2C3E50" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="bd" Property="Background" Value="#F8F9FA"/></Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                                <Button Click="BtnOtworzFolder_Click" Background="Transparent" BorderThickness="0" Cursor="Hand" Padding="12,9" HorizontalContentAlignment="Left">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="bd" Background="Transparent" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="📁" FontSize="15" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                                    <TextBlock Text="Otworz folder zalacznikow" FontSize="12" Foreground="#2C3E50" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="bd" Property="Background" Value="#F8F9FA"/></Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                                <!-- Pojawia sie kontekstowo gdy reklamacja to korekta z Symfonii -->
+                                <Button x:Name="btnZglosDoKorekty" Click="BtnZglosDoKorekty_Click" Background="Transparent" BorderThickness="0" Cursor="Hand" Padding="12,9" HorizontalContentAlignment="Left" Visibility="Collapsed">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="bd" Background="#E8F5E9" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="🔗" FontSize="15" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                                    <TextBlock Text="Zglos reklamacje do tej korekty" FontSize="12" FontWeight="SemiBold" Foreground="#1E8449" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="bd" Property="Background" Value="#D5F5E3"/></Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                            </StackPanel>
+                        </Border>
+                    </Popup>
+
+                    <!-- ZAMKNIJ -->
+                    <Button Click="BtnZamknij_Click"
+                            Padding="20,8" FontSize="12" FontWeight="SemiBold"
+                            Background="#7F8C8D" Foreground="White" BorderThickness="0" Cursor="Hand" IsCancel="True">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                    <TextBlock Text="ZAMKNIJ" FontSize="12" FontWeight="SemiBold" Foreground="White"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                </StackPanel>
             </Grid>
         </Border>
     </Grid>

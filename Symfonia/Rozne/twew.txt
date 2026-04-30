@@ -1,0 +1,75 @@
+//"makeDoc4Kh.sc","Tworzenie dokumentów","\Procedury\Raporty operacje kartotek\Kontrahenci\",0,1.0.0,SYSTEM
+////////////////////////////////
+// Tworzenie dokumentów
+// makeDoc4Kh.sc
+/////////////////////////////
+#define OK 2
+#define ANULUJ -1
+#define POWROT 1
+#define KH
+#define OKCANCEL " DefBtn: &Kontynuuj=2 Btn: &Anuluj=1 Ico:!"
+
+#include "Wydruki - include"
+#include "Kopiowanie do bufora - include"
+dispatch xKontr
+int i,nIlosc
+
+ProgressCounter progress
+
+if !(nIlosc=MakeIdTable()) then Message("Nie wybrano żadnego kontrahenta"): error ""
+
+string sSekcja = GetReportName()
+string sDokument = GetIni ( sSekcja, "Kopiowany Dokument" )
+
+sKartoteka+="Sp"
+
+NoOutput()
+
+int sub CheckData()
+	CheckData=POWROT
+	save
+	sDokument=NormalizeStr(sDokument)
+	load
+	if !sDokument then Message "Nie wybrano żadnego dokumentu":exit
+	if !(dDoc=GetObjByKod(sKartoteka,sDokument)) then Message "Nie istnieje dokument sprzedaży o takim kodzie":exit
+	CheckData=OK
+endsub
+
+	Form "Tworzenie dokumentów sprzedaży w buforze",370,210
+		Group "",5,1,355,68
+		Text "Dla każdego z wybranych kontrahentów program utworzy w buforze",15,10,340,18
+		Text "kopię wskazanego dokumentu nadając mu numer kolejny, zgodnie z",15,30,340,18
+		Text "obowiązującymi w firmie parametrami pracy oraz ustawieniami.",15,50,340,18
+		Group "",5,73,355,70
+		Edit "&Numer dokumentu:",sDokument,116,85,160,20
+		View "Wybrano",nIlosc,70,115,40,20
+		Text "kontrahentów",115,115,70,30
+		Button "&OK",    195,150,70,25,CheckData()
+		Button "&Anuluj",275,150,70,25,ANULUJ
+	if ExecForm == ANULUJ then error ""
+
+PutIni ( sSekcja, "Kopiowany Dokument", sDokument )
+
+
+dKh=xFactory.NewObject("BDaneKh")
+progress.Reset(nIlosc)
+
+int returnOfMakeIoRec
+
+for i=1 to i>nIlosc
+	if xKontr then xKontr.Clear()
+	if xKontr=GetObjById("BKontrahent",tab_id(i)) then
+		Popup(1,"Tworzę dokument dla kontrahenta o kodzie:")
+		Popup(2,xKontr.kod)
+		if dKh then dKh.Clear()
+		if xGetErr(dKh.Load(using "kod=\t%s\t KhTyp=%d",xKontr.kod,1)) then Message sGetError : Error "" 
+		returnOfMakeIoRec = MakeIoRec()
+		if (returnOfMakeIoRec == 0) then  if (Message ("Nie udało się stworzyć dokumentu dla kontrahenta o kodzie "+xKontr.kod+OKCANCEL ))==1 then error ""
+	else
+		if (Message ((using "Nie udało się wczytać kontrahenta o id=%l",tab_id(i))+OKCANCEL))==1 then error ""
+	endif
+	progress.NextOne()
+next i
+
+
+
