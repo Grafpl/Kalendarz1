@@ -445,6 +445,7 @@ namespace Kalendarz1
         private int? _aktualneIdZamowienia;
         private readonly List<Button> _dayButtons = new();
         private Button btnDodajNotatke;
+        private Button? btnNoweTest;
         private Dictionary<int, string> _mapowanieScalowania = new(); // TowarIdtw -> NazwaGrupy
         private List<string> _grupyTowaroweNazwy = new(); // Lista nazw grup towarowych dla kolumn
         private bool _pokazujPoDatachUboju = true;
@@ -693,6 +694,15 @@ namespace Kalendarz1
                 panelNawigacja.Controls.Add(btnDodajNotatke);
             }
 
+            if (btnNoweTest == null)
+            {
+                btnNoweTest = new Button();
+                btnNoweTest.Name = "btnNoweTest";
+                btnNoweTest.Text = "+ Nowe TEST";
+                btnNoweTest.Click += btnNoweTest_Click;
+                panelNawigacja.Controls.Add(btnNoweTest);
+            }
+
             chkPokazWydaniaBezZamowien.Checked = _pokazujWydaniaBezZamowien;
 
             btnUsun.Visible = false;
@@ -778,6 +788,10 @@ namespace Kalendarz1
             Font btnFont = new Font("Segoe UI", isCompact ? 8f : 9f, FontStyle.Bold);
 
             StyleActionButton(btnNoweZamowienie, Color.FromArgb(46, 204, 113), isCompact ? "+ Nowe" : "+ Nowe", btnWidth, btnHeight, btnFont);
+            if (btnNoweTest != null)
+            {
+                StyleActionButton(btnNoweTest, Color.FromArgb(124, 58, 237), isCompact ? "+ TEST" : "✨ TEST nowe", btnWidth + 15, btnHeight, btnFont);
+            }
             StyleActionButton(btnModyfikuj, Color.FromArgb(52, 152, 219), isCompact ? "Modyfikuj" : "✏ Modyfikuj", btnWidth, btnHeight, btnFont);
             StyleActionButton(btnDuplikuj, Color.FromArgb(155, 89, 182), isCompact ? "Duplikuj" : "⧉ Duplikuj", btnWidth, btnHeight, btnFont);
             StyleActionButton(btnCykliczne, Color.FromArgb(230, 126, 34), isCompact ? "Cykliczne" : "⟲ Cykliczne", btnWidth, btnHeight, btnFont);
@@ -858,6 +872,13 @@ namespace Kalendarz1
             btnNoweZamowienie.Location = new Point(currentX, 12);
             btnNoweZamowienie.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             currentX -= (btnWidth + spacing);
+
+            if (btnNoweTest != null)
+            {
+                btnNoweTest.Location = new Point(currentX, 12);
+                btnNoweTest.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+                currentX -= (btnWidth + 15 + spacing);
+            }
 
             if (btnUsun.Visible)
             {
@@ -1072,6 +1093,17 @@ namespace Kalendarz1
         {
             var widokZamowienia = new WidokZamowienia(UserID, null);
             if (widokZamowienia.ShowDialog(this) == DialogResult.OK)
+            {
+                await OdswiezWszystkieDaneAsync();
+            }
+        }
+
+        private async void btnNoweTest_Click(object? sender, EventArgs e)
+        {
+            var win = new Kalendarz1.Zamowienia.Views.NoweZamowienieTestWindow(UserID);
+            var helper = new System.Windows.Interop.WindowInteropHelper(win) { Owner = this.Handle };
+            bool? result = win.ShowDialog();
+            if (result == true)
             {
                 await OdswiezWszystkieDaneAsync();
             }

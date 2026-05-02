@@ -1,357 +1,171 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Data;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
+using Kalendarz1.AnalizaPrzychoduProdukcji.Models;
+using Kalendarz1.AnalizaPrzychoduProdukcji.Services;
+using Kalendarz1.AnalizaPrzychoduProdukcji.ViewModels;
 using LiveCharts;
 using LiveCharts.Wpf;
-using Microsoft.Data.SqlClient;
 using Microsoft.Win32;
 
 namespace Kalendarz1.AnalizaPrzychoduProdukcji
 {
-    public partial class AnalizaPrzychoduWindow : Window, INotifyPropertyChanged
+    public partial class AnalizaPrzychoduWindow : Window
     {
-        // Connection strings
         private readonly string _connLibra = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
-        private readonly string _connHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
+        private readonly PrzychodService _service;
+        private readonly AnalizaPrzychoduViewModel _vm = new();
 
-        // Dane
-        private List<PrzychodRecord> _wszystkieRekordy = new List<PrzychodRecord>();
-        private List<PrzychodRecord> _przefiltrowaneDane = new List<PrzychodRecord>();
+        private List<PrzychodRecord> _przefiltrowaneDane = new();
+        private List<PrzychodRecord> _danePoprzedniegoOkresu = new();
 
-        // Słowniki
-        private Dictionary<string, string> _towaryDict = new Dictionary<string, string>();
-        private Dictionary<string, string> _operatorzyDict = new Dictionary<string, string>();
-        private Dictionary<string, ArticleInfo> _articleDict = new Dictionary<string, ArticleInfo>();
+        private readonly Dictionary<string, string> _towaryDict = new();
+        private readonly Dictionary<string, string> _operatorzyDict = new();
+        private readonly Dictionary<string, string> _dostawcyDict = new();
+        private Dictionary<string, ArticleInfo> _articleDict = new();
+        private Dictionary<string, (string CustomerID, string CustomerName)> _partiaDostawcaMap = new();
 
-        // Flaga do kontroli czy okno jest w pelni zaladowane
+        private OperatorTypeFilter _operatorType = OperatorTypeFilter.Wszyscy;
+
         private bool _isWindowFullyLoaded = false;
-
-        // Wybrana partia dla szczegolowej analizy
+        private bool _suppressReload = false;
         private string _wybranaPartia = null;
 
-        // Binding properties dla wykresow
-        private ChartValues<double> _przychodValues;
-        public ChartValues<double> PrzychodValues
-        {
-            get => _przychodValues;
-            set { _przychodValues = value; OnPropertyChanged(); }
-        }
+        private readonly DispatcherTimer _debounceTimer;
+        private readonly DispatcherTimer _liveTimer;
+        private readonly DispatcherTimer _liveBlinkTimer;
+        private bool _liveOn = false;
+        private bool _liveBlinkPhase = false;
+        private CancellationTokenSource _loadCts;
 
-        private List<string> _przychodLabels;
-        public List<string> PrzychodLabels
-        {
-            get => _przychodLabels;
-            set { _przychodLabels = value; OnPropertyChanged(); }
-        }
-
-        private ChartValues<double> _operatorSumaValues;
-        public ChartValues<double> OperatorSumaValues
-        {
-            get => _operatorSumaValues;
-            set { _operatorSumaValues = value; OnPropertyChanged(); }
-        }
-
-        private List<string> _operatorLabels;
-        public List<string> OperatorLabels
-        {
-            get => _operatorLabels;
-            set { _operatorLabels = value; OnPropertyChanged(); }
-        }
-
-        // Bindingi dla nowych wykresow
-        private List<string> _zmianyLabels;
-        public List<string> ZmianyLabels
-        {
-            get => _zmianyLabels;
-            set { _zmianyLabels = value; OnPropertyChanged(); }
-        }
-
-        private List<string> _terminalLabels;
-        public List<string> TerminalLabels
-        {
-            get => _terminalLabels;
-            set { _terminalLabels = value; OnPropertyChanged(); }
-        }
-
-        private List<string> _dniTygodniaLabels;
-        public List<string> DniTygodniaLabels
-        {
-            get => _dniTygodniaLabels;
-            set { _dniTygodniaLabels = value; OnPropertyChanged(); }
-        }
-
-        public Func<double, string> YFormatter { get; set; }
-
-        public event PropertyChangedEventHandler PropertyChanged;
-        protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        }
+        private static readonly Color AccentColor = Color.FromRgb(0x25, 0x63, 0xEB);
 
         public AnalizaPrzychoduWindow()
         {
             InitializeComponent();
             WindowIconHelper.SetIcon(this);
-            DataContext = this;
+            DataContext = _vm;
 
-            YFormatter = value => value.ToString("N0") + " kg";
-            PrzychodValues = new ChartValues<double>();
-            PrzychodLabels = new List<string>();
-            OperatorSumaValues = new ChartValues<double>();
-            OperatorLabels = new List<string>();
-            ZmianyLabels = new List<string> { "Poranna\n(5-13)", "Popoludniowa\n(13-21)", "Nocna\n(21-5)" };
-            TerminalLabels = new List<string>();
-            DniTygodniaLabels = new List<string> { "Pn", "Wt", "Sr", "Cz", "Pt", "So", "Nd" };
+            _service = new PrzychodService(_connLibra);
 
-            InitializeFilters();
+            _debounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
+            _debounceTimer.Tick += (s, e) =>
+            {
+                _debounceTimer.Stop();
+                _ = LoadDataAsync();
+            };
 
-            // Zaladuj dane po pelnym zaladowaniu okna
+            // LIVE: tick co 60 s odświeża dane (tylko dane, nie filtry)
+            _liveTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(60) };
+            _liveTimer.Tick += (s, e) => { if (_liveOn) _ = LoadDataAsync(); };
+
+            // LIVE: pulsująca kropka co 1 s (efekt heartbeat)
+            _liveBlinkTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+            _liveBlinkTimer.Tick += (s, e) =>
+            {
+                if (dotLive == null) return;
+                _liveBlinkPhase = !_liveBlinkPhase;
+                dotLive.Fill = new SolidColorBrush(_liveBlinkPhase
+                    ? Color.FromRgb(0x10, 0xB9, 0x81)   // jasny zielony
+                    : Color.FromRgb(0x05, 0x96, 0x69)); // ciemny zielony
+            };
+
+            InitializeDatesAndCombos();
             Loaded += Window_Loaded;
+            KeyDown += Window_KeyDown;
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            // Ustaw flage ze okno jest w pelni zaladowane
             _isWindowFullyLoaded = true;
-
-            // Laduj dane dopiero gdy okno jest w pelni zainicjalizowane
-            // Uzyj Dispatcher.BeginInvoke z niskim priorytetem aby dac czas na inicjalizacje LiveCharts
-            Dispatcher.BeginInvoke(new Action(() =>
+            Dispatcher.BeginInvoke(new Action(async () =>
             {
-                LoadData();
-            }), System.Windows.Threading.DispatcherPriority.Background);
+                await LoadFiltersAsync();
+                await LoadDataAsync();
+            }), DispatcherPriority.Background);
         }
 
         #region Inicjalizacja
 
-        private void InitializeFilters()
+        private void InitializeDatesAndCombos()
         {
-            // Domyslnie tylko data "do" aktywna (dzis)
-            // Data "od" nieaktywna - wyszarzona
-            dpDataOd.SelectedDate = DateTime.Today;
+            _suppressReload = true;
+            // Domyślnie 7 dni — daje kontekst, działa nawet rano w niedzielę
             dpDataDo.SelectedDate = DateTime.Today;
+            dpDataOd.SelectedDate = DateTime.Today.AddDays(-6);
+            _suppressReload = false;
 
-            // Domyslnie checkbox odznaczony - pojedynczy dzien
-            chkOkresCzasu.IsChecked = false;
-            dpDataOd.IsEnabled = false;
-            dpDataOd.Opacity = 0.5;
-
-            // Zaladuj slowniki
-            LoadTowary();
-            LoadOperatorzy();
-            LoadTerminale();
-            LoadPartie();
-            LoadKlasyKurczaka();
-            LoadGodziny();
-            LoadArticles();
-
-            // LoadData() jest teraz wywolywane w Window_Loaded
+            LoadKlasyKurczakaCombo();
+            LoadGodzinyCombo();
         }
 
-        private void LoadTowary()
+        private async Task LoadFiltersAsync()
         {
             try
             {
-                var towary = new List<ComboItemString> { new ComboItemString { Wartosc = "", Nazwa = "-- Wszystkie towary --" } };
+                var towaryTask = _service.LoadTowaryAsync(_towaryDict);
+                var operatorzyTask = _service.LoadOperatorzyAsync(_operatorzyDict);
+                var terminaleTask = _service.LoadTerminaleAsync();
+                var partieTask = _service.LoadPartieAsync();
+                var articlesTask = _service.LoadArticlesAsync();
+                var dostawcyTask = _service.LoadDostawcyAsync();
 
-                using (var conn = new SqlConnection(_connLibra))
-                {
-                    conn.Open();
-                    // Pobierz towary z tabeli Article (dbo.Article)
-                    string sql = @"SELECT ID, Name, ShortName
-                                   FROM dbo.Article
-                                   WHERE ID IS NOT NULL AND ID <> '' AND Name IS NOT NULL AND Name <> ''
-                                   ORDER BY Name";
+                await Task.WhenAll(towaryTask, operatorzyTask, terminaleTask, partieTask, articlesTask, dostawcyTask);
 
-                    using (var cmd = new SqlCommand(sql, conn))
-                    using (var reader = cmd.ExecuteReader())
-                    {
-                        while (reader.Read())
-                        {
-                            string id = reader.IsDBNull(0) ? "" : reader.GetValue(0)?.ToString() ?? "";
-                            string nazwa = reader.IsDBNull(1) ? "" : reader.GetValue(1)?.ToString() ?? "";
-                            string skrot = reader.IsDBNull(2) ? "" : reader.GetValue(2)?.ToString() ?? "";
-                            if (!string.IsNullOrEmpty(id))
-                            {
-                                string displayName = !string.IsNullOrEmpty(skrot) ? $"{skrot} - {nazwa}" : nazwa;
-                                towary.Add(new ComboItemString { Wartosc = id, Nazwa = displayName });
-                                _towaryDict[id] = nazwa;
-                            }
-                        }
-                    }
-                }
-
-                cbTowar.ItemsSource = towary;
-                cbTowar.DisplayMemberPath = "Nazwa";
-                cbTowar.SelectedValuePath = "Wartosc";
+                _suppressReload = true;
+                cbTowar.ItemsSource = towaryTask.Result;
                 cbTowar.SelectedIndex = 0;
-            }
-            catch (Exception ex)
-            {
-                txtStatus.Text = $"Blad ladowania towarow: {ex.Message}";
-            }
-        }
 
-        private void LoadOperatorzy()
-        {
-            try
-            {
-                var operatorzy = new List<ComboItemString> { new ComboItemString { Wartosc = "", Nazwa = "-- Wszyscy operatorzy --" } };
-
-                using (var conn = new SqlConnection(_connLibra))
-                {
-                    conn.Open();
-                    string sql = @"SELECT DISTINCT OperatorID, Wagowy
-                                   FROM dbo.In0E
-                                   WHERE OperatorID IS NOT NULL AND Wagowy IS NOT NULL AND Wagowy <> ''
-                                   ORDER BY Wagowy";
-
-                    using (var cmd = new SqlCommand(sql, conn))
-                    using (var reader = cmd.ExecuteReader())
-                    {
-                        while (reader.Read())
-                        {
-                            string id = reader.IsDBNull(0) ? "" : reader.GetValue(0)?.ToString() ?? "";
-                            string nazwa = reader.IsDBNull(1) ? $"Operator {id}" : reader.GetValue(1)?.ToString() ?? "";
-                            if (!string.IsNullOrEmpty(id))
-                            {
-                                operatorzy.Add(new ComboItemString { Wartosc = id, Nazwa = nazwa });
-                                _operatorzyDict[id] = nazwa;
-                            }
-                        }
-                    }
-                }
-
-                cbOperator.ItemsSource = operatorzy;
-                cbOperator.DisplayMemberPath = "Nazwa";
-                cbOperator.SelectedValuePath = "Wartosc";
+                cbOperator.ItemsSource = operatorzyTask.Result;
                 cbOperator.SelectedIndex = 0;
-            }
-            catch (Exception ex)
-            {
-                txtStatus.Text = $"Blad ladowania operatorow: {ex.Message}";
-            }
-        }
 
-        private void LoadTerminale()
-        {
-            try
-            {
-                var terminale = new List<ComboItem> { new ComboItem { Id = 0, Nazwa = "-- Wszystkie --" } };
-
-                using (var conn = new SqlConnection(_connLibra))
-                {
-                    conn.Open();
-                    string sql = @"SELECT DISTINCT TermID, TermType
-                                   FROM dbo.In0E
-                                   WHERE TermID IS NOT NULL
-                                   ORDER BY TermID";
-
-                    using (var cmd = new SqlCommand(sql, conn))
-                    using (var reader = cmd.ExecuteReader())
-                    {
-                        while (reader.Read())
-                        {
-                            int id = reader.IsDBNull(0) ? 0 : Convert.ToInt32(reader.GetValue(0));
-                            string typ = reader.IsDBNull(1) ? $"T{id}" : reader.GetValue(1)?.ToString() ?? $"T{id}";
-                            if (id > 0)
-                            {
-                                terminale.Add(new ComboItem { Id = id, Nazwa = typ });
-                            }
-                        }
-                    }
-                }
-
-                cbTerminal.ItemsSource = terminale;
-                cbTerminal.DisplayMemberPath = "Nazwa";
-                cbTerminal.SelectedValuePath = "Id";
+                cbTerminal.ItemsSource = terminaleTask.Result;
                 cbTerminal.SelectedIndex = 0;
-            }
-            catch (Exception ex)
-            {
-                txtStatus.Text = $"Blad ladowania terminali: {ex.Message}";
-            }
-        }
 
-        private void LoadPartie()
-        {
-            try
-            {
-                var partie = new List<ComboItemString> { new ComboItemString { Wartosc = "", Nazwa = "-- Wszystkie partie --" } };
+                cbPartia.ItemsSource = partieTask.Result;
+                cbPartia.SelectedIndex = 0;
 
-                using (var conn = new SqlConnection(_connLibra))
+                if (cbDostawca != null)
                 {
-                    conn.Open();
-                    string sql = @"SELECT DISTINCT TOP 100 P1
-                                   FROM dbo.In0E
-                                   WHERE P1 IS NOT NULL AND P1 <> ''
-                                   ORDER BY P1 DESC";
-
-                    using (var cmd = new SqlCommand(sql, conn))
-                    using (var reader = cmd.ExecuteReader())
-                    {
-                        while (reader.Read())
-                        {
-                            string p1 = reader.IsDBNull(0) ? "" : reader.GetValue(0)?.ToString() ?? "";
-                            if (!string.IsNullOrEmpty(p1))
-                            {
-                                partie.Add(new ComboItemString { Wartosc = p1, Nazwa = p1 });
-                            }
-                        }
-                    }
+                    cbDostawca.ItemsSource = dostawcyTask.Result;
+                    cbDostawca.SelectedIndex = 0;
+                    _dostawcyDict.Clear();
+                    foreach (var d in dostawcyTask.Result)
+                        if (!string.IsNullOrEmpty(d.Wartosc)) _dostawcyDict[d.Wartosc] = d.Nazwa;
                 }
 
-                cbPartia.ItemsSource = partie;
-                cbPartia.DisplayMemberPath = "Nazwa";
-                cbPartia.SelectedValuePath = "Wartosc";
-                cbPartia.SelectedIndex = 0;
+                _articleDict = articlesTask.Result;
+                _suppressReload = false;
             }
             catch (Exception ex)
             {
-                txtStatus.Text = $"Blad ladowania partii: {ex.Message}";
+                txtStatus.Text = $"Błąd ładowania filtrów: {ex.Message}";
             }
         }
 
-        private void LoadKlasyKurczaka()
+        private void LoadKlasyKurczakaCombo()
         {
-            // Klasy dla ArticleID = 40 (QntInCont: 1, 2, 3, itd.)
-            var klasy = new List<ComboItemString>
-            {
-                new ComboItemString { Wartosc = "", Nazwa = "-- Wszystkie --" },
-                new ComboItemString { Wartosc = "1", Nazwa = "Klasa 1" },
-                new ComboItemString { Wartosc = "2", Nazwa = "Klasa 2" },
-                new ComboItemString { Wartosc = "3", Nazwa = "Klasa 3" },
-                new ComboItemString { Wartosc = "4", Nazwa = "Klasa 4" },
-                new ComboItemString { Wartosc = "5", Nazwa = "Klasa 5" },
-                new ComboItemString { Wartosc = "6", Nazwa = "Klasa 6" },
-                new ComboItemString { Wartosc = "7", Nazwa = "Klasa 7" },
-                new ComboItemString { Wartosc = "8", Nazwa = "Klasa 8" },
-                new ComboItemString { Wartosc = "9", Nazwa = "Klasa 9" },
-                new ComboItemString { Wartosc = "10", Nazwa = "Klasa 10" },
-                new ComboItemString { Wartosc = "11", Nazwa = "Klasa 11" },
-                new ComboItemString { Wartosc = "12", Nazwa = "Klasa 12" }
-            };
+            var klasy = new List<ComboItemString> { new() { Wartosc = "", Nazwa = "Wszystkie" } };
+            for (int k = 1; k <= 12; k++)
+                klasy.Add(new ComboItemString { Wartosc = k.ToString(), Nazwa = $"Klasa {k}" });
 
             cbKlasaKurczaka.ItemsSource = klasy;
-            cbKlasaKurczaka.DisplayMemberPath = "Nazwa";
-            cbKlasaKurczaka.SelectedValuePath = "Wartosc";
             cbKlasaKurczaka.SelectedIndex = 0;
         }
 
-        private void LoadGodziny()
+        private void LoadGodzinyCombo()
         {
-            // Godziny od 0 do 23
-            var godzinyOd = new List<ComboItem> { new ComboItem { Id = -1, Nazwa = "-- Od --" } };
-            var godzinyDo = new List<ComboItem> { new ComboItem { Id = -1, Nazwa = "-- Do --" } };
+            var godzinyOd = new List<ComboItem> { new() { Id = -1, Nazwa = "Od" } };
+            var godzinyDo = new List<ComboItem> { new() { Id = -1, Nazwa = "Do" } };
 
             for (int h = 0; h <= 23; h++)
             {
@@ -360,165 +174,299 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
             }
 
             cbGodzinaOd.ItemsSource = godzinyOd;
-            cbGodzinaOd.DisplayMemberPath = "Nazwa";
-            cbGodzinaOd.SelectedValuePath = "Id";
             cbGodzinaOd.SelectedIndex = 0;
-
             cbGodzinaDo.ItemsSource = godzinyDo;
-            cbGodzinaDo.DisplayMemberPath = "Nazwa";
-            cbGodzinaDo.SelectedValuePath = "Id";
             cbGodzinaDo.SelectedIndex = 0;
-        }
-
-        private void LoadArticles()
-        {
-            try
-            {
-                _articleDict.Clear();
-
-                using (var conn = new SqlConnection(_connLibra))
-                {
-                    conn.Open();
-                    string sql = @"SELECT ID, ShortName, Name
-                                   FROM dbo.Article
-                                   WHERE ID IS NOT NULL AND ID <> ''";
-
-                    using (var cmd = new SqlCommand(sql, conn))
-                    using (var reader = cmd.ExecuteReader())
-                    {
-                        while (reader.Read())
-                        {
-                            string id = reader.IsDBNull(0) ? "" : reader.GetValue(0)?.ToString() ?? "";
-                            string shortName = reader.IsDBNull(1) ? "" : reader.GetValue(1)?.ToString() ?? "";
-                            string name = reader.IsDBNull(2) ? "" : reader.GetValue(2)?.ToString() ?? "";
-
-                            if (!string.IsNullOrEmpty(id) && !_articleDict.ContainsKey(id))
-                            {
-                                _articleDict[id] = new ArticleInfo
-                                {
-                                    ID = id,
-                                    ShortName = shortName,
-                                    Name = name
-                                };
-                            }
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                txtStatus.Text = $"Blad ladowania artykulow: {ex.Message}";
-            }
         }
 
         #endregion
 
-        #region Event Handlers
+        #region Filter handlers
+
+        private PrzychodFilter BuildFilter(DateTime? overrideOd = null, DateTime? overrideDo = null)
+        {
+            return new PrzychodFilter
+            {
+                DataOd = overrideOd ?? dpDataOd.SelectedDate ?? DateTime.Today,
+                DataDo = overrideDo ?? dpDataDo.SelectedDate ?? DateTime.Today,
+                ArticleID = cbTowar?.SelectedValue as string,
+                OperatorID = cbOperator?.SelectedValue as string,
+                TerminalId = cbTerminal?.SelectedValue is int t && t > 0 ? t : (int?)null,
+                Partia = cbPartia?.SelectedValue as string,
+                Klasa = (cbTowar?.SelectedValue as string == "40"
+                         && cbKlasaKurczaka?.SelectedValue is string ks
+                         && int.TryParse(ks, out int kk)) ? kk : (int?)null,
+                GodzinaOd = cbGodzinaOd?.SelectedValue is int go && go >= 0 ? go : (int?)null,
+                GodzinaDo = cbGodzinaDo?.SelectedValue is int gd && gd >= 0 ? gd : (int?)null,
+                Dostawca = cbDostawca?.SelectedValue as string,
+                TypOperatora = _operatorType
+            };
+        }
+
+        private void TriggerReload()
+        {
+            if (!_isWindowFullyLoaded || _suppressReload) return;
+            _debounceTimer.Stop();
+            _debounceTimer.Start();
+        }
+
+        private void DatePicker_SelectedDateChanged(object sender, SelectionChangedEventArgs e) => TriggerReload();
+        private void Filter_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            UpdateActiveFilterIndicator();
+            TriggerReload();
+        }
+
+        private void Pill_Checked(object sender, RoutedEventArgs e)
+        {
+            if (!_isWindowFullyLoaded) return;
+            // Po zmianie pillsa odśwież WSZYSTKO żeby było konsystentnie
+            RefreshAllViews();
+        }
+
+        private void Wzorzec_Checked(object sender, RoutedEventArgs e)
+        {
+            if (boxMapa == null || boxZmiany == null || boxDni == null) return;
+            boxMapa.Visibility   = wzMapa.IsChecked   == true ? Visibility.Visible : Visibility.Collapsed;
+            boxZmiany.Visibility = wzZmiany.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+            boxDni.Visibility    = wzDni.IsChecked    == true ? Visibility.Visible : Visibility.Collapsed;
+
+            // Po przełączeniu wzorca odśwież cały ekran (jeśli user przełącza, chce świeże dane)
+            RefreshAllViews();
+        }
 
         private void CbTowar_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            // Pokaz panel klasy kurczaka tylko dla ArticleID = 40
-            if (cbTowar.SelectedValue is string towarId && towarId == "40")
+            bool kurczaki = cbTowar?.SelectedValue as string == "40";
+            if (pnlKlasaKurczaka != null)
+                pnlKlasaKurczaka.Visibility = kurczaki ? Visibility.Visible : Visibility.Collapsed;
+            if (pnlKlasySection != null)
+                pnlKlasySection.Visibility = kurczaki ? Visibility.Visible : Visibility.Collapsed;
+
+            UpdateActiveFilterIndicator();
+            TriggerReload();
+
+            // Wymuś odświeżenie sekcji klas kurczaka (po Visibility=Visible musi się dorenderować)
+            if (kurczaki && _isWindowFullyLoaded)
+                Dispatcher.BeginInvoke(new Action(() => SafeUpdate("Klasy", UpdateKlasyChart)),
+                    DispatcherPriority.Loaded);
+        }
+
+        // Odświeża WSZYSTKIE widoki używając już załadowanych danych (bez SQL).
+        // Wywoływane po zmianie pillów, OpType, wzorca, zakładki itp.
+        private void RefreshAllViews()
+        {
+            if (!_isWindowFullyLoaded) return;
+            SafeUpdate("Statystyki", UpdateStatistics);
+            SafeUpdate("Health", UpdateHealthStrip);
+            SafeUpdate("Wykres", UpdatePrzychodChart);
+            SafeUpdate("Operatorzy", UpdateOperatorChart);
+            SafeUpdate("Partie", UpdatePartieChart);
+            SafeUpdate("Towary", UpdatePrzychodyArtykuly);
+            SafeUpdate("Klasy", UpdateKlasyChart);
+            SafeUpdate("Tabela", UpdateDataGrids);
+            SafeUpdate("Wzorce", () =>
             {
-                pnlKlasaKurczaka.Visibility = Visibility.Visible;
-            }
-            else
-            {
-                pnlKlasaKurczaka.Visibility = Visibility.Collapsed;
-            }
+                if (wzMapa?.IsChecked == true) UpdateHeatmap();
+                else if (wzZmiany?.IsChecked == true) UpdateZmianyChart();
+                else if (wzDni?.IsChecked == true) UpdateDniTygodniaChart();
+            });
         }
 
-        private void BtnLoadData_Click(object sender, RoutedEventArgs e)
+        private void ChkPorownanie_Changed(object sender, RoutedEventArgs e)
         {
-            LoadData();
+            UpdateActiveFilterIndicator();
+            TriggerReload();
         }
 
-        private void BtnRefresh_Click(object sender, RoutedEventArgs e)
+        private void BtnFiltry_Click(object sender, RoutedEventArgs e)
         {
-            // Odswierz filtry i zaladuj ponownie
-            LoadTowary();
-            LoadOperatorzy();
-            LoadPartie();
-            LoadData();
+            if (pnlFiltrySecondary == null) return;
+            pnlFiltrySecondary.Visibility = pnlFiltrySecondary.Visibility == Visibility.Visible
+                ? Visibility.Collapsed : Visibility.Visible;
         }
 
-        private void BtnExportExcel_Click(object sender, RoutedEventArgs e)
+        private void BtnResetFiltry_Click(object sender, RoutedEventArgs e)
         {
-            ExportToExcel();
+            _suppressReload = true;
+            if (cbOperator != null) cbOperator.SelectedIndex = 0;
+            if (cbPartia != null) cbPartia.SelectedIndex = 0;
+            if (cbTerminal != null) cbTerminal.SelectedIndex = 0;
+            if (cbGodzinaOd != null) cbGodzinaOd.SelectedIndex = 0;
+            if (cbGodzinaDo != null) cbGodzinaDo.SelectedIndex = 0;
+            if (cbKlasaKurczaka != null) cbKlasaKurczaka.SelectedIndex = 0;
+            if (cbDostawca != null) cbDostawca.SelectedIndex = 0;
+            if (chkPorownanie != null) chkPorownanie.IsChecked = false;
+            _suppressReload = false;
+            UpdateActiveFilterIndicator();
+            TriggerReload();
         }
 
-        private void BtnClose_Click(object sender, RoutedEventArgs e)
+        private void OpType_Checked(object sender, RoutedEventArgs e)
         {
-            Close();
+            if (!_isWindowFullyLoaded) return;
+            _operatorType = opPaletuje?.IsChecked == true ? OperatorTypeFilter.TylkoPaletujacy
+                          : opPorcjuje?.IsChecked == true ? OperatorTypeFilter.TylkoPorcjujacy
+                          : OperatorTypeFilter.Wszyscy;
+            // Odśwież wszystko – ranking + wykres + statystyki muszą być spójne
+            RefreshAllViews();
         }
+
+
+        private void BtnRefresh_Click(object sender, RoutedEventArgs e) => _ = RefreshAllAsync();
+        private async Task RefreshAllAsync()
+        {
+            await LoadFiltersAsync();
+            await LoadDataAsync();
+        }
+
+        private void BtnExportExcel_Click(object sender, RoutedEventArgs e) => ExportToCsv();
+        private void BtnClose_Click(object sender, RoutedEventArgs e) => Close();
 
         private void TabControl_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (!_isWindowFullyLoaded) return;
-            if (e.Source != tabControl) return; // Ignoruj zdarzenia z innych kontrolek
+            if (e.Source != tabControl) return;
 
-            // Sprawdz czy wybrano zakladke "Mapa cieplna"
-            if (tabControl.SelectedItem is TabItem tabItem)
-            {
-                string header = tabItem.Header?.ToString() ?? "";
-                if (header == "Mapa cieplna")
-                {
-                    // Odswiez mape cieplna z opoznieniem aby zapewnic renderowanie
-                    Dispatcher.BeginInvoke(new Action(() =>
-                    {
-                        UpdateHeatmap();
-                    }), System.Windows.Threading.DispatcherPriority.Loaded);
-                }
-            }
+            // Po przełączeniu zakładki – odśwież wszystko, żeby świeży widok zawsze pokazywał aktualne dane
+            Dispatcher.BeginInvoke(new Action(RefreshAllViews), DispatcherPriority.Loaded);
         }
 
-        private void ChartType_Changed(object sender, RoutedEventArgs e)
+        private void UpdateActiveFilterIndicator()
         {
-            if (_przefiltrowaneDane == null || !_przefiltrowaneDane.Any()) return;
-            UpdateChartType();
+            if (dotFiltryActive == null || icBadges == null || pnlActiveBadges == null) return;
+
+            var badges = new List<FiltrBadge>();
+
+            if (cbOperator?.SelectedValue is string opId && !string.IsNullOrEmpty(opId))
+            {
+                var nazwa = _operatorzyDict.TryGetValue(opId, out var n) ? n : opId;
+                badges.Add(new FiltrBadge { Etykieta = "Operator", Wartosc = nazwa, ClearAction = () => cbOperator.SelectedIndex = 0 });
+            }
+            if (cbPartia?.SelectedValue is string p && !string.IsNullOrEmpty(p))
+                badges.Add(new FiltrBadge { Etykieta = "Partia", Wartosc = p, ClearAction = () => cbPartia.SelectedIndex = 0 });
+            if (cbTerminal?.SelectedValue is int tid && tid > 0)
+                badges.Add(new FiltrBadge { Etykieta = "Terminal", Wartosc = (cbTerminal.SelectedItem as ComboItem)?.Nazwa ?? tid.ToString(), ClearAction = () => cbTerminal.SelectedIndex = 0 });
+            if (cbGodzinaOd?.SelectedValue is int go && go >= 0)
+                badges.Add(new FiltrBadge { Etykieta = "Od godz.", Wartosc = $"{go:D2}:00", ClearAction = () => cbGodzinaOd.SelectedIndex = 0 });
+            if (cbGodzinaDo?.SelectedValue is int gd && gd >= 0)
+                badges.Add(new FiltrBadge { Etykieta = "Do godz.", Wartosc = $"{gd:D2}:59", ClearAction = () => cbGodzinaDo.SelectedIndex = 0 });
+            if (cbKlasaKurczaka?.SelectedValue is string kl && !string.IsNullOrEmpty(kl))
+                badges.Add(new FiltrBadge { Etykieta = "Klasa", Wartosc = kl, ClearAction = () => cbKlasaKurczaka.SelectedIndex = 0 });
+            if (cbDostawca?.SelectedValue is string d && !string.IsNullOrEmpty(d))
+            {
+                var nazwa = _dostawcyDict.TryGetValue(d, out var n) ? n : d;
+                badges.Add(new FiltrBadge { Etykieta = "Dostawca", Wartosc = nazwa, ClearAction = () => cbDostawca.SelectedIndex = 0 });
+            }
+
+            dotFiltryActive.Visibility = badges.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+            pnlActiveBadges.Visibility = badges.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+            icBadges.Items.Clear();
+            foreach (var b in badges) icBadges.Items.Add(BuildBadgeUI(b));
         }
 
-        private void ChkOkresCzasu_Changed(object sender, RoutedEventArgs e)
+        private Border BuildBadgeUI(FiltrBadge b)
         {
-            if (chkOkresCzasu == null || dpDataOd == null || lblDataOd == null) return;
+            var sp = new StackPanel { Orientation = Orientation.Horizontal };
+            sp.Children.Add(new TextBlock
+            {
+                Text = $"{b.Etykieta}: ",
+                FontSize = 11,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(AccentColor),
+                VerticalAlignment = VerticalAlignment.Center
+            });
+            sp.Children.Add(new TextBlock
+            {
+                Text = b.Wartosc,
+                FontSize = 11,
+                Foreground = new SolidColorBrush(Color.FromRgb(0x11, 0x18, 0x27)),
+                VerticalAlignment = VerticalAlignment.Center,
+                MaxWidth = 200,
+                TextTrimming = TextTrimming.CharacterEllipsis
+            });
+            var btnX = new Button
+            {
+                Content = "×",
+                Margin = new Thickness(6, 0, 0, 0),
+                Padding = new Thickness(4, 0, 4, 0),
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0),
+                FontSize = 14,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Color.FromRgb(0x6B, 0x72, 0x80)),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                ToolTip = "Wyczyść"
+            };
+            btnX.Click += (_, __) => b.ClearAction?.Invoke();
+            sp.Children.Add(btnX);
 
-            if (chkOkresCzasu.IsChecked == true)
+            return new Border
             {
-                // Aktywuj date "od"
-                dpDataOd.IsEnabled = true;
-                dpDataOd.Opacity = 1.0;
-                lblDataOd.Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80)); // ciemny
-                dpDataOd.SelectedDate = DateTime.Today.AddDays(-7); // Domyslnie tydzien wstecz
-            }
-            else
-            {
-                // Dezaktywuj date "od"
-                dpDataOd.IsEnabled = false;
-                dpDataOd.Opacity = 0.5;
-                lblDataOd.Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)); // szary
-                dpDataOd.SelectedDate = dpDataDo.SelectedDate; // Ustaw ta sama date
-            }
-
-            // Auto-odswierz dane
-            if (_isWindowFullyLoaded)
-            {
-                LoadData();
-            }
+                Background = Brushes.White,
+                BorderBrush = new SolidColorBrush(Color.FromRgb(0xBF, 0xDB, 0xFE)),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(12),
+                Padding = new Thickness(10, 3, 6, 3),
+                Margin = new Thickness(0, 0, 6, 0),
+                Child = sp
+            };
         }
 
-        private void DatePicker_SelectedDateChanged(object sender, SelectionChangedEventArgs e)
+        #endregion
+
+        #region Presety dat
+
+        private void ApplyPreset(DateTime od, DateTime @do)
         {
-            if (!_isWindowFullyLoaded) return;
-
-            // Jezeli checkbox nie zaznaczony, synchronizuj daty
-            if (chkOkresCzasu?.IsChecked != true && sender == dpDataDo)
-            {
-                dpDataOd.SelectedDate = dpDataDo.SelectedDate;
-            }
-
-            // Auto-odswierz dane
-            LoadData();
+            _suppressReload = true;
+            dpDataOd.SelectedDate = od;
+            dpDataDo.SelectedDate = @do;
+            _suppressReload = false;
+            TriggerReload();
         }
+
+        private void BtnPresetDzis_Click(object sender, RoutedEventArgs e) => ApplyPreset(DateTime.Today, DateTime.Today);
+        private void BtnPresetWczoraj_Click(object sender, RoutedEventArgs e)
+        {
+            var d = DateTime.Today.AddDays(-1);
+            ApplyPreset(d, d);
+        }
+        private void BtnPreset7Dni_Click(object sender, RoutedEventArgs e) => ApplyPreset(DateTime.Today.AddDays(-6), DateTime.Today);
+        private void BtnPreset30Dni_Click(object sender, RoutedEventArgs e) => ApplyPreset(DateTime.Today.AddDays(-29), DateTime.Today);
+        private void BtnPresetMiesiac_Click(object sender, RoutedEventArgs e)
+        {
+            var first = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+            ApplyPreset(first, DateTime.Today);
+        }
+
+        #endregion
+
+        #region Drill-down handlers
+
+        private void DgRankingOperatorow_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (dgRankingOperatorow.SelectedItem is not OperatorStats op || string.IsNullOrEmpty(op.OperatorID)) return;
+            cbOperator.SelectedValue = op.OperatorID;
+            EnsureFiltersExpanded();
+        }
+
+        private void DgPrzychodyArtykuly_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (dgPrzychodyArtykuly.SelectedItem is not ArticleStats a || string.IsNullOrEmpty(a.ArticleID)) return;
+            cbTowar.SelectedValue = a.ArticleID;
+        }
+
+        private void EnsureFiltersExpanded()
+        {
+            if (pnlFiltrySecondary != null && pnlFiltrySecondary.Visibility != Visibility.Visible)
+                pnlFiltrySecondary.Visibility = Visibility.Visible;
+        }
+
+        #endregion
+
+        #region Partie
 
         private void DgPartie_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
@@ -531,26 +479,22 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
 
         private void DgPartie_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
-            if (dgPartie.SelectedItem is PartiaStats partia)
-            {
-                ShowWazeniaWindow(partia.Partia, null);
-            }
+            if (dgPartie.SelectedItem is not PartiaStats p) return;
+            if (p.Partia == "*** RAZEM ***") return;
+            cbPartia.SelectedValue = p.Partia;
+            EnsureFiltersExpanded();
         }
 
         private void DgPartieArtykuly_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
             if (dgPartieArtykuly.SelectedItem is PartiaArticleStats artykul && !string.IsNullOrEmpty(_wybranaPartia))
-            {
                 ShowWazeniaWindow(_wybranaPartia, artykul.ArticleID);
-            }
         }
 
         private void BtnPokazWszystkieWazenia_Click(object sender, RoutedEventArgs e)
         {
             if (!string.IsNullOrEmpty(_wybranaPartia))
-            {
                 ShowWazeniaWindow(_wybranaPartia, null);
-            }
         }
 
         private void UpdatePartieDetails(string partia)
@@ -558,15 +502,14 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
             if (string.IsNullOrEmpty(partia))
             {
                 dgPartieArtykuly.ItemsSource = null;
-                txtPartiaHeader.Text = "SZCZEGOLY PARTII";
-                txtPartiaInfo.Text = "Wybierz partie z listy";
+                txtPartiaHeader.Text = "Szczegóły partii";
+                txtPartiaInfo.Text = "Wybierz partię z listy";
                 btnPokazWszystkieWazenia.Visibility = Visibility.Collapsed;
                 return;
             }
 
-            txtPartiaHeader.Text = $"PARTIA: {partia}";
+            txtPartiaHeader.Text = $"Partia: {partia}";
 
-            // Pobierz artykuly z tej partii
             var artykulyPartii = _przefiltrowaneDane
                 .Where(r => r.Partia == partia || (string.IsNullOrEmpty(r.Partia) && partia == "(brak partii)"))
                 .GroupBy(r => r.ArticleID)
@@ -589,11 +532,9 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
 
             decimal suma = artykulyPartii.Sum(a => a.SumaKg);
             foreach (var a in artykulyPartii)
-            {
                 a.Procent = suma > 0 ? (a.SumaKg / suma * 100) : 0;
-            }
 
-            txtPartiaInfo.Text = $"{artykulyPartii.Count} artykulow, {suma:N2} kg lacznie";
+            txtPartiaInfo.Text = $"{artykulyPartii.Count} artykułów · {suma:N2} kg łącznie";
             dgPartieArtykuly.ItemsSource = artykulyPartii;
             btnPokazWszystkieWazenia.Visibility = Visibility.Visible;
         }
@@ -608,10 +549,9 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
                 .ToList();
 
             string tytul = string.IsNullOrEmpty(articleId)
-                ? $"Wszystkie wazenia - Partia: {partia}"
-                : $"Wazenia - Partia: {partia}, Artykul: {articleId}";
+                ? $"Wszystkie ważenia – Partia: {partia}"
+                : $"Ważenia – Partia: {partia}, Artykuł: {articleId}";
 
-            // Utworz okno z lista wazen
             var window = new Window
             {
                 Title = tytul,
@@ -626,24 +566,21 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
             grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
             grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-            // Header
             var header = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
+                Background = new SolidColorBrush(Color.FromRgb(0x1F, 0x29, 0x37)),
                 Padding = new Thickness(15, 10, 15, 10)
             };
-            var headerText = new TextBlock
+            header.Child = new TextBlock
             {
-                Text = $"{tytul} ({wazenia.Count} rekordow, {wazenia.Sum(w => w.ActWeight):N2} kg)",
+                Text = $"{tytul} ({wazenia.Count} rekordów, {wazenia.Sum(w => w.ActWeight):N2} kg)",
                 Foreground = Brushes.White,
-                FontSize = 14,
+                FontSize = 13,
                 FontWeight = FontWeights.SemiBold
             };
-            header.Child = headerText;
             Grid.SetRow(header, 0);
             grid.Children.Add(header);
 
-            // DataGrid
             var dg = new DataGrid
             {
                 AutoGenerateColumns = false,
@@ -652,9 +589,8 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
                 HeadersVisibility = DataGridHeadersVisibility.Column,
                 GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
                 RowBackground = Brushes.White,
-                AlternatingRowBackground = new SolidColorBrush(Color.FromRgb(248, 249, 250))
+                AlternatingRowBackground = new SolidColorBrush(Color.FromRgb(0xFA, 0xFA, 0xFA))
             };
-
             dg.Columns.Add(new DataGridTextColumn { Header = "Data", Binding = new System.Windows.Data.Binding("Data") { StringFormat = "yyyy-MM-dd" }, Width = 90 });
             dg.Columns.Add(new DataGridTextColumn { Header = "Godzina", Binding = new System.Windows.Data.Binding("Godzina") { StringFormat = "HH:mm:ss" }, Width = 80 });
             dg.Columns.Add(new DataGridTextColumn { Header = "Towar", Binding = new System.Windows.Data.Binding("NazwaTowaru"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
@@ -662,23 +598,16 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
             dg.Columns.Add(new DataGridTextColumn { Header = "Operator", Binding = new System.Windows.Data.Binding("Operator"), Width = 120 });
             dg.Columns.Add(new DataGridTextColumn { Header = "Terminal", Binding = new System.Windows.Data.Binding("Terminal"), Width = 80 });
             dg.Columns.Add(new DataGridTextColumn { Header = "Klasa", Binding = new System.Windows.Data.Binding("Klasa"), Width = 50 });
-
             dg.ItemsSource = wazenia;
             Grid.SetRow(dg, 1);
             grid.Children.Add(dg);
 
-            // Footer z przyciskiem zamknij
-            var footer = new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                HorizontalAlignment = HorizontalAlignment.Right,
-                Margin = new Thickness(10)
-            };
+            var footer = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(10) };
             var btnClose = new Button
             {
                 Content = "Zamknij",
-                Padding = new Thickness(20, 8, 20, 8),
-                Background = new SolidColorBrush(Color.FromRgb(231, 76, 60)),
+                Padding = new Thickness(20, 6, 20, 6),
+                Background = new SolidColorBrush(AccentColor),
                 Foreground = Brushes.White,
                 BorderThickness = new Thickness(0),
                 Cursor = System.Windows.Input.Cursors.Hand
@@ -694,178 +623,94 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
 
         #endregion
 
-        #region Ladowanie danych
+        #region Ładowanie danych
 
-        private void LoadData()
+        private async Task LoadDataAsync()
         {
-            if (!dpDataOd.SelectedDate.HasValue || !dpDataDo.SelectedDate.HasValue)
-            {
-                MessageBox.Show("Wybierz zakres dat.", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
+            if (!dpDataOd.SelectedDate.HasValue || !dpDataDo.SelectedDate.HasValue) return;
 
-            txtStatus.Text = "Ladowanie danych...";
-            _wszystkieRekordy.Clear();
+            _loadCts?.Cancel();
+            _loadCts = new CancellationTokenSource();
+            var ct = _loadCts.Token;
+
+            txtStatus.Text = "Ładowanie...";
+            SetBusy(true, "Pobieram z bazy LibraNet");
 
             try
             {
-                using (var conn = new SqlConnection(_connLibra))
+                var filter = BuildFilter();
+                var dataTask = _service.LoadDataAsync(filter);
+                var partiaDostMapTask = _service.LoadPartiaDostawcaMapAsync(
+                    filter.DataOd.ToString("yyyy-MM-dd"),
+                    filter.DataDo.ToString("yyyy-MM-dd"));
+
+                Task<List<PrzychodRecord>> prevTask = null;
+                if (chkPorownanie?.IsChecked == true)
                 {
-                    conn.Open();
-
-                    // Glowne zapytanie - pobierz wszystkie dane z zakresu dat z tabeli In0E
-                    string sql = @"
-                        SELECT
-                            ArticleID,
-                            ArticleName,
-                            JM,
-                            TermID,
-                            TermType,
-                            Weight,
-                            Quantity,
-                            Direction,
-                            Data,
-                            Godzina,
-                            OperatorID,
-                            Wagowy,
-                            Tara,
-                            Price,
-                            P1,
-                            P2,
-                            ActWeight,
-                            QntInCont
-                        FROM dbo.In0E
-                        WHERE Data >= @DataOd AND Data <= @DataDo
-                          AND ISNULL(ArticleName,'') <> ''
-                        ORDER BY Data, Godzina";
-
-                    using (var cmd = new SqlCommand(sql, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@DataOd", dpDataOd.SelectedDate.Value.ToString("yyyy-MM-dd"));
-                        cmd.Parameters.AddWithValue("@DataDo", dpDataDo.SelectedDate.Value.ToString("yyyy-MM-dd"));
-
-                        using (var reader = cmd.ExecuteReader())
-                        {
-                            // Pobierz liczbe kolumn
-                            int fieldCount = reader.FieldCount;
-
-                            while (reader.Read())
-                            {
-                                // Parsowanie daty i godziny z varchar
-                                DateTime dataValue = DateTime.MinValue;
-                                DateTime godzinaValue = DateTime.MinValue;
-
-                                string dataStr = (fieldCount > 8 && !reader.IsDBNull(8)) ? reader.GetValue(8)?.ToString() ?? "" : "";
-                                string godzinaStr = (fieldCount > 9 && !reader.IsDBNull(9)) ? reader.GetValue(9)?.ToString() ?? "" : "";
-
-                                DateTime.TryParse(dataStr, out dataValue);
-
-                                // Godzina moze byc w formacie HH:mm:ss
-                                if (!string.IsNullOrEmpty(godzinaStr))
-                                {
-                                    if (TimeSpan.TryParse(godzinaStr, out TimeSpan ts))
-                                    {
-                                        godzinaValue = dataValue.Date.Add(ts);
-                                    }
-                                    else
-                                    {
-                                        DateTime.TryParse(godzinaStr, out godzinaValue);
-                                    }
-                                }
-
-                                var record = new PrzychodRecord
-                                {
-                                    ArticleID = (fieldCount > 0 && !reader.IsDBNull(0)) ? reader.GetValue(0)?.ToString() ?? "" : "",
-                                    NazwaTowaru = (fieldCount > 1 && !reader.IsDBNull(1)) ? reader.GetValue(1)?.ToString() ?? "" : "",
-                                    JM = (fieldCount > 2 && !reader.IsDBNull(2)) ? reader.GetValue(2)?.ToString() ?? "" : "",
-                                    TermID = (fieldCount > 3 && !reader.IsDBNull(3)) ? Convert.ToInt32(reader.GetValue(3)) : 0,
-                                    Terminal = (fieldCount > 4 && !reader.IsDBNull(4)) ? reader.GetValue(4)?.ToString() ?? "" : "",
-                                    Weight = (fieldCount > 5 && !reader.IsDBNull(5)) ? Convert.ToDecimal(reader.GetValue(5)) : 0,
-                                    Data = dataValue,
-                                    Godzina = godzinaValue,
-                                    OperatorID = (fieldCount > 10 && !reader.IsDBNull(10)) ? reader.GetValue(10)?.ToString() ?? "" : "",
-                                    Operator = (fieldCount > 11 && !reader.IsDBNull(11)) ? reader.GetValue(11)?.ToString() ?? "" : "",
-                                    Tara = (fieldCount > 12 && !reader.IsDBNull(12)) ? Convert.ToDecimal(reader.GetValue(12)) : 0,
-                                    Partia = (fieldCount > 14 && !reader.IsDBNull(14)) ? reader.GetValue(14)?.ToString() ?? "" : "",
-                                    ActWeight = (fieldCount > 16 && !reader.IsDBNull(16)) ? Convert.ToDecimal(reader.GetValue(16)) : 0,
-                                    Klasa = (fieldCount > 17 && !reader.IsDBNull(17)) ? Convert.ToInt32(reader.GetValue(17)) : 0
-                                };
-
-                                _wszystkieRekordy.Add(record);
-                            }
-                        }
-                    }
+                    int dni = Math.Max(1, (filter.DataDo.Date - filter.DataOd.Date).Days + 1);
+                    var prevFilter = BuildFilter(filter.DataOd.AddDays(-dni), filter.DataOd.AddDays(-1));
+                    prevTask = _service.LoadDataAsync(prevFilter);
                 }
 
-                // Zastosuj filtry
-                ApplyFilters();
+                if (prevTask != null) await Task.WhenAll(dataTask, partiaDostMapTask, prevTask);
+                else await Task.WhenAll(dataTask, partiaDostMapTask);
 
-                txtStatus.Text = $"Zaladowano {_wszystkieRekordy.Count} rekordow, po filtracji: {_przefiltrowaneDane.Count}";
+                if (ct.IsCancellationRequested) return;
+
+                _przefiltrowaneDane = dataTask.Result;
+                _partiaDostawcaMap = partiaDostMapTask.Result;
+                _danePoprzedniegoOkresu = prevTask?.Result ?? new List<PrzychodRecord>();
+
+                SetBusy(true, "Aktualizuję widoki…");
+
+                SafeUpdate("Statystyki", UpdateStatistics);
+                SafeUpdate("Health", UpdateHealthStrip);
+                SafeUpdate("Wykres", UpdatePrzychodChart);
+                SafeUpdate("Operatorzy", UpdateOperatorChart);
+                SafeUpdate("Partie", UpdatePartieChart);
+                SafeUpdate("Towary", UpdatePrzychodyArtykuly);
+                SafeUpdate("Klasy", UpdateKlasyChart);
+                SafeUpdate("Tabela", UpdateDataGrids);
+                SafeUpdate("Wzorce", () =>
+                {
+                    if (wzMapa?.IsChecked == true) UpdateHeatmap();
+                    else if (wzZmiany?.IsChecked == true) UpdateZmianyChart();
+                    else if (wzDni?.IsChecked == true) UpdateDniTygodniaChart();
+                });
+
+                txtLastRefresh.Text = $"Aktualizacja: {DateTime.Now:HH:mm:ss}" + (_liveOn ? " 🟢" : "");
+                txtStatus.Text = $"{_przefiltrowaneDane.Count} rekordów"
+                    + (chkPorownanie?.IsChecked == true ? $" · poprzedni okres: {_danePoprzedniegoOkresu.Count}" : "");
             }
+            catch (OperationCanceledException) { }
             catch (Exception ex)
             {
-                MessageBox.Show($"Blad podczas ladowania danych:\n{ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
-                txtStatus.Text = "Blad ladowania danych";
+                MessageBox.Show($"Błąd:\n{ex.GetType().Name}: {ex.Message}\n\n{ex.StackTrace}",
+                    "Błąd ładowania danych", MessageBoxButton.OK, MessageBoxImage.Error);
+                txtStatus.Text = "Błąd ładowania danych";
+            }
+            finally
+            {
+                SetBusy(false);
             }
         }
 
-        private void ApplyFilters()
+        private void SetBusy(bool busy, string details = null)
         {
-            _przefiltrowaneDane = _wszystkieRekordy.ToList();
+            if (loadingOverlay == null) return;
+            loadingOverlay.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;
+            if (busy && details != null && txtLoadingDetails != null)
+                txtLoadingDetails.Text = details;
+        }
 
-            // Filtr towaru
-            if (cbTowar.SelectedValue is string towarId && !string.IsNullOrEmpty(towarId))
+        private void SafeUpdate(string name, Action action)
+        {
+            try { action(); }
+            catch (Exception ex)
             {
-                _przefiltrowaneDane = _przefiltrowaneDane.Where(r => r.ArticleID == towarId).ToList();
+                txtStatus.Text = $"Błąd ({name}): {ex.Message}";
+                System.Diagnostics.Debug.WriteLine($"[AnalizaPrzychodu] {name}: {ex}");
             }
-
-            // Filtr operatora
-            if (cbOperator.SelectedValue is string operatorId && !string.IsNullOrEmpty(operatorId))
-            {
-                _przefiltrowaneDane = _przefiltrowaneDane.Where(r => r.OperatorID == operatorId).ToList();
-            }
-
-            // Filtr terminala
-            if (cbTerminal.SelectedValue is int terminalId && terminalId > 0)
-            {
-                _przefiltrowaneDane = _przefiltrowaneDane.Where(r => r.TermID == terminalId).ToList();
-            }
-
-            // Filtr partii
-            if (cbPartia.SelectedValue is string partia && !string.IsNullOrEmpty(partia))
-            {
-                _przefiltrowaneDane = _przefiltrowaneDane.Where(r => r.Partia == partia).ToList();
-            }
-
-            // Filtr klasy kurczaka (tylko dla ArticleID = 40)
-            if (cbTowar.SelectedValue is string tid && tid == "40")
-            {
-                if (cbKlasaKurczaka.SelectedValue is string klasaStr && !string.IsNullOrEmpty(klasaStr))
-                {
-                    if (int.TryParse(klasaStr, out int klasa))
-                    {
-                        _przefiltrowaneDane = _przefiltrowaneDane.Where(r => r.Klasa == klasa).ToList();
-                    }
-                }
-            }
-
-            // Filtr godziny od
-            if (cbGodzinaOd.SelectedValue is int godzinaOd && godzinaOd >= 0)
-            {
-                _przefiltrowaneDane = _przefiltrowaneDane.Where(r => r.Godzina.Hour >= godzinaOd).ToList();
-            }
-
-            // Filtr godziny do
-            if (cbGodzinaDo.SelectedValue is int godzinaDo && godzinaDo >= 0)
-            {
-                _przefiltrowaneDane = _przefiltrowaneDane.Where(r => r.Godzina.Hour <= godzinaDo).ToList();
-            }
-
-            // Aktualizuj wszystkie widoki
-            UpdateStatistics();
-            UpdateCharts();
-            UpdateDataGrids();
-            UpdateHeatmap();
         }
 
         #endregion
@@ -874,109 +719,155 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
 
         private void UpdateStatistics()
         {
-            // Null checks for UI controls
             if (txtSumaKg == null) return;
 
-            if (!_przefiltrowaneDane.Any())
+            // Suma uwzględnia storno (ujemne = anulacje, kompensują się z dodatnimi)
+            decimal sumaKg = _przefiltrowaneDane.Sum(r => r.ActWeight);
+            // Rzeczywiste ważenia = tylko dodatnie. Anulacje liczymy osobno.
+            int liczbaWazenRealnych = _przefiltrowaneDane.Count(r => r.ActWeight > 0);
+            int liczbaAnulacji = _przefiltrowaneDane.Count(r => r.ActWeight < 0);
+            int liczbaDni = _przefiltrowaneDane.Select(r => r.Data.Date).Distinct().Count();
+            decimal sredniaDzien = liczbaDni > 0 ? sumaKg / liczbaDni : 0;
+
+            txtSumaKg.Text = $"{sumaKg:N0} kg";
+            txtSumaKgInfo.Text = liczbaDni > 0 ? $"w {liczbaDni} dni" : "";
+
+            txtLiczbaWazen.Text = $"{liczbaWazenRealnych:N0}";
+            txtLiczbaWazenInfo.Text = liczbaAnulacji > 0
+                ? $"⚠ {liczbaAnulacji} anulacji"
+                : (liczbaDni > 0 ? $"~{liczbaWazenRealnych / liczbaDni} dziennie" : "");
+
+            txtSredniaDzien.Text = $"{sredniaDzien:N0} kg";
+            txtSredniaDzienInfo.Text = "dzienna produkcja";
+
+            UpdateOdchylenieCard();
+            UpdateTrendCard(sumaKg);
+        }
+
+        private void UpdateOdchylenieCard()
+        {
+            if (txtOdchylenie == null) return;
+
+            // Suma różnic ActWeight - Weight (tylko dodatnie ważenia, ignorujemy storno)
+            // Weight musi być > 0 żeby było sensowne porównanie
+            var rekordy = _przefiltrowaneDane.Where(r => r.ActWeight > 0 && r.Weight > 0).ToList();
+            if (rekordy.Count == 0)
             {
-                txtSumaKg.Text = "0 kg";
-                txtSredniaGodzina.Text = "0 kg/h";
-                if (txtSredniaDzien != null) txtSredniaDzien.Text = "0 kg";
+                txtOdchylenie.Text = "—";
+                txtOdchylenie.Foreground = new SolidColorBrush(Color.FromRgb(0x6B, 0x72, 0x80));
+                txtOdchylenieInfo.Text = "brak danych";
                 return;
             }
 
-            // Suma
-            decimal sumaKg = _przefiltrowaneDane.Sum(r => r.ActWeight);
-            txtSumaKg.Text = $"{sumaKg:N2} kg";
+            decimal sumaOdchylenia = rekordy.Sum(r => r.ActWeight - r.Weight);
+            decimal sumaStandard = rekordy.Sum(r => r.Weight);
+            decimal procent = sumaStandard != 0 ? sumaOdchylenia / sumaStandard * 100m : 0;
+            int dokladamyCnt = rekordy.Count(r => r.Dokladamy);
+            int niedowagaCnt = rekordy.Count(r => r.Niedowaga);
 
-            // Liczba dni
-            int liczbaDni = _przefiltrowaneDane.Select(r => r.Data.Date).Distinct().Count();
+            string znak = sumaOdchylenia >= 0 ? "+" : "";
+            txtOdchylenie.Text = $"{znak}{sumaOdchylenia:N1} kg";
+            // Plus (dokładamy) = czerwono (strata firmy), minus (niedowaga) = zielono (zysk firmy ale risk dla klienta)
+            txtOdchylenie.Foreground = sumaOdchylenia > 0
+                ? new SolidColorBrush(Color.FromRgb(0xDC, 0x26, 0x26))
+                : sumaOdchylenia < 0
+                    ? new SolidColorBrush(Color.FromRgb(0x05, 0x96, 0x69))
+                    : new SolidColorBrush(Color.FromRgb(0x6B, 0x72, 0x80));
+            txtOdchylenieInfo.Text = $"{procent:+0.00;-0.00;0.00}% · ↑{dokladamyCnt} ↓{niedowagaCnt}";
+        }
 
-            // Grupowanie po godzinach
-            var grupyGodzinowe = _przefiltrowaneDane
-                .GroupBy(r => r.Godzina.Hour)
-                .Select(g => new { Godzina = g.Key, Suma = g.Sum(r => r.ActWeight) })
-                .OrderBy(g => g.Godzina)
-                .ToList();
+        private void UpdateTrendCard(decimal sumaKg)
+        {
+            if (txtTrend == null) return;
 
-            if (grupyGodzinowe.Any())
+            if (chkPorownanie?.IsChecked != true)
             {
-                // Srednia na godzine
-                decimal sredniaGodzina = grupyGodzinowe.Average(g => g.Suma);
-                txtSredniaGodzina.Text = $"{sredniaGodzina:N2} kg/h";
+                txtTrend.Text = "—";
+                txtTrend.Foreground = new SolidColorBrush(Color.FromRgb(0x6B, 0x72, 0x80));
+                txtTrendInfo.Text = "włącz „Porównaj okres\"";
+                return;
             }
 
-            // Srednia na dzien
-            if (txtSredniaDzien != null && liczbaDni > 0)
+            decimal prev = _danePoprzedniegoOkresu.Sum(r => r.ActWeight);
+            if (prev == 0)
             {
-                decimal sredniaDzien = sumaKg / liczbaDni;
-                txtSredniaDzien.Text = $"{sredniaDzien:N0} kg";
+                txtTrend.Text = sumaKg > 0 ? "▲ nowy" : "—";
+                txtTrend.Foreground = new SolidColorBrush(Color.FromRgb(0x6B, 0x72, 0x80));
+                txtTrendInfo.Text = "brak danych w poprz. okresie";
+                return;
             }
+
+            decimal pct = (sumaKg - prev) / prev * 100m;
+            string arrow = pct >= 0 ? "▲" : "▼";
+            txtTrend.Text = $"{arrow} {pct:+0.0;-0.0;0.0}%";
+            txtTrend.Foreground = pct >= 0
+                ? new SolidColorBrush(Color.FromRgb(0x05, 0x96, 0x69))
+                : new SolidColorBrush(Color.FromRgb(0xDC, 0x26, 0x26));
+            txtTrendInfo.Text = $"poprz.: {prev:N0} kg";
         }
 
         #endregion
 
-        #region Wykresy
+        #region Wykres główny
 
-        private void UpdateCharts()
+        private string GetCurrentGrouping()
         {
-            UpdatePrzychodChart();
-            UpdateOperatorChart();
-            UpdatePartieChart();
-            UpdatePrzychodyArtykuly();
-            UpdateZmianyChart();
-            UpdateTerminaleChart();
-            UpdateKlasyChart();
-            UpdateDniTygodniaChart();
+            if (pillOperator?.IsChecked == true) return "Operator";
+            if (pillTowar?.IsChecked == true) return "Towar";
+            if (pillPartia?.IsChecked == true) return "Partia";
+            if (pillTerminal?.IsChecked == true) return "Terminal";
+            if (pillDzien?.IsChecked == true) return "Dzien";
+            return "Godzina";
         }
 
         private void UpdatePrzychodChart()
         {
-            if (!_przefiltrowaneDane.Any())
+            if (chartPrzychod == null) return;
+
+            try { chartPrzychod.Series.Clear(); } catch { }
+
+            bool hasData = _przefiltrowaneDane?.Any() == true;
+            if (emptyWykres != null)
+                emptyWykres.Visibility = hasData ? Visibility.Collapsed : Visibility.Visible;
+
+            if (!hasData)
             {
-                PrzychodValues = new ChartValues<double>();
-                PrzychodLabels = new List<string>();
+                _vm.PrzychodLabels = new List<string>();
+                _vm.PrzychodValues = new ChartValues<double>();
                 return;
             }
 
-            // Grupowanie wg wybranej opcji
-            if (cbGrupowanie == null) return;
-            var grupowanie = (cbGrupowanie.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Godzina";
-
+            var grupowanie = GetCurrentGrouping();
             IEnumerable<KeyValuePair<string, decimal>> grupy;
 
             switch (grupowanie)
             {
                 case "Operator":
                     grupy = _przefiltrowaneDane
-                        .GroupBy(r => r.Operator)
+                        .GroupBy(r => string.IsNullOrEmpty(r.Operator) ? "(brak)" : r.Operator)
                         .Select(g => new KeyValuePair<string, decimal>(g.Key, g.Sum(r => r.ActWeight)))
                         .OrderByDescending(g => g.Value);
                     break;
-
                 case "Towar":
                     grupy = _przefiltrowaneDane
-                        .GroupBy(r => r.NazwaTowaru)
+                        .GroupBy(r => r.NazwaTowaru ?? "")
                         .Select(g => new KeyValuePair<string, decimal>(
-                            g.Key.Length > 25 ? g.Key.Substring(0, 25) + "..." : g.Key,
+                            g.Key.Length > 22 ? g.Key.Substring(0, 22) + "…" : g.Key,
                             g.Sum(r => r.ActWeight)))
                         .OrderByDescending(g => g.Value);
                     break;
-
                 case "Partia":
                     grupy = _przefiltrowaneDane
                         .GroupBy(r => string.IsNullOrEmpty(r.Partia) ? "(brak)" : r.Partia)
                         .Select(g => new KeyValuePair<string, decimal>(g.Key, g.Sum(r => r.ActWeight)))
                         .OrderByDescending(g => g.Value);
                     break;
-
                 case "Terminal":
                     grupy = _przefiltrowaneDane
-                        .GroupBy(r => r.Terminal)
+                        .GroupBy(r => string.IsNullOrEmpty(r.Terminal) ? $"T{r.TermID}" : r.Terminal)
                         .Select(g => new KeyValuePair<string, decimal>(g.Key, g.Sum(r => r.ActWeight)))
                         .OrderByDescending(g => g.Value);
                     break;
-
                 case "Dzien":
                     grupy = _przefiltrowaneDane
                         .GroupBy(r => r.Data.Date)
@@ -985,8 +876,7 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
                             g.Sum(r => r.ActWeight)))
                         .OrderBy(g => g.Key);
                     break;
-
-                default: // Godzina
+                default:
                     grupy = _przefiltrowaneDane
                         .GroupBy(r => r.Godzina.Hour)
                         .Select(g => new KeyValuePair<string, decimal>($"{g.Key:D2}:00", g.Sum(r => r.ActWeight)))
@@ -995,109 +885,109 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
             }
 
             var listaGrup = grupy.ToList();
-            PrzychodValues = new ChartValues<double>(listaGrup.Select(g => (double)g.Value));
-            PrzychodLabels = listaGrup.Select(g => g.Key).ToList();
-
-            UpdateChartType();
-        }
-
-        private void UpdateChartType()
-        {
-            if (!_isWindowFullyLoaded) return;
-            if (chartPrzychod == null || !chartPrzychod.IsLoaded) return;
-            if (rbWykresSlupkowy == null || rbWykresLiniowy == null || rbWykresObszarowy == null) return;
+            _vm.PrzychodLabels = listaGrup.Select(g => g.Key).ToList();
+            _vm.PrzychodValues = new ChartValues<double>(listaGrup.Select(g => (double)g.Value));
 
             try
             {
-                chartPrzychod.Series.Clear();
-
-                if (rbWykresSlupkowy.IsChecked == true)
+                chartPrzychod.Series.Add(new ColumnSeries
                 {
-                    chartPrzychod.Series.Add(new ColumnSeries
-                    {
-                        Title = "Przychod (kg)",
-                        Values = PrzychodValues,
-                        Fill = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
-                        MaxColumnWidth = 50,
-                        DataLabels = true,
-                        LabelPoint = point => $"{point.Y:N0}"
-                    });
-                }
-                else if (rbWykresLiniowy.IsChecked == true)
-                {
-                    chartPrzychod.Series.Add(new LineSeries
-                    {
-                        Title = "Przychod (kg)",
-                        Values = PrzychodValues,
-                        Stroke = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
-                        Fill = Brushes.Transparent,
-                        PointGeometrySize = 10,
-                        DataLabels = true,
-                        LabelPoint = point => $"{point.Y:N0}"
-                    });
-                }
-                else // Obszarowy
-                {
-                    chartPrzychod.Series.Add(new LineSeries
-                    {
-                        Title = "Przychod (kg)",
-                        Values = PrzychodValues,
-                        Stroke = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
-                        Fill = new SolidColorBrush(Color.FromArgb(100, 52, 152, 219)),
-                        PointGeometrySize = 8,
-                        DataLabels = true,
-                        LabelPoint = point => $"{point.Y:N0}"
-                    });
-                }
+                    Title = "Przychód (kg)",
+                    Values = _vm.PrzychodValues,
+                    Fill = new SolidColorBrush(AccentColor),
+                    MaxColumnWidth = 50,
+                    DataLabels = listaGrup.Count <= 24,
+                    LabelPoint = point => $"{point.Y:N0}"
+                });
             }
             catch (NullReferenceException)
             {
-                // LiveCharts moze rzucic wyjatek gdy wewnetrzne komponenty nie sa jeszcze gotowe
-                // Sprobuj ponownie za chwile
-                Dispatcher.BeginInvoke(new Action(() => UpdateChartType()), System.Windows.Threading.DispatcherPriority.Background);
+                Dispatcher.BeginInvoke(new Action(UpdatePrzychodChart), DispatcherPriority.Background);
             }
         }
+
+        #endregion
+
+        #region Operatorzy
 
         private void UpdateOperatorChart()
         {
             if (dgRankingOperatorow == null) return;
 
-            if (!_przefiltrowaneDane.Any())
+            try { chartOperatorzy?.Series?.Clear(); } catch { }
+
+            bool hasData = _przefiltrowaneDane?.Any() == true;
+            if (emptyOperatorzy != null)
+                emptyOperatorzy.Visibility = hasData ? Visibility.Collapsed : Visibility.Visible;
+
+            if (!hasData)
             {
-                OperatorSumaValues = new ChartValues<double>();
-                OperatorLabels = new List<string>();
+                _vm.OperatorLabels = new List<string>();
+                _vm.OperatorSumaValues = new ChartValues<double>();
                 dgRankingOperatorow.ItemsSource = null;
                 return;
             }
 
-            var grupyOperatorow = _przefiltrowaneDane
-                .GroupBy(r => r.Operator)
+            // Filtr typu operatora: Paletujący (głównie ArticleID=40) vs Porcjujący (reszta)
+            var dane = _przefiltrowaneDane.AsEnumerable();
+            if (_operatorType == OperatorTypeFilter.TylkoPaletujacy)
+                dane = dane.Where(r => r.ArticleID == "40");
+            else if (_operatorType == OperatorTypeFilter.TylkoPorcjujacy)
+                dane = dane.Where(r => r.ArticleID != "40");
+
+            var grupyOperatorow = dane
+                .GroupBy(r => r.Operator ?? "")
                 .Select(g => new OperatorStats
                 {
-                    Nazwa = g.Key,
+                    Nazwa = string.IsNullOrEmpty(g.Key) ? "(brak)" : g.Key,
+                    OperatorID = g.First().OperatorID,
                     SumaKg = g.Sum(r => r.ActWeight),
-                    LiczbaWazen = g.Count(),
-                    SredniaKg = g.Average(r => r.ActWeight)
+                    LiczbaWazen = g.Count(r => r.ActWeight > 0),
+                    LiczbaAnulacji = g.Count(r => r.ActWeight < 0),
+                    SredniaKg = g.Where(r => r.ActWeight > 0).DefaultIfEmpty().Average(r => r?.ActWeight ?? 0),
+                    Paletuje = g.Count(r => r.ArticleID == "40") > g.Count() / 2
                 })
                 .OrderByDescending(g => g.SumaKg)
                 .ToList();
 
-            // Ranking
             for (int i = 0; i < grupyOperatorow.Count; i++)
-            {
                 grupyOperatorow[i].Pozycja = i + 1;
-            }
 
-            OperatorSumaValues = new ChartValues<double>(grupyOperatorow.Select(g => (double)g.SumaKg));
-            OperatorLabels = grupyOperatorow.Select(g => g.Nazwa).ToList();
+            // Sparkline: udział vs. lider (0..100)
+            decimal maxKg = grupyOperatorow.Count > 0 ? grupyOperatorow.Max(g => g.SumaKg) : 0;
+            foreach (var op in grupyOperatorow)
+                op.PctMax = maxKg > 0 ? (double)(op.SumaKg / maxKg * 100m) : 0;
+
+            _vm.OperatorLabels = grupyOperatorow.Select(g => g.Nazwa).ToList();
+            _vm.OperatorSumaValues = new ChartValues<double>(grupyOperatorow.Select(g => (double)g.SumaKg));
+
+            try
+            {
+                chartOperatorzy.Series.Add(new ColumnSeries
+                {
+                    Title = "Suma kg",
+                    Values = _vm.OperatorSumaValues,
+                    Fill = new SolidColorBrush(AccentColor),
+                    MaxColumnWidth = 60,
+                    DataLabels = grupyOperatorow.Count <= 12,
+                    LabelPoint = point => $"{point.Y:N0}"
+                });
+            }
+            catch (NullReferenceException)
+            {
+                Dispatcher.BeginInvoke(new Action(UpdateOperatorChart), DispatcherPriority.Background);
+            }
 
             dgRankingOperatorow.ItemsSource = grupyOperatorow;
         }
 
+        #endregion
+
+        #region Partie
+
         private void UpdatePartieChart()
         {
-            if (!_isWindowFullyLoaded) return;
-            if (dgPartie == null) return;
+            if (!_isWindowFullyLoaded || dgPartie == null) return;
 
             if (!_przefiltrowaneDane.Any())
             {
@@ -1111,35 +1001,30 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
                 {
                     Partia = g.Key,
                     SumaKg = g.Sum(r => r.ActWeight),
-                    Liczba = g.Count()
+                    Liczba = g.Count(r => r.ActWeight > 0),
+                    LiczbaAnulacji = g.Count(r => r.ActWeight < 0),
+                    Dostawca = _partiaDostawcaMap.TryGetValue(g.Key, out var d) ? d.CustomerName : "",
+                    CustomerID = _partiaDostawcaMap.TryGetValue(g.Key, out var d2) ? d2.CustomerID : ""
                 })
-                .OrderByDescending(g => g.Partia)  // Sortowanie malejaco po nazwie partii
+                .OrderByDescending(g => g.Partia)
                 .ToList();
 
+            // Procent liczony od sumy przefiltrowanych partii – pokazuje udział partii
+            // w obrębie aktualnego filtra (np. ile Fileta z każdej partii)
             decimal suma = grupyPartii.Sum(p => p.SumaKg);
-            int sumaWazen = grupyPartii.Sum(p => p.Liczba);
             foreach (var p in grupyPartii)
-            {
                 p.Procent = suma > 0 ? (p.SumaKg / suma * 100) : 0;
-            }
-
-            // Dodaj wiersz sumy na poczatku
-            var sumRow = new PartiaStats
-            {
-                Partia = "*** RAZEM ***",
-                SumaKg = suma,
-                Procent = 100,
-                Liczba = sumaWazen
-            };
-            grupyPartii.Insert(0, sumRow);
 
             dgPartie.ItemsSource = grupyPartii;
         }
 
+        #endregion
+
+        #region Towary
+
         private void UpdatePrzychodyArtykuly()
         {
-            if (!_isWindowFullyLoaded) return;
-            if (dgPrzychodyArtykuly == null) return;
+            if (!_isWindowFullyLoaded || dgPrzychodyArtykuly == null) return;
 
             if (!_przefiltrowaneDane.Any())
             {
@@ -1151,17 +1036,13 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
                 .GroupBy(r => r.ArticleID)
                 .Select(g =>
                 {
-                    // Pobierz dane artykulu ze slownika
                     string shortName = "";
-                    string articleName = g.First().NazwaTowaru; // domyslnie z In0E
-
+                    string articleName = g.First().NazwaTowaru;
                     if (_articleDict.TryGetValue(g.Key, out ArticleInfo artInfo))
                     {
                         shortName = artInfo.ShortName;
-                        if (!string.IsNullOrEmpty(artInfo.Name))
-                            articleName = artInfo.Name;
+                        if (!string.IsNullOrEmpty(artInfo.Name)) articleName = artInfo.Name;
                     }
-
                     return new ArticleStats
                     {
                         ArticleID = g.Key,
@@ -1175,153 +1056,30 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
                 .OrderByDescending(g => g.SumaKg)
                 .ToList();
 
+            // Procent liczony od sumy przefiltrowanych artykułów
             decimal suma = grupyArtykulow.Sum(a => a.SumaKg);
-            int sumaWazen = grupyArtykulow.Sum(a => a.LiczbaWazen);
+            decimal kumul = 0;
             foreach (var a in grupyArtykulow)
             {
                 a.Procent = suma > 0 ? (a.SumaKg / suma * 100) : 0;
+                kumul += a.Procent;
+                a.KumulacyjnyPct = kumul;
+                a.TopPareto = kumul <= 80m;  // Pareto: top towary do 80% wolumenu
             }
-
-            // Dodaj wiersz sumy na poczatku
-            var sumRow = new ArticleStats
-            {
-                ArticleID = "",
-                ShortName = "SUMA",
-                ArticleName = "*** RAZEM ***",
-                SumaKg = suma,
-                Procent = 100,
-                LiczbaWazen = sumaWazen,
-                SredniaKg = sumaWazen > 0 ? suma / sumaWazen : 0
-            };
-            grupyArtykulow.Insert(0, sumRow);
 
             dgPrzychodyArtykuly.ItemsSource = grupyArtykulow;
         }
 
-        private void UpdateZmianyChart()
-        {
-            if (!_isWindowFullyLoaded) return;
-            if (chartZmiany == null || !chartZmiany.IsLoaded) return;
-
-            // Zmiana poranna: 3:00 - 14:00
-            // Zmiana popoludniowa: 14:01 - 00:00 (czyli 14-23 oraz 0-2)
-
-            decimal sumaPoranna = _przefiltrowaneDane.Where(r => r.Godzina.Hour >= 3 && r.Godzina.Hour < 14).Sum(r => r.ActWeight);
-            decimal sumaPopoludniowa = _przefiltrowaneDane.Where(r => r.Godzina.Hour >= 14 || r.Godzina.Hour < 3).Sum(r => r.ActWeight);
-
-            int liczbaPoranna = _przefiltrowaneDane.Count(r => r.Godzina.Hour >= 3 && r.Godzina.Hour < 14);
-            int liczbaPopoludniowa = _przefiltrowaneDane.Count(r => r.Godzina.Hour >= 14 || r.Godzina.Hour < 3);
-
-            // Aktualizacja etykiet
-            if (txtZmianaPoranna != null)
-            {
-                txtZmianaPoranna.Text = $"{sumaPoranna:N0} kg";
-                txtZmianaPorannaSzt.Text = $"{liczbaPoranna} wazen";
-            }
-            if (txtZmianaPopoludniowa != null)
-            {
-                txtZmianaPopoludniowa.Text = $"{sumaPopoludniowa:N0} kg";
-                txtZmianaPopoludniowaSzt.Text = $"{liczbaPopoludniowa} wazen";
-            }
-            // Ukryj zmiane nocna (nie ma jej w nowym podziale)
-            if (txtZmianaNocna != null)
-            {
-                txtZmianaNocna.Text = "-";
-                txtZmianaNocnaSzt.Text = "-";
-            }
-
-            // Najlepsza zmiana
-            if (txtNajlepszaZmiana != null)
-            {
-                var max = new[] { ("Poranna (3-14)", sumaPoranna), ("Popoludniowa (14-3)", sumaPopoludniowa) }
-                    .OrderByDescending(x => x.Item2).First();
-                txtNajlepszaZmiana.Text = $"{max.Item1} ({max.Item2:N0} kg)";
-            }
-
-            try
-            {
-                chartZmiany.Series.Clear();
-
-                // Wykres - tylko 2 zmiany
-                chartZmiany.Series.Add(new ColumnSeries
-                {
-                    Title = "Suma kg",
-                    Values = new ChartValues<double> { (double)sumaPoranna, (double)sumaPopoludniowa },
-                    Fill = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
-                    MaxColumnWidth = 80,
-                    DataLabels = true,
-                    LabelPoint = point => $"{point.Y:N0}"
-                });
-            }
-            catch (NullReferenceException)
-            {
-                Dispatcher.BeginInvoke(new Action(() => UpdateZmianyChart()), System.Windows.Threading.DispatcherPriority.Background);
-            }
-        }
-
-        private void UpdateTerminaleChart()
-        {
-            if (!_isWindowFullyLoaded) return;
-            if (chartTerminale == null || !chartTerminale.IsLoaded || dgTerminale == null) return;
-
-            if (!_przefiltrowaneDane.Any())
-            {
-                dgTerminale.ItemsSource = null;
-                return;
-            }
-
-            var grupyTerminali = _przefiltrowaneDane
-                .GroupBy(r => string.IsNullOrEmpty(r.Terminal) ? $"T{r.TermID}" : r.Terminal)
-                .Select(g => new TerminalStats
-                {
-                    Nazwa = g.Key,
-                    SumaKg = g.Sum(r => r.ActWeight),
-                    LiczbaWazen = g.Count(),
-                    SredniaKg = g.Average(r => r.ActWeight)
-                })
-                .OrderByDescending(g => g.SumaKg)
-                .ToList();
-
-            // Ranking
-            for (int i = 0; i < grupyTerminali.Count; i++)
-            {
-                grupyTerminali[i].Pozycja = i + 1;
-            }
-
-            TerminalLabels = grupyTerminali.Select(g => g.Nazwa).ToList();
-
-            try
-            {
-                chartTerminale.Series.Clear();
-
-                chartTerminale.Series.Add(new ColumnSeries
-                {
-                    Title = "Suma kg",
-                    Values = new ChartValues<double>(grupyTerminali.Select(g => (double)g.SumaKg)),
-                    Fill = new SolidColorBrush(Color.FromRgb(155, 89, 182)),
-                    MaxColumnWidth = 60
-                });
-            }
-            catch (NullReferenceException)
-            {
-                Dispatcher.BeginInvoke(new Action(() => UpdateTerminaleChart()), System.Windows.Threading.DispatcherPriority.Background);
-                return;
-            }
-
-            dgTerminale.ItemsSource = grupyTerminali;
-        }
-
         private void UpdateKlasyChart()
         {
-            if (!_isWindowFullyLoaded) return;
-            if (chartKlasy == null || !chartKlasy.IsLoaded || dgKlasy == null) return;
+            if (!_isWindowFullyLoaded || chartKlasy == null || dgKlasy == null) return;
 
-            // Filtruj tylko dane dla ArticleID = 40 (kurczaki)
+            // Klasy widoczne tylko gdy ArticleID=40 (kurczak) — z aktywnymi filtrami
             var daneKurczakow = _przefiltrowaneDane.Where(r => r.ArticleID == "40").ToList();
-
             if (!daneKurczakow.Any())
             {
                 dgKlasy.ItemsSource = null;
+                try { chartKlasy.Series.Clear(); } catch { }
                 return;
             }
 
@@ -1339,38 +1097,28 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
 
             decimal suma = grupyKlas.Sum(k => k.SumaKg);
             foreach (var k in grupyKlas)
-            {
                 k.Procent = suma > 0 ? (k.SumaKg / suma * 100) : 0;
-            }
 
             try
             {
                 chartKlasy.Series.Clear();
-
-                // Wykres kolowy
-                var kolory = new[] {
-                    Color.FromRgb(231, 76, 60),   // Klasa 1 - czerwony
-                    Color.FromRgb(230, 126, 34),  // Klasa 2 - pomaranczowy
-                    Color.FromRgb(241, 196, 15),  // Klasa 3 - zolty
-                    Color.FromRgb(46, 204, 113),  // Klasa 4 - zielony
-                    Color.FromRgb(26, 188, 156),  // Klasa 5 - turkusowy
-                    Color.FromRgb(52, 152, 219),  // Klasa 6 - niebieski
-                    Color.FromRgb(155, 89, 182),  // Klasa 7 - fioletowy
-                    Color.FromRgb(52, 73, 94),    // Klasa 8 - szary
-                    Color.FromRgb(149, 165, 166), // Klasa 9
-                    Color.FromRgb(189, 195, 199), // Klasa 10
-                    Color.FromRgb(127, 140, 141), // Klasa 11
-                    Color.FromRgb(44, 62, 80)     // Klasa 12
+                var paleta = new[] {
+                    Color.FromRgb(0x25, 0x63, 0xEB), Color.FromRgb(0x05, 0x96, 0x69),
+                    Color.FromRgb(0xDC, 0x26, 0x26), Color.FromRgb(0xD9, 0x77, 0x06),
+                    Color.FromRgb(0x9D, 0x17, 0x4D), Color.FromRgb(0x05, 0x88, 0x87),
+                    Color.FromRgb(0x65, 0x4D, 0xD0), Color.FromRgb(0x37, 0x41, 0x51),
+                    Color.FromRgb(0x6B, 0x72, 0x80), Color.FromRgb(0x9C, 0xA3, 0xAF),
+                    Color.FromRgb(0xD1, 0xD5, 0xDB), Color.FromRgb(0x11, 0x18, 0x27)
                 };
 
                 foreach (var klasa in grupyKlas)
                 {
-                    int kolorIndex = (klasa.Klasa - 1) % kolory.Length;
+                    int kolorIndex = (klasa.Klasa - 1) % paleta.Length;
                     chartKlasy.Series.Add(new PieSeries
                     {
                         Title = $"Klasa {klasa.Klasa}",
                         Values = new ChartValues<double> { (double)klasa.SumaKg },
-                        Fill = new SolidColorBrush(kolory[kolorIndex]),
+                        Fill = new SolidColorBrush(paleta[kolorIndex]),
                         DataLabels = true,
                         LabelPoint = point => $"Kl.{klasa.Klasa}: {klasa.Procent:N1}%"
                     });
@@ -1378,17 +1126,79 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
             }
             catch (NullReferenceException)
             {
-                Dispatcher.BeginInvoke(new Action(() => UpdateKlasyChart()), System.Windows.Threading.DispatcherPriority.Background);
+                Dispatcher.BeginInvoke(new Action(UpdateKlasyChart), DispatcherPriority.Background);
                 return;
             }
 
             dgKlasy.ItemsSource = grupyKlas;
         }
 
+        #endregion
+
+        #region Wzorce: Zmiany / Dni tygodnia / Heatmap
+
+        // Granice zmian: dzienna 5–21, nocna 21–5
+        private const int DAY_SHIFT_START = 5;
+        private const int NIGHT_SHIFT_START = 21;
+
+        private static bool IsDayShift(int hour) => hour >= DAY_SHIFT_START && hour < NIGHT_SHIFT_START;
+        private static bool IsNightShift(int hour) => hour >= NIGHT_SHIFT_START || hour < DAY_SHIFT_START;
+
+        private void UpdateZmianyChart()
+        {
+            if (!_isWindowFullyLoaded || chartZmiany == null) return;
+
+            decimal sumaDzienna = _przefiltrowaneDane.Where(r => IsDayShift(r.Godzina.Hour)).Sum(r => r.ActWeight);
+            decimal sumaNocna   = _przefiltrowaneDane.Where(r => IsNightShift(r.Godzina.Hour)).Sum(r => r.ActWeight);
+            int liczbaDzienna = _przefiltrowaneDane.Count(r => IsDayShift(r.Godzina.Hour) && r.ActWeight > 0);
+            int liczbaNocna   = _przefiltrowaneDane.Count(r => IsNightShift(r.Godzina.Hour) && r.ActWeight > 0);
+
+            if (txtZmianaDzienna != null)
+            {
+                txtZmianaDzienna.Text = $"{sumaDzienna:N0} kg";
+                txtZmianaDziennaSzt.Text = $"{liczbaDzienna} ważeń";
+            }
+            if (txtZmianaNocna != null)
+            {
+                txtZmianaNocna.Text = $"{sumaNocna:N0} kg";
+                txtZmianaNocnaSzt.Text = $"{liczbaNocna} ważeń";
+            }
+            if (txtNajlepszaZmiana != null)
+            {
+                if (sumaDzienna == 0 && sumaNocna == 0)
+                    txtNajlepszaZmiana.Text = "–";
+                else
+                {
+                    var max = new[] { ("Dzienna", sumaDzienna), ("Nocna", sumaNocna) }
+                        .OrderByDescending(x => x.Item2).First();
+                    txtNajlepszaZmiana.Text = $"{max.Item1} ({max.Item2:N0} kg)";
+                }
+            }
+
+            try
+            {
+                chartZmiany.Series.Clear();
+                chartZmiany.Series.Add(new ColumnSeries
+                {
+                    Title = "Suma kg",
+                    Values = new ChartValues<double> { (double)sumaDzienna, (double)sumaNocna },
+                    Fill = new SolidColorBrush(AccentColor),
+                    MaxColumnWidth = 80,
+                    DataLabels = true,
+                    LabelPoint = point => $"{point.Y:N0}"
+                });
+            }
+            catch (NullReferenceException)
+            {
+                Dispatcher.BeginInvoke(new Action(UpdateZmianyChart), DispatcherPriority.Background);
+            }
+        }
+
         private void UpdateDniTygodniaChart()
         {
-            if (!_isWindowFullyLoaded) return;
-            if (chartDniTygodnia == null || !chartDniTygodnia.IsLoaded || dgDniTygodnia == null) return;
+            if (!_isWindowFullyLoaded || chartDniTygodnia == null || dgDniTygodnia == null) return;
+
+            try { chartDniTygodnia.Series.Clear(); } catch { }
 
             if (!_przefiltrowaneDane.Any())
             {
@@ -1396,314 +1206,130 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
                 return;
             }
 
-            var nazwyDni = new[] { "Poniedzialek", "Wtorek", "Sroda", "Czwartek", "Piatek", "Sobota", "Niedziela" };
+            var nazwyDni = new[] { "Poniedziałek", "Wtorek", "Środa", "Czwartek", "Piątek", "Sobota", "Niedziela" };
 
             var grupyDni = _przefiltrowaneDane
                 .GroupBy(r => (int)r.Data.DayOfWeek)
                 .Select(g => new DzienTygodniaStats
                 {
-                    DzienNumer = g.Key == 0 ? 7 : g.Key, // Niedziela jako 7
+                    DzienNumer = g.Key == 0 ? 7 : g.Key,
                     DzienTygodnia = nazwyDni[g.Key == 0 ? 6 : g.Key - 1],
                     SumaKg = g.Sum(r => r.ActWeight),
                     LiczbaDni = g.Select(r => r.Data.Date).Distinct().Count(),
-                    SredniaKg = g.Sum(r => r.ActWeight) / g.Select(r => r.Data.Date).Distinct().Count()
+                    SredniaKg = g.Sum(r => r.ActWeight) / Math.Max(1, g.Select(r => r.Data.Date).Distinct().Count())
                 })
                 .OrderBy(g => g.DzienNumer)
                 .ToList();
 
-            // Przygotuj wartosci dla wykresu (pn-nd)
             var wartosci = new double[7];
             foreach (var dzien in grupyDni)
             {
                 int index = dzien.DzienNumer - 1;
-                if (index >= 0 && index < 7)
-                    wartosci[index] = (double)dzien.SredniaKg;
+                if (index >= 0 && index < 7) wartosci[index] = (double)dzien.SredniaKg;
             }
 
             try
             {
-                chartDniTygodnia.Series.Clear();
-
                 chartDniTygodnia.Series.Add(new ColumnSeries
                 {
-                    Title = "Srednia kg/dzien",
+                    Title = "Średnia kg/dzień",
                     Values = new ChartValues<double>(wartosci),
-                    Fill = new SolidColorBrush(Color.FromRgb(46, 204, 113)),
+                    Fill = new SolidColorBrush(AccentColor),
                     MaxColumnWidth = 60
                 });
             }
             catch (NullReferenceException)
             {
-                Dispatcher.BeginInvoke(new Action(() => UpdateDniTygodniaChart()), System.Windows.Threading.DispatcherPriority.Background);
+                Dispatcher.BeginInvoke(new Action(UpdateDniTygodniaChart), DispatcherPriority.Background);
                 return;
             }
 
             dgDniTygodnia.ItemsSource = grupyDni;
         }
 
-        #endregion
-
-        #region DataGrids
-
-        private void UpdateDataGrids()
-        {
-            if (dgSzczegoly == null || dgPodsumowanieTowary == null || dgPodsumowanieDni == null) return;
-
-            // Szczegolowe dane
-            dgSzczegoly.ItemsSource = _przefiltrowaneDane
-                .OrderByDescending(r => r.Data)
-                .ThenByDescending(r => r.Godzina)
-                .ToList();
-
-            if (txtLiczbaWierszy != null)
-                txtLiczbaWierszy.Text = $"Wyswietlono: {_przefiltrowaneDane.Count} rekordow";
-
-            // Podsumowanie wg towaru
-            var podsumowanieTowary = _przefiltrowaneDane
-                .GroupBy(r => r.NazwaTowaru)
-                .Select(g => new
-                {
-                    Nazwa = g.Key,
-                    SumaKg = g.Sum(r => r.ActWeight),
-                    Liczba = g.Count(),
-                    Srednia = g.Average(r => r.ActWeight)
-                })
-                .OrderByDescending(g => g.SumaKg)
-                .ToList();
-
-            dgPodsumowanieTowary.ItemsSource = podsumowanieTowary;
-
-            // Podsumowanie wg dnia
-            var podsumowanieDni = _przefiltrowaneDane
-                .GroupBy(r => r.Data.Date)
-                .Select(g => new
-                {
-                    Data = g.Key,
-                    DzienTygodnia = g.Key.ToString("dddd", new CultureInfo("pl-PL")),
-                    SumaKg = g.Sum(r => r.ActWeight),
-                    Liczba = g.Count()
-                })
-                .OrderByDescending(g => g.Data)
-                .ToList();
-
-            dgPodsumowanieDni.ItemsSource = podsumowanieDni;
-        }
-
-        #endregion
-
-        #region Heatmap
-
         private void UpdateHeatmap()
         {
-            if (!_isWindowFullyLoaded) return;
-            if (icHeatmap == null) return;
+            if (!_isWindowFullyLoaded || icHeatmap == null) return;
 
             try
             {
                 icHeatmap.Items.Clear();
 
-                // Informacja diagnostyczna
-                int liczbaRekordow = _przefiltrowaneDane?.Count ?? 0;
                 var dniUnique = _przefiltrowaneDane?
                     .Select(r => r.Data.Date)
                     .Where(d => d != DateTime.MinValue)
                     .Distinct()
+                    .OrderByDescending(d => d)
+                    .Take(14)         // max 14 dni
+                    .OrderBy(d => d)
                     .ToList() ?? new List<DateTime>();
 
-                // Naglowek informacyjny
-                icHeatmap.Items.Add(new TextBlock
+                if (dniUnique.Count == 0)
                 {
-                    Text = $"Mapa cieplna: {liczbaRekordow} rekordow, {dniUnique.Count} dni",
-                    FontSize = 12,
-                    Foreground = new SolidColorBrush(Color.FromRgb(52, 73, 94)),
-                    FontWeight = FontWeights.SemiBold,
-                    Margin = new Thickness(10, 5, 10, 10)
-                });
-
-                if (!_przefiltrowaneDane.Any())
-                {
-                    // Pokaz komunikat gdy brak danych
                     icHeatmap.Items.Add(new TextBlock
                     {
-                        Text = "Brak danych do wyswietlenia mapy cieplnej",
-                        FontSize = 14,
-                        Foreground = Brushes.Gray,
-                        Margin = new Thickness(20)
+                        Text = "📭 Brak danych do wyświetlenia mapy cieplnej",
+                        FontSize = 13,
+                        Foreground = new SolidColorBrush(Color.FromRgb(0x6B, 0x72, 0x80)),
+                        Margin = new Thickness(20),
+                        HorizontalAlignment = HorizontalAlignment.Center
                     });
                     return;
                 }
 
-                // Pobierz dni
-                var dni = dniUnique
-                    .OrderBy(d => d)
-                    .Take(30) // Max 30 dni
-                    .ToList();
+                int godzinaOd = 3, godzinaDo = 23;
 
-                if (!dni.Any())
-                {
-                    icHeatmap.Items.Add(new TextBlock
-                    {
-                        Text = "Brak poprawnych dat w danych",
-                        FontSize = 14,
-                        Foreground = Brushes.Gray,
-                        Margin = new Thickness(20)
-                    });
-                    return;
-                }
-
-                // Zakres godzin: 3:00 - 23:00
-                int godzinaOd = 3;
-                int godzinaDo = 23;
-
-                // Oblicz sumy dla kazdej godziny i dnia
                 var daneHeatmap = new Dictionary<(DateTime, int), decimal>();
                 for (int h = godzinaOd; h <= godzinaDo; h++)
                 {
-                    foreach (var dzien in dni)
+                    foreach (var dzien in dniUnique)
                     {
-                        var suma = _przefiltrowaneDane
+                        daneHeatmap[(dzien, h)] = _przefiltrowaneDane
                             .Where(r => r.Data.Date == dzien && r.Godzina.Hour == h)
                             .Sum(r => r.ActWeight);
-                        daneHeatmap[(dzien, h)] = suma;
                     }
                 }
 
-                // Oblicz srednia i odchylenie dla kazdej godziny (kolumny)
-                var statystykiGodzin = new Dictionary<int, (decimal srednia, decimal min, decimal max)>();
+                var statystykiGodzin = new Dictionary<int, (decimal min, decimal max)>();
                 for (int h = godzinaOd; h <= godzinaDo; h++)
                 {
-                    var wartosci = dni.Select(d => daneHeatmap[(d, h)]).Where(v => v > 0).ToList();
-                    if (wartosci.Any())
-                    {
-                        statystykiGodzin[h] = (wartosci.Average(), wartosci.Min(), wartosci.Max());
-                    }
-                    else
-                    {
-                        statystykiGodzin[h] = (0, 0, 0);
-                    }
+                    var wartosci = dniUnique.Select(d => daneHeatmap[(d, h)]).Where(v => v > 0).ToList();
+                    statystykiGodzin[h] = wartosci.Any() ? (wartosci.Min(), wartosci.Max()) : (0, 0);
                 }
 
-                // Naglowek z godzinami
+                // Header z godzinami
                 var headerPanel = new StackPanel { Orientation = Orientation.Horizontal };
-                headerPanel.Children.Add(new Border
-                {
-                    Width = 80,
-                    Height = 30,
-                    Background = new SolidColorBrush(Color.FromRgb(52, 73, 94)),
-                    Child = new TextBlock
-                    {
-                        Text = "Data",
-                        Foreground = Brushes.White,
-                        FontWeight = FontWeights.Bold,
-                        HorizontalAlignment = HorizontalAlignment.Center,
-                        VerticalAlignment = VerticalAlignment.Center
-                    }
-                });
+                headerPanel.Children.Add(MakeCell("Data", 80, 28, Color.FromRgb(0xF3, 0xF4, 0xF6),
+                    new SolidColorBrush(Color.FromRgb(0x6B, 0x72, 0x80)), FontWeights.SemiBold, 11));
 
                 for (int h = godzinaOd; h <= godzinaDo; h++)
-                {
-                    headerPanel.Children.Add(new Border
-                    {
-                        Width = 50,
-                        Height = 30,
-                        Background = new SolidColorBrush(Color.FromRgb(52, 73, 94)),
-                        BorderBrush = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
-                        BorderThickness = new Thickness(1, 0, 0, 0),
-                        Child = new TextBlock
-                        {
-                            Text = $"{h}:00",
-                            Foreground = Brushes.White,
-                            FontWeight = FontWeights.SemiBold,
-                            FontSize = 10,
-                            HorizontalAlignment = HorizontalAlignment.Center,
-                            VerticalAlignment = VerticalAlignment.Center
-                        }
-                    });
-                }
+                    headerPanel.Children.Add(MakeCell($"{h}:00", 46, 28, Color.FromRgb(0xF3, 0xF4, 0xF6),
+                        new SolidColorBrush(Color.FromRgb(0x6B, 0x72, 0x80)), FontWeights.SemiBold, 10));
                 icHeatmap.Items.Add(headerPanel);
 
-                // Wiersze z danymi
-                foreach (var dzien in dni)
+                // Wiersze
+                foreach (var dzien in dniUnique)
                 {
                     var rowPanel = new StackPanel { Orientation = Orientation.Horizontal };
+                    rowPanel.Children.Add(MakeCell(
+                        dzien.ToString("MM-dd ddd", new CultureInfo("pl-PL")),
+                        80, 26, Color.FromRgb(0xFA, 0xFA, 0xFA),
+                        new SolidColorBrush(Color.FromRgb(0x11, 0x18, 0x27)), FontWeights.SemiBold, 10));
 
-                    // Kolumna z data
-                    rowPanel.Children.Add(new Border
-                    {
-                        Width = 80,
-                        Height = 28,
-                        Background = new SolidColorBrush(Color.FromRgb(236, 240, 241)),
-                        BorderBrush = new SolidColorBrush(Color.FromRgb(189, 195, 199)),
-                        BorderThickness = new Thickness(0, 0, 0, 1),
-                        Child = new TextBlock
-                        {
-                            Text = dzien.ToString("MM-dd ddd", new CultureInfo("pl-PL")),
-                            FontSize = 10,
-                            FontWeight = FontWeights.SemiBold,
-                            HorizontalAlignment = HorizontalAlignment.Center,
-                            VerticalAlignment = VerticalAlignment.Center
-                        }
-                    });
-
-                    // Kolumny z godzinami
                     for (int h = godzinaOd; h <= godzinaDo; h++)
                     {
                         var wartosc = daneHeatmap[(dzien, h)];
-                        var stats = statystykiGodzin[h];
+                        var (min, max) = statystykiGodzin[h];
+                        Color kolorTla = HeatmapColor(wartosc, min, max);
+                        Brush textColor = wartosc == 0
+                            ? (Brush)new SolidColorBrush(Color.FromRgb(0xC0, 0xC0, 0xC0))
+                            : Brushes.Black;
 
-                        // Oblicz kolor na podstawie pozycji wzgledem sredniej
-                        Color kolorTla;
-                        if (wartosc == 0)
-                        {
-                            kolorTla = Color.FromRgb(245, 245, 245); // Szary dla braku danych
-                        }
-                        else if (stats.max == stats.min)
-                        {
-                            kolorTla = Color.FromRgb(241, 196, 15); // Zolty gdy wszystkie wartosci rowne
-                        }
-                        else
-                        {
-                            // Normalizuj wartosc do zakresu 0-1
-                            double normalized = (double)(wartosc - stats.min) / (double)(stats.max - stats.min);
-
-                            if (normalized >= 0.66)
-                            {
-                                // Zielony - powyzej normy
-                                int intensity = (int)(155 + (normalized - 0.66) * 100 / 0.34);
-                                kolorTla = Color.FromRgb((byte)(46), (byte)Math.Min(255, intensity + 49), (byte)(113));
-                            }
-                            else if (normalized >= 0.33)
-                            {
-                                // Zolty - norma
-                                kolorTla = Color.FromRgb(241, 196, 15);
-                            }
-                            else
-                            {
-                                // Czerwony - ponizej normy
-                                int intensity = (int)(76 + normalized * 155 / 0.33);
-                                kolorTla = Color.FromRgb((byte)Math.Min(255, 180 + (int)((0.33 - normalized) * 75)), (byte)intensity, (byte)(60));
-                            }
-                        }
-
-                        rowPanel.Children.Add(new Border
-                        {
-                            Width = 50,
-                            Height = 28,
-                            Background = new SolidColorBrush(kolorTla),
-                            BorderBrush = new SolidColorBrush(Color.FromRgb(189, 195, 199)),
-                            BorderThickness = new Thickness(1, 0, 0, 1),
-                            Child = new TextBlock
-                            {
-                                Text = wartosc > 0 ? $"{wartosc:N0}" : "-",
-                                FontSize = 9,
-                                FontWeight = wartosc > 0 ? FontWeights.SemiBold : FontWeights.Normal,
-                                Foreground = wartosc == 0 ? Brushes.Gray : Brushes.Black,
-                                HorizontalAlignment = HorizontalAlignment.Center,
-                                VerticalAlignment = VerticalAlignment.Center
-                            }
-                        });
+                        rowPanel.Children.Add(MakeCell(
+                            wartosc > 0 ? $"{wartosc:N0}" : "–",
+                            46, 26, kolorTla, textColor,
+                            wartosc > 0 ? FontWeights.SemiBold : FontWeights.Normal, 9));
                     }
-
                     icHeatmap.Items.Add(rowPanel);
                 }
             }
@@ -1711,7 +1337,7 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
             {
                 icHeatmap.Items.Add(new TextBlock
                 {
-                    Text = $"Blad wyswietlania mapy cieplnej: {ex.Message}",
+                    Text = $"Błąd mapy cieplnej: {ex.Message}",
                     FontSize = 12,
                     Foreground = Brushes.Red,
                     Margin = new Thickness(20)
@@ -1719,11 +1345,351 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
             }
         }
 
+        // Gradient kolorów: czerwony (0%) → żółty (50%) → zielony (100%)
+        private static Color HeatmapColor(decimal wartosc, decimal min, decimal max)
+        {
+            if (wartosc == 0) return Color.FromRgb(0xF9, 0xFA, 0xFB);
+            if (max == min) return Color.FromRgb(0xFD, 0xE6, 0x8A); // żółty
+            double normalized = (double)(wartosc - min) / (double)(max - min);
+            normalized = Math.Max(0, Math.Min(1, normalized));
+            // 0..120 stopni hue
+            double hue = 120.0 * normalized;
+            return HslToRgb(hue, 0.55, 0.65);
+        }
+
+        private static Color HslToRgb(double h, double s, double l)
+        {
+            double c = (1 - Math.Abs(2 * l - 1)) * s;
+            double hh = h / 60.0;
+            double x = c * (1 - Math.Abs(hh % 2 - 1));
+            double r = 0, g = 0, b = 0;
+            if (hh >= 0 && hh < 1) { r = c; g = x; }
+            else if (hh < 2) { r = x; g = c; }
+            else if (hh < 3) { g = c; b = x; }
+            else if (hh < 4) { g = x; b = c; }
+            else if (hh < 5) { r = x; b = c; }
+            else { r = c; b = x; }
+            double m = l - c / 2;
+            return Color.FromRgb(
+                (byte)Math.Round((r + m) * 255),
+                (byte)Math.Round((g + m) * 255),
+                (byte)Math.Round((b + m) * 255));
+        }
+
+        private static Border MakeCell(string text, double width, double height, Color bg, Brush fg, FontWeight weight, double fontSize)
+        {
+            return new Border
+            {
+                Width = width,
+                Height = height,
+                Background = new SolidColorBrush(bg),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(0xE5, 0xE7, 0xEB)),
+                BorderThickness = new Thickness(1, 0, 0, 1),
+                Child = new TextBlock
+                {
+                    Text = text,
+                    Foreground = fg,
+                    FontWeight = weight,
+                    FontSize = fontSize,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center
+                }
+            };
+        }
+
+        #endregion
+
+        #region Tabela
+
+        private void UpdateDataGrids()
+        {
+            if (dgSzczegoly == null) return;
+
+            dgSzczegoly.ItemsSource = _przefiltrowaneDane
+                .OrderByDescending(r => r.Data)
+                .ThenByDescending(r => r.Godzina)
+                .ToList();
+
+            if (txtLiczbaWierszy != null)
+                txtLiczbaWierszy.Text = $"{_przefiltrowaneDane.Count} rekordów";
+        }
+
+        #endregion
+
+        #region LIVE mode (auto-refresh)
+
+        private void BtnLive_Click(object sender, RoutedEventArgs e) => ToggleLive();
+
+        private void ToggleLive()
+        {
+            _liveOn = !_liveOn;
+            if (_liveOn)
+            {
+                btnLive.Style = (Style)FindResource("BtnLiveOn");
+                txtLiveLabel.Text = "LIVE • 60 s";
+                _liveTimer.Start();
+                _liveBlinkTimer.Start();
+                _ = LoadDataAsync();
+            }
+            else
+            {
+                btnLive.Style = (Style)FindResource("BtnLiveOff");
+                txtLiveLabel.Text = "LIVE";
+                _liveTimer.Stop();
+                _liveBlinkTimer.Stop();
+                if (dotLive != null)
+                    dotLive.Fill = new SolidColorBrush(Color.FromRgb(0x9C, 0xA3, 0xAF));
+            }
+        }
+
+        #endregion
+
+        #region Skróty klawiszowe
+
+        private void Window_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            // F5 = odśwież
+            if (e.Key == System.Windows.Input.Key.F5)
+            {
+                _ = RefreshAllAsync();
+                e.Handled = true;
+                return;
+            }
+
+            bool ctrl = (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control;
+            if (ctrl)
+            {
+                switch (e.Key)
+                {
+                    case System.Windows.Input.Key.E: ExportToCsv(); e.Handled = true; return;
+                    case System.Windows.Input.Key.L: ToggleLive(); e.Handled = true; return;
+                    case System.Windows.Input.Key.D1: tabControl.SelectedIndex = 0; e.Handled = true; return;
+                    case System.Windows.Input.Key.D2: tabControl.SelectedIndex = 1; e.Handled = true; return;
+                    case System.Windows.Input.Key.D3: tabControl.SelectedIndex = 2; e.Handled = true; return;
+                    case System.Windows.Input.Key.D4: tabControl.SelectedIndex = 3; e.Handled = true; return;
+                    case System.Windows.Input.Key.D5: tabControl.SelectedIndex = 4; e.Handled = true; return;
+                    case System.Windows.Input.Key.D6: tabControl.SelectedIndex = 5; e.Handled = true; return;
+                }
+            }
+
+            // Esc = wyczyść filtry (jeżeli aktywne)
+            if (e.Key == System.Windows.Input.Key.Escape)
+            {
+                if (dotFiltryActive?.Visibility == Visibility.Visible)
+                {
+                    BtnResetFiltry_Click(this, new RoutedEventArgs());
+                    e.Handled = true;
+                }
+            }
+        }
+
+        #endregion
+
+        #region Drill-down z kart KPI
+
+        private void StatCardSuma_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            tabControl.SelectedIndex = 0; // Wykres
+        }
+
+        private void StatCardLiczba_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            tabControl.SelectedIndex = 5; // Tabela
+        }
+
+        private void StatCardSrednia_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            tabControl.SelectedIndex = 0; // Wykres
+            if (pillDzien != null) pillDzien.IsChecked = true;
+        }
+
+        private void StatCardOdchylenie_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            tabControl.SelectedIndex = 5; // Tabela
+            // Posortuj po Roznica (kol. 5) malejąco — pokazuje największe dokładania na górze
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                if (dgSzczegoly?.Columns?.Count > 5)
+                {
+                    var col = dgSzczegoly.Columns[5];
+                    col.SortDirection = System.ComponentModel.ListSortDirection.Descending;
+                    var view = System.Windows.Data.CollectionViewSource.GetDefaultView(dgSzczegoly.ItemsSource);
+                    if (view != null)
+                    {
+                        view.SortDescriptions.Clear();
+                        view.SortDescriptions.Add(new System.ComponentModel.SortDescription("Roznica",
+                            System.ComponentModel.ListSortDirection.Descending));
+                    }
+                }
+            }), DispatcherPriority.Loaded);
+        }
+
+        private void StatCardTrend_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            EnsureFiltersExpanded();
+            if (chkPorownanie != null && chkPorownanie.IsChecked != true)
+                chkPorownanie.IsChecked = true;
+            tabControl.SelectedIndex = 0;
+            if (pillDzien != null) pillDzien.IsChecked = true;
+        }
+
+        #endregion
+
+        #region Health Strip
+
+        private void UpdateHealthStrip()
+        {
+            if (pnlHealthStrip == null || icHealthItems == null) return;
+
+            if (!_przefiltrowaneDane.Any())
+            {
+                pnlHealthStrip.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            var items = new List<(string icon, string text, string color)>();
+
+            // 1) Anulacje
+            int anul = _przefiltrowaneDane.Count(r => r.ActWeight < 0);
+            if (anul > 0)
+                items.Add(("⚠", $"{anul} anulacji w okresie", "warn"));
+
+            // 2) Odchylenie
+            var rekordyZWaga = _przefiltrowaneDane.Where(r => r.ActWeight > 0 && r.Weight > 0).ToList();
+            if (rekordyZWaga.Count > 0)
+            {
+                decimal sumaOdch = rekordyZWaga.Sum(r => r.ActWeight - r.Weight);
+                decimal sumaStd = rekordyZWaga.Sum(r => r.Weight);
+                decimal pct = sumaStd != 0 ? sumaOdch / sumaStd * 100m : 0;
+                if (Math.Abs(pct) >= 1m)
+                {
+                    string znak = pct > 0 ? "↑" : "↓";
+                    string opis = pct > 0 ? "dokładamy" : "niedoważamy";
+                    items.Add(("⚖", $"{znak} {Math.Abs(pct):N2}% {opis}", Math.Abs(pct) >= 2m ? "alert" : "warn"));
+                }
+            }
+
+            // 3) Top operator wykonuje >50% wolumenu (potencjalna luka kadrowa)
+            var topOp = _przefiltrowaneDane
+                .Where(r => r.ActWeight > 0 && !string.IsNullOrEmpty(r.Operator))
+                .GroupBy(r => r.Operator)
+                .Select(g => new { Op = g.Key, Sum = g.Sum(r => r.ActWeight) })
+                .OrderByDescending(g => g.Sum).FirstOrDefault();
+            decimal sumaCalk = _przefiltrowaneDane.Where(r => r.ActWeight > 0).Sum(r => r.ActWeight);
+            if (topOp != null && sumaCalk > 0)
+            {
+                decimal udzial = topOp.Sum / sumaCalk * 100m;
+                if (udzial >= 50m)
+                    items.Add(("👤", $"{topOp.Op} = {udzial:N0}% wolumenu", "warn"));
+            }
+
+            // 4) Ostatnie ważenie - jak dawno
+            var ostatnie = _przefiltrowaneDane.Where(r => r.ActWeight > 0)
+                .OrderByDescending(r => r.Data).ThenByDescending(r => r.Godzina).FirstOrDefault();
+            if (ostatnie != null)
+            {
+                var dt = ostatnie.Data.Date.Add(ostatnie.Godzina.TimeOfDay);
+                var minutes = (DateTime.Now - dt).TotalMinutes;
+                if (minutes >= 0 && minutes < 60 * 24)
+                    items.Add(("🕐", $"Ostatnie ważenie {(int)minutes} min temu", "ok"));
+            }
+
+            // Rendering
+            string overallColor = items.Any(i => i.color == "alert") ? "alert"
+                                : items.Any(i => i.color == "warn") ? "warn" : "ok";
+
+            (Color bg, Color border, Color fg, string title) palette = overallColor switch
+            {
+                "alert" => (Color.FromRgb(0xFE, 0xF2, 0xF2), Color.FromRgb(0xFE, 0xCA, 0xCA), Color.FromRgb(0x99, 0x1B, 0x1B), "Stan: ALERT"),
+                "warn"  => (Color.FromRgb(0xFF, 0xFB, 0xEB), Color.FromRgb(0xFD, 0xE6, 0x8A), Color.FromRgb(0x92, 0x40, 0x0E), "Stan: Uwaga"),
+                _       => (Color.FromRgb(0xEC, 0xFD, 0xF5), Color.FromRgb(0xA7, 0xF3, 0xD0), Color.FromRgb(0x06, 0x5F, 0x46), "Stan: OK")
+            };
+
+            brdHealthInner.Background = new SolidColorBrush(palette.bg);
+            brdHealthInner.BorderBrush = new SolidColorBrush(palette.border);
+            dotHealth.Fill = new SolidColorBrush(palette.fg);
+            txtHealthTitle.Text = palette.title;
+            txtHealthTitle.Foreground = new SolidColorBrush(palette.fg);
+
+            icHealthItems.Items.Clear();
+            foreach (var (icon, text, _) in items)
+            {
+                var sp = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 14, 0) };
+                sp.Children.Add(new TextBlock { Text = icon + " ", FontSize = 12, VerticalAlignment = VerticalAlignment.Center,
+                    Foreground = new SolidColorBrush(palette.fg) });
+                sp.Children.Add(new TextBlock { Text = text, FontSize = 12, VerticalAlignment = VerticalAlignment.Center,
+                    Foreground = new SolidColorBrush(palette.fg), FontWeight = FontWeights.SemiBold });
+                icHealthItems.Items.Add(sp);
+            }
+
+            pnlHealthStrip.Visibility = items.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        #endregion
+
+        #region Context menu (tabela)
+
+        private PrzychodRecord SelectedRecord => dgSzczegoly?.SelectedItem as PrzychodRecord;
+
+        private void CtxFilterOperator_Click(object sender, RoutedEventArgs e)
+        {
+            if (SelectedRecord == null || string.IsNullOrEmpty(SelectedRecord.OperatorID)) return;
+            cbOperator.SelectedValue = SelectedRecord.OperatorID;
+            EnsureFiltersExpanded();
+        }
+
+        private void CtxFilterPartia_Click(object sender, RoutedEventArgs e)
+        {
+            if (SelectedRecord == null || string.IsNullOrEmpty(SelectedRecord.Partia)) return;
+            cbPartia.SelectedValue = SelectedRecord.Partia;
+            EnsureFiltersExpanded();
+        }
+
+        private void CtxFilterTowar_Click(object sender, RoutedEventArgs e)
+        {
+            if (SelectedRecord == null || string.IsNullOrEmpty(SelectedRecord.ArticleID)) return;
+            cbTowar.SelectedValue = SelectedRecord.ArticleID;
+        }
+
+        private void CtxFilterTerminal_Click(object sender, RoutedEventArgs e)
+        {
+            if (SelectedRecord == null || SelectedRecord.TermID <= 0) return;
+            cbTerminal.SelectedValue = SelectedRecord.TermID;
+            EnsureFiltersExpanded();
+        }
+
+        private void CtxCopyRow_Click(object sender, RoutedEventArgs e)
+        {
+            if (SelectedRecord == null) return;
+            var r = SelectedRecord;
+            string s = $"{r.Data:yyyy-MM-dd}\t{r.Godzina:HH:mm:ss}\t{r.NazwaTowaru}\t{r.Weight:N2}\t{r.ActWeight:N2}\t{r.Roznica:+0.00;-0.00;0.00}\t{r.Operator}\t{r.Partia}\t{r.Terminal}\t{r.Klasa}";
+            try { Clipboard.SetText(s); txtStatus.Text = "Skopiowano wiersz do schowka"; }
+            catch { /* niektóre VM-y blokują clipboard */ }
+        }
+
+        private void CtxShowPartiaWazenia_Click(object sender, RoutedEventArgs e)
+        {
+            if (SelectedRecord == null || string.IsNullOrEmpty(SelectedRecord.Partia)) return;
+            ShowWazeniaWindow(SelectedRecord.Partia, null);
+        }
+
+        #endregion
+
+        #region Tydzień preset
+
+        private void BtnPresetTydzien_Click(object sender, RoutedEventArgs e)
+        {
+            // Poniedziałek bieżącego tygodnia – dziś
+            var today = DateTime.Today;
+            int diff = ((int)today.DayOfWeek + 6) % 7; // pon=0, nd=6
+            ApplyPreset(today.AddDays(-diff), today);
+        }
+
         #endregion
 
         #region Export
 
-        private void ExportToExcel()
+        private void ExportToCsv()
         {
             if (!_przefiltrowaneDane.Any())
             {
@@ -1737,143 +1703,37 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
                 FileName = $"AnalizaPrzychodu_{DateTime.Now:yyyyMMdd_HHmmss}.csv"
             };
 
-            if (dialog.ShowDialog() == true)
+            if (dialog.ShowDialog() != true) return;
+
+            try
             {
-                try
+                using var writer = new StreamWriter(dialog.FileName, false, System.Text.Encoding.UTF8);
+                writer.WriteLine("Data;Godzina;Towar;Waga (kg);Operator;Partia;Terminal;Klasa;Tara");
+                foreach (var r in _przefiltrowaneDane.OrderBy(r => r.Data).ThenBy(r => r.Godzina))
                 {
-                    using (var writer = new StreamWriter(dialog.FileName, false, System.Text.Encoding.UTF8))
-                    {
-                        // Naglowek
-                        writer.WriteLine("Data;Godzina;Towar;Waga (kg);Operator;Partia;Terminal;Klasa;Tara");
-
-                        // Dane
-                        foreach (var r in _przefiltrowaneDane.OrderBy(r => r.Data).ThenBy(r => r.Godzina))
-                        {
-                            writer.WriteLine($"{r.Data:yyyy-MM-dd};{r.Godzina:HH:mm:ss};{r.NazwaTowaru};{r.ActWeight:N2};{r.Operator};{r.Partia};{r.Terminal};{r.Klasa};{r.Tara:N2}");
-                        }
-
-                        // Podsumowanie
-                        writer.WriteLine();
-                        writer.WriteLine("=== PODSUMOWANIE ===");
-                        writer.WriteLine($"Suma kg;{_przefiltrowaneDane.Sum(r => r.ActWeight):N2}");
-                        writer.WriteLine($"Liczba rekordow;{_przefiltrowaneDane.Count}");
-                        writer.WriteLine($"Zakres dat;{dpDataOd.SelectedDate:yyyy-MM-dd} - {dpDataDo.SelectedDate:yyyy-MM-dd}");
-                    }
-
-                    MessageBox.Show($"Eksport zakonczony pomyslnie!\n\n{dialog.FileName}", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+                    writer.WriteLine($"{r.Data:yyyy-MM-dd};{r.Godzina:HH:mm:ss};{r.NazwaTowaru};{r.ActWeight:N2};{r.Operator};{r.Partia};{r.Terminal};{r.Klasa};{r.Tara:N2}");
                 }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Blad podczas eksportu:\n{ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
+                writer.WriteLine();
+                writer.WriteLine("=== PODSUMOWANIE ===");
+                writer.WriteLine($"Suma kg;{_przefiltrowaneDane.Sum(r => r.ActWeight):N2}");
+                writer.WriteLine($"Liczba rekordów;{_przefiltrowaneDane.Count}");
+                writer.WriteLine($"Zakres dat;{dpDataOd.SelectedDate:yyyy-MM-dd} - {dpDataDo.SelectedDate:yyyy-MM-dd}");
+
+                MessageBox.Show($"Eksport zakończony.\n\n{dialog.FileName}", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd eksportu:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
         #endregion
+
+        private class FiltrBadge
+        {
+            public string Etykieta { get; set; }
+            public string Wartosc { get; set; }
+            public Action ClearAction { get; set; }
+        }
     }
-
-    #region Modele danych
-
-    public class PrzychodRecord
-    {
-        public string ArticleID { get; set; }
-        public string NazwaTowaru { get; set; }
-        public string JM { get; set; }
-        public int TermID { get; set; }
-        public string Terminal { get; set; }
-        public decimal Weight { get; set; }
-        public DateTime Data { get; set; }
-        public DateTime Godzina { get; set; }
-        public string OperatorID { get; set; }
-        public string Operator { get; set; }
-        public decimal Tara { get; set; }
-        public string Partia { get; set; }
-        public decimal ActWeight { get; set; }
-        public int Klasa { get; set; }
-    }
-
-    public class ComboItem
-    {
-        public int Id { get; set; }
-        public string Nazwa { get; set; }
-    }
-
-    public class ComboItemString
-    {
-        public string Wartosc { get; set; }
-        public string Nazwa { get; set; }
-    }
-
-    public class OperatorStats
-    {
-        public int Pozycja { get; set; }
-        public string Nazwa { get; set; }
-        public decimal SumaKg { get; set; }
-        public int LiczbaWazen { get; set; }
-        public decimal SredniaKg { get; set; }
-    }
-
-    public class PartiaStats
-    {
-        public string Partia { get; set; }
-        public decimal SumaKg { get; set; }
-        public decimal Procent { get; set; }
-        public int Liczba { get; set; }
-    }
-
-    public class TerminalStats
-    {
-        public int Pozycja { get; set; }
-        public string Nazwa { get; set; }
-        public decimal SumaKg { get; set; }
-        public int LiczbaWazen { get; set; }
-        public decimal SredniaKg { get; set; }
-    }
-
-    public class KlasaStats
-    {
-        public int Klasa { get; set; }
-        public decimal SumaKg { get; set; }
-        public decimal Procent { get; set; }
-        public int Liczba { get; set; }
-        public decimal SredniaKg { get; set; }
-    }
-
-    public class DzienTygodniaStats
-    {
-        public int DzienNumer { get; set; }
-        public string DzienTygodnia { get; set; }
-        public decimal SumaKg { get; set; }
-        public decimal SredniaKg { get; set; }
-        public int LiczbaDni { get; set; }
-    }
-
-    public class ArticleInfo
-    {
-        public string ID { get; set; }
-        public string ShortName { get; set; }
-        public string Name { get; set; }
-    }
-
-    public class ArticleStats
-    {
-        public string ArticleID { get; set; }
-        public string ShortName { get; set; }
-        public string ArticleName { get; set; }
-        public decimal SumaKg { get; set; }
-        public decimal Procent { get; set; }
-        public int LiczbaWazen { get; set; }
-        public decimal SredniaKg { get; set; }
-    }
-
-    public class PartiaArticleStats
-    {
-        public string ArticleID { get; set; }
-        public string ArticleName { get; set; }
-        public decimal SumaKg { get; set; }
-        public decimal Procent { get; set; }
-        public int LiczbaWazen { get; set; }
-    }
-
-    #endregion
 }

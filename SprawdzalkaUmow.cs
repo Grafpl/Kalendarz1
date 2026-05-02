@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Diagnostics;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Windows.Forms;
@@ -230,12 +232,17 @@ namespace Kalendarz1
             }
         }
 
-        // #23 - context menu: Pokaż historię zmian / Skopiuj LP
+        // Context menu: Pokaż folder / Pokaż historię / Skopiuj LP
         private void BudujContextMenu()
         {
             _rowContextMenu = new ContextMenuStrip();
+
+            var miPokazFolder = new ToolStripMenuItem("📁  Pokaż plik umowy w Eksploratorze");
+            miPokazFolder.Click += (s, e) => PokazPlikUmowyWEksploratorze();
+
             var miHistoria = new ToolStripMenuItem("📜  Pokaż historię zmian");
             miHistoria.Click += (s, e) => PokazHistorieAktualnegoWiersza();
+
             var miKopiuj = new ToolStripMenuItem("📋  Skopiuj LP");
             miKopiuj.Click += (s, e) =>
             {
@@ -244,8 +251,112 @@ namespace Kalendarz1
                 if (v != null && v != DBNull.Value)
                     Clipboard.SetText(v.ToString());
             };
+
+            _rowContextMenu.Items.Add(miPokazFolder);
+            _rowContextMenu.Items.Add(new ToolStripSeparator());
             _rowContextMenu.Items.Add(miHistoria);
             _rowContextMenu.Items.Add(miKopiuj);
+        }
+
+        // Otwórz Eksplorator z zaznaczonym plikiem DOCX umowy zakupu.
+        // Filename z UmowyForm.GenerateWordDocx: "Umowa Zakupu {Dostawca} {d}-{m}-{Y}.docx"
+        // Jeśli plik nie istnieje, szukaj wariantów po nazwie dostawcy lub otwórz folder.
+        private void PokazPlikUmowyWEksploratorze()
+        {
+            if (dgvContracts.CurrentRow == null) return;
+            var row = dgvContracts.CurrentRow;
+            if (IsHeaderRow(row)) return;
+
+            var dostawca = row.Cells["Dostawca"]?.Value?.ToString()?.Trim();
+            var dataObj = row.Cells["DataOdbioru"]?.Value;
+            if (string.IsNullOrEmpty(dostawca) || dataObj == null || dataObj == DBNull.Value)
+            {
+                MessageBox.Show("Brak danych dostawcy lub daty odbioru w wierszu.",
+                    "Pokaż plik", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            DateTime data = Convert.ToDateTime(dataObj);
+            string root = @"\\192.168.0.170\Install\UmowyZakupu";
+
+            if (!Directory.Exists(root))
+            {
+                MessageBox.Show($"Nie można połączyć z folderem:\n{root}\n\nSprawdź czy zasób sieciowy jest dostępny.",
+                    "Folder niedostępny", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            // Dokładny pattern z generatora UmowyForm
+            string expectedFile = $"Umowa Zakupu {dostawca} {data.Day}-{data.Month}-{data.Year}.docx";
+            string fullPath = Path.Combine(root, expectedFile);
+
+            if (File.Exists(fullPath))
+            {
+                OtworzExplorerZZaznaczonymPlikiem(fullPath);
+                return;
+            }
+
+            // Plik nie istnieje pod expected nazwą - szukaj wariantów (różne formaty daty/spacje)
+            try
+            {
+                // Wzorzec wildcard po nazwie dostawcy
+                string searchPattern = $"*{SanitizeForGlob(dostawca)}*.docx";
+                var files = Directory.GetFiles(root, searchPattern);
+
+                if (files.Length == 0)
+                {
+                    // Brak żadnego pliku dla dostawcy - otwórz folder
+                    Process.Start("explorer.exe", $"\"{root}\"");
+                    MessageBox.Show($"Nie znaleziono żadnego pliku dla:\n  {dostawca}\n\nOtwarto folder UmowyZakupu.",
+                        "Plik nie znaleziony", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                if (files.Length == 1)
+                {
+                    OtworzExplorerZZaznaczonymPlikiem(files[0]);
+                    return;
+                }
+
+                // Wiele plików - wybierz ten z LastWriteTime najbliżej DataOdbioru
+                var best = files
+                    .Select(f => new { Path = f, Diff = Math.Abs((File.GetLastWriteTime(f) - data).TotalDays) })
+                    .OrderBy(x => x.Diff)
+                    .First();
+                OtworzExplorerZZaznaczonymPlikiem(best.Path);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Błąd dostępu: " + ex.Message,
+                    "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private static void OtworzExplorerZZaznaczonymPlikiem(string fullPath)
+        {
+            // explorer.exe /select,"<path>" - otwiera Explorer i zaznacza plik
+            // Cudzysłowy KONIECZNE bo nazwy plików mają spacje
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "explorer.exe",
+                    Arguments = $"/select,\"{fullPath}\"",
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Nie można otworzyć Eksploratora: " + ex.Message,
+                    "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // Usuwa znaki które rozwalają wildcard pattern w Directory.GetFiles
+        private static string SanitizeForGlob(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return s;
+            return s.Replace("[", "").Replace("]", "").Replace("?", "").Replace("*", "");
         }
 
         private void PokazHistorieAktualnegoWiersza()

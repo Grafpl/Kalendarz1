@@ -148,6 +148,7 @@ namespace Kalendarz1
 
             { "WidokZamowienia", new IconConfig("🛒", Color.FromArgb(66, 165, 245)) },
             { "WidokZamowieniaPodsumowanie", new IconConfig("🛒", Color.FromArgb(66, 165, 245)) },
+            { "NoweZamowienieTestWindow", new IconConfig("✨", Color.FromArgb(124, 58, 237)) },
             { "DuplicateOrderDialog", new IconConfig("🛒", Color.FromArgb(66, 165, 245)) },
             { "AfterSaveDialog", new IconConfig("🛒", Color.FromArgb(66, 165, 245)) },
             { "MultipleDatePickerDialog", new IconConfig("🛒", Color.FromArgb(66, 165, 245)) },

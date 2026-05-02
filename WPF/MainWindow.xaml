@@ -222,6 +222,10 @@
                             Background="#2ECC71" Content="➕Nowe" Width="55" ToolTip="Nowe zamówienie"
                             Click="BtnNew_Click" FontSize="10" Height="28"/>
 
+                    <Button x:Name="btnNewTest" Style="{StaticResource ActionButtonStyle}"
+                            Background="#7C3AED" Content="✨TEST" Width="58" ToolTip="Nowe zamówienie — wersja TEST (nowy kreator)"
+                            Click="BtnNewTest_Click" Margin="2,0" FontSize="10" Height="28" FontWeight="Bold"/>
+
                     <Button x:Name="btnPrint" Style="{StaticResource ActionButtonStyle}"
                             Background="#3498DB" Content="🖨️Druk" Width="52" ToolTip="Drukuj"
                             Click="BtnPrint_Click" Margin="2,0" FontSize="10" Height="28"/>

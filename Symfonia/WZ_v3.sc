@@ -32,22 +32,38 @@ myUsr = "pronova"
 myPwd = "pronova"
 gConnStr = "Provider=SQLOLEDB;Data Source=" + mySrv + ";Initial Catalog=" + myDb + ";User ID=" + myUsr + ";Password=" + myPwd
 
+// Domyslnie data dzisiejsza w polu daty uboju (uzytkownik moze zmienic)
+datap = data()
+
 // ============================================================
-// EKRAN 1 — wybor daty
+// EKRAN 1 — wybor daty + instrukcja
 // ============================================================
-form "WZ - Eksport faktur (v3.3)", 720, 380
-    ground 60,120,180
-    Text " ", 20, 20, 680, 10
-    Text "EKSPORT FAKTUR SPRZEDAZY (v3.3)", 20, 40, 680, 38
-    Text " ", 20, 90, 680, 10
-    Text "Lista zamowien w prawdziwym GRID-ie (bez limitu).", 20, 110, 680, 25
-    Text "Klikajac na lewa krawedz wiersza zaznaczasz zamowienie.", 20, 135, 680, 25
-    Text "UWAGA: po kliknieciu EKSPORTUJ - od razu tworzy faktury (brak pytania).", 20, 160, 680, 25
-    Text " ", 20, 200, 680, 10
-    Text "Wybierz date uboju:", 130, 230, 200, 30
-    Datedit "", datap, 330, 225, 250, 40
-    button "    &DALEJ  >>    ", 200, 285, 200, 40, OK
-    button "    &ANULUJ    ", 420, 285, 150, 40, ANULUJ
+form "Symfonia - Eksport faktur sprzedazy (FVS) z LibraNet", 740, 470
+    ground 232, 240, 250
+
+    // Naglowek
+    Text "EKSPORT FAKTUR FVS DO SYMFONII",                           20, 14, 700, 26
+    Text "Wersja 3.3  |  Tworzy faktury w buforze do akceptacji",    20, 42, 700, 16
+
+    // Sekcja: instrukcja krok po kroku
+    Group "  Co robi ten raport (krok po kroku)  ",  15, 78, 710, 165
+    Text "1. Wybierz DATE UBOJU zamowien w polu ponizej.",                       30, 102, 690, 18
+    Text "2. Na nastepnym ekranie zobaczysz liste zamowien z tej daty.",         30, 122, 690, 18
+    Text "   Filtry: status != 'Anulowane', niezafakturowane, w PLN, z cenami.", 30, 142, 690, 18
+    Text "3. Zaznacz wiersze (klik w LEWA KRAWEDZ) i kliknij EKSPORTUJ.",        30, 162, 690, 18
+    Text "4. Faktury FVS zostana utworzone w BUFORZE Symfonii.",                 30, 182, 690, 18
+    Text "5. Zatwierdz je w Symfonii lub usun gdy cos nie tak.",                 30, 202, 690, 18
+    Text "Po sukcesie LibraNet dostaje numer faktury i flage 'zafakturowane'.",  30, 222, 690, 18
+
+    // Sekcja: parametry
+    Group "  Wybierz date uboju  ",                  15, 258, 710, 110
+    Datedit "Data uboju:", datap,                                                115, 295, 240, 32
+    Text "(domyslnie dzisiaj - mozesz wpisac wczesniejsza)",                     370, 300, 350, 22
+    Text "Pokazane zostana tylko zamowienia z tego konkretnego dnia.",           115, 332, 600, 18
+
+    // Akcje
+    button "  &DALEJ - pokaz zamowienia  >>  ",  100, 400, 350, 50, OK
+    button "  &Anuluj  ",                        540, 400, 150, 50, ANULUJ
 wynikForm = ExecForm
 if wynikForm < 1 then
     Error ""
@@ -328,48 +344,67 @@ int sub ZaladujGrid()
 endsub
 
 int sub PokazPodsumowanie()
-    String podsumowanie
+    String tytul
+    String linia1
+    String linia2
     String wszystkoOk
     String pominieci
     String bledny
     int dummy
 
-    podsumowanie = using "PRZETWORZONO: %d   |   POMINIETO: %d   |   BLEDY: %d", gPrzetworzone, gPominiete, gBledy
-    wszystkoOk = ""
-    pominieci  = ""
-    bledny     = ""
-    if gLogSukces != "" then
-        wszystkoOk = "UTWORZONE FAKTURY:  " + gLogSukces
-    endif
-    if gLogPominiete != "" then
-        pominieci = "POMINIETE:  " + gLogPominiete
-    endif
-    if gLogBledow != "" then
-        bledny = "BLEDY:  " + gLogBledow
+    // Tytul okna z liczba sukcesow w naglowku - od razu widac wynik
+    if gBledy > 0 then
+        tytul = using "Wynik eksportu - %d BLEDY (%d ok)", gBledy, gPrzetworzone
+    else
+        if gPominiete > 0 then
+            tytul = using "Wynik eksportu - %d ok, %d pominiete", gPrzetworzone, gPominiete
+        else
+            tytul = using "Wynik eksportu - %d faktur OK", gPrzetworzone
+        endif
     endif
 
-    form "Wynik eksportu", 1200, 820
-        ground 230,235,230
-        Text " ", 20, 15, 1160, 10
-        Text "PODSUMOWANIE EKSPORTU", 20, 30, 1160, 38
-        Text " ", 20, 75, 1160, 5
-        Text podsumowanie, 20, 90, 1160, 32
+    linia1 = using "Utworzono: %d   |   Pominieto: %d   |   Bledow: %d", gPrzetworzone, gPominiete, gBledy
+    linia2 = "Faktury sa w BUFORZE Symfonii - przejdz do menu Sprzedaz aby zatwierdzic."
 
-        // ZAMKNIJ na gorze, zaraz pod statystyka - widoczny bez scrollowania
-        button "  &ZAMKNIJ  ", 480, 135, 240, 50, OK
+    if gLogSukces == "" then
+        wszystkoOk = "(brak utworzonych faktur)"
+    else
+        wszystkoOk = gLogSukces
+    endif
+    if gLogPominiete == "" then
+        pominieci = "(brak)"
+    else
+        pominieci = gLogPominiete
+    endif
+    if gLogBledow == "" then
+        bledny = "(brak)"
+    else
+        bledny = gLogBledow
+    endif
 
-        Text " ", 20, 195, 1160, 5
-        Text "----------------------------------------------------------------------------------------------------------------", 20, 205, 1160, 20
-        Text "UTWORZONE FAKTURY:", 20, 230, 1160, 25
-        Text wszystkoOk, 20, 255, 1160, 180
-        Text "----------------------------------------------------------------------------------------------------------------", 20, 440, 1160, 20
-        Text "POMINIETE:", 20, 465, 1160, 25
-        Text pominieci, 20, 490, 1160, 130
-        Text "----------------------------------------------------------------------------------------------------------------", 20, 625, 1160, 20
-        Text "BLEDY:", 20, 650, 1160, 25
-        Text bledny, 20, 675, 1160, 90
-        Text " ", 20, 770, 1160, 5
-        Text "Faktury sa w BUFORZE Symfonii - sprawdz przed zatwierdzeniem.", 20, 780, 1160, 25
+    form tytul, 880, 540
+        ground 238, 245, 240
+
+        // Naglowek
+        Text "PODSUMOWANIE EKSPORTU FAKTUR FVS",  20, 12, 840, 24
+        Text linia1,                              20, 42, 840, 22
+
+        // Sekcja: utworzone (najwiecej miejsca)
+        Group "  Utworzone faktury  ",            12, 80, 855, 165
+        Text wszystkoOk,                          25, 110, 830, 130
+
+        // Sekcja: pominiete
+        Group "  Pominiete  ",                    12, 256, 855, 90
+        Text pominieci,                           25, 278, 830, 65
+
+        // Sekcja: bledy
+        Group "  Bledy  ",                        12, 358, 855, 90
+        Text bledny,                              25, 380, 830, 65
+
+        // Stopka + przycisk
+        Text linia2,                              20, 462, 660, 22
+        button "  &ZAMKNIJ  ",                    700, 460, 165, 38, OK
+
     dummy = ExecForm
     PokazPodsumowanie = 1
 endsub
@@ -496,18 +531,31 @@ int sub OnCommand(int id, int msg)
 endsub
 
 // ============================================================
-// EKRAN 2 — GRID
+// EKRAN 2 — GRID + akcje
 // ============================================================
 String tytul
-tytul = "WZ - Eksport faktur (v3.3)   |   Data: " + datap
+tytul = "Eksport faktur FVS  -  Data uboju: " + datap
 
-Form tytul, 1100, 750
-    ground 235,235,240
-    Control "grid", grid, 10, 10, 1080, 620
-    Button "  &EKSPORTUJ ZAZNACZONE  ",  10, 645, 280, 45, EksportujZaznaczone()
-    Button "  EKSPORTUJ &WSZYSTKIE  ", 300, 645, 280, 45, EksportujWszystkie()
-    Button "  &ODSWIEZ LISTE  ",       590, 645, 200, 45, OdswiezListe()
-    Button "  &ZAMKNIJ  ",             960, 645, 130, 45, ANULUJ
+Form tytul, 1120, 780
+    ground 238, 242, 248
+
+    // Pasek instrukcji nad gridem
+    Text "Klik w LEWA KRAWEDZ wiersza = zaznaczenie. Mozesz zaznaczyc dowolnie wiele.", 15, 8, 1090, 18
+
+    // Grid z lista zamowien
+    Control "grid", grid, 10, 32, 1100, 620
+
+    // Sekcja: glowne akcje (eksport)
+    Group "  Eksport faktur do bufora Symfonii  ",  10, 660, 660, 110
+    Button "  &EKSPORTUJ ZAZNACZONE  ",                            25, 690, 290, 55, EksportujZaznaczone()
+    Button "  EKSPORTUJ &WSZYSTKIE  ",                             325, 690, 290, 55, EksportujWszystkie()
+    Text "Po sukcesie - faktury w buforze, czekaja na akceptacje.", 25, 750, 600, 16
+
+    // Sekcja: pomocnicze
+    Group "  Pomocnicze  ",                          680, 660, 430, 110
+    Button "  &ODSWIEZ LISTE  ",                                   695, 690, 200, 55, OdswiezListe()
+    Button "  ZAMKNIJ  ",                                          905, 690, 195, 55, ANULUJ
+    Text "Odswiez po zmianach w LibraNet.",                        695, 750, 400, 16
 ExecForm OnCommand
 
 Error ""

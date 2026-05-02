@@ -296,6 +296,18 @@ namespace Kalendarz1
                 await new SqlCommand("ALTER TABLE dbo.ZamowieniaMieso ADD UwagiWydania NVARCHAR(500) NULL", cn).ExecuteNonQueryAsync();
             }
 
+            // NumerWZ + DataWystawieniaWZ - wypelniane przez skrypt Symfonii (WZ_magazyn.sc)
+            var checkColWZ = new SqlCommand("SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('dbo.ZamowieniaMieso') AND name = 'NumerWZ'", cn);
+            if ((int)await checkColWZ.ExecuteScalarAsync() == 0)
+            {
+                await new SqlCommand("ALTER TABLE dbo.ZamowieniaMieso ADD NumerWZ NVARCHAR(50) NULL", cn).ExecuteNonQueryAsync();
+            }
+            var checkColWZ2 = new SqlCommand("SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('dbo.ZamowieniaMieso') AND name = 'DataWystawieniaWZ'", cn);
+            if ((int)await checkColWZ2.ExecuteScalarAsync() == 0)
+            {
+                await new SqlCommand("ALTER TABLE dbo.ZamowieniaMieso ADD DataWystawieniaWZ DATETIME NULL", cn).ExecuteNonQueryAsync();
+            }
+
             // Usuń stare różnice dla tego zamówienia
             var delCmd = new SqlCommand("DELETE FROM dbo.ZamowienieWydanieRoznice WHERE ZamowienieId = @ZamId", cn);
             delCmd.Parameters.AddWithValue("@ZamId", zamowienieId);
@@ -919,6 +931,9 @@ namespace Kalendarz1
                     bool hasAkceptacjaColumn = await CheckDataAkceptacjiMagazynColumnExistsAsync(cn);
                     bool hasStrefaColumn = await CheckStrefaColumnExistsAsync(cn);
                     bool hasCzyModMagazynu = await CheckCzyModMagazynuColumnExistsAsync(cn);
+                    // NumerWZ - tworzony przez SaveWydanieRozniczeAsync, ale moze nie istniec przy pierwszym ladowaniu
+                    bool hasNumerWZ = (int)await new SqlCommand(
+                        "SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('dbo.ZamowieniaMieso') AND name = 'NumerWZ'", cn).ExecuteScalarAsync() > 0;
 
                     string akceptacjaColumn = hasAkceptacjaColumn ? "z.DataAkceptacjiMagazyn" : "NULL AS DataAkceptacjiMagazyn";
                     string strefaColumn = hasStrefaColumn
@@ -946,6 +961,7 @@ namespace Kalendarz1
                         sqlBuilder.Append($", CAST(CASE WHEN EXISTS(SELECT 1 FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = z.Id AND t.KodTowaru IN ({string.Join(",", frozenProductIds)})) THEN 1 ELSE 0 END AS BIT) AS MaMrozone");
                     else
                         sqlBuilder.Append(", CAST(0 AS BIT) AS MaMrozone");
+                    sqlBuilder.Append(hasNumerWZ ? ", ISNULL(z.NumerWZ, '') AS NumerWZ" : ", '' AS NumerWZ");
                     sqlBuilder.Append(" FROM dbo.ZamowieniaMieso z WHERE z.DataUboju=@D AND ISNULL(z.Status,'Nowe') NOT IN ('Anulowane')");
                     if (_filteredProductId.HasValue)
                         sqlBuilder.Append(" AND EXISTS (SELECT 1 FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId=z.Id AND t.KodTowaru=@P)");
@@ -1010,7 +1026,8 @@ namespace Kalendarz1
                             MaFolie = rd.GetBoolean(16),
                             MaHalal = rd.GetBoolean(17),
                             MaE2 = rd.GetBoolean(18),
-                            MaMrozone = rd.GetBoolean(20)
+                            MaMrozone = rd.GetBoolean(20),
+                            NumerWZ = rd.IsDBNull(21) ? "" : rd.GetString(21)
                         };
 
                         _zamowienia[info.Id] = info;
@@ -1285,8 +1302,12 @@ namespace Kalendarz1
                 }
             }
 
-            // Pobierz wydania dla klienta - DOKŁADNIE JAK W PRODUKCJAPANEL
-            var shipments = await GetShipmentsForClientAsync(info.KlientId);
+            // Wydane = to, co magazynier zatwierdził w "✅ Wydane" (dialog WydanieDialog).
+            // Źródło: dbo.ZamowienieWydanieRoznice (per pozycja, gdy magazynier wpisał inną ilość).
+            // Brak wpisu w różnicach + Status='Wydany' => wydano zgodnie z zamówieniem.
+            // Zamówienie niewydane => Wydano = 0.
+            var ordQuantities = orderPositions.ToDictionary(p => p.TowarId, p => p.Ilosc);
+            var shipments = await GetWydaniaPrzezMagazynieraAsync(info, ordQuantities);
 
             // Pobierz snapshot (jeśli zamówienie było realizowane lub zmodyfikowane)
             var snapshot = (info.CzyZrealizowane || info.CzyZmodyfikowaneDlaMagazynu) ? await GetOrderSnapshotAsync(info.Id, "Realizacja") : new Dictionary<int, (decimal Ilosc, bool Folia, bool Hallal, bool E2, bool Strefa)>();
@@ -1690,44 +1711,56 @@ namespace Kalendarz1
             return dict;
         }
 
-        private async Task<Dictionary<int, decimal>> GetShipmentsForClientAsync(int klientId)
+        // Wydania zatwierdzone przez magazyniera (dialog "✅ Wydane").
+        // Logika:
+        //  - Status != 'Wydany'  => puste (kolumna pokaże 0).
+        //  - Status == 'Wydany' + wpis per TowarId w dbo.ZamowienieWydanieRoznice => Wydano = IloscWydana z wpisu.
+        //  - Status == 'Wydany' + brak wpisu w różnicach => Wydano = ilość zamówiona (magazynier potwierdził pełne wydanie).
+        // Brak tabeli ZamowienieWydanieRoznice (jeszcze nikt nie zapisał różnic) => fallback dla wszystkich pozycji.
+        private async Task<Dictionary<int, decimal>> GetWydaniaPrzezMagazynieraAsync(
+            ZamowienieInfo info,
+            Dictionary<int, decimal> zamowioneIlosci)
         {
-            var dict = new Dictionary<int, decimal>();
+            var wynik = new Dictionary<int, decimal>();
 
+            bool czyWydane = info.Status == "Wydany" || info.DataWydania.HasValue;
+            if (!czyWydane)
+                return wynik;
+
+            var roznice = new Dictionary<int, decimal>();
             try
             {
-                using var cn = new SqlConnection(_connHandel);
+                using var cn = new SqlConnection(_connLibra);
                 await cn.OpenAsync();
 
-                // DOKŁADNIE JAK W PRODUKCJAPANEL
-                string sql = @"SELECT MZ.idtw, SUM(ABS(MZ.ilosc)) 
-                               FROM HANDEL.HM.MZ MZ 
-                               JOIN HANDEL.HM.MG ON MZ.super=MG.id 
-                               JOIN HANDEL.HM.TW ON MZ.idtw=TW.id 
-                               WHERE MG.seria IN ('sWZ','sWZ-W') 
-                                 AND MG.aktywny=1 
-                                 AND MG.data=@D 
-                                 AND MG.khid=@K 
-                                 AND TW.katalog=67095
-                               GROUP BY MZ.idtw";
-
-                var cmd = new SqlCommand(sql, cn);
-                cmd.Parameters.AddWithValue("@D", _selectedDate.Date);
-                cmd.Parameters.AddWithValue("@K", klientId);
-
-                using var rd = await cmd.ExecuteReaderAsync();
-                while (await rd.ReadAsync())
+                var checkCmd = new SqlCommand(
+                    "SELECT COUNT(*) FROM sys.objects WHERE name='ZamowienieWydanieRoznice' AND type='U'", cn);
+                if ((int)await checkCmd.ExecuteScalarAsync() > 0)
                 {
-                    dict[rd.GetInt32(0)] = Convert.ToDecimal(rd.GetValue(1));
+                    var cmd = new SqlCommand(
+                        @"SELECT KodTowaru, IloscWydana
+                          FROM dbo.ZamowienieWydanieRoznice
+                          WHERE ZamowienieId = @Id", cn);
+                    cmd.Parameters.AddWithValue("@Id", info.Id);
+
+                    using var rd = await cmd.ExecuteReaderAsync();
+                    while (await rd.ReadAsync())
+                    {
+                        roznice[rd.GetInt32(0)] = rd.GetDecimal(1);
+                    }
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd połączenia z bazą Handel podczas pobierania wydań:\n{ex.Message}",
-                    "Błąd krytyczny", MessageBoxButton.OK, MessageBoxImage.Error);
+                System.Diagnostics.Debug.WriteLine($"[MagazynPanel] Błąd pobierania wydań magazyniera: {ex.Message}");
             }
 
-            return dict;
+            foreach (var (towarId, ilZam) in zamowioneIlosci)
+            {
+                wynik[towarId] = roznice.TryGetValue(towarId, out var wyd) ? wyd : ilZam;
+            }
+
+            return wynik;
         }
         #endregion
 
@@ -1780,6 +1813,7 @@ namespace Kalendarz1
             public bool CzyZmodyfikowaneDlaMagazynu { get; set; } // Dla magazynu - osobna flaga
             public bool Strefa { get; set; } // Strefa ptasiej grypy/pomoru
             public bool MaMrozone { get; set; } // Zamówienie zawiera mrożony towar (katalog 67153)
+            public string NumerWZ { get; set; } = ""; // Numer WZ z Symfonii (wystawiony przez WZ_magazyn.sc)
         }
 
         public class ContractorInfo
@@ -1824,6 +1858,11 @@ namespace Kalendarz1
                                         Info.CzyZmodyfikowaneDlaMagazynu ? Brushes.Yellow : Brushes.White;
             public decimal TotalIlosc => Info.TotalIlosc;
             public string Handlowiec => Info.Handlowiec;
+            public string NumerWZ => Info.NumerWZ ?? "";
+            public Brush NumerWZBrush => string.IsNullOrEmpty(Info.NumerWZ)
+                ? new SolidColorBrush(Color.FromRgb(0x94, 0xA3, 0xB8))   // szary "—"
+                : new SolidColorBrush(Color.FromRgb(0x16, 0xA3, 0x4A));  // zielony numer
+            public string NumerWZDisplay => string.IsNullOrEmpty(Info.NumerWZ) ? "—" : Info.NumerWZ;
 
             // Status z informacją o niezaakceptowanej zmianie
             public string Status

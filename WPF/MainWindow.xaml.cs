@@ -1491,6 +1491,16 @@ namespace Kalendarz1.WPF
             }
         }
 
+        private async void BtnNewTest_Click(object sender, RoutedEventArgs e)
+        {
+            var win = new Kalendarz1.Zamowienia.Views.NoweZamowienieTestWindow(UserID);
+            win.Owner = this;
+            if (win.ShowDialog() == true)
+            {
+                await RefreshAllDataAsync();
+            }
+        }
+
         private async void BtnDelete_Click(object sender, RoutedEventArgs e)
         {
             if (!_currentOrderId.HasValue || _currentOrderId.Value <= 0)
