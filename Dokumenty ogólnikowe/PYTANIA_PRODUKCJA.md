@@ -196,9 +196,9 @@ Sergiusz prosi szablon do wypełnienia w wolnych chwilach. **Stworzony plik:**
 2. **Co się dzieje z towarem niesprzedanym?** (po ilu godzinach do mroźni)
 3. **Kto sprawdza temperaturę i FIFO?**
 
-> **Twoja opowieść (voice-to-text OK):**
-> 
->
+> 1 . Bez regałów. Jest najpierw hala produkcji czystej , później są wrota do magazynu dystrybucji czyli tam jest składowany towar, a następnie są kolejne wrota gdzie jest wydawka z dwiema rampami gdzie podjezdzają auta i z magazynu dystrybucji jest przenoszony towar na wydawke a z wydawki na samochódw. NIe wien uke palet się zmieści. Przypomnij mi to sprawdzić. 
+> 2. Niesprzedana tuszka idzie na krojenie. jeśli pokrojone elementy się nie sprzedadzą to idą na mrożenie, jeśli zostaną zamrożone to póżmniej są sprzedawane po kilku miesiącach taniej
+>3. Dział jakości. Fifo magazynierzy pilnują
 >
 >
 
@@ -211,7 +211,7 @@ Sergiusz prosi szablon do wypełnienia w wolnych chwilach. **Stworzony plik:**
 - Saldo w czasie rzeczywistym: kg tuszki A / B / fileta / ćwiartki / korpusu
 
 ### Twoja reakcja:
-> 
+> Może być. Będziemy najwyżej poprawiac
 
 ---
 
@@ -223,9 +223,9 @@ Sergiusz prosi szablon do wypełnienia w wolnych chwilach. **Stworzony plik:**
 3. **Co jeśli czegoś brakuje na rampie?**
 
 > **Twoja opowieść:**
-> 
->
->
+> 1. Od rana są sprzedawane towary od 6 do 8 rano. Handlowcy zbierają co chce klient, nastepeni wpisuje date produkcji towaru, na kiedy towar ma być u klienta czyli data i godzina awizacji. Nastepnie na podstawie tych danych logistych układa transport. Magazyn produkcji i magazynu widzi te informacje i według kolejności wyjazdu tworzy i wydaje towar.
+>2. Magazynier kompletuje towar według zamówienia jakie ma w menu > Panel magazyniera
+>3. Jeśli brakuje to łąduje to co ma, jeśli nie ma to poprawia wydanie ostateczne ze nie wydał wszystkiego tylko wpisuje ostateczna ilsoc jaką załadował
 >
 
 ### 💻 Moja propozycja okna ZPSP:
@@ -237,7 +237,7 @@ Sergiusz prosi szablon do wypełnienia w wolnych chwilach. **Stworzony plik:**
 - Auto-WZ + plomba + podpis kierowcy na ekranie
 
 ### Twoja reakcja:
-> 
+> Tak
 
 ---
 
@@ -249,9 +249,9 @@ Sergiusz prosi szablon do wypełnienia w wolnych chwilach. **Stworzony plik:**
 3. **Jak długo typowo towar leży w mroźni?**
 
 > **Twoja opowieść:**
-> 
->
->
+> 1. Brygadzista mroźni czyli Janek Matusiak który zarządza produkcją. Zazwyczai robi to rano o godzinie 4-5 rano. W piątek jak się nie sprzedadzą elementy to przychodzi na 4-5 rano bierze towar, rozważają z 15 kg na 10 kg w e2 bo lepiej się zamraza, wkładają do szokówki. po 24 h wyjmują. Wybijają z pojemnika E2 towar a nastepnei ablo na karton łądują lub bnez kartonu na palete w poliblokach
+>2. Tak jak napisałem, towar zawsze musi być zszokowany a później na mroznie aby utrzymać go
+>3. od 1-6 miesiecy
 >
 
 ### 💻 Moja propozycja okna ZPSP:
@@ -263,7 +263,7 @@ Sergiusz prosi szablon do wypełnienia w wolnych chwilach. **Stworzony plik:**
 - Alert: „Partia 25034 leży 270 dni — sprawdź"
 
 ### Twoja reakcja:
-> 
+> OK
 
 ---
 
@@ -275,9 +275,9 @@ Sergiusz prosi szablon do wypełnienia w wolnych chwilach. **Stworzony plik:**
 3. **Kto wystawia fakturę i kiedy?**
 
 > **Twoja opowieść (cały cykl, jeden konkretny przykład):**
-> 
->
->
+> 1. Handlowiec wpisuje lub fakturzystka w awaryjnych sytuacjach
+> 2. Od razu po wpisaniu w menu > Panel produkcji
+> 3. fakturzystka jak towar zostanie załadowany na auto i status wydany bedzie
 >
 
 ### 💻 Moja propozycja okna ZPSP:
@@ -288,7 +288,7 @@ Sergiusz prosi szablon do wypełnienia w wolnych chwilach. **Stworzony plik:**
 - Auto-alert do osób w każdym etapie (Teams)
 
 ### Twoja reakcja:
-> 
+> Tak
 
 ---
 
@@ -302,7 +302,7 @@ Sergiusz prosi szablon do wypełnienia w wolnych chwilach. **Stworzony plik:**
 3. **Czy hodowca dostaje feedback o jakości?**
 
 > **Twoja opowieść:**
-> 
+> Chodzi o to , ze zbieramy wstawienia kurczaków od hodowców. Podają ze na przykład wstawiają kurczaki 1 stycznia 2026. Obliczamy 35 dni i 42 dostawy. 35 zabieramy 20  % wstawionych sztuk a w 42 dobie reszte. W 35 dobie zabieramy aby rozluźnić kurnik aby kurczaki miały swobodny dostęp do wodopoju i paszy. Dzieki temu możemy zaplanować lepiej dostawy itp. Kiedy odbieramy hodowcę, to nadajemy mu nomer partii. 3 pierwsze cyfry to nr ID w libra net, reszta to numer dni w roku, rok i numer auta. Sprawdz sobie na podstawie zapytan SQL. Fajnie by było aby przy odebraniu hodowcy można było sprawdzać jak często jego partia jest reklamowana, ile kalsy b i A ma. Niestety u nas nie ma skanerów i jak magazynier ładuje na samochód auto to na papierowej WZ wpisuje jakie numery partii było w tym zamówieniu włożone do auta ale nie ma napisane ile faktycznie ilości było w samochodzie z każdej partii. Jest to na oko robione. Hodowca dostaje feedback od nas jeśli cos było nie tak. Dajemy mu drugą szanse ale przy anstepnych cos obcinamy. W specyfikacjach drobiu jest rubryka klasa B
 >
 >
 >
@@ -315,7 +315,7 @@ Sergiusz prosi szablon do wypełnienia w wolnych chwilach. **Stworzony plik:**
 - Alert do działu zakupów: „Stróżewski 3 reklamacje — rozmowa"
 
 ### Twoja reakcja:
-> 
+Tak
 
 ---
 
@@ -327,7 +327,7 @@ Sergiusz prosi szablon do wypełnienia w wolnych chwilach. **Stworzony plik:**
 3. **Po decyzji — jak info dochodzi do hali?**
 
 > **Twoja opowieść:**
-> 
+> Nie ma tych spotkań. Chciałbym aby one były. Nie qwiem jak to zrobić aby cała reszta sama się spotykała bo ja nie che micro decyzji podejmować. chce awansować terese aby było dyrektorem handlowcym i bardziej ona ze współpracą z justyną podejmowały kroki.
 >
 >
 >
@@ -340,7 +340,7 @@ Sergiusz prosi szablon do wypełnienia w wolnych chwilach. **Stworzony plik:**
 - Po decyzji → broadcast Teams do wszystkich
 
 ### Twoja reakcja:
-> 
+> Może być. Mam program w menu Kalkulacja rozbioru
 
 ---
 
@@ -352,7 +352,7 @@ Sergiusz prosi szablon do wypełnienia w wolnych chwilach. **Stworzony plik:**
 3. **Załadunki popołudniowe (Bomafar, Publimar) — kto obsługuje?**
 
 > **Twoja opowieść:**
-> 
+> Zmiana by konczy kurczaka przyjmować zywego o 14 bo jak jest pelny uboj to tuszke przyjmujemy do 15-16 ale później trzeba to wszystko pokroić. Zazwiczai do 18-21. Można sprawdzić na wazeniach. Kierownik produkcji drugiej zmiany. Magazynierzy którzy tez mają drugą zmiane
 >
 >
 >
@@ -366,7 +366,7 @@ Sergiusz prosi szablon do wypełnienia w wolnych chwilach. **Stworzony plik:**
 
 ### Twoja reakcja:
 > 
-
+Może byc
 ---
 
 ## 👷 SCENA 12 — STANOWISKA NA HALI
@@ -375,7 +375,7 @@ Sergiusz prosi szablon do wypełnienia w wolnych chwilach. **Stworzony plik:**
 **`STANOWISKA_PRODUKCJI.md`** — przygotowany dla Ciebie. Idziesz po hali, wypełniasz każde stanowisko (nazwa, ile osób, co robią).
 
 > **Po wypełnieniu szablonu** — ja narysuję mapę hali i propozycje gdzie jakie tablety/ekrany.
-
+Zrobie to ale mi przypomniaj
 ---
 
 ## 💬 SCENA 13 — KOMUNIKACJA MIĘDZY DZIAŁAMI
@@ -386,9 +386,9 @@ Sergiusz prosi szablon do wypełnienia w wolnych chwilach. **Stworzony plik:**
 3. **WhatsApp grupy — czy wszyscy czytają, czy info ginie?**
 
 > **Twoja opowieść:**
-> 
->
->
+> 1. Albo piszą na grupie na whatsup albo po prostu sami handlwocy widza ze anulował ale nie widać. albo na grupie albo na zywo.
+> 2. Produkcja wołą Łukasz kolisa czyli dyrektora technicznego
+> 3. CZytają oprócz Pani Joli. Ania jest pośrednikiem Pani Joli. Czyta wiadomości i wpisuje  Pani Joli zamówienia
 >
 
 ### 💻 Moja propozycja okna ZPSP:
@@ -400,7 +400,7 @@ Sergiusz prosi szablon do wypełnienia w wolnych chwilach. **Stworzony plik:**
 - „Reklamacja >5 000 zł" → Sergiusz osobiście
 
 ### Twoja reakcja:
-> 
+> OK
 
 ---
 
@@ -413,10 +413,10 @@ Sergiusz prosi szablon do wypełnienia w wolnych chwilach. **Stworzony plik:**
 4. **Wypadek pracownika** — był? procedura BHP?
 
 > **Twoja opowieść:**
-> 
->
->
->
+> 1. Awaria 2 godziny, naprawił elektryk firmy zwenętrznej
+> 2. Co 2 dni się zdarza. po prostu szukamy innego którzy od nas rzadziej biorą i mamy mnadzieje ze wezma bo jak nie wezma to stoimy z  towarem
+> 3. Nic. Nie dotycyzła nas ale nie mamy planu co jeśli się zdarzy.
+> 4. Były BHP
 
 ### 💻 Moja propozycja okna ZPSP:
 
@@ -426,7 +426,7 @@ Sergiusz prosi szablon do wypełnienia w wolnych chwilach. **Stworzony plik:**
 - Po incydencie: raport → CAPA register
 
 ### Twoja reakcja:
-> 
+>  OK
 
 ---
 
@@ -438,9 +438,9 @@ Sergiusz prosi szablon do wypełnienia w wolnych chwilach. **Stworzony plik:**
 3. **Mała frustracja kosztowna** (np. „30 min dziennie szukamy palety")
 
 > **Twoja opowieść:**
-> 
->
->
+> 1. Wkurza mnie to, że kierownik zakładu czyli Justyna chrostowska nie jest tak zaangażowana jak myślałem. Wkurza mnie to ze partie kurczaka które wychodzą z magazynu nie są rozliczane. Wkruza mnie to ze inwentaryzacje sa robione co 3 miesiące i zawsze mówią ze to przez produkcje. Wkurza mnie to ze nie mamy skanerów. Wkurza mnie to że chciałbym aby kierownicy robili więcej spotkan bezemnie. Wkruza mnie to, że zamrażamy towar którego nie możemy sprzedać bo ciężko przewidzieć ile ostatecznie będzie towaru na koniec dnia. Wkurza mnie to ze nie mogę dokładnie rozliczyć produkcji i magazynu. Wkruza mnie to ze nie mam czytnikó temperatóru. Wkurza mnie to, że nei mogę obliczyć wydajność pracowników brudnej i czystej strefy. Wkurza mnie to ze nie potrafie pwoeidziec ile pracowników jest mi ptorzeben. 
+>2. Teresa jachymczak która obsługuje dział sprzedaży i zakupu nie formalnie. Justyna która jest dobra ale oczekiwałem od niej więcej. Pani Jola która nie potrafi pracować w grupei bo pracowałą 30 lat sama ale dobrze sprzedaje. Łuaksz Kolis który dobrze obsługuje maszyny i produkcje brudną al. enie mam nad niąkotnroli i analiz.
+>3. Brak informacji o stanach rzeczywistych w magazynach na bieżąco i partii które idą do kogo
 >
 
 ### 💻 Moja propozycja:
@@ -448,7 +448,7 @@ Sergiusz prosi szablon do wypełnienia w wolnych chwilach. **Stworzony plik:**
 **Mechanizm „Zgłoś frustrację"** — ikonka „🤬" w każdym oknie ZPSP. Pracownik klika, opisuje, wraca do bazy. Tygodniowy raport dla Sergiusza.
 
 ### Twoja reakcja:
-> 
+>  OK
 
 ---
 
@@ -460,8 +460,8 @@ Sergiusz prosi szablon do wypełnienia w wolnych chwilach. **Stworzony plik:**
 3. **19:00 wracasz do domu — czy zabierasz laptop?**
 
 > **Twoja opowieść (długa, marzenie):**
+>  1. KTO JEST Na hali z pracowników, w której hali co robią itp. Ile mamy towaru. Ile mamy pojemników. Jaką mamy temperaturę. Jaki mamy dokądny towar z każdej partii i jaki rozmiar tuskzi i z jakiej produkcji towar.
 > 
->
 >
 >
 
@@ -473,7 +473,7 @@ Sergiusz prosi szablon do wypełnienia w wolnych chwilach. **Stworzony plik:**
 - 19:00: aplikacja mailem podsumowuje dzień, ja czytam 2 min
 
 ### Twoja reakcja:
-> 
+> ok
 
 ---
 
