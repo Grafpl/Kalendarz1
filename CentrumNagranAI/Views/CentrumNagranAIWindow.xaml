@@ -9,11 +9,15 @@
     <Window.Resources>
         <SolidColorBrush x:Key="Bg" Color="#0F172A"/>
         <SolidColorBrush x:Key="Surface" Color="#1E293B"/>
+        <SolidColorBrush x:Key="Surface2" Color="#243349"/>
         <SolidColorBrush x:Key="Border" Color="#334155"/>
         <SolidColorBrush x:Key="Text" Color="#E2E8F0"/>
         <SolidColorBrush x:Key="TextDim" Color="#94A3B8"/>
         <SolidColorBrush x:Key="Accent" Color="#EF4444"/>
         <SolidColorBrush x:Key="AccentDark" Color="#B91C1C"/>
+        <SolidColorBrush x:Key="Score80" Color="#16A34A"/>
+        <SolidColorBrush x:Key="Score50" Color="#CA8A04"/>
+        <SolidColorBrush x:Key="Score20" Color="#94A3B8"/>
 
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="{StaticResource Text}"/>
@@ -30,21 +34,21 @@
         </Grid.RowDefinitions>
 
         <!-- Nagłówek -->
-        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,20">
-            <TextBlock Text="🎥" FontSize="36" Margin="0,0,12,0"/>
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,16">
+            <TextBlock Text="🎥" FontSize="32" Margin="0,0,12,0"/>
             <StackPanel>
-                <TextBlock Text="Centrum nagrań AI" FontSize="24" FontWeight="Bold"/>
+                <TextBlock Text="Centrum nagrań AI" FontSize="22" FontWeight="Bold"/>
                 <TextBlock Text="Wyszukiwanie zdarzeń w nagraniach CCTV po polskim opisie"
-                           Foreground="{StaticResource TextDim}" FontSize="13"/>
+                           Foreground="{StaticResource TextDim}" FontSize="12"/>
             </StackPanel>
         </StackPanel>
 
-        <!-- Pole wyszukiwania (placeholder, full UI w checkpoincie 7) -->
+        <!-- Pole wyszukiwania -->
         <Border Grid.Row="1" Background="{StaticResource Surface}"
                 BorderBrush="{StaticResource Border}" BorderThickness="1"
                 CornerRadius="8" Padding="16">
             <StackPanel>
-                <TextBlock Text="Zapytanie:" Margin="0,0,0,6" FontSize="12"
+                <TextBlock Text="Zapytanie po polsku:" Margin="0,0,0,6" FontSize="12"
                            Foreground="{StaticResource TextDim}"/>
                 <Grid>
                     <Grid.ColumnDefinitions>
@@ -57,9 +61,10 @@
                              Foreground="{StaticResource Text}"
                              BorderBrush="{StaticResource Border}"
                              BorderThickness="1"
-                             Text="np. osoba bez czepka w pakowalni wczoraj między 14 a 18"/>
+                             KeyDown="QueryBox_KeyDown"
+                             Text="osoba bez czepka w pakowalni"/>
                     <Button x:Name="SearchBtn" Grid.Column="1"
-                            Content="Szukaj" Padding="20,8" Margin="8,0,0,0"
+                            Content="🔍 Szukaj" Padding="20,8" Margin="8,0,0,0"
                             Background="{StaticResource Accent}"
                             Foreground="White" FontWeight="Bold"
                             BorderThickness="0" Cursor="Hand"
@@ -68,16 +73,102 @@
             </StackPanel>
         </Border>
 
-        <!-- Wyniki (placeholder) -->
+        <!-- Wyniki -->
         <Border Grid.Row="2" Margin="0,16,0,0"
                 Background="{StaticResource Surface}"
                 BorderBrush="{StaticResource Border}" BorderThickness="1"
                 CornerRadius="8">
             <Grid>
-                <TextBlock x:Name="StatusText"
+                <!-- Pusty stan / loader -->
+                <TextBlock x:Name="EmptyText"
                            HorizontalAlignment="Center" VerticalAlignment="Center"
                            Foreground="{StaticResource TextDim}"
-                           Text="Wpisz polskie zapytanie i kliknij Szukaj. Pełne UI z miniaturkami w checkpoincie 7."/>
+                           Text="Wpisz polskie zapytanie i kliknij Szukaj."/>
+
+                <!-- Lista wyników -->
+                <ScrollViewer x:Name="ResultsScroller" Visibility="Collapsed"
+                              VerticalScrollBarVisibility="Auto" Padding="12">
+                    <ItemsControl x:Name="ResultsList">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Margin="0,0,0,12" Padding="12"
+                                        Background="{StaticResource Surface2}"
+                                        BorderBrush="{StaticResource Border}" BorderThickness="1"
+                                        CornerRadius="6">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- Miniaturka -->
+                                        <Border Grid.Column="0" Width="240" Height="135"
+                                                Background="Black" CornerRadius="4"
+                                                ClipToBounds="True">
+                                            <Image Source="{Binding Thumbnail}"
+                                                   Stretch="UniformToFill"/>
+                                        </Border>
+
+                                        <!-- Meta + reason -->
+                                        <StackPanel Grid.Column="1" Margin="16,0,16,0" VerticalAlignment="Center">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="{Binding Rank, StringFormat='#{0}'}"
+                                                           FontWeight="Bold" FontSize="14"
+                                                           Foreground="{StaticResource Text}"
+                                                           Margin="0,0,12,0"/>
+                                                <TextBlock Text="{Binding CameraId}"
+                                                           FontWeight="SemiBold" Foreground="{StaticResource Text}"/>
+                                                <TextBlock Text="{Binding TimeLabel}"
+                                                           Foreground="{StaticResource TextDim}"
+                                                           Margin="12,0,0,0"/>
+                                            </StackPanel>
+                                            <TextBlock Text="{Binding Reason}"
+                                                       Foreground="{StaticResource Text}"
+                                                       FontSize="13"
+                                                       TextWrapping="Wrap"
+                                                       Margin="0,8,0,0"/>
+                                        </StackPanel>
+
+                                        <!-- Score badge -->
+                                        <Border Grid.Column="2" Width="64" Height="64"
+                                                CornerRadius="32" VerticalAlignment="Center"
+                                                Background="{Binding ScoreColor}">
+                                            <TextBlock Text="{Binding Score}"
+                                                       Foreground="White"
+                                                       FontSize="22" FontWeight="Bold"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"/>
+                                        </Border>
+
+                                        <!-- Button odtwórz -->
+                                        <Button Grid.Column="3" Content="▶ Odtwórz"
+                                                Margin="12,0,0,0" Padding="14,8"
+                                                Background="{StaticResource AccentDark}"
+                                                Foreground="White" FontWeight="Bold"
+                                                BorderThickness="0" Cursor="Hand"
+                                                VerticalAlignment="Center"
+                                                Tag="{Binding}"
+                                                Click="PlayBtn_Click"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+
+                <!-- Loader overlay -->
+                <Grid x:Name="LoaderOverlay" Visibility="Collapsed"
+                      Background="#80000000">
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <TextBlock x:Name="LoaderText" Text="Wyszukuję..."
+                                   FontSize="16" Foreground="{StaticResource Text}"
+                                   HorizontalAlignment="Center"/>
+                        <ProgressBar IsIndeterminate="True" Width="240" Height="6"
+                                     Margin="0,12,0,0" Foreground="{StaticResource Accent}"/>
+                    </StackPanel>
+                </Grid>
             </Grid>
         </Border>
 

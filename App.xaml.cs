@@ -149,6 +149,15 @@ namespace Kalendarz1
                 return;
             }
 
+            int idxShow = Array.IndexOf(argv, "--cna-show-window");
+            if (idxShow >= 0)
+            {
+                // Bezpośrednio otwiera placeholder okno CNA, pomija login/menu.
+                var win = new Kalendarz1.CentrumNagranAI.Views.CentrumNagranAIWindow();
+                win.Show();
+                return;
+            }
+
             // Inicjalizuj iTextSharp przed użyciem
             InitializeITextSharp();
 
