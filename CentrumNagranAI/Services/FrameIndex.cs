@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 
@@ -97,6 +98,89 @@ namespace Kalendarz1.CentrumNagranAI.Services
             conn.Open();
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "SELECT COUNT(*) FROM frame";
+            return (long)cmd.ExecuteScalar()!;
+        }
+
+        /// <summary>
+        /// Rekord klatki dla potrzeb wyszukiwania.
+        /// </summary>
+        public class FrameRecord
+        {
+            public long Id { get; set; }
+            public string CameraId { get; set; } = string.Empty;
+            public DateTime TsUtc { get; set; }
+            public string FilePath { get; set; } = string.Empty;
+            public long FileSize { get; set; }
+        }
+
+        /// <summary>
+        /// Zwraca pulę klatek-kandydatów do wyszukiwania.
+        /// Optionally filtruje po zakresie dat + liście kamer + maksymalnej liczbie.
+        /// Zamawiamy DESC by ts — domyślnie zwracamy najnowsze.
+        /// </summary>
+        public static List<FrameRecord> GetFrames(
+            DateTime? fromUtc = null,
+            DateTime? toUtc = null,
+            IEnumerable<string>? cameraIds = null,
+            int? limit = null)
+        {
+            using var conn = new SqliteConnection(ConnString);
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+
+            var sql = "SELECT id, camera_id, ts, file_path, file_size FROM frame WHERE 1=1";
+            if (fromUtc.HasValue) { sql += " AND ts >= $from"; cmd.Parameters.AddWithValue("$from", fromUtc.Value.ToString("o")); }
+            if (toUtc.HasValue)   { sql += " AND ts <= $to";   cmd.Parameters.AddWithValue("$to", toUtc.Value.ToString("o")); }
+            if (cameraIds != null)
+            {
+                var list = cameraIds.ToList();
+                if (list.Count > 0)
+                {
+                    var placeholders = string.Join(",", list.Select((_, i) => $"$cam{i}"));
+                    sql += $" AND camera_id IN ({placeholders})";
+                    for (int i = 0; i < list.Count; i++) cmd.Parameters.AddWithValue($"$cam{i}", list[i]);
+                }
+            }
+            sql += " ORDER BY ts DESC";
+            if (limit.HasValue) sql += $" LIMIT {limit.Value}";
+
+            cmd.CommandText = sql;
+            var result = new List<FrameRecord>();
+            using var rdr = cmd.ExecuteReader();
+            while (rdr.Read())
+            {
+                result.Add(new FrameRecord
+                {
+                    Id = rdr.GetInt64(0),
+                    CameraId = rdr.GetString(1),
+                    TsUtc = DateTime.Parse(rdr.GetString(2), null, System.Globalization.DateTimeStyles.RoundtripKind),
+                    FilePath = rdr.GetString(3),
+                    FileSize = rdr.IsDBNull(4) ? 0 : rdr.GetInt64(4)
+                });
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Wpisz audit zapytania użytkownika (RODO + tracking kosztów).
+        /// </summary>
+        public static long InsertAudit(string queryText, string userId, IEnumerable<long> topKIds,
+                                       int vlmCalls, double costUsd, long durationMs)
+        {
+            using var conn = new SqliteConnection(ConnString);
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+                INSERT INTO query_audit (ts, user_id, query_text, top_k_ids, vlm_calls, vlm_cost_usd, duration_ms)
+                VALUES ($ts, $u, $q, $ids, $calls, $cost, $dur);
+                SELECT last_insert_rowid();";
+            cmd.Parameters.AddWithValue("$ts", DateTime.UtcNow.ToString("o"));
+            cmd.Parameters.AddWithValue("$u", userId ?? string.Empty);
+            cmd.Parameters.AddWithValue("$q", queryText);
+            cmd.Parameters.AddWithValue("$ids", string.Join(",", topKIds));
+            cmd.Parameters.AddWithValue("$calls", vlmCalls);
+            cmd.Parameters.AddWithValue("$cost", costUsd);
+            cmd.Parameters.AddWithValue("$dur", durationMs);
             return (long)cmd.ExecuteScalar()!;
         }
 

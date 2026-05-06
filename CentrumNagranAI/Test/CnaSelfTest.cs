@@ -135,5 +135,49 @@ namespace Kalendarz1.CentrumNagranAI.Test
 
             W("===== CNA VLM Hello-World KONIEC =====");
         }
+
+        /// <summary>
+        /// End-to-end search: polskie zapytanie → top-N klatek z opisami i score.
+        /// Wymaga klatek w bazie (uruchom najpierw --cna-test).
+        /// </summary>
+        public static async Task RunSearchAsync(string polishQuery, int topN = 5)
+        {
+            string outFile = Path.Combine(CnaConfig.AuditDir, "cna_selftest.log");
+            void W(string s)
+            {
+                string line = $"{DateTime.Now:HH:mm:ss.fff} {s}";
+                Console.WriteLine(line);
+                System.Diagnostics.Debug.WriteLine(line);
+                File.AppendAllText(outFile, line + Environment.NewLine, System.Text.Encoding.UTF8);
+            }
+
+            W("===== CNA Search START =====");
+            W($"Zapytanie: \"{polishQuery}\"");
+            W($"Top N:     {topN}");
+            CnaConfig.ZaladujJesliTrzeba();
+            FrameIndex.Init();
+            long count = FrameIndex.CountFrames();
+            W($"Klatek w bazie: {count}");
+            if (count == 0) { W("BRAK klatek. Uruchom najpierw --cna-test"); return; }
+
+            var summary = await SearchService.SearchAsync(polishQuery, topN: topN);
+
+            W($"Kandydatów oceniono: {summary.Candidates}");
+            W($"VLM calls:           {summary.VlmCalls}");
+            W($"Koszt całkowity:     ${summary.TotalCostUsd:F4} USD");
+            W($"Czas:                {summary.DurationMs}ms");
+            W($"Audit ID:            {summary.AuditId}");
+            W("");
+            W($"--- TOP {summary.Hits.Count} ---");
+            int rank = 1;
+            foreach (var h in summary.Hits)
+            {
+                W($"#{rank}  score={h.Score,3}  {h.CameraId}  {h.TsUtc:yyyy-MM-dd HH:mm:ss}");
+                W($"     {h.Reason}");
+                W($"     {h.FilePath}");
+                rank++;
+            }
+            W("===== CNA Search KONIEC =====");
+        }
     }
 }

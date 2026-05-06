@@ -136,6 +136,19 @@ namespace Kalendarz1
                 return;
             }
 
+            int idxSearch = Array.IndexOf(argv, "--cna-test-search");
+            if (idxSearch >= 0 && idxSearch + 1 < argv.Length)
+            {
+                ShutdownMode = ShutdownMode.OnExplicitShutdown;
+                string query = argv[idxSearch + 1];
+                _ = System.Threading.Tasks.Task.Run(async () =>
+                {
+                    try { await Kalendarz1.CentrumNagranAI.Test.CnaSelfTest.RunSearchAsync(query); }
+                    finally { Dispatcher.Invoke(() => Shutdown()); }
+                });
+                return;
+            }
+
             // Inicjalizuj iTextSharp przed użyciem
             InitializeITextSharp();
 
