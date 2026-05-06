@@ -128,7 +128,29 @@ namespace Kalendarz1.CentrumNagranAI.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[CNA-Search] audit fail: {ex.Message}");
+                Debug.WriteLine($"[CNA-Search] audit DB fail: {ex.Message}");
+            }
+
+            // Append-only audit log (plain text). Niezależny od SQLite żeby przetrwać
+            // korupcję/wykasowanie bazy. Format: pipe-separated dla łatwego grepowania.
+            try
+            {
+                string topIds = string.Join(",", summary.Hits.Select(h => h.FrameId));
+                string topScores = string.Join(",", summary.Hits.Select(h => h.Score));
+                string line =
+                    $"{DateTime.UtcNow:o}|user={userId}|q=\"{polishQuery.Replace('"', '\'')}\"" +
+                    $"|cands={summary.Candidates}|vlm_calls={summary.VlmCalls}" +
+                    $"|cost_usd={summary.TotalCostUsd:F4}|dur_ms={summary.DurationMs}" +
+                    $"|top_ids={topIds}|top_scores={topScores}";
+                System.IO.Directory.CreateDirectory(CnaConfig.AuditDir);
+                System.IO.File.AppendAllText(
+                    System.IO.Path.Combine(CnaConfig.AuditDir, "cna_search_audit.log"),
+                    line + System.Environment.NewLine,
+                    System.Text.Encoding.UTF8);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[CNA-Search] audit log fail: {ex.Message}");
             }
 
             return summary;

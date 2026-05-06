@@ -151,6 +151,25 @@ namespace Kalendarz1.CentrumNagranAI.Views
             }
         }
 
+        private void AuditBtn_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                CnaConfig.ZaladujJesliTrzeba();
+                System.IO.Directory.CreateDirectory(CnaConfig.AuditDir);
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = CnaConfig.AuditDir,
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Nie mogę otworzyć folderu audit: {ex.Message}", "Błąd",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
         private void PlayBtn_Click(object sender, RoutedEventArgs e)
         {
             if (sender is System.Windows.Controls.Button btn && btn.Tag is SearchHitVm vm)
