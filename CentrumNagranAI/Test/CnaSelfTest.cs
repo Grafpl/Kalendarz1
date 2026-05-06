@@ -1,7 +1,9 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Kalendarz1.CentrumNagranAI.Services;
+using Microsoft.Data.Sqlite;
 
 namespace Kalendarz1.CentrumNagranAI.Test
 {
@@ -57,6 +59,81 @@ namespace Kalendarz1.CentrumNagranAI.Test
                 W($"  {cam}: {n}");
 
             W("===== CNA Self-Test KONIEC =====");
+        }
+
+        /// <summary>
+        /// Hello-world VLM: bierze najnowszą klatkę z bazy, pyta Claude Haiku po polsku,
+        /// wypisuje odpowiedź + koszt. Wymaga klucza Anthropic w secrets.json.
+        /// </summary>
+        public static async Task RunVlmHelloAsync()
+        {
+            string outFile = Path.Combine(CnaConfig.AuditDir, "cna_selftest.log");
+            Directory.CreateDirectory(CnaConfig.AuditDir);
+
+            void W(string s)
+            {
+                string line = $"{DateTime.Now:HH:mm:ss.fff} {s}";
+                Console.WriteLine(line);
+                System.Diagnostics.Debug.WriteLine(line);
+                File.AppendAllText(outFile, line + Environment.NewLine, System.Text.Encoding.UTF8);
+            }
+
+            W("===== CNA VLM Hello-World START =====");
+            CnaConfig.ZaladujJesliTrzeba();
+            FrameIndex.Init();
+
+            // Wybierz najnowszą klatkę z bazy.
+            string? jpegPath = null;
+            string? cameraId = null;
+            string? ts = null;
+            using (var conn = new SqliteConnection($"Data Source={CnaConfig.DbPath}"))
+            {
+                conn.Open();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = "SELECT camera_id, ts, file_path FROM frame ORDER BY id DESC LIMIT 1";
+                using var rdr = cmd.ExecuteReader();
+                if (rdr.Read())
+                {
+                    cameraId = rdr.GetString(0);
+                    ts = rdr.GetString(1);
+                    jpegPath = rdr.GetString(2);
+                }
+            }
+
+            if (jpegPath == null || !File.Exists(jpegPath))
+            {
+                W($"BRAK klatki w bazie albo plik nie istnieje. Najpierw uruchom --cna-test żeby zaindeksować.");
+                W($"  jpegPath = {jpegPath ?? "(null)"}");
+                return;
+            }
+
+            W($"Klatka: {cameraId} {ts} -> {jpegPath}");
+            W($"Rozmiar: {new FileInfo(jpegPath).Length / 1024} KB");
+
+            string prompt =
+                "Opisz po polsku co widzisz na tym zdjęciu z kamery przemysłowej zakładu drobiarskiego (ubojnia kurczaków). " +
+                "Wymień widoczne obiekty, ludzi (jeśli są), aktywność, ewentualne anomalie. " +
+                "Odpowiedz w 2-3 zdaniach, konkretnie i bez ozdobników.";
+
+            W($"Prompt: {prompt}");
+            W("Wysyłam do Claude Haiku 4.5...");
+
+            try
+            {
+                var result = await VlmClient.AnalyzeImageAsync(jpegPath, prompt);
+                W("--- ODPOWIEDŹ ---");
+                W(result.Text);
+                W("------------------");
+                W($"Tokeny: in={result.InputTokens} out={result.OutputTokens}");
+                W($"Czas:   {result.DurationMs}ms");
+                W($"Koszt:  ${result.CostUsd:F4} USD");
+            }
+            catch (Exception ex)
+            {
+                W($"BŁĄD: {ex.GetType().Name}: {ex.Message}");
+            }
+
+            W("===== CNA VLM Hello-World KONIEC =====");
         }
     }
 }

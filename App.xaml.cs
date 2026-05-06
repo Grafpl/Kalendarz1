@@ -124,6 +124,18 @@ namespace Kalendarz1
                 return;
             }
 
+            int idxVlm = Array.IndexOf(argv, "--cna-test-vlm");
+            if (idxVlm >= 0)
+            {
+                ShutdownMode = ShutdownMode.OnExplicitShutdown;
+                _ = System.Threading.Tasks.Task.Run(async () =>
+                {
+                    try { await Kalendarz1.CentrumNagranAI.Test.CnaSelfTest.RunVlmHelloAsync(); }
+                    finally { Dispatcher.Invoke(() => Shutdown()); }
+                });
+                return;
+            }
+
             // Inicjalizuj iTextSharp przed użyciem
             InitializeITextSharp();
 
