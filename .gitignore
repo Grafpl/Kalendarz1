@@ -7,6 +7,13 @@
 App.config
 App.config.local
 *.local
+secrets.json
+secrets.*.json
+
+# Centrum nagrań AI - lokalne narzędzia (FFmpeg) i modele (ONNX)
+tools/ffmpeg/
+tools/onnx/
+CentrumNagranAI/Models/*.onnx
 
 # User-specific files
 *.rsuser
