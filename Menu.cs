@@ -1284,6 +1284,8 @@ namespace Kalendarz1
             /* 63 */ "OsCzasuFloty",
             /* 64 */ "RaportFloty",
             /* 65 */ "StatystykiReklamacji",
+            /* 66 */ "AnalitykaPelna",
+            /* 67 */ "CentrumNagranAI",
         };
 
         private void ParseAccessString(string accessString)
@@ -1294,6 +1296,12 @@ namespace Kalendarz1
                 if (accessString[i] == '1')
                     userPermissions[_moduleAccessOrder[i]] = true;
             }
+
+            // Tymczasowo: Analityka Pełna dostępna dla wszystkich (do uregulowania uprawnień w Admin)
+            userPermissions["AnalitykaPelna"] = true;
+
+            // Tymczasowo: Centrum nagrań AI dostępne dla wszystkich (PoC, do uregulowania w Admin)
+            userPermissions["CentrumNagranAI"] = true;
 
             // Scalenie uprawnień opakowań: użytkownicy z SaldaOdbiorcowOpak widzą nowy scalony kafelek
             if (userPermissions.ContainsKey("SaldaOdbiorcowOpak") && userPermissions["SaldaOdbiorcowOpak"])
@@ -1502,12 +1510,12 @@ namespace Kalendarz1
                             return panel;
                         }, "🗃️", "Magazyn"),
 
-                    new MenuItemConfig("AnalizaPrzychodu", "Analiza Przychodu",
+                    new MenuItemConfig("AnalizaPrzychodu", "[stare] Analiza Przychodu",
                         "Kompleksowa analiza tempa produkcji, wydajności operatorów i przychodu towarów na godzinę",
                         Color.FromArgb(239, 108, 0), // #EF6C00
                         () => new AnalizaPrzychoduWindow(), "⏱️", "Przychody"),
 
-                    new MenuItemConfig("AnalizaWydajnosci", "Analiza Wydajności",
+                    new MenuItemConfig("AnalizaWydajnosci", "[stare] Analiza Wydajności",
                         "Porównanie masy żywca do masy tuszek - analiza strat i efektywności uboju",
                         Color.FromArgb(230, 81, 0), // Ciemny pomarańczowy #E65100
                         () => new AnalizaWydajnosciKrojenia(connectionHandel), "📈", "Wydajność"),
@@ -1546,7 +1554,12 @@ namespace Kalendarz1
                     new MenuItemConfig("UstawieniaZmianZamowien", "Ustawienia Zmian",
                         "Konfiguracja godzin, powiadomień i blokad edycji zamówień",
                         Color.FromArgb(229, 57, 53), // Czerwony #E53935
-                        () => new UstawieniaZmianWindow(), "⚙", "Ust. Zmian")
+                        () => new UstawieniaZmianWindow(), "⚙", "Ust. Zmian"),
+
+                    new MenuItemConfig("CentrumNagranAI", "Centrum nagrań AI",
+                        "Wyszukiwanie zdarzeń w nagraniach CCTV po polskim opisie - kamery NVR + Claude AI",
+                        Color.FromArgb(127, 29, 29), // Najciemniejszy czerwony #7F1D1D
+                        () => new Kalendarz1.CentrumNagranAI.Views.CentrumNagranAIWindow(), "🎥", "CNA")
                 }
             };
 
@@ -1663,7 +1676,12 @@ namespace Kalendarz1
                 // ═══════════════════════════════════════════════════════════════════════════
                 ["PLANOWANIE I ANALIZY"] = new List<MenuItemConfig>
                 {
-                    new MenuItemConfig("PrognozyUboju", "Prognoza Uboju",
+                    new MenuItemConfig("AnalitykaPelna", "Analityka Pełna",
+                        "Plan • Realizacja • Bilans • Wydajność — moduł zastępujący 4 stare okna analityczne",
+                        Color.FromArgb(124, 58, 237), // #7C3AED
+                        () => new Kalendarz1.AnalitykaPelna.AnalitykaPelnaWindow(), "📊", "Analityka"),
+
+                    new MenuItemConfig("PrognozyUboju", "[stare] Prognoza Uboju",
                         "Analiza średnich tygodniowych zakupów żywca z prognozą zapotrzebowania",
                         Color.FromArgb(206, 147, 216), // Jasny fioletowy #CE93D8
                         () => new PrognozyUboju.PrognozyUbojuWindow(), "🔮", "Prognozy"),
@@ -1673,7 +1691,7 @@ namespace Kalendarz1
                         Color.FromArgb(171, 71, 188), // #AB47BC
                         () => new Kalendarz1.TygodniowyPlan(), "🗓️", "Plan"),
 
-                    new MenuItemConfig("AnalizaTygodniowa", "Dashboard Analityczny",
+                    new MenuItemConfig("AnalizaTygodniowa", "[stare] Dashboard Analityczny",
                         "Kompleksowa analiza bilansu produkcji i sprzedaży z wykresami i wskaźnikami",
                         Color.FromArgb(156, 39, 176), // Fioletowy #9C27B0
                         () => new Kalendarz1.AnalizaTygodniowa.AnalizaTygodniowaWindow(), "📉", "Analizy"),
