@@ -106,6 +106,24 @@ namespace Kalendarz1
         {
             base.OnStartup(e);
 
+            // Tryb deweloperski Centrum nagrań AI: --cna-test [sekundy]
+            // Pomija normalne logowanie i menu, uruchamia tylko indexer i kończy proces.
+            // Bez flagi zachowanie identyczne jak przed zmianą.
+            var argv = Environment.GetCommandLineArgs();
+            int idx = Array.IndexOf(argv, "--cna-test");
+            if (idx >= 0)
+            {
+                // Brak okna — bez tego Application sam zamknie się po OnStartup.
+                ShutdownMode = ShutdownMode.OnExplicitShutdown;
+                int sek = (idx + 1 < argv.Length && int.TryParse(argv[idx + 1], out int s)) ? s : 30;
+                _ = System.Threading.Tasks.Task.Run(async () =>
+                {
+                    try { await Kalendarz1.CentrumNagranAI.Test.CnaSelfTest.RunAsync(sek); }
+                    finally { Dispatcher.Invoke(() => Shutdown()); }
+                });
+                return;
+            }
+
             // Inicjalizuj iTextSharp przed użyciem
             InitializeITextSharp();
 
