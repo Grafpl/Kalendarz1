@@ -55,8 +55,12 @@ CREATE TABLE IF NOT EXISTS guard_rule (
     enabled       INTEGER NOT NULL DEFAULT 1,
     camera_filter TEXT,                 -- CSV cameraId, NULL=wszystkie
     last_alert    TEXT,
+    notify_sms    INTEGER NOT NULL DEFAULT 0,
     created       TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- Migration: dodaj notify_sms gdy starsze schema
+-- (SQLite nie obsługuje IF NOT EXISTS dla ALTER COLUMN, więc try/catch w kodzie)
 
 CREATE TABLE IF NOT EXISTS guard_alert (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,

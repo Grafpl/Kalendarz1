@@ -107,7 +107,9 @@
                                 </StackPanel>
                             </Grid>
 
-                            <CheckBox x:Name="RuleEnabledChk" Content="Aktywna" Foreground="{StaticResource Text}" Margin="0,0,0,12"/>
+                            <CheckBox x:Name="RuleEnabledChk" Content="Aktywna" Foreground="{StaticResource Text}" Margin="0,0,0,4"/>
+                            <CheckBox x:Name="RuleSmsChk" Content="📱 Wyślij SMS przy alercie (Twilio)" Foreground="{StaticResource Text}" Margin="0,0,0,12"
+                                      ToolTip="Wymaga konfiguracji Twilio w secrets.json (sekcja Twilio: AccountSid, AuthToken, From, To)"/>
 
                             <Button x:Name="SaveRuleBtn" Content="💾 Zapisz regułę"
                                     Padding="14,6" HorizontalAlignment="Left"

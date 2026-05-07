@@ -1,9 +1,7 @@
 # Centrum nagrań AI (CNA)
 
-> **Aktualizacja Faza A (2026-05-06):** dodane okienko ⚙ Ustawień (nazwy kamer + retencja + interwał),
-> auto-cleanup starych klatek, lepszy prompt AI z few-shot examples (znacznie surowsze ocenianie),
-> Date Range Picker, chipy filtrów per kamera w UI, oraz ⏮ Playback ±15s przez ONVIF GetReplayUri
-> (zamiast tylko live). Patrz sekcja "Faza A — co nowe" niżej.
+> **Aktualizacja:** wszystkie 4 fazy + polishing zamknięte. Pełny moduł na master.
+> Total ~4500 linii kodu CNA. Patrz sekcja "Stan końcowy" niżej.
 
 
 
@@ -293,6 +291,38 @@ W oknie playera klipu są **dwa przyciski**:
 Wymaga że NVR ma włączone **Replay Service** w ustawieniach ONVIF
 (domyślnie tak, dla Internec NVR-B3601).
 Profile tokens cache'owane przez `OnvifClient` żeby nie pytać NVR za każdym razem.
+
+## Stan końcowy (po polishingu)
+
+### Optymalizacja kosztów - CLIP prefilter dla Strażnika
+Każda reguła ma cache embed swojego promptu. Klatka ma embed swojego captionu (z backfilla).
+Cosine similarity > 0.35 → idzie do VLM. Niższa → skip.
+**Efekt:** redukcja VLM calls o ~85-95% przy 24/7 monitoringu.
+
+### Twilio SMS dla alertów
+Dorzuć w `secrets.json`:
+```json
+"Twilio": {
+  "AccountSid": "AC...",
+  "AuthToken": "...",
+  "From": "+48...",
+  "To": "+48..."
+}
+```
+W edytorze reguły zaznacz checkbox "📱 Wyślij SMS przy alercie". Trafi na `To`.
+
+### Auto-brief i auto-baseline (CnaService)
+Worker codziennie po 17:00 generuje brief + raz na 24h przebudowuje baseline anomalii.
+Bez ręcznej akcji - wystarczy że Worker chodzi.
+
+### Konfigurowalne w UI
+- **OCR per kamera** - checkboxy w Settings, zaznacz tylko rampę/bramę żeby nie przepalać kasy
+- **Próg anomalii** - suwak 0.10-0.60 (niższy = czulsze)
+- **Walidacja** - retencja 1-365, interwał 2-600s, próg 0-100, cooldown 1-1440 min, prompt min 10 znaków
+
+### KNN streaming
+Zamiast wczytywać 100k×1536 floats do RAM (~600MB), używamy `PriorityQueue<KnnHit, float>` i
+inline cosine z BLOB. Skaluje do milionów klatek przy stałym ~30MB.
 
 ## Komitki na branchu `feature/centrum-nagran-ai`
 

@@ -133,6 +133,50 @@
                     </StackPanel>
                 </Border>
 
+                <!-- OCR tablic per kamera -->
+                <Border Background="{StaticResource Surface}"
+                        BorderBrush="{StaticResource Border}" BorderThickness="1"
+                        CornerRadius="6" Padding="14" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Text="OCR tablic rejestracyjnych" FontWeight="Bold" FontSize="14" Margin="0,0,0,4"/>
+                        <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource TextDim}" Margin="0,0,0,10"
+                                   Text="Zaznacz kamery rampy/bramy gdzie pojawiają się ciężarówki. Każda klatka z zaznaczonej kamery → ~$0.001 (OCR przez VLM). Zaznacz tylko sensowne!"/>
+                        <ItemsControl x:Name="OcrCamerasList">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <CheckBox Content="{Binding Label}" IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                              Margin="0,3" Foreground="{StaticResource Text}"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+
+                <!-- Próg anomalii -->
+                <Border Background="{StaticResource Surface}"
+                        BorderBrush="{StaticResource Border}" BorderThickness="1"
+                        CornerRadius="6" Padding="14" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Text="Detekcja anomalii" FontWeight="Bold" FontSize="14" Margin="0,0,0,4"/>
+                        <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource TextDim}" Margin="0,0,0,10"
+                                   Text="Im NIŻSZY próg, tym bardziej czułe (więcej alarmów). 0.20 = bardzo czułe, 0.40 = tylko wyraźne anomalie."/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="220"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="60"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Próg dystansu (0.10 - 0.60):" VerticalAlignment="Center"/>
+                            <Slider Grid.Column="1" x:Name="AnomalyThresholdSlider"
+                                    Minimum="0.10" Maximum="0.60" SmallChange="0.01" LargeChange="0.05"
+                                    TickFrequency="0.05" TickPlacement="BottomRight"
+                                    ValueChanged="AnomalyThresholdSlider_ValueChanged"/>
+                            <TextBlock Grid.Column="2" x:Name="AnomalyThresholdLabel"
+                                       VerticalAlignment="Center" TextAlignment="Right" FontFamily="Consolas"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
             </StackPanel>
         </ScrollViewer>
 

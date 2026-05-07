@@ -47,6 +47,9 @@ namespace Kalendarz1.CentrumNagranAI.Services
                     cmd.ExecuteNonQuery();
                 }
 
+                // Migracje dla starszych baz (nowe kolumny dodane w późniejszych fazach)
+                TryAlter(conn, "ALTER TABLE guard_rule ADD COLUMN notify_sms INTEGER NOT NULL DEFAULT 0");
+
                 // Upsert kamer.
                 foreach (var k in CnaConfig.Kamery)
                 {
@@ -302,6 +305,11 @@ namespace Kalendarz1.CentrumNagranAI.Services
             public float Similarity { get; set; }
         }
 
+        /// <summary>
+        /// KNN streaming - czytamy SQL streamem (DataReader trzyma jeden wiersz na raz),
+        /// w pamięci utrzymujemy tylko top-K (PriorityQueue). Skaluje do milionów klatek
+        /// bez wybuchu RAM. Dla 100k × 1536 floats: ~30MB constant (top-K=50).
+        /// </summary>
         public static List<KnnHit> KnnSearch(
             float[] queryVec, int topK,
             DateTime? fromUtc = null, DateTime? toUtc = null,
@@ -331,32 +339,64 @@ namespace Kalendarz1.CentrumNagranAI.Services
             }
             cmd.CommandText = sql;
 
-            var heap = new List<KnnHit>(topK + 1);
+            // Min-heap: trzymamy K najlepszych. Najmniejszy jest "na wierzchu" - to ten do wymiany.
+            // PriorityQueue domyślnie min-heap po priorytecie (similarity).
+            var heap = new PriorityQueue<KnnHit, float>(topK + 1);
+
             using var rdr = cmd.ExecuteReader();
             while (rdr.Read())
             {
                 byte[] blob = (byte[])rdr["vector"];
-                float[] v = EmbeddingService.BlobToFloatArray(blob);
-                float sim = EmbeddingService.Cosine(queryVec, v);
-                var hit = new KnnHit
+                // Inline cosine bez alokacji nowego float[] - liczymy bezpośrednio z blob.
+                float sim = CosineFromBlob(queryVec, blob);
+
+                if (heap.Count < topK)
                 {
-                    FrameId = rdr.GetInt64(0),
-                    CameraId = rdr.GetString(1),
-                    TsUtc = DateTime.Parse(rdr.GetString(2), null, System.Globalization.DateTimeStyles.RoundtripKind),
-                    FilePath = rdr.GetString(3),
-                    Caption = rdr.IsDBNull(4) ? null : rdr.GetString(4),
-                    Similarity = sim
-                };
-                // Wstawiamy do listy zachowując top-K po Similarity
-                heap.Add(hit);
-                if (heap.Count > topK)
+                    var hit = MakeHit(rdr, sim);
+                    heap.Enqueue(hit, sim);
+                }
+                else
                 {
-                    heap.Sort((a, b) => b.Similarity.CompareTo(a.Similarity));
-                    heap.RemoveAt(heap.Count - 1);
+                    // Sprawdź czy ten kandydat lepszy od najgorszego w heap.
+                    if (sim > heap.Peek().Similarity)
+                    {
+                        heap.Dequeue();
+                        var hit = MakeHit(rdr, sim);
+                        heap.Enqueue(hit, sim);
+                    }
                 }
             }
-            heap.Sort((a, b) => b.Similarity.CompareTo(a.Similarity));
-            return heap;
+
+            // Wyciągnij wszystko z heap, posortuj DESC.
+            var result = new List<KnnHit>(heap.Count);
+            while (heap.Count > 0) result.Add(heap.Dequeue());
+            result.Sort((a, b) => b.Similarity.CompareTo(a.Similarity));
+            return result;
+        }
+
+        private static KnnHit MakeHit(SqliteDataReader rdr, float sim) => new()
+        {
+            FrameId = rdr.GetInt64(0),
+            CameraId = rdr.GetString(1),
+            TsUtc = DateTime.Parse(rdr.GetString(2), null, System.Globalization.DateTimeStyles.RoundtripKind),
+            FilePath = rdr.GetString(3),
+            Caption = rdr.IsDBNull(4) ? null : rdr.GetString(4),
+            Similarity = sim
+        };
+
+        // Inline cosine bezpośrednio z blob — bez alokacji float[].
+        // Zakładamy że oba znormalizowane (OpenAI zwraca unit vectors).
+        private static float CosineFromBlob(float[] q, byte[] blob)
+        {
+            int n = Math.Min(q.Length, blob.Length / 4);
+            float dot = 0;
+            for (int i = 0; i < n; i++)
+            {
+                int o = i * 4;
+                float v = BitConverter.ToSingle(blob, o);
+                dot += q[i] * v;
+            }
+            return dot;
         }
 
         public static float[]? GetEmbedding(long frameId)
@@ -420,6 +460,17 @@ namespace Kalendarz1.CentrumNagranAI.Services
         /// Schema SQL — szukamy w katalogu wyjściowym aplikacji obok exe;
         /// fallback do embedded literal jeśli plik niedostępny (np. w testach).
         /// </summary>
+        private static void TryAlter(SqliteConnection conn, string sql)
+        {
+            try
+            {
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = sql;
+                cmd.ExecuteNonQuery();
+            }
+            catch (SqliteException) { /* kolumna już istnieje albo inne pole istnieje */ }
+        }
+
         private static string WczytajSchemaSql()
         {
             var kandydaci = new[]

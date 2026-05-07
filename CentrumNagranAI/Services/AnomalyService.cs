@@ -110,8 +110,10 @@ namespace Kalendarz1.CentrumNagranAI.Services
         /// Zwraca distance albo null jeśli baseline brak.
         /// </summary>
         public static double? CheckFrame(long frameId, string cameraId, DateTime tsUtc, float[] embedding,
-            double threshold = DefaultDistanceThreshold)
+            double? threshold = null)
         {
+            double effThreshold = threshold ?? CnaConfig.AnomalyThreshold;
+
             int hour = tsUtc.ToLocalTime().Hour;
             using var conn = new SqliteConnection(ConnString);
             conn.Open();
@@ -130,7 +132,7 @@ namespace Kalendarz1.CentrumNagranAI.Services
             float sim = EmbeddingService.Cosine(embedding, centroid);
             double distance = 1.0 - sim;
 
-            if (distance >= threshold)
+            if (distance >= effThreshold)
             {
                 rdr.Close();
                 using var ins = conn.CreateCommand();
@@ -141,9 +143,9 @@ namespace Kalendarz1.CentrumNagranAI.Services
                 ins.Parameters.AddWithValue("$c", cameraId);
                 ins.Parameters.AddWithValue("$t", tsUtc.ToString("o"));
                 ins.Parameters.AddWithValue("$d", distance);
-                ins.Parameters.AddWithValue("$th", threshold);
+                ins.Parameters.AddWithValue("$th", effThreshold);
                 ins.ExecuteNonQuery();
-                Log($"ANOMALIA! kamera={cameraId} hour={hour} dist={distance:F3} (próg {threshold})");
+                Log($"ANOMALIA! kamera={cameraId} hour={hour} dist={distance:F3} (próg {effThreshold:F3})");
             }
 
             return distance;

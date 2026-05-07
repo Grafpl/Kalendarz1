@@ -66,7 +66,10 @@ public class CnaWorker : BackgroundService
             await IndexerBackgroundService.Instance.StartAsync();
             await EmbeddingBackfillService.Instance.StartAsync();
 
-            // Heart-beat co 5 min do logu Windows (visible w Event Viewer)
+            DateTime lastBriefDay = DateTime.MinValue;
+            DateTime lastBaselineRebuild = DateTime.MinValue;
+
+            // Heart-beat co 5 min + auto-brief o 17:00 + auto-rebuild baseline raz na dobę.
             while (!stoppingToken.IsCancellationRequested)
             {
                 long count = FrameIndex.CountFrames();
@@ -77,6 +80,35 @@ public class CnaWorker : BackgroundService
                     IndexerBackgroundService.Instance.Cycles,
                     EmbeddingBackfillService.Instance.Processed,
                     EmbeddingBackfillService.Instance.TotalCostUsd);
+
+                var localNow = DateTime.Now;
+                var today = localNow.Date;
+
+                // Auto-brief o 17:00 (raz dziennie). Jeśli serwis wystartował po 17 - generujemy od razu.
+                if (lastBriefDay < today && localNow.Hour >= 17)
+                {
+                    try
+                    {
+                        _logger.LogInformation("Generuję dzisiejszy brief...");
+                        var b = await DailyBriefService.GenerateAsync(today, ct: stoppingToken);
+                        lastBriefDay = today;
+                        _logger.LogInformation("Brief {Day} gotowy (${Cost:F4})", b.Day, b.CostUsd);
+                    }
+                    catch (Exception ex) { _logger.LogWarning(ex, "Brief generation fail"); }
+                }
+
+                // Auto-rebuild baseline raz na 24h (zmienia się rytm, sezonowość).
+                if ((localNow - lastBaselineRebuild).TotalHours >= 24)
+                {
+                    try
+                    {
+                        AnomalyService.RebuildBaseline(7);
+                        lastBaselineRebuild = localNow;
+                        _logger.LogInformation("Baseline anomalii przebudowany (z 7 dni).");
+                    }
+                    catch (Exception ex) { _logger.LogWarning(ex, "Baseline rebuild fail"); }
+                }
+
                 await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken);
             }
         }

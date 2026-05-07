@@ -18,6 +18,7 @@ namespace Kalendarz1.CentrumNagranAI.Views
             public int Threshold { get; set; }
             public int CooldownMin { get; set; }
             public bool Enabled { get; set; }
+            public bool NotifySms { get; set; }
         }
 
         public class AlertVm
@@ -89,7 +90,8 @@ namespace Kalendarz1.CentrumNagranAI.Views
                 _rules.Add(new RuleVm
                 {
                     Id = r.Id, Name = r.Name, Prompt = r.Prompt,
-                    Threshold = r.Threshold, CooldownMin = r.CooldownMin, Enabled = r.Enabled
+                    Threshold = r.Threshold, CooldownMin = r.CooldownMin,
+                    Enabled = r.Enabled, NotifySms = r.NotifySms
                 });
             }
         }
@@ -104,6 +106,7 @@ namespace Kalendarz1.CentrumNagranAI.Views
             RuleThresholdBox.Text = _editing.Threshold.ToString();
             RuleCooldownBox.Text = _editing.CooldownMin.ToString();
             RuleEnabledChk.IsChecked = _editing.Enabled;
+            RuleSmsChk.IsChecked = _editing.NotifySms;
         }
 
         private void NewRule_Click(object sender, RoutedEventArgs e)
@@ -115,6 +118,7 @@ namespace Kalendarz1.CentrumNagranAI.Views
             RuleThresholdBox.Text = "70";
             RuleCooldownBox.Text = "10";
             RuleEnabledChk.IsChecked = true;
+            RuleSmsChk.IsChecked = false;
         }
 
         private void DeleteRule_Click(object sender, RoutedEventArgs e)
@@ -128,16 +132,32 @@ namespace Kalendarz1.CentrumNagranAI.Views
         private void SaveRule_Click(object sender, RoutedEventArgs e)
         {
             if (_editing == null) return;
-            if (!int.TryParse(RuleThresholdBox.Text, out int th)) { MessageBox.Show("Próg musi być liczbą"); return; }
-            if (!int.TryParse(RuleCooldownBox.Text, out int cd)) { MessageBox.Show("Cooldown musi być liczbą"); return; }
+
+            string name = (RuleNameBox.Text ?? "").Trim();
+            string prompt = (RulePromptBox.Text ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(name)) { MessageBox.Show("Nazwa reguły nie może być pusta"); return; }
+            if (string.IsNullOrWhiteSpace(prompt)) { MessageBox.Show("Pytanie (prompt) nie może być puste"); return; }
+            if (prompt.Length < 10) { MessageBox.Show("Pytanie za krótkie - opisz co AI ma sprawdzać (min 10 znaków)"); return; }
+            if (!int.TryParse(RuleThresholdBox.Text, out int th) || th < 0 || th > 100)
+            { MessageBox.Show("Próg musi być liczbą 0-100"); return; }
+            if (!int.TryParse(RuleCooldownBox.Text, out int cd) || cd < 1 || cd > 1440)
+            { MessageBox.Show("Cooldown musi być liczbą 1-1440 (minut)"); return; }
+            bool sms = RuleSmsChk.IsChecked == true;
+            if (sms && !NotifyService.IsConfigured)
+            {
+                if (MessageBox.Show("Twilio nie jest skonfigurowany w secrets.json. SMS nie będzie wysłany. Zapisać mimo to?",
+                    "Ostrzeżenie", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
+            }
+
             var rule = new GuardRule
             {
                 Id = _editing.Id,
-                Name = RuleNameBox.Text.Trim(),
-                Prompt = RulePromptBox.Text.Trim(),
+                Name = name,
+                Prompt = prompt,
                 Threshold = th,
                 CooldownMin = cd,
-                Enabled = RuleEnabledChk.IsChecked == true
+                Enabled = RuleEnabledChk.IsChecked == true,
+                NotifySms = sms
             };
             GuardService.UpsertRule(rule);
             LoadRules();

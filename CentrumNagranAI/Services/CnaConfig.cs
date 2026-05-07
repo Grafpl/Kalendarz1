@@ -31,6 +31,9 @@ namespace Kalendarz1.CentrumNagranAI.Services
         // Sensowne tylko dla kamer rampy/bramy. ~$0.001 per klatka.
         public static List<string> KameryDoOcr { get; set; } = new();
 
+        // Próg anomalii (cosine distance). Niższy = bardziej czuły, więcej alarmów.
+        public static double AnomalyThreshold { get; set; } = 0.30;
+
         public static string BaseDir => Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "Kalendarz1", "CentrumNagranAI");
@@ -152,6 +155,8 @@ namespace Kalendarz1.CentrumNagranAI.Services
                 {
                     KameryDoOcr = ocrCams.Select(c => c.Value<string>() ?? string.Empty).Where(s => !string.IsNullOrEmpty(s)).ToList();
                 }
+
+                AnomalyThreshold = json["AnomalyThreshold"]?.Value<double?>() ?? AnomalyThreshold;
             }
             catch { }
         }
@@ -168,7 +173,8 @@ namespace Kalendarz1.CentrumNagranAI.Services
                 ["TopKCandydatow"] = TopKCandydatow,
                 ["TopNFinalnych"] = TopNFinalnych,
                 ["NazwyKamer"] = JObject.FromObject(NazwyKamer),
-                ["KameryDoOcr"] = new JArray(KameryDoOcr)
+                ["KameryDoOcr"] = new JArray(KameryDoOcr),
+                ["AnomalyThreshold"] = AnomalyThreshold
             };
             Directory.CreateDirectory(BaseDir);
             File.WriteAllText(SettingsPath, obj.ToString(Formatting.Indented), System.Text.Encoding.UTF8);
