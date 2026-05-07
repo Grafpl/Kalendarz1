@@ -2,36 +2,40 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 namespace Kalendarz1.CentrumNagranAI.Services
 {
     /// <summary>
-    /// Konfiguracja modułu Centrum nagrań AI (CNA). Lazy-load z pliku secrets.json
-    /// w %LOCALAPPDATA%\Kalendarz1\CentrumNagranAI\ — POZA repo Git, by uniknąć wycieku
-    /// klucza Anthropic i danych logowania do NVR.
+    /// Konfiguracja modułu Centrum nagrań AI (CNA).
+    /// Dwa pliki w %LOCALAPPDATA%\Kalendarz1\CentrumNagranAI\ (poza repo Git):
+    ///   - secrets.json     — klucz Anthropic + creds NVR (nigdy nie commitować, nigdy w UI)
+    ///   - cna_settings.json — ustawienia edytowalne z UI (nazwy kamer, retencja, interwał)
     /// </summary>
     public static class CnaConfig
     {
         public static string AnthropicApiKey { get; private set; } = string.Empty;
         public static List<CnaCameraEndpoint> Kamery { get; private set; } = new();
 
-        // Stałe interwały i progi PoC. Docelowo można wciągnąć z appsettings.json.
-        public const int InterwalKlatkiSekund = 10;
-        public const int RetencjaDni = 3;
-        public const int TopKCandydatow = 50;
-        public const int TopNFinalnych = 10;
+        // Ustawienia edytowalne — wartości domyślne, nadpisywane z cna_settings.json.
+        public static int InterwalKlatkiSekund { get; set; } = 10;
+        public static int RetencjaDni { get; set; } = 3;
+        public static int TopKCandydatow { get; set; } = 50;
+        public static int TopNFinalnych { get; set; } = 10;
 
-        // Ścieżki — wszystkie pochodne BaseDir, %LOCALAPPDATA%\Kalendarz1\CentrumNagranAI.
+        // Mapa: cameraId → display name (np. "NVR1-Ubojnia-CH01" → "Hala uboju").
+        public static Dictionary<string, string> NazwyKamer { get; set; } = new();
+
         public static string BaseDir => Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "Kalendarz1", "CentrumNagranAI");
         public static string SecretsPath => Path.Combine(BaseDir, "secrets.json");
+        public static string SettingsPath => Path.Combine(BaseDir, "cna_settings.json");
         public static string DbPath => Path.Combine(BaseDir, "index.db");
         public static string FramesDir => Path.Combine(BaseDir, "frames");
         public static string AuditDir => Path.Combine(BaseDir, "audit");
 
-        // FFmpeg leży w tools/ffmpeg/ (gitignored). Szukamy ffmpeg.exe rekurencyjnie.
         public static string FfmpegExePath { get; private set; } = string.Empty;
 
         private static bool _zaladowano;
@@ -43,14 +47,39 @@ namespace Kalendarz1.CentrumNagranAI.Services
             lock (_lock)
             {
                 if (_zaladowano) return;
-                Zaladuj();
+                ZaladujSekrety();
+                ZaladujUstawienia();
+                FfmpegExePath = ZnajdzFfmpeg() ?? string.Empty;
+                Directory.CreateDirectory(FramesDir);
+                Directory.CreateDirectory(AuditDir);
                 _zaladowano = true;
             }
         }
 
-        private static void Zaladuj()
+        /// <summary>
+        /// Wymuszone przeładowanie - po zapisie ustawień z UI.
+        /// </summary>
+        public static void Przeladuj()
         {
-            // 1) Klucz Anthropic + lista kamer z secrets.json (priorytet) lub ENV (fallback).
+            lock (_lock)
+            {
+                _zaladowano = false;
+                Kamery = new();
+                NazwyKamer = new();
+                ZaladujSekrety();
+                ZaladujUstawienia();
+                _zaladowano = true;
+            }
+        }
+
+        public static string DisplayName(CnaCameraEndpoint k) =>
+            NazwyKamer.TryGetValue(k.Id, out var name) && !string.IsNullOrWhiteSpace(name) ? name : k.Id;
+
+        public static string DisplayName(string cameraId) =>
+            NazwyKamer.TryGetValue(cameraId, out var name) && !string.IsNullOrWhiteSpace(name) ? name : cameraId;
+
+        private static void ZaladujSekrety()
+        {
             try
             {
                 if (File.Exists(SecretsPath))
@@ -68,7 +97,7 @@ namespace Kalendarz1.CentrumNagranAI.Services
                             int port = nvr["RtspPort"]?.Value<int?>() ?? 554;
                             string user = nvr["User"]?.Value<string>() ?? string.Empty;
                             string pass = nvr["Password"]?.Value<string>() ?? string.Empty;
-                            int defaultStream = nvr["DefaultStreamType"]?.Value<int?>() ?? 0; // 0=main, 1=sub
+                            int defaultStream = nvr["DefaultStreamType"]?.Value<int?>() ?? 0;
                             var chans = nvr["Channels"] as JArray;
                             if (chans == null) continue;
 
@@ -91,22 +120,47 @@ namespace Kalendarz1.CentrumNagranAI.Services
                     }
                 }
             }
-            catch
-            {
-                // Plik niedostępny / niepoprawny JSON — fallback do ENV.
-            }
+            catch { }
 
             if (string.IsNullOrEmpty(AnthropicApiKey))
-            {
                 AnthropicApiKey = Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY") ?? string.Empty;
+        }
+
+        private static void ZaladujUstawienia()
+        {
+            try
+            {
+                if (!File.Exists(SettingsPath)) return;
+                var json = JObject.Parse(File.ReadAllText(SettingsPath));
+                InterwalKlatkiSekund = json["InterwalKlatkiSekund"]?.Value<int?>() ?? InterwalKlatkiSekund;
+                RetencjaDni = json["RetencjaDni"]?.Value<int?>() ?? RetencjaDni;
+                TopKCandydatow = json["TopKCandydatow"]?.Value<int?>() ?? TopKCandydatow;
+                TopNFinalnych = json["TopNFinalnych"]?.Value<int?>() ?? TopNFinalnych;
+
+                var names = json["NazwyKamer"] as JObject;
+                if (names != null)
+                {
+                    NazwyKamer = names.Properties().ToDictionary(p => p.Name, p => p.Value.Value<string>() ?? string.Empty);
+                }
             }
+            catch { }
+        }
 
-            // 2) Lokalizacja ffmpeg.exe — szukamy w tools/ffmpeg/ obok exe lub w katalogu projektu.
-            FfmpegExePath = ZnajdzFfmpeg() ?? string.Empty;
-
-            // 3) Stwórz katalogi danych.
-            Directory.CreateDirectory(FramesDir);
-            Directory.CreateDirectory(AuditDir);
+        /// <summary>
+        /// Zapis ustawień do cna_settings.json. Wywoływane z SettingsWindow po zmianie.
+        /// </summary>
+        public static void ZapiszUstawienia()
+        {
+            var obj = new JObject
+            {
+                ["InterwalKlatkiSekund"] = InterwalKlatkiSekund,
+                ["RetencjaDni"] = RetencjaDni,
+                ["TopKCandydatow"] = TopKCandydatow,
+                ["TopNFinalnych"] = TopNFinalnych,
+                ["NazwyKamer"] = JObject.FromObject(NazwyKamer)
+            };
+            Directory.CreateDirectory(BaseDir);
+            File.WriteAllText(SettingsPath, obj.ToString(Formatting.Indented), System.Text.Encoding.UTF8);
         }
 
         private static string? ZnajdzFfmpeg()
@@ -115,14 +169,12 @@ namespace Kalendarz1.CentrumNagranAI.Services
             {
                 AppContext.BaseDirectory,
                 Environment.CurrentDirectory,
-                Path.Combine(AppContext.BaseDirectory, "..", "..", "..") // dev: bin\Debug\net8.0-windows7.0 → root
+                Path.Combine(AppContext.BaseDirectory, "..", "..", "..")
             };
-
             foreach (var baza in kandydaci)
             {
                 var toolsDir = Path.Combine(baza, "tools", "ffmpeg");
                 if (!Directory.Exists(toolsDir)) continue;
-
                 var found = Directory.GetFiles(toolsDir, "ffmpeg.exe", SearchOption.AllDirectories).FirstOrDefault();
                 if (found != null) return Path.GetFullPath(found);
             }
@@ -130,10 +182,6 @@ namespace Kalendarz1.CentrumNagranAI.Services
         }
     }
 
-    /// <summary>
-    /// Pojedyncza kamera = jeden kanał w danym NVR. Pełny URL RTSP budowany w RtspFrameGrabber
-    /// żeby login/hasło nie wisiały w polach POCO dłużej niż konieczne.
-    /// </summary>
     public class CnaCameraEndpoint
     {
         public string Id { get; set; } = string.Empty;
@@ -143,9 +191,6 @@ namespace Kalendarz1.CentrumNagranAI.Services
         public string User { get; set; } = string.Empty;
         public string Password { get; set; } = string.Empty;
         public int Channel { get; set; }
-
-        // 0 = main stream (zawsze dostępny w Internec, ~2-4 Mbps),
-        // 1 = sub stream (lżejszy, ale nie każdy kanał go ma).
         public int StreamType { get; set; }
     }
 }

@@ -75,10 +75,19 @@
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <Button x:Name="PlayLiveBtn" Grid.Column="0" Content="▶ Live z kamery"
-                    Padding="14,8" Background="{StaticResource Accent}"
-                    Foreground="White" FontWeight="Bold" BorderThickness="0"
-                    Cursor="Hand" Click="PlayLive_Click"/>
+            <StackPanel Grid.Column="0" Orientation="Horizontal">
+                <Button x:Name="PlayClipBtn" Content="⏮ Klip ±15s (z nagrania)"
+                        Padding="14,8" Background="{StaticResource Accent}"
+                        Foreground="White" FontWeight="Bold" BorderThickness="0"
+                        Cursor="Hand" Click="PlayClip_Click"
+                        ToolTip="Odtwarza nagranie z dysku NVR z momentu zdjęcia (±15s)"/>
+                <Button x:Name="PlayLiveBtn" Content="▶ Live z kamery"
+                        Margin="8,0,0,0" Padding="14,8"
+                        Background="Transparent" Foreground="{StaticResource Text}"
+                        BorderBrush="{StaticResource Border}" BorderThickness="1"
+                        Cursor="Hand" Click="PlayLive_Click"
+                        ToolTip="Otwiera live stream tej kamery (aktualny obraz, nie nagranie)"/>
+            </StackPanel>
             <TextBlock x:Name="StatusText" Grid.Column="1" Margin="16,0"
                        VerticalAlignment="Center"
                        Foreground="{StaticResource TextDim}"

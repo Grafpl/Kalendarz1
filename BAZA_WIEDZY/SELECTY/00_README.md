@@ -4,9 +4,28 @@
 
 | Runda | Plik SQL | Plik wyników | Status |
 |---|---|---|---|
-| **1** | `EKSPLORACJA_LIBRANET_FULL.sql` | `WYNIKI_RAW.txt` | **GOTOWE** (9115 linii, ~98 sekcji) |
-| **1 — analiza** | — | `WYNIKI_ANALIZA_RUNDA1.md` | **GOTOWE** (synteza tego co odkryłem) |
-| **2** | `EKSPLORACJA_LIBRANET_2.sql` | `WYNIKI_RAW_2.txt` | **DO URUCHOMIENIA** (35 nowych bloków) |
+| **1** LibraNet | `EKSPLORACJA_LIBRANET_FULL.sql` | `WYNIKI_RAW.txt` | ✅ GOTOWE (9115 linii) |
+| **1** analiza | — | `WYNIKI_ANALIZA_RUNDA1.md` | ✅ Synteza |
+| **2** LibraNet głębiej | `EKSPLORACJA_LIBRANET_2.sql` | `WYNIKI_RAW_2.txt` | ✅ GOTOWE (2865 linii) |
+| **2** analiza | — | `WYNIKI_ANALIZA_RUNDA2.md` | ✅ Synteza |
+| **3** LibraNet najgłębiej | `EKSPLORACJA_LIBRANET_3.sql` | `WYNIKI_LIBRANET_3.txt` | ⏳ DO URUCHOMIENIA (32 bloki) |
+| **3** Symfonia | `EKSPLORACJA_HANDEL_FULL.sql` | `WYNIKI_HANDEL.txt` | ⏳ DO URUCHOMIENIA (17 bloków) |
+| **3** TransportPL | `EKSPLORACJA_TRANSPORTPL_FULL.sql` | `WYNIKI_TRANSPORTPL.txt` | ⏳ DO URUCHOMIENIA (10 bloków) |
+| **3** UNICARD RCP | `EKSPLORACJA_UNISYSTEM_FULL.sql` | `WYNIKI_UNISYSTEM.txt` | ✅ GOTOWE |
+| **4** Zależności (z audytu kodu) | `EKSPLORACJA_ZALEZNOSCI.sql` | `WYNIKI_ZALEZNOSCI.txt` | ✅ GOTOWE (analiza w `WYNIKI_ANALIZA_RUNDA4.md`) |
+| Audyt kodu | — | `BAZA_WIEDZY/AUDYT_KODU_SQL.md` | ✅ GOTOWE (wzorce SELECT/INSERT/UPDATE z kodu) |
+| **5** LibraNet najgłębiej | `EKSPLORACJA_LIBRANET_5.sql` | `WYNIKI_LIBRANET_5.txt` | ✅ GOTOWE (960 linii, analiza w `WYNIKI_ANALIZA_RUNDA5.md`) |
+| **5** HANDEL głębiej | `EKSPLORACJA_HANDEL_2.sql` | `WYNIKI_HANDEL_2.txt` | ✅ GOTOWE (730 linii, analiza w `WYNIKI_ANALIZA_RUNDA5.md`) |
+| **5** Cross-DB | `EKSPLORACJA_CROSS_DB.sql` | `WYNIKI_CROSS_DB.txt` | ✅ GOTOWE (304 linii, analiza w `WYNIKI_ANALIZA_RUNDA5.md`) |
+| **5** Synteza | — | `WYNIKI_ANALIZA_RUNDA5.md` | ✅ Synteza wszystkich 3 plików |
+
+## ⚠️ Login do Symfonii (HANDEL, 192.168.0.112)
+
+**INNE niż LibraNet!** Connection string z kodu ZPSP:
+- **Server:** `192.168.0.112`
+- **Database:** `Handel`
+- **User:** `sa`
+- **Password:** `?cs_'Y6,n5#Xd'Yd`
 
 
 

@@ -46,6 +46,9 @@ namespace Kalendarz1.CentrumNagranAI.Services
         public long Cycles => _cycleCounter;
         public long FramesGrabbed => _frameCounter;
 
+        // Cleanup uruchamiany raz na dobę o tej samej godzinie od startu indexera.
+        private System.Timers.Timer? _cleanupTimer;
+
         public Task StartAsync()
         {
             if (_isRunning) return Task.CompletedTask;
@@ -60,12 +63,66 @@ namespace Kalendarz1.CentrumNagranAI.Services
             _timer.Elapsed += (_, _) => _ = ExecuteCycleAsync();
             _timer.Start();
 
-            _isRunning = true;
-            Log($"Indexer wystartowany. Kamer: {CnaConfig.Kamery.Count}, interwał: {interval}s");
+            // Cleanup co 24h
+            _cleanupTimer = new System.Timers.Timer(TimeSpan.FromHours(24).TotalMilliseconds) { AutoReset = true };
+            _cleanupTimer.Elapsed += (_, _) => { try { CleanupOldFrames(CnaConfig.RetencjaDni); } catch (Exception ex) { Log($"Cleanup fail: {ex.Message}"); } };
+            _cleanupTimer.Start();
 
-            // Pierwszy cykl odpalamy od razu, nie czekamy interwału.
+            _isRunning = true;
+            Log($"Indexer wystartowany. Kamer: {CnaConfig.Kamery.Count}, interwał: {interval}s, retencja: {CnaConfig.RetencjaDni} dni");
+
             _ = ExecuteCycleAsync();
             return Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// Kasuje klatki starsze niż retencja - pliki JPEG na dysku + wpisy w SQLite.
+        /// Zwraca (ile_plików_skasowanych, MB_zwolnione, ile_rekordów_DB_skasowanych).
+        /// </summary>
+        public static (int FilesDeleted, double MbFreed, int DbRowsDeleted) CleanupOldFrames(int retencjaDni)
+        {
+            CnaConfig.ZaladujJesliTrzeba();
+            DateTime cutoff = DateTime.UtcNow.AddDays(-retencjaDni);
+
+            int filesDel = 0;
+            long bytesFreed = 0;
+
+            // 1) Skanuj folder frames — kasuj per data folder (yyyy-MM-dd) jeśli starsze
+            if (Directory.Exists(CnaConfig.FramesDir))
+            {
+                foreach (var camDir in Directory.GetDirectories(CnaConfig.FramesDir))
+                {
+                    foreach (var dayDir in Directory.GetDirectories(camDir))
+                    {
+                        var name = Path.GetFileName(dayDir);
+                        if (!DateTime.TryParseExact(name, "yyyy-MM-dd", null,
+                            System.Globalization.DateTimeStyles.None, out var dayDate)) continue;
+                        if (dayDate.Date >= cutoff.Date) continue;
+
+                        try
+                        {
+                            foreach (var f in Directory.GetFiles(dayDir, "*.jpg"))
+                            {
+                                bytesFreed += new FileInfo(f).Length;
+                                File.Delete(f);
+                                filesDel++;
+                            }
+                            Directory.Delete(dayDir, recursive: false);
+                        }
+                        catch (Exception ex)
+                        {
+                            Log($"Cleanup folder {dayDir} fail: {ex.Message}");
+                        }
+                    }
+                }
+            }
+
+            // 2) Skasuj wpisy w bazie
+            int dbRows = FrameIndex.DeleteFramesOlderThan(cutoff);
+
+            double mbFreed = bytesFreed / 1024.0 / 1024.0;
+            Log($"Cleanup: {filesDel} plików ({mbFreed:F1} MB) + {dbRows} rekordów DB skasowane (starsze niż {retencjaDni} dni)");
+            return (filesDel, mbFreed, dbRows);
         }
 
         public void Stop()
@@ -74,6 +131,9 @@ namespace Kalendarz1.CentrumNagranAI.Services
             _timer?.Stop();
             _timer?.Dispose();
             _timer = null;
+            _cleanupTimer?.Stop();
+            _cleanupTimer?.Dispose();
+            _cleanupTimer = null;
             _cts?.Cancel();
             _isRunning = false;
             Log($"Indexer zatrzymany. Cykli: {_cycleCounter}, klatek: {_frameCounter}");

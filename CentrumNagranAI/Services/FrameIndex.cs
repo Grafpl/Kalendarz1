@@ -184,6 +184,36 @@ namespace Kalendarz1.CentrumNagranAI.Services
             return (long)cmd.ExecuteScalar()!;
         }
 
+        /// <summary>
+        /// Kasuje wpisy frame + frame_embedding starsze niż cutoff. Zwraca ile rekordów.
+        /// </summary>
+        public static int DeleteFramesOlderThan(DateTime cutoffUtc)
+        {
+            using var conn = new SqliteConnection(ConnString);
+            conn.Open();
+            using var tx = conn.BeginTransaction();
+
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.Transaction = tx;
+                cmd.CommandText = "DELETE FROM frame_embedding WHERE frame_id IN (SELECT id FROM frame WHERE ts < $cut)";
+                cmd.Parameters.AddWithValue("$cut", cutoffUtc.ToString("o"));
+                cmd.ExecuteNonQuery();
+            }
+
+            int rows;
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.Transaction = tx;
+                cmd.CommandText = "DELETE FROM frame WHERE ts < $cut";
+                cmd.Parameters.AddWithValue("$cut", cutoffUtc.ToString("o"));
+                rows = cmd.ExecuteNonQuery();
+            }
+
+            tx.Commit();
+            return rows;
+        }
+
         public static Dictionary<string, long> CountPerCamera()
         {
             var result = new Dictionary<string, long>();

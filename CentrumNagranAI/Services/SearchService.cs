@@ -157,20 +157,35 @@ namespace Kalendarz1.CentrumNagranAI.Services
         }
 
         /// <summary>
-        /// Polski prompt dla rerankera. Wymuszamy JSON output z dwoma polami.
+        /// Polski prompt dla rerankera. Few-shot examples + ścisła skala score
+        /// żeby Haiku nie zwracał wszystkim 85/100. Wymuszamy JSON output.
         /// </summary>
         private static string BudujPrompt(string polishQuery) =>
-            "Jesteś asystentem analizującym klatki z kamer CCTV w zakładzie drobiarskim (ubojnia).\n" +
-            $"PYTANIE UŻYTKOWNIKA: \"{polishQuery}\"\n\n" +
-            "Twoje zadanie: oceń, jak bardzo to konkretne zdjęcie pasuje do pytania.\n" +
-            "Zwróć WYŁĄCZNIE JSON o strukturze:\n" +
-            "{\"score\": <0-100>, \"reason\": \"<jedno zdanie po polsku, dlaczego pasuje albo nie>\"}\n\n" +
-            "Reguły:\n" +
-            " - score = 0 gdy zupełnie nie pasuje\n" +
-            " - score = 100 gdy idealnie pasuje (np. dokładnie to zdarzenie i kontekst)\n" +
-            " - score 30-70 gdy częściowo pasuje\n" +
-            " - reason: max 1 zdanie po polsku, konkretne, bez ozdobników\n" +
-            " - NIE dodawaj nic poza JSON.";
+            "Jesteś dokładnym analitykiem klatek CCTV w zakładzie drobiarskim (ubojnia kurczaków).\n" +
+            "Twoje zadanie: ocenić jak BARDZO BEZPOŚREDNIO to zdjęcie odpowiada na pytanie użytkownika.\n" +
+            "Bądź SUROWY w ocenie. NIE dawaj wysokich punktów za luźne skojarzenia.\n\n" +
+            "===== SKALA OCENY (ścisła) =====\n" +
+            "  0-15  : zdjęcie NIE MA NIC WSPÓLNEGO z pytaniem\n" +
+            " 16-35  : zdjęcie odległe luźnym skojarzeniem (ten sam typ pomieszczenia, nic więcej)\n" +
+            " 36-55  : zdjęcie z otoczeniem właściwym, ale brak konkretnego elementu z pytania\n" +
+            " 56-75  : zdjęcie zawiera większość elementów z pytania, ale nie wszystkie\n" +
+            " 76-90  : zdjęcie zawiera wszystkie elementy z pytania, dobrze widoczne\n" +
+            " 91-100 : DOSKONAŁY match - zdjęcie jest dokładnie tym o co pytano, idealnie kadr i kontekst\n\n" +
+            "===== PRZYKŁADY (jak punktować) =====\n" +
+            "Pytanie: \"osoba bez czepka w pakowalni\"\n" +
+            "  - Zdjęcie pustej pakowalni bez ludzi → score=10 (jest pakowalnia, nie ma osoby)\n" +
+            "  - Osoba w czepku w pakowalni → score=20 (jest osoba i pakowalnia, ale CZEPEK na głowie)\n" +
+            "  - Osoba bez czepka w hali uboju → score=40 (osoba bez czepka, ale ZŁE pomieszczenie)\n" +
+            "  - Osoba bez czepka w pakowalni, blisko kamery → score=95 (DOKŁADNIE to pytanie)\n\n" +
+            "Pytanie: \"ciężarówka cofająca na rampie\"\n" +
+            "  - Pusty parking → score=5\n" +
+            "  - Ciężarówka stojąca na rampie → score=45 (jest ciężarówka i rampa, ale STOI nie cofa)\n" +
+            "  - Ciężarówka w ruchu na drodze, nie na rampie → score=25\n" +
+            "  - Tył ciężarówki przy bramie rampy z pracownikiem dającym znaki → score=85\n\n" +
+            $"===== PYTANIE UŻYTKOWNIKA =====\n\"{polishQuery}\"\n\n" +
+            "===== ODPOWIEDŹ =====\n" +
+            "Zwróć WYŁĄCZNIE czysty JSON, bez ```, bez komentarzy:\n" +
+            "{\"score\": <liczba 0-100>, \"reason\": \"<jedno zdanie po polsku konkretnie co widzisz w kontekście pytania>\"}\n";
 
         // Haiku zwykle zwraca czysty JSON, ale czasami zawija w ```json ... ``` lub dodaje tekst przed.
         // Tu wyciągamy najbardziej prawdopodobne {...} z odpowiedzi.

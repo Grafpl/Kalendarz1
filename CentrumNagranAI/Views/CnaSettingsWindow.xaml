@@ -1,0 +1,158 @@
+<Window x:Class="Kalendarz1.CentrumNagranAI.Views.CnaSettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Ustawienia — Centrum nagrań AI"
+        Width="700" Height="640"
+        WindowStartupLocation="CenterOwner"
+        Background="#0F172A">
+
+    <Window.Resources>
+        <SolidColorBrush x:Key="Surface" Color="#1E293B"/>
+        <SolidColorBrush x:Key="Surface2" Color="#243349"/>
+        <SolidColorBrush x:Key="Border" Color="#334155"/>
+        <SolidColorBrush x:Key="Text" Color="#E2E8F0"/>
+        <SolidColorBrush x:Key="TextDim" Color="#94A3B8"/>
+        <SolidColorBrush x:Key="Accent" Color="#EF4444"/>
+        <SolidColorBrush x:Key="Danger" Color="#DC2626"/>
+
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource Text}"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Background" Value="#0F172A"/>
+            <Setter Property="Foreground" Value="{StaticResource Text}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource Border}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="8,5"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="⚙ Ustawienia Centrum nagrań AI"
+                   FontSize="20" FontWeight="Bold" Margin="0,0,0,16"/>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+
+                <!-- Nazwy kamer -->
+                <Border Background="{StaticResource Surface}"
+                        BorderBrush="{StaticResource Border}" BorderThickness="1"
+                        CornerRadius="6" Padding="14" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Text="Nazwy kamer" FontWeight="Bold" FontSize="14" Margin="0,0,0,4"/>
+                        <TextBlock Text="Zostaw puste żeby używać domyślnego ID."
+                                   Foreground="{StaticResource TextDim}" FontSize="11" Margin="0,0,0,10"/>
+                        <ItemsControl x:Name="CameraNamesList">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="0,4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="220"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{Binding CameraId}"
+                                                   Foreground="{StaticResource TextDim}"
+                                                   FontFamily="Consolas" FontSize="12"
+                                                   VerticalAlignment="Center"/>
+                                        <TextBox Grid.Column="1" Text="{Binding DisplayName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+
+                <!-- Retencja -->
+                <Border Background="{StaticResource Surface}"
+                        BorderBrush="{StaticResource Border}" BorderThickness="1"
+                        CornerRadius="6" Padding="14" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Text="Retencja klatek" FontWeight="Bold" FontSize="14" Margin="0,0,0,4"/>
+                        <TextBlock Text="Po ilu dniach kasować stare klatki z dysku i bazy."
+                                   Foreground="{StaticResource TextDim}" FontSize="11" Margin="0,0,0,10"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="220"/>
+                                <ColumnDefinition Width="120"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Trzymaj klatki przez:" VerticalAlignment="Center"/>
+                            <TextBox Grid.Column="1" x:Name="RetencjaBox" />
+                            <TextBlock Grid.Column="2" Text="dni" VerticalAlignment="Center" Margin="8,0,0,0"
+                                       Foreground="{StaticResource TextDim}"/>
+                        </Grid>
+                        <TextBlock x:Name="StorageInfoText" Margin="0,12,0,0" FontSize="11"
+                                   Foreground="{StaticResource TextDim}"/>
+                        <Button x:Name="CleanupNowBtn" Content="🗑️ Wyczyść stare teraz"
+                                Margin="0,10,0,0" Padding="14,8" HorizontalAlignment="Left"
+                                Background="{StaticResource Danger}" Foreground="White"
+                                FontWeight="Bold" BorderThickness="0" Cursor="Hand"
+                                Click="CleanupNowBtn_Click"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Interwał + Top N -->
+                <Border Background="{StaticResource Surface}"
+                        BorderBrush="{StaticResource Border}" BorderThickness="1"
+                        CornerRadius="6" Padding="14" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Text="Indeksacja i wyszukiwanie" FontWeight="Bold" FontSize="14" Margin="0,0,0,10"/>
+                        <Grid Margin="0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="220"/>
+                                <ColumnDefinition Width="120"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Klatka co [s]:" VerticalAlignment="Center"/>
+                            <TextBox Grid.Column="1" x:Name="InterwalBox"/>
+                            <TextBlock Grid.Column="2" Text="(min 2 sek; nowe ustawienie wymaga restartu indexera)"
+                                       VerticalAlignment="Center" Margin="8,0,0,0"
+                                       Foreground="{StaticResource TextDim}" FontSize="11"/>
+                        </Grid>
+                        <Grid Margin="0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="220"/>
+                                <ColumnDefinition Width="120"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Top N w wynikach:" VerticalAlignment="Center"/>
+                            <TextBox Grid.Column="1" x:Name="TopNBox"/>
+                            <TextBlock Grid.Column="2" Text="(ile pozycji pokazujemy w UI po wyszukaniu)"
+                                       VerticalAlignment="Center" Margin="8,0,0,0"
+                                       Foreground="{StaticResource TextDim}" FontSize="11"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+            </StackPanel>
+        </ScrollViewer>
+
+        <TextBlock Grid.Row="2" x:Name="StatusText" Margin="0,8,0,0"
+                   Foreground="{StaticResource TextDim}" FontSize="11"/>
+
+        <Grid Grid.Row="3" Margin="0,12,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <Button Grid.Column="1" Content="Anuluj" Padding="14,8" Margin="0,0,8,0"
+                    Background="Transparent" Foreground="{StaticResource TextDim}"
+                    BorderBrush="{StaticResource Border}" BorderThickness="1"
+                    Click="Cancel_Click"/>
+            <Button Grid.Column="2" Content="💾 Zapisz" Padding="14,8"
+                    Background="{StaticResource Accent}" Foreground="White"
+                    FontWeight="Bold" BorderThickness="0" Cursor="Hand"
+                    Click="Save_Click"/>
+        </Grid>
+    </Grid>
+</Window>
