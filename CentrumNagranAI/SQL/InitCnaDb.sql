@@ -99,6 +99,31 @@ CREATE TABLE IF NOT EXISTS anomaly_alert (
 );
 CREATE INDEX IF NOT EXISTS idx_anomaly_ts ON anomaly_alert(ts);
 
+-- Wykryte tablice rejestracyjne (#14 OCR)
+CREATE TABLE IF NOT EXISTS plate_detection (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    frame_id    INTEGER NOT NULL,
+    camera_id   TEXT NOT NULL,
+    ts          TEXT NOT NULL,
+    plate       TEXT NOT NULL,           -- np. "WK 12345" znormalizowane
+    confidence  REAL,                    -- 0..1 albo NULL
+    raw_text    TEXT,                    -- surowy output VLM
+    FOREIGN KEY (frame_id) REFERENCES frame(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_plate_text ON plate_detection(plate);
+CREATE INDEX IF NOT EXISTS idx_plate_ts ON plate_detection(ts);
+
+-- Aktywność per klatka (#20 Heatmapa) — delta embedingu vs poprzednia klatka
+-- tej samej kamery. Wartości 0..1 gdzie 1 = duża zmiana.
+CREATE TABLE IF NOT EXISTS frame_activity (
+    frame_id    INTEGER PRIMARY KEY,
+    camera_id   TEXT NOT NULL,
+    ts          TEXT NOT NULL,
+    activity    REAL NOT NULL,
+    FOREIGN KEY (frame_id) REFERENCES frame(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_activity_cam_ts ON frame_activity(camera_id, ts);
+
 CREATE TABLE IF NOT EXISTS query_audit (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     ts            TEXT NOT NULL,

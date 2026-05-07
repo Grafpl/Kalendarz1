@@ -27,6 +27,10 @@ namespace Kalendarz1.CentrumNagranAI.Services
         // Mapa: cameraId → display name (np. "NVR1-Ubojnia-CH01" → "Hala uboju").
         public static Dictionary<string, string> NazwyKamer { get; set; } = new();
 
+        // Lista kamer dla których robimy OCR tablic (#14). Pusta = wyłączone (oszczędność).
+        // Sensowne tylko dla kamer rampy/bramy. ~$0.001 per klatka.
+        public static List<string> KameryDoOcr { get; set; } = new();
+
         public static string BaseDir => Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "Kalendarz1", "CentrumNagranAI");
@@ -142,6 +146,12 @@ namespace Kalendarz1.CentrumNagranAI.Services
                 {
                     NazwyKamer = names.Properties().ToDictionary(p => p.Name, p => p.Value.Value<string>() ?? string.Empty);
                 }
+
+                var ocrCams = json["KameryDoOcr"] as JArray;
+                if (ocrCams != null)
+                {
+                    KameryDoOcr = ocrCams.Select(c => c.Value<string>() ?? string.Empty).Where(s => !string.IsNullOrEmpty(s)).ToList();
+                }
             }
             catch { }
         }
@@ -157,7 +167,8 @@ namespace Kalendarz1.CentrumNagranAI.Services
                 ["RetencjaDni"] = RetencjaDni,
                 ["TopKCandydatow"] = TopKCandydatow,
                 ["TopNFinalnych"] = TopNFinalnych,
-                ["NazwyKamer"] = JObject.FromObject(NazwyKamer)
+                ["NazwyKamer"] = JObject.FromObject(NazwyKamer),
+                ["KameryDoOcr"] = new JArray(KameryDoOcr)
             };
             Directory.CreateDirectory(BaseDir);
             File.WriteAllText(SettingsPath, obj.ToString(Formatting.Indented), System.Text.Encoding.UTF8);

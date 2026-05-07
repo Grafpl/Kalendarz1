@@ -103,6 +103,10 @@ namespace Kalendarz1.CentrumNagranAI.Services
                         Processed++;
                         TotalCostUsd += costCap;
 
+                        // Aktywność: delta vs poprzedniej klatki tej samej kamery (#20).
+                        try { ActivityService.RecordActivity(frame.Id, frame.CameraId, frame.TsUtc, vec); }
+                        catch (Exception ex) { Debug.WriteLine($"[Activity fail] {ex.Message}"); }
+
                         // Po skutecznym embedingu - równolegle sprawdź guard rules + anomaly.
                         // Fire-and-forget żeby nie blokować backfill pipeline'u.
                         _ = Task.Run(async () =>
@@ -112,6 +116,24 @@ namespace Kalendarz1.CentrumNagranAI.Services
                         });
                         try { AnomalyService.CheckFrame(frame.Id, frame.CameraId, frame.TsUtc, vec); }
                         catch (Exception ex) { Debug.WriteLine($"[Anomaly fail] {ex.Message}"); }
+
+                        // OCR tablic - tylko dla wybranych kamer (drogie).
+                        if (CnaConfig.KameryDoOcr.Contains(frame.CameraId))
+                        {
+                            _ = Task.Run(async () =>
+                            {
+                                try
+                                {
+                                    var plates = await PlateDetectionService.DetectAsync(frame.FilePath);
+                                    if (plates.Count > 0)
+                                    {
+                                        PlateDetectionService.SavePlates(frame.Id, frame.CameraId, frame.TsUtc, plates, string.Join(",", plates));
+                                        TotalCostUsd += 0.001; // przybliżony koszt VLM call
+                                    }
+                                }
+                                catch (Exception ex) { Debug.WriteLine($"[Plate fail] {ex.Message}"); }
+                            });
+                        }
                     }
                     catch (Exception ex)
                     {

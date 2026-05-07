@@ -222,6 +222,18 @@ namespace Kalendarz1.CentrumNagranAI.Views
             w.ShowDialog();
         }
 
+        private void PlatesBtn_Click(object sender, RoutedEventArgs e)
+        {
+            var w = new PlateSearchWindow { Owner = this };
+            w.ShowDialog();
+        }
+
+        private void HeatmapBtn_Click(object sender, RoutedEventArgs e)
+        {
+            var w = new HeatmapWindow { Owner = this };
+            w.ShowDialog();
+        }
+
         private void SettingsBtn_Click(object sender, RoutedEventArgs e)
         {
             var w = new CnaSettingsWindow { Owner = this };

@@ -257,37 +257,38 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <TextBlock x:Name="LeftStatus" Grid.Column="0" VerticalAlignment="Center"
-                       Foreground="{StaticResource TextDim}" FontSize="11"/>
-            <TextBlock x:Name="RightStatus" Grid.Column="1" VerticalAlignment="Center"
-                       Foreground="{StaticResource TextDim}" FontSize="11"/>
-            <Button x:Name="GuardBtn" Grid.Column="2"
-                    Content="🛡️ Strażnik AI" Padding="10,4" Margin="12,0,0,0"
-                    Background="Transparent"
-                    Foreground="{StaticResource Text}"
-                    BorderBrush="{StaticResource Accent}" BorderThickness="1"
-                    FontSize="11" Cursor="Hand"
-                    Click="GuardBtn_Click"
-                    ToolTip="Reguły alertów, anomalie, dzienne briefy"/>
-            <Button x:Name="SettingsBtn" Grid.Column="2"
-                    Content="⚙ Ustawienia" Padding="10,4" Margin="120,0,0,0"
-                    Background="Transparent"
-                    Foreground="{StaticResource TextDim}"
-                    BorderBrush="{StaticResource Border}" BorderThickness="1"
-                    FontSize="11" Cursor="Hand"
-                    Click="SettingsBtn_Click"
-                    ToolTip="Nazwy kamer, retencja, interwał klatek"/>
-            <Button x:Name="AuditBtn" Grid.Column="3"
-                    Content="📂 Audit" Padding="10,4" Margin="6,0,0,0"
-                    Background="Transparent"
-                    Foreground="{StaticResource TextDim}"
-                    BorderBrush="{StaticResource Border}" BorderThickness="1"
-                    FontSize="11" Cursor="Hand"
-                    Click="AuditBtn_Click"
-                    ToolTip="Otwiera folder z logami audytu"/>
+            <StackPanel Grid.Column="0" Orientation="Vertical">
+                <TextBlock x:Name="LeftStatus" Foreground="{StaticResource TextDim}" FontSize="11"/>
+                <TextBlock x:Name="RightStatus" Foreground="{StaticResource TextDim}" FontSize="11"/>
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                <Button x:Name="GuardBtn" Content="🛡️ Strażnik" Padding="10,4" Margin="6,0,0,0"
+                        Background="Transparent" Foreground="{StaticResource Text}"
+                        BorderBrush="{StaticResource Accent}" BorderThickness="1"
+                        FontSize="11" Cursor="Hand" Click="GuardBtn_Click"
+                        ToolTip="Reguły alertów, anomalie, dzienne briefy"/>
+                <Button x:Name="PlatesBtn" Content="🚗 Tablice" Padding="10,4" Margin="6,0,0,0"
+                        Background="Transparent" Foreground="{StaticResource TextDim}"
+                        BorderBrush="{StaticResource Border}" BorderThickness="1"
+                        FontSize="11" Cursor="Hand" Click="PlatesBtn_Click"
+                        ToolTip="Wyszukiwarka tablic rejestracyjnych z kamer rampy/bramy"/>
+                <Button x:Name="HeatmapBtn" Content="🌡️ Heatmapa" Padding="10,4" Margin="6,0,0,0"
+                        Background="Transparent" Foreground="{StaticResource TextDim}"
+                        BorderBrush="{StaticResource Border}" BorderThickness="1"
+                        FontSize="11" Cursor="Hand" Click="HeatmapBtn_Click"
+                        ToolTip="Wizualizacja aktywności kamera×godzina (ostatnie 7 dni)"/>
+                <Button x:Name="SettingsBtn" Content="⚙ Ustawienia" Padding="10,4" Margin="6,0,0,0"
+                        Background="Transparent" Foreground="{StaticResource TextDim}"
+                        BorderBrush="{StaticResource Border}" BorderThickness="1"
+                        FontSize="11" Cursor="Hand" Click="SettingsBtn_Click"
+                        ToolTip="Nazwy kamer, retencja, interwał klatek, OCR"/>
+                <Button x:Name="AuditBtn" Content="📂 Audit" Padding="10,4" Margin="6,0,0,0"
+                        Background="Transparent" Foreground="{StaticResource TextDim}"
+                        BorderBrush="{StaticResource Border}" BorderThickness="1"
+                        FontSize="11" Cursor="Hand" Click="AuditBtn_Click"
+                        ToolTip="Otwiera folder z logami audytu"/>
+            </StackPanel>
         </Grid>
     </Grid>
 </Window>

@@ -16,6 +16,11 @@
     <Compile Remove="Nowy folder2\**" />
     <Compile Remove="Nowy folder3\**" />
     <Compile Remove="transport polecenie\**" />
+    <!-- CnaService to osobny projekt (Worker dla Windows Service) — wykluczamy z głównego Kalendarz1.csproj -->
+    <Compile Remove="CnaService\**" />
+    <None Remove="CnaService\**" />
+    <Page Remove="CnaService\**" />
+    <EmbeddedResource Remove="CnaService\**" />
     <EmbeddedResource Remove="Kalendarz\**" />
     <EmbeddedResource Remove="Menu\**" />
     <EmbeddedResource Remove="Nowy folder2\**" />
