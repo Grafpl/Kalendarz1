@@ -24,36 +24,20 @@ namespace Kalendarz1.CentrumNagranAI.Services
         // Cache: cameraId → ProfileToken
         private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> _profileTokenCache = new();
 
-        public static async Task<string?> GetReplayUriAsync(
+        /// <summary>
+        /// Buduje URL do nagrania historycznego z NVR Internec.
+        /// ONVIF replay protocol (GetReplayUri przez SOAP) na tym firmware nie zwraca
+        /// poprawnego URL, więc używamy bezpośredniego formatu Internec znalezionego empirycznie:
+        ///   rtsp://host:port/playback/c{channel}/s{stream}/{yyyyMMdd'T'HHmmss'Z'}/{...}
+        /// Format dat: ONVIF style (yyyyMMddTHHmmssZ).
+        /// </summary>
+        public static Task<string?> GetReplayUriAsync(
             CnaCameraEndpoint kamera, DateTime fromUtc, DateTime toUtc)
         {
-            string? token = await GetProfileTokenAsync(kamera);
-            if (token == null) return null;
-
-            string body = BuildSoap(kamera,
-                "<GetReplayUri xmlns=\"http://www.onvif.org/ver10/media/wsdl\">" +
-                "<StreamSetup xmlns=\"http://www.onvif.org/ver10/media/wsdl\">" +
-                "<Stream xmlns=\"http://www.onvif.org/ver10/schema\">RTP-Unicast</Stream>" +
-                "<Transport xmlns=\"http://www.onvif.org/ver10/schema\"><Protocol>RTSP</Protocol></Transport>" +
-                "</StreamSetup>" +
-                $"<ProfileToken xmlns=\"http://www.onvif.org/ver10/media/wsdl\">{token}</ProfileToken>" +
-                "</GetReplayUri>");
-
-            string? uri = await CallSoapAsync(kamera, "/onvif/Replay", body);
-            if (uri == null) return null;
-
-            var m = Regex.Match(uri, @"<tt:Uri[^>]*>([^<]+)</tt:Uri>", RegexOptions.Singleline);
-            if (!m.Success) return null;
-
-            string baseUri = m.Groups[1].Value.Trim();
-
-            // Hikvision-style replay: dorzucamy parametry starttime/endtime jako query.
-            // Format ONVIF: yyyyMMddTHHmmssZ
             string from = fromUtc.ToString("yyyyMMdd'T'HHmmss'Z'");
             string to = toUtc.ToString("yyyyMMdd'T'HHmmss'Z'");
-
-            string sep = baseUri.Contains('?') ? "&" : "?";
-            return $"{baseUri}{sep}starttime={from}&endtime={to}";
+            string url = $"rtsp://{kamera.Host}:{kamera.RtspPort}/playback/c{kamera.Channel}/s{kamera.StreamType}/{from}/{to}";
+            return Task.FromResult<string?>(url);
         }
 
         private static async Task<string?> GetProfileTokenAsync(CnaCameraEndpoint kamera)
