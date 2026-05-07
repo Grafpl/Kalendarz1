@@ -1,5 +1,12 @@
 # Centrum nagrań AI (CNA)
 
+> **Aktualizacja Faza A (2026-05-06):** dodane okienko ⚙ Ustawień (nazwy kamer + retencja + interwał),
+> auto-cleanup starych klatek, lepszy prompt AI z few-shot examples (znacznie surowsze ocenianie),
+> Date Range Picker, chipy filtrów per kamera w UI, oraz ⏮ Playback ±15s przez ONVIF GetReplayUri
+> (zamiast tylko live). Patrz sekcja "Faza A — co nowe" niżej.
+
+
+
 Moduł ZPSP do wyszukiwania zdarzeń w nagraniach CCTV po polskim opisie. Wpięty jako kafelek w głównym menu (kategoria *ADMINISTRACJA SYSTEMU*).
 
 ## Co to robi
@@ -232,6 +239,60 @@ Indeksacja chodzi jako singleton **wewnątrz procesu ZPSP**. Czyli:
 - [ ] **DPAPI dla secrets** — `ProtectedData.Protect` zamiast plain JSON.
 - [ ] **Web UI** (przeglądarka, mobile) — gdyby ktoś chciał szukać z telefonu.
 - [ ] **Live alerty** — co 10s nowa klatka leci przez „guard prompts" (np. „czy widać człowieka bez czepka?"), match → SMS/Slack.
+
+## Faza A — co nowe (2026-05-06)
+
+### Okienko ⚙ Ustawienia
+
+W status barze głównego okna, klik **⚙ Ustawienia**:
+- **Nazwy kamer** — przypisz np. "Hala uboju" zamiast `NVR1-Ubojnia-CH01`. Pojawia się we wszystkich wynikach i playerze.
+- **Retencja** — po ilu dniach kasować stare klatki. Domyślnie 3 dni.
+- **Wyczyść stare teraz** — manualne uruchomienie cleanup (z potwierdzeniem).
+- **Interwał klatki** (sek) — jak często indekser robi screenshot. Domyślnie 10s.
+- **Top N w wynikach** — ile pozycji wyświetlić po wyszukaniu. Domyślnie 10.
+
+Ustawienia zapisywane w `%LOCALAPPDATA%\Kalendarz1\CentrumNagranAI\cna_settings.json` (poza repo Git).
+
+### Auto-cleanup
+
+`IndexerBackgroundService` raz na 24 godziny kasuje pliki JPEG i wpisy w bazie starsze niż retencja.
+Tracking w `audit/cna_indexer.log`. Cleanup też uruchamiany przy każdym `--cna-test`.
+
+### Lepszy prompt AI
+
+`SearchService.BudujPrompt` - surowa skala 0-100 z konkretnymi przykładami:
+
+```
+0-15  : zdjęcie nie ma nic wspólnego
+36-55 : otoczenie OK, brak konkretnego elementu
+76-90 : zawiera wszystkie elementy, dobrze widoczne
+91-100: dokładnie to o co pytano
+```
+
+Plus 2 przykłady punktowania per typ pytania.
+Cel: Haiku dyskryminuje, nie daje 85/100 wszystkim.
+
+### Date Range Picker w UI
+
+Pola **Od:** / **Do:** (data + czas) ograniczają wyszukiwanie do zakresu.
+Przycisk **✕** wyczyści filtr. Bez filtra szukamy we wszystkich klatkach.
+
+### Chipy kamer
+
+Per kamera toggle (z nazwą z ustawień). Domyślnie wszystkie zaznaczone =
+szukamy wszędzie. Odznaczając ograniczasz do wybranych kamer.
+
+### Playback ±15s (ONVIF)
+
+W oknie playera klipu są **dwa przyciski**:
+
+- **⏮ Klip ±15s** — pyta NVR przez ONVIF `GetReplayUri` o URL nagrania
+  z momentu zdarzenia ±15 sekund. Otwiera w VLC.
+- **▶ Live z kamery** — fallback: aktualny live stream tej kamery.
+
+Wymaga że NVR ma włączone **Replay Service** w ustawieniach ONVIF
+(domyślnie tak, dla Internec NVR-B3601).
+Profile tokens cache'owane przez `OnvifClient` żeby nie pytać NVR za każdym razem.
 
 ## Komitki na branchu `feature/centrum-nagran-ai`
 
