@@ -19,6 +19,7 @@ namespace Kalendarz1.CentrumNagranAI.Views
             public int CooldownMin { get; set; }
             public bool Enabled { get; set; }
             public bool NotifySms { get; set; }
+            public int RequiredConfirmations { get; set; } = 2;
         }
 
         public class AlertVm
@@ -91,7 +92,8 @@ namespace Kalendarz1.CentrumNagranAI.Views
                 {
                     Id = r.Id, Name = r.Name, Prompt = r.Prompt,
                     Threshold = r.Threshold, CooldownMin = r.CooldownMin,
-                    Enabled = r.Enabled, NotifySms = r.NotifySms
+                    Enabled = r.Enabled, NotifySms = r.NotifySms,
+                    RequiredConfirmations = r.RequiredConfirmations
                 });
             }
         }
@@ -105,8 +107,10 @@ namespace Kalendarz1.CentrumNagranAI.Views
             RulePromptBox.Text = _editing.Prompt;
             RuleThresholdBox.Text = _editing.Threshold.ToString();
             RuleCooldownBox.Text = _editing.CooldownMin.ToString();
+            RuleConfirmsBox.Text = _editing.RequiredConfirmations.ToString();
             RuleEnabledChk.IsChecked = _editing.Enabled;
             RuleSmsChk.IsChecked = _editing.NotifySms;
+            TestStatus.Text = string.Empty;
         }
 
         private void NewRule_Click(object sender, RoutedEventArgs e)
@@ -117,6 +121,7 @@ namespace Kalendarz1.CentrumNagranAI.Views
             RulePromptBox.Text = "Czy na zdjęciu widać...";
             RuleThresholdBox.Text = "70";
             RuleCooldownBox.Text = "10";
+            RuleConfirmsBox.Text = "2";
             RuleEnabledChk.IsChecked = true;
             RuleSmsChk.IsChecked = false;
         }
@@ -142,6 +147,8 @@ namespace Kalendarz1.CentrumNagranAI.Views
             { MessageBox.Show("Próg musi być liczbą 0-100"); return; }
             if (!int.TryParse(RuleCooldownBox.Text, out int cd) || cd < 1 || cd > 1440)
             { MessageBox.Show("Cooldown musi być liczbą 1-1440 (minut)"); return; }
+            if (!int.TryParse(RuleConfirmsBox.Text, out int rc) || rc < 1 || rc > 10)
+            { MessageBox.Show("Wymagane potwierdzenia: liczba 1-10"); return; }
             bool sms = RuleSmsChk.IsChecked == true;
             if (sms && !NotifyService.IsConfigured)
             {
@@ -157,10 +164,41 @@ namespace Kalendarz1.CentrumNagranAI.Views
                 Threshold = th,
                 CooldownMin = cd,
                 Enabled = RuleEnabledChk.IsChecked == true,
-                NotifySms = sms
+                NotifySms = sms,
+                RequiredConfirmations = rc
             };
             GuardService.UpsertRule(rule);
             LoadRules();
+        }
+
+        private async void TestRule_Click(object sender, RoutedEventArgs e)
+        {
+            if (_editing == null) { TestStatus.Text = "Nic nie zaznaczone"; return; }
+
+            string name = (RuleNameBox.Text ?? "").Trim();
+            string prompt = (RulePromptBox.Text ?? "").Trim();
+            if (!int.TryParse(RuleThresholdBox.Text, out int th)) th = 70;
+            if (string.IsNullOrWhiteSpace(prompt) || prompt.Length < 5)
+            { TestStatus.Text = "❌ Najpierw uzupełnij prompt"; return; }
+
+            TestRuleBtn.IsEnabled = false;
+            TestStatus.Text = "🧪 Sprawdzam... (może potrwać 30-90s)";
+            try
+            {
+                var rule = new GuardRule { Id = _editing.Id, Name = name, Prompt = prompt, Threshold = th };
+                var result = await GuardService.TestRuleAsync(rule, sampleSize: 100);
+                TestStatus.Text =
+                    $"✓ {result.Matches} matchy z {result.FramesChecked} klatek " +
+                    $"({100.0 * result.Matches / Math.Max(1, result.FramesChecked):F1}%) " +
+                    $"• VLM calls: {result.VlmCalls} (po prefiltrze) " +
+                    $"• koszt: ${result.TotalCostUsd:F4}";
+                if (result.Matches > 30)
+                    TestStatus.Text += "\n⚠ Dużo trafień - rozważ surowszy prompt albo wyższy próg, albo wymagane potwierdzenia 3+";
+                if (result.Matches == 0)
+                    TestStatus.Text += "\n⚠ Zero trafień - prompt może być za precyzyjny albo CLIP prefilter za ostry";
+            }
+            catch (Exception ex) { TestStatus.Text = $"❌ {ex.Message}"; }
+            finally { TestRuleBtn.IsEnabled = true; }
         }
 
         // ───── Alerty ─────

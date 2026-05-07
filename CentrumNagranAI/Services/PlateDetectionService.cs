@@ -47,7 +47,50 @@ namespace Kalendarz1.CentrumNagranAI.Services
                 maxTokens: 200,
                 ct: ct);
 
-            var raw = result.Text.Trim();
+            return ExtractPlates(result.Text);
+        }
+
+        /// <summary>
+        /// D1: Multi-frame voting. Bierze 3 sąsiednie klatki tej kamery (-10s, klatka, +10s),
+        /// OCR każdej, voting po najczęstszym odczytie. Eliminuje motion-blur false positives.
+        /// </summary>
+        public static async Task<List<string>> DetectWithVotingAsync(long frameId, CancellationToken ct = default)
+        {
+            var frames = FrameIndex.GetNeighbours(frameId, countBefore: 1, countAfter: 1);
+            if (frames.Count == 0) return new List<string>();
+
+            // OCR każdej klatki (równolegle).
+            var perFrameResults = new List<List<string>>();
+            foreach (var f in frames)
+            {
+                if (!File.Exists(f.FilePath)) continue;
+                try
+                {
+                    var plates = await DetectAsync(f.FilePath, ct);
+                    perFrameResults.Add(plates);
+                }
+                catch (Exception ex) { Log($"voting frame {f.Id} fail: {ex.Message}"); }
+            }
+
+            if (perFrameResults.Count == 0) return new List<string>();
+
+            // Voting: tablica akceptowana jeśli pojawia się >=2 razy w 3 klatkach,
+            // lub jeśli mamy tylko 1 klatkę i tablica jest bezpośrednia.
+            int requiredVotes = perFrameResults.Count >= 2 ? 2 : 1;
+            var counts = new Dictionary<string, int>();
+            foreach (var list in perFrameResults)
+                foreach (var p in list)
+                {
+                    if (!counts.ContainsKey(p)) counts[p] = 0;
+                    counts[p]++;
+                }
+
+            return counts.Where(kv => kv.Value >= requiredVotes).Select(kv => kv.Key).ToList();
+        }
+
+        private static List<string> ExtractPlates(string raw)
+        {
+            raw = raw.Trim();
             if (raw.IndexOf("BRAK", StringComparison.OrdinalIgnoreCase) >= 0)
                 return new List<string>();
 

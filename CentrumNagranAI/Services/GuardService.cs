@@ -28,6 +28,8 @@ namespace Kalendarz1.CentrumNagranAI.Services
         public string? CameraFilter { get; set; }
         public DateTime? LastAlert { get; set; }
         public bool NotifySms { get; set; } = false;
+        // B1: ile kolejnych klatek musi potwierdzić zanim alert się wyzwoli (1=natychmiast).
+        public int RequiredConfirmations { get; set; } = 2;
     }
 
     public class GuardAlert
@@ -63,7 +65,9 @@ namespace Kalendarz1.CentrumNagranAI.Services
             using var conn = new SqliteConnection(ConnString);
             conn.Open();
             using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT id, name, prompt, threshold, cooldown_min, enabled, camera_filter, last_alert, COALESCE(notify_sms,0) FROM guard_rule ORDER BY id";
+            cmd.CommandText = @"SELECT id, name, prompt, threshold, cooldown_min, enabled, camera_filter, last_alert,
+                                       COALESCE(notify_sms,0), COALESCE(required_confirmations,2)
+                                FROM guard_rule ORDER BY id";
             var result = new List<GuardRule>();
             using var rdr = cmd.ExecuteReader();
             while (rdr.Read())
@@ -78,7 +82,8 @@ namespace Kalendarz1.CentrumNagranAI.Services
                     Enabled = rdr.GetInt32(5) == 1,
                     CameraFilter = rdr.IsDBNull(6) ? null : rdr.GetString(6),
                     LastAlert = rdr.IsDBNull(7) ? null : DateTime.Parse(rdr.GetString(7), null, System.Globalization.DateTimeStyles.RoundtripKind),
-                    NotifySms = rdr.GetInt32(8) == 1
+                    NotifySms = rdr.GetInt32(8) == 1,
+                    RequiredConfirmations = rdr.GetInt32(9)
                 });
             }
             return result;
@@ -94,15 +99,16 @@ namespace Kalendarz1.CentrumNagranAI.Services
             if (r.Id <= 0)
             {
                 cmd.CommandText = @"
-                    INSERT INTO guard_rule (name, prompt, threshold, cooldown_min, enabled, camera_filter, notify_sms, created)
-                    VALUES ($n, $p, $t, $c, $e, $cf, $sms, datetime('now'));
+                    INSERT INTO guard_rule (name, prompt, threshold, cooldown_min, enabled, camera_filter, notify_sms, required_confirmations, created)
+                    VALUES ($n, $p, $t, $c, $e, $cf, $sms, $rc, datetime('now'));
                     SELECT last_insert_rowid();";
             }
             else
             {
                 cmd.CommandText = @"
                     UPDATE guard_rule SET name=$n, prompt=$p, threshold=$t,
-                        cooldown_min=$c, enabled=$e, camera_filter=$cf, notify_sms=$sms
+                        cooldown_min=$c, enabled=$e, camera_filter=$cf, notify_sms=$sms,
+                        required_confirmations=$rc
                     WHERE id=$id;
                     SELECT $id;";
                 cmd.Parameters.AddWithValue("$id", r.Id);
@@ -114,6 +120,7 @@ namespace Kalendarz1.CentrumNagranAI.Services
             cmd.Parameters.AddWithValue("$e", r.Enabled ? 1 : 0);
             cmd.Parameters.AddWithValue("$cf", (object?)r.CameraFilter ?? DBNull.Value);
             cmd.Parameters.AddWithValue("$sms", r.NotifySms ? 1 : 0);
+            cmd.Parameters.AddWithValue("$rc", Math.Max(1, r.RequiredConfirmations));
             return (long)cmd.ExecuteScalar()!;
         }
 
@@ -221,19 +228,33 @@ namespace Kalendarz1.CentrumNagranAI.Services
 
                     if (score >= rule.Threshold)
                     {
-                        long alertId = InsertAlert(rule.Id, frameId, tsUtc, score, reason);
-                        UpdateLastAlert(rule.Id, DateTime.UtcNow);
-                        Log($"ALERT! reguła='{rule.Name}' score={score} kamera={cameraId} frame={frameId}");
+                        // B1: Multi-frame confirmation. Trzymamy "pending" do potwierdzenia.
+                        // Wymagane RequiredConfirmations kolejnych klatek tej kamery z match score.
+                        int needed = Math.Max(1, rule.RequiredConfirmations);
+                        int confirmedCount = needed == 1 ? 1 : RecordPendingAndCount(rule.Id, cameraId, frameId, tsUtc, score, reason);
 
-                        // SMS notify - jeśli reguła ma flagę i Twilio skonfigurowany.
-                        if (rule.NotifySms)
+                        if (confirmedCount >= needed)
                         {
-                            try
+                            long alertId = InsertAlert(rule.Id, frameId, tsUtc, score, reason);
+                            UpdateLastAlert(rule.Id, DateTime.UtcNow);
+                            ClearPending(rule.Id, cameraId);
+                            Log($"ALERT! reguła='{rule.Name}' score={score} kamera={cameraId} frame={frameId} (potwierdzenia: {confirmedCount}/{needed})");
+
+                            if (rule.NotifySms)
                             {
-                                await NotifyService.SendAlertSmsAsync(rule, cameraId, score, reason, ct);
+                                try { await NotifyService.SendAlertSmsAsync(rule, cameraId, score, reason, ct); }
+                                catch (Exception ex) { Log($"SMS fail rule={rule.Id}: {ex.Message}"); }
                             }
-                            catch (Exception ex) { Log($"SMS fail rule={rule.Id}: {ex.Message}"); }
                         }
+                        else
+                        {
+                            Log($"PENDING reguła='{rule.Name}' score={score} kamera={cameraId} ({confirmedCount}/{needed} potwierdzeń)");
+                        }
+                    }
+                    else
+                    {
+                        // Klatka NIE pasuje - zerujemy pending dla tej (rule, camera).
+                        ClearPending(rule.Id, cameraId);
                     }
                 }
                 catch (Exception ex)
@@ -251,6 +272,68 @@ namespace Kalendarz1.CentrumNagranAI.Services
             var emb = await EmbeddingService.EmbedAsync(rule.Prompt, ct);
             _ruleEmbeddingCache[rule.Id] = emb;
             return emb;
+        }
+
+        /// <summary>
+        /// B1: zapisuje pending alert (lub aktualizuje licznik). Zwraca aktualną liczbę potwierdzeń.
+        /// Stary pending wygasa po 5 minutach (bez kolejnych match'ów) - zerowany.
+        /// </summary>
+        private static int RecordPendingAndCount(long ruleId, string cameraId, long frameId, DateTime tsUtc, int score, string reason)
+        {
+            using var conn = new SqliteConnection(ConnString);
+            conn.Open();
+
+            int currentCount = 0;
+            DateTime? lastTs = null;
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = "SELECT confirmations, last_ts FROM pending_alert WHERE rule_id=$r AND camera_id=$c";
+                cmd.Parameters.AddWithValue("$r", ruleId);
+                cmd.Parameters.AddWithValue("$c", cameraId);
+                using var rdr = cmd.ExecuteReader();
+                if (rdr.Read())
+                {
+                    currentCount = rdr.GetInt32(0);
+                    lastTs = DateTime.Parse(rdr.GetString(1), null, System.Globalization.DateTimeStyles.RoundtripKind);
+                }
+            }
+
+            // Ekspirujemy pending jeśli > 5 min od poprzedniej match'owanej klatki
+            bool expired = lastTs.HasValue && (tsUtc - lastTs.Value).TotalMinutes > 5;
+            int newCount = expired ? 1 : currentCount + 1;
+
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = @"
+                    INSERT INTO pending_alert (rule_id, camera_id, first_frame_id, first_ts, last_frame_id, last_ts, confirmations, best_score, best_reason)
+                    VALUES ($r, $c, $f, $t, $f, $t, $cnt, $s, $reason)
+                    ON CONFLICT(rule_id, camera_id) DO UPDATE SET
+                        last_frame_id = excluded.last_frame_id,
+                        last_ts = excluded.last_ts,
+                        confirmations = $cnt,
+                        best_score = MAX(best_score, excluded.best_score),
+                        best_reason = CASE WHEN excluded.best_score > best_score THEN excluded.best_reason ELSE best_reason END;";
+                cmd.Parameters.AddWithValue("$r", ruleId);
+                cmd.Parameters.AddWithValue("$c", cameraId);
+                cmd.Parameters.AddWithValue("$f", frameId);
+                cmd.Parameters.AddWithValue("$t", tsUtc.ToString("o"));
+                cmd.Parameters.AddWithValue("$cnt", newCount);
+                cmd.Parameters.AddWithValue("$s", score);
+                cmd.Parameters.AddWithValue("$reason", reason);
+                cmd.ExecuteNonQuery();
+            }
+            return newCount;
+        }
+
+        private static void ClearPending(long ruleId, string cameraId)
+        {
+            using var conn = new SqliteConnection(ConnString);
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "DELETE FROM pending_alert WHERE rule_id=$r AND camera_id=$c";
+            cmd.Parameters.AddWithValue("$r", ruleId);
+            cmd.Parameters.AddWithValue("$c", cameraId);
+            cmd.ExecuteNonQuery();
         }
 
         private static long InsertAlert(long ruleId, long frameId, DateTime ts, int score, string reason)
@@ -293,6 +376,79 @@ namespace Kalendarz1.CentrumNagranAI.Services
                 return (s, (string?)jo["reason"] ?? "");
             }
             catch { return (0, "parse fail"); }
+        }
+
+        /// <summary>
+        /// B3: Sprawdź jak reguła zachowałaby się na ostatnich N klatkach (bez efektów ubocznych —
+        /// nie zapisuje alertów, nie wysyła SMS). Zwraca statystyki + listę top match'ów do podglądu.
+        /// </summary>
+        public class TestResult
+        {
+            public int FramesChecked { get; set; }
+            public int Matches { get; set; }      // ile klatek przekroczyło threshold
+            public int VlmCalls { get; set; }     // ile poszło do VLM (po prefiltrze CLIP)
+            public double TotalCostUsd { get; set; }
+            public List<(long FrameId, string Camera, DateTime Ts, int Score, string Reason, string FilePath)> TopHits { get; set; } = new();
+        }
+
+        public static async Task<TestResult> TestRuleAsync(GuardRule rule, int sampleSize = 100, CancellationToken ct = default)
+        {
+            CnaConfig.ZaladujJesliTrzeba();
+            FrameIndex.Init();
+
+            var cams = rule.CameraFilter?.Split(',', StringSplitOptions.RemoveEmptyEntries);
+            var frames = FrameIndex.GetFrames(cameraIds: cams, limit: sampleSize);
+            var result = new TestResult { FramesChecked = frames.Count };
+            if (frames.Count == 0) return result;
+
+            // Embedding promptu (raz)
+            float[]? ruleEmb = null;
+            if (EmbeddingService.IsConfigured)
+            {
+                try { ruleEmb = await EmbeddingService.EmbedAsync(rule.Prompt, ct); } catch { }
+            }
+
+            string vlmPrompt =
+                $"Pytanie: \"{rule.Prompt}\"\n\n" +
+                "Oceń 0-100 jak BARDZO BEZPOŚREDNIO ta klatka odpowiada pytaniu. " +
+                "Zwróć WYŁĄCZNIE JSON: {\"score\": <0-100>, \"reason\": \"<jedno zdanie>\"}";
+
+            var hits = new List<(long, string, DateTime, int, string, string)>();
+            foreach (var f in frames)
+            {
+                if (ct.IsCancellationRequested) break;
+
+                // Prefilter CLIP
+                if (ruleEmb != null)
+                {
+                    var frameEmb = FrameIndex.GetEmbedding(f.Id);
+                    if (frameEmb != null)
+                    {
+                        float sim = EmbeddingService.Cosine(frameEmb, ruleEmb);
+                        if (sim < PrefilterMinSim) continue; // skip - nie pasuje semantycznie
+                    }
+                }
+
+                try
+                {
+                    var vlm = await VlmClient.AnalyzeImageAsync(f.FilePath, vlmPrompt, model: VlmClient.ModelHaiku, maxTokens: 150, ct: ct);
+                    result.VlmCalls++;
+                    result.TotalCostUsd += vlm.CostUsd;
+                    var (score, reason) = ParseJson(vlm.Text);
+                    if (score >= rule.Threshold)
+                    {
+                        result.Matches++;
+                        hits.Add((f.Id, f.CameraId, f.TsUtc, score, reason, f.FilePath));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[Guard test] frame {f.Id} fail: {ex.Message}");
+                }
+            }
+
+            result.TopHits = hits.OrderByDescending(h => h.Item4).Take(10).ToList();
+            return result;
         }
 
         private static void Log(string msg)

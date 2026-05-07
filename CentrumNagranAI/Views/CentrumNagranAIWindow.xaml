@@ -223,7 +223,7 @@
                                                     Tag="{Binding}"
                                                     Click="PlayBtn_Click"/>
                                             <Button Content="🔍 Podobne"
-                                                    Padding="14,4" FontSize="11"
+                                                    Padding="14,4" FontSize="11" Margin="0,0,0,4"
                                                     Background="Transparent"
                                                     Foreground="{StaticResource TextDim}"
                                                     BorderBrush="{StaticResource Border}" BorderThickness="1"
@@ -231,6 +231,18 @@
                                                     Tag="{Binding}"
                                                     Click="SimilarBtn_Click"
                                                     ToolTip="Pokaż klatki wizualnie podobne (bez kosztu)"/>
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                <Button Content="👍" FontSize="14" Padding="8,3" Margin="0,0,4,0"
+                                                        Background="Transparent" Foreground="{StaticResource Text}"
+                                                        BorderBrush="{StaticResource Border}" BorderThickness="1"
+                                                        Cursor="Hand" Tag="{Binding}" Click="FeedbackUp_Click"
+                                                        ToolTip="Trafny wynik - F1 ground truth"/>
+                                                <Button Content="👎" FontSize="14" Padding="8,3"
+                                                        Background="Transparent" Foreground="{StaticResource Text}"
+                                                        BorderBrush="{StaticResource Border}" BorderThickness="1"
+                                                        Cursor="Hand" Tag="{Binding}" Click="FeedbackDown_Click"
+                                                        ToolTip="Nietrafny - pomóż systemowi zmierzyć dokładność"/>
+                                            </StackPanel>
                                         </StackPanel>
                                     </Grid>
                                 </Border>

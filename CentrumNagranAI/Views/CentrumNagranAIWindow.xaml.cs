@@ -54,6 +54,8 @@ namespace Kalendarz1.CentrumNagranAI.Views
     {
         private readonly ObservableCollection<SearchHitVm> _hits = new();
         private readonly ObservableCollection<CameraChipVm> _cameraChips = new();
+        private string _lastQuery = string.Empty;
+        private long? _lastAuditId;
 
         public CentrumNagranAIWindow()
         {
@@ -153,6 +155,8 @@ namespace Kalendarz1.CentrumNagranAI.Views
                     query, topN: topN,
                     fromUtc: fromUtc, toUtc: toUtc,
                     cameraIds: camFilter);
+                _lastQuery = query;
+                _lastAuditId = summary.AuditId;
 
                 int rank = 1;
                 foreach (var h in summary.Hits)
@@ -321,6 +325,23 @@ namespace Kalendarz1.CentrumNagranAI.Views
             ResultsScroller.Visibility = _hits.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
             QueryBox.Text = $"[Podobne do #{vm.Rank} {vm.CameraDisplayName}]";
             RightStatus.Text = $"Search by similarity (KNN cosine, lokalnie, $0)  •  czas: {summary.DurationMs}ms";
+        }
+
+        private void FeedbackUp_Click(object sender, RoutedEventArgs e) => RecordFeedback(sender, true);
+        private void FeedbackDown_Click(object sender, RoutedEventArgs e) => RecordFeedback(sender, false);
+
+        private void RecordFeedback(object sender, bool correct)
+        {
+            if (sender is not System.Windows.Controls.Button btn || btn.Tag is not SearchHitVm vm) return;
+            if (string.IsNullOrEmpty(_lastQuery)) return;
+            try
+            {
+                FeedbackService.Submit(_lastQuery, vm.FrameId, vm.Score, vm.Rank, correct, App.UserID, _lastAuditId);
+                btn.IsEnabled = false;
+                btn.Content = correct ? "✓👍" : "✓👎";
+                btn.ToolTip = "Zapisane do search_feedback";
+            }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[Feedback fail] {ex.Message}"); }
         }
 
         private void PlayBtn_Click(object sender, RoutedEventArgs e)

@@ -99,9 +99,15 @@ namespace Kalendarz1.CentrumNagranAI.Services
 
                     try
                     {
-                        var (caption, costCap) = await CaptionService.CaptionAsync(frame.FilePath, _cts!.Token);
-                        var vec = await EmbeddingService.EmbedAsync(caption, _cts.Token);
-                        FrameIndex.UpsertCaptionAndEmbedding(frame.Id, caption, vec, tagsJson: null);
+                        var (sc, costCap) = await CaptionService.CaptionStructuredAsync(frame.FilePath, _cts!.Token);
+                        string embedText = CaptionService.BuildEmbeddingText(sc);
+                        var vec = await EmbeddingService.EmbedAsync(embedText, _cts.Token);
+
+                        var tags = CaptionService.ExtractTags(sc);
+                        string tagsJson = Newtonsoft.Json.JsonConvert.SerializeObject(tags);
+                        string structJson = Newtonsoft.Json.JsonConvert.SerializeObject(sc);
+
+                        FrameIndex.UpsertCaptionAndEmbedding(frame.Id, sc.Caption, vec, tagsJson, structJson);
                         Processed++;
                         TotalCostUsd += costCap;
 
@@ -119,18 +125,18 @@ namespace Kalendarz1.CentrumNagranAI.Services
                         try { AnomalyService.CheckFrame(frame.Id, frame.CameraId, frame.TsUtc, vec); }
                         catch (Exception ex) { Debug.WriteLine($"[Anomaly fail] {ex.Message}"); }
 
-                        // OCR tablic - tylko dla wybranych kamer (drogie).
+                        // OCR tablic - tylko dla wybranych kamer (drogie). D1: multi-frame voting.
                         if (CnaConfig.KameryDoOcr.Contains(frame.CameraId))
                         {
                             _ = Task.Run(async () =>
                             {
                                 try
                                 {
-                                    var plates = await PlateDetectionService.DetectAsync(frame.FilePath);
+                                    var plates = await PlateDetectionService.DetectWithVotingAsync(frame.Id);
                                     if (plates.Count > 0)
                                     {
                                         PlateDetectionService.SavePlates(frame.Id, frame.CameraId, frame.TsUtc, plates, string.Join(",", plates));
-                                        TotalCostUsd += 0.001; // przybliżony koszt VLM call
+                                        TotalCostUsd += 0.003; // 3 klatki × $0.001 (multi-frame voting)
                                     }
                                 }
                                 catch (Exception ex) { Debug.WriteLine($"[Plate fail] {ex.Message}"); }

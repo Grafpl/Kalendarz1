@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
@@ -42,6 +43,72 @@ namespace Kalendarz1.CentrumNagranAI.Services
         /// <summary>
         /// Wysyła obraz JPEG + polski prompt do Claude. Zwraca tekst odpowiedzi + statystyki tokenów.
         /// </summary>
+        /// <summary>
+        /// Multi-image: VLM widzi sekwencję klatek (np. -10s, klatka, +10s) zamiast 1.
+        /// Łapie ruch i kontekst, znacznie poprawia trafność (#A1).
+        /// Koszt rośnie ~liniowo z liczbą klatek (każda to ~333 tokens input).
+        /// </summary>
+        public static async Task<VlmResult> AnalyzeMultiImageAsync(
+            IList<string> jpegPaths,
+            string polishPrompt,
+            string model = ModelHaiku,
+            int maxTokens = 500,
+            CancellationToken ct = default)
+        {
+            CnaConfig.ZaladujJesliTrzeba();
+            if (string.IsNullOrEmpty(CnaConfig.AnthropicApiKey))
+                throw new InvalidOperationException("Brak klucza Anthropic.");
+            if (jpegPaths.Count == 0)
+                throw new ArgumentException("Lista klatek pusta.");
+
+            EnsureHeaders();
+
+            var contentList = new List<object>();
+            for (int i = 0; i < jpegPaths.Count; i++)
+            {
+                if (!File.Exists(jpegPaths[i])) continue;
+                byte[] bytes = await File.ReadAllBytesAsync(jpegPaths[i], ct);
+                string b64 = Convert.ToBase64String(bytes);
+                contentList.Add(new { type = "text", text = $"[Klatka {i + 1} z {jpegPaths.Count}]" });
+                contentList.Add(new
+                {
+                    type = "image",
+                    source = new { type = "base64", media_type = "image/jpeg", data = b64 }
+                });
+            }
+            contentList.Add(new { type = "text", text = polishPrompt });
+
+            var requestBody = new
+            {
+                model = model,
+                max_tokens = maxTokens,
+                messages = new[] { new { role = "user", content = contentList.ToArray() } }
+            };
+
+            string json = JsonConvert.SerializeObject(requestBody);
+            using var content = new StringContent(json, Encoding.UTF8, "application/json");
+            var sw = Stopwatch.StartNew();
+            using var resp = await _http.PostAsync(ApiUrl, content, ct);
+            string respText = await resp.Content.ReadAsStringAsync(ct);
+            sw.Stop();
+
+            if (!resp.IsSuccessStatusCode)
+                throw new InvalidOperationException(
+                    $"Anthropic multi-image {(int)resp.StatusCode}: {respText.Substring(0, Math.Min(300, respText.Length))}");
+
+            var jo = JObject.Parse(respText);
+            string text = (string?)jo["content"]?[0]?["text"] ?? string.Empty;
+            int inTok = (int?)jo["usage"]?["input_tokens"] ?? 0;
+            int outTok = (int?)jo["usage"]?["output_tokens"] ?? 0;
+            double inPrice = model.Contains("haiku") ? 1.0 : 3.0;
+            double outPrice = model.Contains("haiku") ? 5.0 : 15.0;
+            double cost = (inTok * inPrice + outTok * outPrice) / 1_000_000.0;
+
+            Log($"OK multi-image {model} n={jpegPaths.Count} in={inTok} out={outTok} {sw.ElapsedMilliseconds}ms ${cost:F4}");
+
+            return new VlmResult { Text = text, InputTokens = inTok, OutputTokens = outTok, DurationMs = sw.ElapsedMilliseconds, CostUsd = cost };
+        }
+
         public static async Task<VlmResult> AnalyzeImageAsync(
             string jpegPath,
             string polishPrompt,

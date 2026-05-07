@@ -107,15 +107,36 @@
                                 </StackPanel>
                             </Grid>
 
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                                    <TextBlock Text="Wymagane potwierdzenia (anty-szum):" FontSize="11" Foreground="{StaticResource TextDim}"/>
+                                    <TextBox x:Name="RuleConfirmsBox" ToolTip="Ile kolejnych klatek musi potwierdzić zanim alert. 1=natychmiast, 2-3=mniej fałszywych alarmów"/>
+                                </StackPanel>
+                            </Grid>
+
                             <CheckBox x:Name="RuleEnabledChk" Content="Aktywna" Foreground="{StaticResource Text}" Margin="0,0,0,4"/>
                             <CheckBox x:Name="RuleSmsChk" Content="📱 Wyślij SMS przy alercie (Twilio)" Foreground="{StaticResource Text}" Margin="0,0,0,12"
                                       ToolTip="Wymaga konfiguracji Twilio w secrets.json (sekcja Twilio: AccountSid, AuthToken, From, To)"/>
 
-                            <Button x:Name="SaveRuleBtn" Content="💾 Zapisz regułę"
-                                    Padding="14,6" HorizontalAlignment="Left"
-                                    Background="{StaticResource Accent}" Foreground="White"
-                                    BorderThickness="0" FontWeight="Bold"
-                                    Click="SaveRule_Click"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Button x:Name="SaveRuleBtn" Content="💾 Zapisz regułę"
+                                        Padding="14,6"
+                                        Background="{StaticResource Accent}" Foreground="White"
+                                        BorderThickness="0" FontWeight="Bold"
+                                        Click="SaveRule_Click"/>
+                                <Button x:Name="TestRuleBtn" Content="🧪 Test na ostatnich 100"
+                                        Padding="14,6" Margin="8,0,0,0"
+                                        Background="Transparent" Foreground="{StaticResource Text}"
+                                        BorderBrush="{StaticResource Border}" BorderThickness="1"
+                                        Click="TestRule_Click"
+                                        ToolTip="Sprawdź ile razy reguła by zadziałała na ostatnich 100 klatkach (dry-run, bez efektów)"/>
+                            </StackPanel>
+                            <TextBlock x:Name="TestStatus" Margin="0,8,0,0" TextWrapping="Wrap" FontSize="11"
+                                       Foreground="{StaticResource TextDim}"/>
 
                             <TextBlock Margin="0,16,0,0" FontSize="11" Foreground="{StaticResource TextDim}"
                                        TextWrapping="Wrap"

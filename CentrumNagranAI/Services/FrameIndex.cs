@@ -49,6 +49,9 @@ namespace Kalendarz1.CentrumNagranAI.Services
 
                 // Migracje dla starszych baz (nowe kolumny dodane w późniejszych fazach)
                 TryAlter(conn, "ALTER TABLE guard_rule ADD COLUMN notify_sms INTEGER NOT NULL DEFAULT 0");
+                TryAlter(conn, "ALTER TABLE guard_rule ADD COLUMN required_confirmations INTEGER NOT NULL DEFAULT 2");
+                TryAlter(conn, "ALTER TABLE frame_caption ADD COLUMN structured TEXT");
+                TryAlter(conn, "ALTER TABLE camera_baseline ADD COLUMN stddev REAL");
 
                 // Upsert kamer.
                 foreach (var k in CnaConfig.Kamery)
@@ -190,7 +193,7 @@ namespace Kalendarz1.CentrumNagranAI.Services
         /// <summary>
         /// Wpis caption + embedding. Wywołane po VLM caption + OpenAI embed.
         /// </summary>
-        public static void UpsertCaptionAndEmbedding(long frameId, string caption, float[] vector, string? tagsJson = null)
+        public static void UpsertCaptionAndEmbedding(long frameId, string caption, float[] vector, string? tagsJson = null, string? structuredJson = null)
         {
             using var conn = new SqliteConnection(ConnString);
             conn.Open();
@@ -200,13 +203,15 @@ namespace Kalendarz1.CentrumNagranAI.Services
             {
                 cmd.Transaction = tx;
                 cmd.CommandText = @"
-                    INSERT INTO frame_caption (frame_id, caption, tags, created)
-                    VALUES ($id, $cap, $tags, $now)
+                    INSERT INTO frame_caption (frame_id, caption, structured, tags, created)
+                    VALUES ($id, $cap, $struct, $tags, $now)
                     ON CONFLICT(frame_id) DO UPDATE SET
                         caption = excluded.caption,
+                        structured = excluded.structured,
                         tags = excluded.tags;";
                 cmd.Parameters.AddWithValue("$id", frameId);
                 cmd.Parameters.AddWithValue("$cap", caption);
+                cmd.Parameters.AddWithValue("$struct", (object?)structuredJson ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("$tags", (object?)tagsJson ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("$now", DateTime.UtcNow.ToString("o"));
                 cmd.ExecuteNonQuery();
@@ -398,6 +403,75 @@ namespace Kalendarz1.CentrumNagranAI.Services
             }
             return dot;
         }
+
+        /// <summary>
+        /// Sąsiednie klatki tej samej kamery: ±N w czasie.
+        /// Używane przez A1 multi-frame context (search) i D1 multi-frame voting OCR.
+        /// </summary>
+        public static List<FrameRecord> GetNeighbours(long frameId, int countBefore = 1, int countAfter = 1)
+        {
+            using var conn = new SqliteConnection(ConnString);
+            conn.Open();
+
+            string camId; DateTime ts;
+            using (var c = conn.CreateCommand())
+            {
+                c.CommandText = "SELECT camera_id, ts FROM frame WHERE id = $id";
+                c.Parameters.AddWithValue("$id", frameId);
+                using var rdr = c.ExecuteReader();
+                if (!rdr.Read()) return new List<FrameRecord>();
+                camId = rdr.GetString(0);
+                ts = DateTime.Parse(rdr.GetString(1), null, System.Globalization.DateTimeStyles.RoundtripKind);
+            }
+
+            var result = new List<FrameRecord>();
+
+            if (countBefore > 0)
+            {
+                using var c = conn.CreateCommand();
+                c.CommandText = @"SELECT id, camera_id, ts, file_path, file_size FROM frame
+                                  WHERE camera_id = $cam AND ts < $t
+                                  ORDER BY ts DESC LIMIT $n";
+                c.Parameters.AddWithValue("$cam", camId);
+                c.Parameters.AddWithValue("$t", ts.ToString("o"));
+                c.Parameters.AddWithValue("$n", countBefore);
+                using var rdr = c.ExecuteReader();
+                while (rdr.Read()) result.Add(ReadFrame(rdr));
+            }
+
+            // ref frame in middle
+            using (var c = conn.CreateCommand())
+            {
+                c.CommandText = "SELECT id, camera_id, ts, file_path, file_size FROM frame WHERE id = $id";
+                c.Parameters.AddWithValue("$id", frameId);
+                using var rdr = c.ExecuteReader();
+                if (rdr.Read()) result.Add(ReadFrame(rdr));
+            }
+
+            if (countAfter > 0)
+            {
+                using var c = conn.CreateCommand();
+                c.CommandText = @"SELECT id, camera_id, ts, file_path, file_size FROM frame
+                                  WHERE camera_id = $cam AND ts > $t
+                                  ORDER BY ts ASC LIMIT $n";
+                c.Parameters.AddWithValue("$cam", camId);
+                c.Parameters.AddWithValue("$t", ts.ToString("o"));
+                c.Parameters.AddWithValue("$n", countAfter);
+                using var rdr = c.ExecuteReader();
+                while (rdr.Read()) result.Add(ReadFrame(rdr));
+            }
+
+            return result.OrderBy(r => r.TsUtc).ToList();
+        }
+
+        private static FrameRecord ReadFrame(SqliteDataReader rdr) => new()
+        {
+            Id = rdr.GetInt64(0),
+            CameraId = rdr.GetString(1),
+            TsUtc = DateTime.Parse(rdr.GetString(2), null, System.Globalization.DateTimeStyles.RoundtripKind),
+            FilePath = rdr.GetString(3),
+            FileSize = rdr.IsDBNull(4) ? 0 : rdr.GetInt64(4)
+        };
 
         public static float[]? GetEmbedding(long frameId)
         {

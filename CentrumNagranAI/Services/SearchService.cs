@@ -86,6 +86,7 @@ namespace Kalendarz1.CentrumNagranAI.Services
             int candidateLimit = 200,
             int maxConcurrency = 5,
             string userId = "ser",
+            bool useMultiFrame = true,                  // A1: 3 klatki ±N s
             CancellationToken ct = default)
         {
             CnaConfig.ZaladujJesliTrzeba();
@@ -164,10 +165,26 @@ namespace Kalendarz1.CentrumNagranAI.Services
                 {
                     string fullPrompt = prompt
                         + $"\n\nKontekst klatki: kamera={k.CameraId}, czas (UTC)={k.TsUtc:yyyy-MM-dd HH:mm:ss}.";
+                    if (useMultiFrame)
+                        fullPrompt += "\nUWAGA: Widzisz 3 klatki: poprzednia (-10s), aktualna, następna (+10s). " +
+                                      "Oceń aktualną (środkową) ALE używając kontekstu sąsiednich (ruch, zmiany).";
 
-                    var vlm = await VlmClient.AnalyzeImageAsync(
-                        k.FilePath, fullPrompt,
-                        model: VlmClient.ModelHaiku, maxTokens: 200, ct: ct);
+                    VlmClient.VlmResult vlm;
+                    if (useMultiFrame)
+                    {
+                        var neighbours = FrameIndex.GetNeighbours(k.Id, 1, 1);
+                        var paths = neighbours.Select(n => n.FilePath).Where(p => System.IO.File.Exists(p)).ToList();
+                        if (paths.Count == 0) paths = new List<string> { k.FilePath };
+                        vlm = await VlmClient.AnalyzeMultiImageAsync(
+                            paths, fullPrompt,
+                            model: VlmClient.ModelHaiku, maxTokens: 250, ct: ct);
+                    }
+                    else
+                    {
+                        vlm = await VlmClient.AnalyzeImageAsync(
+                            k.FilePath, fullPrompt,
+                            model: VlmClient.ModelHaiku, maxTokens: 200, ct: ct);
+                    }
 
                     lock (accumLock) { costAccum += vlm.CostUsd; callsAccum++; }
 
