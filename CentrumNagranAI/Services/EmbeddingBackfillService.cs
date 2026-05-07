@@ -34,8 +34,10 @@ namespace Kalendarz1.CentrumNagranAI.Services
         private bool _isRunning;
         private CancellationTokenSource? _cts;
 
-        public int BatchSize { get; set; } = 5;        // klatek na cykl
-        public int IntervalSeconds { get; set; } = 30; // co 30s sprawdza pending
+        // Domyślnie nadążamy za indekserem (4 kamery × 6/min = 24 klatek/min).
+        // 15 klatek × 4/min = 60 klatek/min - z marginesem na pierwszą indeksację.
+        public int BatchSize { get; set; } = 15;       // klatek na cykl
+        public int IntervalSeconds { get; set; } = 15; // co 15s sprawdza pending
 
         public long Processed { get; private set; }
         public long Failed { get; private set; }
