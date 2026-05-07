@@ -56,6 +56,40 @@ namespace Kalendarz1
             GlobalChatManager.Shutdown();
         }
 
+        /// <summary>
+        /// Uruchamia indekser Centrum nagrań AI w tle (po zalogowaniu).
+        /// Bezpieczne — jeśli brak konfiguracji NVR / klucza, po prostu nie startuje.
+        /// Działa dopóki ZPSP otwarte. Dla 24/7 użyj osobnego CnaService (Windows Service).
+        /// </summary>
+        public static void StartCnaService()
+        {
+            try
+            {
+                Kalendarz1.CentrumNagranAI.Services.CnaConfig.ZaladujJesliTrzeba();
+                if (Kalendarz1.CentrumNagranAI.Services.CnaConfig.Kamery.Count == 0)
+                {
+                    System.Diagnostics.Debug.WriteLine("[CNA] Brak kamer w secrets.json - indekser nie startuje.");
+                    return;
+                }
+                _ = Kalendarz1.CentrumNagranAI.Services.IndexerBackgroundService.Instance.StartAsync();
+                _ = Kalendarz1.CentrumNagranAI.Services.EmbeddingBackfillService.Instance.StartAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[CNA] Start fail: {ex.Message}");
+            }
+        }
+
+        public static void StopCnaService()
+        {
+            try
+            {
+                Kalendarz1.CentrumNagranAI.Services.IndexerBackgroundService.Instance.Stop();
+                Kalendarz1.CentrumNagranAI.Services.EmbeddingBackfillService.Instance.Stop();
+            }
+            catch { }
+        }
+
         // === ITEXTSHARP WORKAROUND ===
         // Inicjalizacja iTextSharp rozwiązuje problem NullReferenceException
         // w Version.GetInstance() na .NET 8

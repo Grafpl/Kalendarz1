@@ -725,6 +725,9 @@ namespace Kalendarz1
                 // Uruchom globalny serwis powiadomień czatu (co 30 sek)
                 App.StartChatNotificationService();
 
+                // Uruchom indekser Centrum nagrań AI (klatki + caption + embedding w tle)
+                App.StartCnaService();
+
                 try
                 {
                     StopTimers();
