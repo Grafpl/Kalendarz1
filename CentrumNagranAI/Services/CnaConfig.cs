@@ -162,6 +162,85 @@ namespace Kalendarz1.CentrumNagranAI.Services
         }
 
         /// <summary>
+        /// Definicja NVR dla UI editora — wszystkie pola edytowalne.
+        /// Konwertowana do/z secrets.json przez ZapiszSekrety/ZaladujSekrety.
+        /// </summary>
+        public class NvrDefinition
+        {
+            public string Name { get; set; } = "NVR";
+            public string Host { get; set; } = string.Empty;
+            public int RtspPort { get; set; } = 554;
+            public string User { get; set; } = "admin";
+            public string Password { get; set; } = string.Empty;
+            public List<int> Channels { get; set; } = new();
+            public int DefaultStreamType { get; set; } = 0; // 0=main, 1=sub
+        }
+
+        /// <summary>
+        /// Zwraca aktualną listę NVR-ów ze secrets (do edycji w UI).
+        /// </summary>
+        public static List<NvrDefinition> WczytajNvry()
+        {
+            var result = new List<NvrDefinition>();
+            try
+            {
+                if (!File.Exists(SecretsPath)) return result;
+                var json = JObject.Parse(File.ReadAllText(SecretsPath));
+                var arr = json["Nvr"] as JArray;
+                if (arr == null) return result;
+                foreach (var n in arr)
+                {
+                    var def = new NvrDefinition
+                    {
+                        Name = n["Name"]?.Value<string>() ?? "NVR",
+                        Host = n["Host"]?.Value<string>() ?? string.Empty,
+                        RtspPort = n["RtspPort"]?.Value<int?>() ?? 554,
+                        User = n["User"]?.Value<string>() ?? string.Empty,
+                        Password = n["Password"]?.Value<string>() ?? string.Empty,
+                        DefaultStreamType = n["DefaultStreamType"]?.Value<int?>() ?? 0
+                    };
+                    var chans = n["Channels"] as JArray;
+                    if (chans != null)
+                        def.Channels = chans.Select(c => c.Value<int>()).ToList();
+                    result.Add(def);
+                }
+            }
+            catch { }
+            return result;
+        }
+
+        /// <summary>
+        /// Zapisuje listę NVR-ów do secrets.json zachowując inne klucze (Anthropic, OpenAI, Twilio).
+        /// </summary>
+        public static void ZapiszNvry(IEnumerable<NvrDefinition> nvry)
+        {
+            JObject json;
+            try
+            {
+                json = File.Exists(SecretsPath) ? JObject.Parse(File.ReadAllText(SecretsPath)) : new JObject();
+            }
+            catch { json = new JObject(); }
+
+            var arr = new JArray();
+            foreach (var n in nvry)
+            {
+                arr.Add(new JObject
+                {
+                    ["Name"] = n.Name,
+                    ["Host"] = n.Host,
+                    ["RtspPort"] = n.RtspPort,
+                    ["User"] = n.User,
+                    ["Password"] = n.Password,
+                    ["Channels"] = new JArray(n.Channels),
+                    ["DefaultStreamType"] = n.DefaultStreamType
+                });
+            }
+            json["Nvr"] = arr;
+            Directory.CreateDirectory(BaseDir);
+            File.WriteAllText(SecretsPath, json.ToString(Formatting.Indented), System.Text.Encoding.UTF8);
+        }
+
+        /// <summary>
         /// Zapis ustawień do cna_settings.json. Wywoływane z SettingsWindow po zmianie.
         /// </summary>
         public static void ZapiszUstawienia()

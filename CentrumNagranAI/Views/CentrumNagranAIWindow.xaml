@@ -4,6 +4,7 @@
         Title="Centrum nagrań AI"
         Width="1280" Height="820"
         WindowStartupLocation="CenterScreen"
+        WindowState="Maximized"
         Background="#0F172A">
 
     <Window.Resources>
@@ -278,6 +279,11 @@
                         BorderBrush="{StaticResource Border}" BorderThickness="1"
                         FontSize="11" Cursor="Hand" Click="HeatmapBtn_Click"
                         ToolTip="Wizualizacja aktywności kamera×godzina (ostatnie 7 dni)"/>
+                <Button x:Name="NvrBtn" Content="🎥 NVR-y" Padding="10,4" Margin="6,0,0,0"
+                        Background="Transparent" Foreground="{StaticResource TextDim}"
+                        BorderBrush="{StaticResource Border}" BorderThickness="1"
+                        FontSize="11" Cursor="Hand" Click="NvrBtn_Click"
+                        ToolTip="Dodaj/edytuj NVR-y i kanały kamer (z testem połączenia)"/>
                 <Button x:Name="SettingsBtn" Content="⚙ Ustawienia" Padding="10,4" Margin="6,0,0,0"
                         Background="Transparent" Foreground="{StaticResource TextDim}"
                         BorderBrush="{StaticResource Border}" BorderThickness="1"

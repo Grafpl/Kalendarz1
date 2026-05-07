@@ -234,6 +234,32 @@ namespace Kalendarz1.CentrumNagranAI.Views
             w.ShowDialog();
         }
 
+        private void NvrBtn_Click(object sender, RoutedEventArgs e)
+        {
+            var w = new NvrEditorWindow { Owner = this };
+            w.ShowDialog();
+            if (w.ChangesSaved)
+            {
+                // Restart indeksera + backfilla żeby uchwycił nowe kamery.
+                try
+                {
+                    IndexerBackgroundService.Instance.Stop();
+                    EmbeddingBackfillService.Instance.Stop();
+                    CnaConfig.Przeladuj();
+                    _ = IndexerBackgroundService.Instance.StartAsync();
+                    _ = EmbeddingBackfillService.Instance.StartAsync();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Restart indeksera fail: {ex.Message}\nZamknij ZPSP i otwórz ponownie żeby zastosować zmiany.",
+                        "Ostrzeżenie", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+                ZaladujChipyKamer();
+                LeftStatus.Text = $"Klatek w indeksie: {FrameIndex.CountFrames()}  •  Kamer: {CnaConfig.Kamery.Count}  •  Klucz Anthropic: " +
+                                  (string.IsNullOrEmpty(CnaConfig.AnthropicApiKey) ? "BRAK" : "OK");
+            }
+        }
+
         private void SettingsBtn_Click(object sender, RoutedEventArgs e)
         {
             var w = new CnaSettingsWindow { Owner = this };
