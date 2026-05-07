@@ -185,6 +185,193 @@ namespace Kalendarz1.CentrumNagranAI.Services
         }
 
         /// <summary>
+        /// Wpis caption + embedding. Wywołane po VLM caption + OpenAI embed.
+        /// </summary>
+        public static void UpsertCaptionAndEmbedding(long frameId, string caption, float[] vector, string? tagsJson = null)
+        {
+            using var conn = new SqliteConnection(ConnString);
+            conn.Open();
+            using var tx = conn.BeginTransaction();
+
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.Transaction = tx;
+                cmd.CommandText = @"
+                    INSERT INTO frame_caption (frame_id, caption, tags, created)
+                    VALUES ($id, $cap, $tags, $now)
+                    ON CONFLICT(frame_id) DO UPDATE SET
+                        caption = excluded.caption,
+                        tags = excluded.tags;";
+                cmd.Parameters.AddWithValue("$id", frameId);
+                cmd.Parameters.AddWithValue("$cap", caption);
+                cmd.Parameters.AddWithValue("$tags", (object?)tagsJson ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("$now", DateTime.UtcNow.ToString("o"));
+                cmd.ExecuteNonQuery();
+            }
+
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.Transaction = tx;
+                cmd.CommandText = @"
+                    INSERT INTO frame_embedding (frame_id, dim, vector)
+                    VALUES ($id, $dim, $vec)
+                    ON CONFLICT(frame_id) DO UPDATE SET
+                        dim = excluded.dim,
+                        vector = excluded.vector;";
+                cmd.Parameters.AddWithValue("$id", frameId);
+                cmd.Parameters.AddWithValue("$dim", vector.Length);
+                cmd.Parameters.AddWithValue("$vec", EmbeddingService.FloatArrayToBlob(vector));
+                cmd.ExecuteNonQuery();
+            }
+
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.Transaction = tx;
+                cmd.CommandText = "UPDATE frame SET embedding_status = 1 WHERE id = $id";
+                cmd.Parameters.AddWithValue("$id", frameId);
+                cmd.ExecuteNonQuery();
+            }
+
+            tx.Commit();
+        }
+
+        public static void MarkEmbeddingFailed(long frameId)
+        {
+            using var conn = new SqliteConnection(ConnString);
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "UPDATE frame SET embedding_status = 2 WHERE id = $id";
+            cmd.Parameters.AddWithValue("$id", frameId);
+            cmd.ExecuteNonQuery();
+        }
+
+        /// <summary>
+        /// Lista klatek bez embedingu (status=0). Używane przez backfill worker.
+        /// </summary>
+        public static List<FrameRecord> GetFramesWithoutEmbedding(int limit = 50)
+        {
+            using var conn = new SqliteConnection(ConnString);
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+                SELECT id, camera_id, ts, file_path, file_size FROM frame
+                WHERE embedding_status = 0
+                ORDER BY ts DESC
+                LIMIT $lim";
+            cmd.Parameters.AddWithValue("$lim", limit);
+            var result = new List<FrameRecord>();
+            using var rdr = cmd.ExecuteReader();
+            while (rdr.Read())
+            {
+                result.Add(new FrameRecord
+                {
+                    Id = rdr.GetInt64(0),
+                    CameraId = rdr.GetString(1),
+                    TsUtc = DateTime.Parse(rdr.GetString(2), null, System.Globalization.DateTimeStyles.RoundtripKind),
+                    FilePath = rdr.GetString(3),
+                    FileSize = rdr.IsDBNull(4) ? 0 : rdr.GetInt64(4)
+                });
+            }
+            return result;
+        }
+
+        public static (long total, long withEmbedding) GetEmbeddingStats()
+        {
+            using var conn = new SqliteConnection(ConnString);
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT COUNT(*), SUM(CASE WHEN embedding_status=1 THEN 1 ELSE 0 END) FROM frame";
+            using var rdr = cmd.ExecuteReader();
+            rdr.Read();
+            return (rdr.GetInt64(0), rdr.IsDBNull(1) ? 0 : rdr.GetInt64(1));
+        }
+
+        /// <summary>
+        /// KNN cosine: top-K klatek najbardziej podobnych do queryVec.
+        /// Optionally filtruje po dacie/kamerze. Bez sqlite-vec - prosty in-memory scan.
+        /// 100k wektorów × 1536 floats = ~600 MB w RAM. Dla PoC akceptowalne; production
+        /// wymagałaby sqlite-vec albo HNSW indeksu.
+        /// </summary>
+        public class KnnHit
+        {
+            public long FrameId { get; set; }
+            public string CameraId { get; set; } = string.Empty;
+            public DateTime TsUtc { get; set; }
+            public string FilePath { get; set; } = string.Empty;
+            public string? Caption { get; set; }
+            public float Similarity { get; set; }
+        }
+
+        public static List<KnnHit> KnnSearch(
+            float[] queryVec, int topK,
+            DateTime? fromUtc = null, DateTime? toUtc = null,
+            IEnumerable<string>? cameraIds = null)
+        {
+            using var conn = new SqliteConnection(ConnString);
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+
+            var sql = @"
+                SELECT f.id, f.camera_id, f.ts, f.file_path, fc.caption, fe.vector
+                FROM frame f
+                INNER JOIN frame_embedding fe ON fe.frame_id = f.id
+                LEFT JOIN frame_caption fc ON fc.frame_id = f.id
+                WHERE 1=1";
+            if (fromUtc.HasValue) { sql += " AND f.ts >= $from"; cmd.Parameters.AddWithValue("$from", fromUtc.Value.ToString("o")); }
+            if (toUtc.HasValue)   { sql += " AND f.ts <= $to";   cmd.Parameters.AddWithValue("$to", toUtc.Value.ToString("o")); }
+            if (cameraIds != null)
+            {
+                var list = cameraIds.ToList();
+                if (list.Count > 0)
+                {
+                    var placeholders = string.Join(",", list.Select((_, i) => $"$cam{i}"));
+                    sql += $" AND f.camera_id IN ({placeholders})";
+                    for (int i = 0; i < list.Count; i++) cmd.Parameters.AddWithValue($"$cam{i}", list[i]);
+                }
+            }
+            cmd.CommandText = sql;
+
+            var heap = new List<KnnHit>(topK + 1);
+            using var rdr = cmd.ExecuteReader();
+            while (rdr.Read())
+            {
+                byte[] blob = (byte[])rdr["vector"];
+                float[] v = EmbeddingService.BlobToFloatArray(blob);
+                float sim = EmbeddingService.Cosine(queryVec, v);
+                var hit = new KnnHit
+                {
+                    FrameId = rdr.GetInt64(0),
+                    CameraId = rdr.GetString(1),
+                    TsUtc = DateTime.Parse(rdr.GetString(2), null, System.Globalization.DateTimeStyles.RoundtripKind),
+                    FilePath = rdr.GetString(3),
+                    Caption = rdr.IsDBNull(4) ? null : rdr.GetString(4),
+                    Similarity = sim
+                };
+                // Wstawiamy do listy zachowując top-K po Similarity
+                heap.Add(hit);
+                if (heap.Count > topK)
+                {
+                    heap.Sort((a, b) => b.Similarity.CompareTo(a.Similarity));
+                    heap.RemoveAt(heap.Count - 1);
+                }
+            }
+            heap.Sort((a, b) => b.Similarity.CompareTo(a.Similarity));
+            return heap;
+        }
+
+        public static float[]? GetEmbedding(long frameId)
+        {
+            using var conn = new SqliteConnection(ConnString);
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT vector FROM frame_embedding WHERE frame_id = $id";
+            cmd.Parameters.AddWithValue("$id", frameId);
+            var result = cmd.ExecuteScalar();
+            if (result == null || result is DBNull) return null;
+            return EmbeddingService.BlobToFloatArray((byte[])result);
+        }
+
+        /// <summary>
         /// Kasuje wpisy frame + frame_embedding starsze niż cutoff. Zwraca ile rekordów.
         /// </summary>
         public static int DeleteFramesOlderThan(DateTime cutoffUtc)

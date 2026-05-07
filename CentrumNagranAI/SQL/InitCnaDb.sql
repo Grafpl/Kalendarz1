@@ -36,6 +36,69 @@ CREATE TABLE IF NOT EXISTS frame_embedding (
     FOREIGN KEY (frame_id) REFERENCES frame(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS frame_caption (
+    frame_id  INTEGER PRIMARY KEY,
+    caption   TEXT NOT NULL,
+    tags      TEXT,                    -- JSON list np. ["osoba","wozek","czepek"]
+    yolo      TEXT,                    -- JSON list YOLO detekcji
+    created   TEXT NOT NULL,
+    FOREIGN KEY (frame_id) REFERENCES frame(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_caption_tags ON frame_caption(tags);
+
+CREATE TABLE IF NOT EXISTS guard_rule (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    name          TEXT NOT NULL,
+    prompt        TEXT NOT NULL,        -- pytanie po polsku, np. "Czy widać osobę bez czepka?"
+    threshold     INTEGER NOT NULL DEFAULT 70,  -- min score żeby alert
+    cooldown_min  INTEGER NOT NULL DEFAULT 10,  -- minimum minut między alertami
+    enabled       INTEGER NOT NULL DEFAULT 1,
+    camera_filter TEXT,                 -- CSV cameraId, NULL=wszystkie
+    last_alert    TEXT,
+    created       TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS guard_alert (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    rule_id     INTEGER NOT NULL,
+    frame_id    INTEGER NOT NULL,
+    ts          TEXT NOT NULL,
+    score       INTEGER NOT NULL,
+    reason      TEXT,
+    notified    INTEGER NOT NULL DEFAULT 0,
+    FOREIGN KEY (rule_id) REFERENCES guard_rule(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_alert_ts ON guard_alert(ts);
+
+CREATE TABLE IF NOT EXISTS daily_brief (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    day       TEXT NOT NULL UNIQUE,    -- yyyy-MM-dd
+    summary   TEXT NOT NULL,
+    sample_frame_ids TEXT,
+    cost_usd  REAL,
+    created   TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS camera_baseline (
+    camera_id    TEXT NOT NULL,
+    hour         INTEGER NOT NULL,        -- 0-23
+    centroid     BLOB,                    -- średnia embedingów
+    sample_count INTEGER NOT NULL DEFAULT 0,
+    updated      TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (camera_id, hour)
+);
+
+CREATE TABLE IF NOT EXISTS anomaly_alert (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    frame_id    INTEGER NOT NULL,
+    camera_id   TEXT NOT NULL,
+    ts          TEXT NOT NULL,
+    distance    REAL NOT NULL,           -- 1.0 - cosine similarity
+    threshold   REAL NOT NULL,
+    notified    INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_anomaly_ts ON anomaly_alert(ts);
+
 CREATE TABLE IF NOT EXISTS query_audit (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     ts            TEXT NOT NULL,

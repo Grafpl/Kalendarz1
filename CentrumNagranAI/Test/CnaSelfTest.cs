@@ -44,11 +44,16 @@ namespace Kalendarz1.CentrumNagranAI.Test
             W($"  COUNT(frame) PRZED = {countBefore}");
 
             await IndexerBackgroundService.Instance.StartAsync();
-            W($"Indexer uruchomiony. Test trwa {seconds}s...");
+            await EmbeddingBackfillService.Instance.StartAsync();
+            W($"Indexer + Backfill uruchomione. Test trwa {seconds}s...");
 
             await Task.Delay(TimeSpan.FromSeconds(seconds));
 
             IndexerBackgroundService.Instance.Stop();
+            EmbeddingBackfillService.Instance.Stop();
+            W($"Backfill: processed={EmbeddingBackfillService.Instance.Processed}, " +
+              $"failed={EmbeddingBackfillService.Instance.Failed}, " +
+              $"cost=${EmbeddingBackfillService.Instance.TotalCostUsd:F4}");
 
             long countAfter = FrameIndex.CountFrames();
             W($"  COUNT(frame) PO    = {countAfter}");

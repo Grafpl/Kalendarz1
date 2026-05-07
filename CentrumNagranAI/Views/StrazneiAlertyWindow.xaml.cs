@@ -1,0 +1,234 @@
+using System;
+using System.Collections.ObjectModel;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Controls;
+using Kalendarz1.CentrumNagranAI.Services;
+
+namespace Kalendarz1.CentrumNagranAI.Views
+{
+    public partial class StrazneiAlertyWindow : Window
+    {
+        public class RuleVm
+        {
+            public long Id { get; set; }
+            public string Name { get; set; } = string.Empty;
+            public string Prompt { get; set; } = string.Empty;
+            public int Threshold { get; set; }
+            public int CooldownMin { get; set; }
+            public bool Enabled { get; set; }
+        }
+
+        public class AlertVm
+        {
+            public long Id { get; set; }
+            public DateTime TsUtc { get; set; }
+            public string RuleName { get; set; } = string.Empty;
+            public string CameraId { get; set; } = string.Empty;
+            public int Score { get; set; }
+            public string Reason { get; set; } = string.Empty;
+            public string TimeLabel => TsUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss");
+            public string CameraDisplayName => CnaConfig.DisplayName(CameraId);
+        }
+
+        public class AnomalyVm
+        {
+            public long FrameId { get; set; }
+            public DateTime TsUtc { get; set; }
+            public string CameraId { get; set; } = string.Empty;
+            public double Distance { get; set; }
+            public string FilePath { get; set; } = string.Empty;
+            public string TimeLabel => TsUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss");
+            public string CameraDisplayName => CnaConfig.DisplayName(CameraId);
+            public string DistanceLabel => Distance.ToString("F3");
+        }
+
+        public class BriefVm
+        {
+            public long Id { get; set; }
+            public string Day { get; set; } = string.Empty;
+            public string Summary { get; set; } = string.Empty;
+            public DateTime Created { get; set; }
+            public double CostUsd { get; set; }
+            public int SampleSize { get; set; }
+            public string CreatedLabel => Created.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+            public string CostLabel => $"${CostUsd:F4}";
+            public string Preview => Summary.Length > 100 ? Summary.Substring(0, 100).Replace("\n", " ") + "..." : Summary.Replace("\n", " ");
+        }
+
+        private readonly ObservableCollection<RuleVm> _rules = new();
+        private readonly ObservableCollection<AlertVm> _alerts = new();
+        private readonly ObservableCollection<AnomalyVm> _anomalies = new();
+        private readonly ObservableCollection<BriefVm> _briefs = new();
+        private RuleVm? _editing;
+
+        public StrazneiAlertyWindow()
+        {
+            InitializeComponent();
+            CnaConfig.ZaladujJesliTrzeba();
+            FrameIndex.Init();
+
+            RulesGrid.ItemsSource = _rules;
+            AlertsGrid.ItemsSource = _alerts;
+            AnomaliesGrid.ItemsSource = _anomalies;
+            BriefsGrid.ItemsSource = _briefs;
+
+            LoadRules();
+            LoadAlerts();
+            LoadAnomalies();
+            LoadBriefs();
+        }
+
+        // ───── Reguły ─────
+        private void LoadRules()
+        {
+            _rules.Clear();
+            foreach (var r in GuardService.GetAllRules())
+            {
+                _rules.Add(new RuleVm
+                {
+                    Id = r.Id, Name = r.Name, Prompt = r.Prompt,
+                    Threshold = r.Threshold, CooldownMin = r.CooldownMin, Enabled = r.Enabled
+                });
+            }
+        }
+
+        private void RulesGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            _editing = RulesGrid.SelectedItem as RuleVm;
+            if (_editing == null) { EditorPanel.IsEnabled = false; return; }
+            EditorPanel.IsEnabled = true;
+            RuleNameBox.Text = _editing.Name;
+            RulePromptBox.Text = _editing.Prompt;
+            RuleThresholdBox.Text = _editing.Threshold.ToString();
+            RuleCooldownBox.Text = _editing.CooldownMin.ToString();
+            RuleEnabledChk.IsChecked = _editing.Enabled;
+        }
+
+        private void NewRule_Click(object sender, RoutedEventArgs e)
+        {
+            _editing = new RuleVm { Threshold = 70, CooldownMin = 10, Enabled = true };
+            EditorPanel.IsEnabled = true;
+            RuleNameBox.Text = "Nowa reguła";
+            RulePromptBox.Text = "Czy na zdjęciu widać...";
+            RuleThresholdBox.Text = "70";
+            RuleCooldownBox.Text = "10";
+            RuleEnabledChk.IsChecked = true;
+        }
+
+        private void DeleteRule_Click(object sender, RoutedEventArgs e)
+        {
+            if (RulesGrid.SelectedItem is not RuleVm vm) return;
+            if (MessageBox.Show($"Skasować regułę '{vm.Name}'?", "Potwierdź", MessageBoxButton.YesNo) != MessageBoxResult.Yes) return;
+            GuardService.DeleteRule(vm.Id);
+            LoadRules();
+        }
+
+        private void SaveRule_Click(object sender, RoutedEventArgs e)
+        {
+            if (_editing == null) return;
+            if (!int.TryParse(RuleThresholdBox.Text, out int th)) { MessageBox.Show("Próg musi być liczbą"); return; }
+            if (!int.TryParse(RuleCooldownBox.Text, out int cd)) { MessageBox.Show("Cooldown musi być liczbą"); return; }
+            var rule = new GuardRule
+            {
+                Id = _editing.Id,
+                Name = RuleNameBox.Text.Trim(),
+                Prompt = RulePromptBox.Text.Trim(),
+                Threshold = th,
+                CooldownMin = cd,
+                Enabled = RuleEnabledChk.IsChecked == true
+            };
+            GuardService.UpsertRule(rule);
+            LoadRules();
+        }
+
+        // ───── Alerty ─────
+        private void LoadAlerts()
+        {
+            _alerts.Clear();
+            foreach (var a in GuardService.GetRecentAlerts(100))
+            {
+                _alerts.Add(new AlertVm
+                {
+                    Id = a.Id, TsUtc = a.TsUtc, RuleName = a.RuleName,
+                    CameraId = a.CameraId, Score = a.Score, Reason = a.Reason
+                });
+            }
+        }
+
+        private void RefreshAlerts_Click(object sender, RoutedEventArgs e) => LoadAlerts();
+
+        // ───── Anomalie ─────
+        private void LoadAnomalies()
+        {
+            _anomalies.Clear();
+            foreach (var a in AnomalyService.GetRecentAnomalies(100))
+            {
+                _anomalies.Add(new AnomalyVm
+                {
+                    FrameId = a.FrameId, TsUtc = a.Ts, CameraId = a.CameraId,
+                    Distance = a.Distance, FilePath = a.FilePath
+                });
+            }
+        }
+
+        private void RefreshAnomalies_Click(object sender, RoutedEventArgs e) => LoadAnomalies();
+
+        private void RebuildBaseline_Click(object sender, RoutedEventArgs e)
+        {
+            RebuildBtn.IsEnabled = false;
+            try
+            {
+                AnomalyService.RebuildBaseline(7);
+                MessageBox.Show("Baseline przebudowany.", "OK", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            finally { RebuildBtn.IsEnabled = true; }
+        }
+
+        // ───── Briefy ─────
+        private void LoadBriefs()
+        {
+            _briefs.Clear();
+            foreach (var b in DailyBriefService.GetRecent(30))
+            {
+                _briefs.Add(new BriefVm
+                {
+                    Id = b.Id, Day = b.Day, Summary = b.Summary,
+                    Created = b.Created, CostUsd = b.CostUsd,
+                    SampleSize = b.SampleFrameIds.Count
+                });
+            }
+        }
+
+        private void RefreshBriefs_Click(object sender, RoutedEventArgs e) => LoadBriefs();
+
+        private void BriefsGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (BriefsGrid.SelectedItem is BriefVm vm)
+                BriefDetailText.Text = vm.Summary;
+        }
+
+        private async void GenerateBrief_Click(object sender, RoutedEventArgs e)
+        {
+            GenerateBriefBtn.IsEnabled = false;
+            BriefStatus.Text = "Generuję brief... (10-20 sek)";
+            try
+            {
+                var brief = await DailyBriefService.GenerateAsync();
+                BriefStatus.Text = $"✓ Gotowy: {brief.Day} (${brief.CostUsd:F4})";
+                LoadBriefs();
+                BriefDetailText.Text = brief.Summary;
+            }
+            catch (Exception ex)
+            {
+                BriefStatus.Text = $"Błąd: {ex.Message}";
+            }
+            finally { GenerateBriefBtn.IsEnabled = true; }
+        }
+    }
+}

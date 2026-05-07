@@ -39,6 +39,44 @@ namespace Kalendarz1.CentrumNagranAI.Services
             public long? AuditId { get; set; }
         }
 
+        /// <summary>
+        /// Wyszukiwanie podobnych klatek na bazie embedingu danej klatki.
+        /// Brak VLM, brak kosztu - tylko lokalne KNN cosine.
+        /// </summary>
+        public static SearchSummary SearchSimilar(long frameId, int topN = 10)
+        {
+            CnaConfig.ZaladujJesliTrzeba();
+            FrameIndex.Init();
+
+            var sw = Stopwatch.StartNew();
+            var summary = new SearchSummary();
+
+            var refVec = FrameIndex.GetEmbedding(frameId);
+            if (refVec == null)
+            {
+                summary.DurationMs = sw.ElapsedMilliseconds;
+                return summary;
+            }
+
+            var knn = FrameIndex.KnnSearch(refVec, topN + 1);
+            // Pomiń sam ref frame, weź top-N podobnych
+            knn.RemoveAll(h => h.FrameId == frameId);
+            summary.Hits = knn.Take(topN).Select((h, i) => new SearchHit
+            {
+                FrameId = h.FrameId,
+                CameraId = h.CameraId,
+                TsUtc = h.TsUtc,
+                FilePath = h.FilePath,
+                Score = (int)Math.Round(h.Similarity * 100),
+                Reason = h.Caption ?? "(brak opisu)"
+            }).ToList();
+            summary.Candidates = knn.Count;
+            summary.VlmCalls = 0;
+            summary.TotalCostUsd = 0;
+            summary.DurationMs = sw.ElapsedMilliseconds;
+            return summary;
+        }
+
         public static async Task<SearchSummary> SearchAsync(
             string polishQuery,
             int topN = 10,
@@ -56,7 +94,53 @@ namespace Kalendarz1.CentrumNagranAI.Services
             var sw = Stopwatch.StartNew();
             var summary = new SearchSummary();
 
-            var kandydaci = FrameIndex.GetFrames(fromUtc, toUtc, cameraIds, candidateLimit);
+            // Strategia: jeśli >= 70% klatek ma embedding, używamy KNN prefilter.
+            // Inaczej fallback do brute-force VLM (jak było).
+            var (totalFrames, withEmb) = FrameIndex.GetEmbeddingStats();
+            bool useKnn = totalFrames > 0 && (withEmb * 100 / Math.Max(1, totalFrames)) >= 70 && EmbeddingService.IsConfigured;
+
+            List<FrameIndex.FrameRecord> kandydaci;
+
+            if (useKnn)
+            {
+                // KNN: query embed → top-K kandydatów (zwykle 50 zamiast wszystkich 200+)
+                Debug.WriteLine($"[CNA-Search] KNN tryb (embedding pokrycie {withEmb}/{totalFrames}={withEmb * 100 / totalFrames}%)");
+                float[] qVec;
+                try
+                {
+                    qVec = await EmbeddingService.EmbedAsync(polishQuery, ct);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[CNA-Search] embed fail, fallback brute-force: {ex.Message}");
+                    useKnn = false;
+                    qVec = Array.Empty<float>();
+                }
+
+                if (useKnn)
+                {
+                    int knnK = Math.Min(CnaConfig.TopKCandydatow, candidateLimit);
+                    var knn = FrameIndex.KnnSearch(qVec, knnK, fromUtc, toUtc, cameraIds);
+                    kandydaci = knn.Select(h => new FrameIndex.FrameRecord
+                    {
+                        Id = h.FrameId,
+                        CameraId = h.CameraId,
+                        TsUtc = h.TsUtc,
+                        FilePath = h.FilePath,
+                        FileSize = 0
+                    }).ToList();
+                }
+                else
+                {
+                    kandydaci = FrameIndex.GetFrames(fromUtc, toUtc, cameraIds, candidateLimit);
+                }
+            }
+            else
+            {
+                Debug.WriteLine($"[CNA-Search] Brute-force tryb (embedding pokrycie {withEmb}/{totalFrames})");
+                kandydaci = FrameIndex.GetFrames(fromUtc, toUtc, cameraIds, candidateLimit);
+            }
+
             summary.Candidates = kandydaci.Count;
             if (kandydaci.Count == 0)
             {

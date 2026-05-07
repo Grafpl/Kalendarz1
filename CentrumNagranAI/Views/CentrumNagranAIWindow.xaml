@@ -211,15 +211,26 @@
                                                        VerticalAlignment="Center"/>
                                         </Border>
 
-                                        <!-- Button odtwórz -->
-                                        <Button Grid.Column="3" Content="▶ Odtwórz"
-                                                Margin="12,0,0,0" Padding="14,8"
-                                                Background="{StaticResource AccentDark}"
-                                                Foreground="White" FontWeight="Bold"
-                                                BorderThickness="0" Cursor="Hand"
-                                                VerticalAlignment="Center"
-                                                Tag="{Binding}"
-                                                Click="PlayBtn_Click"/>
+                                        <!-- Buttons -->
+                                        <StackPanel Grid.Column="3" Orientation="Vertical"
+                                                    VerticalAlignment="Center" Margin="12,0,0,0">
+                                            <Button Content="▶ Odtwórz"
+                                                    Padding="14,6" Margin="0,0,0,4"
+                                                    Background="{StaticResource AccentDark}"
+                                                    Foreground="White" FontWeight="Bold"
+                                                    BorderThickness="0" Cursor="Hand"
+                                                    Tag="{Binding}"
+                                                    Click="PlayBtn_Click"/>
+                                            <Button Content="🔍 Podobne"
+                                                    Padding="14,4" FontSize="11"
+                                                    Background="Transparent"
+                                                    Foreground="{StaticResource TextDim}"
+                                                    BorderBrush="{StaticResource Border}" BorderThickness="1"
+                                                    Cursor="Hand"
+                                                    Tag="{Binding}"
+                                                    Click="SimilarBtn_Click"
+                                                    ToolTip="Pokaż klatki wizualnie podobne (bez kosztu)"/>
+                                        </StackPanel>
                                     </Grid>
                                 </Border>
                             </DataTemplate>
@@ -253,8 +264,16 @@
                        Foreground="{StaticResource TextDim}" FontSize="11"/>
             <TextBlock x:Name="RightStatus" Grid.Column="1" VerticalAlignment="Center"
                        Foreground="{StaticResource TextDim}" FontSize="11"/>
+            <Button x:Name="GuardBtn" Grid.Column="2"
+                    Content="🛡️ Strażnik AI" Padding="10,4" Margin="12,0,0,0"
+                    Background="Transparent"
+                    Foreground="{StaticResource Text}"
+                    BorderBrush="{StaticResource Accent}" BorderThickness="1"
+                    FontSize="11" Cursor="Hand"
+                    Click="GuardBtn_Click"
+                    ToolTip="Reguły alertów, anomalie, dzienne briefy"/>
             <Button x:Name="SettingsBtn" Grid.Column="2"
-                    Content="⚙ Ustawienia" Padding="10,4" Margin="12,0,0,0"
+                    Content="⚙ Ustawienia" Padding="10,4" Margin="120,0,0,0"
                     Background="Transparent"
                     Foreground="{StaticResource TextDim}"
                     BorderBrush="{StaticResource Border}" BorderThickness="1"

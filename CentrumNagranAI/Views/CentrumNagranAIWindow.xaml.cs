@@ -216,6 +216,12 @@ namespace Kalendarz1.CentrumNagranAI.Views
             }
         }
 
+        private void GuardBtn_Click(object sender, RoutedEventArgs e)
+        {
+            var w = new StrazneiAlertyWindow { Owner = this };
+            w.ShowDialog();
+        }
+
         private void SettingsBtn_Click(object sender, RoutedEventArgs e)
         {
             var w = new CnaSettingsWindow { Owner = this };
@@ -250,6 +256,33 @@ namespace Kalendarz1.CentrumNagranAI.Views
                 MessageBox.Show($"Nie mogę otworzyć folderu audit: {ex.Message}", "Błąd",
                     MessageBoxButton.OK, MessageBoxImage.Warning);
             }
+        }
+
+        private void SimilarBtn_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not System.Windows.Controls.Button btn || btn.Tag is not SearchHitVm vm) return;
+
+            var summary = SearchService.SearchSimilar(vm.FrameId, topN: 8);
+            _hits.Clear();
+            int rank = 1;
+            foreach (var h in summary.Hits)
+            {
+                _hits.Add(new SearchHitVm
+                {
+                    Rank = rank++,
+                    FrameId = h.FrameId,
+                    CameraId = h.CameraId,
+                    TsUtc = h.TsUtc,
+                    FilePath = h.FilePath,
+                    Score = h.Score,
+                    Reason = h.Reason,
+                    Thumbnail = LoadThumbnail(h.FilePath)
+                });
+            }
+            EmptyText.Visibility = _hits.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            ResultsScroller.Visibility = _hits.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+            QueryBox.Text = $"[Podobne do #{vm.Rank} {vm.CameraDisplayName}]";
+            RightStatus.Text = $"Search by similarity (KNN cosine, lokalnie, $0)  •  czas: {summary.DurationMs}ms";
         }
 
         private void PlayBtn_Click(object sender, RoutedEventArgs e)
