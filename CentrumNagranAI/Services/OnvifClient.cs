@@ -26,17 +26,21 @@ namespace Kalendarz1.CentrumNagranAI.Services
 
         /// <summary>
         /// Buduje URL do nagrania historycznego z NVR Internec.
-        /// ONVIF replay protocol (GetReplayUri przez SOAP) na tym firmware nie zwraca
-        /// poprawnego URL, więc używamy bezpośredniego formatu Internec znalezionego empirycznie:
-        ///   rtsp://host:port/playback/c{channel}/s{stream}/{yyyyMMdd'T'HHmmss'Z'}/{...}
-        /// Format dat: ONVIF style (yyyyMMddTHHmmssZ).
+        /// Format znaleziony empirycznie przez ONVIF GetRecordingSearchResults + GetReplayUri:
+        ///   rtsp://host:port/c{channel}/b{beginUnix}/e{endUnix}/replay/s{stream}/
+        /// Używa Unix timestamp w sekundach (nie ONVIF date string!).
+        ///
+        /// UWAGA: ONVIF playback protocol (GetReplayUri przez SOAP) DZIAŁA na tym NVR,
+        /// ale wymaga RecordingToken z GetRecordingSearchResults (3 osobne SOAP calls).
+        /// Skoro wiemy że NVR akceptuje też dowolny time range w tym samym formacie URL,
+        /// pomijamy SOAP i konstruujemy URL bezpośrednio.
         /// </summary>
         public static Task<string?> GetReplayUriAsync(
             CnaCameraEndpoint kamera, DateTime fromUtc, DateTime toUtc)
         {
-            string from = fromUtc.ToString("yyyyMMdd'T'HHmmss'Z'");
-            string to = toUtc.ToString("yyyyMMdd'T'HHmmss'Z'");
-            string url = $"rtsp://{kamera.Host}:{kamera.RtspPort}/playback/c{kamera.Channel}/s{kamera.StreamType}/{from}/{to}";
+            long beginUnix = new DateTimeOffset(DateTime.SpecifyKind(fromUtc, DateTimeKind.Utc)).ToUnixTimeSeconds();
+            long endUnix = new DateTimeOffset(DateTime.SpecifyKind(toUtc, DateTimeKind.Utc)).ToUnixTimeSeconds();
+            string url = $"rtsp://{kamera.Host}:{kamera.RtspPort}/c{kamera.Channel}/b{beginUnix}/e{endUnix}/replay/s{kamera.StreamType}/";
             return Task.FromResult<string?>(url);
         }
 
