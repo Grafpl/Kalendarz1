@@ -5,17 +5,17 @@
         Width="1280" Height="820"
         WindowStartupLocation="CenterScreen"
         WindowState="Maximized"
-        Background="#0F172A">
+        Background="#F8FAFC">
 
     <Window.Resources>
-        <SolidColorBrush x:Key="Bg" Color="#0F172A"/>
-        <SolidColorBrush x:Key="Surface" Color="#1E293B"/>
-        <SolidColorBrush x:Key="Surface2" Color="#243349"/>
-        <SolidColorBrush x:Key="Border" Color="#334155"/>
-        <SolidColorBrush x:Key="Text" Color="#E2E8F0"/>
-        <SolidColorBrush x:Key="TextDim" Color="#94A3B8"/>
-        <SolidColorBrush x:Key="Accent" Color="#EF4444"/>
-        <SolidColorBrush x:Key="AccentDark" Color="#B91C1C"/>
+        <SolidColorBrush x:Key="Bg" Color="#F8FAFC"/>
+        <SolidColorBrush x:Key="Surface" Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="Surface2" Color="#F1F5F9"/>
+        <SolidColorBrush x:Key="Border" Color="#CBD5E1"/>
+        <SolidColorBrush x:Key="Text" Color="#0F172A"/>
+        <SolidColorBrush x:Key="TextDim" Color="#64748B"/>
+        <SolidColorBrush x:Key="Accent" Color="#DC2626"/>
+        <SolidColorBrush x:Key="AccentDark" Color="#991B1B"/>
         <SolidColorBrush x:Key="Score80" Color="#16A34A"/>
         <SolidColorBrush x:Key="Score50" Color="#CA8A04"/>
         <SolidColorBrush x:Key="Score20" Color="#94A3B8"/>
@@ -23,6 +23,20 @@
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="{StaticResource Text}"/>
             <Setter Property="FontFamily" Value="Segoe UI"/>
+        </Style>
+        <!-- Hover effect dla przycisków bordered (ghost buttons) -->
+        <Style x:Key="GhostButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{StaticResource Text}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource Border}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding" Value="10,4"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#F1F5F9"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
     </Window.Resources>
 
@@ -118,19 +132,23 @@
                             <DataTemplate>
                                 <ToggleButton Content="{Binding Label}"
                                               IsChecked="{Binding IsSelected, Mode=TwoWay}"
-                                              Margin="2" Padding="10,4" FontSize="11"
+                                              Margin="3" Padding="12,6" FontSize="12"
                                               Cursor="Hand"
                                               Tag="{Binding}">
                                     <ToggleButton.Style>
                                         <Style TargetType="ToggleButton">
-                                            <Setter Property="Background" Value="Transparent"/>
-                                            <Setter Property="Foreground" Value="{StaticResource TextDim}"/>
+                                            <Setter Property="Background" Value="#F1F5F9"/>
+                                            <Setter Property="Foreground" Value="{StaticResource Text}"/>
                                             <Setter Property="BorderBrush" Value="{StaticResource Border}"/>
                                             <Setter Property="BorderThickness" Value="1"/>
                                             <Style.Triggers>
                                                 <Trigger Property="IsChecked" Value="True">
                                                     <Setter Property="Background" Value="{StaticResource Accent}"/>
                                                     <Setter Property="Foreground" Value="White"/>
+                                                    <Setter Property="BorderBrush" Value="{StaticResource Accent}"/>
+                                                </Trigger>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="BorderBrush" Value="{StaticResource Accent}"/>
                                                 </Trigger>
                                             </Style.Triggers>
                                         </Style>
@@ -149,11 +167,16 @@
                 BorderBrush="{StaticResource Border}" BorderThickness="1"
                 CornerRadius="8">
             <Grid>
-                <!-- Pusty stan / loader -->
-                <TextBlock x:Name="EmptyText"
-                           HorizontalAlignment="Center" VerticalAlignment="Center"
-                           Foreground="{StaticResource TextDim}"
-                           Text="Wpisz polskie zapytanie i kliknij Szukaj."/>
+                <!-- Pusty stan -->
+                <StackPanel x:Name="EmptyState" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="40">
+                    <TextBlock Text="🔍" FontSize="56" HorizontalAlignment="Center"
+                               Foreground="{StaticResource TextDim}" Opacity="0.5"/>
+                    <TextBlock x:Name="EmptyText" FontSize="15" Margin="0,12,0,0"
+                               HorizontalAlignment="Center" TextAlignment="Center"
+                               Foreground="{StaticResource TextDim}" TextWrapping="Wrap"
+                               MaxWidth="500"
+                               Text="Wpisz polskie zapytanie i kliknij Szukaj. Wyniki pokażą się tu - z miniaturką, opisem AI, score i przyciskiem ▶ Odtwórz."/>
+                </StackPanel>
 
                 <!-- Lista wyników -->
                 <ScrollViewer x:Name="ResultsScroller" Visibility="Collapsed"
@@ -253,13 +276,14 @@
 
                 <!-- Loader overlay -->
                 <Grid x:Name="LoaderOverlay" Visibility="Collapsed"
-                      Background="#80000000">
+                      Background="#CCFFFFFF">
                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                         <TextBlock x:Name="LoaderText" Text="Wyszukuję..."
-                                   FontSize="16" Foreground="{StaticResource Text}"
+                                   FontSize="18" FontWeight="SemiBold"
+                                   Foreground="{StaticResource Text}"
                                    HorizontalAlignment="Center"/>
-                        <ProgressBar IsIndeterminate="True" Width="240" Height="6"
-                                     Margin="0,12,0,0" Foreground="{StaticResource Accent}"/>
+                        <ProgressBar IsIndeterminate="True" Width="280" Height="8"
+                                     Margin="0,16,0,0" Foreground="{StaticResource Accent}"/>
                     </StackPanel>
                 </Grid>
             </Grid>

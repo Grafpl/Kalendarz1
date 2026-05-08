@@ -4,15 +4,15 @@
         Title="🛡️ Strażnik AI"
         Width="1100" Height="780"
         WindowStartupLocation="CenterOwner"
-        Background="#0F172A">
+        Background="#F8FAFC">
 
     <Window.Resources>
-        <SolidColorBrush x:Key="Surface" Color="#1E293B"/>
-        <SolidColorBrush x:Key="Surface2" Color="#243349"/>
-        <SolidColorBrush x:Key="Border" Color="#334155"/>
-        <SolidColorBrush x:Key="Text" Color="#E2E8F0"/>
-        <SolidColorBrush x:Key="TextDim" Color="#94A3B8"/>
-        <SolidColorBrush x:Key="Accent" Color="#EF4444"/>
+        <SolidColorBrush x:Key="Surface" Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="Surface2" Color="#F1F5F9"/>
+        <SolidColorBrush x:Key="Border" Color="#CBD5E1"/>
+        <SolidColorBrush x:Key="Text" Color="#0F172A"/>
+        <SolidColorBrush x:Key="TextDim" Color="#64748B"/>
+        <SolidColorBrush x:Key="Accent" Color="#DC2626"/>
         <SolidColorBrush x:Key="Danger" Color="#DC2626"/>
         <SolidColorBrush x:Key="Ok" Color="#16A34A"/>
 
@@ -21,22 +21,22 @@
             <Setter Property="FontFamily" Value="Segoe UI"/>
         </Style>
         <Style TargetType="TextBox">
-            <Setter Property="Background" Value="#0F172A"/>
+            <Setter Property="Background" Value="#FFFFFF"/>
             <Setter Property="Foreground" Value="{StaticResource Text}"/>
             <Setter Property="BorderBrush" Value="{StaticResource Border}"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="8,5"/>
-            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="10,7"/>
+            <Setter Property="FontSize" Value="14"/>
         </Style>
         <Style TargetType="DataGrid">
-            <Setter Property="Background" Value="{StaticResource Surface2}"/>
+            <Setter Property="Background" Value="{StaticResource Surface}"/>
             <Setter Property="Foreground" Value="{StaticResource Text}"/>
             <Setter Property="BorderBrush" Value="{StaticResource Border}"/>
             <Setter Property="GridLinesVisibility" Value="Horizontal"/>
             <Setter Property="HeadersVisibility" Value="Column"/>
-            <Setter Property="HorizontalGridLinesBrush" Value="#334155"/>
-            <Setter Property="RowBackground" Value="{StaticResource Surface2}"/>
-            <Setter Property="AlternatingRowBackground" Value="#1E293B"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="#E2E8F0"/>
+            <Setter Property="RowBackground" Value="#FFFFFF"/>
+            <Setter Property="AlternatingRowBackground" Value="#F8FAFC"/>
         </Style>
     </Window.Resources>
 

@@ -136,7 +136,7 @@ namespace Kalendarz1.CentrumNagranAI.Views
             SearchBtn.IsEnabled = false;
             QueryBox.IsEnabled = false;
             _hits.Clear();
-            EmptyText.Visibility = Visibility.Collapsed;
+            EmptyState.Visibility = Visibility.Collapsed;
             ResultsScroller.Visibility = Visibility.Collapsed;
             LoaderOverlay.Visibility = Visibility.Visible;
             LoaderText.Text = $"Wyszukuję: \"{query}\" ...";
@@ -177,7 +177,7 @@ namespace Kalendarz1.CentrumNagranAI.Views
                 if (_hits.Count == 0)
                 {
                     EmptyText.Text = "Brak wyników. Dorzuć więcej klatek (--cna-test) lub zmień zapytanie.";
-                    EmptyText.Visibility = Visibility.Visible;
+                    EmptyState.Visibility = Visibility.Visible;
                 }
                 else
                 {
@@ -190,7 +190,7 @@ namespace Kalendarz1.CentrumNagranAI.Views
             catch (Exception ex)
             {
                 EmptyText.Text = $"Błąd: {ex.Message}";
-                EmptyText.Visibility = Visibility.Visible;
+                EmptyState.Visibility = Visibility.Visible;
             }
             finally
             {
@@ -321,7 +321,7 @@ namespace Kalendarz1.CentrumNagranAI.Views
                     Thumbnail = LoadThumbnail(h.FilePath)
                 });
             }
-            EmptyText.Visibility = _hits.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            EmptyState.Visibility = _hits.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
             ResultsScroller.Visibility = _hits.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
             QueryBox.Text = $"[Podobne do #{vm.Rank} {vm.CameraDisplayName}]";
             RightStatus.Text = $"Search by similarity (KNN cosine, lokalnie, $0)  •  czas: {summary.DurationMs}ms";

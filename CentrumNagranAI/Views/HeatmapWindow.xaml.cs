@@ -38,8 +38,9 @@ namespace Kalendarz1.CentrumNagranAI.Views
                 var label = new TextBlock
                 {
                     Text = h.ToString("D2"),
-                    Foreground = new SolidColorBrush(Color.FromRgb(0x94, 0xA3, 0xB8)),
-                    FontSize = 10,
+                    Foreground = new SolidColorBrush(Color.FromRgb(0x64, 0x74, 0x8B)),
+                    FontSize = 11,
+                    FontWeight = FontWeights.SemiBold,
                     HorizontalAlignment = HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Center
                 };
@@ -61,8 +62,9 @@ namespace Kalendarz1.CentrumNagranAI.Views
                 var nameBlock = new TextBlock
                 {
                     Text = CnaConfig.DisplayName(cam),
-                    Foreground = new SolidColorBrush(Color.FromRgb(0xE2, 0xE8, 0xF0)),
-                    FontSize = 12,
+                    Foreground = new SolidColorBrush(Color.FromRgb(0x0F, 0x17, 0x2A)),
+                    FontSize = 13,
+                    FontWeight = FontWeights.SemiBold,
                     Padding = new Thickness(8, 0, 8, 0),
                     VerticalAlignment = VerticalAlignment.Center,
                     TextTrimming = TextTrimming.CharacterEllipsis
@@ -74,12 +76,12 @@ namespace Kalendarz1.CentrumNagranAI.Views
                 for (int h = 0; h < 24; h++)
                 {
                     bool has = data.TryGetValue((cam, h), out var act);
-                    var brush = has ? ActivityToColor(act, maxAct) : (Brush)new SolidColorBrush(Color.FromRgb(0x1E, 0x29, 0x3B));
+                    var brush = has ? ActivityToColor(act, maxAct) : (Brush)new SolidColorBrush(Color.FromRgb(0xF1, 0xF5, 0xF9));
                     var cell = new Border
                     {
                         Background = brush,
-                        BorderBrush = new SolidColorBrush(Color.FromRgb(0x0F, 0x17, 0x2A)),
-                        BorderThickness = new Thickness(1),
+                        BorderBrush = new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0xFF)),
+                        BorderThickness = new Thickness(2),
                         ToolTip = has
                             ? $"{CnaConfig.DisplayName(cam)} • godz {h:D2}: aktywność {act:F3}"
                             : $"{CnaConfig.DisplayName(cam)} • godz {h:D2}: brak danych"
@@ -97,16 +99,16 @@ namespace Kalendarz1.CentrumNagranAI.Views
                 : $"Komórek z danymi: {filledCells}, średnia aktywność: {totalCells / filledCells:F3}, max: {maxAct:F3}";
         }
 
-        // Mapowanie 0..max → kolor: ciemny granat → niebieski → fiolet → magenta → żółty
+        // Light theme: jasnoniebieski → żółty → pomarańczowy → czerwony.
+        // Dobry kontrast na białym tle i czytelny gradient "spokojnie → ruch".
         private static SolidColorBrush ActivityToColor(float v, float max)
         {
             float t = Math.Clamp(v / max, 0f, 1f);
-            // Prosta interpolacja w 4 segmentach
             byte r, g, b;
-            if (t < 0.25f)      { float k = t / 0.25f;        r = (byte)(20 + k * 40);  g = (byte)(30 + k * 60);  b = (byte)(50 + k * 150); }
-            else if (t < 0.50f) { float k = (t - 0.25f) / 0.25f; r = (byte)(60 + k * 140); g = (byte)(90 - k * 60);  b = (byte)(200 - k * 50); }
-            else if (t < 0.75f) { float k = (t - 0.50f) / 0.25f; r = (byte)(200 + k * 55); g = (byte)(30 + k * 50);  b = (byte)(150 - k * 100); }
-            else                { float k = (t - 0.75f) / 0.25f; r = 255;                  g = (byte)(80 + k * 175); b = (byte)(50 - k * 50); }
+            if (t < 0.25f)      { float k = t / 0.25f;        r = (byte)(220 - k * 90); g = (byte)(240 - k * 30); b = (byte)(250 - k * 50); }
+            else if (t < 0.50f) { float k = (t - 0.25f) / 0.25f; r = (byte)(130 + k * 125); g = (byte)(210 + k * 30); b = (byte)(200 - k * 100); }
+            else if (t < 0.75f) { float k = (t - 0.50f) / 0.25f; r = 255;                   g = (byte)(240 - k * 100); b = (byte)(100 - k * 70); }
+            else                { float k = (t - 0.75f) / 0.25f; r = 255;                   g = (byte)(140 - k * 90);  b = (byte)(30 - k * 30); }
             return new SolidColorBrush(Color.FromRgb(r, g, b));
         }
 

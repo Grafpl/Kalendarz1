@@ -5,15 +5,15 @@
         Title="Odtwarzanie klipu"
         Width="1100" Height="720"
         WindowStartupLocation="CenterOwner"
-        Background="#0F172A">
+        Background="#F8FAFC">
 
     <Window.Resources>
-        <SolidColorBrush x:Key="Bg" Color="#0F172A"/>
-        <SolidColorBrush x:Key="Surface" Color="#1E293B"/>
-        <SolidColorBrush x:Key="Border" Color="#334155"/>
-        <SolidColorBrush x:Key="Text" Color="#E2E8F0"/>
-        <SolidColorBrush x:Key="TextDim" Color="#94A3B8"/>
-        <SolidColorBrush x:Key="Accent" Color="#EF4444"/>
+        <SolidColorBrush x:Key="Bg" Color="#F8FAFC"/>
+        <SolidColorBrush x:Key="Surface" Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="Border" Color="#CBD5E1"/>
+        <SolidColorBrush x:Key="Text" Color="#0F172A"/>
+        <SolidColorBrush x:Key="TextDim" Color="#64748B"/>
+        <SolidColorBrush x:Key="Accent" Color="#DC2626"/>
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="{StaticResource Text}"/>
             <Setter Property="FontFamily" Value="Segoe UI"/>
