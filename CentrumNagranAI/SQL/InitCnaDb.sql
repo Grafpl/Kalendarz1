@@ -71,7 +71,8 @@ CREATE TABLE IF NOT EXISTS search_feedback (
     rank      INTEGER,                    -- pozycja w wynikach (1=top)
     feedback  INTEGER NOT NULL,           -- 1=trafny, 0=nietrafny
     user_id   TEXT,
-    ts        TEXT NOT NULL DEFAULT (datetime('now'))
+    ts        TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(query, frame_id, user_id)      -- jeden wpis per query+klatka+user (UPSERT)
 );
 CREATE INDEX IF NOT EXISTS idx_feedback_query ON search_feedback(query);
 

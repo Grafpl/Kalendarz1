@@ -18,9 +18,16 @@ namespace Kalendarz1.CentrumNagranAI.Services
             using var conn = new SqliteConnection(ConnString);
             conn.Open();
             using var cmd = conn.CreateCommand();
+            // UPSERT: jeden wpis per (query, frame_id, user). Powtórne kliknięcie = update.
             cmd.CommandText = @"
                 INSERT INTO search_feedback (audit_id, query, frame_id, score, rank, feedback, user_id, ts)
-                VALUES ($a, $q, $f, $s, $r, $fb, $u, $t)";
+                VALUES ($a, $q, $f, $s, $r, $fb, $u, $t)
+                ON CONFLICT(query, frame_id, user_id) DO UPDATE SET
+                    feedback = excluded.feedback,
+                    score = excluded.score,
+                    rank = excluded.rank,
+                    audit_id = excluded.audit_id,
+                    ts = excluded.ts;";
             cmd.Parameters.AddWithValue("$a", (object?)auditId ?? DBNull.Value);
             cmd.Parameters.AddWithValue("$q", query);
             cmd.Parameters.AddWithValue("$f", frameId);

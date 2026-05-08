@@ -337,9 +337,20 @@ namespace Kalendarz1.CentrumNagranAI.Views
             try
             {
                 FeedbackService.Submit(_lastQuery, vm.FrameId, vm.Score, vm.Rank, correct, App.UserID, _lastAuditId);
-                btn.IsEnabled = false;
-                btn.Content = correct ? "✓👍" : "✓👎";
-                btn.ToolTip = "Zapisane do search_feedback";
+                // Wizualne potwierdzenie obu buttonów w tej parze (wyszukaj sąsiednich w panelu)
+                if (btn.Parent is System.Windows.Controls.Panel parentPanel)
+                {
+                    foreach (var child in parentPanel.Children)
+                    {
+                        if (child is System.Windows.Controls.Button b && b.Tag == vm)
+                        {
+                            bool isUp = b.Content?.ToString()?.Contains("👍") == true || b.Content?.ToString() == "✓👍";
+                            b.Opacity = (isUp == correct) ? 1.0 : 0.4;
+                            b.Content = (isUp == correct) ? (correct ? "✓👍" : "✓👎") : (isUp ? "👍" : "👎");
+                        }
+                    }
+                }
+                btn.ToolTip = "Zapisane (możesz zmienić - upsert)";
             }
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[Feedback fail] {ex.Message}"); }
         }

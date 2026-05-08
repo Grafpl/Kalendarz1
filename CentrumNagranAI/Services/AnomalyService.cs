@@ -40,41 +40,43 @@ namespace Kalendarz1.CentrumNagranAI.Services
             using var conn = new SqliteConnection(ConnString);
             conn.Open();
 
-            using var cmd = conn.CreateCommand();
-            cmd.CommandText = @"
-                SELECT f.camera_id, f.ts, fe.vector
-                FROM frame f
-                INNER JOIN frame_embedding fe ON fe.frame_id = f.id
-                WHERE f.ts >= $since";
-            cmd.Parameters.AddWithValue("$since", since.ToString("o"));
-
-            // Pierwsze przejście: średnia (centroid) per (cameraId, hour)
-            var sums = new Dictionary<(string, int), (float[] sum, int count)>();
-            int dim = EmbeddingService.Dim;
-            // C1: trzymamy też distance'y od średniej żeby policzyć stddev w drugim przejściu
-            var distances = new Dictionary<(string, int), List<float>>();
-
-            // Pierwsze przejście — sumy
-            using (var rdr = cmd.ExecuteReader())
+            // Wczytaj wszystkie embedingi raz do RAM (dla dim=1536 i 100k klatek = ~600MB,
+            // ale baseline robimy max raz na 24h więc OK; alternatywnie 2 osobne SELECTy).
+            var allFrames = new List<(string Cam, int Hour, float[] Vec)>();
+            using (var cmd = conn.CreateCommand())
             {
+                cmd.CommandText = @"
+                    SELECT f.camera_id, f.ts, fe.vector
+                    FROM frame f
+                    INNER JOIN frame_embedding fe ON fe.frame_id = f.id
+                    WHERE f.ts >= $since";
+                cmd.Parameters.AddWithValue("$since", since.ToString("o"));
+                using var rdr = cmd.ExecuteReader();
                 while (rdr.Read())
                 {
                     string cam = rdr.GetString(0);
                     var ts = DateTime.Parse(rdr.GetString(1), null, System.Globalization.DateTimeStyles.RoundtripKind);
                     int hour = ts.ToLocalTime().Hour;
                     byte[] blob = (byte[])rdr["vector"];
-                    var v = EmbeddingService.BlobToFloatArray(blob);
-
-                    var key = (cam, hour);
-                    if (!sums.TryGetValue(key, out var entry)) entry = (new float[dim], 0);
-                    for (int i = 0; i < dim; i++) entry.sum[i] += v[i];
-                    entry.count++;
-                    sums[key] = entry;
+                    allFrames.Add((cam, hour, EmbeddingService.BlobToFloatArray(blob)));
                 }
             }
 
-            // Oblicz centroidy znormalizowane
+            int dim = EmbeddingService.Dim;
+            // Pierwsze przejście: średnia (centroid) per (cameraId, hour)
+            var sums = new Dictionary<(string, int), (float[] sum, int count)>();
+            foreach (var (cam, hour, v) in allFrames)
+            {
+                var key = (cam, hour);
+                if (!sums.TryGetValue(key, out var entry)) entry = (new float[dim], 0);
+                for (int i = 0; i < dim; i++) entry.sum[i] += v[i];
+                entry.count++;
+                sums[key] = entry;
+            }
+
+            // Oblicz centroidy znormalizowane (cosine wymaga unit vectors)
             var centroids = new Dictionary<(string, int), float[]>();
+            var distances = new Dictionary<(string, int), List<float>>();
             foreach (var kv in sums)
             {
                 if (kv.Value.count < 3) continue;
@@ -88,24 +90,13 @@ namespace Kalendarz1.CentrumNagranAI.Services
                 distances[kv.Key] = new List<float>(kv.Value.count);
             }
 
-            // Drugie przejście — zbierz distance per cell
-            using (var cmd2 = conn.CreateCommand())
+            // Drugie przejście — distance dla stddev
+            foreach (var (cam, hour, v) in allFrames)
             {
-                cmd2.CommandText = cmd.CommandText;
-                cmd2.Parameters.AddWithValue("$since", since.ToString("o"));
-                using var rdr = cmd2.ExecuteReader();
-                while (rdr.Read())
-                {
-                    string cam = rdr.GetString(0);
-                    var ts = DateTime.Parse(rdr.GetString(1), null, System.Globalization.DateTimeStyles.RoundtripKind);
-                    int hour = ts.ToLocalTime().Hour;
-                    var key = (cam, hour);
-                    if (!centroids.TryGetValue(key, out var c)) continue;
-                    byte[] blob = (byte[])rdr["vector"];
-                    var v = EmbeddingService.BlobToFloatArray(blob);
-                    float sim = EmbeddingService.Cosine(v, c);
-                    distances[key].Add(1f - sim);
-                }
+                var key = (cam, hour);
+                if (!centroids.TryGetValue(key, out var c)) continue;
+                float sim = EmbeddingService.Cosine(v, c);
+                distances[key].Add(1f - sim);
             }
 
             // Zapisz centroid + sample_count + stddev distance

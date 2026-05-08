@@ -136,7 +136,7 @@ namespace Kalendarz1.CentrumNagranAI.Services
                                     if (plates.Count > 0)
                                     {
                                         PlateDetectionService.SavePlates(frame.Id, frame.CameraId, frame.TsUtc, plates, string.Join(",", plates));
-                                        TotalCostUsd += 0.003; // 3 klatki × $0.001 (multi-frame voting)
+                                        TotalCostUsd += 0.0015; // 1 multi-image call z 3 klatkami (D1 polish)
                                     }
                                 }
                                 catch (Exception ex) { Debug.WriteLine($"[Plate fail] {ex.Message}"); }

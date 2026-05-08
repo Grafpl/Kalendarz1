@@ -51,41 +51,55 @@ namespace Kalendarz1.CentrumNagranAI.Services
         }
 
         /// <summary>
-        /// D1: Multi-frame voting. Bierze 3 sąsiednie klatki tej kamery (-10s, klatka, +10s),
-        /// OCR każdej, voting po najczęstszym odczytie. Eliminuje motion-blur false positives.
+        /// D1 polished: Multi-frame voting w JEDNYM VLM call (3× tańsze niż osobne calls).
+        /// 3 klatki idą do Haiku w pojedynczym requeście, prompt każe wypisać tablice z każdej osobno.
         /// </summary>
         public static async Task<List<string>> DetectWithVotingAsync(long frameId, CancellationToken ct = default)
         {
             var frames = FrameIndex.GetNeighbours(frameId, countBefore: 1, countAfter: 1);
             if (frames.Count == 0) return new List<string>();
 
-            // OCR każdej klatki (równolegle).
-            var perFrameResults = new List<List<string>>();
-            foreach (var f in frames)
+            var paths = frames.Select(f => f.FilePath).Where(File.Exists).ToList();
+            if (paths.Count == 0) return new List<string>();
+            if (paths.Count == 1) return await DetectAsync(paths[0], ct);
+
+            string votingPrompt =
+                $"Otrzymałeś {paths.Count} kolejnych klatek z tej samej kamery (różnica ~10 sekund). " +
+                "Dla KAŻDEJ klatki osobno wypisz wszystkie polskie tablice rejestracyjne. " +
+                "Format dokładnie taki (jedna linia na klatkę):\n" +
+                "K1: WK 12345, WPI 5G23\n" +
+                "K2: BRAK\n" +
+                "K3: WK 12345\n" +
+                "NIC poza tym formatem.";
+
+            try
             {
-                if (!File.Exists(f.FilePath)) continue;
-                try
-                {
-                    var plates = await DetectAsync(f.FilePath, ct);
-                    perFrameResults.Add(plates);
-                }
-                catch (Exception ex) { Log($"voting frame {f.Id} fail: {ex.Message}"); }
+                var result = await VlmClient.AnalyzeMultiImageAsync(
+                    paths, votingPrompt,
+                    model: VlmClient.ModelHaiku,
+                    maxTokens: 250,
+                    ct: ct);
+
+                var perFrame = new List<List<string>>();
+                foreach (Match m in Regex.Matches(result.Text, @"K\d+\s*:\s*([^\r\n]*)"))
+                    perFrame.Add(ExtractPlates(m.Groups[1].Value));
+                if (perFrame.Count == 0) perFrame.Add(ExtractPlates(result.Text));
+
+                int requiredVotes = perFrame.Count >= 2 ? 2 : 1;
+                var counts = new Dictionary<string, int>();
+                foreach (var list in perFrame)
+                    foreach (var p in list)
+                    {
+                        if (!counts.ContainsKey(p)) counts[p] = 0;
+                        counts[p]++;
+                    }
+                return counts.Where(kv => kv.Value >= requiredVotes).Select(kv => kv.Key).ToList();
             }
-
-            if (perFrameResults.Count == 0) return new List<string>();
-
-            // Voting: tablica akceptowana jeśli pojawia się >=2 razy w 3 klatkach,
-            // lub jeśli mamy tylko 1 klatkę i tablica jest bezpośrednia.
-            int requiredVotes = perFrameResults.Count >= 2 ? 2 : 1;
-            var counts = new Dictionary<string, int>();
-            foreach (var list in perFrameResults)
-                foreach (var p in list)
-                {
-                    if (!counts.ContainsKey(p)) counts[p] = 0;
-                    counts[p]++;
-                }
-
-            return counts.Where(kv => kv.Value >= requiredVotes).Select(kv => kv.Key).ToList();
+            catch (Exception ex)
+            {
+                Log($"voting fail (frame {frameId}): {ex.Message.Split('\n')[0]} — fallback single-frame");
+                return await DetectAsync(paths[paths.Count / 2], ct);
+            }
         }
 
         private static List<string> ExtractPlates(string raw)

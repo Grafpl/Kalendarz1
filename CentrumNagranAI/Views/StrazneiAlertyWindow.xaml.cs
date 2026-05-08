@@ -46,6 +46,15 @@ namespace Kalendarz1.CentrumNagranAI.Views
             public string DistanceLabel => Distance.ToString("F3");
         }
 
+        public class FeedbackQueryVm
+        {
+            public string Query { get; set; } = string.Empty;
+            public int Total { get; set; }
+            public int Correct { get; set; }
+            public double Precision { get; set; }
+            public string PrecisionLabel => $"{Precision:F1}%";
+        }
+
         public class BriefVm
         {
             public long Id { get; set; }
@@ -63,6 +72,7 @@ namespace Kalendarz1.CentrumNagranAI.Views
         private readonly ObservableCollection<AlertVm> _alerts = new();
         private readonly ObservableCollection<AnomalyVm> _anomalies = new();
         private readonly ObservableCollection<BriefVm> _briefs = new();
+        private readonly ObservableCollection<FeedbackQueryVm> _feedbackQueries = new();
         private RuleVm? _editing;
 
         public StrazneiAlertyWindow()
@@ -75,12 +85,41 @@ namespace Kalendarz1.CentrumNagranAI.Views
             AlertsGrid.ItemsSource = _alerts;
             AnomaliesGrid.ItemsSource = _anomalies;
             BriefsGrid.ItemsSource = _briefs;
+            FeedbackGrid.ItemsSource = _feedbackQueries;
 
             LoadRules();
             LoadAlerts();
             LoadAnomalies();
             LoadBriefs();
+            LoadFeedback();
         }
+
+        private void LoadFeedback()
+        {
+            _feedbackQueries.Clear();
+            try
+            {
+                var stats = FeedbackService.GetStats(30);
+                StatTotalText.Text = stats.TotalFeedbacks.ToString();
+                StatCorrectText.Text = stats.Correct.ToString();
+                StatIncorrectText.Text = stats.Incorrect.ToString();
+                StatPrecisionText.Text = stats.TotalFeedbacks == 0 ? "—" : $"{stats.PrecisionPercent:F1}%";
+                foreach (var q in stats.ByQuery)
+                {
+                    _feedbackQueries.Add(new FeedbackQueryVm
+                    {
+                        Query = q.Query, Total = q.Total, Correct = q.Correct, Precision = q.Precision
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                StatTotalText.Text = "—"; StatCorrectText.Text = "—"; StatIncorrectText.Text = "—";
+                StatPrecisionText.Text = ex.Message.Substring(0, Math.Min(40, ex.Message.Length));
+            }
+        }
+
+        private void RefreshFeedback_Click(object sender, RoutedEventArgs e) => LoadFeedback();
 
         // ───── Reguły ─────
         private void LoadRules()
