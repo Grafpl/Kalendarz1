@@ -43,6 +43,11 @@ namespace Kalendarz1.Transport.Formularze
         private List<int> _zamowieniaDoUsuniecia = new List<int>();
         private bool _dataLoaded = false;
 
+        // Konflikty (Faza 1) — żywy ConflictDetectionService
+        private readonly Kalendarz1.Transport.Services.ConflictDetectionService _conflictSvc = new();
+        private List<Kalendarz1.Transport.Services.CourseConflict> _aktualneKonflikty = new();
+        private Label lblKonflikty;
+
         // Szukaj zamówień
         private TextBox txtSzukajZamowienia;
         private string _filtrZamowien = "";
@@ -657,6 +662,7 @@ namespace Kalendarz1.Transport.Formularze
                 FlatStyle = FlatStyle.Flat
             };
             cboPojazd.SelectedIndexChanged += async (s, e) => await UpdateWypelnienie();
+            cboKierowca.SelectedIndexChanged += (s, e) => RecomputeConflicts();
 
             btnNowyPojazd = new Button
             {
@@ -721,6 +727,8 @@ namespace Kalendarz1.Transport.Formularze
                 ForeColor = Color.FromArgb(255, 193, 7),
                 BorderStyle = BorderStyle.FixedSingle
             };
+            txtGodzWyjazdu.TextChanged += (s, e) => RecomputeConflicts();
+            txtGodzPowrotu.TextChanged += (s, e) => RecomputeConflicts();
 
             lblAutoUpdate = new Label
             {
@@ -754,7 +762,7 @@ namespace Kalendarz1.Transport.Formularze
             var panelWypelnienie = new Panel
             {
                 Location = new Point(15, 138),
-                Size = new Size(650, 50),
+                Size = new Size(650, 72),
                 BackColor = Color.FromArgb(33, 37, 43),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             };
@@ -804,7 +812,21 @@ namespace Kalendarz1.Transport.Formularze
                 Anchor = AnchorStyles.Top | AnchorStyles.Right
             };
 
-            panelWypelnienie.Controls.AddRange(new Control[] { lblWypelnienie, progressWypelnienie, lblStatystyki });
+            // === Wiersz konfliktów (Y=45) — Faza 1 ===
+            lblKonflikty = new Label
+            {
+                Location = new Point(10, 47),
+                Size = new Size(635, 20),
+                Text = "✓ Brak konfliktów",
+                Font = new Font("Segoe UI", 8.5F, FontStyle.Regular),
+                ForeColor = Color.FromArgb(34, 197, 94),
+                Cursor = Cursors.Hand,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
+            };
+            lblKonflikty.Click += LblKonflikty_Click;
+
+            panelWypelnienie.Controls.AddRange(new Control[] { lblWypelnienie, progressWypelnienie, lblStatystyki, lblKonflikty });
 
             // === Wiersz 5 (Y=198): Info bar ===
             _panelInfoKursu = new Panel
@@ -2999,11 +3021,121 @@ namespace Kalendarz1.Transport.Formularze
                     lblWypelnienie.Text = $"WYPEŁNIENIE: {procent:F1}%";
                 }
                 _progressFill.BackColor = barColor;
+                RecomputeConflicts();
             }
             catch
             {
                 // Ignoruj błędy
             }
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        // Faza 1 — ConflictDetectionService integration
+        // ════════════════════════════════════════════════════════════════
+        private void RecomputeConflicts()
+        {
+            try
+            {
+                var kierowca = cboKierowca?.SelectedItem as Kierowca;
+                var pojazd   = cboPojazd?.SelectedItem as Pojazd;
+
+                TimeSpan? godzWyjazdu = TimeSpan.TryParse(txtGodzWyjazdu?.Text ?? "", out var gw) ? gw : (TimeSpan?)null;
+                TimeSpan? godzPowrotu = TimeSpan.TryParse(txtGodzPowrotu?.Text ?? "", out var gp) ? gp : (TimeSpan?)null;
+
+                var courseData = new Kalendarz1.Transport.Services.ConflictDetectionService.CourseData
+                {
+                    KursId = _kursId,
+                    DataKursu = dtpData?.Value ?? DateTime.Today,
+                    KierowcaId = kierowca?.KierowcaID,
+                    PojazdId = pojazd?.PojazdID,
+                    PaletyPojazdu = pojazd?.PaletyH1 ?? 0,
+                    GodzinaWyjazdu = godzWyjazdu,
+                    GodzinaPowrotu = godzPowrotu,
+                    SumaPalet = _ladunki?.Sum(l => l.Palety) ?? 0m,
+                    SumaPojemnikow = _ladunki?.Sum(l => l.PojemnikiE2) ?? 0,
+                    SumaWagaKg = (int)(_ladunki?.Sum(l => l.IloscKg) ?? 0m),
+                    Ladunki = _ladunki?.Select(l => new Kalendarz1.Transport.Services.ConflictDetectionService.LoadItem
+                    {
+                        KodKlienta = l.KodKlienta,
+                        NazwaKlienta = l.NazwaKlienta,
+                        Adres = l.Adres,
+                        Palety = l.Palety
+                    }).ToList() ?? new List<Kalendarz1.Transport.Services.ConflictDetectionService.LoadItem>()
+                };
+
+                _aktualneKonflikty = _conflictSvc.DetectAll(courseData);
+                UpdateKonfliktyLabel();
+            }
+            catch
+            {
+                // defensive — nie blokujemy edytora jeśli detekcja konfliktów wyrzuci wyjątek
+            }
+        }
+
+        private void UpdateKonfliktyLabel()
+        {
+            if (lblKonflikty == null) return;
+            int errors   = _aktualneKonflikty.Count(c => c.Level == Kalendarz1.Transport.Services.ConflictLevel.Error);
+            int warnings = _aktualneKonflikty.Count(c => c.Level == Kalendarz1.Transport.Services.ConflictLevel.Warning);
+            int infos    = _aktualneKonflikty.Count(c => c.Level == Kalendarz1.Transport.Services.ConflictLevel.Info);
+
+            if (errors == 0 && warnings == 0 && infos == 0)
+            {
+                lblKonflikty.Text = "✓ Brak konfliktów";
+                lblKonflikty.ForeColor = Color.FromArgb(34, 197, 94);
+            }
+            else
+            {
+                var parts = new List<string>();
+                if (errors > 0)   parts.Add($"❌ {errors} błąd" + (errors > 1 ? "y" : ""));
+                if (warnings > 0) parts.Add($"⚠ {warnings} ostrzeżeni" + (warnings > 1 ? "a" : "e"));
+                if (infos > 0)    parts.Add($"ℹ {infos} info");
+                lblKonflikty.Text = "Konflikty: " + string.Join(" · ", parts) + "   (kliknij po szczegóły)";
+                lblKonflikty.ForeColor = errors > 0
+                    ? Color.FromArgb(248, 113, 113)
+                    : warnings > 0 ? Color.FromArgb(251, 191, 36)
+                    : Color.FromArgb(147, 197, 253);
+            }
+        }
+
+        private void LblKonflikty_Click(object sender, EventArgs e)
+        {
+            if (_aktualneKonflikty.Count == 0)
+            {
+                MessageBox.Show("Brak wykrytych konfliktów ✓", "Konflikty kursu",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            var sb = new System.Text.StringBuilder();
+            foreach (var grp in _aktualneKonflikty.GroupBy(c => c.Level))
+            {
+                var label = grp.Key switch
+                {
+                    Kalendarz1.Transport.Services.ConflictLevel.Error   => "❌ BŁĘDY",
+                    Kalendarz1.Transport.Services.ConflictLevel.Warning => "⚠ OSTRZEŻENIA",
+                    _ => "ℹ INFO"
+                };
+                sb.AppendLine(label);
+                foreach (var c in grp)
+                {
+                    sb.AppendLine($"  • {c.Message}");
+                    if (!string.IsNullOrEmpty(c.Detail))
+                        sb.AppendLine($"     {c.Detail}");
+                }
+                sb.AppendLine();
+            }
+
+            var icon = _aktualneKonflikty.Any(c => c.Level == Kalendarz1.Transport.Services.ConflictLevel.Error)
+                ? MessageBoxIcon.Error
+                : _aktualneKonflikty.Any(c => c.Level == Kalendarz1.Transport.Services.ConflictLevel.Warning)
+                    ? MessageBoxIcon.Warning
+                    : MessageBoxIcon.Information;
+
+            MessageBox.Show(sb.ToString().TrimEnd(),
+                "Wykryte konflikty kursu",
+                MessageBoxButtons.OK,
+                icon);
         }
 
         private async Task OdswiezZamowienie()
@@ -3461,6 +3593,27 @@ Adres: {zamowienie.Adres}";
 
                 if (wynik != DialogResult.Yes)
                     return;
+            }
+
+            // Faza 1 — blokada zapisu na blocking errors
+            // NO_DRIVER/NO_VEHICLE są obsługiwane przez Yes/No powyżej (kurs "Planowany" bez zasobów dozwolony).
+            // Reszta errorów (przeładowanie, double-booking) musi być poprawiona.
+            RecomputeConflicts();
+            var blockingErrors = _aktualneKonflikty
+                .Where(c => c.Level == Kalendarz1.Transport.Services.ConflictLevel.Error
+                         && c.Code != Kalendarz1.Transport.Services.ConflictDetectionService.NO_DRIVER
+                         && c.Code != Kalendarz1.Transport.Services.ConflictDetectionService.NO_VEHICLE)
+                .ToList();
+            if (blockingErrors.Count > 0)
+            {
+                var msgErr = "Wykryto " + blockingErrors.Count + " błąd"
+                           + (blockingErrors.Count > 1 ? "ów" : "")
+                           + " blokujących zapis:\n\n";
+                foreach (var er in blockingErrors)
+                    msgErr += "  • " + er.Message + "\n";
+                msgErr += "\nPopraw konflikty przed zapisem (lub kliknij linijkę konfliktów dla szczegółów).";
+                MessageBox.Show(msgErr, "Nie można zapisać", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
             }
 
             try
