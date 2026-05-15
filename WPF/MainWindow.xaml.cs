@@ -1484,8 +1484,9 @@ namespace Kalendarz1.WPF
 
         private async void BtnNew_Click(object sender, RoutedEventArgs e)
         {
-            var widokZamowienia = new Kalendarz1.WidokZamowienia(UserID, null);
-            if (widokZamowienia.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            var win = new Kalendarz1.Zamowienia.Views.NoweZamowienieTestWindow(UserID, null);
+            win.Owner = this;
+            if (win.ShowDialog() == true)
             {
                 await RefreshAllDataAsync();
             }
@@ -1493,12 +1494,9 @@ namespace Kalendarz1.WPF
 
         private async void BtnNewTest_Click(object sender, RoutedEventArgs e)
         {
-            var win = new Kalendarz1.Zamowienia.Views.NoweZamowienieTestWindow(UserID);
-            win.Owner = this;
-            if (win.ShowDialog() == true)
-            {
-                await RefreshAllDataAsync();
-            }
+            // Legacy — kieruje na to samo nowe okno
+            BtnNew_Click(sender, e);
+            await Task.CompletedTask;
         }
 
         private async void BtnDelete_Click(object sender, RoutedEventArgs e)
@@ -2479,8 +2477,9 @@ namespace Kalendarz1.WPF
             _currentOrderId = id;
             await DisplayOrderDetailsAsync(id);
 
-            var widokZamowienia = new Kalendarz1.WidokZamowienia(UserID, _currentOrderId.Value);
-            if (widokZamowienia.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            var win = new Kalendarz1.Zamowienia.Views.NoweZamowienieTestWindow(UserID, _currentOrderId.Value);
+            win.Owner = this;
+            if (win.ShowDialog() == true)
             {
                 await RefreshAllDataAsync();
             }
@@ -2657,6 +2656,288 @@ namespace Kalendarz1.WPF
                 App.UserFullName ?? "Administrator",
                 klientId);
             kartotekaWindow.Show();
+        }
+
+        private async Task PokazDiagnostykeContractorClassificationAsync(int klientId, string nowy, string verified, int rowsAffected)
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"Zapis się nie zadziałał. Wartość w bazie: \"{verified}\", oczekiwano: \"{nowy}\". Wierszy zmienionych: {rowsAffected}.");
+            sb.AppendLine();
+            sb.AppendLine("=== DIAGNOSTYKA ContractorClassification ===");
+            sb.AppendLine();
+
+            try
+            {
+                await using var cn = new SqlConnection(_connHandel);
+                await cn.OpenAsync();
+
+                // 1. Obiekt typu
+                sb.AppendLine("--- 1. Typ obiektu ---");
+                await using (var c = new SqlCommand(
+                    "SELECT name, type_desc FROM sys.objects WHERE object_id = OBJECT_ID('[HANDEL].[SSCommon].[ContractorClassification]')", cn))
+                await using (var rd = await c.ExecuteReaderAsync())
+                {
+                    while (await rd.ReadAsync()) sb.AppendLine($"  {rd[0]} : {rd[1]}");
+                }
+
+                // 2. Kolumny (z is_computed, is_nullable)
+                sb.AppendLine();
+                sb.AppendLine("--- 2. Kolumny ---");
+                await using (var c = new SqlCommand(
+                    @"SELECT name, TYPE_NAME(user_type_id) AS Typ, max_length, is_nullable, is_computed
+                      FROM sys.columns WHERE object_id = OBJECT_ID('[HANDEL].[SSCommon].[ContractorClassification]')
+                      ORDER BY column_id", cn))
+                await using (var rd = await c.ExecuteReaderAsync())
+                {
+                    while (await rd.ReadAsync())
+                        sb.AppendLine($"  {rd["name"],-30} {rd["Typ"],-15} len={rd["max_length"]} null={rd["is_nullable"]} computed={rd["is_computed"]}");
+                }
+
+                // 3. Triggery
+                sb.AppendLine();
+                sb.AppendLine("--- 3. Triggery ---");
+                await using (var c = new SqlCommand(
+                    @"SELECT name, type_desc, is_disabled, is_instead_of_trigger
+                      FROM sys.triggers WHERE parent_id = OBJECT_ID('[HANDEL].[SSCommon].[ContractorClassification]')", cn))
+                await using (var rd = await c.ExecuteReaderAsync())
+                {
+                    bool any = false;
+                    while (await rd.ReadAsync())
+                    {
+                        any = true;
+                        sb.AppendLine($"  {rd["name"]} : {rd["type_desc"]} disabled={rd["is_disabled"]} instead_of={rd["is_instead_of_trigger"]}");
+                    }
+                    if (!any) sb.AppendLine("  (brak)");
+                }
+
+                // 4. Liczba wierszy dla tego klienta
+                sb.AppendLine();
+                sb.AppendLine($"--- 4. Wierszy dla ElementId={klientId} ---");
+                await using (var c = new SqlCommand(
+                    "SELECT COUNT(*) FROM [HANDEL].[SSCommon].[ContractorClassification] WHERE ElementId = @id", cn))
+                {
+                    c.Parameters.AddWithValue("@id", klientId);
+                    var cnt = await c.ExecuteScalarAsync();
+                    sb.AppendLine($"  COUNT = {cnt}");
+                }
+
+                // 5. Wszystkie kolumny z rzeczywistą wartością tego wiersza
+                sb.AppendLine();
+                sb.AppendLine($"--- 5. Wiersz dla ElementId={klientId} (wszystkie kolumny) ---");
+                await using (var c = new SqlCommand(
+                    "SELECT TOP 3 * FROM [HANDEL].[SSCommon].[ContractorClassification] WHERE ElementId = @id", cn))
+                {
+                    c.Parameters.AddWithValue("@id", klientId);
+                    await using var rd = await c.ExecuteReaderAsync();
+                    int rowIdx = 0;
+                    while (await rd.ReadAsync())
+                    {
+                        sb.AppendLine($"  -- Wiersz {++rowIdx} --");
+                        for (int i = 0; i < rd.FieldCount; i++)
+                        {
+                            var name = rd.GetName(i);
+                            var v = rd.IsDBNull(i) ? "<NULL>" : rd[i]?.ToString() ?? "<NULL>";
+                            if (v.Length > 80) v = v.Substring(0, 80) + "…";
+                            sb.AppendLine($"    {name,-30} = {v}");
+                        }
+                    }
+                    if (rowIdx == 0) sb.AppendLine("  (brak wierszy)");
+                }
+
+                // 6. Wzorcowy "działający" wiersz dla wybranego handlowca
+                if (!string.IsNullOrEmpty(nowy))
+                {
+                    sb.AppendLine();
+                    sb.AppendLine($"--- 6. Wzorcowy wiersz z CDim_Handlowiec_Val = '{nowy}' ---");
+                    await using var c = new SqlCommand(
+                        "SELECT TOP 1 * FROM [HANDEL].[SSCommon].[ContractorClassification] WHERE CDim_Handlowiec_Val = @h", cn);
+                    c.Parameters.AddWithValue("@h", nowy);
+                    await using var rd = await c.ExecuteReaderAsync();
+                    if (await rd.ReadAsync())
+                    {
+                        for (int i = 0; i < rd.FieldCount; i++)
+                        {
+                            var name = rd.GetName(i);
+                            var v = rd.IsDBNull(i) ? "<NULL>" : rd[i]?.ToString() ?? "<NULL>";
+                            if (v.Length > 80) v = v.Substring(0, 80) + "…";
+                            sb.AppendLine($"    {name,-30} = {v}");
+                        }
+                    }
+                    else
+                    {
+                        sb.AppendLine("  (nie znaleziono wzorca — żaden kontrahent nie ma tego handlowca)");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                sb.AppendLine();
+                sb.AppendLine($"!!! Błąd diagnostyki: {ex.Message}");
+            }
+
+            sb.AppendLine();
+            sb.AppendLine("Skopiuj to (Ctrl+A, Ctrl+C) i wyślij administratorowi.");
+
+            // Pokaż w okienku z TextBox-em żeby dało się skopiować
+            var win = new Window
+            {
+                Title = "Diagnostyka — Sage ContractorClassification",
+                Width = 900, Height = 600,
+                Owner = this,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner
+            };
+            var tb = new TextBox
+            {
+                Text = sb.ToString(),
+                IsReadOnly = true,
+                FontFamily = new FontFamily("Consolas"),
+                FontSize = 11,
+                AcceptsReturn = true,
+                TextWrapping = TextWrapping.NoWrap,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+                Margin = new Thickness(8)
+            };
+            win.Content = tb;
+            try
+            {
+                System.Windows.Clipboard.SetText(sb.ToString());
+                tb.AppendText("\n\n[Skopiowane do schowka.]");
+            }
+            catch { }
+            win.ShowDialog();
+        }
+
+        private async void MenuPrzypiszHandlowca_Click(object sender, RoutedEventArgs e)
+        {
+            if (_contextMenuSelectedRow == null) return;
+
+            int klientId = 0;
+            try { klientId = _contextMenuSelectedRow.Row.Field<int>("KlientId"); } catch { }
+            if (klientId <= 0)
+            {
+                MessageBox.Show("Nie udało się ustalić kontrahenta dla tego wiersza.",
+                    "Brak danych", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            string odbiorca = "";
+            try { odbiorca = _contextMenuSelectedRow.Row.Field<string>("Odbiorca") ?? ""; } catch { }
+            string aktualny = "";
+            try { aktualny = _contextMenuSelectedRow.Row.Field<string>("Handlowiec") ?? ""; } catch { }
+
+            // Lista istniejących handlowców z Symfonii
+            var handlowcy = new List<string>();
+            try
+            {
+                await using var cn = new SqlConnection(_connHandel);
+                await cn.OpenAsync();
+                await using var cmd = new SqlCommand(
+                    "SELECT DISTINCT CDim_Handlowiec_Val FROM [HANDEL].[SSCommon].[ContractorClassification] WHERE CDim_Handlowiec_Val IS NOT NULL ORDER BY 1", cn);
+                await using var rd = await cmd.ExecuteReaderAsync();
+                while (await rd.ReadAsync())
+                {
+                    var h = rd[0]?.ToString();
+                    if (!string.IsNullOrWhiteSpace(h)) handlowcy.Add(h);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Nie udało się pobrać listy handlowców:\n" + ex.Message,
+                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            var dlg = new PrzypiszHandlowcaWpfDialog(odbiorca, aktualny, handlowcy) { Owner = this };
+            if (dlg.ShowDialog() != true) return;
+
+            string nowy = (dlg.WybranyHandlowiec ?? "").Trim();
+
+            int rowsAffected = 0;
+            string verifiedValue = "";
+            try
+            {
+                await using var cn = new SqlConnection(_connHandel);
+                await cn.OpenAsync();
+
+                // Sage Symfonia: kolumna CDim_Handlowiec (int FK do słownika wymiarów) jest źródłem prawdy.
+                // INSTEAD OF UPDATE trigger nadpisuje CDim_Handlowiec_Val na podstawie CDim_Handlowiec.
+                // Aby zmiana zadziałała, MUSIMY ustawić CDim_Handlowiec na właściwy ID.
+                int? hidParam = null;
+                if (!string.IsNullOrEmpty(nowy))
+                {
+                    await using var idCmd = new SqlCommand(
+                        "SELECT TOP 1 CDim_Handlowiec FROM [HANDEL].[SSCommon].[ContractorClassification] " +
+                        "WHERE CDim_Handlowiec_Val = @h AND CDim_Handlowiec IS NOT NULL", cn);
+                    idCmd.Parameters.AddWithValue("@h", nowy);
+                    var r = await idCmd.ExecuteScalarAsync();
+                    if (r != null && r != DBNull.Value) hidParam = Convert.ToInt32(r);
+                    else
+                    {
+                        MessageBox.Show(
+                            "Nie znaleziono ID wymiaru dla handlowca '" + nowy + "'.\n\n" +
+                            "Sage Symfonia trzyma handlowca jako referencję do słownika wymiarów. " +
+                            "Aby przypisać handlowca, musi już istnieć przynajmniej jeden kontrahent " +
+                            "z tym handlowcem (skąd skopiujemy ID).\n\n" +
+                            "Wybierz handlowca z dropdownu, nie wpisuj ręcznie.",
+                            "Brak ID wymiaru", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        return;
+                    }
+                }
+
+                // UPSERT — UPDATE jeśli wiersz istnieje, INSERT gdy nie. Trigger INSTEAD OF UPDATE
+                // sam zaktualizuje _Val gdy CDim_Handlowiec się zmieni.
+                const string upsertSql = @"
+                    IF EXISTS (SELECT 1 FROM [HANDEL].[SSCommon].[ContractorClassification] WHERE ElementId = @id)
+                        UPDATE [HANDEL].[SSCommon].[ContractorClassification]
+                           SET CDim_Handlowiec = @hid, CDim_Handlowiec_Val = @h
+                         WHERE ElementId = @id;
+                    ELSE
+                        INSERT INTO [HANDEL].[SSCommon].[ContractorClassification]
+                            (Guid, ElementId, CDim_Handlowiec, CDim_Handlowiec_Val)
+                        VALUES (NEWID(), @id, @hid, @h);";
+
+                await using (var cmd = new SqlCommand(upsertSql, cn))
+                {
+                    cmd.Parameters.AddWithValue("@id", klientId);
+                    cmd.Parameters.AddWithValue("@h", string.IsNullOrEmpty(nowy) ? (object)DBNull.Value : nowy);
+                    cmd.Parameters.AddWithValue("@hid", (object?)hidParam ?? DBNull.Value);
+                    rowsAffected = await cmd.ExecuteNonQueryAsync();
+                }
+
+                // Verify read-back
+                await using (var verify = new SqlCommand(
+                    "SELECT ISNULL(CDim_Handlowiec_Val, '') FROM [HANDEL].[SSCommon].[ContractorClassification] WHERE ElementId = @id", cn))
+                {
+                    verify.Parameters.AddWithValue("@id", klientId);
+                    var v = await verify.ExecuteScalarAsync();
+                    verifiedValue = v?.ToString() ?? "";
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Nie udało się zapisać handlowca w Symfonii:\n" + ex.Message,
+                    "Błąd zapisu", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            // Sprawdź, czy zapis faktycznie zadziałał
+            if (!string.Equals(verifiedValue.Trim(), nowy.Trim(), StringComparison.OrdinalIgnoreCase))
+            {
+                await PokazDiagnostykeContractorClassificationAsync(klientId, nowy, verifiedValue, rowsAffected);
+                return;
+            }
+
+            // Wyczyść cache kontrahentów żeby refresh pobrał aktualne dane
+            _cachedKontrahenci.Clear();
+            _cachedKontrahenciTime = DateTime.MinValue;
+
+            MessageBox.Show(
+                $"✓ Zapisano handlowca: {(string.IsNullOrEmpty(nowy) ? "(brak)" : nowy)}\n" +
+                $"Kontrahent: {odbiorca} (id={klientId})",
+                "Zapisano", MessageBoxButton.OK, MessageBoxImage.Information);
+
+            await RefreshAllDataAsync();
         }
 
         private async void MenuUsun_Click(object sender, RoutedEventArgs e)
@@ -3262,8 +3543,9 @@ namespace Kalendarz1.WPF
         {
             if (_currentOrderId.HasValue && _currentOrderId.Value > 0)
             {
-                var widokZamowienia = new Kalendarz1.WidokZamowienia(UserID, _currentOrderId.Value);
-                if (widokZamowienia.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+                var win = new Kalendarz1.Zamowienia.Views.NoweZamowienieTestWindow(UserID, _currentOrderId.Value);
+                win.Owner = this;
+                if (win.ShowDialog() == true)
                 {
                     await RefreshAllDataAsync();
                 }
@@ -5554,22 +5836,50 @@ ORDER BY zm.Id";
             return result;
         }
 
+        // Wydania per (klient, towar) za dany dzień — źródło: LibraNet (Panel Magazyniera).
+        // Wcześniej brało z HANDEL HM.MG/MZ (Sage). Zmiana 2026-05-11: magazynier oznacza wydanie w panelu,
+        // wartość Wyd. powinna odzwierciedlać to co faktycznie wydał (z różnicami) — nie WZ-kę z Symfoni.
+        //
+        // Logika ilości per pozycja:
+        //   - jeśli jest wpis w ZamowienieWydanieRoznice → IloscWydana (faktyczna, może != zamówiona)
+        //   - inaczej → Ilosc z ZamowieniaMiesoTowar (wydano dokładnie ile zamówiono)
+        // Filtr: tylko zamówienia z CzyWydane=1 i DataWydania = @Day.
         private async Task<Dictionary<int, Dictionary<int, decimal>>> GetReleasesPerClientProductAsync(DateTime day)
         {
             day = ValidateSqlDate(day);
             var dict = new Dictionary<int, Dictionary<int, decimal>>();
             if (!_productCatalogCache.Keys.Any()) return dict;
 
-            await using var cn = new SqlConnection(_connHandel);
+            await using var cn = new SqlConnection(_connLibra);
             await cn.OpenAsync();
-            var idwList = string.Join(",", _productCatalogCache.Keys);
 
-            string sql = $@"SELECT MG.khid, MZ.idtw, SUM(ABS(MZ.ilosc)) AS qty 
-                   FROM [HANDEL].[HM].[MZ] MZ 
-                   JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id 
-                   WHERE MG.seria IN ('sWZ','sWZ-W') AND MG.aktywny = 1 
-                   AND MG.data = @Day AND MG.khid IS NOT NULL AND MZ.idtw IN ({idwList}) 
-                   GROUP BY MG.khid, MZ.idtw";
+            // Tabela różnic tworzona jest dynamicznie przez panel magazyniera przy pierwszym zapisie
+            // (Magazyn/Panel/MagazynPanel.xaml.cs:272). Bez niej — fallback do Ilosc z ZamowieniaMiesoTowar.
+            bool hasRoznice;
+            await using (var check = new SqlCommand(
+                "SELECT CASE WHEN EXISTS (SELECT 1 FROM sys.objects WHERE name='ZamowienieWydanieRoznice' AND type='U') THEN 1 ELSE 0 END", cn))
+            {
+                hasRoznice = Convert.ToInt32(await check.ExecuteScalarAsync()) == 1;
+            }
+
+            var idwList = string.Join(",", _productCatalogCache.Keys);
+            string joinRoznice = hasRoznice
+                ? "LEFT JOIN dbo.ZamowienieWydanieRoznice r ON r.ZamowienieId = z.Id AND r.KodTowaru = zt.KodTowaru"
+                : "";
+            string iloscExpr = hasRoznice ? "ISNULL(r.IloscWydana, zt.Ilosc)" : "zt.Ilosc";
+
+            string sql = $@"
+                SELECT z.KlientId, zt.KodTowaru, SUM({iloscExpr}) AS qty
+                FROM dbo.ZamowieniaMieso z
+                INNER JOIN dbo.ZamowieniaMiesoTowar zt ON zt.ZamowienieId = z.Id
+                {joinRoznice}
+                WHERE z.CzyWydane = 1
+                  AND CAST(z.DataWydania AS DATE) = @Day
+                  AND z.KlientId IS NOT NULL
+                  AND zt.KodTowaru IS NOT NULL
+                  AND zt.KodTowaru IN ({idwList})
+                  AND zt.Ilosc > 0
+                GROUP BY z.KlientId, zt.KodTowaru";
 
             await using var cmd = new SqlCommand(sql, cn);
             cmd.Parameters.AddWithValue("@Day", day);
@@ -5578,7 +5888,7 @@ ORDER BY zm.Id";
             while (await rdr.ReadAsync())
             {
                 int clientId = rdr.IsDBNull(0) ? 0 : rdr.GetInt32(0);
-                int productId = rdr.GetInt32(1);
+                int productId = rdr.IsDBNull(1) ? 0 : Convert.ToInt32(rdr.GetValue(1));
                 decimal qty = rdr.IsDBNull(2) ? 0m : Convert.ToDecimal(rdr.GetValue(2));
 
                 if (!dict.TryGetValue(clientId, out var perProduct))

@@ -3038,8 +3038,9 @@ namespace Kalendarz1.Transport.Formularze
             var zamowienie = _wolneZamowienia.FirstOrDefault(z => z.ZamowienieId == zamId);
             if (zamowienie == null) return;
 
-            var widokZamowienia = new WidokZamowienia(UserID ?? _uzytkownik, zamowienie.ZamowienieId);
-            if (widokZamowienia.ShowDialog() == DialogResult.OK)
+            var win = new Kalendarz1.Zamowienia.Views.NoweZamowienieTestWindow(UserID ?? _uzytkownik, zamowienie.ZamowienieId);
+            new System.Windows.Interop.WindowInteropHelper(win) { Owner = this.Handle };
+            if (win.ShowDialog() == true)
             {
                 await LoadWolneZamowienia();
             }
@@ -3079,8 +3080,9 @@ Adres: {zamowienie.Adres}";
             {
                 var zamId = int.Parse(ladunek.KodKlienta.Substring(4));
 
-                var widokZamowienia = new WidokZamowienia(UserID ?? _uzytkownik, zamId);
-                if (widokZamowienia.ShowDialog() == DialogResult.OK)
+                var win = new Kalendarz1.Zamowienia.Views.NoweZamowienieTestWindow(UserID ?? _uzytkownik, zamId);
+                new System.Windows.Interop.WindowInteropHelper(win) { Owner = this.Handle };
+                if (win.ShowDialog() == true)
                 {
                     await CheckForZamowieniaUpdates();
                     await LoadWolneZamowienia();

@@ -414,7 +414,8 @@ namespace Kalendarz1.WPF
         {
             try
             {
-                var widok = new Kalendarz1.WidokZamowienia(UserID, null);
+                var widok = new Kalendarz1.Zamowienia.Views.NoweZamowienieTestWindow(UserID, null);
+                widok.Owner = this;
                 widok.ShowDialog();
                 // Po zamknieciu okna - odswiez liste, bo moglo powstac nowe zamowienie
                 await RefreshDataAsync();
@@ -2245,7 +2246,8 @@ namespace Kalendarz1.WPF
         {
             if (_currentOrderId.HasValue)
             {
-                var widok = new Kalendarz1.WidokZamowienia(UserID, _currentOrderId.Value);
+                var widok = new Kalendarz1.Zamowienia.Views.NoweZamowienieTestWindow(UserID, _currentOrderId.Value);
+                widok.Owner = this;
                 widok.ShowDialog();
                 _ = RefreshDataAsync();
             }

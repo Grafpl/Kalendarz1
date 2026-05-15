@@ -146,9 +146,8 @@ namespace Kalendarz1
             { "MapaOdbiorcowForm", new IconConfig("👥", Color.FromArgb(100, 181, 246)) },
             { "FormMapaWojewodztwa", new IconConfig("👥", Color.FromArgb(100, 181, 246)) },
 
-            { "WidokZamowienia", new IconConfig("🛒", Color.FromArgb(66, 165, 245)) },
             { "WidokZamowieniaPodsumowanie", new IconConfig("🛒", Color.FromArgb(66, 165, 245)) },
-            { "NoweZamowienieTestWindow", new IconConfig("✨", Color.FromArgb(124, 58, 237)) },
+            { "NoweZamowienieTestWindow", new IconConfig("🛒", Color.FromArgb(66, 165, 245)) },
             { "DuplicateOrderDialog", new IconConfig("🛒", Color.FromArgb(66, 165, 245)) },
             { "AfterSaveDialog", new IconConfig("🛒", Color.FromArgb(66, 165, 245)) },
             { "MultipleDatePickerDialog", new IconConfig("🛒", Color.FromArgb(66, 165, 245)) },

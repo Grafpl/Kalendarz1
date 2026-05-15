@@ -5561,14 +5561,11 @@ namespace Kalendarz1.WPF
                 selectedOrderId = chosenId.Value;
             }
 
-            // Otwórz WidokZamowienia (WinForms) do edycji
-            var widokZamowienia = new WidokZamowienia(App.UserID ?? "", selectedOrderId);
-            var result = widokZamowienia.ShowDialog();
-
-            // Po zamknięciu okna edycji - odśwież dane
-            if (result == System.Windows.Forms.DialogResult.OK)
+            // Otwórz nowe okno zamówienia w trybie edycji
+            var win = new Kalendarz1.Zamowienia.Views.NoweZamowienieTestWindow(App.UserID ?? "", selectedOrderId);
+            win.Owner = this;
+            if (win.ShowDialog() == true)
             {
-                // Odśwież dane
                 await LoadDataAsync();
                 refreshCallback?.Invoke();
             }
