@@ -22,7 +22,7 @@ namespace Kalendarz1.MapaFloty
         private static string WfKey     => Kalendarz1.Webfleet.WebfleetConfig.ApiKey;
         private static string WfUrl     => Kalendarz1.Webfleet.WebfleetConfig.BaseUrl;
         private static string _auth     => Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes($"{WfUser}:{WfPass}"));
-        private static readonly System.Net.Http.HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(20) };
+        private static System.Net.Http.HttpClient _http => Kalendarz1.Webfleet.WebfleetHttp.Instance;
 
         private readonly List<MapaFlotyView.VehiclePosition> _webfleetVehicles;
 

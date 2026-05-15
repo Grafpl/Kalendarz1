@@ -21,7 +21,7 @@ namespace Kalendarz1.MapaFloty
         private static string WfKey     => Kalendarz1.Webfleet.WebfleetConfig.ApiKey;
         private static string WfUrl     => Kalendarz1.Webfleet.WebfleetConfig.BaseUrl;
         private static string _auth     => Convert.ToBase64String(Encoding.UTF8.GetBytes($"{WfUser}:{WfPass}"));
-        private static readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(20) };
+        private static HttpClient _http => Kalendarz1.Webfleet.WebfleetHttp.Instance;
         private static readonly string _conn = "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True";
         private static readonly string _connLibra = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
         private const double BazaLat = 51.86857, BazaLon = 19.79476, BazaR = 1500;

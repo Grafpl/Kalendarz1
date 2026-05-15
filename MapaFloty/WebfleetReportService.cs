@@ -19,7 +19,7 @@ namespace Kalendarz1.MapaFloty
         private static string WfKey     => Kalendarz1.Webfleet.WebfleetConfig.ApiKey;
         private static string WfUrl     => Kalendarz1.Webfleet.WebfleetConfig.BaseUrl;
         private static string _auth     => Convert.ToBase64String(Encoding.UTF8.GetBytes($"{WfUser}:{WfPass}"));
-        private static readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(30) };
+        private static HttpClient _http => Kalendarz1.Webfleet.WebfleetHttp.Instance;
 
         // ══════════════════════════════════════════════════════════════════
         // showTripSummaryReportExtern — dzienne podsumowania per pojazd

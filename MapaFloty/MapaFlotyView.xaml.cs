@@ -32,7 +32,7 @@ namespace Kalendarz1.MapaFloty
 
         private static string _basicAuth => Convert.ToBase64String(
             Encoding.UTF8.GetBytes($"{WebfleetUsername}:{WebfleetPassword}"));
-        private static readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(20) };
+        private static HttpClient _http => Kalendarz1.Webfleet.WebfleetHttp.Instance;
         private static readonly JsonSerializerSettings _js = new()
         {
             MissingMemberHandling = MissingMemberHandling.Ignore,
