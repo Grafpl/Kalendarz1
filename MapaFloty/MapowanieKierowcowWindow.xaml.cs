@@ -16,11 +16,12 @@ namespace Kalendarz1.MapaFloty
 
         public ObservableCollection<InternalDriver> InternalDrivers { get; } = new();
         private readonly List<DriverMappingRow> _rows = new();
-        private static readonly string WfAccount = "942879", WfUser = "Administrator", WfPass = "kaazZVY5";
-        private static readonly string WfKey = "7a538868-96cf-4149-a9db-6e090de7276c";
-        private static readonly string WfUrl = "https://csv.webfleet.com/extern";
-        private static readonly string _auth = Convert.ToBase64String(
-            System.Text.Encoding.UTF8.GetBytes($"{WfUser}:{WfPass}"));
+        private static string WfAccount => Kalendarz1.Webfleet.WebfleetConfig.Account;
+        private static string WfUser    => Kalendarz1.Webfleet.WebfleetConfig.User;
+        private static string WfPass    => Kalendarz1.Webfleet.WebfleetConfig.Pass;
+        private static string WfKey     => Kalendarz1.Webfleet.WebfleetConfig.ApiKey;
+        private static string WfUrl     => Kalendarz1.Webfleet.WebfleetConfig.BaseUrl;
+        private static string _auth     => Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes($"{WfUser}:{WfPass}"));
         private static readonly System.Net.Http.HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(20) };
 
         private readonly List<MapaFlotyView.VehiclePosition> _webfleetVehicles;

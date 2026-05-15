@@ -22,15 +22,15 @@ namespace Kalendarz1.MapaFloty
         // ══════════════════════════════════════════════════════════════════
         // Konfiguracja
         // ══════════════════════════════════════════════════════════════════
-        private static readonly string WebfleetAccount = "942879";
-        private static readonly string WebfleetUsername = "Administrator";
-        private static readonly string WebfleetPassword = "kaazZVY5";
-        private static readonly string WebfleetApiKey = "7a538868-96cf-4149-a9db-6e090de7276c";
-        private static readonly string WebfleetBaseUrl = "https://csv.webfleet.com/extern";
-        // Baza — ubojnia Koziołki 40
+        private static string WebfleetAccount  => Kalendarz1.Webfleet.WebfleetConfig.Account;
+        private static string WebfleetUsername => Kalendarz1.Webfleet.WebfleetConfig.User;
+        private static string WebfleetPassword => Kalendarz1.Webfleet.WebfleetConfig.Pass;
+        private static string WebfleetApiKey   => Kalendarz1.Webfleet.WebfleetConfig.ApiKey;
+        private static string WebfleetBaseUrl  => Kalendarz1.Webfleet.WebfleetConfig.BaseUrl;
+        // Baza — ubojnia Koziołki 40 (TODO Faza 0.4 → Shared/Geo/FirmaLokalizacje.UbojniaKoziolki40)
         private const double UbLat = 51.86857, UbLon = 19.79476;
 
-        private static readonly string _basicAuth = Convert.ToBase64String(
+        private static string _basicAuth => Convert.ToBase64String(
             Encoding.UTF8.GetBytes($"{WebfleetUsername}:{WebfleetPassword}"));
         private static readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(20) };
         private static readonly JsonSerializerSettings _js = new()
