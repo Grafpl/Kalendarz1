@@ -7,5 +7,5 @@
         MinWidth="1100" MinHeight="700"
         WindowStartupLocation="CenterScreen"
         WindowState="Maximized">
-    <local:MapaFlotyView/>
+    <local:MapaFlotyView x:Name="FlotaView"/>
 </Window>

@@ -3183,10 +3183,10 @@ namespace Kalendarz1.Transport.Formularze
         {
             try
             {
-                var connLibra = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
-                var connHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
-
-                var mapWindow = new Kalendarz1.Transport.TransportMapaWindow(connLibra, connHandel, _selectedDate);
+                // Faza 4-D — zamiast TransportMapaWindow (Google) otwieramy MapaFlotyWindow
+                // z automatycznie włączoną warstwą wolnych zamówień. Widzi GPS pojazdów +
+                // zamówienia do zaplanowania w jednym oknie.
+                var mapWindow = new Kalendarz1.MapaFloty.MapaFlotyWindow(_selectedDate);
                 mapWindow.Show();
             }
             catch (Exception ex)

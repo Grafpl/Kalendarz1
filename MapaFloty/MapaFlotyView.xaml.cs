@@ -89,6 +89,23 @@ namespace Kalendarz1.MapaFloty
         // ══════════════════════════════════════════════════════════════════
         // Wolne zamówienia (Faza 4-C) — warstwa layer w mapie floty
         // ══════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Public API (Faza 4-D) — wywołane np. przez TransportMainFormImproved.BtnMapa_Click.
+        /// Włącza toggle i ładuje zamówienia dnia. Jeśli mapa nie jest gotowa, kolejkuje na po NavigationCompleted.
+        /// </summary>
+        public void ShowOrdersForDate(DateTime date)
+        {
+            if (OrdersDate != null) OrdersDate.SelectedDate = date;
+            if (BtnToggleOrders != null) BtnToggleOrders.IsChecked = true;
+            if (_mapReady)
+                _ = LoadAndRenderOrdersAsync();
+            else
+                _pendingOrdersDate = date;
+        }
+
+        private DateTime? _pendingOrdersDate;
+
         private async void BtnToggleOrders_Click(object sender, RoutedEventArgs e)
         {
             if (BtnToggleOrders?.IsChecked == true)
@@ -181,6 +198,13 @@ namespace Kalendarz1.MapaFloty
                     _countdownTimer.Tick += (_, _) => { if (_countdown > 0) _countdown--; CountdownText.Text = $"{_countdown}s"; };
                     _countdownTimer.Start();
                     _ = LoadMappingsAndRefresh();
+
+                    // Faza 4-D — consume pending orders date (queued przez ShowOrdersForDate)
+                    if (_pendingOrdersDate.HasValue)
+                    {
+                        _pendingOrdersDate = null;
+                        _ = LoadAndRenderOrdersAsync();
+                    }
                 };
 
                 cw.Navigate("https://mapafloty.local/map.html");
