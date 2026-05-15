@@ -21,7 +21,8 @@ namespace Kalendarz1.Transport
 
         private const double BazaLat = 51.907335;
         private const double BazaLng = 19.678605;
-        private const string ApiKey = "AIzaSyCFXL2NYDnLBpiih1pG27SbsY62ZYsKdgo";
+        // ApiKey wycofany do Maps/GoogleMapsConfig (Faza 4-A) — czytane z %LOCALAPPDATA%\Kalendarz1\Maps\secrets.json
+        private static string ApiKey => Kalendarz1.Maps.GoogleMapsConfig.ApiKey;
 
         private static readonly HttpClient _http = new HttpClient(new HttpClientHandler
         {
