@@ -150,6 +150,7 @@ namespace Kalendarz1.MapaFloty
                     var url = $"{WfUrl}?account={Uri.EscapeDataString(WfAccount)}&apikey={Uri.EscapeDataString(WfKey)}" +
                         $"&lang=pl&outputformat=json&action=showStandStills&objectno={Uri.EscapeDataString(v.objectNo)}" +
                         $"&useISO8601=true&rangefrom_string={now:yyyy-MM-dd}T00:00:00&rangeto_string={now:yyyy-MM-dd}T23:59:59";
+                    await Kalendarz1.Webfleet.WebfleetRateLimiter.AcquireAsync("showStandStills");
                     using var req = new HttpRequestMessage(HttpMethod.Get, url);
                     req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", _auth);
                     using var res = await _http.SendAsync(req);

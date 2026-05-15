@@ -817,6 +817,7 @@ namespace Kalendarz1.MapaFloty
             {
                 var url = $"{WfUrl}?account={U(WfAccount)}&apikey={U(WfKey)}&lang=pl&outputformat=json&action=showStandStills" +
                     $"&objectno={U(obj)}&useISO8601=true&rangefrom_string={date}T00:00:00&rangeto_string={date}T23:59:59";
+                await Kalendarz1.Webfleet.WebfleetRateLimiter.AcquireAsync("showStandStills");
                 using var req = new HttpRequestMessage(HttpMethod.Get, url);
                 req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", _auth);
                 using var res = await _http.SendAsync(req);
@@ -842,6 +843,7 @@ namespace Kalendarz1.MapaFloty
             {
                 var url = $"{WfUrl}?account={U(WfAccount)}&apikey={U(WfKey)}&lang=pl&outputformat=json&action=showTripReportExtern" +
                     $"&objectno={U(obj)}&useISO8601=true&rangefrom_string={date}T00:00:00&rangeto_string={date}T23:59:59";
+                await Kalendarz1.Webfleet.WebfleetRateLimiter.AcquireAsync("showTripReportExtern");
                 using var req = new HttpRequestMessage(HttpMethod.Get, url);
                 req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", _auth);
                 using var res = await _http.SendAsync(req);

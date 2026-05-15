@@ -18,24 +18,29 @@ namespace Kalendarz1.Webfleet
     public static class WebfleetRateLimiter
     {
         /// <summary>Minimalny interwał (ms) między wywołaniami danego endpointu.</summary>
+        /// <remarks>
+        /// Nazwy action ZGODNE z faktycznymi stringami w kodzie konsumentów MapaFloty,
+        /// nie z dokumentacją Webfleet. StringComparer.OrdinalIgnoreCase, ale i tak warto
+        /// trzymać casing zgodny z kodem.
+        /// </remarks>
         private static readonly Dictionary<string, int> MinIntervalMs = new(StringComparer.OrdinalIgnoreCase)
         {
             // showStandStills ma limit 6 req/min = ~1 co 10s (dokumentacja Webfleet).
-            // Wcześniej rozwiązywane batch'em 3 pojazdy + Task.Delay 10s.
-            ["showStandStillsExtern"]      = 10_000,
+            // Wywoływane z FleetAlertService, OsCzasuFlotyWindow, MonitorKursowWindow.
+            ["showStandStills"]                 = 10_000,
 
-            // showTripSummary jest mniej restrictive; trzymamy 200ms dla bezpieczeństwa
-            // (poprzednio 300ms delay między batchami po 3).
-            ["showTripSummaryReportExtern"] = 200,
-            ["showTripReportExtern"]        = 200,
+            // Trip reports — mniej restrictive; trzymamy 200ms (poprzednio 300ms delay między batchami).
+            ["showTripSummaryReportExtern"]     = 200,
+            ["showTripReportExtern"]            = 200,
 
-            // insertDestinationOrder (push do TomTom) — chronimy przed flood'em.
-            ["insertDestinationOrderExtern"] = 250,
-            ["updateOrderExtern"]            = 250,
-            ["deleteOrderExtern"]            = 250,
+            // Order operations (push do TomTom) — chronimy przed flood'em.
+            ["insertDestinationOrderExtern"]    = 250,
+            ["updateDestinationOrderExtern"]    = 250,
+            ["cancelOrderExtern"]               = 250,
 
-            // showObjectReport (pozycje GPS) — bez limitu (cache 30s w Fazie 3.3 załatwi).
-            // showTrackExtern — bez limitu.
+            // showObjectReport (pozycje GPS) — bez limitu, ale cache 30s w Fazie 3.4.
+            // showTracks — bez limitu (per-pojazd, rzadko).
+            // showOrderReport / showDriverReport — rzadkie, bez limitu.
         };
 
         private static readonly ConcurrentDictionary<string, SemaphoreSlim> _semaphores = new();

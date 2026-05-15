@@ -523,6 +523,7 @@ namespace Kalendarz1.MapaFloty
             }
 
             // Wyślij POST
+            await Kalendarz1.Webfleet.WebfleetRateLimiter.AcquireAsync("insertDestinationOrderExtern");
             using var req = new HttpRequestMessage(HttpMethod.Post, WfUrl);
             req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", _auth);
             req.Content = new StringContent(postBody, Encoding.UTF8, "application/x-www-form-urlencoded");
@@ -610,6 +611,7 @@ namespace Kalendarz1.MapaFloty
             { pars["orderdate"] = kurs.DataKursu.ToString("dd.MM.yyyy"); pars["ordertime"] = kurs.GodzWyjazdu; }
 
             var postBody = string.Join("&", pars.Select(kv => $"{kv.Key}={Uri.EscapeDataString(kv.Value)}"));
+            await Kalendarz1.Webfleet.WebfleetRateLimiter.AcquireAsync("updateDestinationOrderExtern");
             using var req = new HttpRequestMessage(HttpMethod.Post, WfUrl);
             req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", _auth);
             req.Content = new StringContent(postBody, Encoding.UTF8, "application/x-www-form-urlencoded");
@@ -673,6 +675,7 @@ namespace Kalendarz1.MapaFloty
 
             var url = $"{WfUrl}?account={U(WfAccount)}&apikey={U(WfKey)}&lang=pl&outputformat=json" +
                 $"&action=cancelOrderExtern&orderid={U(orderId)}&objectno={U(objectNo)}";
+            await Kalendarz1.Webfleet.WebfleetRateLimiter.AcquireAsync("cancelOrderExtern");
             using var req = new HttpRequestMessage(HttpMethod.Get, url);
             req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", _auth);
             var res = await _http.SendAsync(req);
