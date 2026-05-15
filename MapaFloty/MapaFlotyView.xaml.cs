@@ -40,6 +40,10 @@ namespace Kalendarz1.MapaFloty
         };
         private static readonly string _connTransport =
             "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+        private static readonly string _connLibra =
+            "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+        private static readonly string _connHandel =
+            "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
 
         // ══════════════════════════════════════════════════════════════════
         // Stan
@@ -81,6 +85,54 @@ namespace Kalendarz1.MapaFloty
         // ══════════════════════════════════════════════════════════════════
         // WebView2 Init
         // ══════════════════════════════════════════════════════════════════
+
+        // ══════════════════════════════════════════════════════════════════
+        // Wolne zamówienia (Faza 4-C) — warstwa layer w mapie floty
+        // ══════════════════════════════════════════════════════════════════
+        private async void BtnToggleOrders_Click(object sender, RoutedEventArgs e)
+        {
+            if (BtnToggleOrders?.IsChecked == true)
+                await LoadAndRenderOrdersAsync();
+            else if (_mapReady)
+                await MapWebView.CoreWebView2.ExecuteScriptAsync("clearOrders()");
+        }
+
+        private async void OrdersDate_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            if (BtnToggleOrders?.IsChecked == true)
+                await LoadAndRenderOrdersAsync();
+        }
+
+        private async Task LoadAndRenderOrdersAsync()
+        {
+            if (!_mapReady) return;
+            var date = OrdersDate?.SelectedDate ?? DateTime.Today;
+            StatusText.Text = $"Wczytuję wolne zamówienia ({date:dd.MM})...";
+            try
+            {
+                var svc = new Kalendarz1.Transport.Services.WolneZamowieniaMapaService(_connLibra, _connHandel);
+                var orders = await svc.LoadMarkersAsync(date, useGoogleFallback: false);
+                var mapped = orders.Where(o => o.Lat.HasValue).Select(o => new
+                {
+                    o.Id,
+                    o.Klient,
+                    o.Adres,
+                    o.Handlowiec,
+                    Palety = (double)o.Palety,
+                    o.Pojemniki,
+                    DataUboju = o.DataUboju.ToString("yyyy-MM-dd"),
+                    Lat = o.Lat!.Value,
+                    Lng = o.Lng!.Value
+                }).ToList();
+                var json = JsonConvert.SerializeObject(mapped);
+                await MapWebView.CoreWebView2.ExecuteScriptAsync($"setOrders({json})");
+                StatusText.Text = $"Wolne zamówienia: {mapped.Count}/{orders.Count} z GPS";
+            }
+            catch (Exception ex)
+            {
+                StatusText.Text = $"Błąd zamówień: {ex.Message}";
+            }
+        }
 
         private async Task InitializeWebView()
         {
@@ -770,6 +822,7 @@ osm.addTo(map);
 L.control.layers({'Mapa':osm,'Ciemna':dark,'Satelita':sat},null,{position:'topright'}).addTo(map);
 
 var markers={},trackGroup=L.layerGroup().addTo(map),followId=null;
+var ordersLayer=L.layerGroup(),orderMarkers={},ordersVisible=false;
 var replayData=null,replayIdx=0,replayTimer=null,replayPaused=false,replaySpeedVal=10,replayMarker=null,replayTrail=null;
 
 var truckPath='M3,14h18v8H3v-8zm18,2h5l3,4v4h-8v-8zM6,24a2,2,0,1,0,0-4,2,2,0,0,0,0,4zm15,0a2,2,0,1,0,0-4,2,2,0,0,0,0,4z';
@@ -919,6 +972,33 @@ function replayToggle(){replayPaused=!replayPaused;document.getElementById('rbPl
 function replaySpeed(){var speeds=[5,10,25,50,100];var i=speeds.indexOf(replaySpeedVal);replaySpeedVal=speeds[(i+1)%speeds.length];document.getElementById('rbSpeedBtn').textContent='x'+replaySpeedVal}
 function replayStop(){if(replayTimer)clearTimeout(replayTimer);replayTimer=null;replayData=null;replayMarker=null;replayTrail=null;document.getElementById('replayBar').style.display='none'}
 function replayDone(){document.getElementById('rbPlayBtn').textContent='&#10003;';document.getElementById('rbInfo').textContent='Zakończono';replayPaused=true}
+
+// ══ Wolne zamówienia (Faza 4-C) — warstwa markerów odbiorców do zaplanowania ══
+function setOrders(orders){
+    ordersLayer.clearLayers();orderMarkers={};
+    if(!orders||orders.length===0){if(ordersVisible)map.removeLayer(ordersLayer);ordersVisible=false;return}
+    orders.forEach(function(o){
+        if(o.Lat==null||o.Lng==null)return;
+        var color=o.Pojemniki>200?'#c62828':(o.Pojemniki>100?'#e65100':'#1565c0');
+        var ic=L.divIcon({className:'',iconSize:[28,28],iconAnchor:[14,14],
+            html:'<div style=""background:'+color+';color:#fff;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4);font-size:11px;font-weight:700"">&#128230;</div>'});
+        var m=L.marker([o.Lat,o.Lng],{icon:ic}).addTo(ordersLayer);
+        var ub=(o.DataUboju||'').split('T')[0];
+        var pop='<div class=""vp""><div class=""vp-head""><h3>'+esc(o.Klient||'?')+'</h3><div class=""sub"">Zam. #'+o.Id+' &middot; '+esc(o.Handlowiec||'—')+'</div></div>'
+            +'<div class=""vp-r""><span class=""k"">Adres</span><span class=""v"">'+esc(o.Adres||'—')+'</span></div>'
+            +'<div class=""vp-r""><span class=""k"">Ubój</span><span class=""v"">'+ub+'</span></div>'
+            +'<div class=""vp-r""><span class=""k"">Pojemniki E2</span><span class=""v"">'+o.Pojemniki+'</span></div>'
+            +'<div class=""vp-r""><span class=""k"">Palety</span><span class=""v"">'+(o.Palety||0)+'</span></div></div>';
+        m.bindPopup(pop,{maxWidth:300}).bindTooltip(esc(o.Klient||'')+' — '+o.Pojemniki+' E2',{direction:'top',offset:[0,-14]});
+        orderMarkers[o.Id]=m;
+    });
+    if(!ordersVisible){map.addLayer(ordersLayer);ordersVisible=true}
+}
+function ordersToggle(on){
+    ordersVisible=on;
+    if(on)map.addLayer(ordersLayer);else map.removeLayer(ordersLayer);
+}
+function clearOrders(){ordersLayer.clearLayers();orderMarkers={};map.removeLayer(ordersLayer);ordersVisible=false}
 
 function post(o){window.chrome.webview.postMessage(JSON.stringify(o))}
 function esc(s){if(!s)return'';var d=document.createElement('div');d.appendChild(document.createTextNode(s));return d.innerHTML}

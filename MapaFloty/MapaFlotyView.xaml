@@ -210,6 +210,26 @@
                             <Button Grid.Column="3" Content="Kierowcy" Click="BtnDriverPanel_Click"
                                     Background="#ede7f6" Foreground="#5e35b1" Style="{StaticResource ActionBtn}" Margin="2,0,0,0"/>
                         </Grid>
+
+                        <!-- Wolne zamówienia (Faza 4-C) — toggle warstwa na mapie -->
+                        <Grid Margin="0,8,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Wolne zam.:" Foreground="#546e7a"
+                                       FontSize="10.5" VerticalAlignment="Center" Margin="2,0,6,0"/>
+                            <DatePicker Grid.Column="1" x:Name="OrdersDate"
+                                        SelectedDateChanged="OrdersDate_Changed"
+                                        FontSize="11"/>
+                            <ToggleButton Grid.Column="2" x:Name="BtnToggleOrders"
+                                          Content="📦" FontSize="13"
+                                          ToolTip="Pokaż / ukryj wolne zamówienia na mapie"
+                                          Click="BtnToggleOrders_Click"
+                                          Margin="4,0,0,0" Padding="8,3" Cursor="Hand"
+                                          Background="#fff3e0" Foreground="#e65100" BorderBrush="#ffb74d"/>
+                        </Grid>
                     </StackPanel>
                 </Border>
 
