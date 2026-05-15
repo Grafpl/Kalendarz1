@@ -47,6 +47,9 @@ namespace Kalendarz1.Transport.Formularze
         private readonly Kalendarz1.Transport.Services.ConflictDetectionService _conflictSvc = new();
         private List<Kalendarz1.Transport.Services.CourseConflict> _aktualneKonflikty = new();
         private Label lblKonflikty;
+        // Cache innych kursów dnia (Faza 1.5) — do DRIVER/VEHICLE_DOUBLE_BOOKING
+        private List<Kalendarz1.Transport.Services.ConflictDetectionService.OtherCourse> _innekursy = new();
+        private DateTime? _innekursyDate;
 
         // Szukaj zamówień
         private TextBox txtSzukajZamowienia;
@@ -691,7 +694,12 @@ namespace Kalendarz1.Transport.Formularze
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
                 CalendarMonthBackground = Color.FromArgb(52, 56, 64)
             };
-            dtpData.ValueChanged += async (s, e) => await LoadWolneZamowienia();
+            dtpData.ValueChanged += async (s, e) =>
+            {
+                await LoadWolneZamowienia();
+                await RefreshInneKursyAsync();
+                RecomputeConflicts();
+            };
 
             var lblGodziny = CreateLabel("GODZINY:", 225, 58, 75);
             lblGodziny.ForeColor = Color.FromArgb(156, 163, 175);
@@ -1356,6 +1364,7 @@ namespace Kalendarz1.Transport.Formularze
                     await LoadKursData();
                 }
 
+                await RefreshInneKursyAsync();
                 _dataLoaded = true;
             }
             catch (Exception ex)
@@ -3063,7 +3072,14 @@ namespace Kalendarz1.Transport.Formularze
                     }).ToList() ?? new List<Kalendarz1.Transport.Services.ConflictDetectionService.LoadItem>()
                 };
 
-                _aktualneKonflikty = _conflictSvc.DetectAll(courseData);
+                var freeOrders = _wolneZamowienia?.Select(z => new Kalendarz1.Transport.Services.ConflictDetectionService.FreeOrder
+                {
+                    ZamowienieId = z.ZamowienieId,
+                    NazwaKlienta = z.KlientNazwa,
+                    KodPocztowy = z.Adres
+                }).ToList() ?? new List<Kalendarz1.Transport.Services.ConflictDetectionService.FreeOrder>();
+
+                _aktualneKonflikty = _conflictSvc.DetectAll(courseData, _innekursy, freeOrders);
                 UpdateKonfliktyLabel();
             }
             catch
@@ -3095,6 +3111,33 @@ namespace Kalendarz1.Transport.Formularze
                     ? Color.FromArgb(248, 113, 113)
                     : warnings > 0 ? Color.FromArgb(251, 191, 36)
                     : Color.FromArgb(147, 197, 253);
+            }
+        }
+
+        private async Task RefreshInneKursyAsync()
+        {
+            var data = dtpData?.Value.Date ?? DateTime.Today;
+            if (_innekursyDate == data) return;
+            try
+            {
+                var kursy = await _repozytorium.PobierzKursyPoDacieAsync(data);
+                _innekursy = kursy
+                    .Where(k => !_kursId.HasValue || k.KursID != _kursId.Value)
+                    .Select(k => new Kalendarz1.Transport.Services.ConflictDetectionService.OtherCourse
+                    {
+                        KursId = k.KursID,
+                        KierowcaId = k.KierowcaID,
+                        PojazdId = k.PojazdID,
+                        GodzinaWyjazdu = k.GodzWyjazdu,
+                        GodzinaPowrotu = k.GodzPowrotu,
+                        KodyKlientow = new List<string>()
+                    })
+                    .ToList();
+                _innekursyDate = data;
+            }
+            catch
+            {
+                // defensive — DOUBLE_BOOKING po prostu nie odpali
             }
         }
 
