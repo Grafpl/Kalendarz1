@@ -3183,10 +3183,9 @@ namespace Kalendarz1.Transport.Formularze
         {
             try
             {
-                // Faza 4-D — zamiast TransportMapaWindow (Google) otwieramy MapaFlotyWindow
-                // z automatycznie włączoną warstwą wolnych zamówień. Widzi GPS pojazdów +
-                // zamówienia do zaplanowania w jednym oknie.
-                var mapWindow = new Kalendarz1.MapaFloty.MapaFlotyWindow(_selectedDate);
+                // Faza 4-D + 5.4 — otwiera MapaFlotyHubWindow z auto-load wolnych zamówień
+                // na zakładce Mapa Live. Plus 2 dodatkowe zakładki dostępne (Oś czasu + Raport).
+                var mapWindow = new Kalendarz1.MapaFloty.MapaFlotyHubWindow(_selectedDate);
                 mapWindow.Show();
             }
             catch (Exception ex)

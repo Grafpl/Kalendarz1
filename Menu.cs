@@ -53,6 +53,11 @@ namespace Kalendarz1
         // żeby user nie czekał do 30s na pierwszy refresh.
         private FormWindowState _lastWindowState = FormWindowState.Normal;
 
+        // Timestamp loginu (do detection re-login forced). Ustawiany w LoadUserPermissions.
+        // Jeśli operators.SessionInvalidatedAt > _sessionStartedAt → admin zmienił uprawnienia → wymuś re-login.
+        private DateTime _sessionStartedAt = DateTime.Now;
+        private System.Windows.Forms.Timer _sessionInvalidationTimer;
+
         public MENU()
         {
             InitializeComponent();
@@ -1163,7 +1168,9 @@ namespace Kalendarz1
         private void LoadUserPermissions()
         {
             string userId = App.UserID;
-            isAdmin = (userId == "11111");
+            // Admin status z bazy (kolumna operators.IsAdmin). Fallback na hardcoded "11111"
+            // jeśli migracja SQL/AddPasswordHashing.sql nie została uruchomiona.
+            isAdmin = App.IsAdmin || (userId == "11111");
 
             LoadAllPermissions(false);
 
@@ -1176,6 +1183,51 @@ namespace Kalendarz1
             else
             {
                 LoadUserAccessFromDatabase(userId);
+            }
+
+            // Reset session timestamp — po wywołaniu LoadUserPermissions sesja jest aktualna.
+            _sessionStartedAt = DateTime.Now;
+            StartSessionInvalidationTimer();
+        }
+
+        // Timer co 30s sprawdza czy admin nie zmienił uprawnień (kolumna operators.SessionInvalidatedAt).
+        // Jeśli flag > _sessionStartedAt → wymusza re-login (komunikat + Application.Restart).
+        private void StartSessionInvalidationTimer()
+        {
+            if (_sessionInvalidationTimer != null) return; // już uruchomiony
+            _sessionInvalidationTimer = new System.Windows.Forms.Timer { Interval = 30000 };
+            _sessionInvalidationTimer.Tick += async (s, e) => await CheckSessionInvalidationAsync();
+            _sessionInvalidationTimer.Start();
+        }
+
+        private async System.Threading.Tasks.Task CheckSessionInvalidationAsync()
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(App.UserID)) return;
+                await using var conn = new Microsoft.Data.SqlClient.SqlConnection(connectionString);
+                await conn.OpenAsync();
+                await using var cmd = new Microsoft.Data.SqlClient.SqlCommand(
+                    "SELECT SessionInvalidatedAt FROM operators WHERE ID = @uid", conn);
+                cmd.Parameters.AddWithValue("@uid", App.UserID);
+                var result = await cmd.ExecuteScalarAsync();
+                if (result == null || result == DBNull.Value) return;
+                var invalidatedAt = (DateTime)result;
+                if (invalidatedAt > _sessionStartedAt)
+                {
+                    // Admin zmienił uprawnienia — wymuś re-login
+                    _sessionInvalidationTimer?.Stop();
+                    MessageBox.Show(
+                        "Twoje uprawnienia zostały zmienione przez administratora.\n\n" +
+                        "Aplikacja zostanie zamknięta — zaloguj się ponownie aby zobaczyć zmiany.",
+                        "Sesja unieważniona", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    System.Windows.Forms.Application.Restart();
+                    Environment.Exit(0);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[Menu.CheckSessionInvalidation] {ex.Message}");
             }
         }
 
@@ -1297,11 +1349,8 @@ namespace Kalendarz1
                     userPermissions[_moduleAccessOrder[i]] = true;
             }
 
-            // Tymczasowo: Analityka Pełna dostępna dla wszystkich (do uregulowania uprawnień w Admin)
-            userPermissions["AnalitykaPelna"] = true;
-
-            // Tymczasowo: Centrum nagrań AI dostępne dla wszystkich (PoC, do uregulowania w Admin)
-            userPermissions["CentrumNagranAI"] = true;
+            // Uprawnienia do AnalitykaPelna (poz. 66) i CentrumNagranAI (poz. 67) są teraz
+            // regulowane przez checkboxy w Admin Panel — nie nadpisujemy ich automatycznie.
 
             // Scalenie uprawnień opakowań: użytkownicy z SaldaOdbiorcowOpak widzą nowy scalony kafelek
             if (userPermissions.ContainsKey("SaldaOdbiorcowOpak") && userPermissions["SaldaOdbiorcowOpak"])
@@ -1438,7 +1487,7 @@ namespace Kalendarz1
                     new MenuItemConfig("DokumentyZakupu", "Dokumenty i Umowy",
                         "Archiwum umów handlowych, certyfikatów i dokumentów związanych z zakupem żywca",
                         Color.FromArgb(35, 103, 38), // #236726
-                        () => new SprawdzalkaUmow { UserID = App.UserID }, "📑", "Umowy"),
+                        () => new Kalendarz1.WPF.SprawdzalkaUmowWindow(App.UserID), "📑", "Umowy"),
 
                     new MenuItemConfig("PlatnosciHodowcy", "Rozliczenia z Hodowcami",
                         "Monitorowanie należności i płatności dla dostawców żywca wraz z historią transakcji",
@@ -1539,7 +1588,7 @@ namespace Kalendarz1
                     new MenuItemConfig("AdminPermissions", "Zarządzanie Uprawnieniami",
                         "Panel administratora do nadawania i odbierania uprawnień dostępu użytkownikom systemu",
                         Color.FromArgb(211, 47, 47), // Czerwony #D32F2F
-                        () => new AdminPermissionsForm(), "🔐", "Uprawnienia"),
+                        () => new Kalendarz1.Admin.AdminPermissionsWindow(), "🔐", "Uprawnienia"),
 
                     new MenuItemConfig("CallReminders", "Przypomnienia Telefonów",
                         "Konfiguracja automatycznych przypomnień o telefonach do klientów CRM dla handlowców",
@@ -1701,6 +1750,11 @@ namespace Kalendarz1
                         Color.FromArgb(142, 36, 170), // Fioletowy #8E24AA
                         () => new Kalendarz1.DashboardPrzychodu.Views.DashboardPrzychoduWindow(), "🐔", "Przychód"),
 
+                    new MenuItemConfig("HalaLive", "Hala LIVE",
+                        "Fullscreen dashboard dla TV w hali — pracownicy, żywiec, klasy, wydania, hodowcy. Auto-refresh 30s.",
+                        Color.FromArgb(34, 197, 94), // Zielony #22C55E
+                        () => new Kalendarz1.HalaLive.Views.HalaLiveWindow(), "📺", "Hala LIVE"),
+
                     new MenuItemConfig("DashboardZamowien", "Dashboard Zamówień",
                         "Dashboard produktów - bilans zamówień, wydań i stanów magazynowych z analizą odbiorców",
                         Color.FromArgb(106, 27, 154), // Fioletowy #6A1B9A
@@ -1740,20 +1794,23 @@ namespace Kalendarz1
                         Color.FromArgb(0, 96, 100), // Ciemny turkusowy #006064
                         () => new Flota.Views.FlotaWindow(), "🚛", "Flota"),
 
+                    // Faza 5.4 — 3 kafelki przekierowane do MapaFlotyHubWindow z odpowiednią zakładką startową.
+                    // Stare shim Window'y (MapaFlotyWindow/OsCzasuFlotyWindow/RaportEfektywnosciWindow) pozostają
+                    // jako orphan'y dla kompatybilności programmatycznej (np. TransportMainFormImproved.BtnMapa).
                     new MenuItemConfig("MapaFloty", "Mapa Floty",
-                        "Mapa live GPS pojazdów - pozycje, trasy, prędkości, geofence (Webfleet.connect)",
+                        "Mapa live GPS pojazdów + wolne zamówienia + oś czasu + raport (Hub w 3 zakładkach)",
                         Color.FromArgb(0, 77, 64),
-                        () => new MapaFloty.MapaFlotyWindow(), "🗺️", "Mapa Floty"),
+                        () => new MapaFloty.MapaFlotyHubWindow(MapaFloty.MapaFlotyHubWindow.TabLive), "🗺️", "Mapa Floty"),
 
                     new MenuItemConfig("OsCzasuFloty", "Oś czasu floty",
                         "Oś czasu 24h wszystkich pojazdów - kto był w trasie, kto na bazie, od kiedy do kiedy",
                         Color.FromArgb(0, 60, 80),
-                        () => new MapaFloty.OsCzasuFlotyWindow(), "📊", "Oś czasu"),
+                        () => new MapaFloty.MapaFlotyHubWindow(MapaFloty.MapaFlotyHubWindow.TabOsCzasu), "📊", "Oś czasu"),
 
                     new MenuItemConfig("RaportFloty", "Raport floty",
                         "Raport efektywności - km, czas jazdy, paliwo, trasy per pojazd z Webfleet",
                         Color.FromArgb(0, 50, 70),
-                        () => new MapaFloty.RaportEfektywnosciWindow(), "📈", "Raport")
+                        () => new MapaFloty.MapaFlotyHubWindow(MapaFloty.MapaFlotyHubWindow.TabRaport), "📈", "Raport")
                 },
 
                 // ═══════════════════════════════════════════════════════════════════════════
@@ -2265,13 +2322,13 @@ namespace Kalendarz1
             usersItem.Image = CreateMenuItemImage("🔐");
             usersItem.Click += (s, args) =>
             {
-                var adminForm = new AdminPermissionsForm();
-                var adminIcon = CreateEmojiIcon("🔐", Color.FromArgb(183, 28, 28));
-                if (adminIcon != null)
+                var adminWindow = new Kalendarz1.Admin.AdminPermissionsWindow();
+                var wpfIcon = CreateWpfEmojiIcon("🔐", Color.FromArgb(183, 28, 28));
+                if (wpfIcon != null)
                 {
-                    adminForm.Icon = adminIcon;
+                    adminWindow.Icon = wpfIcon;
                 }
-                adminForm.ShowDialog();
+                adminWindow.ShowDialog();
                 LoadUserPermissions();
                 SetupMenuItems();
             };
