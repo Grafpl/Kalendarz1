@@ -9,7 +9,7 @@ namespace Kalendarz1.MapaFloty
 {
     public static class RaportEfektywnosciPDF
     {
-        public static byte[] Generuj(List<RaportEfektywnosciWindow.VehicleReport> reports, DateTime from, DateTime to)
+        public static byte[] Generuj(List<RaportEfektywnosciView.VehicleReport> reports, DateTime from, DateTime to)
         {
             QuestPDF.Settings.License = LicenseType.Community;
             return Document.Create(doc =>
