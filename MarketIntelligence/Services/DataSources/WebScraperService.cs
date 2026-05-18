@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
@@ -32,9 +33,10 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
                 UseCookies = true
             };
 
+            // 20s twardy timeout per request — wcześniej 45s × 3 retries = 149s wiszenia. Hard cap dla całego źródła ustawiany przez CTS w FetchFromScrapingSourceAsync (25s).
             _httpClient = new HttpClient(handler)
             {
-                Timeout = TimeSpan.FromSeconds(45)
+                Timeout = TimeSpan.FromSeconds(20)
             };
 
             // Realistic browser headers
@@ -47,13 +49,14 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
             _httpClient.DefaultRequestHeaders.Add("Accept-Encoding", "gzip, deflate, br");
             _httpClient.DefaultRequestHeaders.Add("Cache-Control", "no-cache");
 
-            // Retry policy
+            // Retry tylko 2x dla błędów sieciowych / 5xx.
+            // NIE retry na TaskCanceledException — to nasz CTS timeout, nie błąd sieci.
+            // Krótszy backoff (1s, 2s zamiast 2s, 4s, 8s).
             _retryPolicy = Policy<HttpResponseMessage>
                 .Handle<HttpRequestException>()
-                .Or<TaskCanceledException>()
                 .OrResult(r => !r.IsSuccessStatusCode && (int)r.StatusCode >= 500)
-                .WaitAndRetryAsync(3, retryAttempt =>
-                    TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)));
+                .WaitAndRetryAsync(2, retryAttempt =>
+                    TimeSpan.FromSeconds(retryAttempt));
 
             _rateLimiter = new SemaphoreSlim(3); // Max 3 concurrent scraping requests
         }
@@ -84,10 +87,14 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
 
                     foreach (var url in urls)
                     {
+                        // Hard 25s timeout per URL — niech jedna wisząca strona GLW nie blokuje pozostałych
+                        using var urlCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                        urlCts.CancelAfter(TimeSpan.FromSeconds(25));
+
                         try
                         {
                             var response = await _retryPolicy.ExecuteAsync(
-                                async (token) => await _httpClient.GetAsync(url, token), ct);
+                                async (token) => await _httpClient.GetAsync(url, token), urlCts.Token);
 
                             if (!response.IsSuccessStatusCode)
                             {
@@ -95,10 +102,16 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
                                 continue;
                             }
 
-                            var html = await response.Content.ReadAsStringAsync(ct);
+                            var html = await response.Content.ReadAsStringAsync(urlCts.Token);
                             var pageAlerts = ParseGlwHpaiPage(html, url);
                             alerts.AddRange(pageAlerts);
+                            Debug.WriteLine($"[Scraper] ✓ GLW {url}: {pageAlerts.Count} alertów");
                         }
+                        catch (OperationCanceledException) when (urlCts.IsCancellationRequested && !ct.IsCancellationRequested)
+                        {
+                            Debug.WriteLine($"[Scraper] ⏱ GLW {url}: TIMEOUT 25s");
+                        }
+                        catch (OperationCanceledException) { throw; }
                         catch (Exception ex)
                         {
                             Debug.WriteLine($"[Scraper] Error fetching {url}: {ex.Message}");
@@ -941,27 +954,75 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
         #region News Articles from Scraping Sources
 
         /// <summary>
-        /// Pobierz artykuły ze źródeł wymagających scrapingu (bez RSS)
+        /// Pobierz artykuły ze źródeł wymagających scrapingu (bez RSS) — RÓWNOLEGLE z hard timeoutami.
+        /// Każde źródło ma 25s twardy limit (CancellationTokenSource), poza tym przelatuje dalej.
+        /// SemaphoreSlim(3) ogranicza równoczesne requesty. Wcześniejszy sequential foreach +
+        /// 45s HttpClient timeout + 3 retries dawał potencjalne 149s wisienia na jednym źródle.
         /// </summary>
-        public async Task<List<RawArticle>> FetchScrapingSourcesAsync(CancellationToken ct = default)
+        public async Task<List<RawArticle>> FetchScrapingSourcesAsync(
+            CancellationToken ct = default,
+            IProgress<string> progress = null)
         {
-            var articles = new List<RawArticle>();
-            var scrapingSources = NewsSourceConfig.GetAllScrapingSources();
+            var scrapingSources = NewsSourceConfig.GetAllScrapingSources()
+                .Where(s => s.IsActive)
+                .ToList();
 
-            foreach (var source in scrapingSources.Where(s => s.IsActive))
+            if (scrapingSources.Count == 0) return new List<RawArticle>();
+
+            var allArticles = new ConcurrentBag<RawArticle>();
+            var completed = 0;
+            var total = scrapingSources.Count;
+
+            Debug.WriteLine($"[Scraper] Start: {total} źródeł równolegle (limit 3 concurrent, 25s per source)");
+
+            var tasks = scrapingSources.Select(async source =>
             {
+                // Hard cap 25s per source — niezależny od HttpClient timeout i Polly retries
+                using var sourceCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                sourceCts.CancelAfter(TimeSpan.FromSeconds(25));
+
+                var sw = Stopwatch.StartNew();
                 try
                 {
-                    var sourceArticles = await FetchFromScrapingSourceAsync(source, ct);
-                    articles.AddRange(sourceArticles);
+                    var sourceArticles = await FetchFromScrapingSourceAsync(source, sourceCts.Token);
+                    foreach (var a in sourceArticles) allArticles.Add(a);
+                    sw.Stop();
+                    Debug.WriteLine($"[Scraper] ✓ {source.Name}: {sourceArticles.Count} artykułów ({sw.ElapsedMilliseconds}ms)");
+                }
+                catch (OperationCanceledException) when (sourceCts.IsCancellationRequested && !ct.IsCancellationRequested)
+                {
+                    sw.Stop();
+                    Debug.WriteLine($"[Scraper] ⏱ {source.Name}: TIMEOUT po 25s — pomijam");
+                }
+                catch (OperationCanceledException)
+                {
+                    // Główne ct anulowane — propaguj wyżej
+                    throw;
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"[Scraper] Error fetching {source.Name}: {ex.Message}");
+                    sw.Stop();
+                    Debug.WriteLine($"[Scraper] ❌ {source.Name}: {ex.Message} ({sw.ElapsedMilliseconds}ms)");
                 }
+                finally
+                {
+                    var done = Interlocked.Increment(ref completed);
+                    progress?.Report($"Scraping {done}/{total}: {source.Name}");
+                }
+            }).ToList();
+
+            try
+            {
+                await Task.WhenAll(tasks);
+            }
+            catch (OperationCanceledException)
+            {
+                Debug.WriteLine("[Scraper] Cały scraping anulowany przez użytkownika");
             }
 
-            return articles;
+            var result = allArticles.ToList();
+            Debug.WriteLine($"[Scraper] Zakończone: {completed}/{total} źródeł, {result.Count} artykułów łącznie");
+            return result;
         }
 
         private async Task<List<RawArticle>> FetchFromScrapingSourceAsync(NewsSource source, CancellationToken ct)

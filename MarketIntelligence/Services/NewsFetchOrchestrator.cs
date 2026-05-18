@@ -80,6 +80,8 @@ namespace Kalendarz1.MarketIntelligence.Services
                 Debug.WriteLine($"[Orchestrator] RSS: {rssArticles.Count} articles");
 
                 // 3. Fetch scraped sources (if enabled)
+                // Hard timeout 120s na CAŁY scraping — fail-safe gdyby wszystkie 25s per-source
+                // timeouty zsumowały się powyżej rozsądnej granicy.
                 var scrapedArticles = new List<RawArticle>();
                 if (options.IncludeScrapingSources)
                 {
@@ -90,7 +92,28 @@ namespace Kalendarz1.MarketIntelligence.Services
                         Message = "Pobieram dane ze stron internetowych..."
                     });
 
-                    scrapedArticles = await _webScraperService.FetchScrapingSourcesAsync(ct);
+                    // Sub-progress: scraping ma slot 25-30%, raportuj per źródło
+                    var scrapingProgress = new Progress<string>(msg =>
+                    {
+                        progress?.Report(new FetchProgress
+                        {
+                            Stage = "Scraping",
+                            Percent = 27, // mid-range
+                            Message = msg
+                        });
+                    });
+
+                    using var scrapingCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                    scrapingCts.CancelAfter(TimeSpan.FromSeconds(120));
+
+                    try
+                    {
+                        scrapedArticles = await _webScraperService.FetchScrapingSourcesAsync(scrapingCts.Token, scrapingProgress);
+                    }
+                    catch (OperationCanceledException) when (scrapingCts.IsCancellationRequested && !ct.IsCancellationRequested)
+                    {
+                        Debug.WriteLine($"[Orchestrator] ⏱ Scraping przekroczył 120s — przerywam, kontynuuję dalsze etapy");
+                    }
                     stats.ScrapedArticlesFetched = scrapedArticles.Count;
 
                     Debug.WriteLine($"[Orchestrator] Scraped: {scrapedArticles.Count} articles");
