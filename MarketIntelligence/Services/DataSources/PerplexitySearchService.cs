@@ -54,7 +54,8 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
                 ?? Kalendarz1.MarketIntelligence.SecretsLoader.Get("PERPLEXITY_DAILY_LIMIT");
             _dailyQueryLimit = int.TryParse(limitStr, out var l) && l > 0 ? l : 100;
 
-            _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(90) };
+            // 60s HttpClient timeout — hard cap per query 30s przez CTS w SearchPoultryNewsAsync
+            _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
             _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_apiKey}");
             _rateLimiter = new SemaphoreSlim(1);
 
@@ -180,7 +181,8 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
         public async Task<PerplexityNewsSearchResult> SearchPoultryNewsAsync(
             bool includeInternational = true,
             SearchPriority maxPriority = SearchPriority.All,
-            CancellationToken ct = default)
+            CancellationToken ct = default,
+            IProgress<string> progress = null)
         {
             var result = new PerplexityNewsSearchResult
             {
@@ -208,13 +210,28 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
             {
                 ct.ThrowIfCancellationRequested();
                 currentQuery++;
-                Debug.WriteLine($"[Perplexity] [{currentQuery}/{totalQueries}] {query.Substring(0, Math.Min(50, query.Length))}...");
+                var queryPreview = query.Substring(0, Math.Min(50, query.Length));
+                Debug.WriteLine($"[Perplexity] [{currentQuery}/{totalQueries}] {queryPreview}...");
+                progress?.Report($"Perplexity PL {currentQuery}/{totalQueries}: {queryPreview}...");
 
-                var searchResult = await SearchAsync(query, new PerplexitySearchOptions
+                // Hard 30s per zapytanie — niezależny od HttpClient.Timeout(60s)
+                using var queryCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                queryCts.CancelAfter(TimeSpan.FromSeconds(30));
+
+                PerplexitySearchResult searchResult;
+                try
                 {
-                    RecencyFilter = "week",
-                    MaxTokens = 2000
-                }, ct);
+                    searchResult = await SearchAsync(query, new PerplexitySearchOptions
+                    {
+                        RecencyFilter = "week",
+                        MaxTokens = 2000
+                    }, queryCts.Token);
+                }
+                catch (OperationCanceledException) when (queryCts.IsCancellationRequested && !ct.IsCancellationRequested)
+                {
+                    Debug.WriteLine($"[Perplexity] ⏱ TIMEOUT 30s na zapytaniu {currentQuery}/{totalQueries} — pomijam");
+                    searchResult = new PerplexitySearchResult { Success = false, Error = "Timeout 30s" };
+                }
 
                 if (searchResult.Success)
                 {
@@ -239,17 +256,34 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
             {
                 Debug.WriteLine($"[Perplexity] === Starting international search ===");
                 var intlQueries = GetInternationalQueries(maxPriority);
+                var intlCurrent = 0;
 
                 foreach (var query in intlQueries)
                 {
                     ct.ThrowIfCancellationRequested();
+                    intlCurrent++;
+                    var queryPreview = query.Substring(0, Math.Min(50, query.Length));
+                    progress?.Report($"Perplexity INT {intlCurrent}/{intlQueries.Count}: {queryPreview}...");
 
-                    var searchResult = await SearchAsync(query, new PerplexitySearchOptions
+                    // Hard 30s per zapytanie
+                    using var queryCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                    queryCts.CancelAfter(TimeSpan.FromSeconds(30));
+
+                    PerplexitySearchResult searchResult;
+                    try
                     {
-                        RecencyFilter = "week",
-                        UseProModel = true, // Lepsze dla angielskich źródeł
-                        MaxTokens = 2500
-                    }, ct);
+                        searchResult = await SearchAsync(query, new PerplexitySearchOptions
+                        {
+                            RecencyFilter = "week",
+                            UseProModel = true, // Lepsze dla angielskich źródeł
+                            MaxTokens = 2500
+                        }, queryCts.Token);
+                    }
+                    catch (OperationCanceledException) when (queryCts.IsCancellationRequested && !ct.IsCancellationRequested)
+                    {
+                        Debug.WriteLine($"[Perplexity] ⏱ TIMEOUT INT {intlCurrent}/{intlQueries.Count} — pomijam");
+                        searchResult = new PerplexitySearchResult { Success = false, Error = "Timeout 30s" };
+                    }
 
                     if (searchResult.Success)
                     {

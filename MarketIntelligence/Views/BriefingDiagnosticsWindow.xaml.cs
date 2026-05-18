@@ -229,42 +229,106 @@ FROM intel_FetchLog ORDER BY FetchTime DESC", conn);
             }
         }
 
+        private System.Windows.Threading.DispatcherTimer _elapsedTimer;
+        private DateTime _fetchStartTime;
+
         private async void btnForceFetch_Click(object sender, RoutedEventArgs e)
         {
             if (_cts != null && !_cts.IsCancellationRequested)
             {
-                txtActionResult.Text = "⏳ Pobieranie już w toku — poczekaj";
+                txtActionResult.Text = "⏳ Pobieranie już w toku — kliknij Anuluj jeśli chcesz przerwać";
                 return;
             }
+
             _cts = new CancellationTokenSource();
-            txtActionResult.Text = "⚡ Wymuszone pobranie wystartowane — przełącz na zakładkę 'Live log' żeby zobaczyć szczegóły...";
+            _fetchStartTime = DateTime.Now;
+            txtActionResult.Text = "";
+
+            // Pokaż progress bar
+            bdrProgress.Visibility = Visibility.Visible;
+            pbFetch.Value = 0;
+            txtProgressStage.Text = "Inicjalizacja";
+            txtProgressMessage.Text = "Startuję pobieranie...";
+            txtProgressPercent.Text = "0%";
+            txtProgressDetail.Text = "";
+
+            // Włącz Anuluj, wyłącz Force
+            btnForceFetch.IsEnabled = false;
+            btnCancelFetch.IsEnabled = true;
+
+            // Timer odświeża elapsed co 200ms (płynniej niż 1s)
+            _elapsedTimer?.Stop();
+            _elapsedTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
+            _elapsedTimer.Tick += (s, _) =>
+            {
+                var elapsed = DateTime.Now - _fetchStartTime;
+                txtProgressElapsed.Text = elapsed.TotalSeconds < 60
+                    ? $"{elapsed.TotalSeconds:F1}s"
+                    : $"{(int)elapsed.TotalMinutes:00}:{elapsed.Seconds:00}";
+            };
+            _elapsedTimer.Start();
 
             try
             {
                 var loader = BriefingDataLoaderService.Instance;
                 var progress = new Progress<FetchProgress>(p =>
                 {
+                    pbFetch.Value = p.Percent;
+                    txtProgressStage.Text = p.Stage ?? "—";
+                    txtProgressMessage.Text = p.Message ?? "";
+                    txtProgressPercent.Text = $"{p.Percent}%";
+                    txtProgressDetail.Text = p.Message ?? "";
                     txtActionResult.Text = $"⚡ [{p.Percent}%] {p.Stage} — {p.Message}";
                 });
                 var data = await loader.FetchNewDataAsync(fullFetch: true, ct: _cts.Token, progress: progress);
+
+                _elapsedTimer.Stop();
                 if (data.Success)
                 {
-                    txtActionResult.Text = $"✅ Pobranie zakończone: {data.Articles?.Count ?? 0} artykułów, {data.HpaiAlerts?.Count ?? 0} HPAI alertów";
+                    pbFetch.Value = 100;
+                    txtProgressStage.Text = "✅ Zakończone";
+                    txtProgressMessage.Text = $"{data.Articles?.Count ?? 0} artykułów, {data.HpaiAlerts?.Count ?? 0} HPAI";
+                    txtProgressPercent.Text = "100%";
+                    txtActionResult.Text = $"✅ Pobranie zakończone w {(DateTime.Now - _fetchStartTime).TotalSeconds:F1}s: {data.Articles?.Count ?? 0} artykułów, {data.HpaiAlerts?.Count ?? 0} HPAI alertów";
                     await LoadFetchHistoryAsync();
                     await RefreshStatusAsync();
                 }
                 else
                 {
+                    txtProgressStage.Text = "❌ Błąd";
+                    txtProgressMessage.Text = data.Error ?? "Nieznany błąd";
                     txtActionResult.Text = $"❌ Pobranie nieudane: {data.Error}";
                 }
             }
             catch (OperationCanceledException)
             {
+                _elapsedTimer.Stop();
+                txtProgressStage.Text = "⏹ Anulowane";
                 txtActionResult.Text = "⏹ Pobranie anulowane";
             }
             catch (Exception ex)
             {
+                _elapsedTimer.Stop();
+                txtProgressStage.Text = "❌ Wyjątek";
+                txtProgressMessage.Text = ex.Message;
                 txtActionResult.Text = $"❌ Wyjątek: {ex.Message}";
+            }
+            finally
+            {
+                btnForceFetch.IsEnabled = true;
+                btnCancelFetch.IsEnabled = false;
+                _cts?.Dispose();
+                _cts = null;
+            }
+        }
+
+        private void btnCancelFetch_Click(object sender, RoutedEventArgs e)
+        {
+            if (_cts != null && !_cts.IsCancellationRequested)
+            {
+                _cts.Cancel();
+                btnCancelFetch.IsEnabled = false;
+                txtProgressMessage.Text = "Anulowanie... (czekam aż bieżąca operacja zwróci)";
             }
         }
 

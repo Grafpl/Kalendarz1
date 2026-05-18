@@ -74,7 +74,12 @@ namespace Kalendarz1.MarketIntelligence.Services
                     Message = "Pobieram artykuły z kanałów RSS..."
                 });
 
-                var rssArticles = await _rssFeedService.FetchAllSourcesAsync(ct);
+                // Sub-progress per RSS source (slot 10-25%)
+                var rssProgress = new Progress<string>(msg =>
+                {
+                    progress?.Report(new FetchProgress { Stage = "RSS", Percent = 15, Message = msg });
+                });
+                var rssArticles = await _rssFeedService.FetchAllSourcesAsync(ct, rssProgress);
                 stats.RssArticlesFetched = rssArticles.Count;
 
                 Debug.WriteLine($"[Orchestrator] RSS: {rssArticles.Count} articles");
@@ -130,10 +135,16 @@ namespace Kalendarz1.MarketIntelligence.Services
                         Message = "Przeszukuję cały internet przez Perplexity AI..."
                     });
 
+                    // Sub-progress per query (slot 30-40%)
+                    var perplexityProgress = new Progress<string>(msg =>
+                    {
+                        progress?.Report(new FetchProgress { Stage = "Perplexity", Percent = 32, Message = msg });
+                    });
                     var perplexityResult = await _perplexitySearchService.SearchPoultryNewsAsync(
                         includeInternational: true,
                         maxPriority: SearchPriority.All,
-                        ct: ct);
+                        ct: ct,
+                        progress: perplexityProgress);
 
                     // Convert to RawArticle format
                     perplexityArticles = _perplexitySearchService.ConvertToRawArticles(perplexityResult);

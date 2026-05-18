@@ -177,7 +177,30 @@
                             <Button x:Name="btnTestPerplexity" Content="🧪 Test Perplexity (1 zapytanie)" Style="{StaticResource ToolBtn}" Margin="0,0,8,8" Click="btnTestPerplexity_Click"/>
                             <Button x:Name="btnTestClaude" Content="🧪 Test Claude (ping)" Style="{StaticResource ToolBtn}" Margin="0,0,8,8" Click="btnTestClaude_Click"/>
                             <Button x:Name="btnForceFetch" Content="⚡ Wymuś pełne pobranie TERAZ" Style="{StaticResource ToolBtn}" Background="#3D2A1A" Margin="0,0,8,8" Click="btnForceFetch_Click"/>
+                            <Button x:Name="btnCancelFetch" Content="⏹ Anuluj" Style="{StaticResource ToolBtn}" Background="#3D1E1E" Margin="0,0,8,8" Click="btnCancelFetch_Click" IsEnabled="False"/>
                         </WrapPanel>
+
+                        <!-- LIVE PROGRESS BAR — pokazuje co dokładnie się dzieje podczas fetcha -->
+                        <Border x:Name="bdrProgress" Background="#1A1610" CornerRadius="4" Padding="14" Margin="0,12,0,0" Visibility="Collapsed">
+                            <StackPanel>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" x:Name="txtProgressStage" Text="Inicjalizacja" FontWeight="Bold" Foreground="#C9A96E" FontSize="14" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="1" x:Name="txtProgressMessage" Text="—" Foreground="#D5CCC0" FontSize="12" Margin="16,0,0,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Grid.Column="2" x:Name="txtProgressPercent" Text="0%" FontWeight="Bold" FontFamily="Consolas" FontSize="14" Foreground="#F5EDE0" Margin="8,0,16,0" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="3" x:Name="txtProgressElapsed" Text="00:00" FontFamily="Consolas" FontSize="12" Foreground="#9A8F83" VerticalAlignment="Center"/>
+                                </Grid>
+                                <ProgressBar x:Name="pbFetch" Minimum="0" Maximum="100" Value="0" Height="18" Margin="0,8,0,0"
+                                             Background="#0F0D0A" BorderBrush="#3F3830" BorderThickness="1"
+                                             Foreground="#C9A96E"/>
+                                <TextBlock x:Name="txtProgressDetail" Text="" FontFamily="Consolas" FontSize="10" Foreground="#7A6F63" Margin="0,6,0,0" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+                            </StackPanel>
+                        </Border>
 
                         <!-- EKSPORT raportu — wszystko w jednym pliku do wysłania -->
                         <TextBlock Text="Eksport raportu diagnostycznego" Style="{StaticResource SectionHeader}" Margin="0,16,0,8"/>

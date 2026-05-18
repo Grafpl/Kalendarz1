@@ -35,9 +35,10 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
                 MaxAutomaticRedirections = 5
             };
 
+            // 15s HttpClient timeout — hard cap per-URL przez CTS w FetchFromSourceAsync (20s)
             _httpClient = new HttpClient(handler)
             {
-                Timeout = TimeSpan.FromSeconds(30)
+                Timeout = TimeSpan.FromSeconds(15)
             };
 
             // Set realistic User-Agent to avoid being blocked
@@ -48,13 +49,13 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
                 "application/rss+xml, application/xml, application/atom+xml, text/xml, */*");
             _httpClient.DefaultRequestHeaders.Add("Accept-Language", "pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7");
 
-            // Retry policy with exponential backoff
+            // Retry 2x, NIE retry na TaskCanceledException (to nasz timeout, nie sieć)
+            // Krótszy backoff: 1s, 2s zamiast 2s, 4s, 8s
             _retryPolicy = Policy<HttpResponseMessage>
                 .Handle<HttpRequestException>()
-                .Or<TaskCanceledException>()
                 .OrResult(r => !r.IsSuccessStatusCode && (int)r.StatusCode >= 500)
-                .WaitAndRetryAsync(3, retryAttempt =>
-                    TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)),
+                .WaitAndRetryAsync(2, retryAttempt =>
+                    TimeSpan.FromSeconds(retryAttempt),
                     onRetry: (outcome, timespan, retryCount, context) =>
                     {
                         Debug.WriteLine($"[RSS] Retry {retryCount} for {context["url"]} after {timespan.TotalSeconds}s");
@@ -65,32 +66,61 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
         }
 
         /// <summary>
-        /// Pobierz artykuły ze wszystkich skonfigurowanych źródeł RSS
+        /// Pobierz artykuły ze wszystkich skonfigurowanych źródeł RSS — parallel z hard timeoutami.
+        /// IProgress&lt;string&gt; raportuje per źródło żeby user widział co się dzieje.
         /// </summary>
-        public async Task<List<RawArticle>> FetchAllSourcesAsync(CancellationToken ct = default)
+        public async Task<List<RawArticle>> FetchAllSourcesAsync(
+            CancellationToken ct = default,
+            IProgress<string> progress = null)
         {
-            var allSources = NewsSourceConfig.GetAllRssSources();
-            var articles = new List<RawArticle>();
-            var tasks = new List<Task<List<RawArticle>>>();
+            var allSources = NewsSourceConfig.GetAllRssSources()
+                .Where(s => s.IsActive)
+                .ToList();
+            var articles = new System.Collections.Concurrent.ConcurrentBag<RawArticle>();
+            var completed = 0;
+            var total = allSources.Count;
 
-            Debug.WriteLine($"[RSS] Starting fetch from {allSources.Count} sources...");
+            Debug.WriteLine($"[RSS] Starting fetch from {total} sources (parallel, max 5 concurrent, 20s per source)...");
 
-            foreach (var source in allSources.Where(s => s.IsActive))
+            var tasks = allSources.Select(async source =>
             {
-                tasks.Add(FetchFromSourceSafeAsync(source, ct));
-            }
+                // Hard cap 20s per źródło — niezależny od HttpClient timeout i Polly retries
+                using var sourceCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                sourceCts.CancelAfter(TimeSpan.FromSeconds(20));
 
-            var results = await Task.WhenAll(tasks);
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                try
+                {
+                    var sourceArticles = await FetchFromSourceSafeAsync(source, sourceCts.Token);
+                    foreach (var a in sourceArticles) articles.Add(a);
+                    sw.Stop();
+                    Debug.WriteLine($"[RSS] ✓ {source.Name}: {sourceArticles.Count} artykułów ({sw.ElapsedMilliseconds}ms)");
+                }
+                catch (OperationCanceledException) when (sourceCts.IsCancellationRequested && !ct.IsCancellationRequested)
+                {
+                    sw.Stop();
+                    Debug.WriteLine($"[RSS] ⏱ {source.Name}: TIMEOUT 20s — pomijam");
+                }
+                catch (OperationCanceledException) { throw; }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[RSS] ❌ {source.Name}: {ex.Message}");
+                }
+                finally
+                {
+                    var done = System.Threading.Interlocked.Increment(ref completed);
+                    progress?.Report($"RSS {done}/{total}: {source.Name}");
+                }
+            }).ToList();
 
-            foreach (var result in results)
-            {
-                articles.AddRange(result);
-            }
+            try { await Task.WhenAll(tasks); }
+            catch (OperationCanceledException) { Debug.WriteLine("[RSS] Cały RSS fetch anulowany"); }
 
-            Debug.WriteLine($"[RSS] Total articles fetched: {articles.Count}");
+            var result = articles.ToList();
+            Debug.WriteLine($"[RSS] Total articles fetched: {result.Count}");
 
             // Deduplicate by URL
-            var uniqueArticles = articles
+            var uniqueArticles = result
                 .GroupBy(a => a.UrlHash)
                 .Select(g => g.First())
                 .ToList();
