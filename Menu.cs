@@ -1338,6 +1338,7 @@ namespace Kalendarz1
             /* 65 */ "StatystykiReklamacji",
             /* 66 */ "AnalitykaPelna",
             /* 67 */ "CentrumNagranAI",
+            /* 68 */ "MapowanieFlota",
         };
 
         private void ParseAccessString(string accessString)
@@ -1793,6 +1794,11 @@ namespace Kalendarz1
                         "Zarządzanie kierowcami, pojazdami, przypisaniami i serwisem - dokumenty, alerty, historia",
                         Color.FromArgb(0, 96, 100), // Ciemny turkusowy #006064
                         () => new Flota.Views.FlotaWindow(), "🚛", "Flota"),
+
+                    new MenuItemConfig("MapowanieFlota", "Mapowanie systemów",
+                        "Linkuje TransportPL.Kierowca/Pojazd z LibraNet.Driver/CarTrailer (Flota). Jednorazowa procedura — auto-mapowanie po Rejestracji/Imię.",
+                        Color.FromArgb(38, 116, 122),
+                        () => new Flota.Views.MapowanieFlotaWindow(), "🔗", "Mapowanie"),
 
                     // Faza 5.4 — 3 kafelki przekierowane do MapaFlotyHubWindow z odpowiednią zakładką startową.
                     // Stare shim Window'y (MapaFlotyWindow/OsCzasuFlotyWindow/RaportEfektywnosciWindow) pozostają
