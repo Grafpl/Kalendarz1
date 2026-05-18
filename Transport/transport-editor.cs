@@ -3638,26 +3638,11 @@ Adres: {zamowienie.Adres}";
                     return;
             }
 
-            // Faza 1 — blokada zapisu na blocking errors
-            // NO_DRIVER/NO_VEHICLE są obsługiwane przez Yes/No powyżej (kurs "Planowany" bez zasobów dozwolony).
-            // Reszta errorów (przeładowanie, double-booking) musi być poprawiona.
+            // Faza 5 — blokada zapisu USUNIĘTA na życzenie użytkownika.
+            // Konflikty (przeładowanie, double-booking, przekroczenie czasu) nadal są wykrywane
+            // i widoczne w lblKonflikty (klik dla szczegółów), ale dyspozytor sam decyduje
+            // czy zapisać kurs mimo nich.
             RecomputeConflicts();
-            var blockingErrors = _aktualneKonflikty
-                .Where(c => c.Level == Kalendarz1.Transport.Services.ConflictLevel.Error
-                         && c.Code != Kalendarz1.Transport.Services.ConflictDetectionService.NO_DRIVER
-                         && c.Code != Kalendarz1.Transport.Services.ConflictDetectionService.NO_VEHICLE)
-                .ToList();
-            if (blockingErrors.Count > 0)
-            {
-                var msgErr = "Wykryto " + blockingErrors.Count + " błąd"
-                           + (blockingErrors.Count > 1 ? "ów" : "")
-                           + " blokujących zapis:\n\n";
-                foreach (var er in blockingErrors)
-                    msgErr += "  • " + er.Message + "\n";
-                msgErr += "\nPopraw konflikty przed zapisem (lub kliknij linijkę konfliktów dla szczegółów).";
-                MessageBox.Show(msgErr, "Nie można zapisać", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
 
             try
             {
