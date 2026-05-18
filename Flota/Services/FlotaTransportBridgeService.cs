@@ -147,13 +147,14 @@ namespace Kalendarz1.Flota.Services
             using var r = await cmd.ExecuteReaderAsync();
             while (await r.ReadAsync())
             {
+                // Defensive: CarTrailer.ID może być int LUB varchar w istniejącej bazie LibraNet
                 list.Add(new FlotaPojazd
                 {
-                    ID = r.IsDBNull(0) ? "" : r.GetString(0),
-                    Kind = r.IsDBNull(1) ? null : r.GetString(1),
-                    Brand = r.IsDBNull(2) ? null : r.GetString(2),
-                    Model = r.IsDBNull(3) ? null : r.GetString(3),
-                    Registration = r.IsDBNull(4) ? null : r.GetString(4)
+                    ID = SafeStr(r, 0),
+                    Kind = SafeNullStr(r, 1),
+                    Brand = SafeNullStr(r, 2),
+                    Model = SafeNullStr(r, 3),
+                    Registration = SafeNullStr(r, 4)
                 });
             }
             return list;
@@ -169,21 +170,46 @@ namespace Kalendarz1.Flota.Services
                 SELECT d.GID, d.Name, d.Halt, dd.FirstName, dd.LastName
                 FROM Driver d
                 LEFT JOIN DriverDetails dd ON d.GID = dd.DriverGID
-                WHERE d.Deleted = 0
+                WHERE ISNULL(d.Deleted, 0) = 0
                 ORDER BY d.Halt ASC, d.Name ASC";
             using var r = await cmd.ExecuteReaderAsync();
             while (await r.ReadAsync())
             {
                 list.Add(new FlotaKierowca
                 {
-                    GID = r.GetInt32(0),
-                    Name = r.IsDBNull(1) ? "" : r.GetString(1),
-                    Halt = !r.IsDBNull(2) && r.GetBoolean(2),
-                    FirstName = r.IsDBNull(3) ? null : r.GetString(3),
-                    LastName = r.IsDBNull(4) ? null : r.GetString(4)
+                    GID = Convert.ToInt32(r.GetValue(0)),
+                    Name = SafeStr(r, 1),
+                    Halt = SafeBool(r, 2),
+                    FirstName = SafeNullStr(r, 3),
+                    LastName = SafeNullStr(r, 4)
                 });
             }
             return list;
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // Defensive type readers — tolerują różne typy w istniejących tabelach LibraNet
+        // ════════════════════════════════════════════════════════════════════
+        private static string SafeStr(System.Data.IDataReader r, int i)
+            => r.IsDBNull(i) ? "" : (Convert.ToString(r.GetValue(i)) ?? "");
+
+        private static string? SafeNullStr(System.Data.IDataReader r, int i)
+            => r.IsDBNull(i) ? null : Convert.ToString(r.GetValue(i));
+
+        private static bool SafeBool(System.Data.IDataReader r, int i)
+        {
+            if (r.IsDBNull(i)) return false;
+            var v = r.GetValue(i);
+            return v switch
+            {
+                bool b => b,
+                int n => n != 0,
+                short s => s != 0,
+                byte b => b != 0,
+                long l => l != 0,
+                string s => s == "1" || s.Equals("true", StringComparison.OrdinalIgnoreCase),
+                _ => Convert.ToBoolean(v)
+            };
         }
 
         // ════════════════════════════════════════════════════════════════════
