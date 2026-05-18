@@ -1,0 +1,923 @@
+==============================================================================
+WYNIKI EKSPLORACJI UNISYSTEM (UNICARD RCP, 192.168.0.23\SQLEXPRESS)
+==============================================================================
+
+INSTRUKCJA:
+1. SSMS -> 192.168.0.23\SQLEXPRESS
+   Login: zależy od konfiguracji - sprawdz w app KontrolaGodzin.xaml.cs
+   (najczęściej Windows Auth lub konkretny SQL login)
+2. Otworz EKSPLORACJA_UNISYSTEM_FULL.sql
+3. Ctrl+T -> F5 -> Ctrl+A -> Ctrl+C
+4. Wklej WSZYSTKO ponizej
+
+Plik bada:
+- U01: dostepne bazy
+- U02: liczba tabel + top per wiersze
+- U03: V_RCINE_EMPLOYEES (kluczowy widok)
+- U04: tabele rejestracji wejsc/wyjsc
+- U05: struktury top 20 tabel
+
+==============================================================================
+
+
+===WYNIKI POCZATEK===
+
+__SEKCJA   DatabaseName                                                                                                                     state_desc                                                   create_date
+---------- -------------------------------------------------------------------------------------------------------------------------------- ------------------------------------------------------------ -----------------------
+U01_A_bazy ReportServer                                                                                                                     ONLINE                                                       2025-01-03 16:18:22.383
+U01_A_bazy ReportServerTempDB                                                                                                               ONLINE                                                       2025-01-03 16:18:22.760
+U01_A_bazy UNISYSTEM                                                                                                                        ONLINE                                                       2025-01-03 16:16:13.680
+
+__SEKCJA   BazaDanych                                                                                                                       WersjaSQL
+---------- -------------------------------------------------------------------------------------------------------------------------------- --------------------------------------------------
+U02_A_baza UNISYSTEM                                                                                                                        16.0.1000.6
+
+__SEKCJA        TableFullName                                                                                                                                                                                                                                                    RowCount_            TotalMB
+--------------- ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- -------------------- ---------------------------------------
+U02_B_top_tabel dbo.PL_REGISTRATIONS                                                                                                                                                                                                                                             714661               119.570312
+U02_B_top_tabel dbo.T_RCRER_REGISTRATIONS                                                                                                                                                                                                                                        246564               18.632812
+U02_B_top_tabel dbo.T_RCREAR_ANALYSIS_RESULTS                                                                                                                                                                                                                                    47553                4.382812
+U02_B_top_tabel dbo.T_RCWACI_CALCULATED_INTERVALS                                                                                                                                                                                                                                5298                 0.507812
+U02_B_top_tabel dbo.PL_LOGS                                                                                                                                                                                                                                                      4856                 5.070312
+U02_B_top_tabel dbo.T_RCWAAD_ACCOUNTED_DAYS                                                                                                                                                                                                                                      1460                 0.570312
+U02_B_top_tabel dbo.T_RCSVVR_VALIDATION_RESULTS                                                                                                                                                                                                                                  609                  0.445312
+U02_B_top_tabel dbo.T_KDCAUC_USERS_CARDS                                                                                                                                                                                                                                         599                  0.070312
+U02_B_top_tabel dbo.T_UXUSUD_USERS_DATA                                                                                                                                                                                                                                          425                  0.203125
+U02_B_top_tabel dbo.T_KDPRPU_PROFILES_USERS                                                                                                                                                                                                                                      417                  0.070312
+U02_B_top_tabel dbo.T_RCSCCD_CALENDAR_DAYS                                                                                                                                                                                                                                       306                  0.070312
+U02_B_top_tabel dbo.T_RCSCDS_DAILY_SCHEDULES                                                                                                                                                                                                                                     306                  0.070312
+U02_B_top_tabel dbo.T_RCSCSH_SHIFTS                                                                                                                                                                                                                                              306                  0.132812
+U02_B_top_tabel dbo.T_KDCAC_CARDS                                                                                                                                                                                                                                                300                  0.070312
+U02_B_top_tabel dbo.T_RCWAAPL_ACC_PROCESS_LOGS                                                                                                                                                                                                                                   244                  0.195312
+U02_B_top_tabel dbo.CONFIGURATION                                                                                                                                                                                                                                                205                  0.101562
+U02_B_top_tabel dbo.T_UXTR_TRANSLATIONS                                                                                                                                                                                                                                          180                  0.031250
+U02_B_top_tabel dbo.T_HAEVLI_EVENT_LIST                                                                                                                                                                                                                                          158                  0.031250
+U02_B_top_tabel dbo.LOGINS                                                                                                                                                                                                                                                       156                  0.078125
+U02_B_top_tabel dbo.T_UXUP_UPGRADES                                                                                                                                                                                                                                              155                  0.015625
+U02_B_top_tabel dbo.T_KDKN_NATIONALITIES                                                                                                                                                                                                                                         110                  0.015625
+U02_B_top_tabel dbo.T_RCP_ABSENCE_ALIASES                                                                                                                                                                                                                                        95                   0.070312
+U02_B_top_tabel dbo.T_UXREF_REPORT_FIELDS                                                                                                                                                                                                                                        70                   0.015625
+U02_B_top_tabel dbo.T_HADEAP_ACCESS_POINTS                                                                                                                                                                                                                                       68                   0.070312
+U02_B_top_tabel dbo.CONFIGURATION_IRIDIUM                                                                                                                                                                                                                                        63                   0.078125
+U02_B_top_tabel dbo.T_HACMLI_CMD_LIST                                                                                                                                                                                                                                            55                   0.015625
+U02_B_top_tabel dbo.T_RCABAD_ABSENCES_ALL_DAY                                                                                                                                                                                                                                    44                   0.070312
+U02_B_top_tabel dbo.T_RCPC_PKD_CLASSIFICATION                                                                                                                                                                                                                                    40                   0.070312
+U02_B_top_tabel dbo.T_UXUSUG_USERS_GROUPS                                                                                                                                                                                                                                        27                   0.015625
+U02_B_top_tabel dbo.T_RCWAP_PERIODS                                                                                                                                                                                                                                              19                   0.070312
+U02_B_top_tabel dbo.T_RCWAAP_ACCOUNTED_PERIODS                                                                                                                                                                                                                                   16                   0.070312
+U02_B_top_tabel dbo.T_UXRE_REPORTS                                                                                                                                                                                                                                               15                   0.015625
+U02_B_top_tabel dbo.T_RCABTAD_TYPES_ALL_DAY                                                                                                                                                                                                                                      12                   0.015625
+U02_B_top_tabel dbo.T_ACCESS_PROFILES                                                                                                                                                                                                                                            9                    0.015625
+U02_B_top_tabel dbo.T_KDCOO_ORDERS                                                                                                                                                                                                                                               9                    0.015625
+U02_B_top_tabel dbo.T_HADER_READERS                                                                                                                                                                                                                                              8                    0.070312
+U02_B_top_tabel dbo.T_RCP_SHIFT_GENERATORS                                                                                                                                                                                                                                       8                    0.015625
+U02_B_top_tabel dbo.T_RCABTP_TYPES_PARTIAL                                                                                                                                                                                                                                       6                    0.015625
+U02_B_top_tabel dbo.T_RCPITTCN_TIME_TABLE_COLUMN_NAMES                                                                                                                                                                                                                           6                    0.070312
+U02_B_top_tabel dbo.T_UXOAO_OPERATORS                                                                                                                                                                                                                                            6                    0.015625
+U02_B_top_tabel dbo.T_KDPRC_CHARACTERISTICS                                                                                                                                                                                                                                      4                    0.070312
+U02_B_top_tabel dbo.T_KDPRCA_CHARACTERISTICS_ACCESS_RULES                                                                                                                                                                                                                        4                    0.070312
+U02_B_top_tabel dbo.T_RCEMWS_WORK_SCHEDULES                                                                                                                                                                                                                                      4                    0.070312
+U02_B_top_tabel dbo.T_UXTAC_TABLE_COLUMNS                                                                                                                                                                                                                                        4                    0.015625
+U02_B_top_tabel dbo.T_RCABAK_ABSENCES_KIND                                                                                                                                                                                                                                       3                    0.070312
+U02_B_top_tabel dbo.T_RCWAAG_ACCOUNT_GROUPS                                                                                                                                                                                                                                      3                    0.070312
+U02_B_top_tabel dbo.T_UXTA_TABLES                                                                                                                                                                                                                                                3                    0.015625
+U02_B_top_tabel dbo.T_HADEB_BUSES                                                                                                                                                                                                                                                2                    0.070312
+U02_B_top_tabel dbo.T_HADEC_CAPABILITIES                                                                                                                                                                                                                                         2                    0.070312
+U02_B_top_tabel dbo.T_HADED_DEVICES                                                                                                                                                                                                                                              2                    0.070312
+U02_B_top_tabel dbo.T_HADES_SERVERS                                                                                                                                                                                                                                              2                    0.070312
+U02_B_top_tabel dbo.T_KDPRP_PROFILES                                                                                                                                                                                                                                             2                    0.070312
+U02_B_top_tabel dbo.T_RCSCG_GROUPS                                                                                                                                                                                                                                               2                    0.070312
+U02_B_top_tabel dbo.T_UXOAOG_OPERATORS_GROUPS                                                                                                                                                                                                                                    2                    0.015625
+U02_B_top_tabel dbo.T_EX_EXPORT_VIEWS                                                                                                                                                                                                                                            1                    0.070312
+U02_B_top_tabel dbo.T_HADECA_CAMERAS                                                                                                                                                                                                                                             1                    0.070312
+U02_B_top_tabel dbo.T_HADEVR_VIDEO_RECORDERS                                                                                                                                                                                                                                     1                    0.070312
+U02_B_top_tabel dbo.T_KDCOC_CONFIGS                                                                                                                                                                                                                                              1                    0.015625
+U02_B_top_tabel dbo.T_RCPDDA_DAEMONS                                                                                                                                                                                                                                             1                    0.070312
+U02_B_top_tabel dbo.T_RCPDJT_JOBS_TRIGGERS                                                                                                                                                                                                                                       1                    0.015625
+U02_B_top_tabel dbo.T_RCSCS_SCHEDULES                                                                                                                                                                                                                                            1                    0.070312
+U02_B_top_tabel dbo.T_RCSCSN_SHIFTS_NAMES                                                                                                                                                                                                                                        1                    0.015625
+U02_B_top_tabel dbo.T_RCSGDSG_DAILY_SCHEDULES_GEN                                                                                                                                                                                                                                1                    0.070312
+U02_B_top_tabel dbo.T_RCSGSG_SCHEDULES_GEN                                                                                                                                                                                                                                       1                    0.070312
+U02_B_top_tabel dbo.T_RCSGSHG_SHIFTS_GEN                                                                                                                                                                                                                                         1                    0.070312
+U02_B_top_tabel dbo.T_UXGR_GROUPS                                                                                                                                                                                                                                                1                    0.015625
+U02_B_top_tabel dbo.CONFIGURATION_BLOB                                                                                                                                                                                                                                           0                    0.000000
+U02_B_top_tabel dbo.PL_EVENTS_ACTIONS                                                                                                                                                                                                                                            0                    0.000000
+U02_B_top_tabel dbo.PL_EVENTS_ACTIONS_CHANGES                                                                                                                                                                                                                                    0                    0.000000
+U02_B_top_tabel dbo.PL_IMPORT_LOG                                                                                                                                                                                                                                                0                    0.000000
+U02_B_top_tabel dbo.PL_REGISTRATIONS_LOG                                                                                                                                                                                                                                         0                    0.000000
+U02_B_top_tabel dbo.T_EXEC_EXPORT_CONFIGURATION                                                                                                                                                                                                                                  0                    0.000000
+U02_B_top_tabel dbo.T_HAACIGCL_INTEGRATION_CLIENTS                                                                                                                                                                                                                               0                    0.000000
+U02_B_top_tabel dbo.T_HAACIGPR_INTEGRATION_PROFILES                                                                                                                                                                                                                              0                    0.000000
+U02_B_top_tabel dbo.T_HAACIGPRDE_INTEGRATION_PROFILES_DEVICES                                                                                                                                                                                                                    0                    0.000000
+U02_B_top_tabel dbo.T_HAACIGPREV_INTEGRATION_PROFILES_EVENTS                                                                                                                                                                                                                     0                    0.000000
+U02_B_top_tabel dbo.T_HADEAPCA_ACCESS_POINTS_CAMERAS                                                                                                                                                                                                                             0                    0.000000
+U02_B_top_tabel dbo.T_HADECR_CARDS_RANGES                                                                                                                                                                                                                                        0                    0.000000
+U02_B_top_tabel dbo.T_HADEDG_DEVICES_GROUPS                                                                                                                                                                                                                                      0                    0.000000
+U02_B_top_tabel dbo.T_HAPRQA5_COMMANDS_QUEUE_AC5001                                                                                                                                                                                                                              0                    0.000000
+U02_B_top_tabel dbo.T_HAPRQS6_COMMANDS_QUEUE_SD660                                                                                                                                                                                                                               0                    0.000000
+U02_B_top_tabel dbo.T_HAPRQTO_COMMANDS_QUEUE_TRUSTONE                                                                                                                                                                                                                            0                    0.000000
+U02_B_top_tabel dbo.T_HAPRQXL_COMMANDS_QUEUE_XML                                                                                                                                                                                                                                 0                    0.078125
+U02_B_top_tabel dbo.T_HAPRQZK_COMMANDS_QUEUE_ZK                                                                                                                                                                                                                                  0                    0.000000
+U02_B_top_tabel dbo.T_HATGG_TIME_GRIDS                                                                                                                                                                                                                                           0                    0.000000
+U02_B_top_tabel dbo.T_HATGP_TIME_POINTS                                                                                                                                                                                                                                          0                    0.000000
+U02_B_top_tabel dbo.T_KDCAL_CARDS_LUNCH                                                                                                                                                                                                                                          0                    0.000000
+U02_B_top_tabel dbo.T_KDCAVCR_VIRTUAL_CARD_RESERVATIONS                                                                                                                                                                                                                          0                    0.000000
+U02_B_top_tabel dbo.T_KDCOG_GROUPS                                                                                                                                                                                                                                               0                    0.000000
+U02_B_top_tabel dbo.T_KDCOGD_GROUPS_DEVICES                                                                                                                                                                                                                                      0                    0.000000
+U02_B_top_tabel dbo.T_KDEICDP_INSECTION_RANDOM_CONTROL_DRAW_PROBABILITY                                                                                                                                                                                                          0                    0.000000
+U02_B_top_tabel dbo.T_KDEIEIL_EMPLOYEE_INSPECTION_LOGS                                                                                                                                                                                                                           0                    0.000000
+U02_B_top_tabel dbo.T_KDEIP_EMPLOYEE_INSPECTION_PROFILE                                                                                                                                                                                                                          0                    0.000000
+U02_B_top_tabel dbo.T_KDEIPAP_EMPLOYEE_INSPECTION_PROFILE_ACCESS_POINTS                                                                                                                                                                                                          0                    0.000000
+U02_B_top_tabel dbo.T_KDEIPE_EMPLOYEE_INSPECTION_PROFILE_EMPLOYEES                                                                                                                                                                                                               0                    0.000000
+U02_B_top_tabel dbo.T_KDEX_EXPORT                                                                                                                                                                                                                                                0                    0.000000
+U02_B_top_tabel dbo.T_KDEXF_EXPORT_FORMAT                                                                                                                                                                                                                                        0                    0.000000
+U02_B_top_tabel dbo.T_KDGUG_GUESTS                                                                                                                                                                                                                                               0                    0.000000
+U02_B_top_tabel dbo.T_KDGUGVHL_GUESTS_VISITS_HISTORY_LOGS                                                                                                                                                                                                                        0                    0.000000
+U02_B_top_tabel dbo.T_KDKEK_KEYS                                                                                                                                                                                                                                                 0                    0.000000
+U02_B_top_tabel dbo.T_KDKEKOL_OPERATION_LOGS                                                                                                                                                                                                                                     0                    0.000000
+U02_B_top_tabel dbo.T_KDKEKUK_USERS_KEYS                                                                                                                                                                                                                                         0                    0.000000
+U02_B_top_tabel dbo.T_KDLE_LEVELS                                                                                                                                                                                                                                                0                    0.000000
+U02_B_top_tabel dbo.T_KDPH_PHOTOS                                                                                                                                                                                                                                                0                    0.000000
+U02_B_top_tabel dbo.T_KDPRCACD_CALENDAR_DAYS                                                                                                                                                                                                                                     0                    0.000000
+U02_B_top_tabel dbo.T_KDPRHDDE_PROFILES_DEVICES                                                                                                                                                                                                                                  0                    0.000000
+U02_B_top_tabel dbo.T_KDPRHDHD_PROFILES_HOLY_DAYS                                                                                                                                                                                                                                0                    0.000000
+U02_B_top_tabel dbo.T_KDPRPG_PROFILES_GROUPS                                                                                                                                                                                                                                     0                    0.000000
+U02_B_top_tabel dbo.T_KDREO_REGISTRATIONS_EXPORT_ORACLE                                                                                                                                                                                                                          0                    0.000000
+U02_B_top_tabel dbo.T_KDZOB_BASE_ZONES                                                                                                                                                                                                                                           0                    0.000000
+U02_B_top_tabel dbo.T_KDZOBC_BASE_COMPLEX_ZONES                                                                                                                                                                                                                                  0                    0.000000
+U02_B_top_tabel dbo.T_KDZOC_COMPLEX_ZONES                                                                                                                                                                                                                                        0                    0.000000
+U02_B_top_tabel dbo.T_KDZOVR_VISUALISATION_RESOURCES                                                                                                                                                                                                                             0                    0.000000
+U02_B_top_tabel dbo.T_KDZOVS_VISUALISATION_SETTINGS                                                                                                                                                                                                                              0                    0.000000
+U02_B_top_tabel dbo.T_RCABP_ABSENCES_PARTIAL                                                                                                                                                                                                                                     0                    0.000000
+U02_B_top_tabel dbo.T_RCDEPR_PROCESSES                                                                                                                                                                                                                                           0                    0.000000
+U02_B_top_tabel dbo.T_RCDEPRL_PROCESSES_LOGS                                                                                                                                                                                                                                     0                    0.000000
+U02_B_top_tabel dbo.T_RCEMHE_HOLIDAY_ENTITLEMENT                                                                                                                                                                                                                                 0                    0.000000
+U02_B_top_tabel dbo.T_RCEMOAPAC_OVERTIME_AND_PRIVATE_ABSENCES_CORRECTIONS                                                                                                                                                                                                        0                    0.000000
+U02_B_top_tabel dbo.T_RCEMOC_OVERTIME_CORRECTIONS                                                                                                                                                                                                                                0                    0.000000
+U02_B_top_tabel dbo.T_RCEMOP_OVERTIME_PAYMENTS                                                                                                                                                                                                                                   0                    0.000000
+U02_B_top_tabel dbo.T_RCP_COMPANIES                                                                                                                                                                                                                                              0                    0.000000
+U02_B_top_tabel dbo.T_RCP_COMPOSITE_PERIODS                                                                                                                                                                                                                                      0                    0.000000
+U02_B_top_tabel dbo.T_RCP_DEFINED_MESSAGES                                                                                                                                                                                                                                       0                    0.000000
+U02_B_top_tabel dbo.T_RCP_DEV_DAY                                                                                                                                                                                                                                                0                    0.000000
+U02_B_top_tabel dbo.T_RCP_GROUPS_PERIODS                                                                                                                                                                                                                                         0                    0.000000
+U02_B_top_tabel dbo.T_RCP_HOLIDAY_PERIODS                                                                                                                                                                                                                                        0                    0.000000
+U02_B_top_tabel dbo.T_RCP_OVERTIME_RECEIVED                                                                                                                                                                                                                                      0                    0.000000
+U02_B_top_tabel dbo.T_RCP_OVERTIME_TRANSFERRED                                                                                                                                                                                                                                   0                    0.000000
+U02_B_top_tabel dbo.T_RCP_PERIODS                                                                                                                                                                                                                                                0                    0.000000
+U02_B_top_tabel dbo.T_RCP_PLACE_OF_COST_FORMATION                                                                                                                                                                                                                                0                    0.000000
+U02_B_top_tabel dbo.T_RCP_POSITIONS                                                                                                                                                                                                                                              0                    0.000000
+U02_B_top_tabel dbo.T_RCP_TIME_TABLE                                                                                                                                                                                                                                             0                    0.000000
+U02_B_top_tabel dbo.T_RCP_USERS_ASSIGNMENT_TYPE                                                                                                                                                                                                                                  0                    0.000000
+U02_B_top_tabel dbo.T_RCP_USERS_ATTRIBUTES_DEFINITIONS                                                                                                                                                                                                                           0                    0.000000
+U02_B_top_tabel dbo.T_RCP_USERS_ATTRIBUTES_VALUES                                                                                                                                                                                                                                0                    0.000000
+U02_B_top_tabel dbo.T_RCP_USERS_DISABILITY_CODE                                                                                                                                                                                                                                  0                    0.000000
+U02_B_top_tabel dbo.T_RCP_USERS_DRIVERS                                                                                                                                                                                                                                          0                    0.000000
+U02_B_top_tabel dbo.T_RCP_USERS_HOLIDAY_LIMITS                                                                                                                                                                                                                                   0                    0.000000
+U02_B_top_tabel dbo.T_RCP_USERS_INDIVIDUAL_WORK_SYSTEM                                                                                                                                                                                                                           0                    0.000000
+U02_B_top_tabel dbo.T_RCP_USERS_PLACE_OF_COST_FORMATION                                                                                                                                                                                                                          0                    0.000000
+U02_B_top_tabel dbo.T_RCP_USERS_SETTLEMENT_PERIOD                                                                                                                                                                                                                                0                    0.000000
+U02_B_top_tabel dbo.T_RCP_USERS_WORK_SYSTEM                                                                                                                                                                                                                                      0                    0.000000
+U02_B_top_tabel dbo.T_RCP_USERS_WORK_SYSTEM_LIMITATIONS                                                                                                                                                                                                                          0                    0.000000
+U02_B_top_tabel dbo.T_RCP_USERS_WORK_SYSTEM_PERMISSIONS                                                                                                                                                                                                                          0                    0.000000
+U02_B_top_tabel dbo.T_RCPDJ_JOBS                                                                                                                                                                                                                                                 0                    0.070312
+U02_B_top_tabel dbo.T_RCPDL_LOGS                                                                                                                                                                                                                                                 0                    0.000000
+U02_B_top_tabel dbo.T_RCPDPEN_PAR_EXPORT_NATIVE                                                                                                                                                                                                                                  0                    0.000000
+U02_B_top_tabel dbo.T_RCPDPETI_PAR_EXPORT_TETA_INS                                                                                                                                                                                                                               0                    0.000000
+U02_B_top_tabel dbo.T_RCPDPEWA_PAR_EMP_WORKTM_ACC                                                                                                                                                                                                                                0                    0.070312
+U02_B_top_tabel dbo.T_RCPDPIN_PAR_IMPORT_NATIVE                                                                                                                                                                                                                                  0                    0.000000
+U02_B_top_tabel dbo.T_RCPDPIS_PAR_IMPORT_SYMFONIA                                                                                                                                                                                                                                0                    0.000000
+U02_B_top_tabel dbo.T_RCPDPITI_PAR_IMPORT_TETA_INS                                                                                                                                                                                                                               0                    0.000000
+U02_B_top_tabel dbo.T_RCPDPPA_PAR_PERIOD_ACCOUNT                                                                                                                                                                                                                                 0                    0.000000
+U02_B_top_tabel dbo.T_RCPEBB_BSN_BREAK                                                                                                                                                                                                                                           0                    0.000000
+U02_B_top_tabel dbo.T_RCPEBBE_BSN_BREAK_EM                                                                                                                                                                                                                                       0                    0.000000
+U02_B_top_tabel dbo.T_RCPEBEE_BSN_EARLY_EXIT                                                                                                                                                                                                                                     0                    0.000000
+U02_B_top_tabel dbo.T_RCPEBEEE_BSN_EARLY_EXIT_EM                                                                                                                                                                                                                                 0                    0.000000
+U02_B_top_tabel dbo.T_RCPEBL_BSN_LATENESS                                                                                                                                                                                                                                        0                    0.000000
+U02_B_top_tabel dbo.T_RCPEBLE_BSN_LATENESS_EM                                                                                                                                                                                                                                    0                    0.000000
+U02_B_top_tabel dbo.T_RCPEMET_MAX_EXIT_TIME                                                                                                                                                                                                                                      0                    0.000000
+U02_B_top_tabel dbo.T_RCPEMETE_MAX_EXIT_TIME_EM                                                                                                                                                                                                                                  0                    0.000000
+U02_B_top_tabel dbo.T_RCPEO_OVERTIME                                                                                                                                                                                                                                             0                    0.000000
+U02_B_top_tabel dbo.T_RCPEOE_OVERTIME_EM                                                                                                                                                                                                                                         0                    0.000000
+U02_B_top_tabel dbo.T_RCPEPAC_PRV_ABS_CLEARING                                                                                                                                                                                                                                   0                    0.000000
+U02_B_top_tabel dbo.T_RCPEPACE_PRV_ABS_CLEARING_EM                                                                                                                                                                                                                               0                    0.000000
+U02_B_top_tabel dbo.T_RCPEPB_BREAK_IN_A_SPECIFIC_RANGE                                                                                                                                                                                                                           0                    0.000000
+U02_B_top_tabel dbo.T_RCPEPBE_BREAK_IN_A_SPECIFIC_RANGE_EM                                                                                                                                                                                                                       0                    0.000000
+U02_B_top_tabel dbo.T_RCPERFD_RETURN_FREE_DAY                                                                                                                                                                                                                                    0                    0.000000
+U02_B_top_tabel dbo.T_RCPERFDE_RETURN_FREE_DAY_EM                                                                                                                                                                                                                                0                    0.000000
+U02_B_top_tabel dbo.T_RCPEST_START_TIME                                                                                                                                                                                                                                          0                    0.000000
+U02_B_top_tabel dbo.T_RCPESTE_START_TIME_EM                                                                                                                                                                                                                                      0                    0.000000
+U02_B_top_tabel dbo.T_RCPESTM_START_TIME_MARGIN                                                                                                                                                                                                                                  0                    0.000000
+U02_B_top_tabel dbo.T_RCPESTME_START_TIME_MARG_EM                                                                                                                                                                                                                                0                    0.000000
+U02_B_top_tabel dbo.T_RCPEWAF_WORK_AT_FREEDAY                                                                                                                                                                                                                                    0                    0.000000
+U02_B_top_tabel dbo.T_RCPEWAFE_WORK_AT_FREEDAY_EM                                                                                                                                                                                                                                0                    0.000000
+U02_B_top_tabel dbo.T_RCPEWT_WORK_TIME                                                                                                                                                                                                                                           0                    0.000000
+U02_B_top_tabel dbo.T_RCPEWTE_WORK_TIME_EM                                                                                                                                                                                                                                       0                    0.000000
+U02_B_top_tabel dbo.T_RCPIAPEL_ACCESS_POINT_EXPORT_LOG                                                                                                                                                                                                                           0                    0.000000
+U02_B_top_tabel dbo.T_RCPIOA_OVERTIME_ACCEPTED                                                                                                                                                                                                                                   0                    0.000000
+U02_B_top_tabel dbo.T_RCPIP_PERIODS                                                                                                                                                                                                                                              0                    0.000000
+U02_B_top_tabel dbo.T_RCPIPD_PERIODS_DEFINITIONS                                                                                                                                                                                                                                 0                    0.000000
+U02_B_top_tabel dbo.T_RCPIPG_PERIODS_GROUPS                                                                                                                                                                                                                                      0                    0.000000
+U02_B_top_tabel dbo.T_RCPIPWTW_PERIODS_WITH_TRANSFERRED_WORKDAYS                                                                                                                                                                                                                 0                    0.000000
+U02_B_top_tabel dbo.T_RCPIREL_REGISTRATION_EXPORT_LOG                                                                                                                                                                                                                            0                    0.000000
+U02_B_top_tabel dbo.T_RCPIRHUFP_RECOMMENDED_HOLIDAY_USAGE_FOR_PERIOD                                                                                                                                                                                                             0                    0.000000
+U02_B_top_tabel dbo.T_RCPITTC_TIME_TABLE_CHANGES                                                                                                                                                                                                                                 0                    0.000000
+U02_B_top_tabel dbo.T_RCPIUAR_USERS_ACCESS_RIGHTS                                                                                                                                                                                                                                0                    0.000000
+U02_B_top_tabel dbo.T_RCPIUAT_USERS_ASSIGNMENT_TYPE                                                                                                                                                                                                                              0                    0.000000
+U02_B_top_tabel dbo.T_RCPIUP_USERS_POSITIONS                                                                                                                                                                                                                                     0                    0.000000
+U02_B_top_tabel dbo.T_RCREDI_DEFINED_INTERVALS                                                                                                                                                                                                                                   0                    0.000000
+U02_B_top_tabel dbo.T_RCWAICBP_INTERVALS_COVERED_BY_PERMISSIONS                                                                                                                                                                                                                  0                    0.000000
+U02_B_top_tabel dbo.T_RCWCDW_DECLARED_WORKTIME                                                                                                                                                                                                                                   0                    0.000000
+U02_B_top_tabel dbo.T_RCWCEP_EMPLOYEES_PROJECTS                                                                                                                                                                                                                                  0                    0.000000
+U02_B_top_tabel dbo.T_RCWCP_PROJECTS                                                                                                                                                                                                                                             0                    0.000000
+U02_B_top_tabel dbo.T_RCWLEMWCL_WORK_COST_LOCATION_EM                                                                                                                                                                                                                            0                    0.000000
+U02_B_top_tabel dbo.T_RCWLWCL_WORK_COST_LOCATION_DATA                                                                                                                                                                                                                            0                    0.000000
+U02_B_top_tabel dbo.T_USERS_ACCES_RIGHTS                                                                                                                                                                                                                                         0                    0.000000
+U02_B_top_tabel dbo.T_USERS_ACCOUNTED_DAYS                                                                                                                                                                                                                                       0                    0.000000
+U02_B_top_tabel dbo.T_USERS_ACCOUNTED_PERIODS                                                                                                                                                                                                                                    0                    0.000000
+U02_B_top_tabel dbo.T_UXBFT_FINGER_TEMPLATE_DATA                                                                                                                                                                                                                                 0                    0.000000
+U02_B_top_tabel dbo.T_UXETC_CONFIGURATION                                                                                                                                                                                                                                        0                    0.000000
+U02_B_top_tabel dbo.T_UXGROB_GROUPS_OBJECTS                                                                                                                                                                                                                                      0                    0.000000
+U02_B_top_tabel dbo.T_UXOAAAP_AR_TO_ACCESS_POINTS                                                                                                                                                                                                                                0                    0.000000
+U02_B_top_tabel dbo.T_UXOAAD_AR_TO_DEVICES                                                                                                                                                                                                                                       0                    0.000000
+U02_B_top_tabel dbo.T_UXOAADC_AR_TO_DATA_CLEANING                                                                                                                                                                                                                                0                    0.000000
+U02_B_top_tabel dbo.T_UXOAADG_AR_TO_DEVICES_GROUPS                                                                                                                                                                                                                               0                    0.000000
+U02_B_top_tabel dbo.T_UXOAAEI_AR_TO_EMPLOYEE_INSPECTION                                                                                                                                                                                                                          0                    0.000000
+U02_B_top_tabel dbo.T_UXOAAK_AR_TO_KEYS                                                                                                                                                                                                                                          0                    0.000000
+U02_B_top_tabel dbo.T_UXOAAO_AR_TO_OPERATORS                                                                                                                                                                                                                                     0                    0.000000
+U02_B_top_tabel dbo.T_UXOAAOG_AR_TO_OPER_GROUPS                                                                                                                                                                                                                                  0                    0.000000
+U02_B_top_tabel dbo.T_UXOAAOT_AR_TO_OTHERS                                                                                                                                                                                                                                       0                    0.000000
+U02_B_top_tabel dbo.T_UXOAAP_AR_TO_PROFILES                                                                                                                                                                                                                                      0                    0.000000
+U02_B_top_tabel dbo.T_UXOAAS_AR_TO_AR_SETS                                                                                                                                                                                                                                       0                    0.000000
+U02_B_top_tabel dbo.T_UXOAAU_AR_TO_USERS                                                                                                                                                                                                                                         0                    0.000000
+U02_B_top_tabel dbo.T_UXOAAUG_AR_TO_USERS_GROUPS                                                                                                                                                                                                                                 0                    0.000000
+U02_B_top_tabel dbo.T_UXOAAUWC_AR_TO_UNIWEBCONTROL                                                                                                                                                                                                                               0                    0.000000
+U02_B_top_tabel dbo.T_UXOAAWCL_AR_TO_WORK_COST_LOCATIONS                                                                                                                                                                                                                         0                    0.000000
+U02_B_top_tabel dbo.T_UXOAOPCH_OPERATORS_PASSWORD_CHANGING                                                                                                                                                                                                                       0                    0.000000
+U02_B_top_tabel dbo.T_UXOAOS_OPERATORS_AR_SETS                                                                                                                                                                                                                                   0                    0.000000
+U02_B_top_tabel dbo.T_UXOAS_ACCESS_RIGHTS_SETS                                                                                                                                                                                                                                   0                    0.000000
+U02_B_top_tabel dbo.T_UXREXL_REPORTS_XML                                                                                                                                                                                                                                         0                    0.000000
+U02_B_top_tabel dbo.T_UXTALO_LOCK_OBJECT                                                                                                                                                                                                                                         0                    0.070312
+U02_B_top_tabel dbo.T_UXUSAFCFG_ADD_FIELDS_CONFIGURATION                                                                                                                                                                                                                         0                    0.000000
+U02_B_top_tabel dbo.T_UXUSAFD_ADD_FIELDS_DEFS                                                                                                                                                                                                                                    0                    0.000000
+U02_B_top_tabel dbo.T_UXUSAFV_ADD_FIELDS_VALS                                                                                                                                                                                                                                    0                    0.000000
+U02_B_top_tabel dbo.T_UXUSHU_HIDDEN_USERS                                                                                                                                                                                                                                        0                    0.000000
+U02_B_top_tabel dbo.T_UXUSUP_USERS_PHOTOS                                                                                                                                                                                                                                        0                    0.000000
+
+__SEKCJA     name
+------------ --------------------------------------------------------------------------------------------------------------------------------
+U02_C_widoki USERS
+U02_C_widoki V_ABSENCES_COMPARATION
+U02_C_widoki V_DIFFERENCES_OF_POSITIONS_REPORT
+U02_C_widoki V_EMPLOYEES_TO_WORK_TIME_ACCOUNT_FOR_PERIOD
+U02_C_widoki V_EXRCINR_REGISTRATIONS_WITH_PKD
+U02_C_widoki V_HAACIGPRDE_INTEGRATION_PROFILES_DEVICES_DETAILS
+U02_C_widoki V_HAACIGPREV_INTEGRATION_PROFILES_EVENTS_DETAILS
+U02_C_widoki V_HADEAPC_ACCESS_POINTS_CAPABILITIES
+U02_C_widoki V_HADEAPCAD_ACCESS_POINTS_CAMERAS_DETAILS
+U02_C_widoki V_HADEAPD_ACCESS_POINTS_DETAILS
+U02_C_widoki V_HADECAD_CAMERAS_DETAILS
+U02_C_widoki V_HADEDD_DEVICES_DETAILS
+U02_C_widoki V_HAINDG_DEVICES_GROUPS
+U02_C_widoki V_HAPRCIQ_COMMANDS_IN_QUEUES
+U02_C_widoki V_IRIDIUM_PRESENCE_REPORT
+U02_C_widoki V_IRIDIUM_REGISTRATION_WITH_CAMERA_IP_ADDRESS
+U02_C_widoki V_IRIDIUM_TIME_TABLE_CHANGES
+U02_C_widoki V_KDAC_ACPOINTS
+U02_C_widoki V_KDCA_CARDS
+U02_C_widoki V_KDCAD_CARDS_DETAILS
+U02_C_widoki V_KDCOGD_GROUPS_DEVICES_DETAILS
+U02_C_widoki V_KDCUH_CARDS_USERS_HISTORY
+U02_C_widoki V_KDDE_DEVICES
+U02_C_widoki V_KDEIEIL_EMPLOYEE_INSPECTION_LOGS_DETAILS
+U02_C_widoki V_KDEIPAPD_EMPLOYEE_INSPECTION_PROFILE_ACCESS_POINTS_DETAILS
+U02_C_widoki V_KDEIPED_EMPLOYEE_INSPECTION_PROFILE_EMPLOYEES_DETAILS
+U02_C_widoki V_KDGUGD_GUESTS_REG_DETAILS
+U02_C_widoki V_KDGUGVHLD_GUEST_VISITS_HISTORY_LOGS_DETAILS
+U02_C_widoki V_KDINAR_ALL_REGISTRATIONS
+U02_C_widoki V_KDINE_EMPLOYEES
+U02_C_widoki V_KDINEC_EMPLOYEES_CARDS
+U02_C_widoki V_KDINEP_EMPLOYEES_PROFILES
+U02_C_widoki V_KDINLZP_LOGICAL_ZONES_PKD
+U02_C_widoki V_KDINP_PROFILES
+U02_C_widoki V_KDINPG_PROFILES_GROUPS
+U02_C_widoki V_KDINPH_PROFILES_HARDWARE
+U02_C_widoki V_KDINRR_RCP_REGISTRATIONS
+U02_C_widoki V_KDKE_KEYS_DETAILS
+U02_C_widoki V_KDKEKD_USERS_KEYS_DETAILS
+U02_C_widoki V_KDKEKOLD_OPERATIONS_DETAILS
+U02_C_widoki V_KDPLR_REGISTRATIONS
+U02_C_widoki V_KDPLRWCH_REGS_WITH_CARD_HIST
+U02_C_widoki V_KDPRCD_CHARACTERISTICS_DETAILS
+U02_C_widoki V_KDPRHDDED_PROFILES_DEVICES_DETAILS
+U02_C_widoki V_KDPRHDHDD_PROFILES_HOLY_DAYS_DETAILS
+U02_C_widoki V_KDPRPAPD_PROFILES_ACCESS_POINT_DEVICES
+U02_C_widoki V_KDPRPAPPU_PROFILES_ACCESS_POINTS_PROFILES_USERS
+U02_C_widoki V_KDPRPUD_PROFILES_USERS_DETAILS
+U02_C_widoki V_KDPRTGPD_TIME_GRIDS_PROFILES_DEVICES
+U02_C_widoki V_KDPRUDBDP_USERS_PROFILES_DEVICES_BY_DEVICES_PROFILES
+U02_C_widoki V_KDPRUDBUP_USERS_PROFILES_DEVICES_BY_USERS_PROFIL
+U02_C_widoki V_KDPRUDBUP_USERS_PROFILES_DEVICES_BY_USERS_PROFILES
+U02_C_widoki V_KDPRUPAP_USERS_PROFILES_ACCESS_POINTS
+U02_C_widoki V_KDPRUPD_USERS_PROFILES_DEVICES
+U02_C_widoki V_KDTG_TIME_GRID
+U02_C_widoki V_KDZS_ZONE_STATUS
+U02_C_widoki V_KGP_PRIVILAGES
+U02_C_widoki V_RCABAADFS_ABSENCES_ALL_DAY_FOR_SYMFONIA
+U02_C_widoki V_RCABADD_ABSENCES_ALL_DAY_DET
+U02_C_widoki V_RCABPD_ABSENCES_PARTIAL_DET
+U02_C_widoki V_RCABTAD_TYPES_ALL_DAY
+U02_C_widoki V_RCABTADD_TYPES_ALL_DAY_DET
+U02_C_widoki V_RCABTPD_TYPES_PARTIAL_DET
+U02_C_widoki V_RCACPS_ACC_PERIODS_STATUS
+U02_C_widoki V_RCACWAP_ACC_WRKS_ACC_PRDS
+U02_C_widoki V_RCDATS_DAYILY_TMTBLS_SHIFTS
+U02_C_widoki V_RCDATW_DAYILY_TMTABLES_WRKS
+U02_C_widoki V_RCEMBE_BLOCKED_EMPLOYEES
+U02_C_widoki V_RCEMCE_CLOSED_EMPLOYEES
+U02_C_widoki V_RCEMOAPACD_OVERTIME_AND_PRIVATE_ABSENCES_CORRECTIONS_DETAILS
+U02_C_widoki V_RCEMOCD_OVERTIME_CORRECTIONS_DETAILS
+U02_C_widoki V_RCEMOPD_OVERTIME_PAYMENTS_DETAILS
+U02_C_widoki V_RCEMWCL_EMPLOYEE_WORK_COST_LOCATIONS
+U02_C_widoki V_RCESG_EMPLOYEE_SCHEDULE_GROUP
+U02_C_widoki V_RCINAD_ACCOUNTED_DAYS
+U02_C_widoki V_RCINADP_ACCOUNTED_PERIODS
+U02_C_widoki V_RCINAP_ACCOUNT_PERIODS
+U02_C_widoki V_RCINAPFS_ACCOUNTED_PERIODS_FOR_SYMFONIA
+U02_C_widoki V_RCINE_EMPLOYEES
+U02_C_widoki V_RCINEG_EMPLOYEES_GROUPS
+U02_C_widoki V_RCINR_REGISTRATIONS
+U02_C_widoki V_RCP_ABSENCES
+U02_C_widoki V_RCP_REGISTRATIONS
+U02_C_widoki V_RCP_REPORT_ABSENCES
+U02_C_widoki V_RCP_TIME_TABLE
+U02_C_widoki V_RCPDWP_DECLARED_WORKTIME_PROJECT
+U02_C_widoki V_RCPEAT_PERMISSIONS_ALL_TYPES
+U02_C_widoki V_RCPEATW_PERMS_ALL_TYPES_WD
+U02_C_widoki V_RCPEATWU_PERM_ALL_TYPES_WD_U
+U02_C_widoki V_RCPPD_PROJECT_DESCRIPTION
+U02_C_widoki V_RCPUP_USER_PERMISSION
+U02_C_widoki V_RCRCEMWSD_WORK_SCHEDULE_DET
+U02_C_widoki V_RCRCPDFJ_FREE_JOBS
+U02_C_widoki V_RCREEAR_EMP_ANALYSIS_RES
+U02_C_widoki V_RCREW_REGS_WORKERS
+U02_C_widoki V_RCSHDE_SCHEDULE_EMPLOYEE_ALL
+U02_C_widoki V_RCSHE_SHIFT_HELPER_EMPLOYEE
+U02_C_widoki V_RCSVVRD_VALIDAT_RESULT_DET
+U02_C_widoki V_RCTIAG_TIMETABLES_ACC_GROUPS
+U02_C_widoki V_RCWACID_CALC_INTERVALS_DET
+U02_C_widoki V_RCWAEOFL_EMPLOYEES_OVERTIMES_FOR_LEAR
+U02_C_widoki V_RCWAOAPACB_OVERTIME_AND_PRIVATE_ABSENCES_CORRECTION_BALLANCES
+U02_C_widoki V_RCWCDWD_DECLARED_WORKTM_DET
+U02_C_widoki V_RCWCEPD_EMP_PROJECTS_DET
+U02_C_widoki V_RCWCPD_PROJECTS_DETAILS
+U02_C_widoki V_RCWOD_WORKERS_DETAILS
+U02_C_widoki V_RCWODT_WRKS_DAYS_TMTABLES
+U02_C_widoki V_RCWODTS_WRKS_DAYS_TMT_SHFTS
+U02_C_widoki V_REP_MPK_COSTS_PROJECT
+U02_C_widoki V_UXINAF_ADD_FIELDS
+U02_C_widoki V_UXINAFV_ADD_FIELDS_VALUES
+U02_C_widoki V_UXINARS_ACCESS_RIGHTS_SETS
+U02_C_widoki V_UXINO_OPERATORS
+U02_C_widoki V_UXINOARS_OPERATORS_ACCESS_RIGHTS_SETS
+U02_C_widoki V_UXINOG_OPERATORS_GROUPS
+U02_C_widoki V_UXINU_USERS
+U02_C_widoki V_UXINUG_USERS_GROUPS
+U02_C_widoki V_UXINUGSE_USERS_GROUPS_SUPERIOR_DETAILS
+U02_C_widoki V_UXOAAAPD_AR_TO_ACCESS_POINTS_DETAILS
+U02_C_widoki V_UXOAADCD_AR_TO_DATA_CLEANING_DETAILS
+U02_C_widoki V_UXOAADD_AR_TO_DEVICES_DETAILS
+U02_C_widoki V_UXOAADGD_AR_TO_DEVICES_GROUPS_DETAILS
+U02_C_widoki V_UXOAAEID_AR_TO_EMPLOYEES_INSPECTION_DETAILS
+U02_C_widoki V_UXOAAKD_AR_TO_KEYS_DETAILS
+U02_C_widoki V_UXOAAOD_AR_TO_OPERATORS_DETAILS
+U02_C_widoki V_UXOAAOGD_AR_TO_OPER_GROUPS_DETAILS
+U02_C_widoki V_UXOAAOTD_AR_TO_OTHERS_DETAILS
+U02_C_widoki V_UXOAAPD_AR_TO_PROFILES_DETAILS
+U02_C_widoki V_UXOAASD_AR_TO_AR_SETS_DETAILS
+U02_C_widoki V_UXOAAUD_AR_TO_USERS_DETAILS
+U02_C_widoki V_UXOAAUGD_AR_TO_USERS_GROUPS_DETAILS
+U02_C_widoki V_UXOAAUWCD_AR_TO_UNIWEBCONTROL_DETAILS
+U02_C_widoki V_UXOAAWCLD_AR_TO_WORK_COST_LOCATIONS_DETAILS
+U02_C_widoki V_UXOAOAAP_OPERATORS_AR_TO_ACCESS_POINTS
+U02_C_widoki V_UXOAOAD_OPERATORS_AR_TO_DEVICES
+U02_C_widoki V_UXOAOADC_OPERATORS_AR_TO_DATA_CLEANING
+U02_C_widoki V_UXOAOADG_OPERATORS_AR_TO_DEVICES_GROUPS
+U02_C_widoki V_UXOAOAEI_OPERATORS_AR_TO_EMPLOYEES_INSPECTION
+U02_C_widoki V_UXOAOAK_OPERATORS_AR_TO_KEYS
+U02_C_widoki V_UXOAOAO_OPERATORS_AR_TO_OPERATORS
+U02_C_widoki V_UXOAOAOG_OPERATORS_AR_TO_OPER_GROUPS
+U02_C_widoki V_UXOAOAOT_OPERATORS_AR_TO_OTHERS
+U02_C_widoki V_UXOAOAP_OPERATORS_AR_TO_PROFILES
+U02_C_widoki V_UXOAOAS_OPERATORS_AR_TO_AR_SETS
+U02_C_widoki V_UXOAOAU_OPERATORS_AR_TO_USERS
+U02_C_widoki V_UXOAOAUG_OPERATORS_AR_TO_USERS_GROUPS
+U02_C_widoki V_UXOAOAWCL_OPERATORS_AR_TO_WORK_COST_LOCATIONS
+U02_C_widoki V_UXOAOUWC_OPERATORS_AR_TO_UNIWEBCONTROL
+U02_C_widoki V_UXREFT_REPORT_FIELDS_T
+U02_C_widoki V_UXRET_REPORTS_T
+
+__SEKCJA          exists_
+----------------- -------
+U03_A_view_exists TAK
+
+__SEKCJA                ORDINAL_POSITION COLUMN_NAME                                                                                                                      DATA_TYPE                                                                                                                        CHARACTER_MAXIMUM_LENGTH IS_NULLABLE
+----------------------- ---------------- -------------------------------------------------------------------------------------------------------------------------------- -------------------------------------------------------------------------------------------------------------------------------- ------------------------ -----------
+U03_B_employees_kolumny 1                RCINE_EMPLOYEE_ID                                                                                                                int                                                                                                                              NULL                     NO
+U03_B_employees_kolumny 2                RCINE_EMPLOYEE_NAME                                                                                                              nvarchar                                                                                                                         252                      NO
+U03_B_employees_kolumny 3                RCINE_EMPLOYEE_SURNAME                                                                                                           nvarchar                                                                                                                         252                      NO
+U03_B_employees_kolumny 4                RCINE_EMPLOYEE_STAFF_NUMBER                                                                                                      nvarchar                                                                                                                         32                       YES
+U03_B_employees_kolumny 5                RCINE_EMPLOYEE_TYPE                                                                                                              int                                                                                                                              NULL                     YES
+U03_B_employees_kolumny 6                RCINE_EMPLOYEE_GROUP_ID                                                                                                          int                                                                                                                              NULL                     YES
+U03_B_employees_kolumny 7                RCINE_EMPLOYEE_GROUP_NAME                                                                                                        nvarchar                                                                                                                         128                      YES
+
+__SEKCJA               RCINE_EMPLOYEE_ID RCINE_EMPLOYEE_NAME                                                                                                                                                                                                                                          RCINE_EMPLOYEE_SURNAME                                                                                                                                                                                                                                       RCINE_EMPLOYEE_STAFF_NUMBER      RCINE_EMPLOYEE_TYPE RCINE_EMPLOYEE_GROUP_ID RCINE_EMPLOYEE_GROUP_NAME
+---------------------- ----------------- ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ -------------------------------- ------------------- ----------------------- --------------------------------------------------------------------------------------------------------------------------------
+U03_C_employees_sample 1                 Administrator                                                                                                                                                                                                                                                Domyślny                                                                                                                                                                                                                                                     NULL                             1                   10001                   Upgrade_Administratorzy
+U03_C_employees_sample 4                 Plany                                                                                                                                                                                                                                                        Urlopowe                                                                                                                                                                                                                                                     NULL                             1                   NULL                    NULL
+U03_C_employees_sample 10001             GRAŻYNA                                                                                                                                                                                                                                                      ADRIAN                                                                                                                                                                                                                                                       NULL                             1                   10003                   CZYSTA
+U03_C_employees_sample 10002             MARLENA                                                                                                                                                                                                                                                      ANDRZEJCZAK                                                                                                                                                                                                                                                  NULL                             1                   10004                   BIURO
+U03_C_employees_sample 10003             MAŁGORZATA                                                                                                                                                                                                                                                   ANIOŁ-KORWEK                                                                                                                                                                                                                                                 NULL                             1                   10003                   CZYSTA
+U03_C_employees_sample 10004             RENATA                                                                                                                                                                                                                                                       BALCERAK                                                                                                                                                                                                                                                     NULL                             1                   10004                   BIURO
+U03_C_employees_sample 10005             PATRYCJA                                                                                                                                                                                                                                                     BARTOSIEWICZ                                                                                                                                                                                                                                                 NULL                             1                   10026                   Zwolnieni
+U03_C_employees_sample 10006             Zygmunt                                                                                                                                                                                                                                                      BĄBA                                                                                                                                                                                                                                                         NULL                             1                   10006                   MECHANIK
+U03_C_employees_sample 10007             PIOTR                                                                                                                                                                                                                                                        BIAŁKOWSKI                                                                                                                                                                                                                                                   NULL                             1                   10006                   MECHANIK
+U03_C_employees_sample 10008             JANUSZ                                                                                                                                                                                                                                                       BOGDAŃSKI                                                                                                                                                                                                                                                    NULL                             1                   10007                   BRUDNA
+
+__SEKCJA        table_name                                                                                                                       row_count
+--------------- -------------------------------------------------------------------------------------------------------------------------------- --------------------
+U04_A_rc_tabele PL_REGISTRATIONS                                                                                                                 714661
+U04_A_rc_tabele T_RCRER_REGISTRATIONS                                                                                                            246564
+U04_A_rc_tabele T_RCREAR_ANALYSIS_RESULTS                                                                                                        47553
+U04_A_rc_tabele T_RCWACI_CALCULATED_INTERVALS                                                                                                    5298
+U04_A_rc_tabele T_RCWAAD_ACCOUNTED_DAYS                                                                                                          1460
+U04_A_rc_tabele T_RCSVVR_VALIDATION_RESULTS                                                                                                      609
+U04_A_rc_tabele T_KDCAUC_USERS_CARDS                                                                                                             599
+U04_A_rc_tabele T_RCSCSH_SHIFTS                                                                                                                  306
+U04_A_rc_tabele T_RCSCCD_CALENDAR_DAYS                                                                                                           306
+U04_A_rc_tabele T_RCSCDS_DAILY_SCHEDULES                                                                                                         306
+U04_A_rc_tabele T_KDCAC_CARDS                                                                                                                    300
+U04_A_rc_tabele T_RCWAAPL_ACC_PROCESS_LOGS                                                                                                       244
+U04_A_rc_tabele T_RCP_ABSENCE_ALIASES                                                                                                            95
+U04_A_rc_tabele T_RCABAD_ABSENCES_ALL_DAY                                                                                                        44
+U04_A_rc_tabele T_RCPC_PKD_CLASSIFICATION                                                                                                        40
+U04_A_rc_tabele T_RCWAP_PERIODS                                                                                                                  19
+U04_A_rc_tabele T_RCWAAP_ACCOUNTED_PERIODS                                                                                                       16
+U04_A_rc_tabele T_RCABTAD_TYPES_ALL_DAY                                                                                                          12
+U04_A_rc_tabele T_RCP_SHIFT_GENERATORS                                                                                                           8
+U04_A_rc_tabele T_RCABTP_TYPES_PARTIAL                                                                                                           6
+U04_A_rc_tabele T_RCPITTCN_TIME_TABLE_COLUMN_NAMES                                                                                               6
+U04_A_rc_tabele T_KDPRCA_CHARACTERISTICS_ACCESS_RULES                                                                                            4
+U04_A_rc_tabele T_KDPRC_CHARACTERISTICS                                                                                                          4
+U04_A_rc_tabele T_RCEMWS_WORK_SCHEDULES                                                                                                          4
+U04_A_rc_tabele T_RCWAAG_ACCOUNT_GROUPS                                                                                                          3
+U04_A_rc_tabele T_RCABAK_ABSENCES_KIND                                                                                                           3
+U04_A_rc_tabele T_RCSCG_GROUPS                                                                                                                   2
+U04_A_rc_tabele T_RCSGDSG_DAILY_SCHEDULES_GEN                                                                                                    1
+U04_A_rc_tabele T_RCSGSHG_SHIFTS_GEN                                                                                                             1
+U04_A_rc_tabele T_RCSGSG_SCHEDULES_GEN                                                                                                           1
+U04_A_rc_tabele T_RCSCS_SCHEDULES                                                                                                                1
+U04_A_rc_tabele T_RCSCSN_SHIFTS_NAMES                                                                                                            1
+U04_A_rc_tabele T_RCPDDA_DAEMONS                                                                                                                 1
+U04_A_rc_tabele T_RCPDJT_JOBS_TRIGGERS                                                                                                           1
+U04_A_rc_tabele T_RCP_DEV_DAY                                                                                                                    0
+U04_A_rc_tabele T_RCP_OVERTIME_RECEIVED                                                                                                          0
+U04_A_rc_tabele T_RCP_USERS_ASSIGNMENT_TYPE                                                                                                      0
+U04_A_rc_tabele T_RCP_HOLIDAY_PERIODS                                                                                                            0
+U04_A_rc_tabele T_RCPEBEE_BSN_EARLY_EXIT                                                                                                         0
+U04_A_rc_tabele T_RCPDJ_JOBS                                                                                                                     0
+U04_A_rc_tabele T_RCPDL_LOGS                                                                                                                     0
+U04_A_rc_tabele T_RCPIUAR_USERS_ACCESS_RIGHTS                                                                                                    0
+U04_A_rc_tabele T_RCPEBEEE_BSN_EARLY_EXIT_EM                                                                                                     0
+U04_A_rc_tabele T_RCEMOP_OVERTIME_PAYMENTS                                                                                                       0
+U04_A_rc_tabele T_RCPDPEWA_PAR_EMP_WORKTM_ACC                                                                                                    0
+U04_A_rc_tabele T_RCPEBL_BSN_LATENESS                                                                                                            0
+U04_A_rc_tabele T_RCPDPEN_PAR_EXPORT_NATIVE                                                                                                      0
+U04_A_rc_tabele T_RCPEBLE_BSN_LATENESS_EM                                                                                                        0
+U04_A_rc_tabele T_RCP_USERS_WORK_SYSTEM                                                                                                          0
+U04_A_rc_tabele T_RCPDPIN_PAR_IMPORT_NATIVE                                                                                                      0
+U04_A_rc_tabele T_RCPDPETI_PAR_EXPORT_TETA_INS                                                                                                   0
+U04_A_rc_tabele T_RCPEST_START_TIME                                                                                                              0
+U04_A_rc_tabele T_RCP_USERS_DISABILITY_CODE                                                                                                      0
+U04_A_rc_tabele T_KDCAL_CARDS_LUNCH                                                                                                              0
+U04_A_rc_tabele T_RCPESTE_START_TIME_EM                                                                                                          0
+U04_A_rc_tabele T_RCPDPITI_PAR_IMPORT_TETA_INS                                                                                                   0
+U04_A_rc_tabele T_RCPIPG_PERIODS_GROUPS                                                                                                          0
+U04_A_rc_tabele T_RCPEPB_BREAK_IN_A_SPECIFIC_RANGE                                                                                               0
+U04_A_rc_tabele T_RCPITTC_TIME_TABLE_CHANGES                                                                                                     0
+U04_A_rc_tabele T_KDZOVR_VISUALISATION_RESOURCES                                                                                                 0
+U04_A_rc_tabele T_RCPEPBE_BREAK_IN_A_SPECIFIC_RANGE_EM                                                                                           0
+U04_A_rc_tabele T_RCEMOAPAC_OVERTIME_AND_PRIVATE_ABSENCES_CORRECTIONS                                                                            0
+U04_A_rc_tabele T_RCPEO_OVERTIME                                                                                                                 0
+U04_A_rc_tabele T_RCPEOE_OVERTIME_EM                                                                                                             0
+U04_A_rc_tabele T_RCP_USERS_HOLIDAY_LIMITS                                                                                                       0
+U04_A_rc_tabele T_RCPIUP_USERS_POSITIONS                                                                                                         0
+U04_A_rc_tabele T_RCPEBB_BSN_BREAK                                                                                                               0
+U04_A_rc_tabele T_RCPEBBE_BSN_BREAK_EM                                                                                                           0
+U04_A_rc_tabele T_RCPIUAT_USERS_ASSIGNMENT_TYPE                                                                                                  0
+U04_A_rc_tabele T_RCWCP_PROJECTS                                                                                                                 0
+U04_A_rc_tabele T_RCDEPR_PROCESSES                                                                                                               0
+U04_A_rc_tabele T_RCDEPRL_PROCESSES_LOGS                                                                                                         0
+U04_A_rc_tabele T_RCWCEP_EMPLOYEES_PROJECTS                                                                                                      0
+U04_A_rc_tabele T_RCPIRHUFP_RECOMMENDED_HOLIDAY_USAGE_FOR_PERIOD                                                                                 0
+U04_A_rc_tabele T_RCWCDW_DECLARED_WORKTIME                                                                                                       0
+U04_A_rc_tabele T_RCP_COMPANIES                                                                                                                  0
+U04_A_rc_tabele T_RCPIOA_OVERTIME_ACCEPTED                                                                                                       0
+U04_A_rc_tabele T_RCREDI_DEFINED_INTERVALS                                                                                                       0
+U04_A_rc_tabele T_RCP_USERS_INDIVIDUAL_WORK_SYSTEM                                                                                               0
+U04_A_rc_tabele T_RCP_USERS_SETTLEMENT_PERIOD                                                                                                    0
+U04_A_rc_tabele T_RCP_USERS_WORK_SYSTEM_PERMISSIONS                                                                                              0
+U04_A_rc_tabele T_HADECR_CARDS_RANGES                                                                                                            0
+U04_A_rc_tabele T_RCPEPACE_PRV_ABS_CLEARING_EM                                                                                                   0
+U04_A_rc_tabele T_RCP_USERS_ATTRIBUTES_DEFINITIONS                                                                                               0
+U04_A_rc_tabele T_KDCAVCR_VIRTUAL_CARD_RESERVATIONS                                                                                              0
+U04_A_rc_tabele T_RCP_USERS_DRIVERS                                                                                                              0
+U04_A_rc_tabele T_RCP_USERS_ATTRIBUTES_VALUES                                                                                                    0
+U04_A_rc_tabele T_RCP_USERS_PLACE_OF_COST_FORMATION                                                                                              0
+U04_A_rc_tabele T_RCP_PLACE_OF_COST_FORMATION                                                                                                    0
+U04_A_rc_tabele T_RCPEPAC_PRV_ABS_CLEARING                                                                                                       0
+U04_A_rc_tabele T_RCP_USERS_WORK_SYSTEM_LIMITATIONS                                                                                              0
+U04_A_rc_tabele T_RCPIAPEL_ACCESS_POINT_EXPORT_LOG                                                                                               0
+U04_A_rc_tabele PL_REGISTRATIONS_LOG                                                                                                             0
+U04_A_rc_tabele T_RCPESTME_START_TIME_MARG_EM                                                                                                    0
+U04_A_rc_tabele T_RCPIREL_REGISTRATION_EXPORT_LOG                                                                                                0
+U04_A_rc_tabele T_RCPESTM_START_TIME_MARGIN                                                                                                      0
+U04_A_rc_tabele T_RCPIPD_PERIODS_DEFINITIONS                                                                                                     0
+U04_A_rc_tabele T_RCPERFDE_RETURN_FREE_DAY_EM                                                                                                    0
+U04_A_rc_tabele T_RCPIPWTW_PERIODS_WITH_TRANSFERRED_WORKDAYS                                                                                     0
+U04_A_rc_tabele T_RCPIP_PERIODS                                                                                                                  0
+U04_A_rc_tabele T_RCPERFD_RETURN_FREE_DAY                                                                                                        0
+U04_A_rc_tabele T_KDPRCACD_CALENDAR_DAYS                                                                                                         0
+U04_A_rc_tabele T_RCPEWAF_WORK_AT_FREEDAY                                                                                                        0
+U04_A_rc_tabele T_RCPDPIS_PAR_IMPORT_SYMFONIA                                                                                                    0
+U04_A_rc_tabele T_HATGP_TIME_POINTS                                                                                                              0
+U04_A_rc_tabele T_RCPEMETE_MAX_EXIT_TIME_EM                                                                                                      0
+U04_A_rc_tabele T_RCWAICBP_INTERVALS_COVERED_BY_PERMISSIONS                                                                                      0
+U04_A_rc_tabele T_RCEMHE_HOLIDAY_ENTITLEMENT                                                                                                     0
+U04_A_rc_tabele T_RCPEWT_WORK_TIME                                                                                                               0
+U04_A_rc_tabele T_RCPDPPA_PAR_PERIOD_ACCOUNT                                                                                                     0
+U04_A_rc_tabele T_RCPEWTE_WORK_TIME_EM                                                                                                           0
+U04_A_rc_tabele T_KDREO_REGISTRATIONS_EXPORT_ORACLE                                                                                              0
+U04_A_rc_tabele T_HATGG_TIME_GRIDS                                                                                                               0
+U04_A_rc_tabele T_RCP_COMPOSITE_PERIODS                                                                                                          0
+U04_A_rc_tabele T_RCPEMET_MAX_EXIT_TIME                                                                                                          0
+U04_A_rc_tabele T_RCP_GROUPS_PERIODS                                                                                                             0
+U04_A_rc_tabele T_RCEMOC_OVERTIME_CORRECTIONS                                                                                                    0
+U04_A_rc_tabele T_RCP_PERIODS                                                                                                                    0
+U04_A_rc_tabele T_RCP_POSITIONS                                                                                                                  0
+U04_A_rc_tabele T_RCPEWAFE_WORK_AT_FREEDAY_EM                                                                                                    0
+U04_A_rc_tabele T_RCABP_ABSENCES_PARTIAL                                                                                                         0
+U04_A_rc_tabele T_RCP_TIME_TABLE                                                                                                                 0
+U04_A_rc_tabele T_RCP_OVERTIME_TRANSFERRED                                                                                                       0
+U04_A_rc_tabele T_RCWLWCL_WORK_COST_LOCATION_DATA                                                                                                0
+U04_A_rc_tabele T_RCP_DEFINED_MESSAGES                                                                                                           0
+U04_A_rc_tabele T_RCWLEMWCL_WORK_COST_LOCATION_EM                                                                                                0
+
+__SEKCJA      tabela           COLUMN_NAME                                                                                                                      DATA_TYPE
+------------- ---------------- -------------------------------------------------------------------------------------------------------------------------------- --------------------------------------------------------------------------------------------------------------------------------
+U05_struktury PL_REGISTRATIONS PLR_ID                                                                                                                           int
+U05_struktury PL_REGISTRATIONS PLR_CARD_ID                                                                                                                      nvarchar
+U05_struktury PL_REGISTRATIONS PLR_DATE                                                                                                                         datetime
+U05_struktury PL_REGISTRATIONS PLR_INOUT                                                                                                                        int
+U05_struktury PL_REGISTRATIONS PLR_MODE                                                                                                                         int
+U05_struktury PL_REGISTRATIONS PLR_ZONE                                                                                                                         int
+U05_struktury PL_REGISTRATIONS PLR_DESCR_CODE                                                                                                                   int
+U05_struktury PL_REGISTRATIONS PLR_ADD_INFO                                                                                                                     nvarchar
+U05_struktury PL_REGISTRATIONS PLR_ADDED                                                                                                                        int
+U05_struktury PL_REGISTRATIONS PLR_APPLICATION                                                                                                                  int
+U05_struktury PL_REGISTRATIONS PLR_OPERATOR_ADDED                                                                                                               int
+U05_struktury PL_REGISTRATIONS PLR_OPERATOR_ADDED_TIME                                                                                                          datetime
+U05_struktury PL_REGISTRATIONS PLR_CARD_NUMBER                                                                                                                  bigint
+U05_struktury PL_REGISTRATIONS PLR_HAS_PHOTOS                                                                                                                   int
+U05_struktury PL_REGISTRATIONS PLR_DEVICE_ID                                                                                                                    int
+U05_struktury PL_REGISTRATIONS PLR_ACCESS_POINT_ID                                                                                                              int
+
+__SEKCJA      tabela                COLUMN_NAME                                                                                                                      DATA_TYPE
+------------- --------------------- -------------------------------------------------------------------------------------------------------------------------------- --------------------------------------------------------------------------------------------------------------------------------
+U05_struktury T_RCRER_REGISTRATIONS RCRER_ID                                                                                                                         int
+U05_struktury T_RCRER_REGISTRATIONS RCRER_STATE                                                                                                                      int
+U05_struktury T_RCRER_REGISTRATIONS RCRER_REGISTRATION_ID                                                                                                            int
+U05_struktury T_RCRER_REGISTRATIONS RCRER_DATETIME                                                                                                                   datetime
+U05_struktury T_RCRER_REGISTRATIONS RCRER_TYPE                                                                                                                       int
+U05_struktury T_RCRER_REGISTRATIONS RCRER_ORIGINAL_DATETIME                                                                                                          datetime
+U05_struktury T_RCRER_REGISTRATIONS RCRER_ORIGINAL_TYPE                                                                                                              int
+U05_struktury T_RCRER_REGISTRATIONS RCRER_LAST_TRANSACTION                                                                                                           datetime
+U05_struktury T_RCRER_REGISTRATIONS RCRER_ID_UXUSUD_EMPLOYEE                                                                                                         int
+U05_struktury T_RCRER_REGISTRATIONS RCRER_OPERATOR_ID                                                                                                                int
+U05_struktury T_RCRER_REGISTRATIONS RCRER_COMMENT                                                                                                                    nvarchar
+U05_struktury T_RCRER_REGISTRATIONS RCRER_EXPORT_DATETIME                                                                                                            datetime
+U05_struktury T_RCRER_REGISTRATIONS RCRER_EXPORT_STATUS                                                                                                              int
+
+__SEKCJA      tabela                    COLUMN_NAME                                                                                                                      DATA_TYPE
+------------- ------------------------- -------------------------------------------------------------------------------------------------------------------------------- --------------------------------------------------------------------------------------------------------------------------------
+U05_struktury T_RCREAR_ANALYSIS_RESULTS RCREAR_ID                                                                                                                        int
+U05_struktury T_RCREAR_ANALYSIS_RESULTS RCREAR_ID_RCRER_REGISTRATION                                                                                                     int
+U05_struktury T_RCREAR_ANALYSIS_RESULTS RCREAR_DAY                                                                                                                       smalldatetime
+U05_struktury T_RCREAR_ANALYSIS_RESULTS RCREAR_DATE                                                                                                                      smalldatetime
+U05_struktury T_RCREAR_ANALYSIS_RESULTS RCREAR_TIME                                                                                                                      datetime
+U05_struktury T_RCREAR_ANALYSIS_RESULTS RCREAR_TYPE                                                                                                                      int
+U05_struktury T_RCREAR_ANALYSIS_RESULTS RCREAR_BASE_TYPE                                                                                                                 int
+U05_struktury T_RCREAR_ANALYSIS_RESULTS RCREAR_ORIGIN                                                                                                                    int
+U05_struktury T_RCREAR_ANALYSIS_RESULTS RCREAR_BASE_ORIGIN                                                                                                               int
+U05_struktury T_RCREAR_ANALYSIS_RESULTS RCREAR_STATUS                                                                                                                    int
+U05_struktury T_RCREAR_ANALYSIS_RESULTS RCREAR_BUSINESS                                                                                                                  int
+U05_struktury T_RCREAR_ANALYSIS_RESULTS RCREAR_ID_UXUSUD_EMPLOYEE                                                                                                        int
+
+__SEKCJA      tabela                        COLUMN_NAME                                                                                                                      DATA_TYPE
+------------- ----------------------------- -------------------------------------------------------------------------------------------------------------------------------- --------------------------------------------------------------------------------------------------------------------------------
+U05_struktury T_RCWACI_CALCULATED_INTERVALS RCWACI_ID                                                                                                                        int
+U05_struktury T_RCWACI_CALCULATED_INTERVALS RCWACI_ID_RCWAP_PERIOD                                                                                                           int
+U05_struktury T_RCWACI_CALCULATED_INTERVALS RCWACI_DAY                                                                                                                       smalldatetime
+U05_struktury T_RCWACI_CALCULATED_INTERVALS RCWACI_BEGIN                                                                                                                     datetime
+U05_struktury T_RCWACI_CALCULATED_INTERVALS RCWACI_END                                                                                                                       datetime
+U05_struktury T_RCWACI_CALCULATED_INTERVALS RCWACI_EMPLOYEE_STATUS                                                                                                           int
+U05_struktury T_RCWACI_CALCULATED_INTERVALS RCWACI_ABSENCE_TYPE                                                                                                              int
+U05_struktury T_RCWACI_CALCULATED_INTERVALS RCWACI_WORKTIME_TYPE                                                                                                             int
+U05_struktury T_RCWACI_CALCULATED_INTERVALS RCWACI_TIME_INTERVAL_TYPE                                                                                                        int
+U05_struktury T_RCWACI_CALCULATED_INTERVALS RCWACI_ID_UXUSUD_EMPLOYEE                                                                                                        int
+
+__SEKCJA      tabela  COLUMN_NAME                                                                                                                      DATA_TYPE
+------------- ------- -------------------------------------------------------------------------------------------------------------------------------- --------------------------------------------------------------------------------------------------------------------------------
+U05_struktury PL_LOGS PLL_ID                                                                                                                           int
+U05_struktury PL_LOGS PLL_MODULE                                                                                                                       nvarchar
+U05_struktury PL_LOGS PLL_OPERATOR_ID                                                                                                                  int
+U05_struktury PL_LOGS PLL_DESCRIPTION                                                                                                                  nvarchar
+U05_struktury PL_LOGS PLL_DATE                                                                                                                         datetime
+U05_struktury PL_LOGS PLL_TYPE                                                                                                                         nvarchar
+U05_struktury PL_LOGS PLL_ADD_DATA                                                                                                                     nvarchar
+
+__SEKCJA      tabela                  COLUMN_NAME                                                                                                                      DATA_TYPE
+------------- ----------------------- -------------------------------------------------------------------------------------------------------------------------------- --------------------------------------------------------------------------------------------------------------------------------
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_ID                                                                                                                        int
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_ID_RCWAP_PERIOD                                                                                                           int
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_DAY                                                                                                                       smalldatetime
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_END_OF_DAY                                                                                                                datetime
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_DAILY_RESULT_TYPE                                                                                                         int
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_RETURNED_FOR_DAY                                                                                                          smalldatetime
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_ID_RCABTAD_ABSENCE                                                                                                        int
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_DAILY_NORM                                                                                                                smallint
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_STD_DAILY_WORKTIME                                                                                                        smallint
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_ACC_WORKTIME                                                                                                              smallint
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_UNACC_WORKTIME                                                                                                            smallint
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_UNACC_PRESENCE                                                                                                            smallint
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_LATENESS                                                                                                                  smallint
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_BREAK_LENGTH_EXCESS                                                                                                       smallint
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_EARLY_EXIT                                                                                                                smallint
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_UNACC_BUSN_ABSENCE                                                                                                        smallint
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_PERIOD_NORM_REDUCT                                                                                                        smallint
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_COMPANY_OT_CLEARING                                                                                                       smallint
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_EMPLOYEE_OT_CLEARING                                                                                                      smallint
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_WORKTIME_NIGHT                                                                                                            smallint
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_OVERTIME000                                                                                                               smallint
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_OVERTIME050                                                                                                               smallint
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_OVERTIME100                                                                                                               smallint
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_RND_ACC_WORKTIME                                                                                                          smallint
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_RND_UNACC_WORKTIME                                                                                                        smallint
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_RND_UNACC_PRESENCE                                                                                                        smallint
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_RND_LATENESS                                                                                                              smallint
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_RND_BREAK_LENGTH_EXCESS                                                                                                   smallint
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_RND_EARLY_EXIT                                                                                                            smallint
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_RND_UNACC_BUSN_ABSENCE                                                                                                    smallint
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_RND_PERIOD_NORM_REDUCT                                                                                                    smallint
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_RND_COMPANY_OT_CLEARING                                                                                                   smallint
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_RND_EMPLOYEE_OT_CLEARING                                                                                                  smallint
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_RND_WORKTIME_NIGHT                                                                                                        smallint
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_RND_OVERTIME000                                                                                                           smallint
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_RND_OVERTIME050                                                                                                           smallint
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_RND_OVERTIME100                                                                                                           smallint
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_HOLIDAY_LEAVE                                                                                                             smallint
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_SHIFTS_NAME                                                                                                               nvarchar
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_WORK_BEGIN                                                                                                                datetime
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_WORK_END                                                                                                                  datetime
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_PRV_ABS_CLEARING                                                                                                          smallint
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_RND_PRV_ABS_CLEARING                                                                                                      smallint
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_BREAK_PRIVATE_SUM                                                                                                         smallint
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_BREAK_BUSINESS_SUM                                                                                                        smallint
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_REGISTRATION_FIRST                                                                                                        datetime
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_REGISTRATION_LAST                                                                                                         datetime
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_REAL_WORKTIME                                                                                                             smallint
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_RND_REAL_WORKTIME                                                                                                         smallint
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_BALANCE_ACC_WORKTIME                                                                                                      int
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_BALANCE_ACC_WORKDAYS                                                                                                      int
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_BALANCE_OVERTIME000                                                                                                       int
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_BALANCE_OVERTIME050                                                                                                       int
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_BALANCE_OVERTIME100                                                                                                       int
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_BALANCE_PRIVATE_ABSENCES                                                                                                  int
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_ERRORS_IN_REGISTRATIONS                                                                                                   smallint
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_ID_UXUSUD_EMPLOYEE                                                                                                        int
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_STD_WORK_BEGIN                                                                                                            datetime
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_STD_FREE_BREAK                                                                                                            smallint
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_BALANCE_OVERTIME_DAY_VIOLATION050                                                                                         int
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_BALANCE_OVERTIME_DAY_VIOLATION100                                                                                         int
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_RND_OVERTIME_HOLIDAY100                                                                                                   smallint
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_OVERTIME_HOLIDAY100                                                                                                       smallint
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_BALANCE_OVERTIME_HOLIDAY100                                                                                               int
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_SHIFTS_NUMBER                                                                                                             int
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_BREAK_BUSINESS_BEFORE_FIRST_REG_SUM                                                                                       smallint
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_BREAK_BUSINESS_AFTER_LAST_REG_SUM                                                                                         smallint
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_PRESENCE                                                                                                                  smallint
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_BALANCE_OVERTIME050_DAILY_PAYMENT                                                                                         int
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_BALANCE_OVERTIME100_DAILY_PAYMENT                                                                                         int
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_RND_OVERTIME050_DAILY_PAYMENT                                                                                             smallint
+U05_struktury T_RCWAAD_ACCOUNTED_DAYS RCWAAD_RND_OVERTIME100_DAILY_PAYMENT                                                                                             smallint
+
+__SEKCJA      tabela                      COLUMN_NAME                                                                                                                      DATA_TYPE
+------------- --------------------------- -------------------------------------------------------------------------------------------------------------------------------- --------------------------------------------------------------------------------------------------------------------------------
+U05_struktury T_RCSVVR_VALIDATION_RESULTS RCSVVR_ID                                                                                                                        int
+U05_struktury T_RCSVVR_VALIDATION_RESULTS RCSVVR_ID_RCSCS_SCHEDULE                                                                                                         int
+U05_struktury T_RCSVVR_VALIDATION_RESULTS RCSVVR_ID_RCWAP_PERIOD                                                                                                           int
+U05_struktury T_RCSVVR_VALIDATION_RESULTS RCSVVR_DATE                                                                                                                      smalldatetime
+U05_struktury T_RCSVVR_VALIDATION_RESULTS RCSVVR_TYPE                                                                                                                      int
+U05_struktury T_RCSVVR_VALIDATION_RESULTS RCSVVR_DESCRIPTION                                                                                                               nvarchar
+U05_struktury T_RCSVVR_VALIDATION_RESULTS RCSVVR_ID_UXUSUD_EMPLOYEE                                                                                                        int
+
+__SEKCJA      tabela               COLUMN_NAME                                                                                                                      DATA_TYPE
+------------- -------------------- -------------------------------------------------------------------------------------------------------------------------------- --------------------------------------------------------------------------------------------------------------------------------
+U05_struktury T_KDCAUC_USERS_CARDS KDCAUC_ID                                                                                                                        int
+U05_struktury T_KDCAUC_USERS_CARDS KDCAUC_ID_KDCAC_CARD                                                                                                             int
+U05_struktury T_KDCAUC_USERS_CARDS KDCAUC_ID_UXUSUD_USER                                                                                                            int
+U05_struktury T_KDCAUC_USERS_CARDS KDCAUC_FROM                                                                                                                      datetime
+U05_struktury T_KDCAUC_USERS_CARDS KDCAUC_TO                                                                                                                        datetime
+
+__SEKCJA      tabela              COLUMN_NAME                                                                                                                      DATA_TYPE
+------------- ------------------- -------------------------------------------------------------------------------------------------------------------------------- --------------------------------------------------------------------------------------------------------------------------------
+U05_struktury T_UXUSUD_USERS_DATA UXUSUD_ID                                                                                                                        int
+U05_struktury T_UXUSUD_USERS_DATA UXUSUD_NAME                                                                                                                      nvarchar
+U05_struktury T_UXUSUD_USERS_DATA UXUSUD_SURNAME                                                                                                                   nvarchar
+U05_struktury T_UXUSUD_USERS_DATA UXUSUD_SEX                                                                                                                       int
+U05_struktury T_UXUSUD_USERS_DATA UXUSUD_KIND                                                                                                                      int
+U05_struktury T_UXUSUD_USERS_DATA UXUSUD_BIRTHDATE                                                                                                                 smalldatetime
+U05_struktury T_UXUSUD_USERS_DATA UXUSUD_PESEL                                                                                                                     nvarchar
+U05_struktury T_UXUSUD_USERS_DATA UXUSUD_CITY                                                                                                                      nvarchar
+U05_struktury T_UXUSUD_USERS_DATA UXUSUD_STREET                                                                                                                    nvarchar
+U05_struktury T_UXUSUD_USERS_DATA UXUSUD_PHONE                                                                                                                     nvarchar
+U05_struktury T_UXUSUD_USERS_DATA UXUSUD_ID_UXUSUP_PHOTO                                                                                                           int
+U05_struktury T_UXUSUD_USERS_DATA UXUSUD_EMAIL                                                                                                                     nvarchar
+U05_struktury T_UXUSUD_USERS_DATA UXUSUD_PASSWORD                                                                                                                  nvarchar
+U05_struktury T_UXUSUD_USERS_DATA UXUSUD_ID_UXUSUG_GROUP                                                                                                           int
+U05_struktury T_UXUSUD_USERS_DATA UXUSUD_EMPLOYED                                                                                                                  int
+U05_struktury T_UXUSUD_USERS_DATA UXUSUD_START_REG_OFFSET                                                                                                          smallint
+U05_struktury T_UXUSUD_USERS_DATA UXUSUD_END_REG_OFFSET                                                                                                            smallint
+U05_struktury T_UXUSUD_USERS_DATA UXUSUD_STATE                                                                                                                     int
+U05_struktury T_UXUSUD_USERS_DATA UXUSUD_PIN1                                                                                                                      nvarchar
+U05_struktury T_UXUSUD_USERS_DATA UXUSUD_PIN2                                                                                                                      nvarchar
+U05_struktury T_UXUSUD_USERS_DATA UXUSUD_OPEN_CODE                                                                                                                 nvarchar
+U05_struktury T_UXUSUD_USERS_DATA UXUSUD_VALID_TO                                                                                                                  smalldatetime
+U05_struktury T_UXUSUD_USERS_DATA UXUSUD_REGISTER_DATE                                                                                                             datetime
+U05_struktury T_UXUSUD_USERS_DATA UXUSUD_STAFF_NUMBER                                                                                                              nvarchar
+U05_struktury T_UXUSUD_USERS_DATA UXUSUD_PERSONAL_NUMBER                                                                                                           nvarchar
+U05_struktury T_UXUSUD_USERS_DATA UXUSUD_OVERTIME_TRANSFER_TO_NEXT_ACCOUNT_PERIOD                                                                                  int
+U05_struktury T_UXUSUD_USERS_DATA UXUSUD_FIRED_DATE                                                                                                                datetime
+U05_struktury T_UXUSUD_USERS_DATA UXUSUD_PASSWORD_CHANGED_DATE                                                                                                     datetime
+U05_struktury T_UXUSUD_USERS_DATA UXUSUD_ACCESS_PROFILE                                                                                                            int
+U05_struktury T_UXUSUD_USERS_DATA UXUSUD_MANAGER                                                                                                                   smallint
+U05_struktury T_UXUSUD_USERS_DATA UXUSUD_BLOCKADE_IFS                                                                                                              int
+U05_struktury T_UXUSUD_USERS_DATA UXUSUD_TYPE                                                                                                                      int
+U05_struktury T_UXUSUD_USERS_DATA UXUSUD_VALID_COMMON                                                                                                              smalldatetime
+U05_struktury T_UXUSUD_USERS_DATA UXUSUD_VALID_HAS                                                                                                                 smalldatetime
+U05_struktury T_UXUSUD_USERS_DATA UXUSUD_VALID_MEDICAL                                                                                                             smalldatetime
+U05_struktury T_UXUSUD_USERS_DATA UXUSUD_VALID_SPECIALIST_LICENSES                                                                                                 smalldatetime
+U05_struktury T_UXUSUD_USERS_DATA UXUSUD_VALID_RED_CARD                                                                                                            smalldatetime
+U05_struktury T_UXUSUD_USERS_DATA UXUSUD_DEFAULT_ORDER_NUMBER                                                                                                      int
+U05_struktury T_UXUSUD_USERS_DATA UXUSUD_EXTERNAL_COMPANY_ID                                                                                                       int
+U05_struktury T_UXUSUD_USERS_DATA UXUSUD_HEALTHY_CHILD_LEAVE                                                                                                       int
+U05_struktury T_UXUSUD_USERS_DATA UXUSUD_OPEN_CODE_OLD                                                                                                             nvarchar
+U05_struktury T_UXUSUD_USERS_DATA UXUSUD_COMPANY_ID                                                                                                                nvarchar
+U05_struktury T_UXUSUD_USERS_DATA UXUSUD_OPERATOR_ID                                                                                                               int
+U05_struktury T_UXUSUD_USERS_DATA UXUSUD_PRIVATE_ABSENCES_WORK_OFF_TRANSFER_TO_NEXT_ACCOUNT_PERIOD                                                                 int
+U05_struktury T_UXUSUD_USERS_DATA UXUSUD_CHECK_PROFILES_VALIDITY                                                                                                   int
+
+__SEKCJA      tabela                  COLUMN_NAME                                                                                                                      DATA_TYPE
+------------- ----------------------- -------------------------------------------------------------------------------------------------------------------------------- --------------------------------------------------------------------------------------------------------------------------------
+U05_struktury T_KDPRPU_PROFILES_USERS KDPRPU_ID                                                                                                                        int
+U05_struktury T_KDPRPU_PROFILES_USERS KDPRPU_ID_KDPRP_PROFILE                                                                                                          int
+U05_struktury T_KDPRPU_PROFILES_USERS KDPRPU_ID_UXUSUD_USER                                                                                                            int
+U05_struktury T_KDPRPU_PROFILES_USERS KDPRPU_PROFILE_VALIDITY_DATE_FOR_USER                                                                                            datetime
+
+__SEKCJA      tabela                 COLUMN_NAME                                                                                                                      DATA_TYPE
+------------- ---------------------- -------------------------------------------------------------------------------------------------------------------------------- --------------------------------------------------------------------------------------------------------------------------------
+U05_struktury T_RCSCCD_CALENDAR_DAYS RCSCCD_ID                                                                                                                        int
+U05_struktury T_RCSCCD_CALENDAR_DAYS RCSCCD_DAY                                                                                                                       smalldatetime
+U05_struktury T_RCSCCD_CALENDAR_DAYS RCSCCD_TYPE                                                                                                                      int
+
+__SEKCJA      tabela                   COLUMN_NAME                                                                                                                      DATA_TYPE
+------------- ------------------------ -------------------------------------------------------------------------------------------------------------------------------- --------------------------------------------------------------------------------------------------------------------------------
+U05_struktury T_RCSCDS_DAILY_SCHEDULES RCSCDS_ID                                                                                                                        int
+U05_struktury T_RCSCDS_DAILY_SCHEDULES RCSCDS_ID_RCSCS_OWNER                                                                                                            int
+U05_struktury T_RCSCDS_DAILY_SCHEDULES RCSCDS_DAY                                                                                                                       smalldatetime
+
+__SEKCJA      tabela          COLUMN_NAME                                                                                                                      DATA_TYPE
+------------- --------------- -------------------------------------------------------------------------------------------------------------------------------- --------------------------------------------------------------------------------------------------------------------------------
+U05_struktury T_RCSCSH_SHIFTS RCSCSH_ID                                                                                                                        int
+U05_struktury T_RCSCSH_SHIFTS RCSCSH_ID_RCSCDS_OWNER                                                                                                           int
+U05_struktury T_RCSCSH_SHIFTS RCSCSH_NUMBER                                                                                                                    smallint
+U05_struktury T_RCSCSH_SHIFTS RCSCSH_DAY_TYPE                                                                                                                  int
+U05_struktury T_RCSCSH_SHIFTS RCSCSH_START_TIME                                                                                                                datetime
+U05_struktury T_RCSCSH_SHIFTS RCSCSH_START_TIME_PLUS                                                                                                           smallint
+U05_struktury T_RCSCSH_SHIFTS RCSCSH_START_TIME_MINUS                                                                                                          smallint
+U05_struktury T_RCSCSH_SHIFTS RCSCSH_STANDARD_WORKTIME                                                                                                         smallint
+U05_struktury T_RCSCSH_SHIFTS RCSCSH_PAID_BREAK                                                                                                                smallint
+U05_struktury T_RCSCSH_SHIFTS RCSCSH_FREE_BREAK                                                                                                                smallint
+U05_struktury T_RCSCSH_SHIFTS RCSCSH_MAX_EXIT_TIME                                                                                                             datetime
+U05_struktury T_RCSCSH_SHIFTS RCSCSH_MAX_EXIT_TIME_NEXT_DAY                                                                                                    int
+U05_struktury T_RCSCSH_SHIFTS RCSCSH_BSN_LATE_LENGTH                                                                                                           smallint
+U05_struktury T_RCSCSH_SHIFTS RCSCSH_BSN_LATE_START                                                                                                            datetime
+U05_struktury T_RCSCSH_SHIFTS RCSCSH_BSN_EARLY_EXIT_LENGTH                                                                                                     smallint
+U05_struktury T_RCSCSH_SHIFTS RCSCSH_BSN_EARLY_EXIT_END                                                                                                        datetime
+U05_struktury T_RCSCSH_SHIFTS RCSCSH_MAX_BSN_BREAK                                                                                                             smallint
+U05_struktury T_RCSCSH_SHIFTS RCSCSH_MAX_OVERTIME                                                                                                              smallint
+U05_struktury T_RCSCSH_SHIFTS RCSCSH_COMPANY_OT_CLEARING                                                                                                       smallint
+U05_struktury T_RCSCSH_SHIFTS RCSCSH_EMPLOYEE_OT_CLEARING                                                                                                      smallint
+U05_struktury T_RCSCSH_SHIFTS RCSCSH_WORK_AT_FREE_DAY                                                                                                          int
+U05_struktury T_RCSCSH_SHIFTS RCSCSH_RETURN_FREE_DAY                                                                                                           int
+U05_struktury T_RCSCSH_SHIFTS RCSCSH_ID_RCSCSN_NAME                                                                                                            int
+U05_struktury T_RCSCSH_SHIFTS RCSCSH_MAX_PRV_ABS_CLEARING                                                                                                      smallint
+U05_struktury T_RCSCSH_SHIFTS RCSCSH_BSN_EARLY_EXIT_CUT                                                                                                        int
+U05_struktury T_RCSCSH_SHIFTS RCSCSH_MIN_OVERTIME_LENGTH                                                                                                       smallint
+U05_struktury T_RCSCSH_SHIFTS RCSCSH_RETURNED_DAY                                                                                                              datetime
+U05_struktury T_RCSCSH_SHIFTS RCSCSH_SPECIFIED_DAY                                                                                                             datetime
+U05_struktury T_RCSCSH_SHIFTS RCSCSH_WORK_AT_FREE_DAY_WITHOUT_DAILY_NORM                                                                                       int
+U05_struktury T_RCSCSH_SHIFTS RCSCSH_PAID_BREAK_START                                                                                                          datetime
+U05_struktury T_RCSCSH_SHIFTS RCSCSH_PAID_BREAK_END                                                                                                            datetime
+U05_struktury T_RCSCSH_SHIFTS RCSCSH_END_OF_DAY                                                                                                                datetime
+U05_struktury T_RCSCSH_SHIFTS RCSCSH_END_OF_DAY_NEXT_DAY                                                                                                       int
+U05_struktury T_RCSCSH_SHIFTS RCSCSH_PAID_BREAK_OFFSET_FROM_START                                                                                              datetime
+U05_struktury T_RCSCSH_SHIFTS RCSCSH_PAID_BREAK_UTILIZATION_TIME                                                                                               datetime
+
+__SEKCJA      tabela        COLUMN_NAME                                                                                                                      DATA_TYPE
+------------- ------------- -------------------------------------------------------------------------------------------------------------------------------- --------------------------------------------------------------------------------------------------------------------------------
+U05_struktury T_KDCAC_CARDS KDCAC_ID                                                                                                                         int
+U05_struktury T_KDCAC_CARDS KDCAC_NUMBER                                                                                                                     bigint
+U05_struktury T_KDCAC_CARDS KDCAC_STATE                                                                                                                      int
+U05_struktury T_KDCAC_CARDS KDCAC_SNR                                                                                                                        varbinary
+U05_struktury T_KDCAC_CARDS KDCAC_TYPE                                                                                                                       int
+U05_struktury T_KDCAC_CARDS KDCAC_DATA                                                                                                                       varbinary
+U05_struktury T_KDCAC_CARDS KDCAC_GENRE                                                                                                                      int
+
+__SEKCJA      tabela                     COLUMN_NAME                                                                                                                      DATA_TYPE
+------------- -------------------------- -------------------------------------------------------------------------------------------------------------------------------- --------------------------------------------------------------------------------------------------------------------------------
+U05_struktury T_RCWAAPL_ACC_PROCESS_LOGS RCWAAPL_ID                                                                                                                       int
+U05_struktury T_RCWAAPL_ACC_PROCESS_LOGS RCWAAPL_ID_RCWAP_PERIOD                                                                                                          int
+U05_struktury T_RCWAAPL_ACC_PROCESS_LOGS RCWAAPL_DAY                                                                                                                      smalldatetime
+U05_struktury T_RCWAAPL_ACC_PROCESS_LOGS RCWAAPL_TYPE                                                                                                                     int
+U05_struktury T_RCWAAPL_ACC_PROCESS_LOGS RCWAAPL_NAME                                                                                                                     nvarchar
+U05_struktury T_RCWAAPL_ACC_PROCESS_LOGS RCWAAPL_CONTENT                                                                                                                  nvarchar
+U05_struktury T_RCWAAPL_ACC_PROCESS_LOGS RCWAAPL_ID_UXUSUD_EMPLOYEE                                                                                                       int
+
+__SEKCJA      tabela        COLUMN_NAME                                                                                                                      DATA_TYPE
+------------- ------------- -------------------------------------------------------------------------------------------------------------------------------- --------------------------------------------------------------------------------------------------------------------------------
+U05_struktury CONFIGURATION CO_ID                                                                                                                            int
+U05_struktury CONFIGURATION CO_KEY                                                                                                                           nvarchar
+U05_struktury CONFIGURATION CO_VALUE                                                                                                                         nvarchar
+
+__SEKCJA      tabela              COLUMN_NAME                                                                                                                      DATA_TYPE
+------------- ------------------- -------------------------------------------------------------------------------------------------------------------------------- --------------------------------------------------------------------------------------------------------------------------------
+U05_struktury T_UXTR_TRANSLATIONS UXTR_ID                                                                                                                          int
+U05_struktury T_UXTR_TRANSLATIONS UXTR_ID_UXTAC_COLUMN                                                                                                             int
+U05_struktury T_UXTR_TRANSLATIONS UXTR_RECORD_ID                                                                                                                   int
+U05_struktury T_UXTR_TRANSLATIONS UXTR_LANG_ENGLISH                                                                                                                nvarchar
+U05_struktury T_UXTR_TRANSLATIONS UXTR_LANG_POLISH                                                                                                                 nvarchar
+U05_struktury T_UXTR_TRANSLATIONS UXTR_LANG_SERBIAN                                                                                                                nvarchar
+
+__SEKCJA      tabela              COLUMN_NAME                                                                                                                      DATA_TYPE
+------------- ------------------- -------------------------------------------------------------------------------------------------------------------------------- --------------------------------------------------------------------------------------------------------------------------------
+U05_struktury T_HAEVLI_EVENT_LIST HAEVLI_ID                                                                                                                        int
+U05_struktury T_HAEVLI_EVENT_LIST HAEVLI_VALUE                                                                                                                     int
+U05_struktury T_HAEVLI_EVENT_LIST HAEVLI_TEXT                                                                                                                      nvarchar
+U05_struktury T_HAEVLI_EVENT_LIST HAEVLI_PRIORITY                                                                                                                  int
+U05_struktury T_HAEVLI_EVENT_LIST HAEVLI_DATETIME_CREATE                                                                                                           datetime
+U05_struktury T_HAEVLI_EVENT_LIST HAEVLI_DATETIME_DELETE                                                                                                           datetime
+
+__SEKCJA      tabela COLUMN_NAME                                                                                                                      DATA_TYPE
+------------- ------ -------------------------------------------------------------------------------------------------------------------------------- --------------------------------------------------------------------------------------------------------------------------------
+U05_struktury LOGINS LO_ID                                                                                                                            int
+U05_struktury LOGINS LO_OPERATOR_ID                                                                                                                   int
+U05_struktury LOGINS LO_DATE                                                                                                                          datetime
+U05_struktury LOGINS LO_LOGOUT_DATE                                                                                                                   datetime
+U05_struktury LOGINS LO_LOGIN                                                                                                                         varchar
+U05_struktury LOGINS LO_LOGIN_SUCCESS                                                                                                                 int
+U05_struktury LOGINS LO_DESCRIPTION                                                                                                                   varchar
+
+__SEKCJA      tabela          COLUMN_NAME                                                                                                                      DATA_TYPE
+------------- --------------- -------------------------------------------------------------------------------------------------------------------------------- --------------------------------------------------------------------------------------------------------------------------------
+U05_struktury T_UXUP_UPGRADES UXUP_ID                                                                                                                          int
+U05_struktury T_UXUP_UPGRADES UXUP_MODULE                                                                                                                      nvarchar
+U05_struktury T_UXUP_UPGRADES UXUP_VERSION                                                                                                                     nvarchar
+U05_struktury T_UXUP_UPGRADES UXUP_PATCH                                                                                                                       smallint
+U05_struktury T_UXUP_UPGRADES UXUP_INSTALLED                                                                                                                   smallint
+U05_struktury T_UXUP_UPGRADES UXUP_INSTALLER_KD                                                                                                                varbinary
+U05_struktury T_UXUP_UPGRADES UXUP_INSTALLER_RCP                                                                                                               varbinary
+
+UNISYSTEM eksploracja zakończona
+
+Completion time: 2026-05-04T18:23:38.3821840+02:00
+
+
+===WYNIKI KONIEC===
+
+
+==============================================================================
+PROBLEMY / NOTATKI:
+==============================================================================
+
+[Jesli nie wiesz jakie konto/haslo - sprawdz w pliku KontrolaGodzin.xaml.cs lub
+ w connection stringu w jakimkolwiek pliku ZPSP wykorzystujacym UNISYSTEM]

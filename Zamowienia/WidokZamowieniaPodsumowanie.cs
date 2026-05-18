@@ -531,6 +531,9 @@ namespace Kalendarz1
             var menuNotatka = new ToolStripMenuItem("📝 Dodaj/Edytuj notatkę");
             menuNotatka.Click += (s, e) => btnDodajNotatke_Click(s, e);
 
+            var menuPrzypiszHandlowca = new ToolStripMenuItem("👤 Przypisz handlowca…");
+            menuPrzypiszHandlowca.Click += async (s, e) => await PrzypiszHandlowcaAsync();
+
             var menuHistoriaZmian = new ToolStripMenuItem("📜 Historia zmian zamówienia");
             menuHistoriaZmian.Click += async (s, e) => await PokazHistorieZmianAsync();
 
@@ -543,6 +546,8 @@ namespace Kalendarz1
             contextMenu.Items.Add(menuModyfikuj);
             contextMenu.Items.Add(menuDuplikuj);
             contextMenu.Items.Add(menuNotatka);
+            contextMenu.Items.Add(new ToolStripSeparator());
+            contextMenu.Items.Add(menuPrzypiszHandlowca);
             contextMenu.Items.Add(new ToolStripSeparator());
             contextMenu.Items.Add(menuHistoriaZmian);
             contextMenu.Items.Add(new ToolStripSeparator());
@@ -672,6 +677,142 @@ namespace Kalendarz1
             catch (Exception ex)
             {
                 ShowError($"Błąd podczas pobierania historii zmian:\n{ex.Message}", "Błąd");
+            }
+        }
+
+        private async Task PrzypiszHandlowcaAsync()
+        {
+            if (dgvZamowienia.SelectedRows.Count == 0)
+            {
+                ShowInfo("Najpierw kliknij wiersz z zamówieniem, aby wybrać kontrahenta.", "Brak wyboru");
+                return;
+            }
+
+            var row = dgvZamowienia.SelectedRows[0];
+            int klientId = 0;
+            if (row.Cells["KlientId"]?.Value is int kid) klientId = kid;
+            else if (row.Cells["KlientId"]?.Value != null && int.TryParse(row.Cells["KlientId"].Value.ToString(), out var k)) klientId = k;
+            if (klientId <= 0)
+            {
+                ShowInfo("Nie udało się ustalić kontrahenta dla tego wiersza.", "Brak danych");
+                return;
+            }
+
+            string odbiorca = row.Cells["Odbiorca"]?.Value?.ToString() ?? "";
+            string aktualnyHandlowiec = row.Cells["Handlowiec"]?.Value?.ToString() ?? "";
+
+            // Lista istniejących handlowców z Symfonia
+            var handlowcy = new List<string>();
+            try
+            {
+                await using var cn = new SqlConnection(_connHandel);
+                await cn.OpenAsync();
+                await using var cmd = new SqlCommand(
+                    "SELECT DISTINCT CDim_Handlowiec_Val FROM [HANDEL].[SSCommon].[ContractorClassification] WHERE CDim_Handlowiec_Val IS NOT NULL ORDER BY 1", cn);
+                await using var rd = await cmd.ExecuteReaderAsync();
+                while (await rd.ReadAsync())
+                {
+                    var h = rd[0]?.ToString();
+                    if (!string.IsNullOrWhiteSpace(h)) handlowcy.Add(h);
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowError("Nie udało się pobrać listy handlowców:\n" + ex.Message, "Błąd");
+                return;
+            }
+
+            using var dlg = new PrzypiszHandlowcaDialog(odbiorca, aktualnyHandlowiec, handlowcy);
+            if (dlg.ShowDialog(this) != DialogResult.OK) return;
+
+            string nowy = dlg.WybranyHandlowiec?.Trim() ?? "";
+
+            // UPDATE z fallback na INSERT (gdy brak wiersza klasyfikacji dla tego kontrahenta)
+            try
+            {
+                await using var cn = new SqlConnection(_connHandel);
+                await cn.OpenAsync();
+                const string upsertSql = @"
+                    IF EXISTS (SELECT 1 FROM [HANDEL].[SSCommon].[ContractorClassification] WHERE ElementId = @id)
+                        UPDATE [HANDEL].[SSCommon].[ContractorClassification] SET CDim_Handlowiec_Val = @h WHERE ElementId = @id;
+                    ELSE
+                        INSERT INTO [HANDEL].[SSCommon].[ContractorClassification] (ElementId, CDim_Handlowiec_Val) VALUES (@id, @h);";
+                await using var cmd = new SqlCommand(upsertSql, cn);
+                cmd.Parameters.AddWithValue("@id", klientId);
+                cmd.Parameters.AddWithValue("@h", string.IsNullOrEmpty(nowy) ? (object)DBNull.Value : nowy);
+                await cmd.ExecuteNonQueryAsync();
+            }
+            catch (Exception ex)
+            {
+                ShowError("Nie udało się zapisać handlowca w Symfonii:\n" + ex.Message +
+                    "\n\nPrawdopodobnie wiersz w ContractorClassification wymaga dodatkowych pól. Skontaktuj się z administratorem.",
+                    "Błąd zapisu");
+                return;
+            }
+
+            ShowInfo($"Przypisano handlowca: {(string.IsNullOrEmpty(nowy) ? "(brak)" : nowy)}\nKontrahent: {odbiorca} (id={klientId})",
+                "Zapisano");
+
+            // Odśwież listę zamówień (handlowiec wczytuje się z JOIN-a, więc zobaczymy zmianę)
+            await OdswiezWszystkieDaneAsync();
+        }
+
+        private sealed class PrzypiszHandlowcaDialog : Form
+        {
+            private readonly ComboBox _cmb = new ComboBox { DropDownStyle = ComboBoxStyle.DropDown, Width = 280 };
+            public string? WybranyHandlowiec => _cmb.Text;
+
+            public PrzypiszHandlowcaDialog(string odbiorca, string aktualnyHandlowiec, List<string> dostepni)
+            {
+                Text = "Przypisz handlowca";
+                StartPosition = FormStartPosition.CenterParent;
+                FormBorderStyle = FormBorderStyle.FixedDialog;
+                MinimizeBox = false; MaximizeBox = false;
+                ClientSize = new Size(360, 170);
+                Font = new Font("Segoe UI", 9f);
+
+                var lblKtoryKlient = new Label
+                {
+                    Text = "Kontrahent:",
+                    Location = new Point(15, 12),
+                    AutoSize = true,
+                    Font = new Font("Segoe UI", 9f, FontStyle.Bold)
+                };
+                var lblNazwa = new Label
+                {
+                    Text = string.IsNullOrEmpty(odbiorca) ? "(nieznany)" : odbiorca,
+                    Location = new Point(15, 30),
+                    AutoSize = true,
+                    Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(33, 64, 154)
+                };
+                var lblHand = new Label { Text = "Handlowiec (puste = brak):", Location = new Point(15, 60), AutoSize = true };
+                _cmb.Location = new Point(15, 80);
+
+                foreach (var h in dostepni) _cmb.Items.Add(h);
+                _cmb.Text = aktualnyHandlowiec ?? "";
+
+                var btnOK = new Button
+                {
+                    Text = "Zapisz",
+                    DialogResult = DialogResult.OK,
+                    Location = new Point(180, 125),
+                    Width = 80,
+                    BackColor = Color.FromArgb(33, 64, 154),
+                    ForeColor = Color.White,
+                    FlatStyle = FlatStyle.Flat
+                };
+                var btnCancel = new Button
+                {
+                    Text = "Anuluj",
+                    DialogResult = DialogResult.Cancel,
+                    Location = new Point(265, 125),
+                    Width = 80
+                };
+
+                Controls.AddRange(new Control[] { lblKtoryKlient, lblNazwa, lblHand, _cmb, btnOK, btnCancel });
+                AcceptButton = btnOK;
+                CancelButton = btnCancel;
             }
         }
         #endregion
@@ -1091,8 +1232,9 @@ namespace Kalendarz1
 
         private async void btnNoweZamowienie_Click(object? sender, EventArgs e)
         {
-            var widokZamowienia = new WidokZamowienia(UserID, null);
-            if (widokZamowienia.ShowDialog(this) == DialogResult.OK)
+            var win = new Kalendarz1.Zamowienia.Views.NoweZamowienieTestWindow(UserID, null);
+            new System.Windows.Interop.WindowInteropHelper(win) { Owner = this.Handle };
+            if (win.ShowDialog() == true)
             {
                 await OdswiezWszystkieDaneAsync();
             }
@@ -1100,10 +1242,10 @@ namespace Kalendarz1
 
         private async void btnNoweTest_Click(object? sender, EventArgs e)
         {
-            var win = new Kalendarz1.Zamowienia.Views.NoweZamowienieTestWindow(UserID);
-            var helper = new System.Windows.Interop.WindowInteropHelper(win) { Owner = this.Handle };
-            bool? result = win.ShowDialog();
-            if (result == true)
+            // Legacy — kieruje na to samo nowe okno
+            var win = new Kalendarz1.Zamowienia.Views.NoweZamowienieTestWindow(UserID, null);
+            new System.Windows.Interop.WindowInteropHelper(win) { Owner = this.Handle };
+            if (win.ShowDialog() == true)
             {
                 await OdswiezWszystkieDaneAsync();
             }
@@ -1117,8 +1259,9 @@ namespace Kalendarz1
                 return;
             }
 
-            var widokZamowienia = new WidokZamowienia(UserID, id);
-            if (widokZamowienia.ShowDialog(this) == DialogResult.OK)
+            var win = new Kalendarz1.Zamowienia.Views.NoweZamowienieTestWindow(UserID, id);
+            new System.Windows.Interop.WindowInteropHelper(win) { Owner = this.Handle };
+            if (win.ShowDialog() == true)
             {
                 await OdswiezWszystkieDaneAsync();
             }
@@ -1994,8 +2137,9 @@ namespace Kalendarz1
             if (e.RowIndex >= 0)
             {
                 if (!TrySetAktualneIdZamowieniaFromGrid(out var id) || id <= 0) return;
-                var widokZamowienia = new WidokZamowienia(UserID, id);
-                if (widokZamowienia.ShowDialog() == DialogResult.OK)
+                var win = new Kalendarz1.Zamowienia.Views.NoweZamowienieTestWindow(UserID, id);
+                new System.Windows.Interop.WindowInteropHelper(win) { Owner = this.Handle };
+                if (win.ShowDialog() == true)
                 {
                     await OdswiezWszystkieDaneAsync();
                 }

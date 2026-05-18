@@ -1,0 +1,732 @@
+<UserControl x:Class="Kalendarz1.AnalitykaPelna.Views.WidokFabryka"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             mc:Ignorable="d"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             Background="White"
+             UseLayoutRounding="True"
+             SnapsToDevicePixels="True"
+             TextOptions.TextFormattingMode="Display"
+             TextOptions.TextRenderingMode="ClearType">
+    <UserControl.Resources>
+        <SolidColorBrush x:Key="TextPrimary" Color="#0F172A"/>
+        <SolidColorBrush x:Key="TextSecondary" Color="#475569"/>
+        <SolidColorBrush x:Key="TextMuted" Color="#94A3B8"/>
+        <SolidColorBrush x:Key="BorderColor" Color="#E2E8F0"/>
+        <SolidColorBrush x:Key="Surface" Color="#F8FAFC"/>
+
+        <!-- Step circles — clean numbered icons -->
+        <Style x:Key="StepCircle" TargetType="Border">
+            <Setter Property="Width" Value="76"/>
+            <Setter Property="Height" Value="76"/>
+            <Setter Property="CornerRadius" Value="38"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect Color="#0F172A" BlurRadius="14" ShadowDepth="3" Opacity="0.15"/>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Effect">
+                        <Setter.Value>
+                            <DropShadowEffect Color="#0F172A" BlurRadius="22" ShadowDepth="5" Opacity="0.28"/>
+                        </Setter.Value>
+                    </Setter>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Detail card -->
+        <Style x:Key="DetailCard" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="18,16"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect Color="#0F172A" BlurRadius="14" ShadowDepth="2" Opacity="0.06"/>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Effect">
+                        <Setter.Value>
+                            <DropShadowEffect Color="#0F172A" BlurRadius="20" ShadowDepth="3" Opacity="0.15"/>
+                        </Setter.Value>
+                    </Setter>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Magazine silo card — kompakt -->
+        <Style x:Key="SiloCard" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="14,12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect Color="#0F172A" BlurRadius="10" ShadowDepth="2" Opacity="0.06"/>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Effect">
+                        <Setter.Value>
+                            <DropShadowEffect Color="#0F172A" BlurRadius="16" ShadowDepth="3" Opacity="0.15"/>
+                        </Setter.Value>
+                    </Setter>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Typography -->
+        <Style x:Key="StepLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="{StaticResource TextMuted}"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="StepTitle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="0,12,0,2"/>
+        </Style>
+        <Style x:Key="StepValue" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="26"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+        </Style>
+        <Style x:Key="StepUnit" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="{StaticResource TextMuted}"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="DocPill" TargetType="Border">
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="8,3"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="0,6,0,0"/>
+        </Style>
+        <Style x:Key="SectionHeader" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="{StaticResource TextMuted}"/>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- ═══════════════ HEADER + filtry katalogów ═══════════════ -->
+        <Border Grid.Row="0" Background="White" BorderBrush="{StaticResource BorderColor}" BorderThickness="0,0,0,1" Padding="32,18">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="Łańcuch produkcji  —  od żywca do klienta" FontSize="22" FontWeight="Bold" Foreground="{StaticResource TextPrimary}"/>
+                    <TextBlock x:Name="txtZakres" Text="—" FontSize="12" Foreground="{StaticResource TextMuted}" Margin="0,3,0,0"/>
+                </StackPanel>
+
+                <!-- Panel filtrowania katalogów towarów -->
+                <Border Grid.Column="2" Background="#F8FAFC" BorderBrush="{StaticResource BorderColor}" BorderThickness="1"
+                        CornerRadius="8" Padding="14,10" VerticalAlignment="Center">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                            <TextBlock Text="🔍 KATALOGI TOWARÓW" FontSize="10" FontWeight="Bold" Foreground="#64748B" VerticalAlignment="Center"/>
+                            <Button Content="Tylko produkcja" Click="PresetProdukcja_Click"
+                                    Padding="8,3" Margin="12,0,4,0" FontSize="10" FontWeight="SemiBold"
+                                    Background="White" Foreground="#475569" BorderBrush="#CBD5E1" BorderThickness="1" Cursor="Hand"
+                                    ToolTip="Zaznacz tylko katalogi produkcyjne (wyłącz opakowania, art. sklepowe)"/>
+                            <Button Content="Wszystko" Click="PresetWszystkie_Click"
+                                    Padding="8,3" FontSize="10" FontWeight="SemiBold"
+                                    Background="White" Foreground="#475569" BorderBrush="#CBD5E1" BorderThickness="1" Cursor="Hand"
+                                    ToolTip="Wyłącz filtr — wszystkie katalogi liczone do bilansu"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <CheckBox x:Name="chkKatZywiec" Content="🐔 Żywiec" IsChecked="True" Margin="0,0,12,0" FontSize="11" VerticalContentAlignment="Center"
+                                      Tag="65882" Checked="KatalogChanged" Unchecked="KatalogChanged" ToolTip="65882 — żywy kurczak"/>
+                            <CheckBox x:Name="chkKatMieso" Content="🥩 Mięso świeże" IsChecked="True" Margin="0,0,12,0" FontSize="11" VerticalContentAlignment="Center"
+                                      Tag="67095" Checked="KatalogChanged" Unchecked="KatalogChanged" ToolTip="67095 — tuszki, podroby, elementy"/>
+                            <CheckBox x:Name="chkKatMiesoInne" Content="🍗 Mięso inne" IsChecked="True" Margin="0,0,12,0" FontSize="11" VerticalContentAlignment="Center"
+                                      Tag="67104" Checked="KatalogChanged" Unchecked="KatalogChanged" ToolTip="67104 — wyroby mięsne, masarnia"/>
+                            <CheckBox x:Name="chkKatMrozone" Content="❄ Mrożone" IsChecked="True" Margin="0,0,12,0" FontSize="11" VerticalContentAlignment="Center"
+                                      Tag="67153" Checked="KatalogChanged" Unchecked="KatalogChanged" ToolTip="67153 — produkty mrożone"/>
+                            <CheckBox x:Name="chkKatOdpady" Content="🗑 Odpady" IsChecked="True" Margin="0,0,0,0" FontSize="11" VerticalContentAlignment="Center"
+                                      Tag="67094" Checked="KatalogChanged" Unchecked="KatalogChanged" ToolTip="67094 — utylizacja"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- ═══════════════ CONTENT ═══════════════ -->
+        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" Background="White">
+            <StackPanel MaxWidth="1500" Margin="32,32,32,32">
+
+                <!-- ═══════════════ ① BILANS GŁÓWNY — co się stało z żywcem ═══════════════ -->
+                <Border Background="White" BorderBrush="{StaticResource BorderColor}" BorderThickness="1"
+                        CornerRadius="14" Padding="24,18" Margin="0,0,0,16">
+                    <Border.Effect>
+                        <DropShadowEffect Color="#0F172A" BlurRadius="14" ShadowDepth="2" Opacity="0.06"/>
+                    </Border.Effect>
+                    <StackPanel>
+                        <Grid Margin="0,0,0,16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="BILANS MATERIAŁOWY OKRESU" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextMuted}"/>
+                                <TextBlock x:Name="txtBilansHero" Text="—" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" Margin="0,6,0,0" TextWrapping="Wrap" LineHeight="26"/>
+                            </StackPanel>
+                            <Border Grid.Column="1" x:Name="bdBilansStatus" Background="#10B981" CornerRadius="16" Padding="16,8" VerticalAlignment="Center" Margin="14,0,0,0">
+                                <TextBlock x:Name="txtBilansStatus" Text="—" FontSize="13" FontWeight="Bold" Foreground="White"/>
+                            </Border>
+                        </Grid>
+
+                        <!-- 5-segmentowy pasek "co się stało z żywcem" — wyższy i czytelniejszy -->
+                        <Border CornerRadius="8" Background="#F1F5F9" Padding="0" Height="52" ClipToBounds="True">
+                            <Grid x:Name="gridBilansBar">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition x:Name="colBarSprzedaz" Width="0*"/>
+                                    <ColumnDefinition x:Name="colBarWMag" Width="0*"/>
+                                    <ColumnDefinition x:Name="colBarStraty" Width="0*"/>
+                                    <ColumnDefinition x:Name="colBarOdpady" Width="0*"/>
+                                    <ColumnDefinition x:Name="colBarNiezgod" Width="0*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="0" Background="#10B981" CornerRadius="8,0,0,8">
+                                    <TextBlock x:Name="txtBarSprzedaz" Text="" FontSize="13" FontWeight="Bold" Foreground="White"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <Border Grid.Column="1" Background="#2563EB">
+                                    <TextBlock x:Name="txtBarWMag" Text="" FontSize="13" FontWeight="Bold" Foreground="White"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <Border Grid.Column="2" Background="#F59E0B">
+                                    <TextBlock x:Name="txtBarStraty" Text="" FontSize="13" FontWeight="Bold" Foreground="White"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <Border Grid.Column="3" Background="#94A3B8">
+                                    <TextBlock x:Name="txtBarOdpady" Text="" FontSize="13" FontWeight="Bold" Foreground="White"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <Border Grid.Column="4" Background="#EF4444" CornerRadius="0,8,8,0">
+                                    <TextBlock x:Name="txtBarNiezgod" Text="" FontSize="13" FontWeight="Bold" Foreground="White"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </Grid>
+                        </Border>
+
+                        <!-- 5 legendek pod paskiem -->
+                        <Grid Margin="0,10,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <StackPanel Orientation="Horizontal">
+                                    <Rectangle Width="10" Height="10" Fill="#10B981" RadiusX="2" RadiusY="2" VerticalAlignment="Center"/>
+                                    <TextBlock Text=" Sprzedano klientom" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondary}" Margin="4,0,0,0"/>
+                                </StackPanel>
+                                <TextBlock x:Name="txtLegSprzedaz" Text="—" FontSize="11" Foreground="{StaticResource TextMuted}" Margin="14,2,0,0"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1">
+                                <StackPanel Orientation="Horizontal">
+                                    <Rectangle Width="10" Height="10" Fill="#2563EB" RadiusX="2" RadiusY="2" VerticalAlignment="Center"/>
+                                    <TextBlock Text=" W magazynach" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondary}" Margin="4,0,0,0"/>
+                                </StackPanel>
+                                <TextBlock x:Name="txtLegWMag" Text="—" FontSize="11" Foreground="{StaticResource TextMuted}" Margin="14,2,0,0"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <StackPanel Orientation="Horizontal">
+                                    <Rectangle Width="10" Height="10" Fill="#F59E0B" RadiusX="2" RadiusY="2" VerticalAlignment="Center"/>
+                                    <TextBlock Text=" Straty (ubój+krojenie)" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondary}" Margin="4,0,0,0"/>
+                                </StackPanel>
+                                <TextBlock x:Name="txtLegStraty" Text="—" FontSize="11" Foreground="{StaticResource TextMuted}" Margin="14,2,0,0"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="3">
+                                <StackPanel Orientation="Horizontal">
+                                    <Rectangle Width="10" Height="10" Fill="#94A3B8" RadiusX="2" RadiusY="2" VerticalAlignment="Center"/>
+                                    <TextBlock Text=" Odpady+karma" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondary}" Margin="4,0,0,0"/>
+                                </StackPanel>
+                                <TextBlock x:Name="txtLegOdpady" Text="—" FontSize="11" Foreground="{StaticResource TextMuted}" Margin="14,2,0,0"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="4">
+                                <StackPanel Orientation="Horizontal">
+                                    <Rectangle Width="10" Height="10" Fill="#EF4444" RadiusX="2" RadiusY="2" VerticalAlignment="Center"/>
+                                    <TextBlock Text=" Niewyjaśnione" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondary}" Margin="4,0,0,0"/>
+                                </StackPanel>
+                                <TextBlock x:Name="txtLegNiezgod" Text="—" FontSize="11" Foreground="{StaticResource TextMuted}" Margin="14,2,0,0"/>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- ═══════════════ ② ANALIZA STRAT — punkty gdzie towar znika ═══════════════ -->
+                <Border Background="White" BorderBrush="{StaticResource BorderColor}" BorderThickness="1"
+                        CornerRadius="14" Padding="24,18" Margin="0,0,0,40">
+                    <Border.Effect>
+                        <DropShadowEffect Color="#0F172A" BlurRadius="14" ShadowDepth="2" Opacity="0.06"/>
+                    </Border.Effect>
+                    <StackPanel>
+                        <Grid Margin="0,0,0,16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="GDZIE TOWAR ZNIKA — analiza punktów strat" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextMuted}"/>
+                                <TextBlock Text="Każdy etap procesu ma typowy zakres strat. Wartości poza normą sygnalizują problem." FontSize="12" Foreground="{StaticResource TextSecondary}" Margin="0,3,0,0"/>
+                            </StackPanel>
+                            <TextBlock Grid.Column="1" x:Name="txtAnalizaIlosc" Text="" FontSize="11" Foreground="{StaticResource TextMuted}" VerticalAlignment="Center"/>
+                        </Grid>
+
+                        <!-- Header kolumn -->
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="3*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="2*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="ETAP" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextMuted}"/>
+                            <TextBlock Grid.Column="1" Text="ILE" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextMuted}" TextAlignment="Right"/>
+                            <TextBlock Grid.Column="2" Text="%" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextMuted}" TextAlignment="Right"/>
+                            <TextBlock Grid.Column="3" Text="NORMA" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextMuted}" TextAlignment="Right" Margin="0,0,8,0"/>
+                            <TextBlock Grid.Column="4" Text="VS NORMY" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextMuted}" Margin="8,0,0,0"/>
+                            <TextBlock Grid.Column="5" Text="STATUS" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextMuted}" Margin="14,0,0,0"/>
+                        </Grid>
+                        <Rectangle Height="1" Fill="{StaticResource BorderColor}" Margin="0,0,0,4"/>
+
+                        <StackPanel x:Name="panelAnaliza"/>
+
+                        <Border x:Name="bdInsight" Background="#FFFBEB" BorderBrush="#FBBF24" BorderThickness="1" CornerRadius="10"
+                                Padding="16,12" Margin="0,16,0,0" Visibility="Collapsed">
+                            <Border.Effect>
+                                <DropShadowEffect Color="#F59E0B" BlurRadius="14" ShadowDepth="2" Opacity="0.18"/>
+                            </Border.Effect>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="💡" FontSize="20" VerticalAlignment="Top" Margin="0,1,12,0"/>
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="WSKAZÓWKA OPERATORA" FontSize="10" FontWeight="Bold" Foreground="#92400E" Margin="0,0,0,4"/>
+                                    <TextBlock x:Name="txtInsight" Text="" FontSize="12" Foreground="#78350F" TextWrapping="Wrap" LineHeight="18"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <!-- ═══════════════ TIMELINE: 6 kroków procesu ═══════════════ -->
+                <Grid x:Name="gridTimeline" Margin="0,40,0,40" SizeChanged="GridTimeline_SizeChanged">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Łącząca linia między kółkami (warstwa pod kółkami) -->
+                    <Rectangle Height="3" VerticalAlignment="Top" Margin="80,38,80,0" Fill="{StaticResource BorderColor}"
+                               Grid.ColumnSpan="6"/>
+
+                    <!-- ŁUK UBÓJ → PAKOWANIE (całe tuszki bezpośrednio, omija krojenie) — klikalna pigułka -->
+                    <Canvas x:Name="canvasArc" Grid.ColumnSpan="6" Height="80" VerticalAlignment="Top"
+                            Margin="0,-50,0,0" ClipToBounds="False">
+                        <Path x:Name="pathArc" Stroke="#0EA5E9" StrokeThickness="2.5" StrokeDashArray="4,2" IsHitTestVisible="False"/>
+                        <Border x:Name="lblArc" Background="#DBEAFE" BorderBrush="#0EA5E9" BorderThickness="1.5"
+                                CornerRadius="10" Padding="10,3" Cursor="Hand"
+                                MouseLeftButtonUp="CaleTuszki_Click"
+                                ToolTip="Kliknij — szczegóły co poszło bezpośrednio (omijając krojenie)">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="↶ całe tuszki (sPWU) " FontSize="10" FontWeight="Bold" Foreground="#0E7490"/>
+                                <TextBlock x:Name="lblArcKg" Text="—" FontSize="11" FontWeight="Bold" FontFamily="Segoe UI" Foreground="#0E7490"/>
+                            </StackPanel>
+                        </Border>
+                    </Canvas>
+
+                    <!-- ① ŻYWIEC -->
+                    <StackPanel Grid.Column="0" HorizontalAlignment="Center" Tag="ZYWIEC" MouseLeftButtonUp="Step_Click">
+                        <Border Style="{StaticResource StepCircle}" Background="#FB923C">
+                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <TextBlock Text="🐔" FontSize="28" HorizontalAlignment="Center"/>
+                                <TextBlock Text="01" FontSize="9" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Opacity="0.85"/>
+                            </StackPanel>
+                        </Border>
+                        <TextBlock Text="PRZYJĘCIE" Style="{StaticResource StepLabel}" Margin="0,8,0,0"/>
+                        <TextBlock Text="żywiec" Style="{StaticResource StepLabel}" FontWeight="Normal" Foreground="{StaticResource TextSecondary}"/>
+                    </StackPanel>
+
+                    <!-- ② UBÓJ -->
+                    <StackPanel Grid.Column="1" HorizontalAlignment="Center" Tag="UBOJ" MouseLeftButtonUp="Step_Click">
+                        <Border Style="{StaticResource StepCircle}" Background="#DC2626">
+                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <TextBlock Text="⚙" FontSize="28" HorizontalAlignment="Center" Foreground="White"/>
+                                <TextBlock Text="02" FontSize="9" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Opacity="0.85"/>
+                            </StackPanel>
+                        </Border>
+                        <TextBlock Text="UBÓJ" Style="{StaticResource StepLabel}" Margin="0,8,0,0"/>
+                        <TextBlock Text="tuszki + podroby" Style="{StaticResource StepLabel}" FontWeight="Normal" Foreground="{StaticResource TextSecondary}"/>
+                    </StackPanel>
+
+                    <!-- ③ KROJENIE z badge sRWP nad i sPWP pod -->
+                    <StackPanel Grid.Column="2" HorizontalAlignment="Center" Tag="PRODUKCJA" MouseLeftButtonUp="Step_Click">
+                        <!-- ↑ Co weszło: sRWP (wsad) -->
+                        <Border Background="#FAF5FF" BorderBrush="#C4B5FD" BorderThickness="1.5" CornerRadius="10" Padding="8,3"
+                                HorizontalAlignment="Center" Margin="0,0,0,8">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="🔪 sRWP " FontSize="9" FontWeight="Bold" Foreground="#5B21B6"/>
+                                <TextBlock x:Name="badgeKrojRwp" Text="—" FontSize="11" FontWeight="Bold" FontFamily="Segoe UI" Foreground="#5B21B6"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource StepCircle}" Background="#7C3AED">
+                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <TextBlock Text="🔪" FontSize="28" HorizontalAlignment="Center"/>
+                                <TextBlock Text="03" FontSize="9" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Opacity="0.85"/>
+                            </StackPanel>
+                        </Border>
+                        <TextBlock Text="KROJENIE" Style="{StaticResource StepLabel}" Margin="0,8,0,0"/>
+                        <TextBlock Text="elementy" Style="{StaticResource StepLabel}" FontWeight="Normal" Foreground="{StaticResource TextSecondary}"/>
+
+                        <!-- ↓ Co wyszło: sPWP (elementy) -->
+                        <Border Background="#FAF5FF" BorderBrush="#C4B5FD" BorderThickness="1.5" CornerRadius="10" Padding="8,3"
+                                HorizontalAlignment="Center" Margin="0,8,0,0">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="✂ sPWP " FontSize="9" FontWeight="Bold" Foreground="#5B21B6"/>
+                                <TextBlock x:Name="badgeKrojPwp" Text="—" FontSize="11" FontWeight="Bold" FontFamily="Segoe UI" Foreground="#5B21B6"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- ④ PAKOWANIE — klikalne (custom dialog) -->
+                    <StackPanel Grid.Column="3" HorizontalAlignment="Center" Cursor="Hand" MouseLeftButtonUp="Pakowanie_Click"
+                                ToolTip="Kliknij — bilans pakowania i przesunięć sMM−">
+                        <Border Style="{StaticResource StepCircle}" Background="#0EA5E9">
+                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <TextBlock Text="📦" FontSize="28" HorizontalAlignment="Center"/>
+                                <TextBlock Text="04" FontSize="9" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Opacity="0.85"/>
+                            </StackPanel>
+                        </Border>
+                        <TextBlock Text="PAKOWANIE" Style="{StaticResource StepLabel}" Margin="0,8,0,0"/>
+                        <TextBlock Text="do pojemników" Style="{StaticResource StepLabel}" FontWeight="Normal" Foreground="{StaticResource TextSecondary}"/>
+                    </StackPanel>
+
+                    <!-- ⑤ MAGAZYNY -->
+                    <StackPanel Grid.Column="4" HorizontalAlignment="Center">
+                        <Border Style="{StaticResource StepCircle}" Background="#2563EB">
+                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <TextBlock Text="🏬" FontSize="28" HorizontalAlignment="Center"/>
+                                <TextBlock Text="05" FontSize="9" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Opacity="0.85"/>
+                            </StackPanel>
+                        </Border>
+                        <TextBlock Text="MAGAZYNY" Style="{StaticResource StepLabel}" Margin="0,8,0,0"/>
+                        <TextBlock Text="5 lokalizacji" Style="{StaticResource StepLabel}" FontWeight="Normal" Foreground="{StaticResource TextSecondary}"/>
+                    </StackPanel>
+
+                    <!-- ⑥ KLIENCI -->
+                    <StackPanel Grid.Column="5" HorizontalAlignment="Center" Tag="KLIENCI" MouseLeftButtonUp="Step_Click">
+                        <Border Style="{StaticResource StepCircle}" Background="#10B981">
+                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <TextBlock Text="🚛" FontSize="28" HorizontalAlignment="Center"/>
+                                <TextBlock Text="06" FontSize="9" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Opacity="0.85"/>
+                            </StackPanel>
+                        </Border>
+                        <TextBlock Text="WYSYŁKA" Style="{StaticResource StepLabel}" Margin="0,8,0,0"/>
+                        <TextBlock Text="do klientów" Style="{StaticResource StepLabel}" FontWeight="Normal" Foreground="{StaticResource TextSecondary}"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- ═══════════════ KARTY SZCZEGÓŁOWE 6 etapów ═══════════════ -->
+                <Grid Margin="0,0,0,40">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- ① Detail: ŻYWIEC -->
+                    <Border Grid.Column="0" Style="{StaticResource DetailCard}" Margin="0,0,6,0"
+                            Tag="ZYWIEC" MouseLeftButtonUp="Step_Click"
+                            ToolTip="Kliknij — pełen szczegół przyjęcia">
+                        <StackPanel>
+                            <TextBlock Text="ZAKUPIONO ŻYWCA" Style="{StaticResource StepLabel}" HorizontalAlignment="Left"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                <TextBlock x:Name="kpi1Value" Text="—" Style="{StaticResource StepValue}" HorizontalAlignment="Left"/>
+                                <TextBlock x:Name="kpi1Unit" Text="t" FontSize="13" Foreground="{StaticResource TextMuted}" VerticalAlignment="Bottom" Margin="4,0,0,4"/>
+                            </StackPanel>
+                            <TextBlock x:Name="kpi1Sub" Text="—" Style="{StaticResource StepLabel}" Foreground="{StaticResource TextSecondary}" FontWeight="Normal" HorizontalAlignment="Left" Margin="0,4,0,0"/>
+                            <Border Background="#FED7AA" Style="{StaticResource DocPill}" HorizontalAlignment="Left">
+                                <TextBlock Text="📄 sPZ" FontSize="10" FontWeight="Bold" Foreground="#9A3412"/>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- ② Detail: UBÓJ -->
+                    <Border Grid.Column="1" Style="{StaticResource DetailCard}" Margin="3,0"
+                            Tag="UBOJ" MouseLeftButtonUp="Step_Click"
+                            ToolTip="Kliknij — pełen szczegół uboju">
+                        <StackPanel>
+                            <TextBlock Text="PO UBOJU" Style="{StaticResource StepLabel}" HorizontalAlignment="Left"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                <TextBlock x:Name="kpi2Value" Text="—" Style="{StaticResource StepValue}" HorizontalAlignment="Left"/>
+                                <TextBlock x:Name="kpi2Unit" Text="t" FontSize="13" Foreground="{StaticResource TextMuted}" VerticalAlignment="Bottom" Margin="4,0,0,4"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                <TextBlock x:Name="kpi2WydVal" Text="—" FontSize="13" FontWeight="Bold" Foreground="#DC2626"/>
+                                <TextBlock Text="% wyd." FontSize="11" Foreground="{StaticResource TextMuted}" Margin="3,0,0,0" VerticalAlignment="Center"/>
+                                <TextBlock Text=" · norma 85%" FontSize="11" Foreground="{StaticResource TextMuted}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock x:Name="kpi2Strata" Text="" FontSize="11" Foreground="#9A1B1B" Margin="0,3,0,0" TextWrapping="Wrap"/>
+                            <Border Background="#FEE2E2" Style="{StaticResource DocPill}" HorizontalAlignment="Left">
+                                <TextBlock Text="📄 sPWU" FontSize="10" FontWeight="Bold" Foreground="#7F1D1D"/>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- ③ Detail: KROJENIE -->
+                    <Border Grid.Column="2" Style="{StaticResource DetailCard}" Margin="3,0"
+                            Tag="PRODUKCJA" MouseLeftButtonUp="Step_Click"
+                            ToolTip="Kliknij — pełen szczegół krojenia">
+                        <StackPanel>
+                            <TextBlock Text="ELEMENTY PO KROJENIU" Style="{StaticResource StepLabel}" HorizontalAlignment="Left"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                <TextBlock x:Name="kpi3Value" Text="—" Style="{StaticResource StepValue}" HorizontalAlignment="Left"/>
+                                <TextBlock x:Name="kpi3Unit" Text="t" FontSize="13" Foreground="{StaticResource TextMuted}" VerticalAlignment="Bottom" Margin="4,0,0,4"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                <TextBlock x:Name="kpi3WydVal" Text="—" FontSize="13" FontWeight="Bold" Foreground="#7C3AED"/>
+                                <TextBlock Text="% wyd." FontSize="11" Foreground="{StaticResource TextMuted}" Margin="3,0,0,0" VerticalAlignment="Center"/>
+                                <TextBlock Text=" · norma 62%" FontSize="11" Foreground="{StaticResource TextMuted}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock x:Name="kpi3Strata" Text="" FontSize="11" Foreground="#9A1B1B" Margin="0,3,0,0" TextWrapping="Wrap"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                <Border Background="#EDE9FE" Style="{StaticResource DocPill}" Margin="0,0,3,0">
+                                    <TextBlock Text="📄 sRWP" FontSize="10" FontWeight="Bold" Foreground="#5B21B6"/>
+                                </Border>
+                                <Border Background="#EDE9FE" Style="{StaticResource DocPill}" Margin="0">
+                                    <TextBlock Text="→ sPWP" FontSize="10" FontWeight="Bold" Foreground="#5B21B6"/>
+                                </Border>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- ④ Detail: PAKOWANIE — klikalne -->
+                    <Border Grid.Column="3" Style="{StaticResource DetailCard}" Margin="3,0"
+                            MouseLeftButtonUp="Pakowanie_Click"
+                            ToolTip="Kliknij — bilans pakowania i przesunięć sMM−">
+                        <StackPanel>
+                            <TextBlock Text="SPAKOWANO ŁĄCZNIE" Style="{StaticResource StepLabel}" HorizontalAlignment="Left"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                <TextBlock x:Name="kpi4Value" Text="—" Style="{StaticResource StepValue}" HorizontalAlignment="Left"/>
+                                <TextBlock x:Name="kpi4Unit" Text="t" FontSize="13" Foreground="{StaticResource TextMuted}" VerticalAlignment="Bottom" Margin="4,0,0,4"/>
+                            </StackPanel>
+                            <TextBlock x:Name="kpi4Sub" Text="—" Style="{StaticResource StepLabel}" Foreground="{StaticResource TextSecondary}" FontWeight="Normal" HorizontalAlignment="Left" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                            <Border Background="#DBEAFE" Style="{StaticResource DocPill}" HorizontalAlignment="Left">
+                                <TextBlock Text="📄 sMM−" FontSize="10" FontWeight="Bold" Foreground="#1E40AF"/>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- ⑤ Detail: MAGAZYNY (summary) -->
+                    <Border Grid.Column="4" Style="{StaticResource DetailCard}" Margin="3,0"
+                            Tag="DYSTRYBUCJA" MouseLeftButtonUp="Step_Click"
+                            ToolTip="Kliknij — pełen szczegół dystrybucji">
+                        <StackPanel>
+                            <TextBlock Text="W MAGAZYNACH" Style="{StaticResource StepLabel}" HorizontalAlignment="Left"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                <TextBlock x:Name="kpi5Value" Text="—" Style="{StaticResource StepValue}" HorizontalAlignment="Left"/>
+                                <TextBlock x:Name="kpi5Unit" Text="t" FontSize="13" Foreground="{StaticResource TextMuted}" VerticalAlignment="Bottom" Margin="4,0,0,4"/>
+                            </StackPanel>
+                            <TextBlock x:Name="kpi5Sub" Text="—" Style="{StaticResource StepLabel}" Foreground="{StaticResource TextSecondary}" FontWeight="Normal" HorizontalAlignment="Left" Margin="0,4,0,0"/>
+                            <Border Background="#DBEAFE" Style="{StaticResource DocPill}" HorizontalAlignment="Left">
+                                <TextBlock Text="📄 sMM− → 5 magazynów" FontSize="10" FontWeight="Bold" Foreground="#1E40AF"/>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- ⑥ Detail: KLIENCI -->
+                    <Border Grid.Column="5" Style="{StaticResource DetailCard}" Margin="6,0,0,0"
+                            Tag="KLIENCI" MouseLeftButtonUp="Step_Click"
+                            ToolTip="Kliknij — pełen szczegół sprzedaży">
+                        <StackPanel>
+                            <TextBlock Text="WYSYŁKA KLIENTOM" Style="{StaticResource StepLabel}" HorizontalAlignment="Left"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                <TextBlock x:Name="kpi6Value" Text="—" Style="{StaticResource StepValue}" HorizontalAlignment="Left"/>
+                                <TextBlock x:Name="kpi6Unit" Text="t" FontSize="13" Foreground="{StaticResource TextMuted}" VerticalAlignment="Bottom" Margin="4,0,0,4"/>
+                            </StackPanel>
+                            <TextBlock x:Name="kpi6Sub" Text="—" Style="{StaticResource StepLabel}" Foreground="{StaticResource TextSecondary}" FontWeight="Normal" HorizontalAlignment="Left" Margin="0,4,0,0"/>
+                            <Border Background="#D1FAE5" Style="{StaticResource DocPill}" HorizontalAlignment="Left">
+                                <TextBlock Text="📄 sWZ" FontSize="10" FontWeight="Bold" Foreground="#047857"/>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <!-- ═══════════════ MAGAZYNY DOCELOWE — drill-down step 5 ═══════════════ -->
+                <TextBlock Text="MAGAZYNY DOCELOWE — GDZIE TRAFIŁ TOWAR" Style="{StaticResource SectionHeader}" Margin="0,0,0,4"/>
+                <TextBlock Text="rozkład sMM− do 5 magazynów wewnętrznych zakładu" FontSize="12" Foreground="{StaticResource TextMuted}" Margin="0,0,0,16"/>
+
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="1.4*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- ❄ MROŹNIA -->
+                    <Border Grid.Column="0" Style="{StaticResource SiloCard}" BorderBrush="#BAE6FD" Margin="0,0,6,0"
+                            Tag="MROZNIA" MouseLeftButtonUp="Step_Click">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="❄" FontSize="18" VerticalAlignment="Center"/>
+                                <TextBlock Text="  MROŹNIA" FontSize="12" FontWeight="Bold" Foreground="#0E7490" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock Text="−18°C  ·  zapasy" FontSize="10" Foreground="{StaticResource TextMuted}" Margin="0,2,0,8"/>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock x:Name="silMrozKg" Text="—" FontSize="24" FontWeight="Bold" FontFamily="Segoe UI" Foreground="{StaticResource TextPrimary}"/>
+                                <TextBlock Text="t" FontSize="12" Foreground="{StaticResource TextMuted}" VerticalAlignment="Bottom" Margin="3,0,0,3"/>
+                                <TextBlock x:Name="silMrozProc" Text="—%" FontSize="11" FontWeight="SemiBold" Foreground="#0E7490" VerticalAlignment="Bottom" Margin="8,0,0,4"/>
+                            </StackPanel>
+                            <TextBlock x:Name="silMrozDok" Text="" FontSize="10" Foreground="{StaticResource TextMuted}" Margin="0,2,0,0"/>
+                            <TextBlock Text="sMM− → 65552" FontSize="9" Foreground="#0E7490" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 🥓 MASARNIA -->
+                    <Border Grid.Column="1" Style="{StaticResource SiloCard}" BorderBrush="#FED7AA" Margin="3,0"
+                            Tag="MASARNIA" MouseLeftButtonUp="Step_Click">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="🥓" FontSize="18" VerticalAlignment="Center"/>
+                                <TextBlock Text="  MASARNIA" FontSize="12" FontWeight="Bold" Foreground="#9A3412" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock Text="wędliny  ·  wyroby" FontSize="10" Foreground="{StaticResource TextMuted}" Margin="0,2,0,8"/>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock x:Name="silMasarKg" Text="—" FontSize="24" FontWeight="Bold" FontFamily="Segoe UI" Foreground="{StaticResource TextPrimary}"/>
+                                <TextBlock Text="t" FontSize="12" Foreground="{StaticResource TextMuted}" VerticalAlignment="Bottom" Margin="3,0,0,3"/>
+                                <TextBlock x:Name="silMasarProc" Text="—%" FontSize="11" FontWeight="SemiBold" Foreground="#9A3412" VerticalAlignment="Bottom" Margin="8,0,0,4"/>
+                            </StackPanel>
+                            <TextBlock x:Name="silMasarDok" Text="" FontSize="10" Foreground="{StaticResource TextMuted}" Margin="0,2,0,0"/>
+                            <TextBlock Text="sMM− → 65562" FontSize="9" Foreground="#9A3412" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 🌾 KARMA -->
+                    <Border Grid.Column="2" Style="{StaticResource SiloCard}" BorderBrush="#FDE68A" Margin="3,0"
+                            Tag="KARMA" MouseLeftButtonUp="Step_Click">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="🌾" FontSize="18" VerticalAlignment="Center"/>
+                                <TextBlock Text="  KARMA" FontSize="12" FontWeight="Bold" Foreground="#A16207" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock Text="dla zwierząt  ·  pasze" FontSize="10" Foreground="{StaticResource TextMuted}" Margin="0,2,0,8"/>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock x:Name="silKarmaKg" Text="—" FontSize="24" FontWeight="Bold" FontFamily="Segoe UI" Foreground="{StaticResource TextPrimary}"/>
+                                <TextBlock Text="t" FontSize="12" Foreground="{StaticResource TextMuted}" VerticalAlignment="Bottom" Margin="3,0,0,3"/>
+                                <TextBlock x:Name="silKarmaProc" Text="—%" FontSize="11" FontWeight="SemiBold" Foreground="#A16207" VerticalAlignment="Bottom" Margin="8,0,0,4"/>
+                            </StackPanel>
+                            <TextBlock x:Name="silKarmaDok" Text="" FontSize="10" Foreground="{StaticResource TextMuted}" Margin="0,2,0,0"/>
+                            <TextBlock Text="sMM− → 65547" FontSize="9" Foreground="#A16207" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 🗑 ODPADY -->
+                    <Border Grid.Column="3" Style="{StaticResource SiloCard}" BorderBrush="#CBD5E1" Margin="3,0"
+                            Tag="ODPADY" MouseLeftButtonUp="Step_Click">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="🗑" FontSize="18" VerticalAlignment="Center"/>
+                                <TextBlock Text="  ODPADY" FontSize="12" FontWeight="Bold" Foreground="#475569" VerticalAlignment="Center"/>
+                                <Ellipse x:Name="silOdpadyDot" Width="8" Height="8" Fill="#10B981" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                            </StackPanel>
+                            <TextBlock Text="utylizacja  ·  norma ≤5%" FontSize="10" Foreground="{StaticResource TextMuted}" Margin="0,2,0,8"/>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock x:Name="silOdpadyKg" Text="—" FontSize="24" FontWeight="Bold" FontFamily="Segoe UI" Foreground="{StaticResource TextPrimary}"/>
+                                <TextBlock Text="t" FontSize="12" Foreground="{StaticResource TextMuted}" VerticalAlignment="Bottom" Margin="3,0,0,3"/>
+                                <TextBlock x:Name="silOdpadyProc" Text="—%" FontSize="11" FontWeight="SemiBold" Foreground="#475569" VerticalAlignment="Bottom" Margin="8,0,0,4"/>
+                            </StackPanel>
+                            <TextBlock x:Name="silOdpadyDok" Text="" FontSize="10" Foreground="{StaticResource TextMuted}" Margin="0,2,0,0"/>
+                            <TextBlock Text="sMM− → 65551" FontSize="9" Foreground="#475569" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 📦 DYSTRYBUCJA -->
+                    <Border Grid.Column="4" Style="{StaticResource SiloCard}" BorderBrush="#BFDBFE" Margin="6,0,0,0"
+                            Background="#F0F9FF"
+                            Tag="DYSTRYBUCJA" MouseLeftButtonUp="Step_Click">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="📦" FontSize="18" VerticalAlignment="Center"/>
+                                <TextBlock Text="  DYSTRYBUCJA  (gł. magazyn)" FontSize="12" FontWeight="Bold" Foreground="#1E40AF" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock Text="gotowe do wysyłki klientom" FontSize="10" Foreground="{StaticResource TextMuted}" Margin="0,2,0,8"/>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock x:Name="silDystKg" Text="—" FontSize="28" FontWeight="Bold" FontFamily="Segoe UI" Foreground="{StaticResource TextPrimary}"/>
+                                <TextBlock Text="t" FontSize="14" Foreground="{StaticResource TextMuted}" VerticalAlignment="Bottom" Margin="3,0,0,4"/>
+                                <TextBlock x:Name="silDystProc" Text="—%" FontSize="13" FontWeight="SemiBold" Foreground="#1E40AF" VerticalAlignment="Bottom" Margin="10,0,0,5"/>
+                            </StackPanel>
+                            <Grid Margin="0,8,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="sMM− → 65556 (M.DYST)" FontSize="9" Foreground="#1E40AF" VerticalAlignment="Center"/>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                    <TextBlock Text="→ sWZ:" FontSize="10" Foreground="{StaticResource TextMuted}" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="silDystDoKli" Text="—" FontSize="12" FontWeight="Bold" FontFamily="Segoe UI" Foreground="#1E40AF" Margin="4,0,0,0"/>
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- ═══════════════ FOOTER ═══════════════ -->
+        <Border Grid.Row="2" Background="{StaticResource Surface}" BorderBrush="{StaticResource BorderColor}" BorderThickness="0,1,0,0" Padding="32,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" x:Name="txtFooter" Text="—" FontSize="11" Foreground="{StaticResource TextMuted}" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" Text="Kliknij krok lub kartę aby zobaczyć szczegóły"
+                           FontSize="11" Foreground="{StaticResource TextMuted}" VerticalAlignment="Center"/>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -84,7 +85,7 @@ namespace Kalendarz1.Kartoteka.Features.Mapa
                     }
                 }
             }
-            catch { }
+            catch (Exception ex) { Debug.WriteLine($"[Geokodowanie] {ex.GetType().Name}: {ex.Message}"); }
 
             return null;
         }
@@ -140,7 +141,7 @@ namespace Kalendarz1.Kartoteka.Features.Mapa
                     wynik[id] = (lat, lng);
                 }
             }
-            catch { }
+            catch (Exception ex) { Debug.WriteLine($"[Geokodowanie] {ex.GetType().Name}: {ex.Message}"); }
             return wynik;
         }
     }

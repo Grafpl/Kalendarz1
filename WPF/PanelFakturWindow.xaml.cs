@@ -95,6 +95,12 @@ namespace Kalendarz1.WPF
         private readonly DataTable _dtDetails = new();
         private readonly DataTable _dtInvoice = new();
         private readonly ObservableCollection<InvoicePositionCompare> _invoiceCompareItems = new();
+
+        // Referencje do kolumn "netto" — pozwala je showować/ukryć przez chkPokazNetto.
+        // Domyślnie ukryte (fakturzystka pracuje na brutto), pokazywane gdy checkbox zaznaczony.
+        private DataGridTextColumn? _colCenaNetto;
+        private DataGridTextColumn? _colWartNetto;
+        private DataGridTextColumn? _colVatKwota;
         private readonly ObservableCollection<ProductFlowItem> _flowItems = new();
 
         // Cache (static — przeżywa zamknięcia okna)
@@ -805,24 +811,28 @@ namespace Kalendarz1.WPF
 
             if (nrFakturList.Count == 0) return;
 
-            // Mapa: NumerFaktury → (khid, nazwa klienta, suma kg) z Symfonii
-            var dict = new Dictionary<string, (int Khid, string KhName, decimal Suma)>(StringComparer.OrdinalIgnoreCase);
+            // Mapa: NumerFaktury → (khid, nazwa klienta, suma kg, netto, vat, brutto) z Symfonii
+            var dict = new Dictionary<string, (int Khid, string KhName, decimal Suma, decimal Netto, decimal Vat, decimal Brutto)>(StringComparer.OrdinalIgnoreCase);
             try
             {
                 await using var cn = new SqlConnection(_connHandel);
                 await cn.OpenAsync();
 
-                // Parametryzacja po liście — buduję IN (...) z named params dla bezpieczeństwa
+                // Parametryzacja po liście — buduję IN (...) z named params dla bezpieczeństwa.
+                // Pobieramy też dk.netto, dk.vat, dk.walBrutto żeby pokazać kwoty BRUTTO w głównej liście.
                 var paramNames = nrFakturList.Select((_, i) => $"@k{i}").ToList();
                 string sql = $@"SELECT dk.kod, dk.khid,
                                        ISNULL(kh.Name, '') AS KhName,
-                                       COALESCE(SUM(dp.ilosc), 0) AS Suma
+                                       COALESCE(SUM(dp.ilosc), 0) AS Suma,
+                                       ISNULL(dk.netto, 0) AS Netto,
+                                       ISNULL(dk.vat, 0) AS Vat,
+                                       ISNULL(dk.walBrutto, 0) AS Brutto
                                 FROM HM.DK dk
                                 LEFT JOIN HM.DP dp ON dp.super = dk.id
                                 LEFT JOIN SSCommon.STContractors kh ON kh.Id = dk.khid
                                 WHERE dk.kod IN ({string.Join(",", paramNames)})
                                   AND ISNULL(dk.anulowany, 0) = 0
-                                GROUP BY dk.kod, dk.khid, kh.Name";
+                                GROUP BY dk.kod, dk.khid, kh.Name, dk.netto, dk.vat, dk.walBrutto";
 
                 await using var cmd = new SqlCommand(sql, cn);
                 for (int i = 0; i < nrFakturList.Count; i++)
@@ -835,7 +845,12 @@ namespace Kalendarz1.WPF
                     int khid      = reader.IsDBNull(1) ? 0 : reader.GetInt32(1);
                     string khName = reader.IsDBNull(2) ? "" : reader.GetString(2);
                     decimal suma  = reader.IsDBNull(3) ? 0 : Convert.ToDecimal(reader.GetValue(3));
-                    if (!string.IsNullOrEmpty(kod)) dict[kod] = (khid, khName, suma);
+                    decimal netto = reader.IsDBNull(4) ? 0 : Convert.ToDecimal(reader.GetValue(4));
+                    decimal vat   = reader.IsDBNull(5) ? 0 : Convert.ToDecimal(reader.GetValue(5));
+                    decimal brut  = reader.IsDBNull(6) ? 0 : Convert.ToDecimal(reader.GetValue(6));
+                    // Fallback gdy walBrutto = 0 (puste): policz z netto + VAT
+                    if (brut == 0 && (netto != 0 || vat != 0)) brut = netto + vat;
+                    if (!string.IsNullOrEmpty(kod)) dict[kod] = (khid, khName, suma, netto, vat, brut);
                 }
             }
             catch (Exception ex)
@@ -860,9 +875,12 @@ namespace Kalendarz1.WPF
                     o.MatchStatus = InvoiceMatchStatus.NotFound;
                     continue;
                 }
-                o.InvoiceKhId       = inv.Khid;
-                o.InvoiceKhName     = inv.KhName;
-                o.InvoiceTotalIlosc = inv.Suma;
+                o.InvoiceKhId         = inv.Khid;
+                o.InvoiceKhName       = inv.KhName;
+                o.InvoiceTotalIlosc   = inv.Suma;
+                o.InvoiceWartoscNetto = inv.Netto;
+                o.InvoiceWartoscVat   = inv.Vat;
+                o.InvoiceWartoscBrutto = inv.Brutto;
 
                 if (inv.Khid != o.KlientId)
                 {
@@ -1242,7 +1260,9 @@ namespace Kalendarz1.WPF
 
             int invKhid = 0;
             string invKhName = "";
-            var invoicePositions = new Dictionary<int, (decimal Qty, decimal Cena, decimal Wartosc)>();
+            // Rozszerzona struktura: oprócz Qty/Cena netto/Wartość netto dodajemy
+            // stawkę VAT (np. 8.00), kwotę VAT i wartość brutto (= netto + VAT).
+            var invoicePositions = new Dictionary<int, (decimal Qty, decimal Cena, decimal WartNetto, decimal StawkaVat, decimal WartVat, decimal WartBrutto)>();
             var orderPositions   = new Dictionary<int, decimal>();
 
             try
@@ -1267,7 +1287,11 @@ namespace Kalendarz1.WPF
                         }
                     }
 
-                    const string posSql = @"SELECT dp.idtw, dp.ilosc, dp.cena, dp.wartNetto
+                    // wartstvat = stawka VAT × 100 (np. 800 = 8%, 2300 = 23%, 500 = 5%)
+                    // wartVat = kwota podatku VAT pozycji
+                    // walBrutto = wartość brutto pozycji (netto + VAT)
+                    const string posSql = @"SELECT dp.idtw, dp.ilosc, dp.cena, dp.wartNetto,
+                                                   dp.wartstvat, dp.wartVat, dp.walBrutto
                                             FROM HM.DP dp
                                             INNER JOIN HM.DK dk ON dk.id = dp.super
                                             WHERE dk.kod = @kod
@@ -1277,15 +1301,22 @@ namespace Kalendarz1.WPF
                     await using var rdrP = await cmdP.ExecuteReaderAsync(ct);
                     while (await rdrP.ReadAsync(ct))
                     {
-                        int twId      = rdrP.GetInt32(0);
-                        decimal ilosc = rdrP.IsDBNull(1) ? 0 : Convert.ToDecimal(rdrP.GetValue(1));
-                        decimal cena  = rdrP.IsDBNull(2) ? 0 : Convert.ToDecimal(rdrP.GetValue(2));
-                        decimal wart  = rdrP.IsDBNull(3) ? 0 : Convert.ToDecimal(rdrP.GetValue(3));
-                        // Jeśli ten sam towar występuje w wielu pozycjach faktury (rzadko, ale zdarza się) - sumuję
+                        int twId       = rdrP.GetInt32(0);
+                        decimal ilosc  = rdrP.IsDBNull(1) ? 0 : Convert.ToDecimal(rdrP.GetValue(1));
+                        decimal cena   = rdrP.IsDBNull(2) ? 0 : Convert.ToDecimal(rdrP.GetValue(2));
+                        decimal wartN  = rdrP.IsDBNull(3) ? 0 : Convert.ToDecimal(rdrP.GetValue(3));
+                        // wartstvat zwracane jako smallint × 100 — przelicz na procent (np. 800 → 8.00)
+                        decimal stVat  = rdrP.IsDBNull(4) ? 0 : Convert.ToDecimal(rdrP.GetValue(4)) / 100m;
+                        decimal wartV  = rdrP.IsDBNull(5) ? 0 : Convert.ToDecimal(rdrP.GetValue(5));
+                        decimal wartB  = rdrP.IsDBNull(6) ? 0 : Convert.ToDecimal(rdrP.GetValue(6));
+                        // Fallback: jeśli walBrutto = 0 z jakiegoś powodu, policz z netto + VAT
+                        if (wartB == 0 && (wartN != 0 || wartV != 0)) wartB = wartN + wartV;
+
+                        // Jeśli ten sam towar występuje w wielu pozycjach faktury — sumujemy
                         if (invoicePositions.TryGetValue(twId, out var prev))
-                            invoicePositions[twId] = (prev.Qty + ilosc, cena, prev.Wartosc + wart);
+                            invoicePositions[twId] = (prev.Qty + ilosc, cena, prev.WartNetto + wartN, stVat, prev.WartVat + wartV, prev.WartBrutto + wartB);
                         else
-                            invoicePositions[twId] = (ilosc, cena, wart);
+                            invoicePositions[twId] = (ilosc, cena, wartN, stVat, wartV, wartB);
                     }
                 }
 
@@ -1327,7 +1358,7 @@ namespace Kalendarz1.WPF
                 allTwIds.UnionWith(orderPositions.Keys);
                 const decimal QTY_TOL = 0.05m;  // 50g tolerancji per pozycja
 
-                decimal sumOrderKg = 0, sumInvoiceKg = 0, sumInvoiceVal = 0;
+                decimal sumOrderKg = 0, sumInvoiceKg = 0, sumInvoiceNetto = 0, sumInvoiceVat = 0, sumInvoiceBrutto = 0;
                 foreach (var twId in allTwIds)
                 {
                     bool hasOrder   = orderPositions.TryGetValue(twId, out var ordQty);
@@ -1355,19 +1386,30 @@ namespace Kalendarz1.WPF
 
                     var item = new InvoicePositionCompare
                     {
-                        Image      = _productImagesCache.TryGetValue(twId, out var img) ? img : null,
-                        Produkt    = nazwa,
-                        OrderQty   = hasOrder   ? ordQty       : null,
-                        InvoiceQty = hasInvoice ? invPos.Qty   : null,
-                        Cena       = hasInvoice ? invPos.Cena  : null,
-                        Wartosc    = hasInvoice ? invPos.Wartosc : null,
-                        Status     = stat
+                        Image         = _productImagesCache.TryGetValue(twId, out var img) ? img : null,
+                        Produkt       = nazwa,
+                        OrderQty      = hasOrder   ? ordQty           : null,
+                        InvoiceQty    = hasInvoice ? invPos.Qty       : null,
+                        Cena          = hasInvoice ? invPos.Cena      : null,
+                        Wartosc       = hasInvoice ? invPos.WartNetto : null,
+                        StawkaVat     = hasInvoice ? invPos.StawkaVat : null,
+                        WartoscVat    = hasInvoice ? invPos.WartVat   : null,
+                        WartoscBrutto = hasInvoice ? invPos.WartBrutto: null,
+                        Status        = stat
                     };
                     _invoiceCompareItems.Add(item);
 
-                    if (hasOrder)   sumOrderKg   += ordQty;
-                    if (hasInvoice) { sumInvoiceKg += invPos.Qty; sumInvoiceVal += invPos.Wartosc; }
+                    if (hasOrder)   sumOrderKg += ordQty;
+                    if (hasInvoice)
+                    {
+                        sumInvoiceKg     += invPos.Qty;
+                        sumInvoiceNetto  += invPos.WartNetto;
+                        sumInvoiceVat    += invPos.WartVat;
+                        sumInvoiceBrutto += invPos.WartBrutto;
+                    }
                 }
+                // Backward compat — pozostawiamy istniejące pole sumInvoiceVal jako alias netto (jeśli używane gdzieś niżej)
+                decimal sumInvoiceVal = sumInvoiceNetto;
 
                 // 4) Sortowanie: najpierw alarmy, potem ostrzeżenia, na koniec zgodne
                 var sorted = _invoiceCompareItems
@@ -1401,11 +1443,22 @@ namespace Kalendarz1.WPF
                 }
                 invoiceHeader.Visibility = Visibility.Visible;
 
-                // 6) Summary stats
+                // 6) Summary stats — pokazujemy netto + VAT + BRUTTO w jednym labelu
                 var pl = CultureInfo.GetCultureInfo("pl-PL");
                 txtSumOrderKg.Text   = sumOrderKg.ToString("N2", pl);
                 txtSumInvoiceKg.Text = sumInvoiceKg.ToString("N2", pl);
-                txtSumInvoiceVal.Text = sumInvoiceVal > 0 ? $"({sumInvoiceVal.ToString("N2", pl)} zł)" : "";
+                if (sumInvoiceBrutto > 0)
+                {
+                    txtSumInvoiceVal.Text = $"({sumInvoiceNetto.ToString("N2", pl)} netto + {sumInvoiceVat.ToString("N2", pl)} VAT = {sumInvoiceBrutto.ToString("N2", pl)} brutto zł)";
+                }
+                else if (sumInvoiceNetto > 0)
+                {
+                    txtSumInvoiceVal.Text = $"({sumInvoiceNetto.ToString("N2", pl)} zł netto)";
+                }
+                else
+                {
+                    txtSumInvoiceVal.Text = "";
+                }
                 txtSumOrderVal.Text   = "";   // wartość zamówienia liczymy tylko z faktury, dla zam mieszanego nie mamy łatwo
 
                 decimal diffKg = sumInvoiceKg - sumOrderKg;
@@ -1417,6 +1470,7 @@ namespace Kalendarz1.WPF
                     ? new SolidColorBrush(Color.FromRgb(0x16, 0xA3, 0x4A))    // zielony
                     : new SolidColorBrush(Color.FromRgb(0xEA, 0x58, 0x0C));  // pomarańczowy
                 invoiceSummary.Visibility = Visibility.Visible;
+                invoiceToolbar.Visibility = Visibility.Visible;
 
                 // 7) Grid
                 panelInvoiceEmpty.Visibility = Visibility.Collapsed;
@@ -1546,25 +1600,74 @@ namespace Kalendarz1.WPF
             diffCol.ElementStyle = diffStyle;
             dgInvoiceItems.Columns.Add(diffCol);
 
-            // Cena
+            // Kolejność kolumn: domyślnie BRUTTO + VAT% widoczne, netto + VAT zł ukryte (toggle przez checkbox).
+            // Fakturzystka zwykle pracuje na brutto — netto tylko gdy potrzeba ręcznej weryfikacji.
+            var bruttoStyle = new Style(typeof(TextBlock), rightStyle);
+            bruttoStyle.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.Bold));
+
+            // 1. Cena BRUTTO (zawsze)
             dgInvoiceItems.Columns.Add(new DataGridTextColumn
             {
-                Header = "Cena",
-                Binding = new System.Windows.Data.Binding(nameof(InvoicePositionCompare.CenaStr)),
+                Header = "Cena brutto",
+                Binding = new System.Windows.Data.Binding(nameof(InvoicePositionCompare.CenaBruttoStr)),
                 Width = new DataGridLength(1, DataGridLengthUnitType.Auto),
-                MinWidth = 75,
+                MinWidth = 85,
                 ElementStyle = rightStyle
             });
 
-            // Wartość
+            // 2. VAT% (zawsze widoczna — krótka, użyteczna informacja)
             dgInvoiceItems.Columns.Add(new DataGridTextColumn
             {
-                Header = "Wartość zł",
-                Binding = new System.Windows.Data.Binding(nameof(InvoicePositionCompare.WartoscStr)),
+                Header = "VAT",
+                Binding = new System.Windows.Data.Binding(nameof(InvoicePositionCompare.StawkaVatStr)),
                 Width = new DataGridLength(1, DataGridLengthUnitType.Auto),
-                MinWidth = 100,
+                MinWidth = 50,
                 ElementStyle = rightStyle
             });
+
+            // 3. Wartość BRUTTO — kluczowa kolumna, pogrubione, zawsze widoczna
+            dgInvoiceItems.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Wart. BRUTTO",
+                Binding = new System.Windows.Data.Binding(nameof(InvoicePositionCompare.WartoscBruttoStr)),
+                Width = new DataGridLength(1, DataGridLengthUnitType.Auto),
+                MinWidth = 110,
+                ElementStyle = bruttoStyle
+            });
+
+            // 4-6. Kolumny "netto" — ukryte domyślnie, toggle przez chkPokazNetto.
+            _colCenaNetto = new DataGridTextColumn
+            {
+                Header = "Cena netto",
+                Binding = new System.Windows.Data.Binding(nameof(InvoicePositionCompare.CenaStr)),
+                Width = new DataGridLength(1, DataGridLengthUnitType.Auto),
+                MinWidth = 78,
+                ElementStyle = rightStyle,
+                Visibility = Visibility.Collapsed
+            };
+            dgInvoiceItems.Columns.Add(_colCenaNetto);
+
+            _colWartNetto = new DataGridTextColumn
+            {
+                Header = "Wart. netto",
+                Binding = new System.Windows.Data.Binding(nameof(InvoicePositionCompare.WartoscStr)),
+                Width = new DataGridLength(1, DataGridLengthUnitType.Auto),
+                MinWidth = 95,
+                ElementStyle = rightStyle,
+                Visibility = Visibility.Collapsed
+            };
+            dgInvoiceItems.Columns.Add(_colWartNetto);
+
+            _colVatKwota = new DataGridTextColumn
+            {
+                Header = "VAT zł",
+                Binding = new System.Windows.Data.Binding(nameof(InvoicePositionCompare.WartoscVatStr)),
+                Width = new DataGridLength(1, DataGridLengthUnitType.Auto),
+                MinWidth = 80,
+                ElementStyle = rightStyle,
+                Visibility = Visibility.Collapsed
+            };
+            dgInvoiceItems.Columns.Add(_colVatKwota);
 
             // Status (ikona + tekst)
             var statusSp = new FrameworkElementFactory(typeof(StackPanel));
@@ -1589,6 +1692,27 @@ namespace Kalendarz1.WPF
                 Width = new DataGridLength(1, DataGridLengthUnitType.Auto),
                 MinWidth = 130
             });
+        }
+
+        // Handler checkbox'a "Pokaż też netto + VAT zł" — toggle visibility 3 kolumn.
+        // Domyślnie ukryte (false) — fakturzystka widzi tylko Cena brutto / VAT% / Wart. BRUTTO.
+        private void ChkPokazNetto_Toggle(object sender, RoutedEventArgs e)
+        {
+            bool show = chkPokazNetto.IsChecked == true;
+            var vis = show ? Visibility.Visible : Visibility.Collapsed;
+            if (_colCenaNetto != null) _colCenaNetto.Visibility = vis;
+            if (_colWartNetto != null) _colWartNetto.Visibility = vis;
+            if (_colVatKwota != null) _colVatKwota.Visibility = vis;
+        }
+
+        // Handler checkbox'a "Pokaż też netto" w głównej liście zamówień (dgOrders).
+        // Domyślnie ukrywamy kolumnę 'Netto' — fakturzystka widzi tylko BRUTTO.
+        private void ChkPokazNettoOrders_Toggle(object sender, RoutedEventArgs e)
+        {
+            if (colOrdersNetto == null) return;
+            colOrdersNetto.Visibility = chkPokazNettoOrders.IsChecked == true
+                ? Visibility.Visible
+                : Visibility.Collapsed;
         }
 
         // ════════════════════════════════════════════════════════════
@@ -2555,6 +2679,11 @@ namespace Kalendarz1.WPF
             public int? InvoiceKhId { get; set; }
             public string InvoiceKhName { get; set; } = "";
             public decimal? InvoiceTotalIlosc { get; set; }
+            // Wartość BRUTTO z Symfonii (HM.DK.walBrutto) — dla zamówień zafakturowanych.
+            // Jeśli null — albo brak faktury, albo nie zweryfikowano.
+            public decimal? InvoiceWartoscBrutto { get; set; }
+            public decimal? InvoiceWartoscNetto { get; set; }
+            public decimal? InvoiceWartoscVat { get; set; }
         }
 
         public enum InvoiceMatchStatus
@@ -2594,14 +2723,25 @@ namespace Kalendarz1.WPF
             public string Produkt { get; set; } = "";
             public decimal? OrderQty { get; set; }
             public decimal? InvoiceQty { get; set; }
-            public decimal? Cena { get; set; }
-            public decimal? Wartosc { get; set; }
+            public decimal? Cena { get; set; }            // cena netto (z HM.DP.cena)
+            public decimal? Wartosc { get; set; }         // wartość netto (z HM.DP.wartNetto)
+            public decimal? StawkaVat { get; set; }       // stawka VAT w procentach (np. 8, 23, 5)
+            public decimal? WartoscVat { get; set; }      // kwota VAT pozycji (z HM.DP.wartVat)
+            public decimal? WartoscBrutto { get; set; }   // wartość brutto pozycji (z HM.DP.walBrutto)
             public PositionCompareStatus Status { get; set; }
 
             public string OrderQtyStr   => OrderQty.HasValue   ? OrderQty.Value.ToString("N2", PL)   : "—";
             public string InvoiceQtyStr => InvoiceQty.HasValue ? InvoiceQty.Value.ToString("N2", PL) : "—";
             public string CenaStr       => Cena.HasValue       ? Cena.Value.ToString("N2", PL)      : "";
             public string WartoscStr    => Wartosc.HasValue    ? Wartosc.Value.ToString("N2", PL)   : "";
+
+            // Cena brutto = cena netto × (1 + stawka/100)
+            public decimal? CenaBrutto => (Cena.HasValue && StawkaVat.HasValue)
+                ? Math.Round(Cena.Value * (1m + StawkaVat.Value / 100m), 4) : (decimal?)null;
+            public string StawkaVatStr     => StawkaVat.HasValue     ? $"{StawkaVat.Value:0.##}%"                       : "";
+            public string WartoscVatStr    => WartoscVat.HasValue    ? WartoscVat.Value.ToString("N2", PL)               : "";
+            public string WartoscBruttoStr => WartoscBrutto.HasValue ? WartoscBrutto.Value.ToString("N2", PL)            : "";
+            public string CenaBruttoStr    => CenaBrutto.HasValue    ? CenaBrutto.Value.ToString("N2", PL)                : "";
 
             public decimal DiffNum => (InvoiceQty ?? 0m) - (OrderQty ?? 0m);
             public string DiffStr
@@ -2927,11 +3067,52 @@ namespace Kalendarz1.WPF
             public string Waluta => Info.Waluta ?? "PLN";
             public string WalutaSymbol => Waluta == "EUR" ? "€" : "zł";
 
-            // Wartość sformatowana z walutą — np. "1 500,00 zł" lub "350,00 €"
+            // Wartość NETTO z LibraNet (cena zamówienia × ilość) sformatowana z walutą — np. "1 500,00 zł"
             public string WartoscDisplay => $"{Info.Wartosc:N2} {WalutaSymbol}";
 
             // Wartość — szara gdy 0 (brak cen)
             public Brush WartoscColor => Info.Wartosc > 0 ? _brushTextDark : _brushTextMuted;
+
+            // Wartość BRUTTO z faktury Symfonii (HM.DK.walBrutto). Dla niezafakturowanych pokazuje "—".
+            // Fakturzystka widzi to natychmiast w głównej liście — bez wchodzenia w drill-down "Pozycje faktury".
+            public string WartoscBruttoDisplay
+            {
+                get
+                {
+                    if (Info.InvoiceWartoscBrutto.HasValue && Info.InvoiceWartoscBrutto.Value > 0)
+                        return $"{Info.InvoiceWartoscBrutto.Value:N2} {WalutaSymbol}";
+                    // Brak faktury — estymacja brutto z założeniem 5% VAT (drób — dominująca stawka)
+                    if (Info.Wartosc > 0)
+                        return $"≈ {(Info.Wartosc * 1.05m):N2} {WalutaSymbol}";
+                    return "—";
+                }
+            }
+            public Brush WartoscBruttoColor
+            {
+                get
+                {
+                    if (Info.InvoiceWartoscBrutto.HasValue && Info.InvoiceWartoscBrutto.Value > 0)
+                        return _brushTextDark;   // faktyczne brutto z faktury — pewna kwota
+                    return _brushTextMuted;       // estymacja albo brak — wyszarzone
+                }
+            }
+            // Tooltip wyjaśnia źródło kwoty
+            public string WartoscBruttoTooltip
+            {
+                get
+                {
+                    if (Info.InvoiceWartoscBrutto.HasValue && Info.InvoiceWartoscBrutto.Value > 0)
+                    {
+                        return $"Z faktury {Info.NumerFaktury} (Symfonia):\n" +
+                               $"Netto: {Info.InvoiceWartoscNetto:N2}\n" +
+                               $"VAT:   {Info.InvoiceWartoscVat:N2}\n" +
+                               $"Brutto: {Info.InvoiceWartoscBrutto:N2}";
+                    }
+                    if (Info.Wartosc > 0)
+                        return "Faktura niewystawiona — estymacja netto×1.05 (5% VAT dla drobiu)";
+                    return "Brak ceny w zamówieniu";
+                }
+            }
 
             // Status display + kolory
             public string StatusDisplay

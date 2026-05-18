@@ -1,0 +1,304 @@
+==============================================================================
+WYNIKI EKSPLORACJI CROSS-DB (LibraNet ↔ HANDEL ↔ TransportPL)
+==============================================================================
+
+Plik bada zaleznosci miedzy 3 bazami (15 blokow):
+
+LIBRANETxTRANSPORTPL (cross-database, ten sam serwer 109):
+- X01: Driver vs Kierowca + CarTrailer vs Pojazd
+- X02: ZamowieniaMieso.TransportKursID broken FK
+- X03: Ladunki "ZAM_xxx" → ZamowieniaMieso.Id
+
+LIBRANETxLIBRANET:
+- X04: listapartii.HarmonogramLp → HarmonogramDostaw
+- X05: PartiaDostawca.CustomerID → Pozyskiwanie_Hodowcy
+- X06: DostawcyAdresy → Dostawcy
+- X07: Aktywnosc.KtoStworzyl → operators
+- X08: HistoriaZmianZamowien.Uzytkownik → operators
+- X09: Reklamacje.IdKontrahenta → OdbiorcyCRM/kontrahenci
+- X10: In0E.OperatorID → operators (sieroty)
+- X11: Notatki.UtworzylID → operators
+- X12: DokumentyWZ struktura + sample
+- X13: WstawieniaKurczakow → HarmonogramDostaw
+- X14: WagoCounter ↔ FarmerCalc per CarLp (FULL OUTER JOIN)
+- X15: DocOut0E + HeaderDocOut0E
+
+LibraNet i TransportPL są na tym samym serwerze (192.168.0.109)
+więc cross-database queries powinny działać bez Linked Server.
+
+INSTRUKCJA:
+1. SSMS -> 192.168.0.109 (pronova/pronova)
+2. Otworz EKSPLORACJA_CROSS_DB.sql
+3. Ctrl+T -> F5 -> Ctrl+A -> Ctrl+C
+4. Wklej WSZYSTKO ponizej
+
+==============================================================================
+
+
+===WYNIKI POCZATEK===
+
+################################################################
+## EKSPLORACJA CROSS-DB - START                               ##
+################################################################
+__SEKCJA      zrodlo               razem
+------------- -------------------- -----------
+X01_A_drivers LibraNet.Driver      23
+X01_A_drivers TransportPL.Kierowca 16
+
+Msg 207, Level 16, State 1, Line 56
+Invalid column name 'ID'.
+__SEKCJA      zrodlo              razem
+------------- ------------------- -----------
+X01_C_pojazdy LibraNet.CarTrailer 24
+X01_C_pojazdy TransportPL.Pojazd  13
+
+__SEKCJA                   razem       najstarsze najnowsze
+-------------------------- ----------- ---------- ----------
+X02_A_zamowienia_bez_kursu 6           2025-09-18 2025-09-25
+
+__SEKCJA                 TransportKursID      DataKursu  Trasa                                                                                                                    liczba_zamowien suma_palet
+------------------------ -------------------- ---------- ------------------------------------------------------------------------------------------------------------------------ --------------- ---------------------------------------
+X02_B_top_kursy_zamowien 1465                 2026-04-15 PUBLIMAR → Ladros → MAX-MIĘS                                                                                             3               31.55
+X02_B_top_kursy_zamowien 1520                 2026-04-22 Trzepałka Mariusz → PUBLIMAR → Ladros                                                                                    3               31.40
+X02_B_top_kursy_zamowien 1525                 2026-04-23 Trzepałka Mariusz → Cezar → Romanowska                                                                                   3               33.33
+X02_B_top_kursy_zamowien 1548                 2026-04-27 Trzepałka Mariusz → Cezar → Romanowska                                                                                   3               19.44
+X02_B_top_kursy_zamowien 1569                 2026-04-29 Trzepałka Mariusz → Cezar → Romanowska                                                                                   3               28.94
+X02_B_top_kursy_zamowien 1407                 2026-04-08 PIEKARSCY ZAKŁADY MIĘSNE → EGE FOOD                                                                                      2               7.17
+X02_B_top_kursy_zamowien 1402                 2026-04-07 Ladros → PUBLIMAR                                                                                                        2               26.11
+X02_B_top_kursy_zamowien 1410                 2026-04-08 PUBLIMAR → Ladros                                                                                                        2               28.86
+X02_B_top_kursy_zamowien 1417                 2026-04-08 Destan → Trzepałka Mariusz                                                                                               2               20.00
+X02_B_top_kursy_zamowien 1419                 2026-04-09 ŁYSE → O&M                                                                                                               2               30.69
+X02_B_top_kursy_zamowien 1422                 2026-04-09 Polski Drób → Ladros                                                                                                     2               34.45
+X02_B_top_kursy_zamowien 1421                 2026-04-09 Destan → Trzepałka Mariusz                                                                                               2               19.56
+X02_B_top_kursy_zamowien 1430                 2026-04-10 Cezar → Trzepałka Mariusz                                                                                                2               20.11
+X02_B_top_kursy_zamowien 1429                 2026-04-09 BOMAFAR → Gold-Drób                                                                                                      2               15.20
+X02_B_top_kursy_zamowien 1399                 2026-04-07 Romanowska → Trzepałka Mariusz                                                                                           2               29.13
+X02_B_top_kursy_zamowien 1433                 2026-04-10 Trzepałka Mariusz → Ladros                                                                                               2               25.28
+X02_B_top_kursy_zamowien 1438                 2026-04-10 Romanowska → Wierzejki                                                                                                   2               19.03
+X02_B_top_kursy_zamowien 1444                 2026-04-13 RADDROB Chlebowski → SOŁTYSIAK DAMIAN HANDEL OBWOŹNY "JANCEL"                                                            2               35.78
+X02_B_top_kursy_zamowien 1446                 2026-04-13 BOMAFAR → Gold-Drób                                                                                                      2               14.78
+X02_B_top_kursy_zamowien 1450                 2026-04-13 Cezar → Trzepałka Mariusz                                                                                                2               30.28
+X02_B_top_kursy_zamowien 1454                 2026-04-14 Romanowska → ŁYSE                                                                                                        2               10.04
+X02_B_top_kursy_zamowien 1457                 2026-04-14 WIŚNIEWSKI PROGRES → SMOLIŃSKI                                                                                           2               15.51
+X02_B_top_kursy_zamowien 1460                 2026-04-15 Trzepałka Mariusz → Ladros                                                                                               2               29.53
+X02_B_top_kursy_zamowien 1472                 2026-04-16 Trzepałka Mariusz → ŁYSE                                                                                                 2               25.08
+X02_B_top_kursy_zamowien 1480                 2026-04-16 PUBLIMAR → Ladros                                                                                                        2               26.08
+X02_B_top_kursy_zamowien 1481                 2026-04-17 Romanowska → Trzepałka Mariusz                                                                                           2               32.58
+X02_B_top_kursy_zamowien 1484                 2026-04-17 POLSKAMP → Ladros                                                                                                        2               29.67
+X02_B_top_kursy_zamowien 1487                 2026-04-17 SOFMAX TRANS → SMOLIŃSKI                                                                                                 2               16.15
+X02_B_top_kursy_zamowien 1489                 2026-04-17 POLSKAMP → Wierzejki                                                                                                     2               25.13
+X02_B_top_kursy_zamowien 1492                 2026-04-20 PODOLSKI → RADDROB Chlebowski                                                                                            2               38.88
+
+Msg 130, Level 15, State 1, Line 117
+Cannot perform an aggregate function on an expression containing an aggregate or a subquery.
+Msg 130, Level 15, State 1, Line 121
+Cannot perform an aggregate function on an expression containing an aggregate or a subquery.
+__SEKCJA              razem
+--------------------- -----------
+X04_A_partie_bez_harm 0
+
+__SEKCJA                 z_harm      bez_harm    razem
+------------------------ ----------- ----------- -----------
+X04_B_partie_harm_uzycie 0           37810       37810
+
+Msg 207, Level 16, State 1, Line 160
+Invalid column name 'CustomerID'.
+Msg 207, Level 16, State 1, Line 158
+Invalid column name 'CustomerID'.
+Msg 207, Level 16, State 1, Line 169
+Invalid column name 'CustomerID'.
+Msg 207, Level 16, State 1, Line 182
+Invalid column name 'DostawcaID'.
+__SEKCJA                  KtoStworzyl operator_imie        liczba_aktywnosci
+------------------------- ----------- -------------------- -----------------
+X07_A_aktywnosc_operators 2121        Teresa Jachymczak    8
+X07_A_aktywnosc_operators 11111       Administrator        6
+X07_A_aktywnosc_operators 1122        Paulina Koncka       4
+
+__SEKCJA                 Uzytkownik                                         UzytkownikNazwa                                                                                                                                                                                          operator_z_table     liczba_zmian
+------------------------ -------------------------------------------------- -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- -------------------- ------------
+X08_A_zmiany_uzytkownicy 432143                                             Anna Jedynak                                                                                                                                                                                             Anna Jedynak         1804
+X08_A_zmiany_uzytkownicy 6521                                               Maja Leonard                                                                                                                                                                                             Maja Leonard         742
+X08_A_zmiany_uzytkownicy 51991                                              Ilona Krakowiak                                                                                                                                                                                          Ilona Krakowiak      280
+X08_A_zmiany_uzytkownicy 2121                                               Teresa Jachymczak                                                                                                                                                                                        Teresa Jachymczak    234
+X08_A_zmiany_uzytkownicy 23233                                              Małgorzata Stępniak                                                                                                                                                                                      Małgorzata Stępniak  196
+X08_A_zmiany_uzytkownicy 9321                                               Renata Balcerak                                                                                                                                                                                          Renata Balcerak      31
+X08_A_zmiany_uzytkownicy 11111                                              Administrator                                                                                                                                                                                            Administrator        27
+X08_A_zmiany_uzytkownicy SYSTEM                                             NULL                                                                                                                                                                                                     NULL                 13
+
+__SEKCJA                    IdKontrahenta NazwaKontrahenta                                                                                                                                                                                                                                           liczba_reklamacji reczne      suma_kg                                 suma_wartosci
+--------------------------- ------------- ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- ----------------- ----------- --------------------------------------- ---------------------------------------
+X09_A_reklamacje_per_klient 1436          BOMAFAR                                                                                                                                                                                                                                                    154               23          506550.10                               155779.98
+X09_A_reklamacje_per_klient 4779          SMOLIŃSKI                                                                                                                                                                                                                                                  47                16          25185.85                                50168.47
+X09_A_reklamacje_per_klient 931           Trzepałka Mariusz                                                                                                                                                                                                                                          45                7           287695.42                               46157.62
+X09_A_reklamacje_per_klient 5541          LAVERNA                                                                                                                                                                                                                                                    4                 4           58600.00                                388880.00
+X09_A_reklamacje_per_klient 5228          MEST FOOD OU Estonia                                                                                                                                                                                                                                       4                 4           52500.00                                569417.90
+X09_A_reklamacje_per_klient 1120          Polski Drób                                                                                                                                                                                                                                                8                 2           20074.82                                76389.57
+X09_A_reklamacje_per_klient 361           KABANOS                                                                                                                                                                                                                                                    6                 2           20074.00                                8159.20
+X09_A_reklamacje_per_klient 4820          Wierzejki                                                                                                                                                                                                                                                  4                 2           240.00                                  2784.00
+X09_A_reklamacje_per_klient 1385          ZYGA GROUP                                                                                                                                                                                                                                                 4                 2           1020.00                                 4749.00
+X09_A_reklamacje_per_klient 4856          Centrum Drobiu Anna Piórkowska                                                                                                                                                                                                                             26                1           6181.91                                 18501.32
+X09_A_reklamacje_per_klient 5431          MAX-MIĘS                                                                                                                                                                                                                                                   25                1           373340.37                               86583.52
+X09_A_reklamacje_per_klient 1344          PODOLSKI                                                                                                                                                                                                                                                   8                 1           123300.44                               5260.73
+X09_A_reklamacje_per_klient 939           Damak                                                                                                                                                                                                                                                      5                 1           54799.00                                21810.10
+X09_A_reklamacje_per_klient 5310          GOLDFINCH BUSINESS SOLUTIONS                                                                                                                                                                                                                               3                 1           20929.00                                403.05
+X09_A_reklamacje_per_klient 4198          INTE SMAK                                                                                                                                                                                                                                                  2                 1           120.00                                  1800.00
+X09_A_reklamacje_per_klient 1288          FRESH FROZEN FOOD PARK Spółka z Ogranicz                                                                                                                                                                                                                   2                 1           300.00                                  2040.00
+X09_A_reklamacje_per_klient 1541          PUBLIMAR                                                                                                                                                                                                                                                   2                 1           120.00                                  1980.00
+X09_A_reklamacje_per_klient 4845          STOCZEK NATURA                                                                                                                                                                                                                                             1                 1           21000.00                                351120.00
+X09_A_reklamacje_per_klient 5049          TWÓJ MARKET SPÓŁKA Z O.O.                                                                                                                                                                                                                                  36                0           107524.00                               23320.55
+X09_A_reklamacje_per_klient 4837          BATISTA SPÓŁKA Z O.O.                                                                                                                                                                                                                                      14                0           168417.64                               13370.45
+
+Msg 130, Level 15, State 1, Line 243
+Cannot perform an aggregate function on an expression containing an aggregate or a subquery.
+Msg 130, Level 15, State 1, Line 244
+Cannot perform an aggregate function on an expression containing an aggregate or a subquery.
+__SEKCJA                    OperatorID Wagowy               liczba_wazen
+--------------------------- ---------- -------------------- ------------
+
+Msg 207, Level 16, State 1, Line 280
+Invalid column name 'UtworzylID'.
+Msg 207, Level 16, State 1, Line 281
+Invalid column name 'UtworzylID'.
+Msg 207, Level 16, State 1, Line 274
+Invalid column name 'UtworzylID'.
+__SEKCJA                  ORDINAL_POSITION COLUMN_NAME                                                                                                                      DATA_TYPE
+------------------------- ---------------- -------------------------------------------------------------------------------------------------------------------------------- --------------------------------------------------------------------------------------------------------------------------------
+X12_A_dokumentywz_kolumny 1                ID                                                                                                                               int
+X12_A_dokumentywz_kolumny 2                NrWZ                                                                                                                             int
+X12_A_dokumentywz_kolumny 3                DataWystawienia                                                                                                                  datetime
+X12_A_dokumentywz_kolumny 4                IDRekordu                                                                                                                        bigint
+X12_A_dokumentywz_kolumny 5                Tryb                                                                                                                             nvarchar
+X12_A_dokumentywz_kolumny 6                Towar                                                                                                                            nvarchar
+X12_A_dokumentywz_kolumny 7                Netto                                                                                                                            int
+X12_A_dokumentywz_kolumny 8                Operator                                                                                                                         nvarchar
+X12_A_dokumentywz_kolumny 9                CzyWydrukowano                                                                                                                   bit
+
+__SEKCJA                 ID          NrWZ        DataWystawienia         IDRekordu            Tryb                 Towar                                              Netto       Operator                                           CzyWydrukowano
+------------------------ ----------- ----------- ----------------------- -------------------- -------------------- -------------------------------------------------- ----------- -------------------------------------------------- --------------
+X12_B_dokumentywz_recent 1           1           2026-01-10 17:54:18.900 53                   Avilog               ŻYWIEC DROBIOWY                                    10000       Portier                                            1
+
+__SEKCJA               razem       z_LpUK      z_LpU       z_LpP
+---------------------- ----------- ----------- ----------- -----------
+X13_A_wstawienia_links 2461        0           547         547
+
+__SEKCJA                      hodowcy_wstawien hodowcy_partii
+----------------------------- ---------------- --------------
+X13_B_hodowcy_wstaw_vs_partie 216              89
+Warning: Null value is eliminated by an aggregate or other SET operation.
+
+__SEKCJA                CalcDate                Wago_CarLp  Farmer_CarLp wago_szt    farmer_dek  farmer_polic farmer_kg                               roznica
+----------------------- ----------------------- ----------- ------------ ----------- ----------- ------------ --------------------------------------- -----------
+X14_A_wago_farmer_match NULL                    NULL        15           NULL        NULL        NULL         NULL                                    NULL
+X14_A_wago_farmer_match NULL                    NULL        14           NULL        NULL        NULL         NULL                                    NULL
+X14_A_wago_farmer_match NULL                    NULL        13           NULL        NULL        NULL         NULL                                    NULL
+X14_A_wago_farmer_match NULL                    NULL        12           NULL        NULL        NULL         NULL                                    NULL
+X14_A_wago_farmer_match NULL                    NULL        11           NULL        NULL        NULL         NULL                                    NULL
+X14_A_wago_farmer_match NULL                    NULL        10           NULL        NULL        NULL         NULL                                    NULL
+X14_A_wago_farmer_match NULL                    NULL        9            NULL        NULL        NULL         NULL                                    NULL
+X14_A_wago_farmer_match NULL                    NULL        8            NULL        NULL        NULL         NULL                                    NULL
+X14_A_wago_farmer_match NULL                    NULL        7            NULL        NULL        NULL         NULL                                    NULL
+X14_A_wago_farmer_match NULL                    NULL        6            NULL        NULL        NULL         NULL                                    NULL
+X14_A_wago_farmer_match NULL                    NULL        5            NULL        NULL        NULL         NULL                                    NULL
+X14_A_wago_farmer_match NULL                    NULL        4            NULL        NULL        NULL         NULL                                    NULL
+X14_A_wago_farmer_match NULL                    NULL        3            NULL        NULL        NULL         NULL                                    NULL
+X14_A_wago_farmer_match NULL                    NULL        2            NULL        NULL        NULL         NULL                                    NULL
+X14_A_wago_farmer_match NULL                    NULL        1            NULL        NULL        NULL         NULL                                    NULL
+X14_A_wago_farmer_match 2026-05-04 00:00:00.000 15          15           3983        NULL        NULL         13200.00                                3983
+X14_A_wago_farmer_match 2026-05-04 00:00:00.000 14          14           4095        NULL        NULL         13100.00                                4095
+X14_A_wago_farmer_match 2026-05-04 00:00:00.000 13          13           4023        NULL        NULL         12900.00                                4023
+X14_A_wago_farmer_match 2026-05-04 00:00:00.000 12          12           3984        NULL        NULL         12860.00                                3984
+X14_A_wago_farmer_match 2026-05-04 00:00:00.000 11          11           3952        NULL        NULL         13960.00                                3952
+X14_A_wago_farmer_match 2026-05-04 00:00:00.000 10          10           3925        NULL        NULL         11740.00                                3925
+X14_A_wago_farmer_match 2026-05-04 00:00:00.000 9           9            4188        NULL        NULL         13680.00                                4188
+X14_A_wago_farmer_match 2026-05-04 00:00:00.000 8           8            4212        NULL        NULL         11880.00                                4212
+X14_A_wago_farmer_match 2026-05-04 00:00:00.000 7           7            4018        NULL        NULL         13620.00                                4018
+X14_A_wago_farmer_match 2026-05-04 00:00:00.000 6           6            3954        NULL        NULL         13760.00                                3954
+X14_A_wago_farmer_match 2026-05-04 00:00:00.000 5           5            5757        NULL        NULL         12560.00                                5757
+X14_A_wago_farmer_match 2026-05-04 00:00:00.000 4           4            5777        NULL        NULL         13460.00                                5777
+X14_A_wago_farmer_match 2026-05-04 00:00:00.000 3           3            3932        NULL        NULL         12940.00                                3932
+X14_A_wago_farmer_match 2026-05-04 00:00:00.000 2           2            4187        NULL        NULL         12440.00                                4187
+X14_A_wago_farmer_match 2026-05-04 00:00:00.000 1           1            4208        NULL        NULL         12680.00                                4208
+
+__SEKCJA                 TABLE_NAME                                                                                                                       ORDINAL_POSITION COLUMN_NAME                                                                                                                      DATA_TYPE
+------------------------ -------------------------------------------------------------------------------------------------------------------------------- ---------------- -------------------------------------------------------------------------------------------------------------------------------- --------------------------------------------------------------------------------------------------------------------------------
+X15_A_docout0e_struktura DocOut0E                                                                                                                         1                GUID                                                                                                                             varchar
+X15_A_docout0e_struktura DocOut0E                                                                                                                         2                GUID_H                                                                                                                           varchar
+X15_A_docout0e_struktura DocOut0E                                                                                                                         3                DocNumber                                                                                                                        int
+X15_A_docout0e_struktura DocOut0E                                                                                                                         4                ArticleID                                                                                                                        varchar
+X15_A_docout0e_struktura DocOut0E                                                                                                                         5                ArticleName                                                                                                                      varchar
+X15_A_docout0e_struktura DocOut0E                                                                                                                         6                InsteadArticleID                                                                                                                 varchar
+X15_A_docout0e_struktura DocOut0E                                                                                                                         7                InsteadArticleName                                                                                                               varchar
+X15_A_docout0e_struktura DocOut0E                                                                                                                         8                Weight                                                                                                                           float
+X15_A_docout0e_struktura DocOut0E                                                                                                                         9                Tara                                                                                                                             float
+X15_A_docout0e_struktura DocOut0E                                                                                                                         10               Price                                                                                                                            float
+X15_A_docout0e_struktura DocOut0E                                                                                                                         11               JM                                                                                                                               varchar
+X15_A_docout0e_struktura DocOut0E                                                                                                                         12               OrdWeight                                                                                                                        float
+X15_A_docout0e_struktura DocOut0E                                                                                                                         13               Quantity                                                                                                                         int
+X15_A_docout0e_struktura DocOut0E                                                                                                                         14               Uwagi                                                                                                                            varchar
+X15_A_docout0e_struktura DocOut0E                                                                                                                         15               CreateData                                                                                                                       varchar
+X15_A_docout0e_struktura DocOut0E                                                                                                                         16               CreateGodzina                                                                                                                    varchar
+X15_A_docout0e_struktura DocOut0E                                                                                                                         17               ModificationData                                                                                                                 varchar
+X15_A_docout0e_struktura DocOut0E                                                                                                                         18               ModificationGodzina                                                                                                              varchar
+X15_A_docout0e_struktura DocOut0E                                                                                                                         19               ActWeight                                                                                                                        float
+X15_A_docout0e_struktura HeaderDocOut0E                                                                                                                   1                GUID                                                                                                                             varchar
+X15_A_docout0e_struktura HeaderDocOut0E                                                                                                                   2                DocNumber                                                                                                                        int
+X15_A_docout0e_struktura HeaderDocOut0E                                                                                                                   3                CustomerID                                                                                                                       varchar
+X15_A_docout0e_struktura HeaderDocOut0E                                                                                                                   4                CustomerName                                                                                                                     varchar
+X15_A_docout0e_struktura HeaderDocOut0E                                                                                                                   5                Address1                                                                                                                         varchar
+X15_A_docout0e_struktura HeaderDocOut0E                                                                                                                   6                Address2                                                                                                                         varchar
+X15_A_docout0e_struktura HeaderDocOut0E                                                                                                                   7                StartData                                                                                                                        varchar
+X15_A_docout0e_struktura HeaderDocOut0E                                                                                                                   8                StartGodzina                                                                                                                     varchar
+X15_A_docout0e_struktura HeaderDocOut0E                                                                                                                   9                StopData                                                                                                                         varchar
+X15_A_docout0e_struktura HeaderDocOut0E                                                                                                                   10               StopGodzina                                                                                                                      varchar
+X15_A_docout0e_struktura HeaderDocOut0E                                                                                                                   11               IsClose                                                                                                                          smallint
+X15_A_docout0e_struktura HeaderDocOut0E                                                                                                                   12               IsSend                                                                                                                           smallint
+X15_A_docout0e_struktura HeaderDocOut0E                                                                                                                   13               OperatorID                                                                                                                       varchar
+X15_A_docout0e_struktura HeaderDocOut0E                                                                                                                   14               Wagowy                                                                                                                           varchar
+X15_A_docout0e_struktura HeaderDocOut0E                                                                                                                   15               Trasa                                                                                                                            varchar
+X15_A_docout0e_struktura HeaderDocOut0E                                                                                                                   16               OrderNo                                                                                                                          varchar
+X15_A_docout0e_struktura HeaderDocOut0E                                                                                                                   17               DryFactor                                                                                                                        float
+X15_A_docout0e_struktura HeaderDocOut0E                                                                                                                   18               Forced                                                                                                                           varchar
+X15_A_docout0e_struktura HeaderDocOut0E                                                                                                                   19               TransNo                                                                                                                          int
+X15_A_docout0e_struktura HeaderDocOut0E                                                                                                                   20               SendTwice                                                                                                                        smallint
+X15_A_docout0e_struktura HeaderDocOut0E                                                                                                                   21               CreateData                                                                                                                       varchar
+X15_A_docout0e_struktura HeaderDocOut0E                                                                                                                   22               CreateGodzina                                                                                                                    varchar
+X15_A_docout0e_struktura HeaderDocOut0E                                                                                                                   23               ModificationData                                                                                                                 varchar
+X15_A_docout0e_struktura HeaderDocOut0E                                                                                                                   24               ModificationGodzina                                                                                                              varchar
+X15_A_docout0e_struktura HeaderDocOut0E                                                                                                                   25               LocNumber                                                                                                                        int
+X15_A_docout0e_struktura HeaderDocOut0E                                                                                                                   26               TermID                                                                                                                           int
+X15_A_docout0e_struktura HeaderDocOut0E                                                                                                                   27               Partia                                                                                                                           varchar
+X15_A_docout0e_struktura HeaderDocOut0E                                                                                                                   28               Processed                                                                                                                        smallint
+X15_A_docout0e_struktura HeaderDocOut0E                                                                                                                   29               IsChecked                                                                                                                        smallint
+X15_A_docout0e_struktura HeaderDocOut0E                                                                                                                   30               CustomerInner                                                                                                                    bit
+
+__SEKCJA              GUID                                 GUID_H                               DocNumber   ArticleID  ArticleName                              InsteadArticleID InsteadArticleName                       Weight                 Tara                   Price                  JM   OrdWeight              Quantity    Uwagi                CreateData CreateGodzina ModificationData ModificationGodzina ActWeight
+--------------------- ------------------------------------ ------------------------------------ ----------- ---------- ---------------------------------------- ---------------- ---------------------------------------- ---------------------- ---------------------- ---------------------- ---- ---------------------- ----------- -------------------- ---------- ------------- ---------------- ------------------- ----------------------
+X15_B_docout0e_sample 006EB8A9-D746-48CF-8F54-94C2F2E4869F                                      136         44         Zoladek z kurczaka schlodzony            NULL             NULL                                     0                      0                      NULL                   kg   10                     NULL                             NULL       NULL          NULL             NULL                NULL
+X15_B_docout0e_sample 00C8411C-F1F1-4397-9A30-52E34A52F42B                                      239         11         Cwiartka z kurczaka kl. A schlodzona     NULL             NULL                                     600                    0                      NULL                   kg   600                    NULL                             NULL       NULL          NULL             NULL                NULL
+X15_B_docout0e_sample 0122FD7B-EF20-46A0-9296-687FC11B4DDB                                      51          44         Zoladek z kurczaka schlodzony            NULL             NULL                                     41,16                  0                      NULL                   kg   40                     NULL                             NULL       NULL          NULL             NULL                NULL
+X15_B_docout0e_sample 012EFD53-3452-42C7-86D4-2444E440EA55                                      39          38         kurczak P. KL. A schlodzony 8            NULL             NULL                                     15,04                  0                      NULL                   kg   15                     NULL                             NULL       NULL          NULL             NULL                NULL
+X15_B_docout0e_sample 0143750C-18C3-4DF6-A2A6-A280C6FA7B78                                      77          43         Serce z kurczaka schlodzone              NULL             NULL                                     20,48                  0                      NULL                   kg   20                     NULL                             NULL       NULL          NULL             NULL                NULL
+
+__SEKCJA                 GUID                                 DocNumber   CustomerID CustomerName                                                                                         Address1                                 Address2                                 StartData  StartGodzina StopData   StopGodzina IsClose IsSend OperatorID Wagowy               Trasa OrderNo              DryFactor              Forced TransNo     SendTwice CreateData CreateGodzina ModificationData ModificationGodzina LocNumber   TermID      Partia          Processed IsChecked CustomerInner
+------------------------ ------------------------------------ ----------- ---------- ---------------------------------------------------------------------------------------------------- ---------------------------------------- ---------------------------------------- ---------- ------------ ---------- ----------- ------- ------ ---------- -------------------- ----- -------------------- ---------------------- ------ ----------- --------- ---------- ------------- ---------------- ------------------- ----------- ----------- --------------- --------- --------- -------------
+X15_C_headerout0e_sample 006EC7A2-5372-42AA-A2D3-4D998E65E100 62          67083      PPH R. i A. JARECCY                                                                                  97-226 Żelechlinek                       Wola Naropińska 6                        2008-07-16 10:14:45     2008-07-16 10:30:19    1       1      1111       Administrator              84                   NULL                   NULL   NULL        NULL      NULL       NULL          NULL             NULL                NULL        0           NULL            0         0         0
+X15_C_headerout0e_sample 00A8CBE4-5123-40B9-8D7C-3C4B2C60B6C8 177         65537      Cybułka Krystyna                                                                                     99-340 Krośniewice                       Pomarzany 7                              2008-12-03 22:49:54     2008-12-03 23:28:02    1       1      1111       Administrator              219                  NULL                   NULL   NULL        NULL      NULL       NULL          NULL             NULL                NULL        0           NULL            0         0         0
+X15_C_headerout0e_sample 012F6BA4-75DF-418A-8EC6-B465C1BC06E3 129         67808      "WISAPIS"Zakład Mięsny Andrzej Jurzyk                                                                05-220 Zielonka                          Bankowa 2, Zielonka                      2008-07-23 20:36:04     2008-07-23 20:42:24    1       1      1111       Administrator              159                  NULL                   NULL   NULL        NULL      NULL       NULL          NULL             NULL                NULL        0           NULL            0         0         0
+X15_C_headerout0e_sample 0279E779-A408-4888-A9C2-B9A039C5754F 301         65601      "JAMA"Spółka z Ograniczoną Odpowiedzialn                                                             58-300 Wałbrzych                         Wysockiego 17                            2009-01-13 19:09:57     NULL       NULL        0       0      1111       Administrator              354                  NULL                   NULL   NULL        NULL      NULL       NULL          NULL             NULL                NULL        0           NULL            0         0         0
+X15_C_headerout0e_sample 0691B307-5E8F-4046-BB18-38EFCFF8B98B 211         67672      Firma"KABANOS"Kojs Mirosław i Joanna Koj                                                             34-480 Jabłonka                          Spółdzielców 1                           2008-12-21 12:54:16     2008-12-21 15:45:00    1       1      1111       Administrator              258                  NULL                   NULL   NULL        NULL      NULL       NULL          NULL             NULL                NULL        0           NULL            0         0         0
+
+################################################################
+## EKSPLORACJA CROSS-DB - KONIEC                              ##
+################################################################
+
+Completion time: 2026-05-04T20:53:54.5041705+02:00
+
+
+
+===WYNIKI KONIEC===
+
+
+==============================================================================
+PROBLEMY / NOTATKI:
+==============================================================================

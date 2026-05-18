@@ -13,7 +13,15 @@
 2. Przeczytaj `02_Firma_skala.md` — co to za firma
 3. Przeczytaj `12_ZPSP_program.md` — co to za program
 
-**Pytanie konkretne (np. "co to magazyn 65554"):** od razu skacz do pliku tematycznego.
+**Pytanie konkretne (np. "co to magazyn 65554"):** od razu skacz do `24_Magazyny_i_Lancuch_Produkcji.md`.
+
+**Pisanie SQL na HANDEL/Symfonię:** najpierw przeczytaj `23_HANDEL_Schema_Sage_Symfonia.md` (gotchas: anulowany, MM- i khdzial, brak słownika magazynów, ABS(ilosc)).
+
+**Modyfikacje w "Bilans materiałowy" / "Stan magazynów":** `25_Analityka_Pelna_v2_StanMagazynow.md` ma pełną strukturę.
+
+**Modyfikacje w nowym oknie zamówienia / przypisanie handlowca / awatary / sugestie notatek:** `26_Modul_Zamowien_v2.md` zawiera wszystko (architektura, ContractorClassification triggery, UserAvatarManager, NotatkiService smart ranking).
+
+**Modyfikacje w "Pokaż ceny" / analityka cen żywca / Kontrakty vs Wolny rynek / YoY:** `27_WidokCenWszystkich_modul.md` zawiera wszystko (11 zakładek, klasyfikacja TypCeny, layout Kontrakty, dialog dostaw, dane HarmonogramDostaw).
 
 **Konkretna zmiana w kodzie:** zacznij od `12_ZPSP_program.md` żeby zrozumieć architekturę, potem otwórz odpowiedni moduł w kodzie.
 
@@ -44,8 +52,15 @@
 | 18 | Analiza_przychodu_szczegoly.md | **Tabela `In0E`, dekoder partii, klasy 5-12, operatorzy** — pełen szczegół modułu Analiza Przychodu Produkcji |
 | 19 | LibraNet_audyt_uzycia.md | **Audyt: ~65 tabel + 15 widoków + 8 SP** używanych przez ZPSP. Po działach + relacje + WHERE klauzule |
 | 21 | PYTANIA_PRODUKCYJNE.md | **118 pomysłów programów produkcyjnych** podzielonych po działach (A-K) — do rozmowy |
+| 22 | Analityka_Pelna_modul.md | Moduł Analityka Pełna — 4 widoki + dialog drill-down |
+| 23 | **HANDEL_Schema_Sage_Symfonia.md** | **HM.MG/MZ/TW pełna schema** — kolumny, gotchas, polimorfizm, brak słownika magazynów |
+| 24 | **Magazyny_i_Lancuch_Produkcji.md** | **14 magazynów** (M.UBOJ/M.PROD/M.DYST...) + flow produkcji + wydajności + normy |
+| 25 | **Analityka_Pelna_v2_StanMagazynow.md** | **Sub-tab "Stan magazynów"** w Bilansie — flow chain + towary z zdjęciami + Sankey MM- |
+| 26 | **Modul_Zamowien_v2.md** | **Pełen refactor modułu zamówień (2026-05-09)** — NoweZamowienieTestWindow, UserAvatarManager, ContractorClassification triggery, smart suggestions notatek, NotatkiSzablony+NotatkiUzycia |
+| 27 | **WidokCenWszystkich_modul.md** | **Moduł "Pokaż ceny" — 11 zakładek analityki cen żywca** (Dane/Wykresy/YoY/Kontrakty/Pasze/Klienci). Pełny SQL Kontrakty, definicja TypCeny, kolumny HarmonogramDostaw, dialog dostaw |
 | _ | zrodla.md | Lista oryginalnych dokumentów (docx, pdf) |
-| _ | **SELECTY/** | **Folder z 20 plikami `.sql`** + `WYNIKI.md` na wklejki — eksploracja LibraNet |
+| _ | AUDYT_KODU_SQL.md | Audyt zapytań SQL w kodzie ZPSP |
+| _ | **SELECTY/** | **Folder z 20+ plikami `.sql`** + `WYNIKI.md` na wklejki — eksploracja LibraNet/HANDEL |
 
 ---
 

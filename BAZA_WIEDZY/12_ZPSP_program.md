@@ -167,6 +167,15 @@ Z czego:
 - **Skala:** 1874 hodowców z Excela
 - **Menu:** `accessMap[55]`, kategoria ZAOPATRZENIE I ZAKUPY
 
+### Zamówienia Klientów (NoweZamowienieTestWindow) — refactor 2026-05-09
+- **Główne okno:** `Zamowienia/Views/NoweZamowienieTestWindow.xaml(.cs)` (~2400+ linii)
+- **DB:** LibraNet (`ZamowieniaMieso`, `ZamowieniaMiesoTowar`, `UserHandlowcy`, `NotatkiSzablony`, `NotatkiUzycia`) + Handel (`STContractors`, `HM.TW`, `ContractorClassification`)
+- **Konstruktory:** `(string userId)` lub `(string userId, int? orderId)` — drugi parametr przełącza w **edit mode**
+- **Stary moduł:** `WidokZamowienia.cs` **USUNIĘTY** — ~12 call-site'ów zmigrowano (m.in. WPF MainWindow, PanelFakturWindow, transport-editor, HistoriaZmianWindow, WidokZamowieniaPodsumowanie, DashboardWindow)
+- **Smart Suggestions notatek (`NotatkiService`):** auto-tworzy schemat, backfilluje TOP 30 z historii, ranking multiplikatywny (klient ×3, towary jaccard ×1.5, recency exp(-d/30), pin ×5)
+- **Kontekstowe „Przypisz handlowca…":** w 2 oknach (WPF MainWindow + WidokZamowieniaPodsumowanie)
+- **Pełna dokumentacja:** `BAZA_WIEDZY/26_Modul_Zamowien_v2.md`
+
 ### KontrolaGodzin (HR)
 - **Plik:** `KontrolaGodzin.xaml.cs` (~3100+ linii, 20+ zakładek)
 - **DB:** UNISYSTEM (UNICARD RCP) + ZPSP (HR_*)

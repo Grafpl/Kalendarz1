@@ -671,6 +671,18 @@ namespace Kalendarz1
             przydzielKlientowBtn.Click += PrzydzielKlientowButton_Click;
             topToolbar.Controls.Add(przydzielKlientowBtn);
 
+            btnX += 15;
+
+            // 🔒 KONTO — zarządzanie hasłem/blokadą/admin status wybranego usera
+            var kontoBtn = CreateAnimatedButton("🔒 Konto", Color.FromArgb(220, 38, 38), ref btnX);
+            kontoBtn.Click += KontoButton_Click;
+            topToolbar.Controls.Add(kontoBtn);
+
+            // 📋 HISTORIA — logowania z LoginAttempts
+            var historiaBtn = CreateAnimatedButton("📋 Historia logowań", Color.FromArgb(99, 102, 241), ref btnX);
+            historiaBtn.Click += HistoriaLogowanButton_Click;
+            topToolbar.Controls.Add(historiaBtn);
+
             // Wybrany użytkownik - elegancki badge
             selectedUserLabel = new Label
             {
@@ -1221,6 +1233,50 @@ namespace Kalendarz1
             }
         }
 
+        // ════════════════════════════════════════════════════════════════════
+        // OBSŁUGA KONTA: reset hasła, odblokowanie, IsAdmin (BCrypt + audit log)
+        // ════════════════════════════════════════════════════════════════════
+        private void KontoButton_Click(object sender, EventArgs e)
+        {
+            if (string.IsNullOrEmpty(selectedUserId))
+            {
+                MessageBox.Show("Najpierw wybierz użytkownika z listy po lewej.",
+                    "Brak wyboru", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            var user = allUsers.Find(u => u.ID == selectedUserId);
+            var userName = user?.Name ?? selectedUserId;
+            try
+            {
+                var dlg = new Kalendarz1.Admin.AccountManagementDialog(selectedUserId, userName);
+                var hwnd = new System.Windows.Interop.WindowInteropHelper(dlg);
+                hwnd.Owner = this.Handle;
+                dlg.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd otwarcia okna zarządzania kontem:\n{ex.Message}",
+                    "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void HistoriaLogowanButton_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                var win = new Kalendarz1.Admin.LoginAuditWindow();
+                var hwnd = new System.Windows.Interop.WindowInteropHelper(win);
+                hwnd.Owner = this.Handle;
+                win.Show();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd otwarcia okna historii logowań:\n{ex.Message}",
+                    "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
         private int GetCategoryOrder(string category)
         {
             switch (category)
@@ -1480,10 +1536,10 @@ namespace Kalendarz1
 
             try
             {
-                char[] accessArray = new char[65];
-                for (int i = 0; i < 65; i++) accessArray[i] = '0';
-
                 var accessMap = GetAccessMap();
+                int len = accessMap.Count > 0 ? accessMap.Keys.Max() + 1 : 65;
+                char[] accessArray = new char[len];
+                for (int i = 0; i < len; i++) accessArray[i] = '0';
 
                 foreach (var categoryList in categoryCheckboxes.Values)
                 {
@@ -1493,7 +1549,7 @@ namespace Kalendarz1
                         if (!string.IsNullOrEmpty(moduleKey) && checkbox.Checked)
                         {
                             var position = accessMap.FirstOrDefault(x => x.Value == moduleKey).Key;
-                            if (position >= 0 && position < 65)
+                            if (position >= 0 && position < len)
                             {
                                 accessArray[position] = '1';
                             }
@@ -1896,6 +1952,13 @@ namespace Kalendarz1
         // ════════════════════════════════════════════════════════════════════════════════
         // PER MODUŁ — wybierz moduł, zaznacz użytkowników którzy mają dostęp
         // ════════════════════════════════════════════════════════════════════════════════
+        // Wrapper do wywołania z nowego WPF AdminPermissionsWindow
+        // bez wymuszania wyświetlenia całej starej formy.
+        public void OpenPerModuleDialogFromExternal()
+        {
+            ShowPerModuleDialog();
+        }
+
         private void ShowPerModuleDialog()
         {
             var dlg = new Form
@@ -2126,8 +2189,6 @@ namespace Kalendarz1
                 new ModuleInfo("PrzychodMrozni", "Magazyn Mroźni", "Stany magazynowe produktów mrożonych", "Produkcja i Magazyn", "❄️"),
                 new ModuleInfo("LiczenieMagazynu", "Inwentaryzacja Magazynu", "Rejestracja stanów magazynowych", "Produkcja i Magazyn", "📦"),
                 new ModuleInfo("PanelMagazyniera", "Panel Magazyniera", "Zarządzanie wydaniami towarów", "Produkcja i Magazyn", "🗃️"),
-                new ModuleInfo("AnalizaPrzychodu", "Analiza Przychodu", "Analiza tempa produkcji i przychodu towarów", "Produkcja i Magazyn", "⏱️"),
-                new ModuleInfo("AnalizaWydajnosci", "Analiza Wydajności", "Porównanie masy żywca do tuszek", "Produkcja i Magazyn", "📈"),
                 new ModuleInfo("KartotekaTowarow", "Kartoteka Towarów", "Przeglądanie i edycja artykułów", "Produkcja i Magazyn", "🗂️"),
                 new ModuleInfo("ListaPartii", "Lista Partii Ubojowych", "Zarządzanie partiami produkcyjnymi", "Produkcja i Magazyn", "📋"),
 
@@ -2146,15 +2207,15 @@ namespace Kalendarz1
                 new ModuleInfo("DashboardWyczerpalnosci", "Klasy Wagowe", "Rozdzielanie klas wagowych", "Sprzedaż i CRM", "⚖️"),
                 new ModuleInfo("PanelReklamacji", "Reklamacje Klientów", "Obsługa reklamacji odbiorców", "Sprzedaż i CRM", "⚠️"),
                 new ModuleInfo("ReklamacjeJakosc", "Reklamacje Jakość", "Reklamacje wewnętrzne jakości", "Sprzedaż i CRM", "🔍"),
+                new ModuleInfo("StatystykiReklamacji", "Analiza Reklamacji", "Dashboard analityczny korekt i reklamacji — wykresy, trendy, ranking kontrahentów", "Sprzedaż i CRM", "📊"),
                 new ModuleInfo("PanelPaniJola", "Panel Pani Jola", "Uproszczony widok zamówień - duże kafelki", "Sprzedaż i CRM", "📞"),
                 new ModuleInfo("MapaKlientow", "Mapa Klientów", "Wizualizacja lokalizacji klientów na mapie", "Sprzedaż i CRM", "🗺️"),
 
                 // ═══════════════════════════════════════════════════════════════════════
                 // PLANOWANIE I ANALIZY - Fioletowy
                 // ═══════════════════════════════════════════════════════════════════════
-                new ModuleInfo("PrognozyUboju", "Prognoza Uboju", "Analiza średnich zakupów żywca", "Planowanie i Analizy", "🔮"),
+                new ModuleInfo("AnalitykaPelna", "Analityka Pełna", "Plan • Realizacja • Bilans • Wydajność — moduł zastępujący 4 stare okna analityczne", "Planowanie i Analizy", "📊"),
                 new ModuleInfo("PlanTygodniowy", "Plan Tygodniowy", "Harmonogram uboju i krojenia", "Planowanie i Analizy", "🗓️"),
-                new ModuleInfo("AnalizaTygodniowa", "Dashboard Analityczny", "Analiza produkcji i sprzedaży", "Planowanie i Analizy", "📉"),
                 new ModuleInfo("DashboardPrzychodu", "Przychód Żywca LIVE", "Dashboard przyjęć żywca w czasie rzeczywistym", "Planowanie i Analizy", "🐔"),
                 new ModuleInfo("DashboardZamowien", "Dashboard Zamówień", "Dashboard produktów - bilans zamówień i wydań", "Planowanie i Analizy", "📊"),
                 new ModuleInfo("QuizDrobiarstwo", "Quiz Drobiarstwo", "Quiz szkoleniowy z wiedzy o drobiarstwie", "Planowanie i Analizy", "🎓"),
@@ -2196,6 +2257,7 @@ namespace Kalendarz1
                 new ModuleInfo("CallReminders", "Przypomnienia Telefonów", "Konfiguracja przypomnień o telefonach CRM", "Administracja Systemu", "⏰"),
                 new ModuleInfo("ProductImages", "Zdjęcia Produktów", "Zarządzanie zdjęciami produktów", "Administracja Systemu", "📷"),
                 new ModuleInfo("UstawieniaZmianZamowien", "Ustawienia Zmian Zamówień", "Konfiguracja zmian w zamówieniach", "Administracja Systemu", "⚙️"),
+                new ModuleInfo("CentrumNagranAI", "Centrum nagrań AI", "Wyszukiwanie zdarzeń w nagraniach CCTV po polskim opisie - kamery NVR + Claude AI", "Administracja Systemu", "🎥"),
                 new ModuleInfo("PozyskiwanieHodowcow", "Pozyskiwanie Hodowców", "CRM do pozyskiwania nowych hodowców drobiu", "Zaopatrzenie i Zakupy", "🐔")
             };
         }
@@ -2271,7 +2333,10 @@ namespace Kalendarz1
                 [61] = "UstawieniaZmianZamowien",
                 [62] = "MapaFloty",
                 [63] = "OsCzasuFloty",
-                [64] = "RaportFloty"
+                [64] = "RaportFloty",
+                [65] = "StatystykiReklamacji",
+                [66] = "AnalitykaPelna",
+                [67] = "CentrumNagranAI"
             };
         }
 

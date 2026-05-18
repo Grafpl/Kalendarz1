@@ -1,0 +1,1789 @@
+<Window x:Class="Kalendarz1.Hodowcy.KartaHodowcyWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:lvc="clr-namespace:LiveCharts.Wpf;assembly=LiveCharts.Wpf"
+        Title="Karta Hodowcy 360°"
+        WindowState="Maximized"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResize"
+        MinWidth="1100" MinHeight="700"
+        Background="#F8FAFC"
+        UseLayoutRounding="True"
+        TextOptions.TextFormattingMode="Display">
+    <Window.Resources>
+        <Style x:Key="HeaderBtnStyle" TargetType="Button">
+            <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}"
+                                CornerRadius="4" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Opacity" Value="0.85"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="KpiLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#64748B"/>
+            <Setter Property="Margin" Value="0,0,0,3"/>
+            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+        </Style>
+        <Style x:Key="KpiValue" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="22"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="#0F172A"/>
+            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+        </Style>
+        <Style x:Key="KpiSub" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Foreground" Value="#94A3B8"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+        </Style>
+
+        <!-- Tab style — zielony underline (hodowca = naturalny zielony) -->
+        <Style x:Key="TabHdr" TargetType="TabItem">
+            <Setter Property="Padding" Value="18,10"/>
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#64748B"/>
+            <Setter Property="BorderThickness" Value="0,0,0,3"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter ContentSource="Header"
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              TextElement.Foreground="{TemplateBinding Foreground}"
+                                              TextElement.FontWeight="{TemplateBinding FontWeight}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="border" Property="BorderBrush" Value="#059669"/>
+                                <Setter Property="Foreground" Value="#059669"/>
+                                <Setter Property="Background" Value="#ECFDF5"/>
+                            </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsMouseOver" Value="True"/>
+                                    <Condition Property="IsSelected" Value="False"/>
+                                </MultiTrigger.Conditions>
+                                <Setter Property="Foreground" Value="#059669"/>
+                                <Setter Property="Background" Value="#F0FDF4"/>
+                            </MultiTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="DgHdr" TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="#1F2937"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="BorderBrush" Value="#374151"/>
+            <Setter Property="BorderThickness" Value="0,0,1,0"/>
+        </Style>
+
+        <Style x:Key="StatusBadge" TargetType="Border">
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="10,4"/>
+            <Setter Property="Margin" Value="8,0,0,0"/>
+        </Style>
+
+        <Style x:Key="InfoLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#64748B"/>
+        </Style>
+        <Style x:Key="InfoValue" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="#0F172A"/>
+            <Setter Property="Margin" Value="0,2,0,8"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <!-- 0: Header -->
+            <RowDefinition Height="Auto"/>
+            <!-- 1: KPI strip 1 (6 podstawowych — partii, kg, wydajność, ostatnia, cykl, obrót) -->
+            <RowDefinition Height="Auto"/>
+            <!-- 2: KPI strip 2 (ranking, udział, klasy %, temp, padłe) -->
+            <RowDefinition Height="Auto"/>
+            <!-- 3: KPI strip 3 (wiek partii, waga sztuki, straty śmiertelności, zakres dat) -->
+            <RowDefinition Height="Auto"/>
+            <!-- 4: KPI strip 4 (CH, NW, ZM, LUMEL, konfiskaty %, ubytek transp.) -->
+            <RowDefinition Height="*"/>
+            <!-- 5: TabControl -->
+            <RowDefinition Height="Auto"/>
+            <!-- 6: Stopka -->
+        </Grid.RowDefinitions>
+
+        <!-- ═══ Header (gradient zielony) ═══ -->
+        <Border Grid.Row="0" Padding="24,18">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                    <GradientStop Color="#059669" Offset="0"/>
+                    <GradientStop Color="#064E3B" Offset="1"/>
+                </LinearGradientBrush>
+            </Border.Background>
+            <Border.Effect>
+                <DropShadowEffect Color="Black" BlurRadius="6" ShadowDepth="2" Opacity="0.15"/>
+            </Border.Effect>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="🐔" FontSize="32" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                        <StackPanel>
+                            <TextBlock x:Name="txtNagNazwa" Text="Hodowca"
+                                       Foreground="White" FontSize="26" FontWeight="Bold">
+                                <TextBlock.Effect>
+                                    <DropShadowEffect Color="Black" BlurRadius="3" ShadowDepth="0" Opacity="0.4"/>
+                                </TextBlock.Effect>
+                            </TextBlock>
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                <TextBlock x:Name="txtNagId" Text="ID:" Foreground="#A7F3D0" FontSize="12" FontWeight="SemiBold"/>
+                                <TextBlock Text="  •  " Foreground="#A7F3D0" FontSize="12"/>
+                                <TextBlock x:Name="txtNagNip" Text="NIP:" Foreground="#A7F3D0" FontSize="12" FontWeight="SemiBold"/>
+                                <TextBlock Text="  •  " Foreground="#A7F3D0" FontSize="12"/>
+                                <TextBlock x:Name="txtNagAnimNo" Text="Gospod.:" Foreground="#A7F3D0" FontSize="12" FontWeight="SemiBold"/>
+                                <Border x:Name="badgeStatus" Style="{StaticResource StatusBadge}" Background="#10B981">
+                                    <TextBlock x:Name="txtBadgeStatus" Text="✓ Aktywny"
+                                               Foreground="White" FontSize="11" FontWeight="Bold"/>
+                                </Border>
+                                <Border x:Name="badgeRol" Style="{StaticResource StatusBadge}" Background="#F59E0B" Visibility="Collapsed">
+                                    <TextBlock Text="🌾 Rolnik" Foreground="White" FontSize="11" FontWeight="Bold"/>
+                                </Border>
+                                <Border x:Name="badgeSkup" Style="{StaticResource StatusBadge}" Background="#3B82F6" Visibility="Collapsed">
+                                    <TextBlock Text="🛒 Skupowy" Foreground="White" FontSize="11" FontWeight="Bold"/>
+                                </Border>
+                            </StackPanel>
+                            <TextBlock x:Name="txtNagAdres" Text="Adres" Foreground="#D1FAE5" FontSize="12"
+                                       Margin="0,4,0,0"/>
+                            <TextBlock x:Name="txtNagKontakt" Text="Kontakt" Foreground="#D1FAE5" FontSize="12"/>
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <!-- Wybór okresu analizy -->
+                    <Border Background="#047857" CornerRadius="4" Padding="8,4" Margin="0,0,8,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="📅" FontSize="13" Margin="0,0,6,0" VerticalAlignment="Center" Foreground="White"/>
+                            <TextBlock Text="Okres:" FontSize="11" FontWeight="SemiBold" Foreground="#A7F3D0"
+                                       VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <ComboBox x:Name="cbOkres" Width="170" Height="28" FontSize="12"
+                                      VerticalContentAlignment="Center" SelectionChanged="CbOkres_Changed">
+                                <ComboBoxItem Tag="30">📆 Ostatnie 30 dni</ComboBoxItem>
+                                <ComboBoxItem Tag="90" IsSelected="True">📆 Ostatnie 90 dni</ComboBoxItem>
+                                <ComboBoxItem Tag="180">📆 Ostatnie 6 miesięcy</ComboBoxItem>
+                                <ComboBoxItem Tag="365">🗓 Ostatni rok</ComboBoxItem>
+                                <ComboBoxItem Tag="730">🗓 Ostatnie 2 lata</ComboBoxItem>
+                                <ComboBoxItem Tag="0">∞ Cały zakres</ComboBoxItem>
+                            </ComboBox>
+                        </StackPanel>
+                    </Border>
+                    <Button Content="✏️  Edytuj"
+                            Background="#047857" Margin="0,0,8,0"
+                            Click="BtnEdytuj_Click"
+                            Style="{StaticResource HeaderBtnStyle}"
+                            ToolTip="Otwórz kreator edycji hodowcy"/>
+                    <Button Content="🗺️"
+                            Background="#0891B2" Margin="0,0,8,0" Padding="12,8"
+                            Click="BtnMapa_Click"
+                            Style="{StaticResource HeaderBtnStyle}"
+                            ToolTip="Otwórz lokalizację hodowcy w Google Maps"/>
+                    <Button Content="📥  Eksport"
+                            Background="#1E40AF" Margin="0,0,8,0"
+                            Click="BtnEksport_Click"
+                            Style="{StaticResource HeaderBtnStyle}"/>
+                    <Button Content="✕"
+                            Background="#DC2626" Padding="12,8"
+                            Click="BtnZamknij_Click"
+                            Style="{StaticResource HeaderBtnStyle}"
+                            ToolTip="Zamknij okno (Esc)"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ═══ KPI strip (6 KPI z 90-dniowych statystyk) ═══ -->
+        <Border Grid.Row="1" Background="White" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1"
+                Padding="24,14">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <TextBlock x:Name="kpiPartiiLabel" Text="📦  PARTII (OKRES)" Style="{StaticResource KpiLabel}"/>
+                    <TextBlock x:Name="kpiPartii" Text="0" Style="{StaticResource KpiValue}"/>
+                    <TextBlock x:Name="kpiPartiiZycie" Text="—" Style="{StaticResource KpiSub}"/>
+                </StackPanel>
+                <Rectangle Grid.Column="1" Width="1" Fill="#E2E8F0" Margin="14,4"/>
+
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="⚖️  Σ ŻYWIEC (kg)" Style="{StaticResource KpiLabel}"/>
+                    <TextBlock x:Name="kpiSkupKg" Text="0" Style="{StaticResource KpiValue}"
+                               Foreground="#059669"/>
+                    <TextBlock x:Name="kpiPrzyjetoKg" Text="—" Style="{StaticResource KpiSub}"/>
+                </StackPanel>
+                <Rectangle Grid.Column="3" Width="1" Fill="#E2E8F0" Margin="14,4"/>
+
+                <StackPanel Grid.Column="4">
+                    <TextBlock Text="📈  WYDAJNOŚĆ ŚR." Style="{StaticResource KpiLabel}"/>
+                    <TextBlock x:Name="kpiWydaj" Text="—" Style="{StaticResource KpiValue}"/>
+                    <TextBlock x:Name="kpiKlasaB" Text="" Style="{StaticResource KpiSub}"/>
+                </StackPanel>
+                <Rectangle Grid.Column="5" Width="1" Fill="#E2E8F0" Margin="14,4"/>
+
+                <StackPanel Grid.Column="6">
+                    <TextBlock Text="📅  OSTATNIA DOSTAWA" Style="{StaticResource KpiLabel}"/>
+                    <TextBlock x:Name="kpiOstatnia" Text="—" Style="{StaticResource KpiValue}"
+                               FontSize="18"/>
+                    <TextBlock x:Name="kpiOstatniaDni" Text="" Style="{StaticResource KpiSub}"/>
+                </StackPanel>
+                <Rectangle Grid.Column="7" Width="1" Fill="#E2E8F0" Margin="14,4"/>
+
+                <StackPanel Grid.Column="8">
+                    <TextBlock Text="⏱️  ŚR. CYKL DOSTAW" Style="{StaticResource KpiLabel}"/>
+                    <TextBlock x:Name="kpiCykl" Text="—" Style="{StaticResource KpiValue}"/>
+                    <TextBlock x:Name="kpiCyklSub" Text="dni między partiami" Style="{StaticResource KpiSub}"/>
+                </StackPanel>
+                <Rectangle Grid.Column="9" Width="1" Fill="#E2E8F0" Margin="14,4"/>
+
+                <StackPanel Grid.Column="10">
+                    <TextBlock Text="💰  SZACOWANY OBRÓT" Style="{StaticResource KpiLabel}"/>
+                    <TextBlock x:Name="kpiObrot" Text="—" Style="{StaticResource KpiValue}"
+                               Foreground="#7C3AED"/>
+                    <TextBlock x:Name="kpiCenaSkup" Text="" Style="{StaticResource KpiSub}"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ═══ Drugi rząd KPI: Ranking + klasy wagowe + jakość ═══ -->
+        <Border Grid.Row="2" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1"
+                Padding="24,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="🏆  RANKING (90D)" Style="{StaticResource KpiLabel}"/>
+                    <TextBlock x:Name="kpiRanking" Text="—" FontSize="18" FontWeight="Bold"
+                               Foreground="#0F172A"/>
+                    <TextBlock x:Name="kpiRankingOcena" Text="" FontSize="10" FontWeight="SemiBold"/>
+                </StackPanel>
+                <Rectangle Grid.Column="1" Width="1" Fill="#E2E8F0" Margin="14,4"/>
+
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="📊  RYNKOWY UDZIAŁ" Style="{StaticResource KpiLabel}"/>
+                    <TextBlock x:Name="kpiUdzial" Text="—" FontSize="18" FontWeight="Bold"
+                               Foreground="#7C3AED"/>
+                    <TextBlock x:Name="kpiUdzialSub" Text="" Style="{StaticResource KpiSub}"/>
+                </StackPanel>
+                <Rectangle Grid.Column="3" Width="1" Fill="#E2E8F0" Margin="14,4"/>
+
+                <StackPanel Grid.Column="4">
+                    <TextBlock Text="🍗  DUŻY (4–7) %" Style="{StaticResource KpiLabel}"/>
+                    <TextBlock x:Name="kpiDuzy" Text="—" FontSize="18" FontWeight="Bold"
+                               Foreground="#2563EB"/>
+                </StackPanel>
+                <Rectangle Grid.Column="5" Width="1" Fill="#E2E8F0" Margin="14,4"/>
+
+                <StackPanel Grid.Column="6">
+                    <TextBlock Text="🐥  MAŁY (8–12) %" Style="{StaticResource KpiLabel}"/>
+                    <TextBlock x:Name="kpiMaly" Text="—" FontSize="18" FontWeight="Bold"
+                               Foreground="#F97316"/>
+                </StackPanel>
+                <Rectangle Grid.Column="7" Width="1" Fill="#E2E8F0" Margin="14,4"/>
+
+                <StackPanel Grid.Column="8">
+                    <TextBlock Text="🌡️  TEMP. RAMPY (śr.)" Style="{StaticResource KpiLabel}"/>
+                    <TextBlock x:Name="kpiTempRampa" Text="—" FontSize="18" FontWeight="Bold"
+                               Foreground="#0891B2"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="9" HorizontalAlignment="Right">
+                    <TextBlock Text="💀  PADŁE %" Style="{StaticResource KpiLabel}" HorizontalAlignment="Right"/>
+                    <TextBlock x:Name="kpiPadle" Text="—" FontSize="18" FontWeight="Bold"
+                               Foreground="#DC2626" HorizontalAlignment="Right"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ═══ Trzeci rząd KPI: cykl produkcyjny + zdawalność + waga sztuki ═══ -->
+        <Border Grid.Row="3" Background="White" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1"
+                Padding="24,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="🐣  ŚR. WIEK PARTII" Style="{StaticResource KpiLabel}"/>
+                    <TextBlock x:Name="kpiWiekDni" Text="—" FontSize="18" FontWeight="Bold"
+                               Foreground="#0F766E"/>
+                    <TextBlock x:Name="kpiWiekZakres" Text="" Style="{StaticResource KpiSub}"/>
+                </StackPanel>
+                <Rectangle Grid.Column="1" Width="1" Fill="#E2E8F0" Margin="14,4"/>
+
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="🍗  ŚR. WAGA SZTUKI" Style="{StaticResource KpiLabel}"/>
+                    <TextBlock x:Name="kpiWagaSzt" Text="—" FontSize="18" FontWeight="Bold"
+                               Foreground="#7C3AED"/>
+                </StackPanel>
+                <Rectangle Grid.Column="3" Width="1" Fill="#E2E8F0" Margin="14,4"/>
+
+                <StackPanel Grid.Column="4">
+                    <TextBlock Text="📉  STRATY ŚMIERTELNOŚCI" Style="{StaticResource KpiLabel}"/>
+                    <TextBlock x:Name="kpiStraty" Text="—" FontSize="18" FontWeight="Bold"
+                               Foreground="#DC2626"/>
+                    <TextBlock x:Name="kpiStratySzt" Text="" Style="{StaticResource KpiSub}"/>
+                </StackPanel>
+                <Rectangle Grid.Column="5" Width="1" Fill="#E2E8F0" Margin="14,4"/>
+
+                <StackPanel Grid.Column="6">
+                    <TextBlock Text="📅  PIERWSZA / OSTATNIA DOSTAWA" Style="{StaticResource KpiLabel}"/>
+                    <TextBlock x:Name="kpiZakresDat" Text="—" FontSize="14" FontWeight="Bold"
+                               Foreground="#1F2937"/>
+                    <TextBlock x:Name="kpiOkresLat" Text="" Style="{StaticResource KpiSub}"/>
+                </StackPanel>
+                <Rectangle Grid.Column="7" Width="1" Fill="#E2E8F0" Margin="14,4"/>
+
+                <StackPanel Grid.Column="8" HorizontalAlignment="Right">
+                    <TextBlock Text="🏷️  PARTII Z WSTAWIENIEM" Style="{StaticResource KpiLabel}" HorizontalAlignment="Right"/>
+                    <TextBlock x:Name="kpiPartiiZWstaw" Text="—" FontSize="18" FontWeight="Bold"
+                               Foreground="#0891B2" HorizontalAlignment="Right"/>
+                    <TextBlock x:Name="kpiPartiiZWstawSub" Text="" Style="{StaticResource KpiSub}"
+                               HorizontalAlignment="Right"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ═══ Czwarty rząd KPI: konfiskaty (CH/NW/ZM/LUMEL) + ubytek transportowy ═══ -->
+        <Border Grid.Row="4" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1" Padding="24,10">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                    <GradientStop Color="#FFFBEB" Offset="0"/>
+                    <GradientStop Color="#FEF3C7" Offset="1"/>
+                </LinearGradientBrush>
+            </Border.Background>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="🐤  CH (Charłaki)" Style="{StaticResource KpiLabel}"/>
+                    <TextBlock x:Name="kpiCH" Text="—" FontSize="18" FontWeight="Bold"
+                               Foreground="#92400E"/>
+                </StackPanel>
+                <Rectangle Grid.Column="1" Width="1" Fill="#FCD34D" Margin="14,4"/>
+
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="🩸  NW (Niewykrwawione)" Style="{StaticResource KpiLabel}"/>
+                    <TextBlock x:Name="kpiNW" Text="—" FontSize="18" FontWeight="Bold"
+                               Foreground="#7F1D1D"/>
+                </StackPanel>
+                <Rectangle Grid.Column="3" Width="1" Fill="#FCD34D" Margin="14,4"/>
+
+                <StackPanel Grid.Column="4">
+                    <TextBlock Text="❌  ZM" Style="{StaticResource KpiLabel}"/>
+                    <TextBlock x:Name="kpiZM" Text="—" FontSize="18" FontWeight="Bold"
+                               Foreground="#78350F"/>
+                </StackPanel>
+                <Rectangle Grid.Column="5" Width="1" Fill="#FCD34D" Margin="14,4"/>
+
+                <StackPanel Grid.Column="6">
+                    <TextBlock Text="🔢  LUMEL (Σ tuszek)" Style="{StaticResource KpiLabel}"/>
+                    <TextBlock x:Name="kpiLUMEL" Text="—" FontSize="18" FontWeight="Bold"
+                               Foreground="#1E40AF"/>
+                </StackPanel>
+                <Rectangle Grid.Column="7" Width="1" Fill="#FCD34D" Margin="14,4"/>
+
+                <StackPanel Grid.Column="8">
+                    <TextBlock Text="🚫  KONFISKATY %" Style="{StaticResource KpiLabel}"/>
+                    <TextBlock x:Name="kpiKonfProc" Text="—" FontSize="18" FontWeight="Bold"
+                               Foreground="#991B1B"/>
+                    <TextBlock x:Name="kpiKonfSzt" Text="" Style="{StaticResource KpiSub}"/>
+                </StackPanel>
+                <Rectangle Grid.Column="9" Width="1" Fill="#FCD34D" Margin="14,4"/>
+
+                <StackPanel Grid.Column="10" HorizontalAlignment="Right">
+                    <TextBlock Text="📉  UBYTEK TRANSP. %" Style="{StaticResource KpiLabel}" HorizontalAlignment="Right"/>
+                    <TextBlock x:Name="kpiUbytekTransProc" Text="—" FontSize="18" FontWeight="Bold"
+                               Foreground="#9A3412" HorizontalAlignment="Right"/>
+                    <TextBlock x:Name="kpiUbytekTransKg" Text="" Style="{StaticResource KpiSub}"
+                               HorizontalAlignment="Right"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ═══ TabControl ═══ -->
+        <TabControl Grid.Row="5" Background="Transparent" BorderThickness="0" Padding="0">
+
+            <!-- ─── 📊 Przegląd ─── -->
+            <TabItem Header="📊  Przegląd" Style="{StaticResource TabHdr}">
+                <Grid Margin="20,12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Mini-stats row (Σ życie + ostatnia/pierwsza dostawa, status statystyk) -->
+                    <Border Grid.Row="0" Background="White" BorderBrush="#E2E8F0" BorderThickness="1"
+                            CornerRadius="6" Padding="14,10" Margin="0,0,0,8">
+                        <TextBlock x:Name="txtMiniStat" FontSize="12" Foreground="#475569"
+                                   TextWrapping="Wrap"/>
+                    </Border>
+
+                    <!-- 2 wykresy obok siebie -->
+                    <Grid Grid.Row="1">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Border Grid.Column="0" Background="White" BorderBrush="#E2E8F0" BorderThickness="1"
+                                CornerRadius="6" Padding="14,10" Margin="0,0,6,0">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Text="📈  Trend wydajności i klasy B (per partia)"
+                                           FontWeight="Bold" Foreground="#1F2937" FontSize="13"
+                                           Margin="0,0,0,6"/>
+                                <lvc:CartesianChart Grid.Row="1" x:Name="wykresWydaj" LegendLocation="Top">
+                                    <lvc:CartesianChart.AxisX>
+                                        <lvc:Axis x:Name="osXWydaj" Title="Data partii" Foreground="#475569" LabelsRotation="0"/>
+                                    </lvc:CartesianChart.AxisX>
+                                    <lvc:CartesianChart.AxisY>
+                                        <lvc:Axis x:Name="osYWydaj" Title="%" Foreground="#475569"/>
+                                    </lvc:CartesianChart.AxisY>
+                                </lvc:CartesianChart>
+                            </Grid>
+                        </Border>
+
+                        <Border Grid.Column="1" Background="White" BorderBrush="#E2E8F0" BorderThickness="1"
+                                CornerRadius="6" Padding="14,10" Margin="6,0,0,0">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Text="⚖️  Wolumen żywca per partia (kg)"
+                                           FontWeight="Bold" Foreground="#1F2937" FontSize="13"
+                                           Margin="0,0,0,6"/>
+                                <lvc:CartesianChart Grid.Row="1" x:Name="wykresWolumen" LegendLocation="None">
+                                    <lvc:CartesianChart.AxisX>
+                                        <lvc:Axis x:Name="osXWolumen" Title="Data partii" Foreground="#475569" LabelsRotation="0"/>
+                                    </lvc:CartesianChart.AxisX>
+                                    <lvc:CartesianChart.AxisY>
+                                        <lvc:Axis x:Name="osYWolumen" Title="kg" Foreground="#475569"/>
+                                    </lvc:CartesianChart.AxisY>
+                                </lvc:CartesianChart>
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </Grid>
+            </TabItem>
+
+            <!-- ─── ⚖️ Klasy wagowe ─── -->
+            <TabItem Header="⚖️  Klasy wagowe" Style="{StaticResource TabHdr}">
+                <Grid Margin="20,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="2*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Wykres klas -->
+                    <Border Grid.Column="0" Background="White" BorderBrush="#E2E8F0" BorderThickness="1"
+                            CornerRadius="6" Padding="14,10" Margin="0,0,6,0">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" x:Name="txtKlasyTitle"
+                                       Text="📊  Rozkład klas drobiowych (4–12) w ostatnim roku"
+                                       FontWeight="Bold" Foreground="#1F2937" FontSize="13"
+                                       Margin="0,0,0,6"/>
+                            <lvc:CartesianChart Grid.Row="1" x:Name="wykresKlasyHod" LegendLocation="None">
+                                <lvc:CartesianChart.AxisX>
+                                    <lvc:Axis x:Name="osXKlasyHod" Title="Klasa" Foreground="#475569" LabelsRotation="0">
+                                        <lvc:Axis.Separator>
+                                            <lvc:Separator Step="1" StrokeThickness="0"/>
+                                        </lvc:Axis.Separator>
+                                    </lvc:Axis>
+                                </lvc:CartesianChart.AxisX>
+                                <lvc:CartesianChart.AxisY>
+                                    <lvc:Axis x:Name="osYKlasyHod" Title="Suma kg" Foreground="#475569"/>
+                                </lvc:CartesianChart.AxisY>
+                            </lvc:CartesianChart>
+                        </Grid>
+                    </Border>
+
+                    <!-- Tabela klas -->
+                    <Border Grid.Column="1" Background="White" BorderBrush="#E2E8F0" BorderThickness="1"
+                            CornerRadius="6" ClipToBounds="True" Margin="6,0,0,0">
+                        <DataGrid x:Name="dgKlasyHod"
+                                  AutoGenerateColumns="False" IsReadOnly="True"
+                                  HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                  RowBackground="White" AlternatingRowBackground="#F8FAFC"
+                                  BorderThickness="0" RowHeight="32" FontSize="12.5">
+                            <DataGrid.Resources>
+                                <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource DgHdr}"/>
+                            </DataGrid.Resources>
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Klasa" Binding="{Binding KlasaDisplay}" Width="80"/>
+                                <DataGridTextColumn Header="Grupa" Binding="{Binding Grupa}" Width="90"/>
+                                <DataGridTextColumn Header="Ważeń" Binding="{Binding LiczbaWazen, StringFormat=N0}" Width="80">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Setter Property="Padding" Value="0,0,8,0"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Σ kg" Binding="{Binding SumaKg, StringFormat=N0}" Width="100">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                            <Setter Property="Foreground" Value="#7C3AED"/>
+                                            <Setter Property="Padding" Value="0,0,8,0"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Udział %" Binding="{Binding ProcentUdzialu, StringFormat=N1}" Width="*">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                            <Setter Property="Foreground" Value="#0F172A"/>
+                                            <Setter Property="Padding" Value="0,0,8,0"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- ─── 🏆 Ranking ─── -->
+            <TabItem Header="🏆  Ranking" Style="{StaticResource TabHdr}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <Grid Margin="20,12">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Wynik tekstowy -->
+                        <Border Grid.Row="0" Padding="20,16" CornerRadius="6" Margin="0,0,0,12"
+                                BorderBrush="#A7F3D0" BorderThickness="2">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                    <GradientStop Color="#ECFDF5" Offset="0"/>
+                                    <GradientStop Color="#D1FAE5" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <StackPanel>
+                                <TextBlock x:Name="txtRankingNagl" Text="🏆  Pozycja w rankingu zakładu (ostatnie 90 dni)"
+                                           FontSize="16" FontWeight="Bold" Foreground="#064E3B"/>
+                                <TextBlock x:Name="txtRankingOpis"
+                                           Text="—" FontSize="14" Foreground="#047857" Margin="0,8,0,0"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Szczegóły -->
+                        <UniformGrid Grid.Row="1" Columns="3" Rows="2">
+                            <Border Background="White" BorderBrush="#E2E8F0" BorderThickness="1"
+                                    CornerRadius="6" Padding="14,10" Margin="4">
+                                <StackPanel>
+                                    <TextBlock Text="🎯  Pozycja po wydajności" Style="{StaticResource KpiLabel}"/>
+                                    <TextBlock x:Name="rPoz" Text="—" Style="{StaticResource KpiValue}" Foreground="#059669"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Background="White" BorderBrush="#E2E8F0" BorderThickness="1"
+                                    CornerRadius="6" Padding="14,10" Margin="4">
+                                <StackPanel>
+                                    <TextBlock Text="📦  Pozycja po wolumenie kg" Style="{StaticResource KpiLabel}"/>
+                                    <TextBlock x:Name="rPozKg" Text="—" Style="{StaticResource KpiValue}" Foreground="#7C3AED"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Background="White" BorderBrush="#E2E8F0" BorderThickness="1"
+                                    CornerRadius="6" Padding="14,10" Margin="4">
+                                <StackPanel>
+                                    <TextBlock Text="📊  Udział rynkowy" Style="{StaticResource KpiLabel}"/>
+                                    <TextBlock x:Name="rUdzial" Text="—" Style="{StaticResource KpiValue}"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Background="White" BorderBrush="#E2E8F0" BorderThickness="1"
+                                    CornerRadius="6" Padding="14,10" Margin="4">
+                                <StackPanel>
+                                    <TextBlock Text="📈  Twoja wydajność" Style="{StaticResource KpiLabel}"/>
+                                    <TextBlock x:Name="rWydaj" Text="—" Style="{StaticResource KpiValue}" Foreground="#059669"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Background="White" BorderBrush="#E2E8F0" BorderThickness="1"
+                                    CornerRadius="6" Padding="14,10" Margin="4">
+                                <StackPanel>
+                                    <TextBlock Text="📉  Średnia / mediana zakładu" Style="{StaticResource KpiLabel}"/>
+                                    <TextBlock x:Name="rSrednia" Text="—" Style="{StaticResource KpiValue}" FontSize="18"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Background="White" BorderBrush="#E2E8F0" BorderThickness="1"
+                                    CornerRadius="6" Padding="14,10" Margin="4">
+                                <StackPanel>
+                                    <TextBlock Text="🏆  Top 10% (wzór do równania)" Style="{StaticResource KpiLabel}"/>
+                                    <TextBlock x:Name="rTop10" Text="—" Style="{StaticResource KpiValue}" Foreground="#F59E0B"/>
+                                </StackPanel>
+                            </Border>
+                        </UniformGrid>
+                    </Grid>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ─── ⚠️ Anomalie ─── -->
+            <TabItem Header="⚠️  Anomalie" Style="{StaticResource TabHdr}">
+                <Grid Margin="20,12">
+                    <Border Background="White" BorderBrush="#E2E8F0" BorderThickness="1"
+                            CornerRadius="6" ClipToBounds="True">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Border Grid.Row="0" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1"
+                                    Padding="14,10" Background="#F8FAFC">
+                                <TextBlock FontWeight="SemiBold" Foreground="#475569" FontSize="12"
+                                           Text="Najbardziej odbiegające partie z ostatnich 365 dni — najlepsza/najgorsza wydajność, największa partia, najwięcej padłych itd."/>
+                            </Border>
+                            <DataGrid Grid.Row="1" x:Name="dgAnomalie"
+                                      AutoGenerateColumns="False" IsReadOnly="True"
+                                      HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                      RowBackground="White" AlternatingRowBackground="#F8FAFC"
+                                      BorderThickness="0" RowHeight="34" FontSize="13">
+                                <DataGrid.Resources>
+                                    <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource DgHdr}"/>
+                                </DataGrid.Resources>
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Typ" Binding="{Binding Typ}" Width="240">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="Padding" Value="10,0"/>
+                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Partia" Binding="{Binding Partia}" Width="140"/>
+                                    <DataGridTextColumn Header="Data" Binding="{Binding Data, StringFormat=dd.MM.yyyy}" Width="120"/>
+                                    <DataGridTextColumn Header="Wartość" Binding="{Binding Wartosc, StringFormat=N2}" Width="140">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="Padding" Value="0,0,12,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Jednostka" Binding="{Binding Jednostka}" Width="100"/>
+                                    <DataGridTextColumn Header="Komentarz" Binding="{Binding Komentarz}" Width="*" MinWidth="120"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- ─── 🌡️ Jakość — temperatura, klasa B, padłe trends ─── -->
+            <TabItem Header="🌡️  Jakość" Style="{StaticResource TabHdr}">
+                <Grid Margin="20,12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Temperatura rampy -->
+                    <Border Grid.Row="0" Grid.Column="0" Background="White" BorderBrush="#E2E8F0" BorderThickness="1"
+                            CornerRadius="6" Padding="14,10" Margin="0,0,4,4">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Text="🌡️  Temperatura rampy w czasie (°C)"
+                                       FontWeight="Bold" Foreground="#1F2937" FontSize="13" Margin="0,0,0,6"/>
+                            <lvc:CartesianChart Grid.Row="1" x:Name="wykresTemp" LegendLocation="None">
+                                <lvc:CartesianChart.AxisX>
+                                    <lvc:Axis x:Name="osXTemp" Foreground="#475569" LabelsRotation="0"/>
+                                </lvc:CartesianChart.AxisX>
+                                <lvc:CartesianChart.AxisY>
+                                    <lvc:Axis x:Name="osYTemp" Title="°C" Foreground="#475569"/>
+                                </lvc:CartesianChart.AxisY>
+                            </lvc:CartesianChart>
+                        </Grid>
+                    </Border>
+
+                    <!-- Klasa B % -->
+                    <Border Grid.Row="0" Grid.Column="1" Background="White" BorderBrush="#E2E8F0" BorderThickness="1"
+                            CornerRadius="6" Padding="14,10" Margin="4,0,0,4">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Text="🏷  Klasa B % w czasie"
+                                       FontWeight="Bold" Foreground="#1F2937" FontSize="13" Margin="0,0,0,6"/>
+                            <lvc:CartesianChart Grid.Row="1" x:Name="wykresKlasaB" LegendLocation="None">
+                                <lvc:CartesianChart.AxisX>
+                                    <lvc:Axis x:Name="osXKlasaB" Foreground="#475569" LabelsRotation="0"/>
+                                </lvc:CartesianChart.AxisX>
+                                <lvc:CartesianChart.AxisY>
+                                    <lvc:Axis x:Name="osYKlasaB" Title="%" Foreground="#475569"/>
+                                </lvc:CartesianChart.AxisY>
+                            </lvc:CartesianChart>
+                        </Grid>
+                    </Border>
+
+                    <!-- Padłe trend -->
+                    <Border Grid.Row="1" Grid.ColumnSpan="2" Background="White" BorderBrush="#E2E8F0" BorderThickness="1"
+                            CornerRadius="6" Padding="14,10" Margin="0,4,0,0">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Text="💀  Padłe i konfiskaty per partia (z FarmerCalc)"
+                                       FontWeight="Bold" Foreground="#1F2937" FontSize="13" Margin="0,0,0,6"/>
+                            <lvc:CartesianChart Grid.Row="1" x:Name="wykresPadle" LegendLocation="None">
+                                <lvc:CartesianChart.AxisX>
+                                    <lvc:Axis x:Name="osXPadle" Foreground="#475569" LabelsRotation="0"/>
+                                </lvc:CartesianChart.AxisX>
+                                <lvc:CartesianChart.AxisY>
+                                    <lvc:Axis x:Name="osYPadle" Title="Sztuk" Foreground="#475569"/>
+                                </lvc:CartesianChart.AxisY>
+                            </lvc:CartesianChart>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- ─── 💰 Rozliczenia ─── -->
+            <TabItem Header="💰  Rozliczenia" Style="{StaticResource TabHdr}">
+                <Grid Margin="20,12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="280"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- KPI rozliczeń -->
+                    <UniformGrid Grid.Row="0" Columns="4" Rows="1" Margin="0,0,0,8">
+                        <Border Background="White" BorderBrush="#E2E8F0" BorderThickness="1"
+                                CornerRadius="6" Padding="14,10" Margin="0,0,4,0">
+                            <StackPanel>
+                                <TextBlock Text="💵  Σ Wartość (90d)" Style="{StaticResource KpiLabel}"/>
+                                <TextBlock x:Name="finWartosc90" Text="—" Style="{StaticResource KpiValue}" Foreground="#7C3AED"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Background="White" BorderBrush="#E2E8F0" BorderThickness="1"
+                                CornerRadius="6" Padding="14,10" Margin="2,0,2,0">
+                            <StackPanel>
+                                <TextBlock Text="💵  Σ Wartość (życie)" Style="{StaticResource KpiLabel}"/>
+                                <TextBlock x:Name="finWartoscZycie" Text="—" Style="{StaticResource KpiValue}"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Background="White" BorderBrush="#E2E8F0" BorderThickness="1"
+                                CornerRadius="6" Padding="14,10" Margin="2,0,2,0">
+                            <StackPanel>
+                                <TextBlock Text="💎  Najwyższa cena" Style="{StaticResource KpiLabel}"/>
+                                <TextBlock x:Name="finMaxCena" Text="—" Style="{StaticResource KpiValue}" Foreground="#059669"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Background="White" BorderBrush="#E2E8F0" BorderThickness="1"
+                                CornerRadius="6" Padding="14,10" Margin="4,0,0,0">
+                            <StackPanel>
+                                <TextBlock Text="📉  Najniższa cena" Style="{StaticResource KpiLabel}"/>
+                                <TextBlock x:Name="finMinCena" Text="—" Style="{StaticResource KpiValue}" Foreground="#DC2626"/>
+                            </StackPanel>
+                        </Border>
+                    </UniformGrid>
+
+                    <!-- Wykres ceny -->
+                    <Border Grid.Row="1" Background="White" BorderBrush="#E2E8F0" BorderThickness="1"
+                            CornerRadius="6" Padding="14,10" Margin="0,0,0,8">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Text="💰  Cena skupu w czasie (zł/kg)"
+                                       FontWeight="Bold" Foreground="#1F2937" FontSize="13" Margin="0,0,0,6"/>
+                            <lvc:CartesianChart Grid.Row="1" x:Name="wykresCeny" LegendLocation="None">
+                                <lvc:CartesianChart.AxisX>
+                                    <lvc:Axis x:Name="osXCeny" Foreground="#475569" LabelsRotation="0"/>
+                                </lvc:CartesianChart.AxisX>
+                                <lvc:CartesianChart.AxisY>
+                                    <lvc:Axis x:Name="osYCeny" Title="zł/kg" Foreground="#475569"/>
+                                </lvc:CartesianChart.AxisY>
+                            </lvc:CartesianChart>
+                        </Grid>
+                    </Border>
+
+                    <!-- Tabela: agregacja miesięczna -->
+                    <Border Grid.Row="2" Background="White" BorderBrush="#E2E8F0" BorderThickness="1"
+                            CornerRadius="6" ClipToBounds="True">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Border Grid.Row="0" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1"
+                                    Padding="14,10" Background="#F8FAFC">
+                                <TextBlock Text="📅  Agregacja miesięczna — wartość, suma kg, średnia cena"
+                                           FontWeight="SemiBold" Foreground="#475569" FontSize="12"/>
+                            </Border>
+                            <DataGrid Grid.Row="1" x:Name="dgRozliczenia"
+                                      AutoGenerateColumns="False" IsReadOnly="True"
+                                      HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                      RowBackground="White" AlternatingRowBackground="#F8FAFC"
+                                      BorderThickness="0" RowHeight="30" FontSize="12.5">
+                                <DataGrid.Resources>
+                                    <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource DgHdr}"/>
+                                </DataGrid.Resources>
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Miesiąc" Binding="{Binding Etykieta}" Width="160"/>
+                                    <DataGridTextColumn Header="Partii" Binding="{Binding LiczbaPartii, StringFormat=N0}" Width="80">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Σ kg" Binding="{Binding SumaKg, StringFormat=N0}" Width="120">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="Foreground" Value="#059669"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Σ sztuk" Binding="{Binding SumaSztuk, StringFormat=N0}" Width="100">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Śr. cena" Binding="{Binding SrCena, StringFormat=N2}" Width="100">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Σ Wartość zł" Binding="{Binding SumaWartosc, StringFormat=N0}" Width="140">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="Foreground" Value="#7C3AED"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Wydajność %" Binding="{Binding SrWydajnosc, StringFormat=N2}" Width="*">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- ─── 🩺 Specyfikacja surowca (FarmerCalc) ─── -->
+            <TabItem Header="🩺  Specyfikacja surowca" Style="{StaticResource TabHdr}">
+                <Grid Margin="20,12">
+                    <Border Background="White" BorderBrush="#E2E8F0" BorderThickness="1"
+                            CornerRadius="6" ClipToBounds="True">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Border Grid.Row="0" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1"
+                                    Padding="14,10" Background="#FEF3C7">
+                                <TextBlock FontWeight="SemiBold" Foreground="#92400E" FontSize="12"
+                                           Text="Padłe / CH (Charłaki) / NW (Niewykrwawione) / ZM / LUMEL (licznik tuszek), wagi Hodowca vs Ubojnia, ubytek %, segregacja"/>
+                            </Border>
+                            <DataGrid Grid.Row="1" x:Name="dgSpecyfikacja"
+                                      AutoGenerateColumns="False" IsReadOnly="True"
+                                      HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                      RowBackground="White" AlternatingRowBackground="#FFFBEB"
+                                      BorderThickness="0" RowHeight="30" FontSize="12"
+                                      EnableRowVirtualization="True"
+                                      HorizontalGridLinesBrush="#FEF3C7" VerticalGridLinesBrush="#FEF3C7">
+                                <DataGrid.Resources>
+                                    <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource DgHdr}"/>
+                                </DataGrid.Resources>
+                                <DataGrid.RowStyle>
+                                    <Style TargetType="DataGridRow">
+                                        <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="#FDE68A"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </DataGrid.RowStyle>
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="LP" Binding="{Binding LpDostawy}" Width="50">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Center"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="Foreground" Value="#1E40AF"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Partia" Binding="{Binding Partia}" Width="100"/>
+                                    <DataGridTextColumn Header="Data" Binding="{Binding CreateData, StringFormat=dd.MM.yyyy}" Width="90"/>
+                                    <DataGridTextColumn Header="Szt. dek" Binding="{Binding SztDekl, StringFormat=N0}" Width="80">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Padłe" Binding="{Binding Padle, StringFormat=N0}" Width="60">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                                <Setter Property="Foreground" Value="#7F1D1D"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="CH" Binding="{Binding CH, StringFormat=N0}" Width="55">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Foreground" Value="#92400E"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="NW" Binding="{Binding NW, StringFormat=N0}" Width="55">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Foreground" Value="#7F1D1D"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="ZM" Binding="{Binding ZM, StringFormat=N0}" Width="55">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Foreground" Value="#78350F"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Konf." Binding="{Binding Konfiskaty, StringFormat=N0}" Width="65">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="Foreground" Value="#991B1B"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Konf. %" Binding="{Binding KonfiskatyProc, StringFormat=N2}" Width="75">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Foreground" Value="#991B1B"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="LUMEL" Binding="{Binding LUMEL, StringFormat=N0}" Width="75">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                                <Setter Property="Foreground" Value="#1E40AF"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Zdatne" Binding="{Binding Zdatne, StringFormat=N0}" Width="75">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="Foreground" Value="#059669"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Netto H" Binding="{Binding NettoH, StringFormat=N0}" Width="80">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Foreground" Value="#475569"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Netto U" Binding="{Binding NettoSkup, StringFormat=N0}" Width="80">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                                <Setter Property="Foreground" Value="#059669"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Ubyt. kg" Binding="{Binding UbytekTransKg, StringFormat=N1}" Width="80">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Foreground" Value="#9A3412"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Ubyt. %" Binding="{Binding UbytekTransProc, StringFormat=N2}" Width="80">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="Foreground" Value="#9A3412"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Ubytek %" Binding="{Binding UbytekProc, StringFormat=N2}" Width="80">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Foreground" Value="#475569"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Szt.Wyb" Binding="{Binding SztWyb, StringFormat=N0}" Width="75">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Foreground" Value="#7C3AED"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Kg Wyb" Binding="{Binding KgWyb, StringFormat=N1}" Width="80">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Foreground" Value="#7C3AED"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="PiK" Binding="{Binding PiK}" Width="50">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Center"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Opasienie" Binding="{Binding Opasienie, StringFormat=N1}" Width="*" MinWidth="80">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- ─── 🚚 Transport żywy (czasy załadunku, kierowca, auta) ─── -->
+            <TabItem Header="🚚  Transport żywy" Style="{StaticResource TabHdr}">
+                <Grid Margin="20,12">
+                    <Border Background="White" BorderBrush="#E2E8F0" BorderThickness="1"
+                            CornerRadius="6" ClipToBounds="True">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Border Grid.Row="0" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1"
+                                    Padding="14,10" Background="#DBEAFE">
+                                <TextBlock FontWeight="SemiBold" Foreground="#1E3A8A" FontSize="12"
+                                           Text="Etapy transportu żywego: kierowca, auta, czasy (przyjazd → dojazd → załadunek → wyjazd)"/>
+                            </Border>
+                            <DataGrid Grid.Row="1" x:Name="dgTransport"
+                                      AutoGenerateColumns="False" IsReadOnly="True"
+                                      HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                      RowBackground="White" AlternatingRowBackground="#EFF6FF"
+                                      BorderThickness="0" RowHeight="30" FontSize="12">
+                                <DataGrid.Resources>
+                                    <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource DgHdr}"/>
+                                </DataGrid.Resources>
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Partia" Binding="{Binding Partia}" Width="100"/>
+                                    <DataGridTextColumn Header="Data" Binding="{Binding CreateData, StringFormat=dd.MM.yyyy}" Width="90"/>
+                                    <DataGridTextColumn Header="🧑 Kierowca" Binding="{Binding Kierowca}" Width="180"/>
+                                    <DataGridTextColumn Header="🚛 Ciągnik" Binding="{Binding Auto}" Width="110"/>
+                                    <DataGridTextColumn Header="📦 Naczepa" Binding="{Binding Naczepa}" Width="110"/>
+                                    <DataGridTextColumn Header="Przyjazd" Binding="{Binding Przyjazd, StringFormat=HH:mm}" Width="80"/>
+                                    <DataGridTextColumn Header="U hodowcy" Binding="{Binding DojazdHodowca, StringFormat=HH:mm}" Width="90"/>
+                                    <DataGridTextColumn Header="Załadunek" Binding="{Binding Zaladunek, StringFormat=HH:mm}" Width="90"/>
+                                    <DataGridTextColumn Header="Koniec zał." Binding="{Binding ZaladunekKoniec, StringFormat=HH:mm}" Width="100"/>
+                                    <DataGridTextColumn Header="Wyjazd" Binding="{Binding WyjazdHodowca, StringFormat=HH:mm}" Width="80"/>
+                                    <DataGridTextColumn Header="Koniec usł." Binding="{Binding KoniecUslugi, StringFormat=HH:mm}" Width="100"/>
+                                    <DataGridTextColumn Header="⏱ Czas zał." Binding="{Binding CzasZaladunek, StringFormat=hh\\:mm}" Width="90">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="Foreground" Value="#1E40AF"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="⏱ Łącznie" Binding="{Binding CzasCalkowity, StringFormat=hh\\:mm}" Width="*" MinWidth="90">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="Foreground" Value="#7C3AED"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- ─── 📦 Partie ─── -->
+            <TabItem Header="📦  Historia partii" Style="{StaticResource TabHdr}">
+                <Grid Margin="20,12">
+                    <Border Background="White" BorderBrush="#E2E8F0" BorderThickness="1"
+                            CornerRadius="6" ClipToBounds="True">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+
+                            <Border Grid.Row="0" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1"
+                                    Padding="14,10" Background="#F8FAFC">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" x:Name="txtPartiiInfo"
+                                               Text="" FontWeight="SemiBold" Foreground="#475569"
+                                               FontSize="12" VerticalAlignment="Center"/>
+                                    <Button Grid.Column="1" Content="📥 Eksport partii do CSV"
+                                            Padding="12,6" Background="#F1F5F9" Foreground="#475569"
+                                            BorderBrush="#CBD5E1" BorderThickness="1"
+                                            Cursor="Hand" Click="BtnEksportPartii_Click"
+                                            FontWeight="SemiBold" FontSize="11"/>
+                                </Grid>
+                            </Border>
+
+                            <DataGrid Grid.Row="1" x:Name="dgPartie"
+                                      AutoGenerateColumns="False" IsReadOnly="True"
+                                      HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                      RowBackground="White" AlternatingRowBackground="#F8FAFC"
+                                      BorderThickness="0" RowHeight="30" FontSize="12.5"
+                                      EnableRowVirtualization="True"
+                                      HorizontalGridLinesBrush="#F1F5F9" VerticalGridLinesBrush="#F1F5F9">
+                                <DataGrid.Resources>
+                                    <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource DgHdr}"/>
+                                </DataGrid.Resources>
+                                <DataGrid.RowStyle>
+                                    <Style TargetType="DataGridRow">
+                                        <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="#ECFDF5"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </DataGrid.RowStyle>
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="LP" Binding="{Binding LpDostawy}" Width="50">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Center"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="Foreground" Value="#1E40AF"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Partia" Binding="{Binding Partia}" Width="100"/>
+                                    <DataGridTextColumn Header="Data uboju" Binding="{Binding CreateData, StringFormat=dd.MM.yyyy}" Width="90"/>
+                                    <DataGridTextColumn Header="🐣 Wstawienie" Binding="{Binding DataWstawienia, StringFormat=dd.MM.yyyy}" Width="100">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Foreground" Value="#0F766E"/>
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Dni" Binding="{Binding WiekDni}" Width="55">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Center"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="Foreground" Value="#0F766E"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Status" Binding="{Binding StatusBadge}" Width="120"/>
+                                    <DataGridTextColumn Header="Skup (kg)" Binding="{Binding NettoSkup, StringFormat=N0}" Width="95">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                                <Setter Property="Foreground" Value="#059669"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Sztuk dek." Binding="{Binding SztDekl, StringFormat=N0}" Width="80">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Sztuk przyj." Binding="{Binding PrzyjetoSzt, StringFormat=N0}" Width="90">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                                <Setter Property="Foreground" Value="#475569"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Strata" Binding="{Binding StratySzt, StringFormat=N0}" Width="65">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                                <Setter Property="Foreground" Value="#DC2626"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Strata %" Binding="{Binding StratySztProc, StringFormat=N2}" Width="75">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                                <Setter Property="Foreground" Value="#DC2626"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Śr. waga (kg/szt)" Binding="{Binding SrWagaSzt, StringFormat=N3}" Width="120">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="Foreground" Value="#7C3AED"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Wydajność %" Binding="{Binding WydajnoscProc, StringFormat=N2}" Width="100">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="Foreground" Value="#7C3AED"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Klasa B %" Binding="{Binding KlasaBProc, StringFormat=N1}" Width="80">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Foreground" Value="#475569"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Padłe" Binding="{Binding Padle, StringFormat=N0}" Width="65">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Foreground" Value="#DC2626"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Cena" Binding="{Binding CenaSkup, StringFormat=N2}" Width="80">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Wartość zł" Binding="{Binding Wartosc, StringFormat=N0}" Width="100">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="Foreground" Value="#7C3AED"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Temp. rampy" Binding="{Binding TempRampa, StringFormat=N1}" Width="95">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Foreground" Value="#0891B2"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Vet." Binding="{Binding VetNo}" Width="100"/>
+                                    <DataGridTextColumn Header="Komentarz wet." Binding="{Binding VetComment}" Width="*" MinWidth="120"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- ─── 📅 Harmonogram ─── -->
+            <TabItem Header="📅  Harmonogram" Style="{StaticResource TabHdr}">
+                <Grid Margin="20,12">
+                    <Border Background="White" BorderBrush="#E2E8F0" BorderThickness="1"
+                            CornerRadius="6" ClipToBounds="True">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Border Grid.Row="0" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1"
+                                    Padding="14,10" Background="#ECFDF5">
+                                <TextBlock x:Name="txtHarmInfo" FontWeight="SemiBold" Foreground="#064E3B"
+                                           FontSize="12"
+                                           Text="Plan dostaw 90 dni do przodu / 60 wstecz: numer planu, auta, ceny umowy, bufor, sztuki na szufladzie, status realizacji"/>
+                            </Border>
+                            <DataGrid Grid.Row="1" x:Name="dgHarmonogram"
+                                      AutoGenerateColumns="False" IsReadOnly="True"
+                                      HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                      RowBackground="White" AlternatingRowBackground="#F0FDF4"
+                                      BorderThickness="0" RowHeight="30" FontSize="12.5"
+                                      EnableRowVirtualization="True">
+                                <DataGrid.Resources>
+                                    <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource DgHdr}"/>
+                                </DataGrid.Resources>
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Lp" Binding="{Binding Lp}" Width="55">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Center"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="Foreground" Value="#064E3B"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Data odbioru" Binding="{Binding DataOdbioru, StringFormat=dd.MM.yyyy (ddd)}" Width="135"/>
+                                    <DataGridTextColumn Header="Status" Binding="{Binding StatusBadge}" Width="150"/>
+                                    <DataGridTextColumn Header="Partia" Binding="{Binding PartiaNumer}" Width="90">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="FontFamily" Value="Consolas"/>
+                                                <Setter Property="Foreground" Value="#475569"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Sztuki dek." Binding="{Binding SztukiDek, StringFormat=N0}" Width="95">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Waga dek. (kg)" Binding="{Binding WagaDek, StringFormat=N0}" Width="115">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="Foreground" Value="#059669"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Śr.waga (kg/szt)" Binding="{Binding SrWagaSztPlan, StringFormat=N3}" Width="115">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Foreground" Value="#7C3AED"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Szt.szuflada" Binding="{Binding SztSzuflada, StringFormat=N0}" Width="95">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="🚛 Auta" Binding="{Binding Auta}" Width="100"/>
+                                    <DataGridTextColumn Header="Typ ceny" Binding="{Binding TypCeny}" Width="110"/>
+                                    <DataGridTextColumn Header="Cena bazowa" Binding="{Binding Cena, StringFormat=N2}" Width="100">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                                <Setter Property="Foreground" Value="#1E40AF"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Bufor" Binding="{Binding Bufor}" Width="60">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Center"/>
+                                                <Setter Property="Foreground" Value="#9A3412"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Typ umowy" Binding="{Binding TypUmowy}" Width="100"/>
+                                    <DataGridTextColumn Header="Dni do" Binding="{Binding DniDoDostawy}" Width="70">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Center"/>
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Utworzył" Binding="{Binding KtoUtw}" Width="*" MinWidth="100">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Foreground" Value="#94A3B8"/>
+                                                <Setter Property="FontStyle" Value="Italic"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- ─── 🏠 Fermy ─── -->
+            <TabItem Header="🏠  Fermy" Style="{StaticResource TabHdr}">
+                <Grid Margin="20,12">
+                    <Border Background="White" BorderBrush="#E2E8F0" BorderThickness="1"
+                            CornerRadius="6" ClipToBounds="True">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Border Grid.Row="0" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1"
+                                    Padding="14,10" Background="#F8FAFC">
+                                <TextBlock x:Name="txtFermyInfo" FontWeight="SemiBold" Foreground="#475569"
+                                           FontSize="12" Text="Adresy ferm hodowcy (DostawcyAdresy.Kind=2)"/>
+                            </Border>
+                            <DataGrid Grid.Row="1" x:Name="dgFermy"
+                                      AutoGenerateColumns="False" IsReadOnly="True"
+                                      HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                      RowBackground="White" AlternatingRowBackground="#F8FAFC"
+                                      BorderThickness="0" RowHeight="32" FontSize="12.5">
+                                <DataGrid.Resources>
+                                    <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource DgHdr}"/>
+                                </DataGrid.Resources>
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Lp" Binding="{Binding Lp}" Width="60"/>
+                                    <DataGridTextColumn Header="Adres" Binding="{Binding Adres}" Width="*" MinWidth="200"/>
+                                    <DataGridTextColumn Header="Kod poczt." Binding="{Binding PostalCode}" Width="110"/>
+                                    <DataGridTextColumn Header="Miejscowość" Binding="{Binding City}" Width="160"/>
+                                    <DataGridTextColumn Header="Nr gospod. ARiMR" Binding="{Binding AnimNo}" Width="160"/>
+                                    <DataGridTextColumn Header="Uwagi" Binding="{Binding Uwagi}" Width="*" MinWidth="180"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- ─── 📋 Dane podstawowe ─── -->
+            <TabItem Header="📋  Dane podstawowe" Style="{StaticResource TabHdr}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <Grid Margin="20,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Identyfikacja -->
+                        <Border Grid.Column="0" Background="White" BorderBrush="#E2E8F0" BorderThickness="1"
+                                CornerRadius="6" Padding="16,14" Margin="0,0,8,0">
+                            <StackPanel>
+                                <TextBlock Text="🆔  IDENTYFIKACJA" FontWeight="Bold" Foreground="#1F2937"
+                                           FontSize="13" Margin="0,0,0,10"/>
+
+                                <TextBlock Text="ID dostawcy" Style="{StaticResource InfoLabel}"/>
+                                <TextBlock x:Name="dpID" Text="—" Style="{StaticResource InfoValue}"/>
+
+                                <TextBlock Text="GID" Style="{StaticResource InfoLabel}"/>
+                                <TextBlock x:Name="dpGID" Text="—" Style="{StaticResource InfoValue}"/>
+
+                                <TextBlock Text="Nazwa pełna" Style="{StaticResource InfoLabel}"/>
+                                <TextBlock x:Name="dpName" Text="—" Style="{StaticResource InfoValue}" TextWrapping="Wrap"/>
+
+                                <TextBlock Text="Skrót" Style="{StaticResource InfoLabel}"/>
+                                <TextBlock x:Name="dpShortName" Text="—" Style="{StaticResource InfoValue}"/>
+
+                                <TextBlock Text="NIP" Style="{StaticResource InfoLabel}"/>
+                                <TextBlock x:Name="dpNip" Text="—" Style="{StaticResource InfoValue}"/>
+
+                                <TextBlock Text="REGON" Style="{StaticResource InfoLabel}"/>
+                                <TextBlock x:Name="dpRegon" Text="—" Style="{StaticResource InfoValue}"/>
+
+                                <TextBlock Text="PESEL" Style="{StaticResource InfoLabel}"/>
+                                <TextBlock x:Name="dpPesel" Text="—" Style="{StaticResource InfoValue}"/>
+
+                                <TextBlock Text="Dowód osobisty" Style="{StaticResource InfoLabel}"/>
+                                <TextBlock x:Name="dpIDCard" Text="—" Style="{StaticResource InfoValue}"/>
+
+                                <TextBlock Text="Data wydania DO" Style="{StaticResource InfoLabel}"/>
+                                <TextBlock x:Name="dpIDCardDate" Text="—" Style="{StaticResource InfoValue}"/>
+
+                                <TextBlock Text="Wydany przez" Style="{StaticResource InfoLabel}"/>
+                                <TextBlock x:Name="dpIDCardAuth" Text="—" Style="{StaticResource InfoValue}"/>
+
+                                <TextBlock Text="Numer gospod. (ARiMR)" Style="{StaticResource InfoLabel}"/>
+                                <TextBlock x:Name="dpAnimNo" Text="—" Style="{StaticResource InfoValue}" FontWeight="Bold" Foreground="#059669"/>
+
+                                <TextBlock Text="IRZPlus" Style="{StaticResource InfoLabel}"/>
+                                <TextBlock x:Name="dpIRZPlus" Text="—" Style="{StaticResource InfoValue}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Adres + kontakt -->
+                        <Border Grid.Column="1" Background="White" BorderBrush="#E2E8F0" BorderThickness="1"
+                                CornerRadius="6" Padding="16,14" Margin="4,0,4,0">
+                            <StackPanel>
+                                <TextBlock Text="📞  KONTAKT I LOKALIZACJA" FontWeight="Bold" Foreground="#1F2937"
+                                           FontSize="13" Margin="0,0,0,10"/>
+
+                                <TextBlock Text="Adres" Style="{StaticResource InfoLabel}"/>
+                                <TextBlock x:Name="dpAddress" Text="—" Style="{StaticResource InfoValue}" TextWrapping="Wrap"/>
+
+                                <TextBlock Text="Kod pocztowy" Style="{StaticResource InfoLabel}"/>
+                                <TextBlock x:Name="dpPostal" Text="—" Style="{StaticResource InfoValue}"/>
+
+                                <TextBlock Text="Miejscowość" Style="{StaticResource InfoLabel}"/>
+                                <TextBlock x:Name="dpCity" Text="—" Style="{StaticResource InfoValue}"/>
+
+                                <TextBlock Text="Województwo" Style="{StaticResource InfoLabel}"/>
+                                <TextBlock x:Name="dpProv" Text="—" Style="{StaticResource InfoValue}"/>
+
+                                <TextBlock Text="Odległość (km)" Style="{StaticResource InfoLabel}"/>
+                                <TextBlock x:Name="dpDistance" Text="—" Style="{StaticResource InfoValue}"/>
+
+                                <TextBlock Text="Trasa" Style="{StaticResource InfoLabel}"/>
+                                <TextBlock x:Name="dpTrasa" Text="—" Style="{StaticResource InfoValue}"/>
+
+                                <TextBlock Text="Telefon 1" Style="{StaticResource InfoLabel}"/>
+                                <TextBlock x:Name="dpPhone1" Text="—" Style="{StaticResource InfoValue}"/>
+
+                                <TextBlock Text="Telefon 2" Style="{StaticResource InfoLabel}"/>
+                                <TextBlock x:Name="dpPhone2" Text="—" Style="{StaticResource InfoValue}"/>
+
+                                <TextBlock Text="Telefon 3" Style="{StaticResource InfoLabel}"/>
+                                <TextBlock x:Name="dpPhone3" Text="—" Style="{StaticResource InfoValue}"/>
+
+                                <TextBlock Text="Email" Style="{StaticResource InfoLabel}"/>
+                                <TextBlock x:Name="dpEmail" Text="—" Style="{StaticResource InfoValue}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Cennik + flagi + uwagi -->
+                        <Border Grid.Column="2" Background="White" BorderBrush="#E2E8F0" BorderThickness="1"
+                                CornerRadius="6" Padding="16,14" Margin="8,0,0,0">
+                            <StackPanel>
+                                <TextBlock Text="💰  CENNIK / FLAGI / UWAGI" FontWeight="Bold" Foreground="#1F2937"
+                                           FontSize="13" Margin="0,0,0,10"/>
+
+                                <TextBlock Text="Typ ceny (PriceType)" Style="{StaticResource InfoLabel}"/>
+                                <TextBlock x:Name="dpPriceType" Text="—" Style="{StaticResource InfoValue}"/>
+
+                                <TextBlock Text="Dodatek (zł/kg)" Style="{StaticResource InfoLabel}"/>
+                                <TextBlock x:Name="dpAddition" Text="—" Style="{StaticResource InfoValue}"/>
+
+                                <TextBlock Text="Ubytek (kg)" Style="{StaticResource InfoLabel}"/>
+                                <TextBlock x:Name="dpLoss" Text="—" Style="{StaticResource InfoValue}"/>
+
+                                <TextBlock Text="Padłe + konfiskaty (czy odliczać)" Style="{StaticResource InfoLabel}"/>
+                                <TextBlock x:Name="dpIncDead" Text="—" Style="{StaticResource InfoValue}"/>
+
+                                <TextBlock Text="Flagi" Style="{StaticResource InfoLabel}"/>
+                                <TextBlock x:Name="dpFlagi" Text="—" Style="{StaticResource InfoValue}"/>
+
+                                <TextBlock Text="Status (Halt)" Style="{StaticResource InfoLabel}"/>
+                                <TextBlock x:Name="dpHalt" Text="—" Style="{StaticResource InfoValue}"/>
+
+                                <TextBlock Text="Typ osobowości" Style="{StaticResource InfoLabel}"/>
+                                <TextBlock x:Name="dpOsob" Text="—" Style="{StaticResource InfoValue}"/>
+
+                                <TextBlock Text="Notatki" Style="{StaticResource InfoLabel}"/>
+                                <TextBlock x:Name="dpInfo1" Text="—" Style="{StaticResource InfoValue}" TextWrapping="Wrap"/>
+                                <TextBlock x:Name="dpInfo2" Text="" Style="{StaticResource InfoValue}" TextWrapping="Wrap"/>
+                                <TextBlock x:Name="dpInfo3" Text="" Style="{StaticResource InfoValue}" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </ScrollViewer>
+            </TabItem>
+
+        </TabControl>
+
+        <!-- ═══ Stopka ═══ -->
+        <Border Grid.Row="6" BorderBrush="#E2E8F0" BorderThickness="0,1,0,0" Padding="24,8">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                    <GradientStop Color="#F1F5F9" Offset="0"/>
+                    <GradientStop Color="#E2E8F0" Offset="1"/>
+                </LinearGradientBrush>
+            </Border.Background>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="⌨️" FontSize="13" Margin="0,0,6,0"/>
+                    <TextBlock Text="Esc — zamknij  •  Karta agreguje 4 źródła: Dostawcy + listapartii + FarmerCalc + In0E + HarmonogramDostaw + DostawcyAdresy"
+                               Foreground="#64748B" FontSize="11" FontWeight="SemiBold"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="⏱️" FontSize="13" Margin="0,0,4,0"/>
+                    <TextBlock x:Name="txtCzasLad" Text="" Foreground="#64748B" FontSize="11"
+                               FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

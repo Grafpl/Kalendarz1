@@ -701,89 +701,217 @@ namespace Kalendarz1
             }
         }
 
-        private void LoginButton_Click(object sender, RoutedEventArgs e)
+        /// <summary>
+        /// Login flow z BCrypt hashingiem + throttling + audit log.
+        /// Reguły:
+        ///  - ID "0" lub "1" — szybkie logowanie bez hasła (tylko dev/test)
+        ///  - PasswordHash IS NULL — pierwsze logowanie, user ustawia hasło
+        ///  - PasswordHash NOT NULL — normalna weryfikacja BCrypt
+        ///  - 5 błędnych prób = 15 min lockout
+        /// </summary>
+        private async void LoginButton_Click(object sender, RoutedEventArgs e)
         {
-            string username = PasswordBox.Password;
-
+            string username = PasswordBox.Password?.Trim() ?? "";
             if (string.IsNullOrWhiteSpace(username))
             {
                 ShowMessage("Proszę wprowadzić identyfikator.", isError: true);
                 return;
             }
 
-            if (ValidateUser(username))
+            // 1. Sprawdzenie blokady (throttling)
+            var (locked, minLeft) = await Services.LoginThrottler.IsLockedAsync(username);
+            if (locked)
             {
-                App.UserID = username;
-                App.UserFullName = GetUserFullName(username) ?? username;
-
-                // Zapisz logowanie do historii
-                SaveLoginToHistory(username, App.UserFullName);
-
-                // Uruchom serwis powiadomień o spotkaniach
-                App.StartNotyfikacjeService();
-
-                // Uruchom globalny serwis powiadomień czatu (co 30 sek)
-                App.StartChatNotificationService();
-
-                // Uruchom indekser Centrum nagrań AI (klatki + caption + embedding w tle)
-                App.StartCnaService();
-
-                try
-                {
-                    StopTimers();
-                    this.Hide();
-
-                    MENU menuWindow = new MENU();
-
-                    // Pokaż ekran powitalny z avatarem (nieblokujący, na dole ekranu)
-                    try
-                    {
-                        WelcomeScreen.Show(username, App.UserFullName);
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"WelcomeScreen error: {ex.Message}");
-                    }
-                    menuWindow.FormClosed += (s, args) =>
-                    {
-                        App.StopNotyfikacjeService(); // Zatrzymaj serwis przy zamknięciu
-                        App.StopChatNotificationService(); // Zatrzymaj powiadomienia czatu
-                        Application.Current.Shutdown();
-                    };
-                    menuWindow.Show();
-                }
-                catch (Exception ex)
-                {
-                    this.Show();
-                    ShowMessage($"Krytyczny błąd podczas ładowania menu:\n{ex.Message}", isError: true);
-                }
+                ShowMessage($"Konto zablokowane na {minLeft} min (5 błędnych prób logowania).", isError: true);
+                PasswordBox.Clear();
+                PasswordBox.Focus();
+                return;
             }
-            else
+
+            // 2. Pobierz dane usera z bazy
+            var info = GetUserLoginInfo(username);
+            if (info == null)
             {
+                await Services.LoginThrottler.RecordFailureAsync(username, "Nieznany user");
                 ShowMessage("Nieprawidłowy identyfikator. Spróbuj ponownie.", isError: true);
                 PasswordBox.Clear();
                 PasswordBox.Focus();
+                return;
+            }
+
+            // 3. Specjalne ID "0" i "1" — bez hasła
+            bool skipPassword = (username == "0" || username == "1");
+
+            if (!skipPassword)
+            {
+                if (string.IsNullOrEmpty(info.PasswordHash))
+                {
+                    // Pierwsze logowanie — ustaw nowe hasło
+                    var setDlg = new WPF.PasswordPromptWindow(
+                        WPF.PasswordPromptWindow.Mode.Set, username, info.FullName)
+                    {
+                        Owner = this
+                    };
+                    if (setDlg.ShowDialog() != true)
+                    {
+                        PasswordBox.Clear();
+                        PasswordBox.Focus();
+                        return;
+                    }
+
+                    // Zapisz hash do bazy
+                    if (!SavePasswordHash(username, Services.PasswordHasher.Hash(setDlg.Password)))
+                    {
+                        ShowMessage("Błąd zapisu hasła w bazie. Spróbuj ponownie.", isError: true);
+                        return;
+                    }
+                }
+                else
+                {
+                    // Normalne logowanie — wpisz hasło i zweryfikuj BCrypt
+                    var verifyDlg = new WPF.PasswordPromptWindow(
+                        WPF.PasswordPromptWindow.Mode.Verify, username, info.FullName)
+                    {
+                        Owner = this
+                    };
+                    if (verifyDlg.ShowDialog() != true)
+                    {
+                        PasswordBox.Clear();
+                        PasswordBox.Focus();
+                        return;
+                    }
+
+                    if (!Services.PasswordHasher.Verify(verifyDlg.Password, info.PasswordHash))
+                    {
+                        await Services.LoginThrottler.RecordFailureAsync(username, "Złe hasło");
+                        ShowMessage("Nieprawidłowe hasło. Spróbuj ponownie.", isError: true);
+                        PasswordBox.Clear();
+                        PasswordBox.Focus();
+                        return;
+                    }
+                }
+            }
+
+            // 4. SUKCES — zapisz w audit log, ustaw kontekst aplikacji
+            await Services.LoginThrottler.RecordSuccessAsync(username);
+
+            App.UserID = username;
+            App.UserFullName = info.FullName ?? username;
+            App.IsAdmin = info.IsAdmin;
+
+            SaveLoginToHistory(username, App.UserFullName);
+
+            App.StartNotyfikacjeService();
+            App.StartChatNotificationService();
+            App.StartCnaService();
+
+            try
+            {
+                StopTimers();
+                this.Hide();
+
+                MENU menuWindow = new MENU();
+
+                try { WelcomeScreen.Show(username, App.UserFullName); }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"WelcomeScreen error: {ex.Message}");
+                }
+                menuWindow.FormClosed += (s, args) =>
+                {
+                    App.StopNotyfikacjeService();
+                    App.StopChatNotificationService();
+                    Application.Current.Shutdown();
+                };
+                menuWindow.Show();
+            }
+            catch (Exception ex)
+            {
+                this.Show();
+                ShowMessage($"Krytyczny błąd podczas ładowania menu:\n{ex.Message}", isError: true);
             }
         }
 
-        private bool ValidateUser(string userId)
+        private class UserLoginInfo
+        {
+            public string Id { get; set; } = "";
+            public string? FullName { get; set; }
+            public string? PasswordHash { get; set; }
+            public bool IsAdmin { get; set; }
+        }
+
+        /// <summary>
+        /// Pobiera dane usera z tabeli operators dla potrzeb logowania.
+        /// Zwraca null gdy user nie istnieje. Obsługuje brakujące kolumny
+        /// (przed uruchomieniem AddPasswordHashing.sql) — zwraca PasswordHash=null,
+        /// IsAdmin=false (z fallback na hardcoded "11111").
+        /// </summary>
+        private UserLoginInfo? GetUserLoginInfo(string userId)
         {
             try
             {
-                using (SqlConnection connection = new SqlConnection(connectionString))
+                using var conn = new SqlConnection(connectionString);
+                conn.Open();
+
+                // Próba 1: pełna kwerenda (po uruchomieniu SQL migration)
+                try
                 {
-                    connection.Open();
-                    string query = "SELECT COUNT(1) FROM operators WHERE ID = @username";
-                    using (SqlCommand command = new SqlCommand(query, connection))
+                    using var cmd = new SqlCommand(
+                        "SELECT TOP 1 ISNULL(Name, ID) AS FullName, PasswordHash, IsAdmin FROM operators WHERE ID = @id",
+                        conn);
+                    cmd.Parameters.AddWithValue("@id", userId);
+                    using var r = cmd.ExecuteReader();
+                    if (!r.Read()) return null;
+                    return new UserLoginInfo
                     {
-                        command.Parameters.AddWithValue("@username", userId);
-                        return (int)command.ExecuteScalar() > 0;
-                    }
+                        Id = userId,
+                        FullName = r.IsDBNull(0) ? null : r.GetString(0),
+                        PasswordHash = r.IsDBNull(1) ? null : r.GetString(1),
+                        IsAdmin = !r.IsDBNull(2) && r.GetBoolean(2)
+                    };
+                }
+                catch (SqlException sqlEx) when (sqlEx.Number == 207)
+                {
+                    // Invalid column name — fallback dla bazy bez migracji
+                    using var cmd2 = new SqlCommand(
+                        "SELECT TOP 1 ISNULL(Name, ID) AS FullName FROM operators WHERE ID = @id",
+                        conn);
+                    cmd2.Parameters.AddWithValue("@id", userId);
+                    var name = cmd2.ExecuteScalar();
+                    if (name == null) return null;
+                    return new UserLoginInfo
+                    {
+                        Id = userId,
+                        FullName = name.ToString(),
+                        PasswordHash = null,
+                        IsAdmin = (userId == "11111")  // fallback do starego hardcoded admina
+                    };
                 }
             }
             catch (Exception ex)
             {
                 ShowMessage($"Błąd połączenia z bazą danych:\n{ex.Message}", isError: true);
+                return null;
+            }
+        }
+
+        /// <summary>Zapisuje BCrypt hash hasła dla użytkownika.</summary>
+        private bool SavePasswordHash(string userId, string hash)
+        {
+            try
+            {
+                using var conn = new SqlConnection(connectionString);
+                conn.Open();
+                using var cmd = new SqlCommand(
+                    "UPDATE operators SET PasswordHash = @h, PasswordSetAt = GETDATE() WHERE ID = @id",
+                    conn);
+                cmd.Parameters.AddWithValue("@h", hash);
+                cmd.Parameters.AddWithValue("@id", userId);
+                return cmd.ExecuteNonQuery() > 0;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"SavePasswordHash error: {ex.Message}");
                 return false;
             }
         }

@@ -21,7 +21,7 @@
         /// </summary>
         private void InitializeComponent()
         {
-            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(WidokCenWszystkich));
+            // ComponentResourceManager usunięty - ikona ustawiana przez WindowIconHelper.SetIcon
             label18 = new System.Windows.Forms.Label();
             textBox1 = new System.Windows.Forms.TextBox();
             dataGridView1 = new System.Windows.Forms.DataGridView();
@@ -86,7 +86,7 @@
             Controls.Add(label18);
             Controls.Add(textBox1);
             Controls.Add(dataGridView1);
-            Icon = (System.Drawing.Icon)resources.GetObject("$this.Icon");
+            // Icon ustawiany przez WindowIconHelper.SetIcon w konstruktorze
             Name = "WidokCenWszystkich";
             Text = "Ceny";
             ((System.ComponentModel.ISupportInitialize)dataGridView1).EndInit();

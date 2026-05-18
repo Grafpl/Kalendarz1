@@ -305,6 +305,7 @@
                                     <MenuItem x:Name="menuAnulujCykl" Header="🔗❌ Anuluj cały cykl" Click="MenuAnulujCykl_Click" Visibility="Collapsed"/>
                                     <MenuItem x:Name="menuModyfikuj" Header="✏️ Modyfikuj zamówienie" Click="MenuModyfikuj_Click"/>
                                     <MenuItem x:Name="menuNotatka" Header="📝 Dodaj/Edytuj notatkę" Click="MenuNotatka_Click"/>
+                                    <MenuItem x:Name="menuPrzypiszHandlowca" Header="👤 Przypisz handlowca…" Click="MenuPrzypiszHandlowca_Click"/>
                                     <Separator/>
                                     <MenuItem x:Name="menuSzczegolyZamowienia" Header="📊 Szczegóły zamówienia" Click="MenuSzczegolyZamowienia_Click"/>
                                     <MenuItem x:Name="menuSzczegolyPlatnosci" Header="💳 Płatności kontrahenta" Click="MenuSzczegolyPlatnosci_Click"/>

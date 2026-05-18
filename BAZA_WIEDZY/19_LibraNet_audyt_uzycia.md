@@ -276,3 +276,82 @@ WHERE Status = 'Zdecydowany'   -- zaakceptowane / odrzucone
 - [`18_Analiza_przychodu_szczegoly.md`](18_Analiza_przychodu_szczegoly.md) — szczegóły `In0E` + `Article` + `PartiaDostawca`
 - [`20_SELECTY_DLA_SSMS.md`](20_SELECTY_DLA_SSMS.md) — gotowy zestaw SELECT-ów do uruchomienia w SSMS
 - [`12_ZPSP_program.md`](12_ZPSP_program.md) — architektura programu
+
+---
+
+## J. Aktualizacja 2026-05-12 — eksploracja schematu i analiza Maja/Paulina
+
+### Co potwierdzono w SSMS
+
+- **LibraNet to SQL Server 2022** (nie 2008 R2). `STRING_AGG`, `TRY_CONVERT`, window functions wszystkie działają natywnie.
+- **`HarmonogramDostaw`** ma 47 kolumn. Główni twórcy (`KtoStwo`) od 2024-10:
+  - Teresa Jachymczak (2121) — 1881 wpisów = 49.83%
+  - **Paulina Koncka (1122)** — 972 wpisów = 25.75%
+  - Administrator (11111) — 922 wpisów = 24.42%
+- **Brak podziału terytorialnego** między Paulina/Teresa — 130+ dostawców obsługiwani przez OBOJE.
+- **30 dokumentów modyfikowanych przez drugą osobę** w ostatnim miesiącu — wskazuje na napięcia/poprawki.
+
+### Kolumny `HarmonogramDostaw` — poprawki nazw
+
+- **`KmK`** (km do kurnika), **`KmH`** (km do hodowcy) — NIE `KM`
+- **`Wysłane`** (z polskim `ł`) — NIE `Wyslane`
+- **`Posrednik`** (bit) — czy dostawa przez pośrednika
+- **`Utworzone`, `Wysłane`, `Otrzymane`** — flagi przepływu (czy harmonogram wysłany do hodowcy)
+- **`KtoStwo`, `KtoMod`, `KtoUtw`, `KtoWysl`, `KtoOtrzym`** — 5 różnych userów (5 momentów audytu)
+- **`KtoWaga`, `KtoSztuki`** — kto potwierdził wagę/sztuki po dostawie
+- **`DataPotwWaga`, `DataPotwSztuki`** — kiedy potwierdzono
+
+### Kolumny `listapartii` — RZECZYWISTOŚĆ (19 kolumn)
+
+Faktyczne kolumny: GUID, DIR_ID, Partia, GrupaTowarowa, ArticleID, CreateData/Godzina, ModificationData/Godzina, CreateOperator, CloseData/Godzina, CloseOperator, IsClose, CalcMethod, CalcData, CalcGodzina, StatusV2, HarmonogramLp.
+
+**Hodowca NIE w listapartii** — w **`PartiaDostawca`** (klucz: `Partia`).
+
+**Metryki produkcyjne NIE w listapartii** — szukać w:
+- Wagi: `In0E` (przyjęcia) + `Out1A` (rozchód) po `P1`
+- Klasa B: `WadyPartii` / `PodsumaPartii` (V2)
+- Temperatury: `Temperatury`
+- Sztuki deklarowane: `FarmerCalc.DeclI*` lub `HarmonogramDostaw.SztukiDek`
+
+### Tabela `operators` (56 wierszy) — kluczowi userzy
+
+| ID | Name | Login? | Rola |
+|---|---|---|---|
+| 11111 | Administrator | TAK | Sergiusz |
+| 1122 | **Paulina Koncka** | TAK | Zakup żywca |
+| 2121 | **Teresa Jachymczak** | TAK | Sprzedaż + zakup żywca |
+| 6521 | **Maja Leonard** | TAK | Sprzedaż mięsa |
+| 432143 | Anna Jedynak | TAK | Sprzedaż |
+| 871231 | Radek Marciniak | rzadko | Sprzedaż (mało aktywny) |
+| 111222 | Jolanta Kubiak | nie loguje się | Sprzedaż (główna) |
+| 6611 | Justyna Chrostowska | TAK | KSeF/księgowość |
+| 9998 | Daniel Czapnik | NIE (nieaktywny) | b. handlowiec Mai |
+| 5555 / 9991 | Dawid Sosiński / Śluzarek | NIE | b. handlowcy |
+
+**Quirk:** `operators.ID` to `varchar(15)`, ale w praktyce numeryczny string. JOIN z `HarmonogramDostaw.KtoStwo` (int) wymaga **`CAST(O.ID AS int) = H.KtoStwo`**.
+
+### `UserHandlowcy` — mapowanie LibraNetUserID → HandlowiecName
+
+Tabela mapuje `UserID` (varchar = operators.ID) → `HandlowiecName` (Maja, Daniel, Ania, Jola, Radek, Teresa, Paweł, Ogólne).
+
+**Cel:** atrybucja `ZamowieniaMieso.IdUser` do handlowca. To **jedyny twardy klucz** do historycznej analizy aktywności handlowca w czasie — bo HANDEL traci historię w `CDim_Handlowiec_Val` (CURRENT STATE).
+
+### `Pozyskiwanie_Hodowcy.PrzypisanyDo` — PUSTE
+
+Tabela ma 1874 wierszy ale `PrzypisanyDo` jest **pusta dla Pauliny** (0 hodowców formalnie przypisanych). Konsekwencje:
+- CRM hodowców NIE jest oficjalnie podzielony między userów
+- Aktywności w `Pozyskiwanie_Aktywnosci` Pauliny (207 wpisów) wynikają ze swobodnej pracy
+- Konwersja Pauliny w CRM (luty 2026): 37 "Do zadzwonienia → Próba kontaktu", 19 → "Obcy kontrakt", **tylko 2 → Nawiązano kontakt**
+- 0 udanych telefonów (UdaneRozmowy=0 we wszystkich miesiącach)
+
+### `FarmerCalc.CreatedBy` — wszystkie NULL
+
+Mimo 1199 wierszy, `CreatedBy` jest puste w 100% przypadków. **Audyt zakupu hodowcy jest ślepy** — nie wiadomo kto rozliczał.
+
+### Sezonowość pracy Pauliny — sygnał alarmowy (HarmonogramDostaw)
+
+Liczba wpisów per miesiąc (KtoStwo=1122):
+- 2025-09: 55 → 2025-10: 100 → 2025-11: 96 → **2025-12: 100** (pik)
+- 2026-01: 77 → 2026-02: 49 → 2026-03: 48 → **2026-04: 26 → 2026-05: 20** (drastyczny spadek)
+
+**Spadek do 1/5 normalnej aktywności w ostatnich 2 miesiącach.** Możliwe wyjaśnienia: wypalenie, konflikt z Teresą, urlop, lub Teresa przejmuje zadania.

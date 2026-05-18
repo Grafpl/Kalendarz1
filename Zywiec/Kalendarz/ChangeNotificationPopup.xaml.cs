@@ -62,9 +62,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
             avatarBorder.Background = new SolidColorBrush(accentColor);
             txtTitle.Text = item.Title ?? "Zmiana";
-            txtSubtitle.Text = !string.IsNullOrEmpty(item.Dostawca)
-                ? $"{item.Dostawca}  |  LP: {item.LP}"
-                : $"LP: {item.LP}";
+            txtSubtitle.Text = !string.IsNullOrEmpty(item.Dostawca) ? item.Dostawca : "(brak dostawcy)";
+            txtLpInfo.Text = $"LP: {item.LP}";
             txtTimestamp.Text = item.Timestamp.ToString("HH:mm:ss");
 
             // Data odbioru dostawy - prominentny badge
@@ -180,10 +179,11 @@ namespace Kalendarz1.Zywiec.Kalendarz
             var sepText = new TextBlock
             {
                 Text = !string.IsNullOrEmpty(item.Dostawca) ? $"▸ {item.Dostawca}  |  LP: {item.LP}" : $"▸ LP: {item.LP}",
-                FontSize = 10,
+                FontSize = 11,
                 FontWeight = FontWeights.SemiBold,
-                Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139)),
-                Margin = new Thickness(7, 4, 4, 1)
+                Foreground = new SolidColorBrush(Color.FromRgb(71, 85, 105)),
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(7, 6, 4, 2)
             };
             sepGrid.Children.Add(sepText);
             changesPanel.Children.Add(sepGrid);
@@ -193,9 +193,10 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 changesPanel.Children.Add(BuildChangeRow(change, item.LP, item.DataOdbioru));
             }
 
-            // Zaktualizuj stopkę: pokaż licznik zagregowanych zmian
+            // Zaktualizuj nagłówek: pokaż licznik zagregowanych zmian
             txtTitle.Text = $"Zmiany ({_aggregatedCount})";
             txtSubtitle.Text = "Wiele dostaw zmodyfikowanych";
+            txtLpInfo.Text = $"Ostatnia: LP {item.LP}";
             txtTimestamp.Text = DateTime.Now.ToString("HH:mm:ss");
 
             // Aktualizuj Data odbioru: jeśli wszystkie zmiany na ten sam dzień - pokaż; inaczej ukryj
@@ -348,7 +349,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
         {
             var grid = new Grid();
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(4) }); // kolorowy pasek
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(85) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto, MinWidth = 110 }); // nazwa pola - auto rozmiar
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -384,7 +385,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 Foreground = new SolidColorBrush(Color.FromRgb(239, 68, 68)),
                 TextDecorations = TextDecorations.Strikethrough,
                 VerticalAlignment = VerticalAlignment.Center,
-                TextTrimming = TextTrimming.CharacterEllipsis,
+                TextWrapping = TextWrapping.Wrap,
                 HorizontalAlignment = HorizontalAlignment.Right,
                 Margin = new Thickness(0, 0, 4, 0)
             };
@@ -409,7 +410,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 FontWeight = FontWeights.Bold,
                 Foreground = new SolidColorBrush(Color.FromRgb(22, 163, 74)),
                 VerticalAlignment = VerticalAlignment.Center,
-                TextTrimming = TextTrimming.CharacterEllipsis,
+                TextWrapping = TextWrapping.Wrap,
                 Margin = new Thickness(4, 0, 4, 0)
             };
             Grid.SetColumn(newVal, 4);

@@ -16,6 +16,7 @@ using ClosedXML.Excel;
 using Microsoft.Win32;
 using Kalendarz1.HandlowiecDashboard.Views;
 using Kalendarz1.Kartoteka.Models;
+using Kalendarz1.Kartoteka.Resources;
 using Kalendarz1.Kartoteka.Services;
 using Kalendarz1.Kartoteka.Features.Historia;
 using Kalendarz1.Kartoteka.Features.Scoring;
@@ -108,7 +109,7 @@ namespace Kalendarz1.Kartoteka.Views
                     }
                 }
             }
-            catch { }
+            catch (Exception ex) { Debug.WriteLine($"[Kartoteka] {ex.GetType().Name}: {ex.Message}"); }
         }
 
         private void SetupLogoContextMenu()
@@ -209,7 +210,7 @@ namespace Kalendarz1.Kartoteka.Views
                     }
                 }
             }
-            catch { }
+            catch (Exception ex) { Debug.WriteLine($"[Kartoteka] {ex.GetType().Name}: {ex.Message}"); }
         }
 
         private string GetUserInitials(string name)
@@ -331,7 +332,7 @@ namespace Kalendarz1.Kartoteka.Views
                 // Refresh cards to show updated asortyment
                 ApplySortAndRegenerate();
             }
-            catch { }
+            catch (Exception ex) { Debug.WriteLine($"[Kartoteka] {ex.GetType().Name}: {ex.Message}"); }
         }
 
         private async System.Threading.Tasks.Task LoadTowaryAsync()
@@ -356,7 +357,7 @@ namespace Kalendarz1.Kartoteka.Views
 
                 ComboBoxTowar.SelectedIndex = 0;
             }
-            catch { }
+            catch (Exception ex) { Debug.WriteLine($"[Kartoteka] {ex.GetType().Name}: {ex.Message}"); }
         }
 
         // ═══════════════════════════════════════════
@@ -454,16 +455,16 @@ namespace Kalendarz1.Kartoteka.Views
         {
             var header = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(249, 250, 251)), // #F9FAFB
-                BorderBrush = new SolidColorBrush(Color.FromRgb(209, 213, 219)), // #D1D5DB
+                Background = KartotekaBrushes.Gray50, // #F9FAFB
+                BorderBrush = KartotekaBrushes.Gray300, // #D1D5DB
                 BorderThickness = new Thickness(0, 0, 0, 2),
                 Padding = new Thickness(12, 6, 12, 6),
                 Margin = new Thickness(0, 0, 0, 1)
             };
 
             var grid = CreateCardColumnDefinitions();
-            var grayBrush = new SolidColorBrush(Color.FromRgb(107, 114, 128)); // #6B7280
-            var greenBrush = new SolidColorBrush(Color.FromRgb(22, 101, 52));  // #166534
+            var grayBrush = KartotekaBrushes.Gray500; // #6B7280
+            var greenBrush = KartotekaBrushes.Green800;  // #166534
 
             string[] headers = _isAdmin
                 ? new[] { "", "Kat.", "Firma", "NIP", "Kontakt", "Telefon", "Email", "Forma", "Termin", "Należności", "Limit", "Bilans", "Przeter.", "%", "Ost.fakt.", "Handl.", "" }
@@ -626,7 +627,7 @@ namespace Kalendarz1.Kartoteka.Views
             var card = new Border
             {
                 Background = categoryBg,
-                BorderBrush = new SolidColorBrush(Color.FromRgb(229, 231, 235)),
+                BorderBrush = KartotekaBrushes.Gray200,
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(4),
                 Padding = new Thickness(12, 6, 12, 6),
@@ -696,7 +697,7 @@ namespace Kalendarz1.Kartoteka.Views
             nameStack.Children.Add(new TextBlock
             {
                 Text = addressText,
-                Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
+                Foreground = KartotekaBrushes.Gray500,
                 FontSize = 10,
                 VerticalAlignment = VerticalAlignment.Center,
                 TextTrimming = TextTrimming.CharacterEllipsis
@@ -709,7 +710,7 @@ namespace Kalendarz1.Kartoteka.Views
             {
                 Text = odbiorca.NIP ?? "",
                 FontSize = 10,
-                Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
+                Foreground = KartotekaBrushes.Gray500,
                 VerticalAlignment = VerticalAlignment.Center,
                 TextTrimming = TextTrimming.CharacterEllipsis
             };
@@ -724,7 +725,7 @@ namespace Kalendarz1.Kartoteka.Views
                     Text = "brak!",
                     FontSize = 10,
                     FontWeight = FontWeights.SemiBold,
-                    Foreground = new SolidColorBrush(Color.FromRgb(220, 38, 38)), // red
+                    Foreground = KartotekaBrushes.Red600, // red
                     VerticalAlignment = VerticalAlignment.Center,
                     Cursor = Cursors.Hand,
                     TextDecorations = TextDecorations.Underline
@@ -743,7 +744,7 @@ namespace Kalendarz1.Kartoteka.Views
                 var kontaktText = new TextBlock
                 {
                     Text = odbiorca.OsobaKontaktowa,
-                    Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
+                    Foreground = KartotekaBrushes.Gray500,
                     FontSize = 10,
                     VerticalAlignment = VerticalAlignment.Center,
                     TextTrimming = TextTrimming.CharacterEllipsis
@@ -760,7 +761,7 @@ namespace Kalendarz1.Kartoteka.Views
                     Text = "brak!",
                     FontSize = 10,
                     FontWeight = FontWeights.SemiBold,
-                    Foreground = new SolidColorBrush(Color.FromRgb(220, 38, 38)),
+                    Foreground = KartotekaBrushes.Red600,
                     VerticalAlignment = VerticalAlignment.Center,
                     Cursor = Cursors.Hand,
                     TextDecorations = TextDecorations.Underline
@@ -780,7 +781,7 @@ namespace Kalendarz1.Kartoteka.Views
                 {
                     Text = odbiorca.TelefonKontakt,
                     FontSize = 10,
-                    Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
+                    Foreground = KartotekaBrushes.Gray500,
                     VerticalAlignment = VerticalAlignment.Center,
                     TextTrimming = TextTrimming.CharacterEllipsis
                 };
@@ -796,7 +797,7 @@ namespace Kalendarz1.Kartoteka.Views
                     Text = "brak!",
                     FontSize = 10,
                     FontWeight = FontWeights.SemiBold,
-                    Foreground = new SolidColorBrush(Color.FromRgb(220, 38, 38)),
+                    Foreground = KartotekaBrushes.Red600,
                     VerticalAlignment = VerticalAlignment.Center,
                     Cursor = Cursors.Hand,
                     TextDecorations = TextDecorations.Underline
@@ -816,7 +817,7 @@ namespace Kalendarz1.Kartoteka.Views
                 {
                     Text = odbiorca.EmailKontakt,
                     FontSize = 10,
-                    Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
+                    Foreground = KartotekaBrushes.Gray500,
                     VerticalAlignment = VerticalAlignment.Center,
                     TextTrimming = TextTrimming.CharacterEllipsis,
                     ToolTip = odbiorca.EmailKontakt
@@ -830,7 +831,7 @@ namespace Kalendarz1.Kartoteka.Views
             {
                 Text = odbiorca.FormaPlatnosci ?? "",
                 FontSize = 10,
-                Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
+                Foreground = KartotekaBrushes.Gray500,
                 VerticalAlignment = VerticalAlignment.Center,
                 TextTrimming = TextTrimming.CharacterEllipsis
             };
@@ -842,7 +843,7 @@ namespace Kalendarz1.Kartoteka.Views
             {
                 Text = odbiorca.TerminPlatnosci > 0 ? $"{odbiorca.TerminPlatnosci}d" : "",
                 FontSize = 10,
-                Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
+                Foreground = KartotekaBrushes.Gray500,
                 VerticalAlignment = VerticalAlignment.Center,
                 HorizontalAlignment = HorizontalAlignment.Center
             };
@@ -858,8 +859,8 @@ namespace Kalendarz1.Kartoteka.Views
                 HorizontalAlignment = HorizontalAlignment.Right,
                 Margin = new Thickness(0, 0, 8, 0),
                 Foreground = odbiorca.WykorzystanoLimit > 0
-                    ? new SolidColorBrush(Color.FromRgb(180, 83, 9))     // amber-700
-                    : new SolidColorBrush(Color.FromRgb(156, 163, 175))  // gray
+                    ? KartotekaBrushes.Amber700     // amber-700
+                    : KartotekaBrushes.Gray400  // gray
             };
             Grid.SetColumn(nalezText, col++);
             grid.Children.Add(nalezText);
@@ -886,8 +887,8 @@ namespace Kalendarz1.Kartoteka.Views
                 HorizontalAlignment = HorizontalAlignment.Right,
                 Margin = new Thickness(0, 0, 8, 0),
                 Foreground = odbiorca.Bilans >= 0
-                    ? new SolidColorBrush(Color.FromRgb(22, 163, 74))    // green
-                    : new SolidColorBrush(Color.FromRgb(220, 38, 38))    // red
+                    ? KartotekaBrushes.Green600    // green
+                    : KartotekaBrushes.Red600    // red
             };
             Grid.SetColumn(bilansText, col++);
             grid.Children.Add(bilansText);
@@ -902,8 +903,8 @@ namespace Kalendarz1.Kartoteka.Views
                 HorizontalAlignment = HorizontalAlignment.Right,
                 Margin = new Thickness(0, 0, 8, 0),
                 Foreground = odbiorca.KwotaPrzeterminowana > 0
-                    ? new SolidColorBrush(Color.FromRgb(220, 38, 38))    // red
-                    : new SolidColorBrush(Color.FromRgb(156, 163, 175))  // gray
+                    ? KartotekaBrushes.Red600    // red
+                    : KartotekaBrushes.Gray400  // gray
             };
             Grid.SetColumn(przeterText, col++);
             grid.Children.Add(przeterText);
@@ -917,10 +918,10 @@ namespace Kalendarz1.Kartoteka.Views
                 HorizontalAlignment = HorizontalAlignment.Right,
                 Margin = new Thickness(0, 0, 8, 0),
                 Foreground = odbiorca.ProcentWykorzystania > 100
-                    ? new SolidColorBrush(Color.FromRgb(220, 38, 38))
+                    ? KartotekaBrushes.Red600
                     : odbiorca.ProcentWykorzystania > 80
-                        ? new SolidColorBrush(Color.FromRgb(234, 179, 8))
-                        : new SolidColorBrush(Color.FromRgb(107, 114, 128))
+                        ? KartotekaBrushes.Yellow500
+                        : KartotekaBrushes.Gray500
             };
             Grid.SetColumn(procentText, col++);
             grid.Children.Add(procentText);
@@ -930,7 +931,7 @@ namespace Kalendarz1.Kartoteka.Views
             {
                 Text = odbiorca.OstatniaFakturaData.HasValue ? FormatRelativeDate(odbiorca.OstatniaFakturaData.Value) : "",
                 FontSize = 10,
-                Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
+                Foreground = KartotekaBrushes.Gray500,
                 VerticalAlignment = VerticalAlignment.Center,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 ToolTip = odbiorca.OstatniaFakturaData.HasValue ? odbiorca.OstatniaFakturaData.Value.ToString("dd.MM.yyyy") : null
@@ -945,7 +946,7 @@ namespace Kalendarz1.Kartoteka.Views
                 {
                     Text = odbiorca.Handlowiec ?? "",
                     FontSize = 10,
-                    Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
+                    Foreground = KartotekaBrushes.Gray500,
                     VerticalAlignment = VerticalAlignment.Center,
                     TextTrimming = TextTrimming.CharacterEllipsis
                 };
@@ -958,7 +959,7 @@ namespace Kalendarz1.Kartoteka.Views
             {
                 Text = "▼",
                 FontSize = 9,
-                Foreground = new SolidColorBrush(Color.FromRgb(156, 163, 175)),
+                Foreground = KartotekaBrushes.Gray400,
                 VerticalAlignment = VerticalAlignment.Center,
                 HorizontalAlignment = HorizontalAlignment.Center
             };
@@ -974,7 +975,7 @@ namespace Kalendarz1.Kartoteka.Views
             card.MouseEnter += (s, ev) =>
             {
                 if (card != _expandedCard)
-                    card.Background = new SolidColorBrush(Color.FromRgb(243, 244, 246)); // #F3F4F6 light gray hover
+                    card.Background = KartotekaBrushes.Gray100; // #F3F4F6 light gray hover
             };
             card.MouseLeave += (s, ev) =>
             {
@@ -999,23 +1000,23 @@ namespace Kalendarz1.Kartoteka.Views
                 infoPanel.Children.Add(new TextBlock
                 {
                     Text = $"{odbiorca.Ulica}, {odbiorca.KodPocztowy} {odbiorca.Miasto}".Trim(' ', ','),
-                    FontSize = 11, Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
+                    FontSize = 11, Foreground = KartotekaBrushes.Gray500,
                     TextWrapping = TextWrapping.Wrap, MaxWidth = 280
                 });
             }
             if (!string.IsNullOrWhiteSpace(odbiorca.NIP))
-                infoPanel.Children.Add(new TextBlock { Text = $"NIP: {odbiorca.NIP}", FontSize = 11, Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)) });
+                infoPanel.Children.Add(new TextBlock { Text = $"NIP: {odbiorca.NIP}", FontSize = 11, Foreground = KartotekaBrushes.Gray500 });
             if (!string.IsNullOrWhiteSpace(odbiorca.OsobaKontaktowa))
-                infoPanel.Children.Add(new TextBlock { Text = $"Kontakt: {odbiorca.OsobaKontaktowa}", FontSize = 11, Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)) });
+                infoPanel.Children.Add(new TextBlock { Text = $"Kontakt: {odbiorca.OsobaKontaktowa}", FontSize = 11, Foreground = KartotekaBrushes.Gray500 });
             if (!string.IsNullOrWhiteSpace(odbiorca.TelefonKontakt))
-                infoPanel.Children.Add(new TextBlock { Text = $"Tel: {odbiorca.TelefonKontakt}", FontSize = 11, Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)) });
+                infoPanel.Children.Add(new TextBlock { Text = $"Tel: {odbiorca.TelefonKontakt}", FontSize = 11, Foreground = KartotekaBrushes.Gray500 });
             if (!string.IsNullOrWhiteSpace(odbiorca.EmailKontakt))
-                infoPanel.Children.Add(new TextBlock { Text = $"Email: {odbiorca.EmailKontakt}", FontSize = 11, Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)) });
+                infoPanel.Children.Add(new TextBlock { Text = $"Email: {odbiorca.EmailKontakt}", FontSize = 11, Foreground = KartotekaBrushes.Gray500 });
             var katLine = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 0) };
-            katLine.Children.Add(new TextBlock { Text = $"Kategoria: ", FontSize = 11, Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)) });
+            katLine.Children.Add(new TextBlock { Text = $"Kategoria: ", FontSize = 11, Foreground = KartotekaBrushes.Gray500 });
             katLine.Children.Add(new TextBlock { Text = odbiorca.KategoriaHandlowca ?? "C", FontWeight = FontWeights.Bold, FontSize = 11, Foreground = GetKategoriaForeground(odbiorca.KategoriaHandlowca) });
             if (odbiorca.LimitKupiecki > 0)
-                katLine.Children.Add(new TextBlock { Text = $"  |  Limit: {odbiorca.LimitKupiecki:N0} zł", FontSize = 11, Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)) });
+                katLine.Children.Add(new TextBlock { Text = $"  |  Limit: {odbiorca.LimitKupiecki:N0} zł", FontSize = 11, Foreground = KartotekaBrushes.Gray500 });
             infoPanel.Children.Add(katLine);
             infoHeader.Header = infoPanel;
             card.ContextMenu.Items.Add(infoHeader);
@@ -1036,13 +1037,13 @@ namespace Kalendarz1.Kartoteka.Views
             callItem.Click += (s, ev) =>
             {
                 if (!string.IsNullOrEmpty(odbiorca.TelefonKontakt))
-                    try { Process.Start(new ProcessStartInfo { FileName = $"tel:{odbiorca.TelefonKontakt}", UseShellExecute = true }); } catch { }
+                    try { Process.Start(new ProcessStartInfo { FileName = $"tel:{odbiorca.TelefonKontakt}", UseShellExecute = true }); } catch (Exception ex) { Debug.WriteLine($"[Kartoteka] {ex.GetType().Name}: {ex.Message}"); }
             };
             var emailItem = new MenuItem { Header = "📧 Wyślij email" };
             emailItem.Click += (s, ev) =>
             {
                 if (!string.IsNullOrEmpty(odbiorca.EmailKontakt))
-                    try { Process.Start(new ProcessStartInfo { FileName = $"mailto:{odbiorca.EmailKontakt}", UseShellExecute = true }); } catch { }
+                    try { Process.Start(new ProcessStartInfo { FileName = $"mailto:{odbiorca.EmailKontakt}", UseShellExecute = true }); } catch (Exception ex) { Debug.WriteLine($"[Kartoteka] {ex.GetType().Name}: {ex.Message}"); }
             };
             var copyItem = new MenuItem { Header = "📋 Kopiuj dane", InputGestureText = "Ctrl+C" };
             copyItem.Click += (s, ev) =>
@@ -1212,29 +1213,29 @@ namespace Kalendarz1.Kartoteka.Views
                     {
                         tb.Text = expanded ? "▲" : "▼";
                         tb.Foreground = expanded
-                            ? new SolidColorBrush(Color.FromRgb(22, 163, 74))
-                            : new SolidColorBrush(Color.FromRgb(156, 163, 175));
+                            ? KartotekaBrushes.Green600
+                            : KartotekaBrushes.Gray400;
                     }
                 }
             }
 
             if (expanded)
             {
-                card.BorderBrush = new SolidColorBrush(Color.FromRgb(22, 163, 74)); // #16A34A
+                card.BorderBrush = KartotekaBrushes.Green600; // #16A34A
                 card.BorderThickness = new Thickness(3, 1, 1, 1); // green left border
                 var odbiorca = card.Tag as OdbiorcaHandlowca;
                 // Darker background for active card
                 card.Background = odbiorca?.KategoriaHandlowca switch
                 {
-                    "A" => new SolidColorBrush(Color.FromRgb(220, 252, 231)), // #DCFCE7
-                    "B" => new SolidColorBrush(Color.FromRgb(219, 234, 254)), // #DBEAFE
-                    "D" => new SolidColorBrush(Color.FromRgb(254, 226, 226)), // #FEE2E2
-                    _ => new SolidColorBrush(Color.FromRgb(243, 244, 246))    // #F3F4F6
+                    "A" => KartotekaBrushes.Green100, // #DCFCE7
+                    "B" => KartotekaBrushes.Blue100, // #DBEAFE
+                    "D" => KartotekaBrushes.Red100, // #FEE2E2
+                    _ => KartotekaBrushes.Gray100    // #F3F4F6
                 };
             }
             else
             {
-                card.BorderBrush = new SolidColorBrush(Color.FromRgb(229, 231, 235));
+                card.BorderBrush = KartotekaBrushes.Gray200;
                 card.BorderThickness = new Thickness(1);
                 // Restore category-based background
                 var odbiorca = card.Tag as OdbiorcaHandlowca;
@@ -1251,11 +1252,11 @@ namespace Kalendarz1.Kartoteka.Views
         {
             return alertType switch
             {
-                "LimitExceeded" => new SolidColorBrush(Color.FromRgb(220, 38, 38)),   // #DC2626 red
-                "Overdue" => new SolidColorBrush(Color.FromRgb(234, 88, 12)),          // #EA580C orange
-                "Inactive" => new SolidColorBrush(Color.FromRgb(168, 85, 247)),        // #A855F7 purple
-                "NewClient" => new SolidColorBrush(Color.FromRgb(59, 130, 246)),       // #3B82F6 blue
-                _ => new SolidColorBrush(Color.FromRgb(34, 197, 94))                   // #22C55E green
+                "LimitExceeded" => KartotekaBrushes.Red600,   // #DC2626 red
+                "Overdue" => KartotekaBrushes.Orange600,          // #EA580C orange
+                "Inactive" => KartotekaBrushes.Purple500,        // #A855F7 purple
+                "NewClient" => KartotekaBrushes.Blue500,       // #3B82F6 blue
+                _ => KartotekaBrushes.Green500                   // #22C55E green
             };
         }
 
@@ -1275,10 +1276,10 @@ namespace Kalendarz1.Kartoteka.Views
         {
             return kat switch
             {
-                "A" => new SolidColorBrush(Color.FromRgb(220, 252, 231)), // green-100
-                "B" => new SolidColorBrush(Color.FromRgb(219, 234, 254)), // blue-100
-                "D" => new SolidColorBrush(Color.FromRgb(254, 226, 226)), // red-100
-                _ => new SolidColorBrush(Color.FromRgb(243, 244, 246))    // gray-100 (C)
+                "A" => KartotekaBrushes.Green100, // green-100
+                "B" => KartotekaBrushes.Blue100, // blue-100
+                "D" => KartotekaBrushes.Red100, // red-100
+                _ => KartotekaBrushes.Gray100    // gray-100 (C)
             };
         }
 
@@ -1286,10 +1287,10 @@ namespace Kalendarz1.Kartoteka.Views
         {
             return kat switch
             {
-                "A" => new SolidColorBrush(Color.FromRgb(22, 101, 52)),   // green-800
-                "B" => new SolidColorBrush(Color.FromRgb(30, 64, 175)),   // blue-800
-                "D" => new SolidColorBrush(Color.FromRgb(153, 27, 27)),   // red-800
-                _ => new SolidColorBrush(Color.FromRgb(55, 65, 81))       // gray-700 (C)
+                "A" => KartotekaBrushes.Green800,   // green-800
+                "B" => KartotekaBrushes.Blue800,   // blue-800
+                "D" => KartotekaBrushes.Red900,   // red-800
+                _ => KartotekaBrushes.Gray700       // gray-700 (C)
             };
         }
 
@@ -1297,9 +1298,9 @@ namespace Kalendarz1.Kartoteka.Views
         {
             return kat switch
             {
-                "A" => new SolidColorBrush(Color.FromRgb(240, 253, 244)), // #F0FDF4 delikatny zielony
-                "B" => new SolidColorBrush(Color.FromRgb(239, 246, 255)), // #EFF6FF delikatny niebieski
-                "D" => new SolidColorBrush(Color.FromRgb(254, 242, 242)), // #FEF2F2 delikatny czerwony
+                "A" => KartotekaBrushes.Green50, // #F0FDF4 delikatny zielony
+                "B" => KartotekaBrushes.Blue50, // #EFF6FF delikatny niebieski
+                "D" => KartotekaBrushes.Red50, // #FEF2F2 delikatny czerwony
                 _ => Brushes.White                                         // C = bez koloru
             };
         }
@@ -1405,7 +1406,7 @@ namespace Kalendarz1.Kartoteka.Views
             if (list == null || list.Count == 0)
             {
                 TextPowiadomieniaCount.Text = "";
-                ButtonPowiadomienia.Background = new SolidColorBrush(Color.FromRgb(107, 114, 128));
+                ButtonPowiadomienia.Background = KartotekaBrushes.Gray500;
                 return;
             }
 
@@ -1418,8 +1419,8 @@ namespace Kalendarz1.Kartoteka.Views
 
             TextPowiadomieniaCount.Text = totalIssues > 0 ? totalIssues.ToString() : "";
             ButtonPowiadomienia.Background = totalIssues > 0
-                ? new SolidColorBrush(Color.FromRgb(245, 158, 11)) // amber
-                : new SolidColorBrush(Color.FromRgb(34, 197, 94)); // green - all good
+                ? KartotekaBrushes.Amber500 // amber
+                : KartotekaBrushes.Green500; // green - all good
         }
 
         private void ButtonPowiadomienia_Click(object sender, RoutedEventArgs e)
@@ -1457,7 +1458,7 @@ namespace Kalendarz1.Kartoteka.Views
                 {
                     Text = "✅ Wszystkie dane uzupełnione!",
                     FontSize = 14,
-                    Foreground = new SolidColorBrush(Color.FromRgb(22, 163, 74)),
+                    Foreground = KartotekaBrushes.Green600,
                     FontWeight = FontWeights.SemiBold,
                     HorizontalAlignment = HorizontalAlignment.Center,
                     Margin = new Thickness(0, 20, 0, 20)
@@ -1518,7 +1519,7 @@ namespace Kalendarz1.Kartoteka.Views
                 {
                     Text = $"  • {nameText}",
                     FontSize = 11,
-                    Foreground = new SolidColorBrush(Color.FromRgb(55, 65, 81)),
+                    Foreground = KartotekaBrushes.Gray700,
                     Margin = new Thickness(0, 1, 0, 1),
                     Cursor = Cursors.Hand,
                     TextDecorations = null
@@ -1541,7 +1542,7 @@ namespace Kalendarz1.Kartoteka.Views
                 {
                     Text = $"  ... i {items.Count - 8} więcej",
                     FontSize = 10,
-                    Foreground = new SolidColorBrush(Color.FromRgb(156, 163, 175)),
+                    Foreground = KartotekaBrushes.Gray400,
                     FontStyle = FontStyles.Italic,
                     Margin = new Thickness(0, 2, 0, 0)
                 });
@@ -1779,7 +1780,7 @@ namespace Kalendarz1.Kartoteka.Views
                 MessageBox.Show($"Wyeksportowano arkusz z {lp} odbiorcami do uzupełnienia.", "Export", MessageBoxButton.OK, MessageBoxImage.Information);
 
                 // Open the file
-                try { Process.Start(new ProcessStartInfo { FileName = saveDialog.FileName, UseShellExecute = true }); } catch { }
+                try { Process.Start(new ProcessStartInfo { FileName = saveDialog.FileName, UseShellExecute = true }); } catch (Exception ex) { Debug.WriteLine($"[Kartoteka] {ex.GetType().Name}: {ex.Message}"); }
             }
             catch (Exception ex)
             {
@@ -1799,7 +1800,7 @@ namespace Kalendarz1.Kartoteka.Views
                 var kontakty = await _service.PobierzKontaktyAsync(odbiorca.IdSymfonia);
                 WypelnijKontakty(kontakty, odbiorca.IdSymfonia);
             }
-            catch { }
+            catch (Exception ex) { Debug.WriteLine($"[Kartoteka] {ex.GetType().Name}: {ex.Message}"); }
 
             // Finanse + Historia
             try
@@ -1811,7 +1812,7 @@ namespace Kalendarz1.Kartoteka.Views
                 ApplyHistoriaFilters();
                 WypelnijPlatnosci(faktury);
             }
-            catch { }
+            catch (Exception ex) { Debug.WriteLine($"[Kartoteka] {ex.GetType().Name}: {ex.Message}"); }
 
             // Asortyment - preferencje
             TextAsortymentPakowanie.Text = string.IsNullOrEmpty(odbiorca.PreferencjePakowania) ? "-" : odbiorca.PreferencjePakowania;
@@ -1998,13 +1999,13 @@ namespace Kalendarz1.Kartoteka.Views
                     row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
                     row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(55) });
 
-                    var label = new TextBlock { Text = d.Item1, FontSize = 10, VerticalAlignment = VerticalAlignment.Center, Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)) };
+                    var label = new TextBlock { Text = d.Item1, FontSize = 10, VerticalAlignment = VerticalAlignment.Center, Foreground = KartotekaBrushes.Gray500 };
                     Grid.SetColumn(label, 0);
 
                     var barBorder = new Border
                     {
                         Height = 14, CornerRadius = new CornerRadius(3),
-                        Background = new SolidColorBrush(Color.FromRgb(220, 252, 231)),
+                        Background = KartotekaBrushes.Green100,
                         HorizontalAlignment = HorizontalAlignment.Left,
                         Width = barWidth > 0 ? barWidth * 1.2 : 0,
                         Margin = new Thickness(0, 0, 4, 0)
@@ -2013,7 +2014,7 @@ namespace Kalendarz1.Kartoteka.Views
                         barBorder.Child = new TextBlock
                         {
                             Text = cnt.ToString(), FontSize = 8, FontWeight = FontWeights.Bold,
-                            Foreground = new SolidColorBrush(Color.FromRgb(22, 101, 52)),
+                            Foreground = KartotekaBrushes.Green800,
                             HorizontalAlignment = HorizontalAlignment.Center,
                             VerticalAlignment = VerticalAlignment.Center
                         };
@@ -2023,7 +2024,7 @@ namespace Kalendarz1.Kartoteka.Views
                     {
                         Text = cnt > 0 ? $"{pct:N0}%" : "",
                         FontSize = 10, FontWeight = cnt > 0 ? FontWeights.SemiBold : FontWeights.Normal,
-                        Foreground = new SolidColorBrush(Color.FromRgb(22, 163, 74)),
+                        Foreground = KartotekaBrushes.Green600,
                         HorizontalAlignment = HorizontalAlignment.Right,
                         VerticalAlignment = VerticalAlignment.Center
                     };
@@ -2037,7 +2038,7 @@ namespace Kalendarz1.Kartoteka.Views
             }
             else
             {
-                PanelDostawyDni.Children.Add(new TextBlock { Text = "Brak danych awizacji", Foreground = new SolidColorBrush(Color.FromRgb(156, 163, 175)), FontSize = 10 });
+                PanelDostawyDni.Children.Add(new TextBlock { Text = "Brak danych awizacji", Foreground = KartotekaBrushes.Gray400, FontSize = 10 });
             }
 
             // ═══ PANEL: Czas produkcja → dostawa (histogram) ═══
@@ -2065,7 +2066,7 @@ namespace Kalendarz1.Kartoteka.Views
                     row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
                     row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(55) });
 
-                    var label = new TextBlock { Text = grupy[i].Item1, FontSize = 10, VerticalAlignment = VerticalAlignment.Center, Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)) };
+                    var label = new TextBlock { Text = grupy[i].Item1, FontSize = 10, VerticalAlignment = VerticalAlignment.Center, Foreground = KartotekaBrushes.Gray500 };
                     Grid.SetColumn(label, 0);
 
                     var barColor = i == 0 ? Color.FromRgb(187, 247, 208)   // green - same day
@@ -2084,7 +2085,7 @@ namespace Kalendarz1.Kartoteka.Views
                         barBorder.Child = new TextBlock
                         {
                             Text = cnt.ToString(), FontSize = 8, FontWeight = FontWeights.Bold,
-                            Foreground = new SolidColorBrush(Color.FromRgb(55, 65, 81)),
+                            Foreground = KartotekaBrushes.Gray700,
                             HorizontalAlignment = HorizontalAlignment.Center,
                             VerticalAlignment = VerticalAlignment.Center
                         };
@@ -2094,7 +2095,7 @@ namespace Kalendarz1.Kartoteka.Views
                     {
                         Text = cnt > 0 ? $"{pct:N0}%" : "",
                         FontSize = 10, FontWeight = cnt > 0 ? FontWeights.SemiBold : FontWeights.Normal,
-                        Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
+                        Foreground = KartotekaBrushes.Gray500,
                         HorizontalAlignment = HorizontalAlignment.Right,
                         VerticalAlignment = VerticalAlignment.Center
                     };
@@ -2108,7 +2109,7 @@ namespace Kalendarz1.Kartoteka.Views
             }
             else
             {
-                PanelDostawyCzas.Children.Add(new TextBlock { Text = "Brak danych awizacji", Foreground = new SolidColorBrush(Color.FromRgb(156, 163, 175)), FontSize = 10 });
+                PanelDostawyCzas.Children.Add(new TextBlock { Text = "Brak danych awizacji", Foreground = KartotekaBrushes.Gray400, FontSize = 10 });
             }
 
             // ═══ ASORTYMENT TAB: podsumowanie dostawy ═══
@@ -2173,22 +2174,22 @@ namespace Kalendarz1.Kartoteka.Views
                     row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
                     row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(45) });
 
-                    var label = new TextBlock { Text = godzinoweGrupy[i].Item1, FontSize = 9, VerticalAlignment = VerticalAlignment.Center, Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)) };
+                    var label = new TextBlock { Text = godzinoweGrupy[i].Item1, FontSize = 9, VerticalAlignment = VerticalAlignment.Center, Foreground = KartotekaBrushes.Gray500 };
                     Grid.SetColumn(label, 0);
 
                     var barBorder = new Border
                     {
                         Height = 12, CornerRadius = new CornerRadius(2),
-                        Background = new SolidColorBrush(Color.FromRgb(191, 219, 254)),
+                        Background = KartotekaBrushes.Blue200,
                         HorizontalAlignment = HorizontalAlignment.Left,
                         Width = (double)cnt / maxGodz * 80,
                         Margin = new Thickness(0, 0, 4, 0)
                     };
                     if (cnt > 0)
-                        barBorder.Child = new TextBlock { Text = cnt.ToString(), FontSize = 7, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(30, 64, 175)), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+                        barBorder.Child = new TextBlock { Text = cnt.ToString(), FontSize = 7, FontWeight = FontWeights.Bold, Foreground = KartotekaBrushes.Blue800, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
                     Grid.SetColumn(barBorder, 1);
 
-                    var pctText = new TextBlock { Text = $"{pct:N0}%", FontSize = 9, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromRgb(37, 99, 235)), HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
+                    var pctText = new TextBlock { Text = $"{pct:N0}%", FontSize = 9, FontWeight = FontWeights.SemiBold, Foreground = KartotekaBrushes.Blue600, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
                     Grid.SetColumn(pctText, 2);
 
                     row.Children.Add(label);
@@ -2206,13 +2207,13 @@ namespace Kalendarz1.Kartoteka.Views
                 PanelDostawyGodziny.Children.Add(new TextBlock
                 {
                     Text = $"Najczęściej: {string.Join(", ", topGodziny)}",
-                    FontSize = 9, Foreground = new SolidColorBrush(Color.FromRgb(37, 99, 235)),
+                    FontSize = 9, Foreground = KartotekaBrushes.Blue600,
                     FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 6, 0, 0)
                 });
             }
             else
             {
-                PanelDostawyGodziny.Children.Add(new TextBlock { Text = "Brak danych godzinowych", Foreground = new SolidColorBrush(Color.FromRgb(156, 163, 175)), FontSize = 10 });
+                PanelDostawyGodziny.Children.Add(new TextBlock { Text = "Brak danych godzinowych", Foreground = KartotekaBrushes.Gray400, FontSize = 10 });
             }
 
             // ═══ PANEL: Transport (kierowcy, pojazdy, współklienci) ═══
@@ -2225,8 +2226,8 @@ namespace Kalendarz1.Kartoteka.Views
             }
             catch
             {
-                PanelDostawyTransport.Children.Add(new TextBlock { Text = "Brak danych transportowych", Foreground = new SolidColorBrush(Color.FromRgb(156, 163, 175)), FontSize = 10 });
-                PanelDostawyWspol.Children.Add(new TextBlock { Text = "Brak danych", Foreground = new SolidColorBrush(Color.FromRgb(156, 163, 175)), FontSize = 10 });
+                PanelDostawyTransport.Children.Add(new TextBlock { Text = "Brak danych transportowych", Foreground = KartotekaBrushes.Gray400, FontSize = 10 });
+                PanelDostawyWspol.Children.Add(new TextBlock { Text = "Brak danych", Foreground = KartotekaBrushes.Gray400, FontSize = 10 });
             }
         }
 
@@ -2237,30 +2238,30 @@ namespace Kalendarz1.Kartoteka.Views
 
             if (transport.LiczbaKursow == 0)
             {
-                PanelDostawyTransport.Children.Add(new TextBlock { Text = "Brak przypisanych kursów", Foreground = new SolidColorBrush(Color.FromRgb(156, 163, 175)), FontSize = 10 });
-                PanelDostawyWspol.Children.Add(new TextBlock { Text = "Brak danych", Foreground = new SolidColorBrush(Color.FromRgb(156, 163, 175)), FontSize = 10 });
+                PanelDostawyTransport.Children.Add(new TextBlock { Text = "Brak przypisanych kursów", Foreground = KartotekaBrushes.Gray400, FontSize = 10 });
+                PanelDostawyWspol.Children.Add(new TextBlock { Text = "Brak danych", Foreground = KartotekaBrushes.Gray400, FontSize = 10 });
                 return;
             }
 
             PanelDostawyTransport.Children.Add(new TextBlock
             {
                 Text = $"Łącznie {transport.LiczbaKursow} kursów (12m)",
-                FontSize = 9, Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
+                FontSize = 9, Foreground = KartotekaBrushes.Gray500,
                 Margin = new Thickness(0, 0, 0, 6)
             });
 
             // Kierowcy
             if (transport.Kierowcy.Count > 0)
             {
-                PanelDostawyTransport.Children.Add(new TextBlock { Text = "Kierowcy:", FontSize = 9, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)), Margin = new Thickness(0, 0, 0, 2) });
+                PanelDostawyTransport.Children.Add(new TextBlock { Text = "Kierowcy:", FontSize = 9, FontWeight = FontWeights.SemiBold, Foreground = KartotekaBrushes.Gray500, Margin = new Thickness(0, 0, 0, 2) });
                 foreach (var k in transport.Kierowcy)
                 {
                     var pct = (double)k.LiczbaKursow / transport.LiczbaKursow * 100;
                     var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 1) };
                     row.Children.Add(new TextBlock { Text = $"👤 {k.Nazwa}", FontSize = 10, FontWeight = FontWeights.Medium });
-                    row.Children.Add(new TextBlock { Text = $" — {k.LiczbaKursow}x ({pct:N0}%)", FontSize = 9, Foreground = new SolidColorBrush(Color.FromRgb(22, 163, 74)), VerticalAlignment = VerticalAlignment.Center });
+                    row.Children.Add(new TextBlock { Text = $" — {k.LiczbaKursow}x ({pct:N0}%)", FontSize = 9, Foreground = KartotekaBrushes.Green600, VerticalAlignment = VerticalAlignment.Center });
                     if (!string.IsNullOrEmpty(k.Telefon))
-                        row.Children.Add(new TextBlock { Text = $" ☎ {k.Telefon}", FontSize = 9, Foreground = new SolidColorBrush(Color.FromRgb(156, 163, 175)), VerticalAlignment = VerticalAlignment.Center });
+                        row.Children.Add(new TextBlock { Text = $" ☎ {k.Telefon}", FontSize = 9, Foreground = KartotekaBrushes.Gray400, VerticalAlignment = VerticalAlignment.Center });
                     PanelDostawyTransport.Children.Add(row);
                 }
             }
@@ -2268,13 +2269,13 @@ namespace Kalendarz1.Kartoteka.Views
             // Pojazdy
             if (transport.Pojazdy.Count > 0)
             {
-                PanelDostawyTransport.Children.Add(new TextBlock { Text = "Pojazdy:", FontSize = 9, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)), Margin = new Thickness(0, 6, 0, 2) });
+                PanelDostawyTransport.Children.Add(new TextBlock { Text = "Pojazdy:", FontSize = 9, FontWeight = FontWeights.SemiBold, Foreground = KartotekaBrushes.Gray500, Margin = new Thickness(0, 6, 0, 2) });
                 foreach (var p in transport.Pojazdy)
                 {
                     var pct = (double)p.LiczbaKursow / transport.LiczbaKursow * 100;
                     var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 1) };
                     row.Children.Add(new TextBlock { Text = $"🚛 {p.Nazwa}", FontSize = 10, FontWeight = FontWeights.Medium });
-                    row.Children.Add(new TextBlock { Text = $" — {p.LiczbaKursow}x ({pct:N0}%)", FontSize = 9, Foreground = new SolidColorBrush(Color.FromRgb(37, 99, 235)), VerticalAlignment = VerticalAlignment.Center });
+                    row.Children.Add(new TextBlock { Text = $" — {p.LiczbaKursow}x ({pct:N0}%)", FontSize = 9, Foreground = KartotekaBrushes.Blue600, VerticalAlignment = VerticalAlignment.Center });
                     PanelDostawyTransport.Children.Add(row);
                 }
             }
@@ -2282,7 +2283,7 @@ namespace Kalendarz1.Kartoteka.Views
             // Trasy
             if (transport.Trasy.Count > 0)
             {
-                PanelDostawyTransport.Children.Add(new TextBlock { Text = "Trasy:", FontSize = 9, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)), Margin = new Thickness(0, 6, 0, 2) });
+                PanelDostawyTransport.Children.Add(new TextBlock { Text = "Trasy:", FontSize = 9, FontWeight = FontWeights.SemiBold, Foreground = KartotekaBrushes.Gray500, Margin = new Thickness(0, 6, 0, 2) });
                 foreach (var t in transport.Trasy)
                 {
                     var pct = (double)t.LiczbaKursow / transport.LiczbaKursow * 100;
@@ -2303,7 +2304,7 @@ namespace Kalendarz1.Kartoteka.Views
                     var nameText = new TextBlock { Text = wk.Nazwa, FontSize = 10, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center, ToolTip = wk.Nazwa };
                     Grid.SetColumn(nameText, 0);
 
-                    var countText = new TextBlock { Text = $"{wk.LiczbaWspolnychKursow}x ({pct:N0}%)", FontSize = 9, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromRgb(124, 58, 237)), HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
+                    var countText = new TextBlock { Text = $"{wk.LiczbaWspolnychKursow}x ({pct:N0}%)", FontSize = 9, FontWeight = FontWeights.SemiBold, Foreground = KartotekaBrushes.Violet600, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
                     Grid.SetColumn(countText, 1);
 
                     row.Children.Add(nameText);
@@ -2313,7 +2314,7 @@ namespace Kalendarz1.Kartoteka.Views
             }
             else
             {
-                PanelDostawyWspol.Children.Add(new TextBlock { Text = "Brak współtransportowanych", Foreground = new SolidColorBrush(Color.FromRgb(156, 163, 175)), FontSize = 10 });
+                PanelDostawyWspol.Children.Add(new TextBlock { Text = "Brak współtransportowanych", Foreground = KartotekaBrushes.Gray400, FontSize = 10 });
             }
         }
 
@@ -2357,12 +2358,12 @@ namespace Kalendarz1.Kartoteka.Views
                 var barGrid = new Grid { Height = 6, Margin = new Thickness(0, 2, 0, 0) };
                 barGrid.Children.Add(new Border
                 {
-                    Background = new SolidColorBrush(Color.FromRgb(229, 231, 235)),
+                    Background = KartotekaBrushes.Gray200,
                     CornerRadius = new CornerRadius(3)
                 });
                 barGrid.Children.Add(new Border
                 {
-                    Background = new SolidColorBrush(Color.FromRgb(34, 197, 94)),
+                    Background = KartotekaBrushes.Green500,
                     CornerRadius = new CornerRadius(3),
                     HorizontalAlignment = HorizontalAlignment.Left,
                     Width = barWidth * 1.5
@@ -2516,7 +2517,7 @@ namespace Kalendarz1.Kartoteka.Views
             var addBtn = new Border
             {
                 Background = Brushes.White,
-                BorderBrush = new SolidColorBrush(Color.FromRgb(134, 239, 172)),
+                BorderBrush = KartotekaBrushes.Green300,
                 BorderThickness = new Thickness(2),
                 CornerRadius = new CornerRadius(8),
                 Padding = new Thickness(12),
@@ -2527,7 +2528,7 @@ namespace Kalendarz1.Kartoteka.Views
             var addText = new TextBlock
             {
                 Text = "+ Dodaj kontakt",
-                Foreground = new SolidColorBrush(Color.FromRgb(22, 163, 74)),
+                Foreground = KartotekaBrushes.Green600,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
                 FontWeight = FontWeights.SemiBold
@@ -2549,7 +2550,7 @@ namespace Kalendarz1.Kartoteka.Views
             var card = new Border
             {
                 Background = Brushes.White,
-                BorderBrush = new SolidColorBrush(Color.FromRgb(220, 252, 231)),
+                BorderBrush = KartotekaBrushes.Green100,
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(8),
                 Padding = new Thickness(12),
@@ -2569,7 +2570,7 @@ namespace Kalendarz1.Kartoteka.Views
             headerStack.Children.Add(new TextBlock
             {
                 Text = kontakt.TypKontaktu,
-                Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
+                Foreground = KartotekaBrushes.Gray500,
                 FontSize = 11,
                 Margin = new Thickness(8, 0, 0, 0),
                 VerticalAlignment = VerticalAlignment.Center
@@ -2583,7 +2584,7 @@ namespace Kalendarz1.Kartoteka.Views
                 stack.Children.Add(new TextBlock
                 {
                     Text = kontakt.Stanowisko,
-                    Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
+                    Foreground = KartotekaBrushes.Gray500,
                     FontSize = 11
                 });
             }
@@ -2593,11 +2594,11 @@ namespace Kalendarz1.Kartoteka.Views
                 var telBlock = new TextBlock { Margin = new Thickness(0, 8, 0, 0), FontSize = 12 };
                 var telLink = new Hyperlink();
                 telLink.Inlines.Add($"📞 {kontakt.Telefon}");
-                telLink.Foreground = new SolidColorBrush(Color.FromRgb(37, 99, 235));
+                telLink.Foreground = KartotekaBrushes.Blue600;
                 telLink.TextDecorations = null;
                 telLink.Click += (s, e) =>
                 {
-                    try { Process.Start(new ProcessStartInfo { FileName = $"tel:{kontakt.Telefon}", UseShellExecute = true }); } catch { }
+                    try { Process.Start(new ProcessStartInfo { FileName = $"tel:{kontakt.Telefon}", UseShellExecute = true }); } catch (Exception ex) { Debug.WriteLine($"[Kartoteka] {ex.GetType().Name}: {ex.Message}"); }
                 };
                 telBlock.Inlines.Add(telLink);
                 stack.Children.Add(telBlock);
@@ -2608,11 +2609,11 @@ namespace Kalendarz1.Kartoteka.Views
                 var emailBlock = new TextBlock { FontSize = 12 };
                 var emailLink = new Hyperlink();
                 emailLink.Inlines.Add($"📧 {kontakt.Email}");
-                emailLink.Foreground = new SolidColorBrush(Color.FromRgb(37, 99, 235));
+                emailLink.Foreground = KartotekaBrushes.Blue600;
                 emailLink.TextDecorations = null;
                 emailLink.Click += (s, e) =>
                 {
-                    try { Process.Start(new ProcessStartInfo { FileName = $"mailto:{kontakt.Email}", UseShellExecute = true }); } catch { }
+                    try { Process.Start(new ProcessStartInfo { FileName = $"mailto:{kontakt.Email}", UseShellExecute = true }); } catch (Exception ex) { Debug.WriteLine($"[Kartoteka] {ex.GetType().Name}: {ex.Message}"); }
                 };
                 emailBlock.Inlines.Add(emailLink);
                 stack.Children.Add(emailBlock);
@@ -2695,8 +2696,8 @@ namespace Kalendarz1.Kartoteka.Views
                 ? "Wszystkie faktury opłacone ✓"
                 : $"{nieoplacone} nieopłaconych faktur";
             TextFinanseStatusPlatnosci.Foreground = nieoplacone == 0
-                ? new SolidColorBrush(Color.FromRgb(22, 163, 74))
-                : new SolidColorBrush(Color.FromRgb(220, 38, 38));
+                ? KartotekaBrushes.Green600
+                : KartotekaBrushes.Red600;
         }
 
         private void BuildObrotyWykres(List<FakturaOdbiorcy> faktury)
@@ -2735,7 +2736,7 @@ namespace Kalendarz1.Kartoteka.Views
 
                 var rect = new Rectangle
                 {
-                    Fill = new SolidColorBrush(Color.FromRgb(187, 247, 208)),
+                    Fill = KartotekaBrushes.Green200,
                     Margin = new Thickness(1, 0, 1, 0),
                     Height = height,
                     VerticalAlignment = VerticalAlignment.Bottom,
@@ -2743,8 +2744,8 @@ namespace Kalendarz1.Kartoteka.Views
                     RadiusX = 2,
                     RadiusY = 2
                 };
-                rect.MouseEnter += (s, e) => ((Rectangle)s).Fill = new SolidColorBrush(Color.FromRgb(34, 197, 94));
-                rect.MouseLeave += (s, e) => ((Rectangle)s).Fill = new SolidColorBrush(Color.FromRgb(187, 247, 208));
+                rect.MouseEnter += (s, e) => ((Rectangle)s).Fill = KartotekaBrushes.Green500;
+                rect.MouseLeave += (s, e) => ((Rectangle)s).Fill = KartotekaBrushes.Green200;
 
                 Grid.SetColumn(rect, i);
                 GridObrotyWykres.Children.Add(rect);
@@ -2753,7 +2754,7 @@ namespace Kalendarz1.Kartoteka.Views
                 {
                     Text = nazwyMiesiecy[miesiac.Month - 1],
                     FontSize = 10,
-                    Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
+                    Foreground = KartotekaBrushes.Gray500,
                     HorizontalAlignment = HorizontalAlignment.Center,
                     TextAlignment = TextAlignment.Center
                 };
@@ -2765,7 +2766,7 @@ namespace Kalendarz1.Kartoteka.Views
                 {
                     Text = miesieczne[i] > 0 ? valText : "",
                     FontSize = 9,
-                    Foreground = new SolidColorBrush(Color.FromRgb(22, 163, 74)),
+                    Foreground = KartotekaBrushes.Green600,
                     FontWeight = FontWeights.Medium,
                     HorizontalAlignment = HorizontalAlignment.Center,
                     TextAlignment = TextAlignment.Center
@@ -2809,7 +2810,7 @@ namespace Kalendarz1.Kartoteka.Views
                 var notatki = await _service.PobierzNotatkiAsync(idSymfonia);
                 WypelnijHistorieNotatek(notatki, idSymfonia);
             }
-            catch { }
+            catch (Exception ex) { Debug.WriteLine($"[Kartoteka] {ex.GetType().Name}: {ex.Message}"); }
         }
 
         private void WypelnijHistorieNotatek(List<NotatkaPozycja> notatki, int idSymfonia)
@@ -2825,8 +2826,8 @@ namespace Kalendarz1.Kartoteka.Views
                     Margin = new Thickness(0, 0, 0, 6),
                     CornerRadius = new CornerRadius(6),
                     BorderThickness = new Thickness(3, 0, 0, 0),
-                    BorderBrush = new SolidColorBrush(Color.FromRgb(34, 197, 94)),
-                    Background = new SolidColorBrush(Color.FromRgb(240, 253, 244))
+                    BorderBrush = KartotekaBrushes.Green500,
+                    Background = KartotekaBrushes.Green50
                 };
                 card.Effect = new DropShadowEffect
                 {
@@ -2841,12 +2842,12 @@ namespace Kalendarz1.Kartoteka.Views
                     Text = n.Autor,
                     FontWeight = FontWeights.SemiBold,
                     FontSize = 11,
-                    Foreground = new SolidColorBrush(Color.FromRgb(22, 101, 52))
+                    Foreground = KartotekaBrushes.Green800
                 });
                 var dataBlock = new TextBlock
                 {
                     Text = n.DataUtworzenia.ToString("dd.MM.yyyy HH:mm"),
-                    Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
+                    Foreground = KartotekaBrushes.Gray500,
                     FontSize = 10,
                     HorizontalAlignment = HorizontalAlignment.Right
                 };
@@ -2859,7 +2860,7 @@ namespace Kalendarz1.Kartoteka.Views
                     Text = n.Tresc,
                     TextWrapping = TextWrapping.Wrap,
                     FontSize = 11,
-                    Foreground = new SolidColorBrush(Color.FromRgb(55, 65, 81))
+                    Foreground = KartotekaBrushes.Gray700
                 });
 
                 card.Child = stack;
@@ -2885,7 +2886,7 @@ namespace Kalendarz1.Kartoteka.Views
                 PanelHistoriaNotatek.Children.Add(new TextBlock
                 {
                     Text = "Brak notatek dla tego odbiorcy.\nDodaj pierwszą notatkę po lewej stronie.",
-                    Foreground = new SolidColorBrush(Color.FromRgb(156, 163, 175)),
+                    Foreground = KartotekaBrushes.Gray400,
                     FontSize = 11,
                     TextWrapping = TextWrapping.Wrap,
                     HorizontalAlignment = HorizontalAlignment.Center,
@@ -2961,7 +2962,7 @@ namespace Kalendarz1.Kartoteka.Views
         {
             if (sender is Hyperlink hyperlink && hyperlink.NavigateUri != null)
             {
-                try { Process.Start(new ProcessStartInfo { FileName = hyperlink.NavigateUri.ToString(), UseShellExecute = true }); } catch { }
+                try { Process.Start(new ProcessStartInfo { FileName = hyperlink.NavigateUri.ToString(), UseShellExecute = true }); } catch (Exception ex) { Debug.WriteLine($"[Kartoteka] {ex.GetType().Name}: {ex.Message}"); }
             }
         }
 
@@ -2969,7 +2970,7 @@ namespace Kalendarz1.Kartoteka.Views
         {
             if (sender is Hyperlink hyperlink && hyperlink.NavigateUri != null)
             {
-                try { Process.Start(new ProcessStartInfo { FileName = hyperlink.NavigateUri.ToString(), UseShellExecute = true }); } catch { }
+                try { Process.Start(new ProcessStartInfo { FileName = hyperlink.NavigateUri.ToString(), UseShellExecute = true }); } catch (Exception ex) { Debug.WriteLine($"[Kartoteka] {ex.GetType().Name}: {ex.Message}"); }
             }
         }
 

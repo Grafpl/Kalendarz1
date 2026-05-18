@@ -51,7 +51,7 @@ namespace Kalendarz1.Zywiec.Kalendarz.Services
         {
             if (!int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int v))
                 return ValidationResult.Err("Niepoprawna liczba całkowita");
-            if (v < 1) return ValidationResult.Err("Liczba aut musi być >= 1");
+            if (v < 0) return ValidationResult.Err("Liczba aut musi być >= 0");
             if (v > 99) return ValidationResult.Err("Liczba aut musi być <= 99");
             if (v > 20) return ValidationResult.Warn($"Nietypowo dużo aut ({v})");
             return ValidationResult.Ok();

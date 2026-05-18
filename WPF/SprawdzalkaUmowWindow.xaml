@@ -1,0 +1,810 @@
+<Window x:Class="Kalendarz1.WPF.SprawdzalkaUmowWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:sys="clr-namespace:System;assembly=mscorlib"
+        xmlns:local="clr-namespace:Kalendarz1.WPF"
+        Title="Dokumenty i Umowy"
+        Width="1500" Height="900"
+        WindowStartupLocation="CenterScreen"
+        WindowState="Maximized"
+        Background="#F5F7FA"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType"
+        UseLayoutRounding="True"
+        FontFamily="Segoe UI">
+
+    <Window.Resources>
+        <!-- ============ PALETTE ============ -->
+        <SolidColorBrush x:Key="PrimaryBrush" Color="#5C8A3A"/>
+        <SolidColorBrush x:Key="PrimaryHoverBrush" Color="#4B732F"/>
+        <SolidColorBrush x:Key="SurfaceBrush" Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="SurfaceAltBrush" Color="#FAFBFC"/>
+        <SolidColorBrush x:Key="BorderSubtleBrush" Color="#EAEDF0"/>
+        <SolidColorBrush x:Key="BorderBrush" Color="#D7DBE0"/>
+        <SolidColorBrush x:Key="TextPrimaryBrush" Color="#1F2A36"/>
+        <SolidColorBrush x:Key="TextSecondaryBrush" Color="#5B6772"/>
+        <SolidColorBrush x:Key="TextMutedBrush" Color="#8B95A0"/>
+
+        <!-- Status colors -->
+        <SolidColorBrush x:Key="StatusOverdueBrush" Color="#D93B3B"/>
+        <SolidColorBrush x:Key="StatusTodayBrush" Color="#E89614"/>
+        <SolidColorBrush x:Key="StatusKompletnaBrush" Color="#3A9D4A"/>
+        <SolidColorBrush x:Key="StatusPosrednikBrush" Color="#3578D9"/>
+        <SolidColorBrush x:Key="StatusPendingBrush" Color="#B6BFC8"/>
+
+        <!-- Row backgrounds (very subtle tints) -->
+        <SolidColorBrush x:Key="RowDefaultBg" Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="RowOverdueBg" Color="#FFF5F5"/>
+        <SolidColorBrush x:Key="RowTodayBg" Color="#FFFBEE"/>
+        <SolidColorBrush x:Key="RowKompletnaBg" Color="#F4FAF5"/>
+        <SolidColorBrush x:Key="RowHoverBg" Color="#F0F5FA"/>
+        <SolidColorBrush x:Key="RowSelectedBg" Color="#E1ECF6"/>
+
+        <!-- Chip -->
+        <SolidColorBrush x:Key="ChipInactiveBg" Color="#EDF0F3"/>
+        <SolidColorBrush x:Key="ChipInactiveFg" Color="#3B4654"/>
+        <SolidColorBrush x:Key="ChipActiveBg" Color="#5C8A3A"/>
+        <SolidColorBrush x:Key="ChipActiveFg" Color="#FFFFFF"/>
+
+        <!-- ============ CONVERTERS ============ -->
+        <local:BoolToVisibilityConv x:Key="BoolToVis"/>
+        <local:InverseBoolToVisibilityConv x:Key="InvBoolToVis"/>
+        <local:NullOrEmptyToVisibilityConv x:Key="NullToVis"/>
+        <local:RelativeDateConv x:Key="RelDate"/>
+        <local:DayOfWeekConv x:Key="DowConv"/>
+        <local:FullDateConv x:Key="FullDate"/>
+        <local:StatusToBrushConv x:Key="StatusBrush"/>
+
+        <!-- ============ BUTTON STYLES ============ -->
+        <Style x:Key="ChipButton" TargetType="ToggleButton">
+            <Setter Property="Background" Value="{StaticResource ChipInactiveBg}"/>
+            <Setter Property="Foreground" Value="{StaticResource ChipInactiveFg}"/>
+            <Setter Property="Padding" Value="14,6"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}"
+                                CornerRadius="14" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{StaticResource ChipActiveBg}"/>
+                                <Setter Property="Foreground" Value="{StaticResource ChipActiveFg}"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Opacity" Value="0.88"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="PrimaryButton" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource PrimaryBrush}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="14,7"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}"
+                                CornerRadius="4" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{StaticResource PrimaryHoverBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="bd" Property="Opacity" Value="0.55"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SecondaryButton" TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}"
+                                BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                                CornerRadius="4" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#F2F4F6"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ============ SEARCH BOX ============ -->
+        <Style x:Key="SearchBox" TargetType="TextBox">
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4">
+                            <Grid>
+                                <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="placeholder" IsHitTestVisible="False" Margin="13,8,0,0"
+                                           Foreground="#9AA4AA" Text="🔍  Szukaj po dostawcy lub osobie..."
+                                           Visibility="Collapsed"/>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="Text" Value="">
+                                <Setter TargetName="placeholder" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource PrimaryBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ============ DATAGRID — COLUMN HEADER ============ -->
+        <Style x:Key="DgHeaderStyle" TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="#F7F9FB"/>
+            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Padding" Value="10,11"/>
+            <Setter Property="MinHeight" Value="38"/>
+            <Setter Property="BorderThickness" Value="0,0,1,1"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderSubtleBrush}"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="SeparatorVisibility" Value="Collapsed"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#EEF2F6"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="DgHeaderCenterStyle" TargetType="DataGridColumnHeader" BasedOn="{StaticResource DgHeaderStyle}">
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        </Style>
+
+        <Style x:Key="DgHeaderRightStyle" TargetType="DataGridColumnHeader" BasedOn="{StaticResource DgHeaderStyle}">
+            <Setter Property="HorizontalContentAlignment" Value="Right"/>
+        </Style>
+
+        <!-- ============ DATAGRID — CELL ============ -->
+        <Style x:Key="DgCellStyle" TargetType="DataGridCell">
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="10,0"/>
+            <Setter Property="VerticalAlignment" Value="Stretch"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DataGridCell">
+                        <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- ============ DATAGRID — ROW ============ -->
+        <Style x:Key="DgRowStyle" TargetType="DataGridRow">
+            <Setter Property="Height" Value="48"/>
+            <Setter Property="Background" Value="{StaticResource RowDefaultBg}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderSubtleBrush}"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DataGridRow">
+                        <Border x:Name="rowBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                SnapsToDevicePixels="True">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="4"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <!-- Left status accent bar -->
+                                <Border Grid.Column="0"
+                                        Background="{Binding StatusKey, Converter={StaticResource StatusBrush}}"/>
+                                <DataGridCellsPresenter Grid.Column="1"
+                                                        ItemsPanel="{TemplateBinding ItemsPanel}"
+                                                        SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="rowBorder" Property="Background" Value="{StaticResource RowHoverBg}"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="rowBorder" Property="Background" Value="{StaticResource RowSelectedBg}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding StatusKey}" Value="Overdue">
+                    <Setter Property="Background" Value="{StaticResource RowOverdueBg}"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding StatusKey}" Value="Today">
+                    <Setter Property="Background" Value="{StaticResource RowTodayBg}"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding StatusKey}" Value="Kompletna">
+                    <Setter Property="Background" Value="{StaticResource RowKompletnaBg}"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding StatusKey}" Value="Posrednik">
+                    <Setter Property="Background" Value="{StaticResource RowKompletnaBg}"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- ============ DATAGRID — GROUP ITEM ============ -->
+        <!-- Group header: prominent banner — duży, kontrastowy, z zielonym akcentem -->
+        <Style x:Key="GroupItemStyle" TargetType="GroupItem">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="GroupItem">
+                        <StackPanel>
+                            <Border x:Name="banner" Margin="0,6,0,0"
+                                    BorderBrush="{StaticResource BorderBrush}"
+                                    BorderThickness="0,1,0,2"
+                                    SnapsToDevicePixels="True">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                        <GradientStop Color="#FFFFFF" Offset="0"/>
+                                        <GradientStop Color="#F1F5F8" Offset="1"/>
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="6"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <!-- Left accent bar -->
+                                    <Border x:Name="accentBar" Grid.Column="0" Background="{StaticResource PrimaryBrush}"/>
+                                    <!-- Header content -->
+                                    <Grid Grid.Column="1" Margin="16,14,16,14">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Left">
+                                            <!-- DOW chip (filled green) -->
+                                            <Border x:Name="dowChip" CornerRadius="4" Padding="10,5"
+                                                    Background="{StaticResource PrimaryBrush}"
+                                                    Margin="0,0,14,0" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Items[0].DataOdbioru, Converter={StaticResource DowConv}}"
+                                                           FontSize="11" FontWeight="Bold" Foreground="White"
+                                                           VerticalAlignment="Center"/>
+                                            </Border>
+                                            <!-- Full date -->
+                                            <TextBlock x:Name="dateText"
+                                                       Text="{Binding Items[0].DataOdbioru, Converter={StaticResource FullDate}}"
+                                                       FontSize="16" FontWeight="Bold"
+                                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                                       VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                            <!-- Vertical separator -->
+                                            <Border Width="1" Height="20" Background="{StaticResource BorderBrush}"
+                                                    Margin="0,0,12,0" VerticalAlignment="Center"/>
+                                            <!-- Relative time -->
+                                            <TextBlock x:Name="relativeText"
+                                                       Text="{Binding Items[0].DataOdbioru, Converter={StaticResource RelDate}, ConverterParameter=Short}"
+                                                       FontSize="13" FontWeight="SemiBold"
+                                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                                       VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        <!-- Item count pill (right) -->
+                                        <Border CornerRadius="11" Padding="11,4"
+                                                Background="White"
+                                                BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                                                HorizontalAlignment="Right" VerticalAlignment="Center">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="📦" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                                <TextBlock FontSize="12" FontWeight="SemiBold"
+                                                           Foreground="{StaticResource TextPrimaryBrush}"
+                                                           VerticalAlignment="Center">
+                                                    <Run Text="{Binding ItemCount, Mode=OneWay}"/>
+                                                    <Run Text=" dostaw"/>
+                                                </TextBlock>
+                                            </StackPanel>
+                                        </Border>
+                                    </Grid>
+                                </Grid>
+                            </Border>
+                            <ItemsPresenter/>
+                        </StackPanel>
+                        <ControlTemplate.Triggers>
+                            <!-- DZIŚ — pomarańczowy banner, mocno wyróżniony -->
+                            <DataTrigger Binding="{Binding Items[0].IsToday}" Value="True">
+                                <Setter TargetName="banner" Property="Background">
+                                    <Setter.Value>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                            <GradientStop Color="#FFF5DC" Offset="0"/>
+                                            <GradientStop Color="#FFE3A1" Offset="1"/>
+                                        </LinearGradientBrush>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter TargetName="banner" Property="BorderBrush" Value="#D89000"/>
+                                <Setter TargetName="banner" Property="BorderThickness" Value="0,1,0,3"/>
+                                <Setter TargetName="accentBar" Property="Background" Value="#D89000"/>
+                                <Setter TargetName="dowChip" Property="Background" Value="#D89000"/>
+                                <Setter TargetName="dateText" Property="Foreground" Value="#5C3D00"/>
+                                <Setter TargetName="relativeText" Property="Foreground" Value="#8A5500"/>
+                                <Setter TargetName="relativeText" Property="FontWeight" Value="Bold"/>
+                            </DataTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ============ CHECKBOX (in DataGrid) ============ -->
+        <Style x:Key="DgCheckBoxStyle" TargetType="CheckBox">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <Border x:Name="bd" Width="22" Height="22" CornerRadius="4"
+                                Background="White"
+                                BorderBrush="{StaticResource BorderBrush}" BorderThickness="1.5"
+                                SnapsToDevicePixels="True">
+                            <Path x:Name="check" Width="13" Height="13"
+                                  Stretch="Uniform" Stroke="White" StrokeThickness="2.2"
+                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                  Data="M 0,5 L 4,9 L 12,0"
+                                  Visibility="Collapsed"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{StaticResource PrimaryBrush}"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource PrimaryBrush}"/>
+                                <Setter TargetName="check" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource PrimaryBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="DgCheckBoxPosrednikStyle" TargetType="CheckBox" BasedOn="{StaticResource DgCheckBoxStyle}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <Border x:Name="bd" Width="22" Height="22" CornerRadius="4"
+                                Background="White"
+                                BorderBrush="{StaticResource BorderBrush}" BorderThickness="1.5"
+                                SnapsToDevicePixels="True">
+                            <Path x:Name="check" Width="13" Height="13"
+                                  Stretch="Uniform" Stroke="White" StrokeThickness="2.2"
+                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                  Data="M 0,5 L 4,9 L 12,0"
+                                  Visibility="Collapsed"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{StaticResource StatusPosrednikBrush}"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource StatusPosrednikBrush}"/>
+                                <Setter TargetName="check" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource StatusPosrednikBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ============ NUMERIC TEXT STYLE (tabular figures, right-aligned) ============ -->
+        <Style x:Key="NumCell" TargetType="TextBlock">
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="HorizontalAlignment" Value="Right"/>
+            <Setter Property="TextAlignment" Value="Right"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="Typography.NumeralAlignment" Value="Tabular"/>
+        </Style>
+
+        <Style x:Key="PrimaryCell" TargetType="TextBlock">
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+        </Style>
+    </Window.Resources>
+
+    <Window.InputBindings>
+        <KeyBinding Key="F" Modifiers="Ctrl" Command="{x:Static local:SprawdzalkaUmowWindow.FocusSearchCmd}"/>
+        <KeyBinding Key="N" Modifiers="Ctrl" Command="{x:Static local:SprawdzalkaUmowWindow.NewContractCmd}"/>
+        <KeyBinding Key="F5" Command="{x:Static local:SprawdzalkaUmowWindow.RefreshCmd}"/>
+        <KeyBinding Key="E" Modifiers="Ctrl" Command="{x:Static local:SprawdzalkaUmowWindow.ExportCsvCmd}"/>
+        <KeyBinding Key="Escape" Command="{x:Static local:SprawdzalkaUmowWindow.ClearFiltersCmd}"/>
+    </Window.InputBindings>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- ============ TOP TOOLBAR ============ -->
+        <Border Grid.Row="0" Background="White" Padding="16,12" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="0,0,0,1">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border Width="3" Height="24" Background="{StaticResource PrimaryBrush}" CornerRadius="2" Margin="0,0,12,0"/>
+                    <TextBlock Text="Dokumenty i Umowy" FontSize="16" FontWeight="SemiBold"
+                               Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" Margin="0,0,16,0"/>
+                    <Button x:Name="btnNew" Style="{StaticResource PrimaryButton}" Click="BtnNew_Click"
+                            ToolTip="Nowa umowa (Ctrl+N)" Margin="0,0,6,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="📑" FontSize="13" Margin="0,0,5,0"/>
+                            <TextBlock Text="Nowa umowa"/>
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="btnEdit" Style="{StaticResource SecondaryButton}" Click="BtnEdit_Click"
+                            ToolTip="Edytuj zaznaczoną (Enter / dwuklik)" Margin="0,0,6,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="✏" FontSize="13" Margin="0,0,5,0"/>
+                            <TextBlock Text="Edytuj"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+
+                <TextBox x:Name="txtSearch" Grid.Row="0" Grid.Column="1" Style="{StaticResource SearchBox}"
+                         Margin="14,0,14,0" Height="36" MaxWidth="500" VerticalContentAlignment="Center"
+                         TextChanged="TxtSearch_TextChanged"/>
+
+                <StackPanel Grid.Row="0" Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="btnRefresh" Style="{StaticResource SecondaryButton}" Click="BtnRefresh_Click"
+                            ToolTip="Odśwież (F5)" Margin="0,0,6,0">
+                        <TextBlock Text="🔄  Odśwież"/>
+                    </Button>
+                    <Button x:Name="btnExport" Style="{StaticResource SecondaryButton}" Click="BtnExport_Click"
+                            ToolTip="Eksport do CSV (Ctrl+E)">
+                        <TextBlock Text="📤  Eksport"/>
+                    </Button>
+                </StackPanel>
+
+                <!-- Row 2: Chips + checkboxes -->
+                <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal"
+                            Margin="16,12,0,0" VerticalAlignment="Center">
+                    <ToggleButton x:Name="chipDzis" Style="{StaticResource ChipButton}" Content="📅 Dziś" Click="Chip_Click" Tag="Dzis"/>
+                    <ToggleButton x:Name="chipJutro" Style="{StaticResource ChipButton}" Content="➡ Jutro" Click="Chip_Click" Tag="Jutro"/>
+                    <ToggleButton x:Name="chipTydzien" Style="{StaticResource ChipButton}" Content="📆 Tydzień" Click="Chip_Click" Tag="TenTydzien"/>
+                    <ToggleButton x:Name="chipSpoznione" Style="{StaticResource ChipButton}" Content="⚠ Spóźnione" Click="Chip_Click" Tag="Spoznione"/>
+                    <ToggleButton x:Name="chipMoje" Style="{StaticResource ChipButton}" Content="👤 Moje" Click="Chip_Click" Tag="TylkoMoje"/>
+                </StackPanel>
+
+                <StackPanel Grid.Row="1" Grid.Column="2" Orientation="Horizontal" Margin="0,12,0,0" VerticalAlignment="Center">
+                    <CheckBox x:Name="chkOnlyIncomplete" Content="Tylko niekompletne" Margin="0,0,16,0"
+                              VerticalAlignment="Center" Checked="Filter_Changed" Unchecked="Filter_Changed"/>
+                    <CheckBox x:Name="chkArchiwalne" Content="Archiwalne (&gt;6 mies.)"
+                              VerticalAlignment="Center" Checked="Archiwalne_Changed" Unchecked="Archiwalne_Changed"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ============ STATS BAR ============ -->
+        <Border Grid.Row="1" Background="White" Padding="20,10" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="0,0,0,1">
+            <Grid>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Left">
+                    <TextBlock x:Name="lblTotal" FontSize="12.5" Foreground="{StaticResource TextSecondaryBrush}"
+                               VerticalAlignment="Center" FontWeight="SemiBold"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right">
+                    <Border Background="#FDEAEA" CornerRadius="4" Padding="10,4" Margin="0,0,8,0">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse Width="8" Height="8" Fill="{StaticResource StatusOverdueBrush}" VerticalAlignment="Center" Margin="0,0,7,0"/>
+                            <TextBlock x:Name="lblOverdue" FontSize="11.5" Foreground="#A82828" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Background="#FFF4E0" CornerRadius="4" Padding="10,4" Margin="0,0,8,0">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse Width="8" Height="8" Fill="{StaticResource StatusTodayBrush}" VerticalAlignment="Center" Margin="0,0,7,0"/>
+                            <TextBlock x:Name="lblToday" FontSize="11.5" Foreground="#8A5500" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Background="#E6F4E8" CornerRadius="4" Padding="10,4" Margin="0,0,8,0">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse Width="8" Height="8" Fill="{StaticResource StatusKompletnaBrush}" VerticalAlignment="Center" Margin="0,0,7,0"/>
+                            <TextBlock x:Name="lblKompletne" FontSize="11.5" Foreground="#1E6E2C" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Background="#E3EEFB" CornerRadius="4" Padding="10,4">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse Width="8" Height="8" Fill="{StaticResource StatusPosrednikBrush}" VerticalAlignment="Center" Margin="0,0,7,0"/>
+                            <TextBlock x:Name="lblPosrednicy" FontSize="11.5" Foreground="#16458C" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ============ DATAGRID ============ -->
+        <DataGrid x:Name="dgvContracts" Grid.Row="2"
+                  AutoGenerateColumns="False"
+                  CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="False"
+                  CanUserResizeColumns="True" CanUserResizeRows="False"
+                  GridLinesVisibility="None"
+                  HeadersVisibility="Column" RowHeaderWidth="0"
+                  Background="White" BorderThickness="0"
+                  CellStyle="{StaticResource DgCellStyle}"
+                  RowStyle="{StaticResource DgRowStyle}"
+                  ColumnHeaderStyle="{StaticResource DgHeaderStyle}"
+                  SelectionMode="Single" SelectionUnit="FullRow"
+                  IsReadOnly="True"
+                  VirtualizingPanel.IsVirtualizing="True"
+                  VirtualizingPanel.VirtualizationMode="Recycling"
+                  VirtualizingPanel.ScrollUnit="Pixel"
+                  ScrollViewer.CanContentScroll="True"
+                  EnableRowVirtualization="True"
+                  MouseDoubleClick="DataGrid_MouseDoubleClick"
+                  PreviewKeyDown="DataGrid_PreviewKeyDown"
+                  Sorting="DataGrid_Sorting">
+
+            <DataGrid.GroupStyle>
+                <GroupStyle ContainerStyle="{StaticResource GroupItemStyle}"/>
+            </DataGrid.GroupStyle>
+
+            <DataGrid.Columns>
+                <!-- DOSTAWCA -->
+                <DataGridTemplateColumn Header="DOSTAWCA" Width="240" SortMemberPath="Dostawca">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Vertical" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding Dostawca}" Style="{StaticResource PrimaryCell}"/>
+                                <TextBlock Text="{Binding StatusLabel}" FontSize="10.5"
+                                           Foreground="{Binding StatusKey, Converter={StaticResource StatusBrush}}"
+                                           FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+
+                <!-- STATUS CHECKBOXES (centered) -->
+                <DataGridTemplateColumn Header="UTWORZONA" Width="100" SortMemberPath="Utworzone"
+                                        HeaderStyle="{StaticResource DgHeaderCenterStyle}">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <CheckBox Style="{StaticResource DgCheckBoxStyle}"
+                                      IsChecked="{Binding Utworzone, Mode=OneWay}"
+                                      Tag="Utworzone" Click="Flag_Click"
+                                      IsEnabled="{Binding IsPosrednik, Converter={StaticResource InvBoolToVis}, ConverterParameter=Bool}"
+                                      ToolTip="Umowa utworzona (kliknij aby zmienić)"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+
+                <DataGridTemplateColumn Header="WYSŁANA" Width="100" SortMemberPath="Wyslane"
+                                        HeaderStyle="{StaticResource DgHeaderCenterStyle}">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <CheckBox Style="{StaticResource DgCheckBoxStyle}"
+                                      IsChecked="{Binding Wyslane, Mode=OneWay}"
+                                      Tag="Wysłane" Click="Flag_Click"
+                                      IsEnabled="{Binding IsPosrednik, Converter={StaticResource InvBoolToVis}, ConverterParameter=Bool}"
+                                      ToolTip="Wysłana do dostawcy"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+
+                <DataGridTemplateColumn Header="OTRZYMANA" Width="100" SortMemberPath="Otrzymane"
+                                        HeaderStyle="{StaticResource DgHeaderCenterStyle}">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <CheckBox Style="{StaticResource DgCheckBoxStyle}"
+                                      IsChecked="{Binding Otrzymane, Mode=OneWay}"
+                                      Tag="Otrzymane" Click="Flag_Click"
+                                      IsEnabled="{Binding IsPosrednik, Converter={StaticResource InvBoolToVis}, ConverterParameter=Bool}"
+                                      ToolTip="Otrzymano podpisaną"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+
+                <DataGridTemplateColumn Header="POŚREDNIK" Width="100" SortMemberPath="IsPosrednik"
+                                        HeaderStyle="{StaticResource DgHeaderCenterStyle}">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <CheckBox Style="{StaticResource DgCheckBoxPosrednikStyle}"
+                                      IsChecked="{Binding IsPosrednik, Mode=OneWay}"
+                                      Tag="Posrednik" Click="Flag_Click"
+                                      ToolTip="Dostawa od pośrednika — bez umowy"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+
+                <!-- NUMERIC -->
+                <DataGridTemplateColumn Header="AUT" Width="56" SortMemberPath="Auta"
+                                        HeaderStyle="{StaticResource DgHeaderRightStyle}">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Auta}" Style="{StaticResource NumCell}"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+
+                <DataGridTemplateColumn Header="SZTUKI" Width="86" SortMemberPath="SztukiDek"
+                                        HeaderStyle="{StaticResource DgHeaderRightStyle}">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding SztukiDek, StringFormat={}{0:N0}}" Style="{StaticResource NumCell}"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+
+                <DataGridTemplateColumn Header="WAGA (kg)" Width="86" SortMemberPath="WagaDek"
+                                        HeaderStyle="{StaticResource DgHeaderRightStyle}">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding WagaDek, StringFormat={}{0:N0}}" Style="{StaticResource NumCell}"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+
+                <DataGridTemplateColumn Header="SZT/POJ" Width="70" SortMemberPath="SztSzuflada"
+                                        HeaderStyle="{StaticResource DgHeaderRightStyle}">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding SztSzuflada}" Style="{StaticResource NumCell}"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+
+                <!-- AUDIT (Avatar + name + relative date) -->
+                <DataGridTemplateColumn Header="UTWORZYŁ" Width="180" SortMemberPath="KtoUtw">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Grid VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
+                                            Visibility="{Binding KtoUtw, Converter={StaticResource NullToVis}}"
+                                            ToolTip="{Binding KiedyUtw, StringFormat='Utworzono: yyyy-MM-dd HH:mm'}">
+                                    <Border Width="28" Height="28" CornerRadius="14"
+                                            Background="{StaticResource SurfaceAltBrush}" Margin="0,0,8,0"
+                                            ClipToBounds="True">
+                                        <Image Source="{Binding AvatarUtw}" Stretch="UniformToFill"/>
+                                    </Border>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding KtoUtw}" FontSize="12" FontWeight="SemiBold"
+                                                   Foreground="{StaticResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Text="{Binding KiedyUtw, Converter={StaticResource RelDate}, ConverterParameter=Short}"
+                                                   FontSize="10.5" Foreground="{StaticResource TextMutedBrush}"/>
+                                    </StackPanel>
+                                </StackPanel>
+                                <TextBlock Text="—" FontSize="13" Foreground="#C0C8D0"
+                                           VerticalAlignment="Center" HorizontalAlignment="Left"
+                                           Visibility="{Binding KtoUtw, Converter={StaticResource NullToVis}, ConverterParameter=Invert}"/>
+                            </Grid>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+
+                <DataGridTemplateColumn Header="WYSŁAŁ" Width="180" SortMemberPath="KtoWysl">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Grid VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
+                                            Visibility="{Binding KtoWysl, Converter={StaticResource NullToVis}}"
+                                            ToolTip="{Binding KiedyWysl, StringFormat='Wysłano: yyyy-MM-dd HH:mm'}">
+                                    <Border Width="28" Height="28" CornerRadius="14"
+                                            Background="{StaticResource SurfaceAltBrush}" Margin="0,0,8,0"
+                                            ClipToBounds="True">
+                                        <Image Source="{Binding AvatarWysl}" Stretch="UniformToFill"/>
+                                    </Border>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding KtoWysl}" FontSize="12" FontWeight="SemiBold"
+                                                   Foreground="{StaticResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Text="{Binding KiedyWysl, Converter={StaticResource RelDate}, ConverterParameter=Short}"
+                                                   FontSize="10.5" Foreground="{StaticResource TextMutedBrush}"/>
+                                    </StackPanel>
+                                </StackPanel>
+                                <TextBlock Text="—" FontSize="13" Foreground="#C0C8D0"
+                                           VerticalAlignment="Center" HorizontalAlignment="Left"
+                                           Visibility="{Binding KtoWysl, Converter={StaticResource NullToVis}, ConverterParameter=Invert}"/>
+                            </Grid>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+
+                <DataGridTemplateColumn Header="OTRZYMAŁ" Width="180" SortMemberPath="KtoOtrzym">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Grid VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
+                                            Visibility="{Binding KtoOtrzym, Converter={StaticResource NullToVis}}"
+                                            ToolTip="{Binding KiedyOtrzm, StringFormat='Otrzymano: yyyy-MM-dd HH:mm'}">
+                                    <Border Width="28" Height="28" CornerRadius="14"
+                                            Background="{StaticResource SurfaceAltBrush}" Margin="0,0,8,0"
+                                            ClipToBounds="True">
+                                        <Image Source="{Binding AvatarOtrzym}" Stretch="UniformToFill"/>
+                                    </Border>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding KtoOtrzym}" FontSize="12" FontWeight="SemiBold"
+                                                   Foreground="{StaticResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Text="{Binding KiedyOtrzm, Converter={StaticResource RelDate}, ConverterParameter=Short}"
+                                                   FontSize="10.5" Foreground="{StaticResource TextMutedBrush}"/>
+                                    </StackPanel>
+                                </StackPanel>
+                                <TextBlock Text="—" FontSize="13" Foreground="#C0C8D0"
+                                           VerticalAlignment="Center" HorizontalAlignment="Left"
+                                           Visibility="{Binding KtoOtrzym, Converter={StaticResource NullToVis}, ConverterParameter=Invert}"/>
+                            </Grid>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+
+            <DataGrid.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="✏  Edytuj umowę" Click="MenuEdit_Click"/>
+                    <Separator/>
+                    <MenuItem Header="📁  Pokaż plik umowy w Eksploratorze" Click="MenuShowFile_Click"/>
+                    <MenuItem Header="📜  Pokaż historię zmian" Click="MenuHistory_Click"/>
+                    <MenuItem Header="📋  Skopiuj LP" Click="MenuCopyLp_Click"/>
+                </ContextMenu>
+            </DataGrid.ContextMenu>
+        </DataGrid>
+
+        <!-- Loading overlay -->
+        <Border x:Name="loadingOverlay" Grid.Row="0" Grid.RowSpan="3" Background="#80FFFFFF" Visibility="Collapsed">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                <ProgressBar IsIndeterminate="True" Width="200" Height="6"/>
+                <TextBlock Text="Ładowanie..." Margin="0,8,0,0" HorizontalAlignment="Center" Foreground="{StaticResource TextPrimaryBrush}"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

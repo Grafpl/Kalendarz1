@@ -3,6 +3,7 @@ using Kalendarz1.Services;
 using Kalendarz1.Spotkania.Services;
 using System;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Windows;
 
@@ -12,6 +13,7 @@ namespace Kalendarz1
     {
         public static string UserID { get; set; }
         public static string UserFullName { get; set; }
+        public static bool IsAdmin { get; set; } = false;
 
         /// <summary>
         /// Uruchamia globalny serwis powiadomień o spotkaniach
@@ -136,9 +138,49 @@ namespace Kalendarz1
             }
         }
 
+        // === WHITELIST MASZYN (anti-theft) ===
+        // Jeśli WhitelistEnabled = true, ZPSP odpali się TYLKO na maszynach z AllowedMachines.
+        // Zostawione na false podczas wdrażania — włącz gdy masz pełną listę stacji.
+        private const bool WhitelistEnabled = false;
+
+        // Wpisz nazwy komputerów które mają mieć dostęp do ZPSP.
+        // Lista NIE jest case-sensitive. Sprawdź nazwę komputera komendą `hostname` w cmd.
+        private static readonly string[] AllowedMachines = new[]
+        {
+            "PC",              // PC Sergiusza (zachowane jako example — zmień)
+            // "PC-JOLA",
+            // "PC-MAJA",
+            // "PC-MARCIN",
+            // "PC-JUSTYNA",
+            // "PC-PORTIERNIA",
+            // "PC-MAGAZYN-1",
+            // "PC-MAGAZYN-2",
+        };
+
         protected override void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
+
+            // Whitelist maszyn — anti-theft check
+            if (WhitelistEnabled)
+            {
+                var machine = Environment.MachineName;
+                bool allowed = AllowedMachines.Any(m =>
+                    string.Equals(m, machine, StringComparison.OrdinalIgnoreCase));
+                if (!allowed)
+                {
+                    MessageBox.Show(
+                        $"To stanowisko ({machine}) nie ma uprawnień do uruchomienia ZPSP.\n\n" +
+                        $"Jeśli powinieneś mieć dostęp — skontaktuj się z Sergiuszem.\n\n" +
+                        $"Konto: {Environment.UserName}\n" +
+                        $"Komputer: {machine}\n" +
+                        $"Domena: {Environment.UserDomainName}",
+                        "ZPSP — Brak uprawnień stanowiska",
+                        MessageBoxButton.OK, MessageBoxImage.Error);
+                    Shutdown(1);
+                    return;
+                }
+            }
 
             // Tryb deweloperski Centrum nagrań AI: --cna-test [sekundy]
             // Pomija normalne logowanie i menu, uruchamia tylko indexer i kończy proces.
@@ -189,6 +231,17 @@ namespace Kalendarz1
                 // Bezpośrednio otwiera placeholder okno CNA, pomija login/menu.
                 var win = new Kalendarz1.CentrumNagranAI.Views.CentrumNagranAIWindow();
                 win.Show();
+                return;
+            }
+
+            // Tryb TV: --hala-live — fullscreen dashboard dla hali, bez logowania
+            // Użycie: Kalendarz1.exe --hala-live (uruchamiać przy starcie Windows na stacji TV)
+            int idxHala = Array.IndexOf(argv, "--hala-live");
+            if (idxHala >= 0)
+            {
+                ShutdownMode = ShutdownMode.OnLastWindowClose;
+                var halaWin = new Kalendarz1.HalaLive.Views.HalaLiveWindow();
+                halaWin.Show();
                 return;
             }
 

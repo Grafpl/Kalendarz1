@@ -1,0 +1,518 @@
+<Window x:Class="Kalendarz1.AnalitykaPelna.Windows.FlowChainEtapDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:svc="clr-namespace:Kalendarz1.AnalitykaPelna.Services"
+        Title="Szczegóły etapu łańcucha produkcji"
+        Width="1300" Height="800"
+        WindowStartupLocation="CenterOwner"
+        Background="#F8FAFC">
+    <Window.Resources>
+        <svc:HexToBrushConverter x:Key="HexToBrush"/>
+    </Window.Resources>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <!-- 0: Header -->
+            <RowDefinition Height="Auto"/>
+            <!-- 1: KPI strip -->
+            <RowDefinition Height="Auto"/>
+            <!-- 2: Top towary chips -->
+            <RowDefinition Height="*"/>
+            <!-- 3: TabControl -->
+            <RowDefinition Height="Auto"/>
+            <!-- 4: Footer -->
+        </Grid.RowDefinitions>
+
+        <!-- ═══════ HEADER (z kolorem etapu) ═══════ -->
+        <Border Grid.Row="0" x:Name="bdHeader" Background="#7C3AED" Padding="20,16">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" x:Name="txtIkona" Text="🔪" FontSize="44" Margin="0,0,16,0"
+                           VerticalAlignment="Center"/>
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock x:Name="txtNazwa" Text="ETAP" FontSize="22" FontWeight="Bold" Foreground="White"/>
+                    <TextBlock x:Name="txtOpis" Text="" FontSize="13" Foreground="#FFFFFFD0" Margin="0,2,0,0"/>
+                    <TextBlock x:Name="txtZakresDat" Text="" FontSize="12" Foreground="#FFFFFFA0" Margin="0,4,0,0"/>
+                </StackPanel>
+                <Button Grid.Column="2" Content="✕" Width="36" Height="36" FontSize="18" FontWeight="Bold"
+                        Background="#FFFFFF20" Foreground="White" BorderThickness="0"
+                        Cursor="Hand" Click="BtnZamknij_Click"
+                        VerticalAlignment="Top" Margin="0,-4,-4,0"/>
+            </Grid>
+        </Border>
+
+        <!-- ═══════ KPI STRIP ═══════ -->
+        <Border Grid.Row="1" Background="White" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1" Padding="20,12">
+            <UniformGrid Columns="5" Rows="1">
+                <StackPanel Margin="0,0,16,0">
+                    <TextBlock Text="Σ KILOGRAMY" FontSize="10" FontWeight="Bold" Foreground="#94A3B8"/>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock x:Name="txtKpiKg" Text="—" FontSize="22" FontWeight="Bold"
+                                   FontFamily="Consolas" Foreground="#0F172A" VerticalAlignment="Bottom"/>
+                        <TextBlock Text="kg" FontSize="11" Foreground="#94A3B8"
+                                   VerticalAlignment="Bottom" Margin="3,0,0,3"/>
+                    </StackPanel>
+                </StackPanel>
+                <StackPanel Margin="0,0,16,0">
+                    <TextBlock Text="📄 DOKUMENTÓW" FontSize="10" FontWeight="Bold" Foreground="#94A3B8"/>
+                    <TextBlock x:Name="txtKpiDok" Text="—" FontSize="22" FontWeight="Bold"
+                               FontFamily="Consolas" Foreground="#0F172A"/>
+                </StackPanel>
+                <StackPanel Margin="0,0,16,0">
+                    <TextBlock Text="📋 POZYCJI" FontSize="10" FontWeight="Bold" Foreground="#94A3B8"/>
+                    <TextBlock x:Name="txtKpiPozycji" Text="—" FontSize="22" FontWeight="Bold"
+                               FontFamily="Consolas" Foreground="#0F172A"/>
+                </StackPanel>
+                <StackPanel Margin="0,0,16,0">
+                    <TextBlock Text="📅 DNI W OKRESIE" FontSize="10" FontWeight="Bold" Foreground="#94A3B8"/>
+                    <TextBlock x:Name="txtKpiDni" Text="—" FontSize="22" FontWeight="Bold"
+                               FontFamily="Consolas" Foreground="#0F172A"/>
+                </StackPanel>
+                <StackPanel>
+                    <TextBlock Text="Σ ŚREDNIA / DZIEŃ" FontSize="10" FontWeight="Bold" Foreground="#94A3B8"/>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock x:Name="txtKpiSrednia" Text="—" FontSize="22" FontWeight="Bold"
+                                   FontFamily="Consolas" Foreground="#10B981" VerticalAlignment="Bottom"/>
+                        <TextBlock Text="kg" FontSize="11" Foreground="#94A3B8"
+                                   VerticalAlignment="Bottom" Margin="3,0,0,3"/>
+                    </StackPanel>
+                </StackPanel>
+            </UniformGrid>
+        </Border>
+
+        <!-- ═══════ TOP TOWARY (chips z kodem + kg + procent) ═══════ -->
+        <Border Grid.Row="2" x:Name="bdTopTowary" Background="White" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1" Padding="20,10">
+            <StackPanel>
+                <TextBlock Text="📦 TOP WYTWORZONE / WYDANE TOWARY" FontSize="10" FontWeight="Bold"
+                           Foreground="#94A3B8" Margin="0,0,0,8"/>
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                    <ItemsControl x:Name="icTopTowary">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="#F8FAFC" BorderBrush="#CBD5E1" BorderThickness="1"
+                                        CornerRadius="8" Padding="10,8" Margin="0,0,8,0" MinWidth="200">
+                                    <Border.Effect>
+                                        <DropShadowEffect Color="#15000000" BlurRadius="6" ShadowDepth="2"/>
+                                    </Border.Effect>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <!-- Miniatura towaru (BLOB z TowarZdjecia) lub emoji placeholder -->
+                                        <Border Grid.Column="0" Width="56" Height="56" CornerRadius="6"
+                                                Background="White" BorderBrush="#E2E8F0" BorderThickness="1"
+                                                Margin="0,0,10,0" VerticalAlignment="Center">
+                                            <Grid>
+                                                <Image Source="{Binding ImageSource}" Stretch="UniformToFill"
+                                                       Visibility="{Binding ImageVisibility}"/>
+                                                <TextBlock Text="{Binding PlaceholderEmoji}" FontSize="28"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                           Visibility="{Binding PlaceholderVisibility}"/>
+                                            </Grid>
+                                        </Border>
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Kod}" FontSize="13" FontWeight="Bold"
+                                                       Foreground="#0F172A" TextTrimming="CharacterEllipsis" MaxWidth="160"/>
+                                            <TextBlock Text="{Binding Kategoria}" FontSize="10"
+                                                       Foreground="#94A3B8" Margin="0,2,0,4"/>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="{Binding Kg, StringFormat=N0}" FontSize="18" FontWeight="Bold"
+                                                           FontFamily="Consolas" Foreground="#0F172A"/>
+                                                <TextBlock Text="kg" FontSize="10" Foreground="#94A3B8"
+                                                           VerticalAlignment="Bottom" Margin="3,0,0,3"/>
+                                            </StackPanel>
+                                            <Border Background="#7C3AED" CornerRadius="3" Padding="4,1"
+                                                    HorizontalAlignment="Left" Margin="0,3,0,0">
+                                                <TextBlock Text="{Binding ProcentUdzialu, StringFormat='{}{0:F1}%'}"
+                                                           FontSize="10" FontWeight="Bold" Foreground="White"/>
+                                            </Border>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </StackPanel>
+        </Border>
+
+        <!-- ═══════ TabControl z 5 zakładkami ═══════ -->
+        <TabControl Grid.Row="3" Background="Transparent" BorderThickness="0" Padding="0" Margin="14,8,14,0">
+            <TabControl.Resources>
+                <Style TargetType="TabItem">
+                    <Setter Property="Padding" Value="14,7"/>
+                    <Setter Property="FontSize" Value="12"/>
+                    <Setter Property="FontWeight" Value="SemiBold"/>
+                    <Setter Property="MinWidth" Value="140"/>
+                </Style>
+            </TabControl.Resources>
+
+            <!-- ─── TAB 1: DOKUMENTY ─── -->
+            <TabItem Header="📄 Dokumenty">
+                <Border Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6">
+                    <DataGrid x:Name="dgDokumenty" AutoGenerateColumns="False" IsReadOnly="True"
+                              HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                              RowBackground="White" AlternatingRowBackground="#F8FAFC"
+                              BorderThickness="0" RowHeight="28" FontSize="12"
+                              EnableRowVirtualization="True">
+                        <DataGrid.Resources>
+                            <Style TargetType="DataGridColumnHeader">
+                                <Setter Property="Background" Value="#F1F5F9"/>
+                                <Setter Property="Foreground" Value="#475569"/>
+                                <Setter Property="FontWeight" Value="Bold"/>
+                                <Setter Property="FontSize" Value="11"/>
+                                <Setter Property="Padding" Value="8,8"/>
+                                <Setter Property="BorderBrush" Value="#E2E8F0"/>
+                                <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                            </Style>
+                        </DataGrid.Resources>
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Data" Binding="{Binding Data, StringFormat=dd.MM.yyyy}" Width="100">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="FontFamily" Value="Consolas"/>
+                                        <Setter Property="Foreground" Value="#475569"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Kod dokumentu" Binding="{Binding Kod}" Width="200">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="FontFamily" Value="Consolas"/>
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                        <Setter Property="Foreground" Value="#0F172A"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Seria" Binding="{Binding Seria}" Width="70">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="FontFamily" Value="Consolas"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                        <Setter Property="HorizontalAlignment" Value="Center"/>
+                                        <Setter Property="Foreground" Value="#1E40AF"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="🏭 Magazyn" Binding="{Binding MagazynNazwa}" Width="130">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="↦ Cel (MM-)" Binding="{Binding MagazynDoNazwa}" Width="120">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="#7C3AED"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Kontrahent" Binding="{Binding Kontrahent}" Width="*"/>
+                            <DataGridTextColumn Header="Pozycji" Binding="{Binding LiczbaPozycji}" Width="70">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="HorizontalAlignment" Value="Center"/>
+                                        <Setter Property="Foreground" Value="#64748B"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="kg" Binding="{Binding Kg, StringFormat=N0}" Width="100">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="FontFamily" Value="Consolas"/>
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                        <Setter Property="HorizontalAlignment" Value="Right"/>
+                                        <Setter Property="Foreground" Value="#0F172A"/>
+                                        <Setter Property="Padding" Value="0,0,8,0"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Opis" Binding="{Binding Opis}" Width="180">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="FontSize" Value="11"/>
+                                        <Setter Property="Foreground" Value="#64748B"/>
+                                        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                        <Setter Property="ToolTip" Value="{Binding Opis}"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+            </TabItem>
+
+            <!-- ─── TAB 2: TOWARY ─── -->
+            <TabItem Header="🥩 Towary">
+                <Border Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6">
+                    <DataGrid x:Name="dgTowary" AutoGenerateColumns="False" IsReadOnly="True"
+                              HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                              RowBackground="White" AlternatingRowBackground="#F8FAFC"
+                              BorderThickness="0" RowHeight="52" FontSize="12">
+                        <DataGrid.Resources>
+                            <Style TargetType="DataGridColumnHeader">
+                                <Setter Property="Background" Value="#F1F5F9"/>
+                                <Setter Property="Foreground" Value="#475569"/>
+                                <Setter Property="FontWeight" Value="Bold"/>
+                                <Setter Property="FontSize" Value="11"/>
+                                <Setter Property="Padding" Value="8,8"/>
+                            </Style>
+                        </DataGrid.Resources>
+                        <DataGrid.Columns>
+                            <DataGridTemplateColumn Header="" Width="60">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Border Width="44" Height="44" CornerRadius="6"
+                                                Background="White" BorderBrush="#E2E8F0" BorderThickness="1"
+                                                Margin="4,2">
+                                            <Grid>
+                                                <Image Source="{Binding ImageSource}" Stretch="UniformToFill"
+                                                       Visibility="{Binding ImageVisibility}"/>
+                                                <TextBlock Text="{Binding PlaceholderEmoji}" FontSize="22"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                           Visibility="{Binding PlaceholderVisibility}"/>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTextColumn Header="Kod" Binding="{Binding Kod}" Width="200">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Nazwa towaru" Binding="{Binding Nazwa}" Width="*"/>
+                            <DataGridTextColumn Header="Kategoria" Binding="{Binding Kategoria}" Width="110"/>
+                            <DataGridTextColumn Header="Dok." Binding="{Binding LiczbaDok}" Width="70">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="HorizontalAlignment" Value="Center"/>
+                                        <Setter Property="Foreground" Value="#64748B"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="kg" Binding="{Binding Kg, StringFormat=N0}" Width="120">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="FontFamily" Value="Consolas"/>
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                        <Setter Property="HorizontalAlignment" Value="Right"/>
+                                        <Setter Property="Padding" Value="0,0,8,0"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="% udziału" Binding="{Binding ProcentUdzialu, StringFormat=N2}" Width="100">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="FontFamily" Value="Consolas"/>
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                        <Setter Property="HorizontalAlignment" Value="Right"/>
+                                        <Setter Property="Foreground" Value="#7C3AED"/>
+                                        <Setter Property="Padding" Value="0,0,8,0"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+            </TabItem>
+
+            <!-- ─── TAB 3: PER DZIEŃ ─── -->
+            <TabItem Header="📅 Per dzień">
+                <Border Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6">
+                    <DataGrid x:Name="dgDni" AutoGenerateColumns="False" IsReadOnly="True"
+                              HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                              RowBackground="White" AlternatingRowBackground="#F8FAFC"
+                              BorderThickness="0" RowHeight="28" FontSize="12">
+                        <DataGrid.Resources>
+                            <Style TargetType="DataGridColumnHeader">
+                                <Setter Property="Background" Value="#F1F5F9"/>
+                                <Setter Property="Foreground" Value="#475569"/>
+                                <Setter Property="FontWeight" Value="Bold"/>
+                                <Setter Property="FontSize" Value="11"/>
+                                <Setter Property="Padding" Value="8,8"/>
+                            </Style>
+                        </DataGrid.Resources>
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Data" Binding="{Binding DataFormatted}" Width="200">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="FontFamily" Value="Consolas"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Liczba dokumentów" Binding="{Binding LiczbaDok}" Width="180">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="HorizontalAlignment" Value="Center"/>
+                                        <Setter Property="Foreground" Value="#475569"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="kg" Binding="{Binding Kg, StringFormat=N0}" Width="*">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="FontFamily" Value="Consolas"/>
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                        <Setter Property="HorizontalAlignment" Value="Right"/>
+                                        <Setter Property="Padding" Value="0,0,16,0"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+            </TabItem>
+
+            <!-- ─── TAB 4: PER MAGAZYN ─── -->
+            <TabItem Header="🏭 Per magazyn">
+                <Border Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6">
+                    <DataGrid x:Name="dgMagazyny" AutoGenerateColumns="False" IsReadOnly="True"
+                              HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                              RowBackground="White" AlternatingRowBackground="#F8FAFC"
+                              BorderThickness="0" RowHeight="28" FontSize="12">
+                        <DataGrid.Resources>
+                            <Style TargetType="DataGridColumnHeader">
+                                <Setter Property="Background" Value="#F1F5F9"/>
+                                <Setter Property="Foreground" Value="#475569"/>
+                                <Setter Property="FontWeight" Value="Bold"/>
+                                <Setter Property="FontSize" Value="11"/>
+                                <Setter Property="Padding" Value="8,8"/>
+                            </Style>
+                        </DataGrid.Resources>
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="80">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="FontFamily" Value="Consolas"/>
+                                        <Setter Property="HorizontalAlignment" Value="Center"/>
+                                        <Setter Property="Foreground" Value="#64748B"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Magazyn" Binding="{Binding Nazwa}" Width="*">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Dok." Binding="{Binding LiczbaDok}" Width="100"/>
+                            <DataGridTextColumn Header="kg" Binding="{Binding Kg, StringFormat=N0}" Width="140">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="FontFamily" Value="Consolas"/>
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                        <Setter Property="HorizontalAlignment" Value="Right"/>
+                                        <Setter Property="Padding" Value="0,0,8,0"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="% udziału" Binding="{Binding ProcentUdzialu, StringFormat=N2}" Width="120">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="FontFamily" Value="Consolas"/>
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                        <Setter Property="HorizontalAlignment" Value="Right"/>
+                                        <Setter Property="Foreground" Value="#7C3AED"/>
+                                        <Setter Property="Padding" Value="0,0,8,0"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+            </TabItem>
+
+            <!-- ─── TAB 5: KONTRAHENCI ─── -->
+            <TabItem Header="👥 Kontrahenci">
+                <Border Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6">
+                    <DataGrid x:Name="dgKontrahenci" AutoGenerateColumns="False" IsReadOnly="True"
+                              HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                              RowBackground="White" AlternatingRowBackground="#F8FAFC"
+                              BorderThickness="0" RowHeight="28" FontSize="12">
+                        <DataGrid.Resources>
+                            <Style TargetType="DataGridColumnHeader">
+                                <Setter Property="Background" Value="#F1F5F9"/>
+                                <Setter Property="Foreground" Value="#475569"/>
+                                <Setter Property="FontWeight" Value="Bold"/>
+                                <Setter Property="FontSize" Value="11"/>
+                                <Setter Property="Padding" Value="8,8"/>
+                            </Style>
+                        </DataGrid.Resources>
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="ID" Binding="{Binding KhId}" Width="80">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="FontFamily" Value="Consolas"/>
+                                        <Setter Property="HorizontalAlignment" Value="Center"/>
+                                        <Setter Property="Foreground" Value="#64748B"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Kontrahent" Binding="{Binding Nazwa}" Width="*">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Dok." Binding="{Binding LiczbaDok}" Width="100"/>
+                            <DataGridTextColumn Header="kg" Binding="{Binding Kg, StringFormat=N0}" Width="140">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="FontFamily" Value="Consolas"/>
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                        <Setter Property="HorizontalAlignment" Value="Right"/>
+                                        <Setter Property="Padding" Value="0,0,8,0"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="% udziału" Binding="{Binding ProcentUdzialu, StringFormat=N2}" Width="120">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="FontFamily" Value="Consolas"/>
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                        <Setter Property="HorizontalAlignment" Value="Right"/>
+                                        <Setter Property="Foreground" Value="#7C3AED"/>
+                                        <Setter Property="Padding" Value="0,0,8,0"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+            </TabItem>
+        </TabControl>
+
+        <!-- ═══════ FOOTER ═══════ -->
+        <Border Grid.Row="4" Background="#0F172A" Padding="20,10" Margin="0,4,0,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" x:Name="txtFooterInfo" Text=""
+                           Foreground="#94A3B8" FontSize="11" VerticalAlignment="Center"/>
+                <Button Grid.Column="1" Content="✕ Zamknij" Padding="14,6"
+                        Background="#1E40AF" Foreground="White" BorderThickness="0" FontWeight="SemiBold"
+                        Cursor="Hand" Click="BtnZamknij_Click"/>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

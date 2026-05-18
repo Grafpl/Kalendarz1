@@ -1,0 +1,501 @@
+<Window x:Class="Kalendarz1.Admin.AdminPermissionsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Panel Administracyjny — Zarządzanie Uprawnieniami"
+        Width="1600" Height="900" MinWidth="1300" MinHeight="720"
+        WindowStartupLocation="CenterScreen"
+        Background="#F1F4F8"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True">
+
+    <Window.Resources>
+        <!-- ═══ Brushes (Freeze automatycznie przez WPF resource caching) ═══ -->
+        <SolidColorBrush x:Key="PrimaryBrush" Color="#2D3945"/>
+        <SolidColorBrush x:Key="TextDarkBrush" Color="#1F2937"/>
+        <SolidColorBrush x:Key="TextGrayBrush" Color="#6B7280"/>
+        <SolidColorBrush x:Key="TextLightBrush" Color="#9CA3AF"/>
+        <SolidColorBrush x:Key="BorderLightBrush" Color="#E5E7EB"/>
+        <SolidColorBrush x:Key="BorderUltralightBrush" Color="#F3F4F6"/>
+        <SolidColorBrush x:Key="SuccessBrush" Color="#10B981"/>
+        <SolidColorBrush x:Key="SuccessLightBrush" Color="#D1FAE5"/>
+        <SolidColorBrush x:Key="DangerBrush" Color="#EF4444"/>
+        <SolidColorBrush x:Key="WarningBrush" Color="#F59E0B"/>
+        <SolidColorBrush x:Key="InfoBrush" Color="#3B82F6"/>
+        <SolidColorBrush x:Key="HoverRowBrush" Color="#F9FAFB"/>
+        <SolidColorBrush x:Key="SelectedRowBrush" Color="#DBEAFE"/>
+        <SolidColorBrush x:Key="SelectedBorderBrush" Color="#3B82F6"/>
+        <SolidColorBrush x:Key="SurfaceBrush" Color="White"/>
+        <SolidColorBrush x:Key="SubtleBgBrush" Color="#F9FAFB"/>
+
+        <!-- ═══ Toolbar button (ciemny, w nagłówku) ═══ -->
+        <Style x:Key="ToolbarButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="Margin" Value="2,0"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="MinHeight" Value="28"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#3D4955"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#4D5965"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ═══ Action button (kolorowe akcje w toolbarze akcji) ═══ -->
+        <Style x:Key="ActionButton" TargetType="Button">
+            <Setter Property="Background" Value="#6B7280"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="10,4"/>
+            <Setter Property="Margin" Value="2,0"/>
+            <Setter Property="FontSize" Value="11.5"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="MinHeight" Value="26"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.85"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.7"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ═══ Primary save button ═══ -->
+        <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource ActionButton}">
+            <Setter Property="Background" Value="{StaticResource SuccessBrush}"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Padding" Value="14,5"/>
+            <Setter Property="MinHeight" Value="28"/>
+        </Style>
+
+        <Style x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource ActionButton}">
+            <Setter Property="Background" Value="{StaticResource DangerBrush}"/>
+        </Style>
+
+        <Style x:Key="InfoButton" TargetType="Button" BasedOn="{StaticResource ActionButton}">
+            <Setter Property="Background" Value="{StaticResource InfoBrush}"/>
+        </Style>
+
+        <Style x:Key="WarningButton" TargetType="Button" BasedOn="{StaticResource ActionButton}">
+            <Setter Property="Background" Value="{StaticResource WarningBrush}"/>
+        </Style>
+
+        <!-- ═══ User card (lista po lewej) ═══ -->
+        <Style x:Key="UserCardBorder" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderUltralightBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Margin" Value="0,0,0,3"/>
+            <Setter Property="Padding" Value="6"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource HoverRowBrush}"/>
+                    <Setter Property="BorderBrush" Value="{StaticResource BorderLightBrush}"/>
+                </Trigger>
+                <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                    <Setter Property="Background" Value="{StaticResource SelectedRowBrush}"/>
+                    <Setter Property="BorderBrush" Value="{StaticResource SelectedBorderBrush}"/>
+                    <Setter Property="BorderThickness" Value="1.5"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- ═══ Module card (kafelek uprawnienia) ═══ -->
+        <Style x:Key="ModuleCardBorder" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderUltralightBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Margin" Value="2"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource HoverRowBrush}"/>
+                    <Setter Property="BorderBrush" Value="{StaticResource BorderLightBrush}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- ═══ Search box ═══ -->
+        <Style x:Key="SearchTextBox" TargetType="TextBox">
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="0,6"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <!-- ═══ Modern CheckBox (subtelniejszy niż domyślny) ═══ -->
+        <Style x:Key="ModernCheckBox" TargetType="CheckBox">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="42"/>   <!-- Toolbar (zmniejszony 52→42) -->
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="24"/>   <!-- Status bar (zmniejszony 40→24) -->
+        </Grid.RowDefinitions>
+
+        <!-- ═══════════════════════════════════════════════════════════════════════ -->
+        <!-- TOP TOOLBAR — kompaktowy gradient -->
+        <!-- ═══════════════════════════════════════════════════════════════════════ -->
+        <Border Grid.Row="0">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                    <GradientStop Offset="0" Color="#37434F"/>
+                    <GradientStop Offset="1" Color="#232F3B"/>
+                </LinearGradientBrush>
+            </Border.Background>
+            <Border.Effect>
+                <DropShadowEffect Direction="270" ShadowDepth="1" Opacity="0.25" BlurRadius="3" Color="Black"/>
+            </Border.Effect>
+            <Grid Margin="14,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="🔐" FontSize="18" Foreground="White" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBlock Text="Panel Administracyjny" FontSize="14" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                    <TextBlock Text=" · Zarządzanie Uprawnieniami" FontSize="12" Foreground="#B0BEC5" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="BtnHistoria" Style="{StaticResource ToolbarButton}" Content="📜 Historia logowań" Click="BtnHistoria_Click"/>
+                    <Button x:Name="BtnPrzydzielKlientow" Style="{StaticResource ToolbarButton}" Content="🎯 Przydziel klientów" Click="BtnPrzydzielKlientow_Click"/>
+                    <Button x:Name="BtnDodajUser" Style="{StaticResource ToolbarButton}" Content="➕ Dodaj użytkownika" Click="BtnDodajUser_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ═══════════════════════════════════════════════════════════════════════ -->
+        <!-- MAIN 2-col -->
+        <!-- ═══════════════════════════════════════════════════════════════════════ -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="288"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- ── LEWA: Lista users (zmniejszona z 320 → 288) ── -->
+            <Border Grid.Column="0" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,0,1,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Search + count -->
+                    <StackPanel Grid.Row="0" Margin="10,10,10,6">
+                        <Grid Margin="0,0,0,6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Użytkownicy" FontSize="13" FontWeight="Bold" Foreground="{StaticResource TextDarkBrush}" VerticalAlignment="Center"/>
+                            <Border Grid.Column="1" Background="{StaticResource SubtleBgBrush}" CornerRadius="10" Padding="8,2">
+                                <TextBlock x:Name="LblUsersCount" Text="0" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextGrayBrush}"/>
+                            </Border>
+                        </Grid>
+                        <Border Background="{StaticResource SubtleBgBrush}" BorderBrush="{StaticResource BorderUltralightBrush}" BorderThickness="1" CornerRadius="5" Padding="8,0">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="🔍" FontSize="12" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="{StaticResource TextGrayBrush}"/>
+                                <TextBox x:Name="TxtSearchUsers" Grid.Column="1" Style="{StaticResource SearchTextBox}" TextChanged="TxtSearchUsers_TextChanged"/>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Lista users -->
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="10,0,10,10">
+                        <ItemsControl x:Name="UsersList" ItemsSource="{Binding}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <VirtualizingStackPanel/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Style="{StaticResource UserCardBorder}" Tag="{Binding}"
+                                            MouseLeftButtonDown="UserCard_Click">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="40"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- Avatar 36×36 -->
+                                            <Grid Grid.Column="0" Width="36" Height="36" VerticalAlignment="Top">
+                                                <Border Width="36" Height="36" CornerRadius="18"
+                                                        Background="#6366F1"
+                                                        Visibility="{Binding InitialsVisibility}">
+                                                    <TextBlock Text="{Binding Initials}" Foreground="White"
+                                                               FontWeight="Bold" FontSize="12"
+                                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                                <Border Width="36" Height="36" CornerRadius="18"
+                                                        Visibility="{Binding AvatarVisibility}"
+                                                        ClipToBounds="True">
+                                                    <Border.Background>
+                                                        <ImageBrush ImageSource="{Binding AvatarSource}" Stretch="UniformToFill"/>
+                                                    </Border.Background>
+                                                </Border>
+                                            </Grid>
+
+                                            <!-- Treść -->
+                                            <Grid Grid.Column="1" Margin="6,0,0,0">
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                </Grid.RowDefinitions>
+                                                <Grid Grid.Row="0">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="{Binding Name}" FontWeight="SemiBold" FontSize="12"
+                                                               Foreground="{StaticResource TextDarkBrush}" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Grid.Column="1" Text="{Binding ID}" FontSize="9.5"
+                                                               Foreground="{StaticResource TextLightBrush}" Margin="6,1,0,0" VerticalAlignment="Center"/>
+                                                </Grid>
+                                                <Grid Grid.Row="1" Margin="0,1,0,0">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" FontSize="10" Foreground="{StaticResource TextGrayBrush}">
+                                                        <Run Text="🔐 "/><Run Text="{Binding EnabledCount, Mode=OneWay}"/><Run Text=" uprawnień"/>
+                                                    </TextBlock>
+                                                    <TextBlock Grid.Column="1" FontSize="10" Foreground="{StaticResource TextGrayBrush}"
+                                                               Margin="8,0,0,0" ToolTip="{Binding LastLoginText}">
+                                                        <Run Text="🕐 "/><Run Text="{Binding LastLoginShortText, Mode=OneWay}"/>
+                                                    </TextBlock>
+                                                </Grid>
+                                            </Grid>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+
+            <!-- ── PRAWA: Szczegóły uprawnień ── -->
+            <Grid Grid.Column="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>   <!-- Header -->
+                    <RowDefinition Height="Auto"/>   <!-- Action toolbar -->
+                    <RowDefinition Height="Auto"/>   <!-- Chipsy przypisanych stanowisk -->
+                    <RowDefinition Height="Auto"/>   <!-- Progress bar -->
+                    <RowDefinition Height="*"/>      <!-- Lista checkboxów -->
+                </Grid.RowDefinitions>
+
+                <!-- Header: wybrany user -->
+                <Border Grid.Row="0" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,0,0,1"
+                        Padding="14,8">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="👤" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <StackPanel>
+                                <TextBlock x:Name="LblSelectedUser" Text="Wybierz użytkownika z listy"
+                                           FontSize="14" FontWeight="Bold" Foreground="{StaticResource TextDarkBrush}"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,1,0,0">
+                                    <TextBlock x:Name="LblSelectedUserId" Text="" FontSize="10.5" Foreground="{StaticResource TextGrayBrush}"/>
+                                    <TextBlock x:Name="LblSelectedLastLogin" Text="" FontSize="10.5" Foreground="{StaticResource TextGrayBrush}" Margin="12,0,0,0"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button x:Name="BtnCloneUser" Style="{StaticResource InfoButton}" Content="📑 Klonuj od…" Click="BtnCloneUser_Click"
+                                    ToolTip="Skopiuj uprawnienia od innego użytkownika do tego (przydatne przy onboardingu nowego pracownika tej samej roli)"/>
+                            <Button x:Name="BtnPerModule" Style="{StaticResource InfoButton}" Content="📊 Per moduł" Click="BtnPerModule_Click"/>
+                            <Button x:Name="BtnKonto" Style="{StaticResource InfoButton}" Content="🔑 Konto" Click="BtnKonto_Click"/>
+                            <Button x:Name="BtnHandlowcy" Style="{StaticResource InfoButton}" Content="👔 Handlowcy" Click="BtnHandlowcy_Click"/>
+                            <Button x:Name="BtnEditContact" Style="{StaticResource InfoButton}" Content="✉ Kontakt" Click="BtnEditContact_Click"/>
+                            <Button x:Name="BtnAvatar" Style="{StaticResource InfoButton}" Content="📷 Avatar" Click="BtnAvatar_Click"/>
+                            <Button x:Name="BtnDelete" Style="{StaticResource DangerButton}" Content="🗑 Usuń" Click="BtnDelete_Click"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Action toolbar -->
+                <Border Grid.Row="1" Background="{StaticResource SubtleBgBrush}" Padding="14,6" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,0,0,1">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" Orientation="Horizontal">
+                            <Button x:Name="BtnSelectAll" Style="{StaticResource ActionButton}" Content="✓ Zaznacz" Click="BtnSelectAll_Click"/>
+                            <Button x:Name="BtnSelectNone" Style="{StaticResource ActionButton}" Content="☐ Odznacz" Click="BtnSelectNone_Click"/>
+                            <Button x:Name="BtnInvert" Style="{StaticResource ActionButton}" Content="↔ Odwróć" Click="BtnInvert_Click"/>
+                            <Border Width="1" Background="{StaticResource BorderLightBrush}" Margin="4,4"/>
+                            <Button x:Name="BtnPresets" Style="{StaticResource WarningButton}" Content="📋 Szablony ▾" Click="BtnPresets_Click">
+                                <Button.ContextMenu>
+                                    <ContextMenu x:Name="PresetsMenu">
+                                        <MenuItem Header="👑 Administrator (wszystko)" Tag="admin" Click="PresetMenu_Click"/>
+                                        <MenuItem Header="👔 Kierownik (bez administracji)" Tag="manager" Click="PresetMenu_Click"/>
+                                        <MenuItem Header="💼 Handlowiec (sprzedaż + CRM)" Tag="sales" Click="PresetMenu_Click"/>
+                                        <MenuItem Header="📦 Magazynier (produkcja + magazyn)" Tag="warehouse" Click="PresetMenu_Click"/>
+                                        <MenuItem Header="👁 Podgląd (tylko odczyt analiz)" Tag="viewer" Click="PresetMenu_Click"/>
+                                        <Separator/>
+                                        <MenuItem Header="🚫 Wyczyść wszystko" Tag="none" Click="PresetMenu_Click"/>
+                                    </ContextMenu>
+                                </Button.ContextMenu>
+                            </Button>
+                            <Border Width="1" Background="{StaticResource BorderLightBrush}" Margin="4,4"/>
+                            <Button x:Name="BtnCopy" Style="{StaticResource ActionButton}" Content="📋 Kopiuj" Click="BtnCopy_Click"/>
+                            <Button x:Name="BtnPaste" Style="{StaticResource ActionButton}" Content="📥 Wklej" Click="BtnPaste_Click"/>
+                        </StackPanel>
+
+                        <Button Grid.Column="1" x:Name="BtnSave" Style="{StaticResource PrimaryButton}"
+                                Content="💾 Zapisz uprawnienia" Click="BtnSave_Click" MinWidth="160"/>
+                    </Grid>
+                </Border>
+
+                <!-- Chipsy przypisanych stanowisk/szablonów — neutralny, subtelny pasek -->
+                <Border Grid.Row="2" x:Name="AssignedTemplatesBorder" Background="#F9FAFB" Padding="14,6"
+                        BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,0,0,1" Visibility="Collapsed">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0">
+                            <TextBlock Text="🏷" FontSize="13" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                            <TextBlock Text="Stanowiska" FontSize="11.5" FontWeight="Bold"
+                                       Foreground="{StaticResource TextDarkBrush}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <ItemsControl Grid.Column="1" x:Name="AssignedTemplatesPanel" VerticalAlignment="Center">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel Orientation="Horizontal"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                        </ItemsControl>
+                        <Button Grid.Column="2" x:Name="BtnAddTemplate" Style="{StaticResource InfoButton}"
+                                Content="➕ Dodaj stanowisko" Click="BtnAddTemplate_Click">
+                            <Button.ContextMenu>
+                                <ContextMenu x:Name="AddTemplateMenu"/>
+                            </Button.ContextMenu>
+                        </Button>
+                    </Grid>
+                </Border>
+
+                <!-- Progress bar + search modułów — kompakt -->
+                <Border Grid.Row="3" Background="{StaticResource SurfaceBrush}" Padding="14,5" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,0,0,1">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="220"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.Column="0" Background="{StaticResource BorderUltralightBrush}" CornerRadius="3" Height="6" VerticalAlignment="Center">
+                            <Border x:Name="ProgressBarFill" Background="{StaticResource SuccessBrush}" CornerRadius="3"
+                                    HorizontalAlignment="Left" Width="0"/>
+                        </Border>
+                        <!-- Wyszukiwarka modułów (filtrowanie po nazwie) -->
+                        <Border Grid.Column="1" Background="{StaticResource SubtleBgBrush}" CornerRadius="4"
+                                BorderBrush="{StaticResource BorderUltralightBrush}" BorderThickness="1"
+                                Margin="12,0,8,0" Padding="6,0">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="🔍" FontSize="11" VerticalAlignment="Center"
+                                           Margin="0,0,4,0" Foreground="{StaticResource TextGrayBrush}"/>
+                                <TextBox Grid.Column="1" x:Name="TxtSearchModules" BorderThickness="0" Background="Transparent"
+                                         FontSize="11" VerticalContentAlignment="Center" Padding="0,4"
+                                         TextChanged="TxtSearchModules_TextChanged"/>
+                            </Grid>
+                        </Border>
+
+                        <TextBlock Grid.Column="2" x:Name="LblProgress" Text="0 / 0 uprawnień (0%)"
+                                   FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextGrayBrush}" VerticalAlignment="Center"/>
+                    </Grid>
+                </Border>
+
+                <!-- Permissions scroll -->
+                <ScrollViewer Grid.Row="4" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="14,10,14,14">
+                    <StackPanel x:Name="PermissionsPanel"/>
+                </ScrollViewer>
+            </Grid>
+        </Grid>
+
+        <!-- ═══════════════════════════════════════════════════════════════════════ -->
+        <!-- STATUS BAR — kompaktowy 24px -->
+        <!-- ═══════════════════════════════════════════════════════════════════════ -->
+        <Border Grid.Row="2" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,1,0,0" Padding="14,2">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" x:Name="LblStatus" Text="Gotowy" FontSize="10.5" Foreground="{StaticResource TextGrayBrush}" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" Text="ZPSP · Admin" FontSize="9.5" Foreground="{StaticResource TextLightBrush}" VerticalAlignment="Center"/>
+            </Grid>
+        </Border>
+
+        <!-- Toast overlay -->
+        <Border x:Name="ToastBorder" Grid.RowSpan="3" Visibility="Collapsed"
+                Background="{StaticResource SuccessBrush}"
+                HorizontalAlignment="Center" VerticalAlignment="Top"
+                Margin="0,60,0,0" Padding="18,9" CornerRadius="6" MinWidth="260">
+            <Border.Effect>
+                <DropShadowEffect Direction="270" ShadowDepth="3" Opacity="0.25" BlurRadius="10" Color="Black"/>
+            </Border.Effect>
+            <TextBlock x:Name="ToastText" Text="" Foreground="White" FontSize="12" FontWeight="SemiBold"
+                       HorizontalAlignment="Center"/>
+        </Border>
+    </Grid>
+</Window>

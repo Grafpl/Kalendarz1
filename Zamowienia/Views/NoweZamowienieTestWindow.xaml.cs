@@ -64,6 +64,8 @@ namespace Kalendarz1.Zamowienia.Views
         private readonly int? _editOrderId;
         private bool _isEditMode => _editOrderId.HasValue;
         private OrderSnapshot? _originalSnapshot;   // tylko w edit-mode — do diffa w confirm overlay
+        // Klasyfikacja tuszki — jeden rozkład per zamówienie (schema RezerwacjeKlasWagowych jest per ZamowienieId).
+        private Kalendarz1.RozkladKlasWagowych? _rozkladKlas;
 
         public NoweZamowienieTestWindow(string userId) : this(userId, null) { }
 
@@ -277,6 +279,8 @@ namespace Kalendarz1.Zamowienia.Views
 
                 // UI render — bez obrazków towarów (ImageSource ma INPC, dograne się same)
                 RenderCustomers();
+                await LoadUserUsedHandlowcyAsync();   // handlowcy z historii zamówień użytkownika (filtruj chipy)
+                RenderHandlowiecChips();              // chipy filtrów handlowców — avatary między search a listą
                 RenderDaysProd();
                 RenderDays();
                 RenderHours();
@@ -315,6 +319,8 @@ namespace Kalendarz1.Zamowienia.Views
                     if (s_handlowiecAvatarCache.ContainsKey(name)) continue;
                     try { EnsureHandlowiecAvatarCached(name); } catch { }
                 }
+                // Po pre-cache odśwież chipy żeby pokazały prawdziwe avatary (poprzednio tylko initials)
+                Dispatcher.InvokeAsync(() => { try { RenderHandlowiecChips(); } catch { } });
             }
             catch { }
         }
@@ -381,24 +387,44 @@ namespace Kalendarz1.Zamowienia.Views
                     }
                 }
 
-                // 3) Termin
-                _wybranaData = dataPrzyjazdu.Date;
-                _wybranaGodzina = dataPrzyjazdu.TimeOfDay;
-                if (dataProdukcji.HasValue) _dataProdukcji = dataProdukcji.Value.Date;
+                // 3) Termin — wartości z bazy zamówienia (lokalne kopie żeby restore po await ach)
+                DateTime expectedData = dataPrzyjazdu.Date;
+                TimeSpan expectedGodzina = dataPrzyjazdu.TimeOfDay;
+                DateTime expectedProdukcja = dataProdukcji?.Date ?? DateTime.Today;
+                bool expectedWlasny = string.Equals(transportStatus, "Wlasny", StringComparison.OrdinalIgnoreCase);
 
-                // 4) Klient — znajdź w _kontrahenci i zastosuj
+                _wybranaData = expectedData;
+                _wybranaGodzina = expectedGodzina;
+                _dataProdukcji = expectedProdukcja;
+
+                // 4) Klient — znajdź w _kontrahenci i zastosuj (skipDefaults=true: nie nadpisuj wartości z bazy)
                 _wybranyKlient = _kontrahenci.FirstOrDefault(k => k.Id == klientId.ToString(CultureInfo.InvariantCulture));
                 if (_wybranyKlient != null)
                 {
                     if (ClientListContainer != null) ClientListContainer.Visibility = Visibility.Collapsed;
-                    await ApplySelectedCustomerAsync();
+                    if (HandlowiecChipsContainer != null) HandlowiecChipsContainer.Visibility = Visibility.Collapsed;
+                    await ApplySelectedCustomerAsync(skipDefaults: true);
                 }
 
-                // 5) Notatka + transport (po ApplySelectedCustomerAsync, które mogło załadować preferencje klienta)
+                // 5) RESTORE wartości z bazy (gwarancja — żaden await nie powinien był zmienić, ale defensywnie).
+                //    Wyłączamy _uiReady na czas ustawienia TxtCustomHour.Text żeby TextChanged nie wystrzelił
+                //    z partial wartością i nie zmienił _wybranaGodzina.
+                _wybranaData = expectedData;
+                _wybranaGodzina = expectedGodzina;
+                _dataProdukcji = expectedProdukcja;
+
+                bool prevUiReady = _uiReady;
+                _uiReady = false;
+                TxtCustomHour.Text = $"{expectedGodzina.Hours:00}:{expectedGodzina.Minutes:00}";
+                _uiReady = prevUiReady;
+
+                // 6) Notatka + transport (z bazy zamówienia, nie preferencje klienta)
                 TxtUwagi.Text = uwagi;
-                ChkWlasnyOdbior.IsChecked = string.Equals(transportStatus, "Wlasny", StringComparison.OrdinalIgnoreCase);
-                ChkSidebarWlasny.IsChecked = ChkWlasnyOdbior.IsChecked;
-                LblGodzinaHeader.Text = ChkWlasnyOdbior.IsChecked == true ? "Godzina odbioru" : "Godzina przyjazdu";
+                _suppressTransportSync = true;
+                ChkWlasnyOdbior.IsChecked = expectedWlasny;
+                ChkSidebarWlasny.IsChecked = expectedWlasny;
+                _suppressTransportSync = false;
+                UpdateTransportLabels();
 
                 // 6) Pozycje koszyka
                 foreach (var p in _produkty)
@@ -443,7 +469,15 @@ namespace Kalendarz1.Zamowienia.Views
                         })
                 };
 
-                // 8) Re-render
+                // 9) Wczytaj istniejący rozkład klas wagowych z RezerwacjeKlasWagowych (jeśli istnieje)
+                try
+                {
+                    _rozkladKlas = await Kalendarz1.RezerwacjeKlasManager.PobierzRezerwacjeZamowieniaAsync(_connLibra, orderId);
+                    UpdateRozmiaryBadge();
+                }
+                catch { /* tabela może nie istnieć — best-effort */ }
+
+                // 10) Re-render
                 RenderDays();
                 RenderHours();
                 RenderProducts();
@@ -881,11 +915,22 @@ namespace Kalendarz1.Zamowienia.Views
             }
         }
 
+        // Aktywny filtr handlowca z chipa (pusty = wszyscy)
+        private string _filterHandlowiec = "";
+        // Handlowcy klientów, których aktualnie zalogowany user obsługiwał (z ZamowieniaMieso.IdUser = UserID)
+        private readonly HashSet<string> _userUsedHandlowcy = new(StringComparer.OrdinalIgnoreCase);
+
         private void RenderCustomers()
         {
             string filter = (TxtCustSearch.Text ?? "").Trim().ToLowerInvariant();
 
             IEnumerable<KontrahentVm> q = _kontrahenci;
+
+            // Filtr po chipie handlowca (klik avatara)
+            if (!string.IsNullOrEmpty(_filterHandlowiec))
+            {
+                q = q.Where(k => string.Equals(k.Handlowiec, _filterHandlowiec, StringComparison.OrdinalIgnoreCase));
+            }
 
             if (!string.IsNullOrEmpty(filter))
             {
@@ -907,9 +952,138 @@ namespace Kalendarz1.Zamowienia.Views
 
             ListCustomers.ItemsSource = list;
 
-            LblCustListTitle.Text = string.IsNullOrEmpty(filter) ? "Klienci" : "Wyniki wyszukiwania";
+            string titleSuffix = string.IsNullOrEmpty(_filterHandlowiec) ? "" : $" · {_filterHandlowiec}";
+            LblCustListTitle.Text = (string.IsNullOrEmpty(filter) ? "Klienci" : "Wyniki wyszukiwania") + titleSuffix;
             LblCustListCount.Text = $"{list.Count} {(list.Count == 1 ? "wynik" : list.Count > 1 && list.Count < 5 ? "wyniki" : "wyników")}";
             TxtCustPlaceholder.Visibility = string.IsNullOrEmpty(TxtCustSearch.Text) ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        // ════════════════════ CHIPY HANDLOWCÓW (filtruj listę klientów) ════════════════════
+
+        public class HandlowiecChipVm
+        {
+            public string Name { get; set; } = "";
+            public string DisplayName { get; set; } = "";
+            public string Initials { get; set; } = "?";
+            public System.Windows.Media.Imaging.BitmapSource? Avatar { get; set; }
+            public Visibility AvatarVisibility => Avatar != null ? Visibility.Visible : Visibility.Collapsed;
+            public System.Windows.Media.Brush BorderColor { get; set; } = System.Windows.Media.Brushes.Transparent;
+            public System.Windows.Media.Brush ChipBackground { get; set; } = System.Windows.Media.Brushes.White;
+            public System.Windows.Media.Brush TextColor { get; set; } = System.Windows.Media.Brushes.Black;
+            public System.Windows.Media.Brush InitialsBg { get; set; } = System.Windows.Media.Brushes.Gray;
+        }
+
+        // Frozen brushes dla wydajności
+        private static System.Windows.Media.Brush MakeFrozen(string hex)
+        {
+            var c = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(hex)!;
+            var b = new System.Windows.Media.SolidColorBrush(c);
+            b.Freeze();
+            return b;
+        }
+        private static readonly System.Windows.Media.Brush _chipBgInactive = MakeFrozen("#FFFFFF");
+        private static readonly System.Windows.Media.Brush _chipBgActive = MakeFrozen("#46682C");      // BrandGreenDark
+        private static readonly System.Windows.Media.Brush _chipBgWszyscy = MakeFrozen("#1E293B");      // granat dla "Wszyscy"
+        private static readonly System.Windows.Media.Brush _chipBdInactive = MakeFrozen("#E2E8F0");
+        private static readonly System.Windows.Media.Brush _chipBdActive = MakeFrozen("#46682C");
+        private static readonly System.Windows.Media.Brush _chipTextInactive = MakeFrozen("#0F172A");
+        private static readonly System.Windows.Media.Brush _chipTextActive = MakeFrozen("#FFFFFF");
+        private static readonly System.Windows.Media.Brush _chipInitialsBg = MakeFrozen("#475569");
+
+        // Z bazy LibraNet pobiera DISTINCT KlientId z zamówień zalogowanego usera,
+        // następnie mapuje na handlowców przez _kontrahenci (już załadowani z HANDEL).
+        private async Task LoadUserUsedHandlowcyAsync()
+        {
+            _userUsedHandlowcy.Clear();
+            try
+            {
+                var clientIds = new HashSet<int>();
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+                await using var cmd = new SqlCommand(
+                    "SELECT DISTINCT KlientId FROM dbo.ZamowieniaMieso WHERE IdUser = @uid AND KlientId IS NOT NULL", cn);
+                cmd.Parameters.AddWithValue("@uid", UserID ?? "");
+                await using var rd = await cmd.ExecuteReaderAsync();
+                while (await rd.ReadAsync())
+                {
+                    if (!rd.IsDBNull(0)) clientIds.Add(rd.GetInt32(0));
+                }
+
+                // Mapuj klient id → handlowiec (z _kontrahenci ładowanych z HANDEL)
+                foreach (var k in _kontrahenci)
+                {
+                    if (int.TryParse(k.Id, out int kid) && clientIds.Contains(kid)
+                        && !string.IsNullOrWhiteSpace(k.Handlowiec))
+                    {
+                        _userUsedHandlowcy.Add(k.Handlowiec);
+                    }
+                }
+            }
+            catch { }
+        }
+
+        private void RenderHandlowiecChips()
+        {
+            var chips = new List<HandlowiecChipVm>();
+
+            // "Wszyscy" — wyróżniony chip z innym tłem
+            bool wszyscyActive = string.IsNullOrEmpty(_filterHandlowiec);
+            chips.Add(new HandlowiecChipVm
+            {
+                Name = "",
+                DisplayName = "Wszyscy",
+                Initials = "👥",
+                Avatar = null,
+                BorderColor = wszyscyActive ? _chipBdActive : _chipBdInactive,
+                ChipBackground = wszyscyActive ? _chipBgWszyscy : _chipBgInactive,
+                TextColor = wszyscyActive ? _chipTextActive : _chipTextInactive,
+                InitialsBg = _chipBgWszyscy
+            });
+
+            // Pokazuj tylko handlowców których zalogowany user obsługiwał (z historii ZamowieniaMieso).
+            // Fallback (gdy user nie ma historii): wszyscy handlowcy z listy kontrahentów.
+            IEnumerable<string> source;
+            if (_userUsedHandlowcy.Count > 0)
+            {
+                source = _userUsedHandlowcy;
+            }
+            else
+            {
+                source = _kontrahenci
+                    .Where(k => !string.IsNullOrWhiteSpace(k.Handlowiec))
+                    .Select(k => k.Handlowiec);
+            }
+            var unique = source
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(h => h)
+                .ToList();
+
+            foreach (var h in unique)
+            {
+                s_handlowiecAvatarCache.TryGetValue(h, out var av);
+                bool active = string.Equals(h, _filterHandlowiec, StringComparison.OrdinalIgnoreCase);
+                chips.Add(new HandlowiecChipVm
+                {
+                    Name = h,
+                    DisplayName = h.Length > 16 ? h.Substring(0, 15) + "…" : h,
+                    Initials = GetInitials(h),
+                    Avatar = av,
+                    BorderColor = active ? _chipBdActive : _chipBdInactive,
+                    ChipBackground = active ? _chipBgActive : _chipBgInactive,
+                    TextColor = active ? _chipTextActive : _chipTextInactive,
+                    InitialsBg = _chipInitialsBg
+                });
+            }
+
+            lstHandlowiecChips.ItemsSource = chips;
+        }
+
+        private void BtnHandlowiecChip_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not Button b || b.Tag is not string handlowiec) return;
+            _filterHandlowiec = handlowiec;   // "" = Wszyscy
+            RenderHandlowiecChips();          // odśwież border aktywnego
+            RenderCustomers();
         }
 
         // Paleta gradientów dla avatarów — wybierana po hashu nazwy
@@ -1018,13 +1192,16 @@ namespace Kalendarz1.Zamowienia.Views
                     await ApplySelectedCustomerAsync();
                     // Schowaj listę klientów po wyborze
                     if (FindName("ClientListContainer") is Border clc) clc.Visibility = Visibility.Collapsed;
+                    if (HandlowiecChipsContainer != null) HandlowiecChipsContainer.Visibility = Visibility.Collapsed;
                     // Wyczyść search
                     TxtCustSearch.Text = "";
                 }
             }
         }
 
-        private async Task ApplySelectedCustomerAsync()
+        // skipDefaults=true → tryb edycji: nie nadpisuj _wybranaData/_wybranaGodzina/_dataProdukcji/ChkWlasnyOdbior
+        // preferencjami klienta. Wartości pochodzą z bazy zamówienia, nie z historii klienta.
+        private async Task ApplySelectedCustomerAsync(bool skipDefaults = false)
         {
             if (_wybranyKlient == null) return;
 
@@ -1089,8 +1266,13 @@ namespace Kalendarz1.Zamowienia.Views
             TerminContainer.Opacity = 1.0;
 
             await LoadPlatnosciAsync();
-            await LoadCustomerPreferencesAsync();
-            await LoadCustomerTransportPreferenceAsync();
+            // W edit-mode pomijamy LoadCustomer*PreferenceAsync — te nadpisują wartości z bazy (godzina/data/transport)
+            // domyślnymi preferencjami klienta. Sergiusz: "kiedy modyfikuje zamówienie odczytaj te które już są ustawione".
+            if (!skipDefaults)
+            {
+                await LoadCustomerPreferencesAsync();
+                await LoadCustomerTransportPreferenceAsync();
+            }
             await LoadFavoritesAsync();
             await LoadKoszykSuggestionsAsync();
             await LoadNoteSuggestionsAsync();
@@ -1448,6 +1630,151 @@ namespace Kalendarz1.Zamowienia.Views
 
         private void HeaderChip_Click(object sender, MouseButtonEventArgs e) => BtnChangeCustomer_Click(sender, e);
 
+        // ════════════════════ ROZMIARY TUSZKI (klasy wagowe 5-12) ════════════════════
+        // Schemat tabeli RezerwacjeKlasWagowych jest per ZamowienieId (nie per pozycja),
+        // więc jeden _rozkladKlas trzymany w pamięci na całe zamówienie.
+
+        // Bridge WPF Window → WinForms dialog (KlasyWagoweDialog dziedziczy z Form)
+        private class WpfNativeWindow : System.Windows.Forms.IWin32Window
+        {
+            public IntPtr Handle { get; }
+            public WpfNativeWindow(System.Windows.Window owner)
+            {
+                Handle = new System.Windows.Interop.WindowInteropHelper(owner).Handle;
+            }
+        }
+
+        private async void BtnRozmiary_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not Button b || b.Tag is not int id) return;
+            var p = _produkty.FirstOrDefault(x => x.Id == id);
+            if (p == null) return;
+            if (p.QtyKg <= 0)
+            {
+                ShowToast("Najpierw wpisz ilość kg", false);
+                return;
+            }
+
+            // Auto-prefill: gdy nic jeszcze nie ustawiono, pobierz średnią z historii klienta
+            Kalendarz1.RozkladKlasWagowych? wstepny = _rozkladKlas;
+            if (wstepny == null && _wybranyKlient != null && int.TryParse(_wybranyKlient.Id, out int kid))
+            {
+                try
+                {
+                    var (sugerowany, liczbaZam) = await GetSugerowanyRozkladAsync(kid, p.QtyKg);
+                    if (sugerowany != null && sugerowany.SumaPojemnikow > 0)
+                    {
+                        wstepny = sugerowany;
+                        ShowToast($"💡 Wczytano preferencje z {liczbaZam} ost. zamówień klienta", true);
+                    }
+                }
+                catch (Exception exPref)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[GetSugerowanyRozklad] {exPref.Message}");
+                }
+            }
+
+            try
+            {
+                using var dlg = new Kalendarz1.KlasyWagoweDialog(
+                    p.QtyKg, _dataProdukcji, _connLibra, wstepny, _editOrderId);
+                var result = dlg.ShowDialog(new WpfNativeWindow(this));
+                if (result == System.Windows.Forms.DialogResult.OK || dlg.Zatwierdzono)
+                {
+                    _rozkladKlas = dlg.Rozklad;
+                    UpdateRozmiaryBadge();
+                    ShowToast("✓ Rozkład klas wagowych ustawiony", true);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, "Błąd okna klas wagowych: " + ex.Message,
+                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        // Pobiera średnią historyczną rozkładu klas wagowych dla klienta — z ostatnich 10 zamówień
+        // (RezerwacjeKlasWagowych JOIN ZamowieniaMieso) z ostatnich 6 miesięcy.
+        // Wynik znormalizowany do procentów + skalowany do aktualnej ilości kg (15 kg/pojemnik).
+        private async Task<(Kalendarz1.RozkladKlasWagowych? rozklad, int liczbaZamowien)> GetSugerowanyRozkladAsync(int klientId, decimal aktualnaIloscKg)
+        {
+            await using var cn = new SqlConnection(_connLibra);
+            await cn.OpenAsync();
+
+            // Czy tabela rezerwacji istnieje
+            await using (var c = new SqlCommand(
+                "SELECT COUNT(*) FROM sys.objects WHERE name='RezerwacjeKlasWagowych' AND type='U'", cn))
+            {
+                if (Convert.ToInt32(await c.ExecuteScalarAsync()) == 0) return (null, 0);
+            }
+
+            const string sql = @"
+                WITH OstatnieZam AS (
+                    SELECT TOP 10 z.Id, z.DataPrzyjazdu
+                    FROM dbo.ZamowieniaMieso z
+                    INNER JOIN (SELECT DISTINCT ZamowienieId FROM dbo.RezerwacjeKlasWagowych WHERE Status='Aktywna') r
+                        ON r.ZamowienieId = z.Id
+                    WHERE z.KlientId = @kid
+                      AND z.DataPrzyjazdu > DATEADD(MONTH, -6, GETDATE())
+                    ORDER BY z.DataPrzyjazdu DESC
+                )
+                SELECT r.Klasa, SUM(r.IloscPojemnikow) AS Suma,
+                       (SELECT COUNT(*) FROM OstatnieZam) AS LiczbaZam
+                FROM dbo.RezerwacjeKlasWagowych r
+                INNER JOIN OstatnieZam o ON o.Id = r.ZamowienieId
+                WHERE r.Status='Aktywna'
+                GROUP BY r.Klasa";
+
+            var sumPerKlasa = new Dictionary<int, int>();
+            int liczbaZam = 0;
+            await using (var cmd = new SqlCommand(sql, cn))
+            {
+                cmd.Parameters.AddWithValue("@kid", klientId);
+                await using var rd = await cmd.ExecuteReaderAsync();
+                while (await rd.ReadAsync())
+                {
+                    int klasa = rd.GetInt32(0);
+                    int suma = rd.GetInt32(1);
+                    if (liczbaZam == 0) liczbaZam = rd.GetInt32(2);
+                    sumPerKlasa[klasa] = suma;
+                }
+            }
+
+            if (sumPerKlasa.Count == 0) return (null, 0);
+            int totalPoj = sumPerKlasa.Values.Sum();
+            if (totalPoj <= 0) return (null, 0);
+
+            // Normalizuj do procentów + przeskaluj pojemniki do aktualnej ilości (15 kg/pojemnik = stała z dialogu)
+            int wymaganePoj = (int)Math.Ceiling(aktualnaIloscKg / 15m);
+
+            var rozklad = new Kalendarz1.RozkladKlasWagowych();
+            foreach (var kv in sumPerKlasa.Where(x => x.Value > 0))
+            {
+                decimal pct = (decimal)kv.Value / totalPoj * 100m;
+                rozklad.KlasyProcent[kv.Key] = Math.Round(pct);
+                rozklad.KlasyPojemniki[kv.Key] = (int)Math.Round((decimal)kv.Value / totalPoj * wymaganePoj);
+            }
+            return (rozklad, liczbaZam);
+        }
+
+        private void UpdateRozmiaryBadge()
+        {
+            string badge = "";
+            if (_rozkladKlas != null && _rozkladKlas.SumaPojemnikow > 0)
+            {
+                var parts = _rozkladKlas.KlasyProcent
+                    .Where(k => k.Value > 0)
+                    .OrderBy(k => k.Key)
+                    .Select(k => {
+                        int poj = _rozkladKlas.KlasyPojemniki.TryGetValue(k.Key, out var pp) ? pp : 0;
+                        return $"Kl.{k.Key}: {k.Value:F0}% ({poj} poj)";
+                    });
+                badge = "⚖ " + string.Join("  ·  ", parts);
+            }
+            foreach (var p in _produkty.Where(x => x.IsKurczak))
+                p.RozmiaryBadge = badge;
+        }
+
         private async Task LoadCustomerPreferencesAsync()
         {
             if (_wybranyKlient == null) return;
@@ -1569,6 +1896,9 @@ namespace Kalendarz1.Zamowienia.Views
             // Wyłącz sekcję terminu z powrotem (legacy proxy)
             TerminContainer.IsEnabled = false;
             TerminContainer.Opacity = 0.45;
+            // Pokaż znów chipy filtrowania klientów (były ukryte po wyborze)
+            if (HandlowiecChipsContainer != null) HandlowiecChipsContainer.Visibility = Visibility.Visible;
+            if (ClientListContainer != null) ClientListContainer.Visibility = Visibility.Visible;
             GoToStep(1);
             UpdateValidation();
         }
@@ -2896,6 +3226,21 @@ namespace Kalendarz1.Zamowienia.Views
             {
                 int orderId = await SaveOrderAsync(inCart);
 
+                // ── Zapis rozkładu klas wagowych (jeśli ustawiony) — schema per ZamowienieId
+                if (_rozkladKlas != null && _rozkladKlas.SumaPojemnikow > 0)
+                {
+                    try
+                    {
+                        await Kalendarz1.RezerwacjeKlasManager.ZapiszRezerwacjeAsync(
+                            _connLibra, orderId, _dataProdukcji, _rozkladKlas,
+                            _wybranyKlient?.Handlowiec, _wybranyKlient?.Nazwa);
+                    }
+                    catch (Exception exRez)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[Rezerwacje klas] {exRez.Message}");
+                    }
+                }
+
                 // ── Logowanie historii zmian — szczegółowo per pozycja, żeby filtr towaru w HistoriaZmianWindow
                 //    pokazał "0 kg → 100 kg" dla wpisów UTWORZENIA i "100 → 150 kg" dla edycji.
                 _ = LogujHistorieAsync(orderId, inCart);
@@ -3344,6 +3689,22 @@ namespace Kalendarz1.Zamowienia.Views
             public string InCartBadge { get; set; } = "";
             public Brush ProductBorder { get; set; } = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EAEDF1")!);
             public Thickness ProductBorderThickness { get; set; } = new Thickness(1);
+
+            // Tuszka kurczaka — pokazuje ikonę ⚖ Rozmiary (rozdział na klasy wagowe)
+            public bool IsKurczak => KategoriaDisplay == "Tuszka"
+                                     || Kod.StartsWith("KURCZAK", StringComparison.OrdinalIgnoreCase)
+                                     || Kod.StartsWith("Kurczak", StringComparison.OrdinalIgnoreCase);
+            public Visibility RozmiaryButtonVisibility => IsKurczak ? Visibility.Visible : Visibility.Collapsed;
+            private string _rozmiaryBadge = "";
+            public string RozmiaryBadge
+            {
+                get => _rozmiaryBadge;
+                set { _rozmiaryBadge = value;
+                      PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(RozmiaryBadge)));
+                      PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(RozmiaryBadgeVisibility))); }
+            }
+            public Visibility RozmiaryBadgeVisibility
+                => string.IsNullOrEmpty(_rozmiaryBadge) ? Visibility.Collapsed : Visibility.Visible;
 
             private ImageSource? _imageSource;
             public ImageSource? ImageSource

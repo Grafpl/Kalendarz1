@@ -56,6 +56,12 @@ namespace Kalendarz1
         }
 
         /// <summary>
+        /// Zwraca ścieżkę do avatara (sieciową lub null jeśli brak) — publiczna metoda
+        /// dla WPF który potrzebuje URI do bezpośredniego BitmapImage (bez konwersji z System.Drawing.Image).
+        /// </summary>
+        public static string GetAvatarFilePathOrNull(string userId) => GetNetworkAvatarPath(userId);
+
+        /// <summary>
         /// Próbuje znaleźć avatar na serwerze sieciowym
         /// </summary>
         private static string GetNetworkAvatarPath(string userId)

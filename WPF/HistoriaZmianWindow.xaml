@@ -2,19 +2,33 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Historia zmian zamówień"
-        Width="1400" Height="800"
+        Width="1500" Height="850"
         WindowStartupLocation="CenterScreen"
         WindowState="Maximized"
-        Background="#F0F2F5"
+        Background="#F8FAFC"
         FontFamily="Segoe UI">
 
     <Window.Resources>
-        <!-- Styl przycisku -->
+        <BooleanToVisibilityConverter x:Key="BoolToVisConverter"/>
+        <local:InitialsConverter x:Key="InitialsConverter" xmlns:local="clr-namespace:Kalendarz1.WPF"/>
+        <SolidColorBrush x:Key="BrandGreenDark" Color="#46682C"/>
+        <SolidColorBrush x:Key="BrandGreen" Color="#6BA044"/>
+        <SolidColorBrush x:Key="BrandGreenLight" Color="#EFF6E5"/>
+        <SolidColorBrush x:Key="BorderColor" Color="#E2E8F0"/>
+        <SolidColorBrush x:Key="TextPrimary" Color="#0F172A"/>
+        <SolidColorBrush x:Key="TextSecondary" Color="#475569"/>
+        <SolidColorBrush x:Key="TextMuted" Color="#94A3B8"/>
+
+        <LinearGradientBrush x:Key="HeaderGradient" StartPoint="0,0" EndPoint="1,0">
+            <GradientStop Color="#46682C" Offset="0"/>
+            <GradientStop Color="#6BA044" Offset="1"/>
+        </LinearGradientBrush>
+
         <Style x:Key="ModernButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="#3498DB"/>
+            <Setter Property="Background" Value="{StaticResource BrandGreen}"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="Padding" Value="14,8"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Cursor" Value="Hand"/>
@@ -32,31 +46,32 @@
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="border" Property="Opacity" Value="0.7"/>
                             </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="border" Property="Opacity" Value="0.4"/>
+                            </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
 
-        <!-- Styl ComboBox -->
         <Style x:Key="ModernComboBoxStyle" TargetType="ComboBox">
             <Setter Property="Background" Value="White"/>
-            <Setter Property="BorderBrush" Value="#DDE1E6"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="Padding" Value="8,4"/>
             <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Height" Value="32"/>
+            <Setter Property="Height" Value="30"/>
         </Style>
 
-        <!-- Styl DataGrid -->
         <Style x:Key="ModernDataGridStyle" TargetType="DataGrid">
             <Setter Property="Background" Value="White"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="RowBackground" Value="White"/>
-            <Setter Property="AlternatingRowBackground" Value="#F8F9FA"/>
+            <Setter Property="AlternatingRowBackground" Value="#F8FAFC"/>
             <Setter Property="GridLinesVisibility" Value="Horizontal"/>
-            <Setter Property="HorizontalGridLinesBrush" Value="#E9ECEF"/>
-            <Setter Property="RowHeight" Value="40"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="#E2E8F0"/>
+            <Setter Property="RowHeight" Value="42"/>
             <Setter Property="CanUserAddRows" Value="False"/>
             <Setter Property="IsReadOnly" Value="True"/>
             <Setter Property="SelectionMode" Value="Single"/>
@@ -67,33 +82,58 @@
             <Setter Property="FontSize" Value="12"/>
         </Style>
 
-        <!-- Styl nagłówka DataGrid -->
         <Style x:Key="ModernDataGridHeaderStyle" TargetType="DataGridColumnHeader">
-            <Setter Property="Background" Value="#34495E"/>
+            <Setter Property="Background" Value="{StaticResource BrandGreenDark}"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Padding" Value="12,10"/>
-            <Setter Property="Height" Value="42"/>
+            <Setter Property="Padding" Value="10,10"/>
+            <Setter Property="Height" Value="40"/>
             <Setter Property="BorderThickness" Value="0,0,1,0"/>
-            <Setter Property="BorderBrush" Value="#2C3E50"/>
+            <Setter Property="BorderBrush" Value="#2D4419"/>
         </Style>
 
-        <!-- Styl wiersza DataGrid -->
         <Style x:Key="ModernDataGridRowStyle" TargetType="DataGridRow">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Style.Triggers>
+                <!-- Kolorowanie per Kategoria — kluczowe dla szybkiej lokalizacji zmian kg/cen -->
+                <DataTrigger Binding="{Binding Kategoria}" Value="KG">
+                    <Setter Property="Background" Value="#EFF6FF"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Kategoria}" Value="CENA">
+                    <Setter Property="Background" Value="#ECFDF5"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Kategoria}" Value="TERMIN">
+                    <Setter Property="Background" Value="#F1F5F9"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Kategoria}" Value="TRANSPORT">
+                    <Setter Property="Background" Value="#FFE4D4"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Kategoria}" Value="NOTATKA">
+                    <Setter Property="Background" Value="#FAF5FF"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Kategoria}" Value="FLAGI">
+                    <Setter Property="Background" Value="#F0FDFA"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Kategoria}" Value="UTWORZENIE">
+                    <Setter Property="Background" Value="#F0FDF4"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Kategoria}" Value="ANULOWANIE">
+                    <Setter Property="Background" Value="#FEF2F2"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Kategoria}" Value="USUNIECIE">
+                    <Setter Property="Background" Value="#FECACA"/>
+                </DataTrigger>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#E8F4FD"/>
+                    <Setter Property="Background" Value="#EFF6E5"/>
                 </Trigger>
                 <Trigger Property="IsSelected" Value="True">
-                    <Setter Property="Background" Value="#D4E9F7"/>
+                    <Setter Property="Background" Value="#DCE9C5"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
 
-        <!-- Styl komórki DataGrid -->
         <Style x:Key="ModernDataGridCellStyle" TargetType="DataGridCell">
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Padding" Value="8,0"/>
@@ -101,191 +141,665 @@
             <Style.Triggers>
                 <Trigger Property="IsSelected" Value="True">
                     <Setter Property="Background" Value="Transparent"/>
-                    <Setter Property="Foreground" Value="#2C3E50"/>
+                    <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
 
-        <!-- Styl etykiety filtra -->
         <Style x:Key="FilterLabelStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontSize" Value="10"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="#5D6D7E"/>
+            <Setter Property="Foreground" Value="{StaticResource TextSecondary}"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
-            <Setter Property="Margin" Value="0,0,6,0"/>
+            <Setter Property="Margin" Value="0,0,5,0"/>
+        </Style>
+
+        <Style x:Key="StatCardStyle" TargetType="Border">
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="Margin" Value="4,0"/>
+            <Setter Property="MinWidth" Value="90"/>
         </Style>
     </Window.Resources>
 
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>   <!-- Header: dashboard + wszystkie kontrolki filtrów -->
+            <RowDefinition Height="Auto"/>   <!-- Quick chips presets + aktywne filtry -->
+            <RowDefinition Height="*"/>      <!-- Główna zawartość (grid + side panel) -->
+            <RowDefinition Height="Auto"/>   <!-- Stopka -->
         </Grid.RowDefinitions>
 
-        <!-- Nagłówek -->
-        <Border Grid.Row="0" Padding="20,16">
-            <Border.Background>
-                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                    <GradientStop Color="#8E44AD" Offset="0"/>
-                    <GradientStop Color="#9B59B6" Offset="0.5"/>
-                    <GradientStop Color="#A569BD" Offset="1"/>
-                </LinearGradientBrush>
-            </Border.Background>
-            <Grid>
-                <StackPanel>
-                    <TextBlock Text="HISTORIA ZMIAN ZAMÓWIEŃ" FontSize="22" FontWeight="Bold" Foreground="White"/>
-                    <TextBlock x:Name="txtDateRange" Text="Przeglądaj wszystkie zmiany w zamówieniach"
-                               FontSize="13" Foreground="#D7BDE2" Margin="0,4,0,0"/>
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                    <Border Background="#27AE60" CornerRadius="8" Padding="16,8" Margin="8,0">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="Łącznie zmian:" FontSize="12" Foreground="White" VerticalAlignment="Center"/>
-                            <TextBlock x:Name="txtTotalChanges" Text="0" FontSize="18" FontWeight="Bold"
-                                       Foreground="White" Margin="8,0,0,0" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Border>
-                </StackPanel>
-            </Grid>
-        </Border>
-
-        <!-- Panel filtrów -->
-        <Border Grid.Row="1" Background="White" Padding="16,12" BorderBrush="#E5E8EB" BorderThickness="0,0,0,1">
-            <Border.Effect>
-                <DropShadowEffect ShadowDepth="1" Opacity="0.05" BlurRadius="4" Direction="270"/>
-            </Border.Effect>
+        <!-- Nagłówek z dashboard cards + kontrolki filtrów (więcej miejsca dla grid) -->
+        <Border Grid.Row="0" Background="{StaticResource HeaderGradient}" Padding="16,10,16,8">
+            <StackPanel>
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-
-                <!-- Filtry -->
-                <WrapPanel Grid.Column="0" VerticalAlignment="Center">
-                    <!-- Towar -->
-                    <Border Background="#FEF3F3" CornerRadius="6" Padding="10,6" Margin="0,0,12,0">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="Towar:" Style="{StaticResource FilterLabelStyle}" Foreground="#C0392B" FontWeight="Bold"/>
-                            <ComboBox x:Name="cmbTowar" Width="220" Style="{StaticResource ModernComboBoxStyle}"
-                                      SelectionChanged="Filter_SelectionChanged"/>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="📊 HISTORIA ZMIAN ZAMÓWIEŃ" FontSize="22" FontWeight="Bold" Foreground="White"/>
+                    <TextBlock x:Name="txtDateRange" Text="Ładowanie..." FontSize="12" Foreground="#D9F2BD" Margin="0,3,0,0"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border Style="{StaticResource StatCardStyle}" Background="#1E293B">
+                        <StackPanel HorizontalAlignment="Center">
+                            <TextBlock Text="ŁĄCZNIE" FontSize="9" Foreground="White" HorizontalAlignment="Center" Opacity="0.85"/>
+                            <TextBlock x:Name="txtTotalChanges" Text="0" FontSize="20" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
                         </StackPanel>
                     </Border>
+                    <Border Style="{StaticResource StatCardStyle}" Background="#16A34A">
+                        <StackPanel HorizontalAlignment="Center">
+                            <TextBlock Text="➕ UTW" FontSize="9" Foreground="White" HorizontalAlignment="Center" Opacity="0.95"/>
+                            <TextBlock x:Name="txtStatUtw" Text="0" FontSize="20" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource StatCardStyle}" Background="#0EA5E9">
+                        <StackPanel HorizontalAlignment="Center">
+                            <TextBlock Text="✏ EDY" FontSize="9" Foreground="White" HorizontalAlignment="Center" Opacity="0.95"/>
+                            <TextBlock x:Name="txtStatEdy" Text="0" FontSize="20" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource StatCardStyle}" Background="#F87171">
+                        <StackPanel HorizontalAlignment="Center">
+                            <TextBlock Text="❌ ANU" FontSize="9" Foreground="White" HorizontalAlignment="Center" Opacity="0.95"/>
+                            <TextBlock x:Name="txtStatAnu" Text="0" FontSize="20" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource StatCardStyle}" Background="#DC2626">
+                        <StackPanel HorizontalAlignment="Center">
+                            <TextBlock Text="🗑 USU" FontSize="9" Foreground="White" HorizontalAlignment="Center" Opacity="0.95"/>
+                            <TextBlock x:Name="txtStatUsu" Text="0" FontSize="20" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                    <!-- Analiza dropdown — pokazuje top metryki na żądanie -->
+                    <Button x:Name="btnAnaliza" Click="BtnAnaliza_Click" Margin="6,0,0,0" Cursor="Hand"
+                            Background="#1E293B" BorderThickness="0" Padding="14,10">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border CornerRadius="8" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="📈" FontSize="18" Foreground="White" VerticalAlignment="Center"/>
+                            <TextBlock Text="Analiza" FontSize="11" FontWeight="SemiBold" Foreground="White" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Popup x:Name="PopupAnaliza" PlacementTarget="{Binding ElementName=btnAnaliza}" Placement="Bottom"
+                           StaysOpen="False" AllowsTransparency="True" PopupAnimation="Fade" HorizontalOffset="-340" VerticalOffset="4">
+                        <Border Background="White" CornerRadius="10" BorderBrush="#CBD5E1" BorderThickness="1" Padding="16" MinWidth="440">
+                            <Border.Effect>
+                                <DropShadowEffect ShadowDepth="3" Opacity="0.18" BlurRadius="14"/>
+                            </Border.Effect>
+                            <StackPanel>
+                                <Grid Margin="0,0,0,10">
+                                    <TextBlock Text="📈 Analiza zmian — bieżący widok" FontSize="14" FontWeight="Bold" Foreground="#0F172A"/>
+                                    <TextBlock x:Name="txtAnalizaScope" Text="" FontSize="11" Foreground="#64748B" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                </Grid>
 
-                    <!-- Typ zmiany -->
-                    <StackPanel Orientation="Horizontal" Margin="0,0,12,0">
-                        <TextBlock Text="Typ:" Style="{StaticResource FilterLabelStyle}"/>
-                        <ComboBox x:Name="cmbTyp" Width="130" Style="{StaticResource ModernComboBoxStyle}"
-                                  SelectionChanged="Filter_SelectionChanged"/>
+                                <!-- Suma delta kg + Top użytkownicy -->
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Background="#F0F9FF" CornerRadius="8" Padding="12,10" Margin="0,0,4,0" BorderBrush="#7DD3FC" BorderThickness="1">
+                                        <StackPanel>
+                                            <TextBlock Text="📦 Delta kg (suma)" FontSize="10" FontWeight="SemiBold" Foreground="#0369A1"/>
+                                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                                <TextBlock Text="↗ " FontSize="14" Foreground="#16A34A"/>
+                                                <TextBlock x:Name="txtAnalizaWzrost" Text="0 kg" FontSize="13" FontWeight="Bold" Foreground="#16A34A"/>
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                                                <TextBlock Text="↘ " FontSize="14" Foreground="#DC2626"/>
+                                                <TextBlock x:Name="txtAnalizaSpadek" Text="0 kg" FontSize="13" FontWeight="Bold" Foreground="#DC2626"/>
+                                            </StackPanel>
+                                            <TextBlock x:Name="txtAnalizaNetto" Text="Netto: 0 kg" FontSize="11" Foreground="#475569" Margin="0,4,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Grid.Column="1" Background="#F0FDF4" CornerRadius="8" Padding="12,10" Margin="4,0,0,0" BorderBrush="#86EFAC" BorderThickness="1">
+                                        <StackPanel>
+                                            <TextBlock Text="👤 Najaktywniejszi" FontSize="10" FontWeight="SemiBold" Foreground="#15803D"/>
+                                            <ItemsControl x:Name="lstTopUserzy" Margin="0,6,0,0">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Grid Margin="0,1">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Text="{Binding Name}" FontSize="11" Foreground="#0F172A"/>
+                                                            <TextBlock Grid.Column="1" Text="{Binding Count}" FontSize="11" FontWeight="Bold" Foreground="#15803D"/>
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+
+                                <!-- Top zamówienia + top towary -->
+                                <Grid Margin="0,0,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Background="#F8FAFC" CornerRadius="8" Padding="12,10" Margin="0,0,4,0" BorderBrush="#CBD5E1" BorderThickness="1">
+                                        <StackPanel>
+                                            <TextBlock Text="📑 Top zamówienia (zmian)" FontSize="10" FontWeight="SemiBold" Foreground="#475569"/>
+                                            <ItemsControl x:Name="lstTopZamowienia" Margin="0,6,0,0">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Grid Margin="0,1">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Text="{Binding Name}" FontSize="11" Foreground="#0F172A" TextTrimming="CharacterEllipsis"/>
+                                                            <TextBlock Grid.Column="1" Text="{Binding Count}" FontSize="11" FontWeight="Bold" Foreground="#0F172A"/>
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Grid.Column="1" Background="#FAF5FF" CornerRadius="8" Padding="12,10" Margin="4,0,0,0" BorderBrush="#D8B4FE" BorderThickness="1">
+                                        <StackPanel>
+                                            <TextBlock Text="🍗 Top zmieniane towary" FontSize="10" FontWeight="SemiBold" Foreground="#6B21A8"/>
+                                            <ItemsControl x:Name="lstTopTowary" Margin="0,6,0,0">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Grid Margin="0,1">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Text="{Binding Name}" FontSize="11" Foreground="#0F172A" TextTrimming="CharacterEllipsis"/>
+                                                            <TextBlock Grid.Column="1" Text="{Binding Count}" FontSize="11" FontWeight="Bold" Foreground="#6B21A8"/>
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+
+                                <TextBlock Text="💡 Liczone z aktualnie widocznych wierszy (z filtrami)" FontSize="9" Foreground="#94A3B8" Margin="0,10,0,0"/>
+                            </StackPanel>
+                        </Border>
+                    </Popup>
+                </StackPanel>
+            </Grid>
+
+            <!-- Wszystkie kontrolki filtrów w headerze — oszczędza wiersz, więcej miejsca dla grid -->
+            <Grid Margin="0,10,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <WrapPanel Grid.Column="1" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Margin="0,0,10,4">
+                        <TextBlock Text="🥩 Dzień uboju" FontSize="10" FontWeight="Bold" Foreground="White" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <DatePicker x:Name="dpDzienUboju" Width="130" Height="28" SelectedDateChanged="DzienUboju_Changed"/>
+                        <Button x:Name="btnClearDay" Content="✕" Style="{StaticResource ModernButtonStyle}" Background="#475569" FontSize="10" Padding="6,2" Margin="2,0,0,0" Click="BtnClearDay_Click" ToolTip="Wyczyść dzień"/>
                     </StackPanel>
-
-                    <!-- Odbiorca -->
-                    <StackPanel Orientation="Horizontal" Margin="0,0,12,0">
-                        <TextBlock Text="Odbiorca:" Style="{StaticResource FilterLabelStyle}"/>
-                        <ComboBox x:Name="cmbOdbiorca" Width="180" Style="{StaticResource ModernComboBoxStyle}"
-                                  SelectionChanged="Filter_SelectionChanged"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,10,4">
+                        <TextBlock Text="📊 Kategoria" FontSize="10" FontWeight="Bold" Foreground="White" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <ComboBox x:Name="cmbKategoria" Width="170" Style="{StaticResource ModernComboBoxStyle}" Height="28" SelectionChanged="Filter_SelectionChanged"/>
                     </StackPanel>
-
-                    <!-- Handlowiec -->
-                    <StackPanel Orientation="Horizontal" Margin="0,0,12,0">
-                        <TextBlock Text="Handlowiec:" Style="{StaticResource FilterLabelStyle}"/>
-                        <ComboBox x:Name="cmbHandlowiec" Width="140" Style="{StaticResource ModernComboBoxStyle}"
-                                  SelectionChanged="Filter_SelectionChanged"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,10,4">
+                        <TextBlock Text="🔍" FontSize="13" Foreground="White" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                        <TextBox x:Name="txtSearch" Width="180" Height="28" Padding="6,2" FontSize="12" BorderThickness="0" TextChanged="TxtSearch_TextChanged" VerticalContentAlignment="Center"/>
                     </StackPanel>
-
-                    <!-- Kto edytował -->
-                    <StackPanel Orientation="Horizontal" Margin="0,0,12,0">
-                        <TextBlock Text="Edytował:" Style="{StaticResource FilterLabelStyle}"/>
-                        <ComboBox x:Name="cmbKtoEdytowal" Width="140" Style="{StaticResource ModernComboBoxStyle}"
-                                  SelectionChanged="Filter_SelectionChanged"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,10,4">
+                        <TextBlock Text="🍗 Towar" FontSize="10" FontWeight="Bold" Foreground="White" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <ComboBox x:Name="cmbTowar" Width="220" Style="{StaticResource ModernComboBoxStyle}" Height="28" SelectionChanged="Filter_SelectionChanged">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Border Width="22" Height="22" CornerRadius="3" Background="#F1F5F9" Margin="0,0,6,0" ClipToBounds="True" Visibility="{Binding ImageVisibility}">
+                                            <Image Source="{Binding Image}" Stretch="Uniform"/>
+                                        </Border>
+                                        <TextBlock Text="{Binding Name}" FontSize="12" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
                     </StackPanel>
-
-                    <!-- Data uboju -->
-                    <StackPanel Orientation="Horizontal" Margin="0,0,12,0">
-                        <TextBlock Text="Data uboju:" Style="{StaticResource FilterLabelStyle}"/>
-                        <ComboBox x:Name="cmbDataUboju" Width="120" Style="{StaticResource ModernComboBoxStyle}"
-                                  SelectionChanged="Filter_SelectionChanged"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,10,4">
+                        <TextBlock Text="Typ" FontSize="10" FontWeight="Bold" Foreground="White" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <ComboBox x:Name="cmbTyp" Width="120" Style="{StaticResource ModernComboBoxStyle}" Height="28" SelectionChanged="Filter_SelectionChanged"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,10,4">
+                        <TextBlock Text="👥 Odbiorca" FontSize="10" FontWeight="Bold" Foreground="White" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <ComboBox x:Name="cmbOdbiorca" Width="170" Style="{StaticResource ModernComboBoxStyle}" Height="28" SelectionChanged="Filter_SelectionChanged"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,10,4">
+                        <TextBlock Text="🧑‍💼 Handlowiec" FontSize="10" FontWeight="Bold" Foreground="White" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <ComboBox x:Name="cmbHandlowiec" Width="120" Style="{StaticResource ModernComboBoxStyle}" Height="28" SelectionChanged="Filter_SelectionChanged"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,10,4">
+                        <TextBlock Text="✏ Edytował" FontSize="10" FontWeight="Bold" Foreground="White" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <ComboBox x:Name="cmbKtoEdytowal" Width="120" Style="{StaticResource ModernComboBoxStyle}" Height="28" SelectionChanged="Filter_SelectionChanged"/>
                     </StackPanel>
                 </WrapPanel>
-
-                <!-- Przyciski -->
-                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button x:Name="btnClearFilters" Content="Wyczyść filtry"
-                            Style="{StaticResource ModernButtonStyle}" Background="#E74C3C"
-                            Click="BtnClearFilters_Click" Margin="0,0,8,0"/>
-                    <Button x:Name="btnRefresh" Content="Odśwież"
-                            Style="{StaticResource ModernButtonStyle}" Background="#3498DB"
-                            Click="BtnRefresh_Click"/>
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
+                    <ToggleButton x:Name="btnGrouping" Click="BtnGrouping_Click" Cursor="Hand" Margin="0,0,6,0" Padding="8,4"
+                                  Background="White" BorderBrush="{StaticResource BorderColor}" BorderThickness="1"
+                                  ToolTip="Grupuj wpisy po numerze zamówienia (expandable)">
+                        <ToggleButton.Template>
+                            <ControlTemplate TargetType="ToggleButton">
+                                <Border x:Name="bd" CornerRadius="5" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsChecked" Value="True">
+                                        <Setter TargetName="bd" Property="Background" Value="#46682C"/>
+                                    </Trigger>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="bd" Property="Opacity" Value="0.85"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </ToggleButton.Template>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock x:Name="iconGrouping" Text="📋" FontSize="12" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="textGrouping" Text="Grupuj" FontSize="10" FontWeight="SemiBold" Margin="5,0,0,0" VerticalAlignment="Center" Foreground="{StaticResource TextPrimary}"/>
+                        </StackPanel>
+                    </ToggleButton>
+                    <Button x:Name="btnClearFilters" Content="Wyczyść" Style="{StaticResource ModernButtonStyle}" Background="#475569" FontSize="10" Padding="8,4" Click="BtnClearFilters_Click" Margin="0,0,4,0"/>
+                    <Button x:Name="btnRefresh" Content="🔄" Style="{StaticResource ModernButtonStyle}" Background="#0EA5E9" FontSize="13" Padding="8,4" Click="BtnRefresh_Click" ToolTip="Odśwież dane"/>
                 </StackPanel>
             </Grid>
+            </StackPanel>
         </Border>
 
-        <!-- Główna zawartość - tabela zmian -->
-        <Border Grid.Row="2" Background="White" CornerRadius="8" Margin="16,12,16,8">
-            <Border.Effect>
-                <DropShadowEffect ShadowDepth="2" Opacity="0.08" BlurRadius="12"/>
-            </Border.Effect>
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
+        <!-- Quick chips presets + aktywne filtry (klikalne X) -->
+        <Border Grid.Row="1" Background="#F1F5F9" BorderBrush="{StaticResource BorderColor}" BorderThickness="0,0,0,1" Padding="14,6">
+            <StackPanel>
+                <!-- Quick presets — gotowe kombinacje filtrów jednego klika -->
+                <StackPanel Orientation="Horizontal" Margin="0,2,0,4">
+                    <TextBlock Text="⚡ Szybkie:" FontSize="10" Foreground="{StaticResource TextSecondary}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <Button x:Name="btnQuickDzis" Content="📅 Tylko dziś" Click="BtnQuickPreset_Click" Tag="dzis" Style="{StaticResource ModernButtonStyle}" Background="#0EA5E9" FontSize="10" Padding="8,3" Margin="0,0,4,0"/>
+                    <Button x:Name="btnQuickJa" Content="👤 Tylko ja" Click="BtnQuickPreset_Click" Tag="ja" Style="{StaticResource ModernButtonStyle}" Background="#0EA5E9" FontSize="10" Padding="8,3" Margin="0,0,4,0"/>
+                    <Button x:Name="btnQuickKg" Content="📦 Zmiany kg" Click="BtnQuickPreset_Click" Tag="kg" Style="{StaticResource ModernButtonStyle}" Background="#0EA5E9" FontSize="10" Padding="8,3" Margin="0,0,4,0"/>
+                    <Button x:Name="btnQuickAnomalie" Content="⚠ Anomalie" Click="BtnQuickPreset_Click" Tag="anomalie" Style="{StaticResource ModernButtonStyle}" Background="#DC2626" FontSize="10" Padding="8,3" Margin="0,0,4,0"/>
+                    <Button x:Name="btnQuickObserwowane" Content="🔖 Obserwowane" Click="BtnQuickPreset_Click" Tag="obserwowane" Style="{StaticResource ModernButtonStyle}" Background="#7C3AED" FontSize="10" Padding="8,3" Margin="0,0,4,0"/>
+                    <ToggleButton x:Name="btnAutoRefresh" Click="BtnAutoRefresh_Click" Margin="12,0,0,0" Padding="8,3" Cursor="Hand" Background="White" BorderBrush="{StaticResource BorderColor}" BorderThickness="1" ToolTip="Auto-odświeżanie co 60s">
+                        <ToggleButton.Template>
+                            <ControlTemplate TargetType="ToggleButton">
+                                <Border x:Name="bd" CornerRadius="4" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsChecked" Value="True">
+                                        <Setter TargetName="bd" Property="Background" Value="{StaticResource BrandGreen}"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </ToggleButton.Template>
+                        <TextBlock x:Name="autoRefreshText" Text="🔄 Auto-odświeżanie OFF" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}"/>
+                    </ToggleButton>
+                </StackPanel>
+                <!-- Aktywne filtry jako klikalne chipsy -->
+                <StackPanel x:Name="ActiveFiltersPanel" Visibility="Collapsed">
+                    <ItemsControl x:Name="lstActiveFilters">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Click="BtnRemoveFilter_Click" Tag="{Binding Id}" Cursor="Hand" Background="Transparent" BorderThickness="0" Padding="0" Margin="0,2,4,0">
+                                    <Border CornerRadius="10" Background="{Binding Color}" Padding="8,2">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="{Binding Label}" FontSize="10" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
+                                            <TextBlock Text=" ✕" FontSize="10" FontWeight="Bold" Foreground="White" VerticalAlignment="Center" Margin="6,0,0,0" Opacity="0.85"/>
+                                        </StackPanel>
+                                    </Border>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </StackPanel>
+        </Border>
 
-                <!-- Nagłówek tabeli -->
-                <Border Grid.Row="0" CornerRadius="8,8,0,0" Padding="16,12">
-                    <Border.Background>
-                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                            <GradientStop Color="#8E44AD" Offset="0"/>
-                            <GradientStop Color="#9B59B6" Offset="1"/>
-                        </LinearGradientBrush>
-                    </Border.Background>
-                    <Grid>
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock x:Name="txtHistoriaTitle" Text="HISTORIA ZMIAN" FontSize="14"
-                                       Foreground="White" FontWeight="Bold" VerticalAlignment="Center"/>
+        <!-- Główna zawartość: grid + side panel -->
+        <Grid Grid.Row="2" Margin="16,12,16,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="340"/>
+            </Grid.ColumnDefinitions>
+            <Border Grid.Column="0" Background="White" CornerRadius="8">
+                <Border.Effect>
+                    <DropShadowEffect ShadowDepth="2" Opacity="0.08" BlurRadius="12"/>
+                </Border.Effect>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0" Background="{StaticResource HeaderGradient}" CornerRadius="8,8,0,0" Padding="16,10">
+                        <Grid>
+                            <TextBlock x:Name="txtHistoriaTitle" Text="HISTORIA ZMIAN" FontSize="13" Foreground="White" FontWeight="Bold" VerticalAlignment="Center"/>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <TextBlock Text="Wyświetlono:" Foreground="#D9F2BD" FontSize="11" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="txtDisplayedCount" Text="0" FontSize="13" Foreground="White" FontWeight="Bold" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="wierszy" Foreground="#D9F2BD" FontSize="11" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <DataGrid Grid.Row="1" x:Name="dgHistoria"
+                              Style="{StaticResource ModernDataGridStyle}"
+                              ColumnHeaderStyle="{StaticResource ModernDataGridHeaderStyle}"
+                              RowStyle="{StaticResource ModernDataGridRowStyle}"
+                              CellStyle="{StaticResource ModernDataGridCellStyle}"
+                              AutoGenerateColumns="False"
+                              CanUserSortColumns="True"
+                              MouseDoubleClick="DgHistoria_MouseDoubleClick"
+                              Margin="0">
+                        <DataGrid.GroupStyle>
+                            <GroupStyle>
+                                <GroupStyle.ContainerStyle>
+                                    <Style TargetType="GroupItem">
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="GroupItem">
+                                                    <!-- Custom expandable — ToggleButton z białym chevronem + ItemsPresenter widoczność.
+                                                         Bez WPF Expandera, którego systemowy chevron bywa żółtawy w niektórych themes. -->
+                                                    <StackPanel>
+                                                        <ToggleButton x:Name="GroupToggle" IsChecked="True" Cursor="Hand"
+                                                                      Background="Transparent" BorderThickness="0" Margin="0,2,0,0" Padding="0">
+                                                            <ToggleButton.Template>
+                                                                <ControlTemplate TargetType="ToggleButton">
+                                                                    <Border Background="{StaticResource BrandGreenDark}" CornerRadius="4" Padding="10,6" Margin="0,0,4,0">
+                                                                        <Grid>
+                                                                            <Grid.ColumnDefinitions>
+                                                                                <ColumnDefinition Width="Auto"/>
+                                                                                <ColumnDefinition Width="*"/>
+                                                                                <ColumnDefinition Width="Auto"/>
+                                                                                <ColumnDefinition Width="Auto"/>
+                                                                            </Grid.ColumnDefinitions>
+                                                                            <!-- Custom chevron — biały, kontrolowany kolor -->
+                                                                            <TextBlock x:Name="Chevron" Text="▼" FontSize="11" Foreground="White" VerticalAlignment="Center" Margin="0,0,10,0" Opacity="0.85"/>
+                                                                            <!-- Avatar handlowca (prawdziwy z UserAvatarManager) + numer zamówienia + klient + nazwa handlowca -->
+                                                                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                                                <Border Width="26" Height="26" CornerRadius="13" ClipToBounds="True" Background="#1E293B" Margin="0,0,8,0" ToolTip="{Binding Items[0][Handlowiec]}">
+                                                                                    <Grid>
+                                                                                        <TextBlock Text="{Binding Items[0][Handlowiec], Converter={StaticResource InitialsConverter}}" FontSize="10" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                                        <Image Source="{Binding Items[0][HandlowiecAvatar]}" Stretch="UniformToFill"/>
+                                                                                    </Grid>
+                                                                                </Border>
+                                                                                <TextBlock Text="📦 #" FontSize="12" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
+                                                                                <TextBlock Text="{Binding Name}" FontSize="13" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                                                                                <TextBlock Text=" · " FontSize="12" Foreground="#C7DAB8" VerticalAlignment="Center" Margin="6,0"/>
+                                                                                <TextBlock Text="{Binding Items[0][Odbiorca]}" FontSize="12" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="240"/>
+                                                                                <TextBlock Text=" · " FontSize="11" Foreground="#C7DAB8" VerticalAlignment="Center" Margin="6,0"/>
+                                                                                <TextBlock Text="{Binding Items[0][Handlowiec]}" FontSize="11" Foreground="#C7DAB8" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="120"/>
+                                                                            </StackPanel>
+                                                                            <Border Grid.Column="3" Background="#0EA5E9" CornerRadius="10" Padding="8,1" Margin="10,0,0,0">
+                                                                                <TextBlock VerticalAlignment="Center">
+                                                                                    <Run Text="{Binding ItemCount, Mode=OneWay}" FontWeight="Bold" Foreground="White" FontSize="11"/>
+                                                                                    <Run Text=" zmian" Foreground="White" FontSize="10"/>
+                                                                                </TextBlock>
+                                                                            </Border>
+                                                                        </Grid>
+                                                                    </Border>
+                                                                    <ControlTemplate.Triggers>
+                                                                        <Trigger Property="IsChecked" Value="False">
+                                                                            <Setter TargetName="Chevron" Property="Text" Value="▶"/>
+                                                                        </Trigger>
+                                                                    </ControlTemplate.Triggers>
+                                                                </ControlTemplate>
+                                                            </ToggleButton.Template>
+                                                        </ToggleButton>
+                                                        <ItemsPresenter Visibility="{Binding IsChecked, ElementName=GroupToggle, Converter={StaticResource BoolToVisConverter}}"/>
+                                                    </StackPanel>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </GroupStyle.ContainerStyle>
+                            </GroupStyle>
+                        </DataGrid.GroupStyle>
+                    </DataGrid>
+
+                    <!-- Empty state — pokazuje się gdy 0 wierszy po filtrach -->
+                    <Border Grid.Row="1" x:Name="EmptyStatePanel" Visibility="Collapsed" Background="White" VerticalAlignment="Center" HorizontalAlignment="Center" CornerRadius="14" Padding="40,30">
+                        <StackPanel HorizontalAlignment="Center">
+                            <TextBlock Text="🔎" FontSize="56" HorizontalAlignment="Center" Opacity="0.4"/>
+                            <TextBlock Text="Brak zmian w wybranym widoku" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" HorizontalAlignment="Center" Margin="0,10,0,4"/>
+                            <TextBlock x:Name="EmptyStateHint" Text="Wybierz inny dzień uboju lub wyczyść filtry" FontSize="12" Foreground="{StaticResource TextSecondary}" HorizontalAlignment="Center"/>
                         </StackPanel>
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                            <TextBlock Text="Wyświetlono:" Foreground="#D7BDE2" FontSize="12" VerticalAlignment="Center"/>
-                            <TextBlock x:Name="txtDisplayedCount" Text="0" FontSize="14" Foreground="White"
-                                       FontWeight="Bold" Margin="6,0,0,0" VerticalAlignment="Center"/>
-                            <TextBlock Text="wierszy" Foreground="#D7BDE2" FontSize="12"
-                                       VerticalAlignment="Center" Margin="4,0,0,0"/>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- Loader overlay (tylko nad gridem, nie nad side panelem) -->
+            <Border Grid.Column="0" x:Name="LoaderOverlay" Visibility="Collapsed" Background="#80FFFFFF" CornerRadius="8">
+                <Border Background="White" CornerRadius="10" Padding="28,20" HorizontalAlignment="Center" VerticalAlignment="Center" BorderBrush="{StaticResource BrandGreen}" BorderThickness="1">
+                    <Border.Effect>
+                        <DropShadowEffect ShadowDepth="3" Opacity="0.18" BlurRadius="16"/>
+                    </Border.Effect>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="⏳" FontSize="26" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="Ładowanie historii…" FontSize="14" FontWeight="Bold" Foreground="{StaticResource TextPrimary}"/>
+                            <TextBlock x:Name="LoaderSubText" Text="Pobieranie danych z bazy" FontSize="11" Foreground="{StaticResource TextSecondary}" Margin="0,2,0,0"/>
                         </StackPanel>
-                    </Grid>
+                    </StackPanel>
                 </Border>
+            </Border>
 
-                <DataGrid Grid.Row="1" x:Name="dgHistoria"
-                          Style="{StaticResource ModernDataGridStyle}"
-                          ColumnHeaderStyle="{StaticResource ModernDataGridHeaderStyle}"
-                          RowStyle="{StaticResource ModernDataGridRowStyle}"
-                          CellStyle="{StaticResource ModernDataGridCellStyle}"
-                          AutoGenerateColumns="False"
-                          CanUserSortColumns="True"
-                          MouseDoubleClick="DgHistoria_MouseDoubleClick"
-                          Margin="0"/>
-            </Grid>
-        </Border>
+            <!-- ════════════════════ SIDE PANEL po prawej ════════════════════ -->
+            <Border Grid.Column="1" Background="White" CornerRadius="8" Margin="12,0,0,0" BorderBrush="{StaticResource BorderColor}" BorderThickness="1">
+                <Border.Effect>
+                    <DropShadowEffect ShadowDepth="2" Opacity="0.08" BlurRadius="12"/>
+                </Border.Effect>
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0">
+                    <StackPanel Margin="14,12">
+                        <!-- Sekcja: Szczegóły wybranego wpisu -->
+                        <TextBlock Text="📋 SZCZEGÓŁY WPISU" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,6"/>
+                        <Border x:Name="SideDetailsEmpty" Background="#F1F5F9" CornerRadius="6" Padding="14,18" Margin="0,0,0,12">
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock Text="👆" FontSize="28" HorizontalAlignment="Center" Opacity="0.4"/>
+                                <TextBlock Text="Kliknij wiersz aby zobaczyć detale" FontSize="11" Foreground="{StaticResource TextSecondary}" HorizontalAlignment="Center" Margin="0,4,0,0" TextWrapping="Wrap" TextAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        <Border x:Name="SideDetailsContent" Visibility="Collapsed" Background="#F8FAFC" CornerRadius="6" Padding="12,10" Margin="0,0,0,12" BorderBrush="{StaticResource BorderColor}" BorderThickness="1">
+                            <StackPanel>
+                                <Grid Margin="0,0,0,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock x:Name="SideOrderTitle" Text="" FontSize="14" FontWeight="Bold" Foreground="{StaticResource TextPrimary}" TextTrimming="CharacterEllipsis"/>
+                                    <ToggleButton Grid.Column="1" x:Name="btnBookmark" Click="BtnBookmark_Click" Cursor="Hand" Background="Transparent" BorderThickness="0" Padding="4,0" ToolTip="Dodaj/usuń obserwowane">
+                                        <ToggleButton.Template>
+                                            <ControlTemplate TargetType="ToggleButton">
+                                                <TextBlock x:Name="star" Text="☆" FontSize="20" Foreground="#94A3B8"/>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsChecked" Value="True">
+                                                        <Setter TargetName="star" Property="Text" Value="★"/>
+                                                        <Setter TargetName="star" Property="Foreground" Value="#F59E0B"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </ToggleButton.Template>
+                                    </ToggleButton>
+                                </Grid>
+                                <TextBlock x:Name="SideOrderSub" Text="" FontSize="11" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,6"/>
+
+                                <ItemsControl x:Name="lstSideDetails">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid Margin="0,2">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="90"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="{Binding Label}" FontSize="10" Foreground="{StaticResource TextMuted}" FontWeight="SemiBold"/>
+                                                <TextBlock Grid.Column="1" Text="{Binding Value}" FontSize="11" Foreground="{StaticResource TextPrimary}" TextWrapping="Wrap"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <!-- Tagi / akcje rozwiązania -->
+                                <Border Background="White" BorderBrush="{StaticResource BorderColor}" BorderThickness="0,1,0,0" Margin="0,8,0,0" Padding="0,8,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="🏷 OZNACZ STATUS WPISU" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,4"/>
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                            <Button x:Name="btnTagOK" Content="✅ OK" Click="BtnTag_Click" Tag="OK" Style="{StaticResource ModernButtonStyle}" Background="#16A34A" FontSize="10" Padding="8,3" Margin="0,0,4,0"/>
+                                            <Button x:Name="btnTagWyjasnic" Content="⚠ Do wyjaśnienia" Click="BtnTag_Click" Tag="DoWyjasnienia" Style="{StaticResource ModernButtonStyle}" Background="#F59E0B" FontSize="10" Padding="8,3"/>
+                                        </StackPanel>
+                                        <ItemsControl x:Name="lstSideTags">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border CornerRadius="10" Background="{Binding BgColor}" Padding="8,2" Margin="0,2,4,0">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <TextBlock Text="{Binding Display}" FontSize="10" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
+                                                            <Button Tag="{Binding Id}" Click="BtnRemoveTag_Click" Cursor="Hand" Background="Transparent" BorderThickness="0" Padding="0" Margin="6,0,0,0" ToolTip="Usuń tag">
+                                                                <TextBlock Text="✕" FontSize="10" FontWeight="Bold" Foreground="White" Opacity="0.85"/>
+                                                            </Button>
+                                                        </StackPanel>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Sekcja: Mini chart godzin — każdy bar z labelem godziny pod spodem -->
+                        <TextBlock Text="📊 ROZKŁAD GODZIN" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,6"/>
+                        <Border Background="#F8FAFC" CornerRadius="6" Padding="6,8,6,4" Margin="0,0,0,12" BorderBrush="{StaticResource BorderColor}" BorderThickness="1">
+                            <ItemsControl x:Name="lstChartHours">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <UniformGrid Rows="1" Columns="24" Height="92"/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="1,0">
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="*"/>
+                                                <RowDefinition Height="14"/>
+                                            </Grid.RowDefinitions>
+                                            <!-- Bar — wysokość proporcjonalna do liczby zmian -->
+                                            <Border Grid.Row="0" VerticalAlignment="Bottom" HorizontalAlignment="Stretch"
+                                                    Background="{Binding Color}" Height="{Binding BarHeight}"
+                                                    CornerRadius="2,2,0,0" ToolTip="{Binding Tooltip}"/>
+                                            <!-- Label godziny pod barem -->
+                                            <TextBlock Grid.Row="1" Text="{Binding Hour}" FontSize="8"
+                                                       Foreground="{StaticResource TextMuted}" HorizontalAlignment="Center"
+                                                       VerticalAlignment="Top" Margin="0,2,0,0"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Border>
+
+                        <!-- Sekcja: Heatmap dni × godziny (intensywność zmian) -->
+                        <TextBlock Text="🗓 HEATMAP DNI × GODZIN" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,6"/>
+                        <Border Background="#F8FAFC" CornerRadius="6" Padding="8,8" Margin="0,0,0,12" BorderBrush="{StaticResource BorderColor}" BorderThickness="1">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="22"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <!-- Etykiety dni z lewej (pionowo) -->
+                                <StackPanel Grid.Column="0" Grid.Row="0" VerticalAlignment="Top" Margin="0,0,2,0">
+                                    <TextBlock Text="Pn" FontSize="9" Foreground="{StaticResource TextMuted}" Height="11" HorizontalAlignment="Right"/>
+                                    <TextBlock Text="Wt" FontSize="9" Foreground="{StaticResource TextMuted}" Height="11" HorizontalAlignment="Right"/>
+                                    <TextBlock Text="Śr" FontSize="9" Foreground="{StaticResource TextMuted}" Height="11" HorizontalAlignment="Right"/>
+                                    <TextBlock Text="Cz" FontSize="9" Foreground="{StaticResource TextMuted}" Height="11" HorizontalAlignment="Right"/>
+                                    <TextBlock Text="Pt" FontSize="9" Foreground="{StaticResource TextMuted}" Height="11" HorizontalAlignment="Right"/>
+                                    <TextBlock Text="Sb" FontSize="9" Foreground="{StaticResource TextMuted}" Height="11" HorizontalAlignment="Right"/>
+                                    <TextBlock Text="Nd" FontSize="9" Foreground="{StaticResource TextMuted}" Height="11" HorizontalAlignment="Right"/>
+                                </StackPanel>
+                                <!-- Grid komórek 7 wierszy × 24 kolumny -->
+                                <ItemsControl Grid.Column="1" Grid.Row="0" x:Name="lstHeatmap">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <UniformGrid Rows="7" Columns="24"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="{Binding ColorBrush}" Margin="0.5" Height="11"
+                                                    BorderBrush="#CBD5E1" BorderThickness="0.5" ToolTip="{Binding Tooltip}"/>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <!-- Etykiety godzin pod gridem -->
+                                <Grid Grid.Column="1" Grid.Row="1" Margin="0,4,0,0">
+                                    <TextBlock Text="0" FontSize="9" Foreground="{StaticResource TextMuted}" HorizontalAlignment="Left"/>
+                                    <TextBlock Text="6" FontSize="9" Foreground="{StaticResource TextMuted}" HorizontalAlignment="Left" Margin="60,0,0,0"/>
+                                    <TextBlock Text="12" FontSize="9" Foreground="{StaticResource TextMuted}" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="18" FontSize="9" Foreground="{StaticResource TextMuted}" HorizontalAlignment="Right" Margin="0,0,60,0"/>
+                                    <TextBlock Text="23" FontSize="9" Foreground="{StaticResource TextMuted}" HorizontalAlignment="Right"/>
+                                </Grid>
+                            </Grid>
+                        </Border>
+
+                        <!-- Sekcja: Top anomalie -->
+                        <TextBlock Text="⚠ ANOMALIE KG (top 5)" FontSize="10" FontWeight="Bold" Foreground="#DC2626" Margin="0,0,0,6"/>
+                        <Border Background="#FEF2F2" CornerRadius="6" Padding="10,8" Margin="0,0,0,8" BorderBrush="#FECACA" BorderThickness="1">
+                            <ItemsControl x:Name="lstSideAnomalie">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border CornerRadius="4" Background="White" Padding="6,3" Margin="0,2" BorderBrush="#FECACA" BorderThickness="1">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="{Binding Towar}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" Width="120" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Text="{Binding Display}" FontSize="11" FontWeight="Bold" Foreground="#DC2626"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Items.Count, ElementName=lstSideAnomalie}" Value="0">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+        </Grid>
 
         <!-- Stopka -->
-        <Border Grid.Row="3" Background="#2C3E50" Padding="16,10">
+        <Border Grid.Row="3" Background="{StaticResource BrandGreenDark}" Padding="16,10">
             <Grid>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="Dwuklik na wiersz" Foreground="#F39C12" FontSize="12"
-                               FontWeight="SemiBold" VerticalAlignment="Center"/>
-                    <TextBlock Text=" otwiera edycję zamówienia" Foreground="#95A5A6" FontSize="12"
-                               VerticalAlignment="Center"/>
-                    <TextBlock Text="  |  " Foreground="#5D6D7E" FontSize="12" VerticalAlignment="Center"/>
-                    <TextBlock Text="Wybierz towar" Foreground="#3498DB" FontSize="12"
-                               FontWeight="SemiBold" VerticalAlignment="Center"/>
-                    <TextBlock Text=" aby filtrować po produkcie" Foreground="#95A5A6" FontSize="12"
-                               VerticalAlignment="Center"/>
+                    <TextBlock Text="Dwuklik na wiersz" Foreground="White" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <TextBlock Text=" otwiera edycję zamówienia" Foreground="#C7DAB8" FontSize="11" VerticalAlignment="Center"/>
+                    <TextBlock Text="  •  " Foreground="#8FAB6F" FontSize="11" VerticalAlignment="Center"/>
+                    <TextBlock Text="Filtr Towar" Foreground="#A0CFFF" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <TextBlock Text=" łapie też UTWORZENIA jeśli zamówienie zawiera ten towar" Foreground="#C7DAB8" FontSize="11" VerticalAlignment="Center"/>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                    <Button Content="Eksport do Excel" Style="{StaticResource ModernButtonStyle}"
-                            Background="#27AE60" Click="BtnExport_Click" Margin="0,0,10,0"/>
-                    <Button Content="Zamknij" Style="{StaticResource ModernButtonStyle}"
-                            Background="#7F8C8D" Click="BtnClose_Click"/>
+                    <Button x:Name="btnExport" Content="📥 Eksport do Excel" Style="{StaticResource ModernButtonStyle}" Background="#16A34A" Click="BtnExport_Click" Margin="0,0,10,0"/>
+                    <Button Content="Zamknij" Style="{StaticResource ModernButtonStyle}" Background="#64748B" Click="BtnClose_Click"/>
                 </StackPanel>
             </Grid>
         </Border>

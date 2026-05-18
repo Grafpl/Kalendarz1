@@ -1,0 +1,212 @@
+<UserControl x:Class="Kalendarz1.AnalitykaPelna.Controls.FiltryPasek"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="White">
+
+    <UserControl.Resources>
+        <Style x:Key="EtykietaStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#475569"/>
+            <Setter Property="Margin" Value="0,0,0,3"/>
+        </Style>
+
+        <Style x:Key="PresetButtonStyle" TargetType="Button">
+            <Setter Property="Padding" Value="8,3"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Background" Value="#F1F5F9"/>
+            <Setter Property="Foreground" Value="#475569"/>
+            <Setter Property="BorderBrush" Value="#E2E8F0"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Margin" Value="0,0,4,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#7C3AED"/>
+                    <Setter Property="Foreground" Value="White"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="AkcjaPrimaryStyle" TargetType="Button">
+            <Setter Property="Padding" Value="14,6"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Background" Value="#7C3AED"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
+        </Style>
+
+        <Style x:Key="AkcjaSecondaryStyle" TargetType="Button">
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="Background" Value="#F1F5F9"/>
+            <Setter Property="Foreground" Value="#475569"/>
+            <Setter Property="BorderBrush" Value="#E2E8F0"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
+        </Style>
+    </UserControl.Resources>
+
+    <Border BorderBrush="#E2E8F0" BorderThickness="0,0,0,1" Padding="14,6">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- ═══ Wiersz kompakt (zawsze widoczny): Od / Do / Towar / Zastosuj / Wyczyść / ▼ Więcej / LIVE / Eksport / Zamknij ═══ -->
+            <Grid Grid.Row="0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Od + Do + Presety (dropdown) — kompakt, jeden rząd -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="📅" FontSize="14" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                    <DatePicker x:Name="dpDataOd" Width="115" VerticalAlignment="Center"
+                                ToolTip="Data od"
+                                SelectedDateChanged="DpDataOd_SelectedDateChanged"/>
+                    <TextBlock Text="–" FontSize="13" VerticalAlignment="Center" Margin="6,0"/>
+                    <DatePicker x:Name="dpDataDo" Width="115" VerticalAlignment="Center"
+                                ToolTip="Data do"
+                                SelectedDateChanged="DpDataDo_SelectedDateChanged"/>
+
+                    <!-- Presety jako dropdown (ContextMenu) -->
+                    <Button x:Name="btnPresety" Content="⏱ Presety ▾"
+                            Margin="8,0,0,0" Padding="10,5" FontSize="11" FontWeight="SemiBold"
+                            Background="#F1F5F9" Foreground="#475569"
+                            BorderBrush="#E2E8F0" BorderThickness="1"
+                            Cursor="Hand" Click="BtnPresety_Click"
+                            ToolTip="Szybkie zakresy dat: Dziś, Wczoraj, 7 dni, 30 dni, ten/poprzedni miesiąc...">
+                        <Button.ContextMenu>
+                            <ContextMenu x:Name="presetyMenu" Placement="Bottom">
+                                <MenuItem Header="📅 Dziś" Tag="dzis" Click="Preset_Click"/>
+                                <MenuItem Header="📅 Wczoraj" Tag="wczoraj" Click="Preset_Click"/>
+                                <Separator/>
+                                <MenuItem Header="📆 Ostatnie 7 dni" Tag="7d" Click="Preset_Click"/>
+                                <MenuItem Header="📆 Ostatnie 30 dni" Tag="30d" Click="Preset_Click"/>
+                                <Separator/>
+                                <MenuItem Header="🗓 Bieżący tydzień (Pn–Nd)" Tag="tydzien" Click="Preset_Click"/>
+                                <MenuItem Header="🗓 Bieżący miesiąc" Tag="miesiac" Click="Preset_Click"/>
+                                <MenuItem Header="🗓 Poprzedni miesiąc" Tag="poprzMiesiac" Click="Preset_Click"/>
+                                <Separator/>
+                                <MenuItem x:Name="miPresetPrognoza" Header="🔮 Prognoza 8 tygodni" Tag="8tyg" Click="Preset_Click"/>
+                            </ContextMenu>
+                        </Button.ContextMenu>
+                    </Button>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
+                    <TextBlock Text="📦" FontSize="14" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                    <ComboBox x:Name="cbTowar" Width="170" VerticalAlignment="Center"
+                              ToolTip="Towar"
+                              DisplayMemberPath="DisplayText"
+                              SelectionChanged="Filtr_Changed"/>
+                </StackPanel>
+
+                <!-- Zastosuj + Wyczyść -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
+                    <Button Style="{StaticResource AkcjaPrimaryStyle}" Margin="0,0,4,0" Padding="12,5"
+                            Content="✓ Zastosuj (F5)" Click="BtnZastosuj_Click"/>
+                    <Button Style="{StaticResource AkcjaSecondaryStyle}" Margin="0" Padding="8,5"
+                            Content="✕" ToolTip="Wyczyść filtry" Click="BtnWyczysc_Click"/>
+                </StackPanel>
+
+                <!-- Spacer (Grid.Column=3, Width=*) -->
+
+                <!-- Toggle ▼ Więcej / ▲ Mniej + globalne akcje (LIVE / Eksport / Zamknij) -->
+                <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="btnWiecej" Content="▼ Więcej filtrów"
+                            Padding="10,5" Margin="0,0,8,0" FontSize="11" FontWeight="SemiBold"
+                            Background="#F1F5F9" Foreground="#475569"
+                            BorderBrush="#E2E8F0" BorderThickness="1"
+                            Cursor="Hand" Click="BtnWiecej_Click"
+                            ToolTip="Pokaż / ukryj dodatkowe filtry (Hodowca, Operator, Klasa, presety...)"/>
+                    <Button x:Name="btnLive" Content="● LIVE" Padding="10,5"
+                            Background="#374151" Foreground="#94A3B8" BorderThickness="0"
+                            Margin="0,0,4,0" Cursor="Hand" Click="BtnLive_Click"
+                            ToolTip="Auto-odświeżanie co 60s (Ctrl+L)"/>
+                    <Button x:Name="btnEksport" Content="📥" Padding="10,5"
+                            Background="#374151" Foreground="White" BorderThickness="0"
+                            Margin="0,0,4,0" Cursor="Hand" Click="BtnEksport_Click"
+                            ToolTip="Eksport bieżącej zakładki do CSV (Ctrl+E)"/>
+                    <Button x:Name="btnZamknij" Content="✕" Padding="10,5"
+                            Background="#DC2626" Foreground="White" BorderThickness="0"
+                            Cursor="Hand" Click="BtnZamknij_Click"
+                            ToolTip="Zamknij okno (Esc)"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- ═══ Wiersz rozwijany (collapsed by default): Hodowca / Operator / Klasa / Tygodnie / Presety ═══ -->
+            <Grid x:Name="panelZaawansowany" Grid.Row="1" Margin="0,10,0,0" Visibility="Collapsed">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <!-- Hodowca -->
+                    <ColumnDefinition Width="Auto"/>
+                    <!-- Operator -->
+                    <ColumnDefinition Width="Auto"/>
+                    <!-- Klasa -->
+                    <ColumnDefinition Width="Auto"/>
+                    <!-- Tygodnie -->
+                    <ColumnDefinition Width="*"/>
+                    <!-- Spacer -->
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Margin="0,0,12,0">
+                    <TextBlock Style="{StaticResource EtykietaStyle}" Text="🐔 Hodowca"/>
+                    <ComboBox x:Name="cbHodowca" Width="190"
+                              DisplayMemberPath="CustomerName"
+                              SelectionChanged="Filtr_Changed"/>
+                </StackPanel>
+
+                <StackPanel x:Name="panelOperator" Grid.Column="1" Margin="0,0,12,0">
+                    <TextBlock Style="{StaticResource EtykietaStyle}" Text="👤 Operator"/>
+                    <ComboBox x:Name="cbOperator" Width="180"
+                              DisplayMemberPath="Wagowy"
+                              SelectionChanged="Filtr_Changed"/>
+                </StackPanel>
+
+                <StackPanel x:Name="panelKlasa" Grid.Column="2" Margin="0,0,12,0">
+                    <TextBlock Style="{StaticResource EtykietaStyle}" Text="⚖ Klasa"/>
+                    <ComboBox x:Name="cbKlasa" Width="120"
+                              SelectionChanged="Filtr_Changed">
+                        <ComboBoxItem Content="— Wszystkie —" Tag=""/>
+                        <ComboBoxItem Content="Klasa 1" Tag="1"/>
+                        <ComboBoxItem Content="Klasa 2" Tag="2"/>
+                        <ComboBoxItem Content="Klasa 3" Tag="3"/>
+                        <ComboBoxItem Content="Klasa 4" Tag="4"/>
+                        <ComboBoxItem Content="Klasa 5" Tag="5"/>
+                        <ComboBoxItem Content="Klasa 6" Tag="6"/>
+                        <ComboBoxItem Content="Klasa 7" Tag="7"/>
+                        <ComboBoxItem Content="Klasa 8" Tag="8"/>
+                        <ComboBoxItem Content="Klasa 9" Tag="9"/>
+                        <ComboBoxItem Content="Klasa 10" Tag="10"/>
+                        <ComboBoxItem Content="Klasa 11" Tag="11"/>
+                        <ComboBoxItem Content="Klasa 12" Tag="12"/>
+                    </ComboBox>
+                </StackPanel>
+
+                <StackPanel x:Name="panelTygodnie" Grid.Column="3" Margin="0,0,12,0">
+                    <TextBlock Style="{StaticResource EtykietaStyle}" Text="🗓 Tyg. prognozy"/>
+                    <ComboBox x:Name="cbTygodnie" Width="130"
+                              SelectionChanged="Filtr_Changed">
+                        <ComboBoxItem Content="4 tygodnie" Tag="4"/>
+                        <ComboBoxItem Content="8 tygodni" Tag="8" IsSelected="True"/>
+                        <ComboBoxItem Content="12 tygodni" Tag="12"/>
+                        <ComboBoxItem Content="16 tygodni" Tag="16"/>
+                    </ComboBox>
+                </StackPanel>
+
+                <!-- Presety przeniesione do dropdown w wierszu kompaktowym (btnPresety) -->
+                <!-- Spacer Grid.Column=4 -->
+
+            </Grid>
+        </Grid>
+    </Border>
+</UserControl>

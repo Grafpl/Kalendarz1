@@ -1,0 +1,215 @@
+<UserControl x:Class="Kalendarz1.AnalitykaPelna.Views.WidokSankey"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             mc:Ignorable="d"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             Background="White"
+             UseLayoutRounding="True"
+             SnapsToDevicePixels="True"
+             TextOptions.TextFormattingMode="Display"
+             TextOptions.TextRenderingMode="ClearType">
+    <UserControl.Resources>
+        <SolidColorBrush x:Key="TextPrimary" Color="#0F172A"/>
+        <SolidColorBrush x:Key="TextSecondary" Color="#475569"/>
+        <SolidColorBrush x:Key="TextMuted" Color="#94A3B8"/>
+        <SolidColorBrush x:Key="Border" Color="#E2E8F0"/>
+
+        <!-- Node colors -->
+        <SolidColorBrush x:Key="ColZywiec" Color="#DC2626"/>
+        <SolidColorBrush x:Key="ColUboj" Color="#F59E0B"/>
+        <SolidColorBrush x:Key="ColProd" Color="#7C3AED"/>
+        <SolidColorBrush x:Key="ColDyst" Color="#2563EB"/>
+        <SolidColorBrush x:Key="ColKlienci" Color="#10B981"/>
+        <SolidColorBrush x:Key="ColMroz" Color="#0EA5E9"/>
+        <SolidColorBrush x:Key="ColMasar" Color="#9A3412"/>
+        <SolidColorBrush x:Key="ColKarma" Color="#CA8A04"/>
+        <SolidColorBrush x:Key="ColOdpady" Color="#94A3B8"/>
+        <SolidColorBrush x:Key="ColStrata" Color="#FECACA"/>
+        <SolidColorBrush x:Key="ColZostalo" Color="#CBD5E1"/>
+
+        <!-- Sankey flow style — hover effect + subtle stroke for separation -->
+        <Style x:Key="SankeyFlow" TargetType="Path">
+            <Setter Property="Opacity" Value="0.45"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="StrokeLineJoin" Value="Round"/>
+            <Setter Property="StrokeThickness" Value="0.5"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Opacity" Value="0.88"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Sankey node style — rectangles -->
+        <Style x:Key="SankeyNode" TargetType="Border">
+            <Setter Property="CornerRadius" Value="3"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect Color="#0F172A" BlurRadius="8" ShadowDepth="2" Opacity="0.15"/>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Effect">
+                        <Setter.Value>
+                            <DropShadowEffect Color="#0F172A" BlurRadius="14" ShadowDepth="3" Opacity="0.3"/>
+                        </Setter.Value>
+                    </Setter>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- ═══════════════ HEADER ═══════════════ -->
+        <Border Grid.Row="0" Background="White" BorderBrush="{StaticResource Border}" BorderThickness="0,0,0,1" Padding="20,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock Text="🌊" FontSize="22" Margin="0,0,10,0"/>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="Sankey — przepływ masy" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextPrimary}"/>
+                        <TextBlock x:Name="txtZakres" Text="—" FontSize="11" Foreground="{StaticResource TextMuted}" Margin="0,2,0,0"/>
+                    </StackPanel>
+                </StackPanel>
+                <TextBlock Grid.Column="1" Text="Grubość strumienia = kg  ·  Kolor = kategoria  ·  Klik = szczegóły"
+                           FontSize="11" Foreground="{StaticResource TextMuted}" VerticalAlignment="Center"/>
+            </Grid>
+        </Border>
+
+        <!-- ═══════════════ SANKEY CANVAS ═══════════════ -->
+        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+            <Canvas x:Name="canvasSankey" Width="1500" Height="700" Background="White">
+                <!-- Subtle column tints (background bands) -->
+                <Rectangle Canvas.Left="40"   Canvas.Top="50" Width="120" Height="600" Fill="#FAFBFC"/>
+                <Rectangle Canvas.Left="340"  Canvas.Top="50" Width="120" Height="600" Fill="#FAFBFC"/>
+                <Rectangle Canvas.Left="640"  Canvas.Top="50" Width="120" Height="600" Fill="#FAFBFC"/>
+                <Rectangle Canvas.Left="940"  Canvas.Top="50" Width="120" Height="600" Fill="#FAFBFC"/>
+                <Rectangle Canvas.Left="1340" Canvas.Top="50" Width="120" Height="600" Fill="#FAFBFC"/>
+
+                <!-- ════════ FLOWS (rysowane jako pierwsze, pod nodes) ════════ -->
+                <Path x:Name="flowZywiecUboj" Style="{StaticResource SankeyFlow}"
+                      Fill="{StaticResource ColZywiec}" Tag="UBOJ" MouseLeftButtonUp="Flow_Click"
+                      ToolTip="Żywiec → Ubój"/>
+                <Path x:Name="flowZywiecStrata" Style="{StaticResource SankeyFlow}"
+                      Fill="{StaticResource ColStrata}"
+                      ToolTip="Strata uboju (pióra/krew/woda)"/>
+                <Path x:Name="flowUbojKrojenie" Style="{StaticResource SankeyFlow}"
+                      Fill="{StaticResource ColUboj}" Tag="PRODUKCJA" MouseLeftButtonUp="Flow_Click"
+                      ToolTip="Ubój → Krojenie (sRWP)"/>
+                <Path x:Name="flowUbojBezposrednio" Style="{StaticResource SankeyFlow}"
+                      Fill="{StaticResource ColUboj}" Tag="UBOJ" MouseLeftButtonUp="Flow_Click"
+                      ToolTip="Ubój → Sprzedaż całych tuszek (bez krojenia)"/>
+                <Path x:Name="flowKrojenieStrata" Style="{StaticResource SankeyFlow}"
+                      Fill="{StaticResource ColStrata}"
+                      ToolTip="Strata krojenia (kości/ścinki)"/>
+                <Path x:Name="flowProdDyst" Style="{StaticResource SankeyFlow}"
+                      Fill="{StaticResource ColProd}" Tag="DYSTRYBUCJA" MouseLeftButtonUp="Flow_Click"
+                      ToolTip="Produkcja → Dystrybucja"/>
+                <Path x:Name="flowProdMroz" Style="{StaticResource SankeyFlow}"
+                      Fill="{StaticResource ColProd}" Tag="MROZNIA" MouseLeftButtonUp="Flow_Click"
+                      ToolTip="Produkcja → Mroźnia"/>
+                <Path x:Name="flowProdMasar" Style="{StaticResource SankeyFlow}"
+                      Fill="{StaticResource ColProd}" Tag="MASARNIA" MouseLeftButtonUp="Flow_Click"
+                      ToolTip="Produkcja → Masarnia"/>
+                <Path x:Name="flowProdKarma" Style="{StaticResource SankeyFlow}"
+                      Fill="{StaticResource ColProd}" Tag="KARMA" MouseLeftButtonUp="Flow_Click"
+                      ToolTip="Produkcja → Karma"/>
+                <Path x:Name="flowProdOdpady" Style="{StaticResource SankeyFlow}"
+                      Fill="{StaticResource ColProd}" Tag="ODPADY" MouseLeftButtonUp="Flow_Click"
+                      ToolTip="Produkcja → Odpady"/>
+                <Path x:Name="flowProdZostalo" Style="{StaticResource SankeyFlow}"
+                      Fill="{StaticResource ColZostalo}"
+                      ToolTip="Pozostało w magazynie PROD"/>
+                <Path x:Name="flowDystKlienci" Style="{StaticResource SankeyFlow}"
+                      Fill="{StaticResource ColDyst}" Tag="KLIENCI" MouseLeftButtonUp="Flow_Click"
+                      ToolTip="Dystrybucja → Klienci"/>
+                <Path x:Name="flowBezpDyst" Style="{StaticResource SankeyFlow}"
+                      Fill="{StaticResource ColUboj}" Tag="DYSTRYBUCJA" MouseLeftButtonUp="Flow_Click"
+                      ToolTip="Całe tuszki → Dystrybucja"/>
+
+                <!-- ════════ NODES (na wierzchu) ════════ -->
+                <Border x:Name="nodeZywiec" Style="{StaticResource SankeyNode}" Background="{StaticResource ColZywiec}"
+                        Width="22" Tag="ZYWIEC" MouseLeftButtonUp="Node_Click"
+                        ToolTip="Kliknij — szczegóły żywca"/>
+                <Border x:Name="nodeUboj" Style="{StaticResource SankeyNode}" Background="{StaticResource ColUboj}"
+                        Width="22" Tag="UBOJ" MouseLeftButtonUp="Node_Click"
+                        ToolTip="Kliknij — szczegóły uboju"/>
+                <Border x:Name="nodeStrata" Style="{StaticResource SankeyNode}" Background="{StaticResource ColStrata}"
+                        Width="22"
+                        ToolTip="Strata uboju — pióra/krew/woda/jelita"/>
+                <Border x:Name="nodeProd" Style="{StaticResource SankeyNode}" Background="{StaticResource ColProd}"
+                        Width="22" Tag="PRODUKCJA" MouseLeftButtonUp="Node_Click"
+                        ToolTip="Kliknij — szczegóły produkcji"/>
+                <Border x:Name="nodeUbojBezp" Style="{StaticResource SankeyNode}" Background="{StaticResource ColUboj}"
+                        Width="22"
+                        ToolTip="Tuszki całe — bezpośrednio do dystrybucji"/>
+                <Border x:Name="nodeStrataKroj" Style="{StaticResource SankeyNode}" Background="{StaticResource ColStrata}"
+                        Width="22"
+                        ToolTip="Strata krojenia — kości/ścinki"/>
+                <Border x:Name="nodeDyst" Style="{StaticResource SankeyNode}" Background="{StaticResource ColDyst}"
+                        Width="22" Tag="DYSTRYBUCJA" MouseLeftButtonUp="Node_Click"
+                        ToolTip="Kliknij — szczegóły dystrybucji"/>
+                <Border x:Name="nodeMroz" Style="{StaticResource SankeyNode}" Background="{StaticResource ColMroz}"
+                        Width="22" Tag="MROZNIA" MouseLeftButtonUp="Node_Click"
+                        ToolTip="Kliknij — szczegóły mroźni"/>
+                <Border x:Name="nodeMasar" Style="{StaticResource SankeyNode}" Background="{StaticResource ColMasar}"
+                        Width="22" Tag="MASARNIA" MouseLeftButtonUp="Node_Click"
+                        ToolTip="Kliknij — szczegóły masarni"/>
+                <Border x:Name="nodeKarma" Style="{StaticResource SankeyNode}" Background="{StaticResource ColKarma}"
+                        Width="22" Tag="KARMA" MouseLeftButtonUp="Node_Click"
+                        ToolTip="Kliknij — szczegóły karmy"/>
+                <Border x:Name="nodeOdpady" Style="{StaticResource SankeyNode}" Background="{StaticResource ColOdpady}"
+                        Width="22" Tag="ODPADY" MouseLeftButtonUp="Node_Click"
+                        ToolTip="Kliknij — szczegóły odpadów"/>
+                <Border x:Name="nodeZostalo" Style="{StaticResource SankeyNode}" Background="{StaticResource ColZostalo}"
+                        Width="22"
+                        ToolTip="Pozostało w magazynie PROD (rotacja)"/>
+                <Border x:Name="nodeKlienci" Style="{StaticResource SankeyNode}" Background="{StaticResource ColKlienci}"
+                        Width="22" Tag="KLIENCI" MouseLeftButtonUp="Node_Click"
+                        ToolTip="Kliknij — szczegóły klientów"/>
+
+                <!-- ════════ LABELS ════════ -->
+                <TextBlock x:Name="lblZywiec" FontSize="12" FontWeight="Bold" Foreground="{StaticResource TextPrimary}"/>
+                <TextBlock x:Name="lblUboj" FontSize="12" FontWeight="Bold" Foreground="{StaticResource TextPrimary}"/>
+                <TextBlock x:Name="lblStrata" FontSize="10" Foreground="{StaticResource TextMuted}"/>
+                <TextBlock x:Name="lblProd" FontSize="12" FontWeight="Bold" Foreground="{StaticResource TextPrimary}"/>
+                <TextBlock x:Name="lblUbojBezp" FontSize="11" Foreground="{StaticResource TextSecondary}"/>
+                <TextBlock x:Name="lblStrataKroj" FontSize="10" Foreground="{StaticResource TextMuted}"/>
+                <TextBlock x:Name="lblDyst" FontSize="12" FontWeight="Bold" Foreground="{StaticResource TextPrimary}"/>
+                <TextBlock x:Name="lblMroz" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondary}"/>
+                <TextBlock x:Name="lblMasar" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondary}"/>
+                <TextBlock x:Name="lblKarma" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondary}"/>
+                <TextBlock x:Name="lblOdpady" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondary}"/>
+                <TextBlock x:Name="lblZostalo" FontSize="11" Foreground="{StaticResource TextMuted}"/>
+                <TextBlock x:Name="lblKlienci" FontSize="12" FontWeight="Bold" Foreground="{StaticResource TextPrimary}"/>
+
+                <!-- Column titles (top of canvas) -->
+                <TextBlock Canvas.Left="40" Canvas.Top="20" Text="PRZYJĘCIE" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextMuted}"/>
+                <TextBlock Canvas.Left="340" Canvas.Top="20" Text="UBÓJ" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextMuted}"/>
+                <TextBlock Canvas.Left="640" Canvas.Top="20" Text="PRODUKCJA / SORTOWNIA" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextMuted}"/>
+                <TextBlock Canvas.Left="940" Canvas.Top="20" Text="MAGAZYNY / KIERUNKI" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextMuted}"/>
+                <TextBlock Canvas.Left="1340" Canvas.Top="20" Text="KLIENCI" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextMuted}"/>
+            </Canvas>
+        </ScrollViewer>
+
+        <!-- ═══════════════ FOOTER ═══════════════ -->
+        <Border Grid.Row="2" Background="#0F172A" Padding="20,8">
+            <StackPanel Orientation="Horizontal">
+                <Ellipse Width="6" Height="6" Fill="#10B981" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <TextBlock x:Name="txtFooter" Text="—" FontSize="11" Foreground="#CBD5E1" VerticalAlignment="Center"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

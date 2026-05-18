@@ -13,7 +13,9 @@ namespace Kalendarz1.Services
         private static readonly string _connectionStringLibraNet =
             "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
 
-        private static bool _tableInitialized = false;
+        // SemaphoreSlim — serializuje pierwsze sprawdzenie/utworzenie tabeli przy współbieżnych Loguj* calls.
+        private static readonly System.Threading.SemaphoreSlim _initLock = new(1, 1);
+        private static volatile bool _tableInitialized = false;
 
         /// <summary>
         /// Loguje utworzenie nowego zamówienia
@@ -113,11 +115,20 @@ namespace Kalendarz1.Services
                 await using var cn = new SqlConnection(_connectionStringLibraNet);
                 await cn.OpenAsync();
 
-                // Upewnij się, że tabela istnieje
+                // Upewnij się, że tabela istnieje — semaphore guard zapobiega race condition
+                // przy współbieżnych Loguj* calls przy pierwszym uruchomieniu.
                 if (!_tableInitialized)
                 {
-                    await EnsureTableExistsAsync(cn);
-                    _tableInitialized = true;
+                    await _initLock.WaitAsync();
+                    try
+                    {
+                        if (!_tableInitialized)
+                        {
+                            await EnsureTableExistsAsync(cn);
+                            _tableInitialized = true;
+                        }
+                    }
+                    finally { _initLock.Release(); }
                 }
 
                 var sql = @"
@@ -207,6 +218,54 @@ namespace Kalendarz1.Services
                     await LogujEdycje(zamowienieId, uzytkownik, uzytkownikNazwa, pole, stara, nowa);
                 }
             }
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // POZYCJE ZAMÓWIENIA — szczegółowe logowanie zmian w pozycjach (kg/cena/flagi).
+        // Format PoleZmienione = "Pozycja: {nazwa towaru} - {atrybut}" — spójny z istniejącym
+        // wzorcem z MainWindow.xaml.cs:9724. Categorize w HistoriaZmianWindow rozpozna kategorię KG/CENA/FLAGI.
+        // ════════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Loguje DODANIE pozycji do zamówienia (przy UTWORZENIU lub nowej pozycji w edycji).
+        /// Strukturalnie: WartoscPoprzednia="0", WartoscNowa=ilosc → kolumna Zmiana pokaże "0 kg → 100 kg".
+        /// </summary>
+        public static async Task LogujDodaniePozycji(int zamowienieId, string nazwaTowaru, decimal ilosc,
+            string uzytkownik, string uzytkownikNazwa = null, string atrybut = "Zam.")
+        {
+            await LogujZmianeAsync(zamowienieId, "EDYCJA", uzytkownik, uzytkownikNazwa,
+                poleZmienione: $"Pozycja: {nazwaTowaru} - {atrybut}",
+                wartoscPoprzednia: "0",
+                wartoscNowa: ilosc.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture),
+                opisZmiany: $"Dodano: {nazwaTowaru} {ilosc:N0} kg");
+        }
+
+        /// <summary>
+        /// Loguje USUNIĘCIE pozycji z zamówienia (przy edycji).
+        /// Strukturalnie: WartoscPoprzednia=ilosc, WartoscNowa="0" → kolumna Zmiana "100 kg → 0 kg".
+        /// </summary>
+        public static async Task LogujUsunieciePozycji(int zamowienieId, string nazwaTowaru, decimal ilosc,
+            string uzytkownik, string uzytkownikNazwa = null)
+        {
+            await LogujZmianeAsync(zamowienieId, "EDYCJA", uzytkownik, uzytkownikNazwa,
+                poleZmienione: $"Pozycja: {nazwaTowaru} - Zam.",
+                wartoscPoprzednia: ilosc.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture),
+                wartoscNowa: "0",
+                opisZmiany: $"Usunięto: {nazwaTowaru} (było {ilosc:N0} kg)");
+        }
+
+        /// <summary>
+        /// Loguje ZMIANĘ atrybutu pozycji — ilość/cena/flagi. Atrybut to: "Zam." / "Cena" / "E2" / "Folia" / "Hallal" / "Strefa".
+        /// </summary>
+        public static async Task LogujZmianePozycji(int zamowienieId, string nazwaTowaru, string atrybut,
+            string stara, string nowa, string uzytkownik, string uzytkownikNazwa = null)
+        {
+            if (stara == nowa) return;
+            await LogujZmianeAsync(zamowienieId, "EDYCJA", uzytkownik, uzytkownikNazwa,
+                poleZmienione: $"Pozycja: {nazwaTowaru} - {atrybut}",
+                wartoscPoprzednia: stara,
+                wartoscNowa: nowa,
+                opisZmiany: $"{nazwaTowaru}: {atrybut} {stara} → {nowa}");
         }
     }
 }

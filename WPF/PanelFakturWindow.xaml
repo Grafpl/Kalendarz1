@@ -898,6 +898,17 @@
                                         BorderBrush="#CBD5E1" BorderThickness="1" Cursor="Hand"
                                         Click="BtnFilterReset_Click"
                                         Visibility="Collapsed"/>
+
+                                <!-- Separator -->
+                                <Border Width="1" Background="#E5E7EB" Margin="14,2,14,2"/>
+
+                                <!-- Checkbox: pokaż też kolumnę netto (domyślnie ukryta — fakturzystka widzi tylko brutto) -->
+                                <CheckBox x:Name="chkPokazNettoOrders"
+                                          Content="📋 Pokaż też netto"
+                                          FontSize="12" VerticalAlignment="Center"
+                                          ToolTip="Domyślnie pokazujemy tylko kolumnę BRUTTO — lepiej dla fakturzystki. Zaznacz aby dodatkowo pokazać kolumnę 'Netto' z LibraNet."
+                                          Checked="ChkPokazNettoOrders_Toggle"
+                                          Unchecked="ChkPokazNettoOrders_Toggle"/>
                             </StackPanel>
                         </Grid>
                     </Border>
@@ -1014,12 +1025,28 @@
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
-                            <!-- Wartość — z walutą (PLN/EUR per zamówienie) -->
-                            <DataGridTemplateColumn Header="Wartość" Width="Auto" MinWidth="110">
+                            <!-- Wartość BRUTTO (DOMYŚLNIE WIDOCZNA) — z faktury Symfonii (HM.DK.walBrutto)
+                                 gdy zafakturowane, inaczej estymacja netto × 1.05 (5% VAT dla drobiu). Pogrubione. -->
+                            <DataGridTemplateColumn Header="Brutto" Width="Auto" MinWidth="115">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding WartoscBruttoDisplay}"
+                                                   FontWeight="Bold" FontSize="{DynamicResource Density.Row.Font}"
+                                                   Foreground="{Binding WartoscBruttoColor}"
+                                                   ToolTip="{Binding WartoscBruttoTooltip}"
+                                                   HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <!-- Wartość NETTO — ukryta domyślnie, pokazywana przez checkbox chkPokazNettoOrders.
+                                 Z LibraNet (Cena × Ilosc per zamówienie). -->
+                            <DataGridTemplateColumn x:Name="colOrdersNetto" Header="Netto" Width="Auto" MinWidth="100"
+                                                    Visibility="Collapsed">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding WartoscDisplay}"
-                                                   FontWeight="Bold" FontSize="{DynamicResource Density.Row.Font}"
+                                                   FontSize="{DynamicResource Density.Row.Font}"
                                                    Foreground="{Binding WartoscColor}"
                                                    HorizontalAlignment="Right" VerticalAlignment="Center"/>
                                     </DataTemplate>
@@ -1242,6 +1269,7 @@
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>  <!-- Header (numer + klient) -->
                                 <RowDefinition Height="Auto"/>  <!-- Summary stats -->
+                                <RowDefinition Height="Auto"/>  <!-- Toolbar (checkbox netto/brutto) -->
                                 <RowDefinition Height="*"/>     <!-- Grid -->
                             </Grid.RowDefinitions>
 
@@ -1342,8 +1370,28 @@
                                 </Grid>
                             </Border>
 
+                            <!-- Toolbar: checkbox netto/brutto -->
+                            <Border Grid.Row="2" x:Name="invoiceToolbar" Visibility="Collapsed"
+                                    Background="{StaticResource Brush.SurfaceAlt}"
+                                    BorderBrush="{StaticResource Brush.Border}" BorderThickness="0,0,0,1"
+                                    Padding="14,4">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Widok:" FontSize="11" FontWeight="SemiBold"
+                                               Foreground="{StaticResource Brush.TextMuted}"
+                                               VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <TextBlock Text="💰 Brutto" FontSize="11.5" FontWeight="Bold"
+                                               Foreground="{StaticResource Brush.Text}"
+                                               VerticalAlignment="Center" Margin="0,0,16,0"/>
+                                    <CheckBox x:Name="chkPokazNetto" Content="📋 Pokaż też netto + VAT zł"
+                                              FontSize="11" VerticalAlignment="Center"
+                                              ToolTip="Domyślnie pokazujemy brutto (lepiej widoczne dla fakturzystki). Zaznacz aby dodatkowo pokazać kolumny netto i kwoty VAT w zł."
+                                              Checked="ChkPokazNetto_Toggle"
+                                              Unchecked="ChkPokazNetto_Toggle"/>
+                                </StackPanel>
+                            </Border>
+
                             <!-- Grid lub placeholder -->
-                            <Grid Grid.Row="2">
+                            <Grid Grid.Row="3">
                                 <StackPanel x:Name="panelInvoiceEmpty" VerticalAlignment="Center" HorizontalAlignment="Center">
                                     <Border Width="48" Height="48" CornerRadius="24"
                                             Background="{StaticResource Brush.SurfaceAlt}" HorizontalAlignment="Center">

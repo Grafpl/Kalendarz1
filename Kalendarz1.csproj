@@ -21,6 +21,13 @@
     <None Remove="CnaService\**" />
     <Page Remove="CnaService\**" />
     <EmbeddedResource Remove="CnaService\**" />
+    <!-- ZPSP.Launcher to osobny projekt (mały exe z auto-update) — wykluczamy z głównego -->
+    <Compile Remove="ZPSP.Launcher\**" />
+    <None Remove="ZPSP.Launcher\**" />
+    <Page Remove="ZPSP.Launcher\**" />
+    <EmbeddedResource Remove="ZPSP.Launcher\**" />
+    <!-- DEPLOY scripts excluded -->
+    <None Remove="DEPLOY\**" />
     <EmbeddedResource Remove="Kalendarz\**" />
     <EmbeddedResource Remove="Menu\**" />
     <EmbeddedResource Remove="Nowy folder2\**" />
@@ -58,6 +65,7 @@
 
   <ItemGroup>
     <PackageReference Include="System.Configuration.ConfigurationManager" Version="8.0.1" />
+    <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
     <PackageReference Include="BouncyCastle.Cryptography" Version="2.6.2" />
     <PackageReference Include="ClosedXML" Version="0.105.0" />
     <PackageReference Include="DevExpress.Wpf.Grid" Version="25.2.3" />
@@ -118,6 +126,9 @@
     <Content Include="appsettings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <None Include="Assets\Towary\*.jpg;Assets\Towary\*.jpeg;Assets\Towary\*.png;Assets\Towary\*.webp;Assets\Towary\README.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
   <ItemGroup>
@@ -137,7 +148,6 @@
     <Compile Update="Opakowania\WidokPojemnikiZestawienie.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Update="WidokZamowienia.cs" />
     <Compile Update="Properties\Resources.Designer.cs">
       <DesignTime>True</DesignTime>
       <AutoGen>True</AutoGen>
@@ -146,7 +156,15 @@
     <Compile Update="WidokSprzedazPlan.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Update="WidokCenWszystkich.cs" />
+    <Compile Update="WidokCenWszystkich.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="WidokCenWszystkich.Designer.cs">
+      <DependentUpon>WidokCenWszystkich.cs</DependentUpon>
+    </Compile>
+    <EmbeddedResource Update="WidokCenWszystkich.resx">
+      <DependentUpon>WidokCenWszystkich.cs</DependentUpon>
+    </EmbeddedResource>
     <Compile Update="WidokAvilogPlan.cs">
       <SubType>Form</SubType>
     </Compile>

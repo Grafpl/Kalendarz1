@@ -1,0 +1,582 @@
+<Window x:Class="Kalendarz1.AnalitykaPelna.Windows.SzczegolyKlasyDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:lvc="clr-namespace:LiveCharts.Wpf;assembly=LiveCharts.Wpf"
+        Title="Szczegóły klasy wagowej"
+        Width="1500" Height="940"
+        MinWidth="1200" MinHeight="700"
+        WindowStartupLocation="CenterOwner"
+        Background="#F8FAFC"
+        xmlns:wnd="clr-namespace:Kalendarz1.AnalitykaPelna.Windows"
+        UseLayoutRounding="True"
+        TextOptions.TextFormattingMode="Display">
+    <Window.Resources>
+        <wnd:ZnakConverter x:Key="ZnakConverter"/>
+
+        <!-- Styl przycisków w headerze: hover lighter, smooth corners -->
+        <Style x:Key="HeaderBtnStyle" TargetType="Button">
+            <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}"
+                                CornerRadius="4" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Opacity" Value="0.85"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bd" Property="Opacity" Value="0.7"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Pseudo-divider w KPI strip -->
+        <Style x:Key="KpiDivider" TargetType="Rectangle">
+            <Setter Property="Width" Value="1"/>
+            <Setter Property="Margin" Value="14,8"/>
+            <Setter Property="Fill">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                        <GradientStop Color="#FFFFFF" Offset="0"/>
+                        <GradientStop Color="#CBD5E1" Offset="0.5"/>
+                        <GradientStop Color="#FFFFFF" Offset="1"/>
+                    </LinearGradientBrush>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Etykieta KPI: małe, semibold, uppercase z trackingiem -->
+        <Style x:Key="KpiLabelStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#64748B"/>
+            <Setter Property="Margin" Value="0,0,0,2"/>
+        </Style>
+
+        <!-- Wartość KPI: duża -->
+        <Style x:Key="KpiValueStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="24"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="#0F172A"/>
+        </Style>
+    </Window.Resources>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <!-- 0: Header (gradient) -->
+            <RowDefinition Height="Auto"/>
+            <!-- 1: 6 KPI -->
+            <RowDefinition Height="Auto"/>
+            <!-- 2: Pasek wyboru klas -->
+            <RowDefinition Height="280"/>
+            <!-- 3: 2 wykresy -->
+            <RowDefinition Height="*"/>
+            <!-- 4: Tabela ważeń -->
+            <RowDefinition Height="Auto"/>
+            <!-- 5: Stopka -->
+        </Grid.RowDefinitions>
+
+        <!-- ═══ Header z gradientem ═══ -->
+        <Border x:Name="headerBorder" Grid.Row="0" Padding="24,18">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                    <GradientStop Color="#2563EB" Offset="0"/>
+                    <GradientStop Color="#1E3A8A" Offset="1"/>
+                </LinearGradientBrush>
+            </Border.Background>
+            <Border.Effect>
+                <DropShadowEffect Color="Black" BlurRadius="6" ShadowDepth="2" Opacity="0.15"/>
+            </Border.Effect>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <TextBlock x:Name="txtHeaderTytul" Text="🍗 Klasa 6 — Duży kurczak"
+                               Foreground="White" FontSize="24" FontWeight="Bold">
+                        <TextBlock.Effect>
+                            <DropShadowEffect Color="Black" BlurRadius="3" ShadowDepth="0" Opacity="0.4"/>
+                        </TextBlock.Effect>
+                    </TextBlock>
+                    <TextBlock x:Name="txtHeaderPodtytul"
+                               Text="Pełen rozkład ważeń: hodowcy, partie, standardy vs rzeczywistość"
+                               Foreground="#BFDBFE" FontSize="12" Margin="0,5,0,0"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Content="📥  Eksport CSV"
+                            Background="#1E40AF" Margin="0,0,8,0"
+                            Click="BtnEksport_Click"
+                            Style="{StaticResource HeaderBtnStyle}"
+                            ToolTip="Zapisz aktualny widok do pliku CSV"/>
+                    <Button Content="✕  Zamknij (Esc)"
+                            Background="#DC2626"
+                            Click="BtnZamknij_Click"
+                            Style="{StaticResource HeaderBtnStyle}"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ═══ 6 KPI strip ═══ -->
+        <Border Grid.Row="1" Background="White" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1"
+                Padding="24,16">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="🏷️  WAŻEŃ" Style="{StaticResource KpiLabelStyle}"/>
+                    <TextBlock x:Name="txtKpiWazen" Text="0" Style="{StaticResource KpiValueStyle}"/>
+                </StackPanel>
+                <Rectangle Grid.Column="1" Style="{StaticResource KpiDivider}"/>
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="🐔  HODOWCÓW" Style="{StaticResource KpiLabelStyle}"/>
+                    <TextBlock x:Name="txtKpiHodowcy" Text="0" Style="{StaticResource KpiValueStyle}"/>
+                </StackPanel>
+                <Rectangle Grid.Column="3" Style="{StaticResource KpiDivider}"/>
+                <StackPanel Grid.Column="4">
+                    <TextBlock Text="📦  PARTII" Style="{StaticResource KpiLabelStyle}"/>
+                    <TextBlock x:Name="txtKpiPartii" Text="0" Style="{StaticResource KpiValueStyle}"/>
+                </StackPanel>
+                <Rectangle Grid.Column="5" Style="{StaticResource KpiDivider}"/>
+                <StackPanel Grid.Column="6">
+                    <TextBlock Text="📐  Σ STANDARD (kg)" Style="{StaticResource KpiLabelStyle}"/>
+                    <TextBlock x:Name="txtKpiStandard" Text="0" Style="{StaticResource KpiValueStyle}"
+                               Foreground="#475569"/>
+                </StackPanel>
+                <Rectangle Grid.Column="7" Style="{StaticResource KpiDivider}"/>
+                <StackPanel Grid.Column="8">
+                    <TextBlock Text="⚖️  Σ RZECZYWISTA (kg)" Style="{StaticResource KpiLabelStyle}"/>
+                    <TextBlock x:Name="txtKpiRzeczywista" Text="0" Style="{StaticResource KpiValueStyle}"
+                               Foreground="#7C3AED"/>
+                </StackPanel>
+                <Rectangle Grid.Column="9" Style="{StaticResource KpiDivider}"/>
+                <StackPanel Grid.Column="10">
+                    <TextBlock Text="Δ  DOŁOŻONO (kg / %)" Style="{StaticResource KpiLabelStyle}"/>
+                    <TextBlock x:Name="txtKpiRoznica" Text="0" Style="{StaticResource KpiValueStyle}"
+                               Foreground="#059669"/>
+                    <TextBlock x:Name="txtKpiRoznicaProc" Text="0%" FontSize="11" FontWeight="SemiBold"
+                               Foreground="#94A3B8"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ═══ Pasek wyboru klas (toggle) ═══ -->
+        <Border Grid.Row="2" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1"
+                Padding="24,12">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                    <GradientStop Color="#FAFAFA" Offset="0"/>
+                    <GradientStop Color="#F1F5F9" Offset="1"/>
+                </LinearGradientBrush>
+            </Border.Background>
+            <Border.Resources>
+                <Style x:Key="KlasaToggleStyle" TargetType="ToggleButton">
+                    <Setter Property="Width" Value="44"/>
+                    <Setter Property="Height" Value="36"/>
+                    <Setter Property="Margin" Value="3,0"/>
+                    <Setter Property="Cursor" Value="Hand"/>
+                    <Setter Property="FontWeight" Value="Bold"/>
+                    <Setter Property="FontSize" Value="13"/>
+                    <Setter Property="BorderThickness" Value="1"/>
+                    <Setter Property="Background" Value="#F1F5F9"/>
+                    <Setter Property="Foreground" Value="#475569"/>
+                    <Setter Property="BorderBrush" Value="#CBD5E1"/>
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="ToggleButton">
+                                <Border x:Name="bd" Background="{TemplateBinding Background}"
+                                        BorderBrush="{TemplateBinding BorderBrush}"
+                                        BorderThickness="{TemplateBinding BorderThickness}"
+                                        CornerRadius="4">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="bd" Property="Background" Value="#E0E7FF"/>
+                                        <Setter TargetName="bd" Property="BorderBrush" Value="#818CF8"/>
+                                    </Trigger>
+                                    <Trigger Property="IsChecked" Value="True">
+                                        <Setter TargetName="bd" Property="Background" Value="#7C3AED"/>
+                                        <Setter TargetName="bd" Property="BorderBrush" Value="#5B21B6"/>
+                                        <Setter Property="Foreground" Value="White"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+                <Style x:Key="KlasaToggleDuzy" TargetType="ToggleButton" BasedOn="{StaticResource KlasaToggleStyle}">
+                    <Style.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter Property="Background" Value="#2563EB"/>
+                            <Setter Property="BorderBrush" Value="#1E3A8A"/>
+                            <Setter Property="Foreground" Value="White"/>
+                        </Trigger>
+                    </Style.Triggers>
+                </Style>
+                <Style x:Key="KlasaToggleMaly" TargetType="ToggleButton" BasedOn="{StaticResource KlasaToggleStyle}">
+                    <Style.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter Property="Background" Value="#F97316"/>
+                            <Setter Property="BorderBrush" Value="#9A3412"/>
+                            <Setter Property="Foreground" Value="White"/>
+                        </Trigger>
+                    </Style.Triggers>
+                </Style>
+                <Style x:Key="GrupaBtnStyle" TargetType="Button">
+                    <Setter Property="Padding" Value="10,6"/>
+                    <Setter Property="Margin" Value="3,0"/>
+                    <Setter Property="Cursor" Value="Hand"/>
+                    <Setter Property="Background" Value="#F8FAFC"/>
+                    <Setter Property="BorderBrush" Value="#CBD5E1"/>
+                    <Setter Property="Foreground" Value="#1F2937"/>
+                    <Setter Property="FontSize" Value="11"/>
+                    <Setter Property="FontWeight" Value="SemiBold"/>
+                    <Setter Property="BorderThickness" Value="1"/>
+                </Style>
+            </Border.Resources>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,12,0">
+                    <TextBlock Text="🎯 Klasy:" FontWeight="Bold" FontSize="13" Foreground="#475569"/>
+                    <TextBlock Text="Ctrl + klik = wiele" FontSize="9" Foreground="#94A3B8" FontStyle="Italic"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <!-- Duży kurczak 4-7 (niebieski) -->
+                    <ToggleButton x:Name="kbtn4" Content="4" Tag="4"
+                                  Style="{StaticResource KlasaToggleDuzy}"
+                                  PreviewMouseLeftButtonDown="KlasaBtn_PreviewMouseDown"/>
+                    <ToggleButton x:Name="kbtn5" Content="5" Tag="5"
+                                  Style="{StaticResource KlasaToggleDuzy}"
+                                  PreviewMouseLeftButtonDown="KlasaBtn_PreviewMouseDown"/>
+                    <ToggleButton x:Name="kbtn6" Content="6" Tag="6"
+                                  Style="{StaticResource KlasaToggleDuzy}"
+                                  PreviewMouseLeftButtonDown="KlasaBtn_PreviewMouseDown"/>
+                    <ToggleButton x:Name="kbtn7" Content="7" Tag="7"
+                                  Style="{StaticResource KlasaToggleDuzy}"
+                                  PreviewMouseLeftButtonDown="KlasaBtn_PreviewMouseDown"/>
+
+                    <Rectangle Width="1" Margin="8,4" Fill="#E2E8F0"/>
+
+                    <!-- Mały kurczak 8-12 (pomarańczowy) -->
+                    <ToggleButton x:Name="kbtn8" Content="8" Tag="8"
+                                  Style="{StaticResource KlasaToggleMaly}"
+                                  PreviewMouseLeftButtonDown="KlasaBtn_PreviewMouseDown"/>
+                    <ToggleButton x:Name="kbtn9" Content="9" Tag="9"
+                                  Style="{StaticResource KlasaToggleMaly}"
+                                  PreviewMouseLeftButtonDown="KlasaBtn_PreviewMouseDown"/>
+                    <ToggleButton x:Name="kbtn10" Content="10" Tag="10"
+                                  Style="{StaticResource KlasaToggleMaly}"
+                                  PreviewMouseLeftButtonDown="KlasaBtn_PreviewMouseDown"/>
+                    <ToggleButton x:Name="kbtn11" Content="11" Tag="11"
+                                  Style="{StaticResource KlasaToggleMaly}"
+                                  PreviewMouseLeftButtonDown="KlasaBtn_PreviewMouseDown"/>
+                    <ToggleButton x:Name="kbtn12" Content="12" Tag="12"
+                                  Style="{StaticResource KlasaToggleMaly}"
+                                  PreviewMouseLeftButtonDown="KlasaBtn_PreviewMouseDown"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Content="🍗 Wszystkie 4–7" Click="BtnGrupaDuzy_Click"
+                            Style="{StaticResource GrupaBtnStyle}"/>
+                    <Button Content="🐥 Wszystkie 8–12" Click="BtnGrupaMaly_Click"
+                            Style="{StaticResource GrupaBtnStyle}"/>
+                    <Button Content="∑ Wszystkie 4–12" Click="BtnGrupaWszystkie_Click"
+                            Style="{StaticResource GrupaBtnStyle}"/>
+                    <Button Content="↺ Tylko ta klasa" Click="BtnGrupaReset_Click"
+                            Style="{StaticResource GrupaBtnStyle}"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ═══ 2 wykresy obok siebie ═══ -->
+        <Grid Grid.Row="3" Margin="20,12,20,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Background="White" BorderBrush="#E2E8F0" BorderThickness="1"
+                    CornerRadius="6" Padding="14,10" Margin="0,0,6,0">
+                <Border.Effect>
+                    <DropShadowEffect Color="Black" BlurRadius="6" ShadowDepth="1" Opacity="0.06"/>
+                </Border.Effect>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" Text="📊  Histogram rzeczywistej wagi palety (bin 10 kg)"
+                               FontWeight="Bold" Foreground="#1F2937" FontSize="13"
+                               Margin="0,0,0,8"/>
+                    <lvc:CartesianChart Grid.Row="1" x:Name="wykresHistogram" LegendLocation="None">
+                        <lvc:CartesianChart.AxisX>
+                            <lvc:Axis x:Name="osXHistogram" Title="Waga (kg)" Foreground="#475569"/>
+                        </lvc:CartesianChart.AxisX>
+                        <lvc:CartesianChart.AxisY>
+                            <lvc:Axis x:Name="osYHistogram" Title="Liczba ważeń" Foreground="#475569"/>
+                        </lvc:CartesianChart.AxisY>
+                    </lvc:CartesianChart>
+                </Grid>
+            </Border>
+
+            <Border Grid.Column="1" Background="White" BorderBrush="#E2E8F0" BorderThickness="1"
+                    CornerRadius="6" Padding="14,10" Margin="6,0,0,0">
+                <Border.Effect>
+                    <DropShadowEffect Color="Black" BlurRadius="6" ShadowDepth="1" Opacity="0.06"/>
+                </Border.Effect>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" Text="🐔  Top 10 hodowców (suma kg w klasie)"
+                               FontWeight="Bold" Foreground="#1F2937" FontSize="13"
+                               Margin="0,0,0,8"/>
+                    <lvc:CartesianChart Grid.Row="1" x:Name="wykresHodowcy" LegendLocation="None">
+                        <lvc:CartesianChart.AxisX>
+                            <lvc:Axis x:Name="osXHodowcy" Foreground="#475569" Title="Suma kg"/>
+                        </lvc:CartesianChart.AxisX>
+                        <lvc:CartesianChart.AxisY>
+                            <lvc:Axis x:Name="osYHodowcy" Foreground="#475569"/>
+                        </lvc:CartesianChart.AxisY>
+                    </lvc:CartesianChart>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- ═══ Tabela ważeń ═══ -->
+        <Border Grid.Row="4" Background="White" BorderBrush="#E2E8F0" BorderThickness="1"
+                CornerRadius="6" Margin="20,0,20,12" ClipToBounds="True">
+            <Border.Effect>
+                <DropShadowEffect Color="Black" BlurRadius="6" ShadowDepth="1" Opacity="0.06"/>
+            </Border.Effect>
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Toolbar: quick filter + licznik -->
+                <Border Grid.Row="0" BorderBrush="#E2E8F0"
+                        BorderThickness="0,0,0,1" Padding="14,10">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                            <GradientStop Color="#FAFAFA" Offset="0"/>
+                            <GradientStop Color="#F1F5F9" Offset="1"/>
+                        </LinearGradientBrush>
+                    </Border.Background>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid Grid.Column="0">
+                            <TextBox x:Name="txtFiltr" Padding="32,7,8,7" FontSize="13"
+                                     BorderBrush="#CBD5E1" BorderThickness="1"
+                                     Background="White"
+                                     TextChanged="TxtFiltr_TextChanged">
+                                <TextBox.Resources>
+                                    <Style TargetType="Border">
+                                        <Setter Property="CornerRadius" Value="4"/>
+                                    </Style>
+                                </TextBox.Resources>
+                            </TextBox>
+                            <TextBlock Text="🔍" FontSize="14" IsHitTestVisible="False"
+                                       Foreground="#94A3B8" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="txtFiltrPlaceholder"
+                                       Text="Filtruj po hodowcy / partii / operatorze…"
+                                       FontStyle="Italic" Foreground="#94A3B8" FontSize="13"
+                                       IsHitTestVisible="False"
+                                       Margin="36,0,0,0" VerticalAlignment="Center"/>
+                        </Grid>
+                        <Button Grid.Column="1" Content="✕" Padding="10,6" Margin="8,0,0,0"
+                                Background="#F1F5F9" Foreground="#475569" FontWeight="Bold"
+                                BorderBrush="#CBD5E1" BorderThickness="1"
+                                Cursor="Hand" Click="BtnWyczyscFiltr_Click"
+                                ToolTip="Wyczyść filtr"/>
+                        <TextBlock Grid.Column="2" x:Name="txtLicznik"
+                                   Text="0 ważeń" Margin="14,0,4,0"
+                                   FontSize="12" FontWeight="SemiBold" Foreground="#475569"
+                                   VerticalAlignment="Center"/>
+                    </Grid>
+                </Border>
+
+                <DataGrid Grid.Row="1" x:Name="dgWazenia"
+                          AutoGenerateColumns="False" IsReadOnly="True"
+                          HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                          RowBackground="White" AlternatingRowBackground="#F8FAFC"
+                          BorderThickness="0" RowHeight="30" FontSize="12.5"
+                          EnableRowVirtualization="True"
+                          VerticalGridLinesBrush="#F1F5F9"
+                          HorizontalGridLinesBrush="#F1F5F9">
+                    <DataGrid.Resources>
+                        <Style TargetType="DataGridColumnHeader">
+                            <Setter Property="Background" Value="#1F2937"/>
+                            <Setter Property="Foreground" Value="White"/>
+                            <Setter Property="FontWeight" Value="Bold"/>
+                            <Setter Property="FontSize" Value="11"/>
+                            <Setter Property="Padding" Value="10,8"/>
+                            <Setter Property="BorderBrush" Value="#374151"/>
+                            <Setter Property="BorderThickness" Value="0,0,1,0"/>
+                        </Style>
+                    </DataGrid.Resources>
+                    <DataGrid.RowStyle>
+                        <Style TargetType="DataGridRow">
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="#EEF2FF"/>
+                                </Trigger>
+                                <Trigger Property="IsSelected" Value="True">
+                                    <Setter Property="Background" Value="#DBEAFE"/>
+                                    <Setter Property="Foreground" Value="#0F172A"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGrid.RowStyle>
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Data" Binding="{Binding Data, StringFormat=dd.MM.yyyy}" Width="90"/>
+                        <DataGridTextColumn Header="Godz." Binding="{Binding Godzina, StringFormat=HH:mm:ss}" Width="80"/>
+                        <DataGridTextColumn Header="🐔 Hodowca" Binding="{Binding Hodowca}" Width="*" MinWidth="150"/>
+                        <DataGridTextColumn Header="📦 Partia" Binding="{Binding Partia}" Width="120"/>
+                        <DataGridTextColumn Header="👤 Operator" Binding="{Binding Wagowy}" Width="130"/>
+                        <DataGridTextColumn Header="Klasa" Binding="{Binding Klasa}" Width="55">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Center"/>
+                                    <Setter Property="FontWeight" Value="Bold"/>
+                                    <Setter Property="Foreground" Value="#7C3AED"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="Standard kg" Binding="{Binding Weight, StringFormat=N1}" Width="100">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Right"/>
+                                    <Setter Property="Foreground" Value="#94A3B8"/>
+                                    <Setter Property="Padding" Value="0,0,8,0"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="Rzeczywista kg" Binding="{Binding ActWeight, StringFormat=N1}" Width="120">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Right"/>
+                                    <Setter Property="FontWeight" Value="Bold"/>
+                                    <Setter Property="Foreground" Value="#0F172A"/>
+                                    <Setter Property="Padding" Value="0,0,8,0"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="Δ kg" Binding="{Binding Roznica, StringFormat=N1}" Width="80">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Right"/>
+                                    <Setter Property="FontWeight" Value="Bold"/>
+                                    <Setter Property="Padding" Value="0,0,8,0"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Roznica, Converter={StaticResource ZnakConverter}}" Value="1">
+                                            <Setter Property="Foreground" Value="#059669"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding Roznica, Converter={StaticResource ZnakConverter}}" Value="-1">
+                                            <Setter Property="Foreground" Value="#DC2626"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="Δ %" Binding="{Binding RoznicaProc, StringFormat=N1}" Width="70">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Right"/>
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                    <Setter Property="Padding" Value="0,0,8,0"/>
+                                    <Setter Property="Foreground" Value="#64748B"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="% z partii" Binding="{Binding ProcentZPartii, StringFormat=N2}" Width="90">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Right"/>
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                    <Setter Property="Foreground" Value="#7C3AED"/>
+                                    <Setter Property="Padding" Value="0,0,8,0"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="Tara" Binding="{Binding Tara, StringFormat=N1}" Width="60">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Right"/>
+                                    <Setter Property="Foreground" Value="#94A3B8"/>
+                                    <Setter Property="Padding" Value="0,0,6,0"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
+        </Border>
+
+        <!-- ═══ Stopka ═══ -->
+        <Border Grid.Row="5" BorderBrush="#E2E8F0"
+                BorderThickness="0,1,0,0" Padding="24,10">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                    <GradientStop Color="#F1F5F9" Offset="0"/>
+                    <GradientStop Color="#E2E8F0" Offset="1"/>
+                </LinearGradientBrush>
+            </Border.Background>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="⌨️" FontSize="13" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="txtStopka"
+                               Text="Esc — zamknij  •  Dwuklik w głównej tabeli klas otwiera szczegóły  •  Ctrl+klik = wybór wielu klas"
+                               Foreground="#64748B" FontSize="11" FontWeight="SemiBold"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="⏱️" FontSize="13" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="txtCzasLad"
+                               Text="" Foreground="#64748B" FontSize="11" FontWeight="SemiBold"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

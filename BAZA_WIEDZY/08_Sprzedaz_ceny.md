@@ -200,3 +200,42 @@ Każdy kg który trafia do mroźni traci **~18% wartości** vs cena świeżej.
 1. **Marża top-down w Dashboardzie Sprzedaży** — algorytm jak wyżej (Task #30, pending)
 2. **Alert „Niesprzedane na piątek"** — bufor musi spaść do 0 (Task #31, pending)
 3. **Awansowanie Teresy → Dyrektor Handlowy** — workflow w ZPSP dla niej (do rozmowy)
+
+---
+
+## Moduł analityczny cen — "Pokaż ceny" (WidokCenWszystkich)
+
+> Pełna dokumentacja: `27_WidokCenWszystkich_modul.md`.
+
+**Otwierany z:** menu kontekstowego "Pokaż ceny" w `WidokKalendarzaWPF` (kalendarz dostaw żywca).
+**6 serii cen + 2 różnice:** Minister, Laczona, Rolnicza, Wolnorynkowa, Tuszka Zrzeszenia, Nasza Tuszka.
+
+**11 zakładek analitycznych:**
+- 📋 **Dane** (heat-mapa) • 📈 **Wykres Zakupowy/Sprzedażowy/Łączony** • 🎯 **Przebitka**
+- 📆 **Sezonowość** (heatmap roczny) • 🗓 **Tygodnie** (dni tyg) • 📈 **YoY** (Day/Week/Month/Quarter + 2 przebitki)
+- 📋 **Kontrakty vs Wolny rynek** (analiza HarmonogramDostaw) • 🌾 **Pasze→Żywiec** (korelacja) • 📦 **Klienci Top-N**
+
+### Kontrakty vs Wolny rynek — klasyfikacja TypCeny
+
+Źródło: `LibraNet.dbo.HarmonogramDostaw` (`Bufor = 'Potwierdzony'`).
+
+```sql
+CASE WHEN LOWER(TypCeny) IN ('wolnyrynek', 'wolnorynkowa')
+     THEN 'Wolny' ELSE 'Kontrakt' END
+```
+
+| Kategoria | TypCeny | Cena/kg (z 04_Klienci_dostawcy.md) |
+|---|---|---|
+| **Wolny rynek** | `wolnyrynek`, `wolnorynkowa` | 4.00 zł |
+| **Kontrakt: Rolnicza** | `rolnicza` | 4.40 zł |
+| **Kontrakt: Ministerialna** | `ministerialna` | 5.23 zł |
+| **Kontrakt: Łączona** | `łączona` | (między) |
+
+**Cel firmowy:** 50/50 kontrakt/wolny rynek (procedury 01).
+
+**Co liczy analiza Kontrakty:**
+- Średnia ważona cena per okres (`Σ(Cena × Sztuki) / Σ(Sztuki)`)
+- Udział wolumenowy 100% stacked bar (kontrakt + wolny = 100%)
+- Wolumen = `SztukiDek × WagaDek` (kg żywca)
+- Tabela szczegółowa per oryginalny `TypCeny` (kg, %, śr. cena, dostawców)
+- DBLCLICK na wiersz → dialog z listą wszystkich dostaw danego TypCeny (search + eksport CSV)

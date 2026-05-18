@@ -1,0 +1,267 @@
+<UserControl x:Class="Kalendarz1.AnalitykaPelna.Views.WidokRealizacja"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ctrl="clr-namespace:Kalendarz1.AnalitykaPelna.Controls"
+             Background="#F8FAFC">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <!-- KPI strip -->
+            <RowDefinition Height="*"/>
+            <!-- TabControl -->
+            <RowDefinition Height="Auto"/>
+            <!-- Stopka -->
+        </Grid.RowDefinitions>
+
+        <!-- ═══ 5 KPI ═══ -->
+        <UniformGrid Grid.Row="0" Rows="1" Columns="5" Margin="0,0,0,16">
+            <ctrl:KpiKafel x:Name="kpiSumaKg"
+                           Tytul="SUMA KG" Wartosc="0" Jednostka="kg"
+                           Ikona="⚖" Margin="0,0,8,0">
+                <ctrl:KpiKafel.Kolor>
+                    <SolidColorBrush Color="#0891B2"/>
+                </ctrl:KpiKafel.Kolor>
+            </ctrl:KpiKafel>
+            <ctrl:KpiKafel x:Name="kpiLiczbaWazen"
+                           Tytul="WAŻEŃ" Wartosc="0" Jednostka="rekordów"
+                           Ikona="🔢" Margin="0,0,8,0">
+                <ctrl:KpiKafel.Kolor>
+                    <SolidColorBrush Color="#059669"/>
+                </ctrl:KpiKafel.Kolor>
+            </ctrl:KpiKafel>
+            <ctrl:KpiKafel x:Name="kpiAnulacje"
+                           Tytul="ANULACJE" Wartosc="0" Jednostka="storno"
+                           Ikona="⚠" Margin="0,0,8,0">
+                <ctrl:KpiKafel.Kolor>
+                    <SolidColorBrush Color="#DC2626"/>
+                </ctrl:KpiKafel.Kolor>
+            </ctrl:KpiKafel>
+            <ctrl:KpiKafel x:Name="kpiTempo"
+                           Tytul="TEMPO" Wartosc="0" Jednostka="kg/godz"
+                           Ikona="⚡" Margin="0,0,8,0">
+                <ctrl:KpiKafel.Kolor>
+                    <SolidColorBrush Color="#F59E0B"/>
+                </ctrl:KpiKafel.Kolor>
+            </ctrl:KpiKafel>
+            <ctrl:KpiKafel x:Name="kpiOperatorzy"
+                           Tytul="OPERATORZY" Wartosc="0" Jednostka="aktywnych"
+                           Ikona="👤">
+                <ctrl:KpiKafel.Kolor>
+                    <SolidColorBrush Color="#7C3AED"/>
+                </ctrl:KpiKafel.Kolor>
+            </ctrl:KpiKafel>
+        </UniformGrid>
+
+        <!-- ═══ TabControl ═══ -->
+        <TabControl Grid.Row="1" BorderThickness="0" Background="Transparent" Padding="0">
+            <TabControl.Resources>
+                <Style TargetType="TabItem">
+                    <Setter Property="Padding" Value="16,8"/>
+                    <Setter Property="FontSize" Value="13"/>
+                    <Setter Property="FontWeight" Value="SemiBold"/>
+                    <Setter Property="Background" Value="Transparent"/>
+                    <Setter Property="Foreground" Value="#475569"/>
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="TabItem">
+                                <Border x:Name="b" Background="{TemplateBinding Background}"
+                                        BorderBrush="Transparent" BorderThickness="0,0,0,2"
+                                        Padding="{TemplateBinding Padding}">
+                                    <ContentPresenter ContentSource="Header"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter Property="Foreground" Value="#7C3AED"/>
+                                        <Setter TargetName="b" Property="BorderBrush" Value="#7C3AED"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </TabControl.Resources>
+
+            <!-- ─── Operatorzy + Zmiany ─── -->
+            <TabItem Header="👤 Operatorzy + Zmiany">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="3*"/>
+                        <ColumnDefinition Width="2*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Ranking operatorów z progressbarem -->
+                    <Border Grid.Column="0" Background="White" BorderBrush="#E2E8F0" BorderThickness="1"
+                            CornerRadius="8" Padding="12" Margin="0,0,8,0">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Text="🏆 Ranking operatorów" FontWeight="Bold" FontSize="14"
+                                       Foreground="#0F172A" Margin="0,0,0,8"/>
+                            <DataGrid Grid.Row="1" x:Name="dgOperatorzy"
+                                      AutoGenerateColumns="False" IsReadOnly="True"
+                                      HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                      RowBackground="White" AlternatingRowBackground="#FAFAFA"
+                                      BorderThickness="0" RowHeight="32" FontSize="12">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="#" Binding="{Binding Pozycja}" Width="30"/>
+                                    <DataGridTextColumn Header="Operator" Binding="{Binding Wagowy}" Width="*"/>
+                                    <DataGridTextColumn Header="Ważeń" Binding="{Binding LiczbaWazen, StringFormat=N0}" Width="60"/>
+                                    <DataGridTextColumn Header="Anul." Binding="{Binding LiczbaAnulacji, StringFormat=N0}" Width="50"/>
+                                    <DataGridTextColumn Header="Suma kg" Binding="{Binding SumaKg, StringFormat=N0}" Width="80"/>
+                                    <DataGridTextColumn Header="Śr. kg" Binding="{Binding SredniaKg, StringFormat=N1}" Width="60"/>
+                                    <DataGridTemplateColumn Header="% lidera" Width="120">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <Grid>
+                                                    <ProgressBar Value="{Binding ProcentLidera}" Maximum="100"
+                                                                 Height="14" Foreground="#7C3AED" Background="#F1F5F9"
+                                                                 BorderThickness="0"/>
+                                                    <TextBlock Text="{Binding ProcentLidera, StringFormat=N0}"
+                                                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                               FontSize="10" FontWeight="SemiBold" Foreground="#0F172A"/>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Grid>
+                    </Border>
+
+                    <!-- Statystyki zmian -->
+                    <Border Grid.Column="1" Background="White" BorderBrush="#E2E8F0" BorderThickness="1"
+                            CornerRadius="8" Padding="12" Margin="8,0,0,0">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Text="🌗 Zmiany dzień / noc" FontWeight="Bold" FontSize="14"
+                                       Foreground="#0F172A" Margin="0,0,0,8"/>
+                            <DataGrid Grid.Row="1" x:Name="dgZmiany"
+                                      AutoGenerateColumns="False" IsReadOnly="True"
+                                      HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                      RowBackground="White" AlternatingRowBackground="#FAFAFA"
+                                      BorderThickness="0" RowHeight="28" FontSize="12">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Data" Binding="{Binding Data, StringFormat=dd.MM.yyyy}" Width="*"/>
+                                    <DataGridTextColumn Header="☀ Dzienna kg" Binding="{Binding KgZmianaDzienna, StringFormat=N0}" Width="*"/>
+                                    <DataGridTextColumn Header="🌙 Nocna kg" Binding="{Binding KgZmianaNocna, StringFormat=N0}" Width="*"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- ─── Partie ─── -->
+            <TabItem Header="📦 Partie">
+                <Border Background="White" BorderBrush="#E2E8F0" BorderThickness="1"
+                        CornerRadius="8" ClipToBounds="True">
+                    <DataGrid x:Name="dgPartie" AutoGenerateColumns="False" IsReadOnly="True"
+                              HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                              RowBackground="White" AlternatingRowBackground="#FAFAFA"
+                              BorderThickness="0" RowHeight="30" FontSize="12"
+                              MouseDoubleClick="DgPartie_MouseDoubleClick">
+                        <DataGrid.Resources>
+                            <Style TargetType="DataGridColumnHeader">
+                                <Setter Property="Background" Value="#F8FAFC"/>
+                                <Setter Property="Foreground" Value="#475569"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                <Setter Property="FontSize" Value="11"/>
+                                <Setter Property="Padding" Value="8,6"/>
+                                <Setter Property="BorderBrush" Value="#E2E8F0"/>
+                                <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                            </Style>
+                        </DataGrid.Resources>
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Partia" Binding="{Binding Partia}" Width="120"/>
+                            <DataGridTextColumn Header="Hodowca" Binding="{Binding Hodowca}" Width="*"/>
+                            <DataGridTextColumn Header="Pierwsze" Binding="{Binding PierwszeWazenie, StringFormat=dd.MM HH:mm}" Width="100"/>
+                            <DataGridTextColumn Header="Ostatnie" Binding="{Binding OstatnieWazenie, StringFormat=dd.MM HH:mm}" Width="100"/>
+                            <DataGridTextColumn Header="Ważeń" Binding="{Binding LiczbaWazen, StringFormat=N0}" Width="70"/>
+                            <DataGridTextColumn Header="Suma kg" Binding="{Binding SumaKg, StringFormat=N0}" Width="100">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                        <Setter Property="Foreground" Value="#7C3AED"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+            </TabItem>
+
+            <!-- ─── Mapa cieplna godzin ─── -->
+            <TabItem Header="🔥 Mapa cieplna godzin">
+                <Border Background="White" BorderBrush="#E2E8F0" BorderThickness="1"
+                        CornerRadius="8" ClipToBounds="True">
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                        <DataGrid x:Name="dgHeatmapa" AutoGenerateColumns="False" IsReadOnly="True"
+                                  HeadersVisibility="Column" GridLinesVisibility="All"
+                                  RowBackground="White" BorderThickness="0"
+                                  RowHeight="28" FontSize="11"
+                                  HorizontalGridLinesBrush="#F1F5F9" VerticalGridLinesBrush="#F1F5F9">
+                            <DataGrid.Resources>
+                                <Style TargetType="DataGridColumnHeader">
+                                    <Setter Property="Background" Value="#F8FAFC"/>
+                                    <Setter Property="Foreground" Value="#475569"/>
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                    <Setter Property="FontSize" Value="10"/>
+                                    <Setter Property="Padding" Value="4,4"/>
+                                    <Setter Property="BorderBrush" Value="#E2E8F0"/>
+                                    <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                                </Style>
+                            </DataGrid.Resources>
+                        </DataGrid>
+                    </ScrollViewer>
+                </Border>
+            </TabItem>
+
+            <!-- ─── Wszystkie ważenia (top 1000) ─── -->
+            <TabItem Header="📋 Wszystkie ważenia">
+                <Border Background="White" BorderBrush="#E2E8F0" BorderThickness="1"
+                        CornerRadius="8" ClipToBounds="True">
+                    <DataGrid x:Name="dgWazenia" AutoGenerateColumns="False" IsReadOnly="True"
+                              HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                              RowBackground="White" AlternatingRowBackground="#FAFAFA"
+                              BorderThickness="0" RowHeight="26" FontSize="11"
+                              EnableRowVirtualization="True" EnableColumnVirtualization="True">
+                        <DataGrid.Resources>
+                            <Style TargetType="DataGridColumnHeader">
+                                <Setter Property="Background" Value="#F8FAFC"/>
+                                <Setter Property="Foreground" Value="#475569"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                <Setter Property="FontSize" Value="11"/>
+                                <Setter Property="Padding" Value="8,6"/>
+                                <Setter Property="BorderBrush" Value="#E2E8F0"/>
+                                <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                            </Style>
+                        </DataGrid.Resources>
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Data" Binding="{Binding Data, StringFormat=dd.MM.yyyy}" Width="80"/>
+                            <DataGridTextColumn Header="Godz." Binding="{Binding Godzina, StringFormat=HH:mm:ss}" Width="70"/>
+                            <DataGridTextColumn Header="Towar" Binding="{Binding NazwaTowaru}" Width="*" MinWidth="160"/>
+                            <DataGridTextColumn Header="Standard" Binding="{Binding Weight, StringFormat=N1}" Width="70"/>
+                            <DataGridTextColumn Header="Rzecz." Binding="{Binding ActWeight, StringFormat=N1}" Width="70"/>
+                            <DataGridTextColumn Header="Δ" Binding="{Binding Roznica, StringFormat=N1}" Width="60"/>
+                            <DataGridTextColumn Header="Operator" Binding="{Binding Wagowy}" Width="120"/>
+                            <DataGridTextColumn Header="Partia" Binding="{Binding Partia}" Width="100"/>
+                            <DataGridTextColumn Header="Hodowca" Binding="{Binding Hodowca}" Width="*" MinWidth="120"/>
+                            <DataGridTextColumn Header="Klasa" Binding="{Binding Klasa}" Width="50"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+            </TabItem>
+        </TabControl>
+
+        <!-- ═══ Stopka ═══ -->
+        <TextBlock Grid.Row="2" x:Name="txtInfo"
+                   Text="Wybierz zakres i kliknij Zastosuj"
+                   Foreground="#64748B" FontSize="11" FontStyle="Italic"
+                   Margin="0,8,0,0" HorizontalAlignment="Right"/>
+    </Grid>
+</UserControl>

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading.Tasks;
 using Microsoft.Data.SqlClient;
 using Kalendarz1.Kartoteka.Models;
@@ -16,6 +17,102 @@ namespace Kalendarz1.Kartoteka.Features.Scoring
             _connLibra = connLibra;
             _connHandel = connHandel;
         }
+
+        #region SQL helpers
+
+        // Wszystkie helpery łapią wyjątki i logują przez Debug.WriteLine z kontekstem (ctx)
+        // — wzorzec wymuszony przez wymaganie "żadnych cichych catch" w module Kartoteka.
+
+        private async Task<T> QueryScalarAsync<T>(string connStr, string sql, Action<SqlCommand> bindParams, T defaultValue, string ctx)
+        {
+            try
+            {
+                await using var cn = new SqlConnection(connStr);
+                await cn.OpenAsync();
+                await using var cmd = new SqlCommand(sql, cn);
+                bindParams?.Invoke(cmd);
+                var result = await cmd.ExecuteScalarAsync();
+                if (result == null || result == DBNull.Value) return defaultValue;
+                return (T)Convert.ChangeType(result, typeof(T));
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Scoring.{ctx}] {ex.GetType().Name}: {ex.Message}");
+                return defaultValue;
+            }
+        }
+
+        private async Task<T> QuerySingleAsync<T>(string connStr, string sql, Action<SqlCommand> bindParams, Func<SqlDataReader, T> mapper, T defaultValue, string ctx)
+        {
+            try
+            {
+                await using var cn = new SqlConnection(connStr);
+                await cn.OpenAsync();
+                await using var cmd = new SqlCommand(sql, cn);
+                bindParams?.Invoke(cmd);
+                await using var rd = await cmd.ExecuteReaderAsync();
+                if (await rd.ReadAsync()) return mapper(rd);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Scoring.{ctx}] {ex.GetType().Name}: {ex.Message}");
+            }
+            return defaultValue;
+        }
+
+        private async Task<List<T>> QueryListAsync<T>(string connStr, string sql, Action<SqlCommand> bindParams, Func<SqlDataReader, T> mapper, string ctx)
+        {
+            var wynik = new List<T>();
+            try
+            {
+                await using var cn = new SqlConnection(connStr);
+                await cn.OpenAsync();
+                await using var cmd = new SqlCommand(sql, cn);
+                bindParams?.Invoke(cmd);
+                await using var rd = await cmd.ExecuteReaderAsync();
+                while (await rd.ReadAsync()) wynik.Add(mapper(rd));
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Scoring.{ctx}] {ex.GetType().Name}: {ex.Message}");
+            }
+            return wynik;
+        }
+
+        private async Task<int> ExecuteAsync(string connStr, string sql, Action<SqlCommand> bindParams, string ctx)
+        {
+            try
+            {
+                await using var cn = new SqlConnection(connStr);
+                await cn.OpenAsync();
+                await using var cmd = new SqlCommand(sql, cn);
+                bindParams?.Invoke(cmd);
+                return await cmd.ExecuteNonQueryAsync();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Scoring.{ctx}] {ex.GetType().Name}: {ex.Message}");
+                return -1;
+            }
+        }
+
+        private static ScoringResult MapScoringResult(SqlDataReader rd) => new ScoringResult
+        {
+            Id = rd.GetInt32(0),
+            KlientId = rd.GetInt32(1),
+            TerminowoscPkt = rd.IsDBNull(2) ? 0 : rd.GetInt32(2),
+            HistoriaPkt = rd.IsDBNull(3) ? 0 : rd.GetInt32(3),
+            RegularnoscPkt = rd.IsDBNull(4) ? 0 : rd.GetInt32(4),
+            TrendPkt = rd.IsDBNull(5) ? 0 : rd.GetInt32(5),
+            LimitPkt = rd.IsDBNull(6) ? 0 : rd.GetInt32(6),
+            ScoreTotal = rd.IsDBNull(7) ? 0 : rd.GetInt32(7),
+            Kategoria = rd.IsDBNull(8) ? null : rd.GetString(8),
+            RekomendacjaLimitu = rd.IsDBNull(9) ? 0 : rd.GetDecimal(9),
+            RekomendacjaOpis = rd.IsDBNull(10) ? null : rd.GetString(10),
+            DataObliczenia = rd.IsDBNull(11) ? DateTime.Now : rd.GetDateTime(11)
+        };
+
+        #endregion
 
         public async Task EnsureTableExistsAsync()
         {
@@ -40,10 +137,7 @@ namespace Kalendarz1.Kartoteka.Features.Scoring
                     CREATE NONCLUSTERED INDEX IX_Scoring_Score ON dbo.KartotekaScoring (ScoreTotal DESC);
                 END";
 
-            await using var cn = new SqlConnection(_connLibra);
-            await cn.OpenAsync();
-            await using var cmd = new SqlCommand(sql, cn);
-            await cmd.ExecuteNonQueryAsync();
+            await ExecuteAsync(_connLibra, sql, null, "EnsureTable");
         }
 
         public async Task<ScoringResult> ObliczScoringAsync(int klientId)
@@ -87,7 +181,7 @@ namespace Kalendarz1.Kartoteka.Features.Scoring
             return result;
         }
 
-        private async Task<(int faktury, int terminowe)> PobierzTerminowoscAsync(int klientId)
+        private Task<(int faktury, int terminowe)> PobierzTerminowoscAsync(int klientId)
         {
             // HM.DK: khid=kontrahent, data=data faktury, plattermin=termin płatności, ok=rozliczony
             // HM.PN: dkid=FK do DK, kwotarozl=kwota rozliczona, Termin=data faktycznej zapłaty
@@ -107,21 +201,15 @@ namespace Kalendarz1.Kartoteka.Features.Scoring
                   AND DK.anulowany = 0
                   AND DK.data >= DATEADD(YEAR, -2, GETDATE())";
 
-            try
-            {
-                await using var cn = new SqlConnection(_connHandel);
-                await cn.OpenAsync();
-                await using var cmd = new SqlCommand(sql, cn);
-                cmd.Parameters.AddWithValue("@KlientId", klientId);
-                await using var rd = await cmd.ExecuteReaderAsync();
-                if (await rd.ReadAsync())
-                    return (rd.GetInt32(0), rd.IsDBNull(1) ? 0 : rd.GetInt32(1));
-            }
-            catch { }
-            return (0, 0);
+            return QuerySingleAsync(
+                _connHandel, sql,
+                cmd => cmd.Parameters.AddWithValue("@KlientId", klientId),
+                rd => (rd.GetInt32(0), rd.IsDBNull(1) ? 0 : rd.GetInt32(1)),
+                (0, 0),
+                "Terminowosc");
         }
 
-        private async Task<DateTime?> PobierzPierwszaFaktureAsync(int klientId)
+        private Task<DateTime?> PobierzPierwszaFaktureAsync(int klientId)
         {
             const string sql = @"SELECT MIN(DK.data)
                                  FROM [HM].[DK] DK
@@ -129,41 +217,31 @@ namespace Kalendarz1.Kartoteka.Features.Scoring
                                    AND DK.typ_dk IN ('FVS', 'FVR', 'FVZ')
                                    AND DK.aktywny = 1
                                    AND DK.anulowany = 0";
-            try
-            {
-                await using var cn = new SqlConnection(_connHandel);
-                await cn.OpenAsync();
-                await using var cmd = new SqlCommand(sql, cn);
-                cmd.Parameters.AddWithValue("@KlientId", klientId);
-                var result = await cmd.ExecuteScalarAsync();
-                return result != null && result != DBNull.Value ? (DateTime)result : null;
-            }
-            catch { return null; }
+
+            return QuerySingleAsync<DateTime?>(
+                _connHandel, sql,
+                cmd => cmd.Parameters.AddWithValue("@KlientId", klientId),
+                rd => rd.IsDBNull(0) ? (DateTime?)null : rd.GetDateTime(0),
+                null,
+                "PierwszaFaktura");
         }
 
-        private async Task<List<DateTime>> PobierzDatyZamowienAsync(int klientId)
+        private Task<List<DateTime>> PobierzDatyZamowienAsync(int klientId)
         {
             const string sql = @"SELECT DISTINCT CAST(DataUtworzenia AS DATE) AS DataZam
                                  FROM dbo.ZamowieniaMieso
                                  WHERE KlientId = @KlientId AND Status != 'Anulowane'
                                    AND DataUtworzenia >= DATEADD(MONTH, -6, GETDATE())
                                  ORDER BY DataZam";
-            var wynik = new List<DateTime>();
-            try
-            {
-                await using var cn = new SqlConnection(_connLibra);
-                await cn.OpenAsync();
-                await using var cmd = new SqlCommand(sql, cn);
-                cmd.Parameters.AddWithValue("@KlientId", klientId);
-                await using var rd = await cmd.ExecuteReaderAsync();
-                while (await rd.ReadAsync())
-                    wynik.Add(rd.GetDateTime(0));
-            }
-            catch { }
-            return wynik;
+
+            return QueryListAsync(
+                _connLibra, sql,
+                cmd => cmd.Parameters.AddWithValue("@KlientId", klientId),
+                rd => rd.GetDateTime(0),
+                "DatyZamowien");
         }
 
-        private async Task<(decimal biezace, decimal poprzednie)> PobierzObrotyAsync(int klientId)
+        private Task<(decimal biezace, decimal poprzednie)> PobierzObrotyAsync(int klientId)
         {
             const string sql = @"
                 SELECT
@@ -175,21 +253,16 @@ namespace Kalendarz1.Kartoteka.Features.Scoring
                   AND DK.aktywny = 1
                   AND DK.anulowany = 0
                   AND DK.data >= DATEADD(YEAR, -1, GETDATE())";
-            try
-            {
-                await using var cn = new SqlConnection(_connHandel);
-                await cn.OpenAsync();
-                await using var cmd = new SqlCommand(sql, cn);
-                cmd.Parameters.AddWithValue("@KlientId", klientId);
-                await using var rd = await cmd.ExecuteReaderAsync();
-                if (await rd.ReadAsync())
-                    return (rd.GetDecimal(0), rd.GetDecimal(1));
-            }
-            catch { }
-            return (0, 0);
+
+            return QuerySingleAsync(
+                _connHandel, sql,
+                cmd => cmd.Parameters.AddWithValue("@KlientId", klientId),
+                rd => (rd.GetDecimal(0), rd.GetDecimal(1)),
+                (0m, 0m),
+                "Obroty");
         }
 
-        private async Task<(decimal limit, decimal wykorzystano)> PobierzLimitAsync(int klientId)
+        private Task<(decimal limit, decimal wykorzystano)> PobierzLimitAsync(int klientId)
         {
             // LimitAmount = limit kupiecki, naleznosci = suma otwartych faktur
             const string sql = @"
@@ -212,21 +285,16 @@ namespace Kalendarz1.Kartoteka.Features.Scoring
                     ), 0) AS Naleznosci
                 FROM [SSCommon].[STContractors] C
                 WHERE C.Id = @KlientId";
-            try
-            {
-                await using var cn = new SqlConnection(_connHandel);
-                await cn.OpenAsync();
-                await using var cmd = new SqlCommand(sql, cn);
-                cmd.Parameters.AddWithValue("@KlientId", klientId);
-                await using var rd = await cmd.ExecuteReaderAsync();
-                if (await rd.ReadAsync())
-                    return (rd.GetDecimal(0), rd.GetDecimal(1));
-            }
-            catch { }
-            return (0, 0);
+
+            return QuerySingleAsync(
+                _connHandel, sql,
+                cmd => cmd.Parameters.AddWithValue("@KlientId", klientId),
+                rd => (rd.GetDecimal(0), rd.GetDecimal(1)),
+                (0m, 0m),
+                "Limit");
         }
 
-        private async Task ZapiszScoringAsync(ScoringResult result)
+        private Task ZapiszScoringAsync(ScoringResult result)
         {
             const string sql = @"
                 INSERT INTO dbo.KartotekaScoring
@@ -236,11 +304,8 @@ namespace Kalendarz1.Kartoteka.Features.Scoring
                     (@KlientId, @TerminowoscPkt, @HistoriaPkt, @RegularnoscPkt, @TrendPkt, @LimitPkt,
                      @ScoreTotal, @Kategoria, @RekomendacjaLimitu, @RekomendacjaOpis, GETDATE())";
 
-            try
+            return ExecuteAsync(_connLibra, sql, cmd =>
             {
-                await using var cn = new SqlConnection(_connLibra);
-                await cn.OpenAsync();
-                await using var cmd = new SqlCommand(sql, cn);
                 cmd.Parameters.AddWithValue("@KlientId", result.KlientId);
                 cmd.Parameters.AddWithValue("@TerminowoscPkt", result.TerminowoscPkt);
                 cmd.Parameters.AddWithValue("@HistoriaPkt", result.HistoriaPkt);
@@ -251,85 +316,42 @@ namespace Kalendarz1.Kartoteka.Features.Scoring
                 cmd.Parameters.AddWithValue("@Kategoria", result.Kategoria ?? "");
                 cmd.Parameters.AddWithValue("@RekomendacjaLimitu", result.RekomendacjaLimitu);
                 cmd.Parameters.AddWithValue("@RekomendacjaOpis", (object)result.RekomendacjaOpis ?? DBNull.Value);
-                await cmd.ExecuteNonQueryAsync();
-            }
-            catch { }
+            }, "Zapisz");
         }
 
-        public async Task<ScoringResult> PobierzOstatniScoringAsync(int klientId)
+        public Task<ScoringResult> PobierzOstatniScoringAsync(int klientId)
         {
             const string sql = @"SELECT TOP 1 Id, KlientId, TerminowoscPkt, HistoriaPkt, RegularnoscPkt,
                                         TrendPkt, LimitPkt, ScoreTotal, Kategoria,
                                         RekomendacjaLimitu, RekomendacjaOpis, DataObliczenia
                                  FROM dbo.KartotekaScoring WHERE KlientId = @KlientId
                                  ORDER BY DataObliczenia DESC";
-            try
-            {
-                await using var cn = new SqlConnection(_connLibra);
-                await cn.OpenAsync();
-                await using var cmd = new SqlCommand(sql, cn);
-                cmd.Parameters.AddWithValue("@KlientId", klientId);
-                await using var rd = await cmd.ExecuteReaderAsync();
-                if (await rd.ReadAsync())
-                {
-                    return new ScoringResult
-                    {
-                        Id = rd.GetInt32(0),
-                        KlientId = rd.GetInt32(1),
-                        TerminowoscPkt = rd.IsDBNull(2) ? 0 : rd.GetInt32(2),
-                        HistoriaPkt = rd.IsDBNull(3) ? 0 : rd.GetInt32(3),
-                        RegularnoscPkt = rd.IsDBNull(4) ? 0 : rd.GetInt32(4),
-                        TrendPkt = rd.IsDBNull(5) ? 0 : rd.GetInt32(5),
-                        LimitPkt = rd.IsDBNull(6) ? 0 : rd.GetInt32(6),
-                        ScoreTotal = rd.IsDBNull(7) ? 0 : rd.GetInt32(7),
-                        Kategoria = rd.IsDBNull(8) ? null : rd.GetString(8),
-                        RekomendacjaLimitu = rd.IsDBNull(9) ? 0 : rd.GetDecimal(9),
-                        RekomendacjaOpis = rd.IsDBNull(10) ? null : rd.GetString(10),
-                        DataObliczenia = rd.IsDBNull(11) ? DateTime.Now : rd.GetDateTime(11)
-                    };
-                }
-            }
-            catch { }
-            return null;
+
+            return QuerySingleAsync<ScoringResult>(
+                _connLibra, sql,
+                cmd => cmd.Parameters.AddWithValue("@KlientId", klientId),
+                MapScoringResult,
+                null,
+                "Ostatni");
         }
 
-        public async Task<List<ScoringResult>> PobierzHistorieScoringAsync(int klientId, int limit = 12)
+        public Task<List<ScoringResult>> PobierzHistorieScoringAsync(int klientId, int limit = 12)
         {
             const string sql = @"SELECT TOP (@Limit) Id, KlientId, TerminowoscPkt, HistoriaPkt, RegularnoscPkt,
                                         TrendPkt, LimitPkt, ScoreTotal, Kategoria,
                                         RekomendacjaLimitu, RekomendacjaOpis, DataObliczenia
                                  FROM dbo.KartotekaScoring WHERE KlientId = @KlientId
                                  ORDER BY DataObliczenia DESC";
-            var wynik = new List<ScoringResult>();
-            try
-            {
-                await using var cn = new SqlConnection(_connLibra);
-                await cn.OpenAsync();
-                await using var cmd = new SqlCommand(sql, cn);
-                cmd.Parameters.AddWithValue("@KlientId", klientId);
-                cmd.Parameters.AddWithValue("@Limit", limit);
-                await using var rd = await cmd.ExecuteReaderAsync();
-                while (await rd.ReadAsync())
+
+            return QueryListAsync(
+                _connLibra, sql,
+                cmd =>
                 {
-                    wynik.Add(new ScoringResult
-                    {
-                        Id = rd.GetInt32(0),
-                        KlientId = rd.GetInt32(1),
-                        TerminowoscPkt = rd.IsDBNull(2) ? 0 : rd.GetInt32(2),
-                        HistoriaPkt = rd.IsDBNull(3) ? 0 : rd.GetInt32(3),
-                        RegularnoscPkt = rd.IsDBNull(4) ? 0 : rd.GetInt32(4),
-                        TrendPkt = rd.IsDBNull(5) ? 0 : rd.GetInt32(5),
-                        LimitPkt = rd.IsDBNull(6) ? 0 : rd.GetInt32(6),
-                        ScoreTotal = rd.IsDBNull(7) ? 0 : rd.GetInt32(7),
-                        Kategoria = rd.IsDBNull(8) ? null : rd.GetString(8),
-                        RekomendacjaLimitu = rd.IsDBNull(9) ? 0 : rd.GetDecimal(9),
-                        RekomendacjaOpis = rd.IsDBNull(10) ? null : rd.GetString(10),
-                        DataObliczenia = rd.IsDBNull(11) ? DateTime.Now : rd.GetDateTime(11)
-                    });
-                }
-            }
-            catch { }
-            return wynik;
+                    cmd.Parameters.AddWithValue("@KlientId", klientId);
+                    cmd.Parameters.AddWithValue("@Limit", limit);
+                },
+                MapScoringResult,
+                "Historia");
         }
     }
 }

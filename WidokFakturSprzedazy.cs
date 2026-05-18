@@ -811,19 +811,7 @@ namespace Kalendarz1
             if (string.IsNullOrEmpty(handlowiec))
                 return;
 
-            // ✅ SPRAWDZENIE UPRAWNIEŃ - Czy użytkownik ma dostęp do tego handlowca?
-            var userHandlowcy = UserHandlowcyManager.GetUserHandlowcy(UserID);
-
-            if (UserID != "11111" && !userHandlowcy.Contains(handlowiec))
-            {
-                MessageBox.Show(
-                    $"⛔ Brak dostępu do szczegółów handlowca: {handlowiec}\n\n" +
-                    $"Możesz przeglądać tylko dane swoich przypisanych handlowców.",
-                    "Brak uprawnień",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Warning);
-                return;
-            }
+            // Faktury Sprzedaży: wszyscy użytkownicy widzą wszystkie faktury — usunięto strażnik handlowców.
 
             int towarId = (int)comboBoxTowarAnalizaCen.SelectedValue;
             string nazwaTowaru = comboBoxTowarAnalizaCen.Text;
@@ -2188,8 +2176,7 @@ ORDER BY SredniaCena DESC;";
     LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
     WHERE YEAR(DK.data) = @Rok AND MONTH(DK.data) = @Miesiac";
 
-                // ✅ ZMIANA: Użyj UserHandlowcyManager zamiast zaznaczeniHandlowcy
-                query += UserHandlowcyManager.GetHandlowcyWhereClause(UserID, "WYM.CDim_Handlowiec_Val");
+                // Faktury Sprzedaży: bez filtra handlowców — wszyscy użytkownicy widzą wszystko.
 
                 query += @"
     GROUP BY C.shortcut
@@ -2257,14 +2244,7 @@ ORDER BY SredniaCena DESC;";
 
                     var kulturaPL = new CultureInfo("pl-PL");
 
-                    // ✅ ZMIANA: Pobierz nazwę handlowców dla tytułu
-                    var handlowcy = UserHandlowcyManager.GetUserHandlowcy(UserID);
-                    string nazwaHandlowcow = UserID == "11111" ? "wszyscy handlowcy" :
-                                            handlowcy.Count == 0 ? "brak przypisanych handlowców" :
-                                            handlowcy.Count == 1 ? handlowcy[0] :
-                                            $"{handlowcy.Count} handlowców";
-
-                    string tytul = $"📊 Udział kontrahentów - {nazwaHandlowcow} - {kulturaPL.DateTimeFormat.GetMonthName(miesiac)} {rok}";
+                    string tytul = $"📊 Udział kontrahentów - wszyscy handlowcy - {kulturaPL.DateTimeFormat.GetMonthName(miesiac)} {rok}";
                     chartSprzedaz.Titles[0].Text = tytul;
 
                     if (lblSuma != null)
@@ -3117,8 +3097,7 @@ Dokumenty AS (
       AND C.Shortcut NOT LIKE '%Sd/Kozio%'
       AND C.Shortcut NOT LIKE '%Piórkowski%'";
 
-            // ✅ DODAJ FILTR HANDLOWCÓW
-            sql += UserHandlowcyManager.GetHandlowcyWhereClause(UserID, "WYM.CDim_Handlowiec_Val");
+            // Faktury Sprzedaży: bez filtra handlowców — wszyscy użytkownicy widzą wszystko.
 
             sql += @"
 ),
@@ -3384,8 +3363,7 @@ ORDER BY Przeterminowane DESC, DoZaplacenia DESC;";
             LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON C.Id = WYM.ElementId
             WHERE 1=1";
 
-                // ✅ DODAJ FILTR HANDLOWCÓW
-                query += UserHandlowcyManager.GetHandlowcyWhereClause(UserID, "WYM.CDim_Handlowiec_Val");
+                // Faktury Sprzedaży: bez filtra handlowców — wszyscy użytkownicy widzą wszystkich kontrahentów.
                 query += " ORDER BY C.shortcut ASC;";
 
                 var cmd = new SqlCommand(query, connection);
@@ -3449,11 +3427,11 @@ DokumentyFiltrowane AS (
         AND DK.data >= @DataOd
         AND DK.data <= @DataDo";
 
-            query += UserHandlowcyManager.GetHandlowcyWhereClause(UserID, "WYM.CDim_Handlowiec_Val");
+            // Faktury Sprzedaży: bez filtra handlowców — wszyscy użytkownicy widzą wszystkie faktury.
 
             query += @"
 )
-SELECT 
+SELECT
     CONVERT(date, DF.data) AS SortDate, 1 AS SortOrder, 0 AS IsGroupRow,
     DF.kod AS NumerDokumentu, C.shortcut AS NazwaFirmy,
     ISNULL(AD.SumaKG, 0) AS IloscKG, 

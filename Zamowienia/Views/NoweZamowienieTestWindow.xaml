@@ -270,8 +270,29 @@
                         <Border Grid.Column="3" Visibility="{Binding InCartVisibility}" CornerRadius="4" Background="{StaticResource BrandGreen}" Padding="4,1" VerticalAlignment="Center" Margin="4,0,0,0">
                             <TextBlock Text="✓" FontSize="10" FontWeight="Bold" Foreground="White"/>
                         </Border>
-                        <!-- (Col 4 zarezerwowane - nieużywane) -->
+                        <!-- ⚖ Rozmiary — tylko dla kurczaków (tuszki). Klik = dialog klas wagowych (5-12) -->
+                        <Button Grid.Column="4" Visibility="{Binding RozmiaryButtonVisibility}" Click="BtnRozmiary_Click" Tag="{Binding Id}"
+                                Cursor="Hand" Background="Transparent" BorderThickness="0" Padding="0" Margin="4,0,0,0"
+                                ToolTip="Rozdziel ilość na klasy wagowe tuszki (5-12)">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="bd" CornerRadius="4" Background="#FEF3F3" BorderBrush="#FECACA" BorderThickness="1" Padding="6,3">
+                                        <TextBlock Text="⚖" FontSize="14" Foreground="#C0392B" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="bd" Property="Background" Value="#FECACA"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
                     </Grid>
+
+                    <!-- Badge rozkładu klas wagowych (gdy ustawiono) -->
+                    <Border Visibility="{Binding RozmiaryBadgeVisibility}" Background="#FEF3F3" BorderBrush="#FECACA" BorderThickness="1" CornerRadius="3" Padding="6,2" Margin="0,3,0,0">
+                        <TextBlock Text="{Binding RozmiaryBadge}" FontSize="9" FontWeight="SemiBold" Foreground="#C0392B" TextWrapping="Wrap"/>
+                    </Border>
 
                     <!-- 4 EDITABLE FIELDS: kg | poj | pal | cena (zielony) -->
                     <Border Margin="0,4,0,0" CornerRadius="5" Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource Border}" BorderThickness="1">
@@ -400,13 +421,53 @@
                     </Border>
                 </Grid>
 
-                <!-- (Row 2 nieużywany) -->
-                <Border Grid.Row="2" Visibility="Collapsed"/>
+                <!-- ROW 2: Avatary handlowców — WrapPanel (1 wiersz, zawija na 2-gi gdy nie mieści) -->
+                <Border Grid.Row="2" Padding="8,6,8,6" x:Name="HandlowiecChipsContainer" Background="#F8FAFC" BorderBrush="{StaticResource Border}" BorderThickness="0,1,0,1">
+                    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" MaxHeight="120">
+                        <ItemsControl x:Name="lstHandlowiecChips">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel Orientation="Horizontal"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Button Click="BtnHandlowiecChip_Click" Tag="{Binding Name}" Cursor="Hand"
+                                            Background="Transparent" BorderThickness="0" Padding="0" Margin="3"
+                                            ToolTip="{Binding Name}" HorizontalAlignment="Center">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border x:Name="bd" Width="38" Height="38" CornerRadius="19" ClipToBounds="True"
+                                                        BorderBrush="{Binding BorderColor}" BorderThickness="2"
+                                                        Background="{Binding InitialsBg}">
+                                                    <Grid>
+                                                        <TextBlock Text="{Binding Initials}" FontSize="12" FontWeight="Bold"
+                                                                   Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        <Image Source="{Binding Avatar}" Stretch="UniformToFill" Visibility="{Binding AvatarVisibility}"/>
+                                                    </Grid>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="bd" Property="Opacity" Value="0.75"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Border>
 
-                <!-- ROW 3+4: Klienci section (collapsible — ukrywana po wyborze) -->
+                <!-- ROW 3+4: Klienci section (collapsible — ukrywana po wyborze, lista do samego dołu) -->
                 <Border Grid.Row="3" Grid.RowSpan="2" x:Name="ClientListContainer" Visibility="Visible">
-                    <StackPanel>
-                        <Grid Margin="16,6,16,4">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <Grid Grid.Row="0" Margin="16,6,16,4">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
@@ -414,7 +475,7 @@
                             <TextBlock x:Name="LblCustListTitle" Text="Klienci" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center"/>
                             <TextBlock x:Name="LblCustListCount" Grid.Column="1" Text="" FontSize="10" Foreground="{StaticResource TextMuted}" VerticalAlignment="Center"/>
                         </Grid>
-                        <ScrollViewer MaxHeight="240" VerticalScrollBarVisibility="Auto" Padding="8,0">
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="8,0">
                             <ItemsControl x:Name="ListCustomers">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
@@ -437,7 +498,7 @@
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
                         </ScrollViewer>
-                    </StackPanel>
+                    </Grid>
                 </Border>
 
                 <!-- ROW 5: Separator -->
