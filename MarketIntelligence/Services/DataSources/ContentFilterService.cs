@@ -15,6 +15,8 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
     {
         private readonly string _connectionString;
         private readonly HashSet<string> _existingUrlHashes;
+        // Znormalizowane tytuły (lower + bez interpunkcji) — RSS i Perplexity często mają ten sam artykuł z różnymi URL
+        private readonly HashSet<string> _seenTitleHashes = new();
 
         // Słowa kluczowe z wagami
         private static readonly Dictionary<string, int> PolishKeywordWeights = new()
@@ -141,9 +143,24 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
 
         public ContentFilterService(string connectionString = null)
         {
-            _connectionString = connectionString ??
-                "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+            _connectionString = connectionString ?? MarketIntelligenceConfig.LibraNetConnectionString;
             _existingUrlHashes = new HashSet<string>();
+        }
+
+        /// <summary>
+        /// Normalizuje tytuł do dedup'u: lowercase, bez znaków diakrytycznych, bez interpunkcji,
+        /// pojedyncze spacje. Tytuły różniące się tylko interpunkcją (np. "GW: HPAI w Polsce!" vs "GW HPAI w Polsce")
+        /// dadzą ten sam hash.
+        /// </summary>
+        private static string NormalizeTitle(string title)
+        {
+            if (string.IsNullOrWhiteSpace(title)) return string.Empty;
+            var lower = title.ToLowerInvariant();
+            // Tylko litery/cyfry → spacja, potem trim duplikatów spacji
+            var sb = new System.Text.StringBuilder(lower.Length);
+            foreach (var c in lower)
+                sb.Append(char.IsLetterOrDigit(c) ? c : ' ');
+            return Regex.Replace(sb.ToString().Trim(), @"\s+", " ");
         }
 
         /// <summary>
@@ -154,14 +171,25 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
             // Load existing URL hashes from DB for deduplication
             await LoadExistingHashesAsync();
 
+            // Reset title cache na start (per-fetch dedup, nie cross-day)
+            _seenTitleHashes.Clear();
+
             var filteredArticles = new List<RawArticle>();
 
             foreach (var article in articles)
             {
-                // Skip duplicates
+                // Skip URL duplicates (z bazy lub poprzedniego fetch)
                 if (_existingUrlHashes.Contains(article.UrlHash))
                 {
-                    Debug.WriteLine($"[Filter] Duplicate: {article.Title}");
+                    Debug.WriteLine($"[Filter] Duplicate URL: {article.Title}");
+                    continue;
+                }
+
+                // Skip title duplicates (różne URL-e tego samego artykułu, np. RSS vs Perplexity)
+                var titleHash = NormalizeTitle(article.Title);
+                if (!string.IsNullOrEmpty(titleHash) && !_seenTitleHashes.Add(titleHash))
+                {
+                    Debug.WriteLine($"[Filter] Duplicate title: {article.Title}");
                     continue;
                 }
 

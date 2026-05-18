@@ -1,0 +1,372 @@
+<Window x:Class="Kalendarz1.MarketIntelligence.Views.BriefingDiagnosticsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="🛠 Diagnostyka Porannego Briefingu"
+        Width="1200" Height="800"
+        WindowStartupLocation="CenterScreen"
+        Background="#15120D"
+        Foreground="#D5CCC0"
+        FontFamily="Segoe UI">
+
+    <Window.Resources>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#D5CCC0"/>
+        </Style>
+        <Style x:Key="SectionHeader" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#C9A96E"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+        </Style>
+        <Style x:Key="KpiLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="#7A6F63"/>
+        </Style>
+        <Style x:Key="KpiValue" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Consolas"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="#F5EDE0"/>
+        </Style>
+        <Style x:Key="ToolBtn" TargetType="Button">
+            <Setter Property="Background" Value="#2A2520"/>
+            <Setter Property="Foreground" Value="#D5CCC0"/>
+            <Setter Property="BorderBrush" Value="#3F3830"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#3A3328"/>
+                    <Setter Property="BorderBrush" Value="#C9A96E"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="OkPill" TargetType="Border">
+            <Setter Property="Background" Value="#1E3520"/>
+            <Setter Property="CornerRadius" Value="3"/>
+            <Setter Property="Padding" Value="6,2"/>
+        </Style>
+        <Style x:Key="BadPill" TargetType="Border">
+            <Setter Property="Background" Value="#3D1E1E"/>
+            <Setter Property="CornerRadius" Value="3"/>
+            <Setter Property="Padding" Value="6,2"/>
+        </Style>
+        <Style x:Key="WarnPill" TargetType="Border">
+            <Setter Property="Background" Value="#3D331E"/>
+            <Setter Property="CornerRadius" Value="3"/>
+            <Setter Property="Padding" Value="6,2"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,12">
+            <TextBlock Text="🛠 Diagnostyka Porannego Briefingu" FontSize="22" FontWeight="Bold" Foreground="#C9A96E"/>
+            <TextBlock Text=" — wszystko co dzieje się pod maską" FontSize="14" Margin="8,5,0,0" Foreground="#7A6F63"/>
+        </StackPanel>
+
+        <!-- Main content w TabControl -->
+        <TabControl Grid.Row="1" Background="Transparent" BorderBrush="#3F3830">
+
+            <!-- =================== TAB 1: STATUS =================== -->
+            <TabItem Header="📡 Status">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="16">
+                        <!-- API Status grid -->
+                        <TextBlock Text="Status kluczy API" Style="{StaticResource SectionHeader}"/>
+                        <Grid Margin="0,0,0,16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <Border Grid.Column="0" Background="#1A1610" CornerRadius="4" Padding="14" Margin="0,0,8,0">
+                                <StackPanel>
+                                    <TextBlock Text="🤖 Anthropic (Claude)" Style="{StaticResource KpiLabel}"/>
+                                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                        <Border x:Name="bdrAnthropicPill" Style="{StaticResource OkPill}">
+                                            <TextBlock x:Name="txtAnthropicStatus" Text="—" Foreground="#FFFFFF" FontWeight="SemiBold" FontSize="11"/>
+                                        </Border>
+                                    </StackPanel>
+                                    <TextBlock x:Name="txtAnthropicDetail" Text="—" Style="{StaticResource KpiValue}" FontSize="11" Margin="0,6,0,0"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Grid.Column="1" Background="#1A1610" CornerRadius="4" Padding="14" Margin="4,0,4,0">
+                                <StackPanel>
+                                    <TextBlock Text="🌐 Perplexity (Sonar)" Style="{StaticResource KpiLabel}"/>
+                                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                        <Border x:Name="bdrPerplexityPill" Style="{StaticResource OkPill}">
+                                            <TextBlock x:Name="txtPerplexityStatus" Text="—" Foreground="#FFFFFF" FontWeight="SemiBold" FontSize="11"/>
+                                        </Border>
+                                    </StackPanel>
+                                    <TextBlock x:Name="txtPerplexityBudget" Text="—" Style="{StaticResource KpiValue}" FontSize="11" Margin="0,6,0,0"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Grid.Column="2" Background="#1A1610" CornerRadius="4" Padding="14" Margin="8,0,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="🗄 Baza LibraNet" Style="{StaticResource KpiLabel}"/>
+                                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                        <Border x:Name="bdrDbPill" Style="{StaticResource OkPill}">
+                                            <TextBlock x:Name="txtDbStatus" Text="—" Foreground="#FFFFFF" FontWeight="SemiBold" FontSize="11"/>
+                                        </Border>
+                                    </StackPanel>
+                                    <TextBlock x:Name="txtDbDetail" Text="—" Style="{StaticResource KpiValue}" FontSize="11" Margin="0,6,0,0"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+
+                        <!-- Last fetch summary -->
+                        <TextBlock Text="Ostatnie pobranie" Style="{StaticResource SectionHeader}"/>
+                        <Border Background="#1A1610" CornerRadius="4" Padding="14" Margin="0,0,0,16">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0" Margin="0,0,32,0">
+                                    <TextBlock Text="Kiedy" Style="{StaticResource KpiLabel}"/>
+                                    <TextBlock x:Name="txtLastFetchTime" Text="—" Style="{StaticResource KpiValue}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Margin="0,0,32,0">
+                                    <TextBlock Text="RSS" Style="{StaticResource KpiLabel}"/>
+                                    <TextBlock x:Name="txtLastRss" Text="—" Style="{StaticResource KpiValue}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Margin="0,0,32,0">
+                                    <TextBlock Text="Scraping" Style="{StaticResource KpiLabel}"/>
+                                    <TextBlock x:Name="txtLastScraped" Text="—" Style="{StaticResource KpiValue}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="3" Margin="0,0,32,0">
+                                    <TextBlock Text="Relevantne" Style="{StaticResource KpiLabel}"/>
+                                    <TextBlock x:Name="txtLastRelevant" Text="—" Style="{StaticResource KpiValue}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="4" Margin="0,0,32,0">
+                                    <TextBlock Text="Analizowanych" Style="{StaticResource KpiLabel}"/>
+                                    <TextBlock x:Name="txtLastAnalyzed" Text="—" Style="{StaticResource KpiValue}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="5" Margin="0,0,32,0">
+                                    <TextBlock Text="Czas" Style="{StaticResource KpiLabel}"/>
+                                    <TextBlock x:Name="txtLastDuration" Text="—" Style="{StaticResource KpiValue}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="6">
+                                    <TextBlock Text="Status" Style="{StaticResource KpiLabel}"/>
+                                    <TextBlock x:Name="txtLastStatus" Text="—" Style="{StaticResource KpiValue}"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!-- Akcje -->
+                        <TextBlock Text="Akcje" Style="{StaticResource SectionHeader}"/>
+                        <WrapPanel>
+                            <Button x:Name="btnRefreshStatus" Content="🔄 Odśwież status" Style="{StaticResource ToolBtn}" Margin="0,0,8,8" Click="btnRefreshStatus_Click"/>
+                            <Button x:Name="btnTestPerplexity" Content="🧪 Test Perplexity (1 zapytanie)" Style="{StaticResource ToolBtn}" Margin="0,0,8,8" Click="btnTestPerplexity_Click"/>
+                            <Button x:Name="btnTestClaude" Content="🧪 Test Claude (ping)" Style="{StaticResource ToolBtn}" Margin="0,0,8,8" Click="btnTestClaude_Click"/>
+                            <Button x:Name="btnForceFetch" Content="⚡ Wymuś pełne pobranie TERAZ" Style="{StaticResource ToolBtn}" Background="#3D2A1A" Margin="0,0,8,8" Click="btnForceFetch_Click"/>
+                        </WrapPanel>
+
+                        <!-- EKSPORT raportu — wszystko w jednym pliku do wysłania -->
+                        <TextBlock Text="Eksport raportu diagnostycznego" Style="{StaticResource SectionHeader}" Margin="0,16,0,8"/>
+                        <TextBlock TextWrapping="Wrap" Foreground="#9A8F83" Margin="0,0,0,8">
+                            Generuje pełny markdown z całym stanem modułu: środowisko, status API, counts tabel,
+                            źródła RSS (40+), scrapingu, własne zapytania, historię pobrań, ostatnie artykuły,
+                            live log z błędami. Sekrety (klucze API, hasła) są zamaskowane.
+                        </TextBlock>
+                        <WrapPanel>
+                            <Button x:Name="btnExportFile" Content="💾 Eksport do pliku .md" Style="{StaticResource ToolBtn}" Background="#1E3520" Margin="0,0,8,8" Click="btnExportFile_Click"/>
+                            <Button x:Name="btnExportClipboard" Content="📋 Kopiuj do schowka" Style="{StaticResource ToolBtn}" Background="#1E2A35" Margin="0,0,8,8" Click="btnExportClipboard_Click"/>
+                            <Button x:Name="btnExportPreview" Content="👁 Podgląd raportu" Style="{StaticResource ToolBtn}" Margin="0,0,8,8" Click="btnExportPreview_Click"/>
+                        </WrapPanel>
+
+                        <TextBlock x:Name="txtActionResult" Text="" Margin="0,12,0,0" Foreground="#9BC97A" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- =================== TAB 2: HISTORIA POBRAŃ =================== -->
+            <TabItem Header="📊 Historia pobrań">
+                <Grid Margin="16">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" Text="Ostatnie 50 pobrań (intel_FetchLog)" Style="{StaticResource SectionHeader}"/>
+                    <DataGrid Grid.Row="1" x:Name="gridFetchHistory"
+                              AutoGenerateColumns="False" IsReadOnly="True"
+                              Background="#1A1610" Foreground="#D5CCC0"
+                              BorderBrush="#3F3830" GridLinesVisibility="Horizontal"
+                              HorizontalGridLinesBrush="#2A2520"
+                              RowBackground="#1A1610" AlternatingRowBackground="#1F1A14">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Kiedy" Binding="{Binding FetchTime, StringFormat='yyyy-MM-dd HH:mm:ss'}" Width="160"/>
+                            <DataGridTextColumn Header="Typ" Binding="{Binding FetchType}" Width="80"/>
+                            <DataGridTextColumn Header="RSS" Binding="{Binding RssArticles}" Width="60"/>
+                            <DataGridTextColumn Header="Scrap" Binding="{Binding ScrapedArticles}" Width="60"/>
+                            <DataGridTextColumn Header="Razem" Binding="{Binding TotalArticles}" Width="70"/>
+                            <DataGridTextColumn Header="Relev." Binding="{Binding RelevantArticles}" Width="70"/>
+                            <DataGridTextColumn Header="Analiz." Binding="{Binding AnalyzedArticles}" Width="70"/>
+                            <DataGridTextColumn Header="HPAI" Binding="{Binding HpaiAlerts}" Width="60"/>
+                            <DataGridTextColumn Header="Czas (s)" Binding="{Binding DurationSec}" Width="80"/>
+                            <DataGridTextColumn Header="Sukces" Binding="{Binding SuccessDisplay}" Width="70"/>
+                            <DataGridTextColumn Header="Błąd" Binding="{Binding ErrorMessage}" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+
+            <!-- =================== TAB 3: LIVE LOG =================== -->
+            <TabItem Header="🪵 Live log">
+                <Grid Margin="16">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+                        <TextBlock Text="Live log z Debug.WriteLine" Style="{StaticResource SectionHeader}" Margin="0,0,16,0"/>
+                        <CheckBox x:Name="chkAutoScroll" Content="Auto-scroll" IsChecked="True" Foreground="#D5CCC0" VerticalAlignment="Center" Margin="0,0,16,0"/>
+                        <CheckBox x:Name="chkOnlyErrors" Content="Tylko błędy" IsChecked="False" Foreground="#D5CCC0" VerticalAlignment="Center" Margin="0,0,16,0"/>
+                        <Button Content="🧹 Wyczyść" Style="{StaticResource ToolBtn}" Padding="10,4" Click="btnClearLog_Click"/>
+                    </StackPanel>
+                    <Border Grid.Row="1" Background="#0F0D0A" BorderBrush="#3F3830" BorderThickness="1" CornerRadius="2">
+                        <ListBox x:Name="lstLog"
+                                 Background="Transparent" BorderThickness="0"
+                                 FontFamily="Consolas" FontSize="11"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                                 ScrollViewer.VerticalScrollBarVisibility="Auto">
+                            <ListBox.ItemContainerStyle>
+                                <Style TargetType="ListBoxItem">
+                                    <Setter Property="Padding" Value="6,1"/>
+                                    <Setter Property="Background" Value="Transparent"/>
+                                    <Setter Property="BorderThickness" Value="0"/>
+                                </Style>
+                            </ListBox.ItemContainerStyle>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{Binding TimestampDisplay}" Foreground="#7A6F63" Width="100"/>
+                                        <Border Padding="4,0" CornerRadius="2" Margin="0,0,6,0">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Background" Value="#2A2520"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Level}" Value="Error">
+                                                            <Setter Property="Background" Value="#3D1E1E"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Level}" Value="Warning">
+                                                            <Setter Property="Background" Value="#3D331E"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <TextBlock Text="{Binding Source}" Foreground="#F5EDE0" FontWeight="SemiBold" MinWidth="60" TextAlignment="Center"/>
+                                        </Border>
+                                        <TextBlock Text="{Binding Message}" TextWrapping="NoWrap">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Foreground" Value="#D5CCC0"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Level}" Value="Error">
+                                                            <Setter Property="Foreground" Value="#FF9E9E"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Level}" Value="Warning">
+                                                            <Setter Property="Foreground" Value="#FFD68C"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- =================== TAB 4: MOJE ZAPYTANIA =================== -->
+            <TabItem Header="🔍 Moje zapytania">
+                <Grid Margin="16">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="Twoje zapytania Perplexity" Style="{StaticResource SectionHeader}"/>
+                    <TextBlock Grid.Row="1" TextWrapping="Wrap" Margin="0,0,0,12" Foreground="#9A8F83">
+                        Te zapytania dokleją się do hardcoded listy (80+ zapytań) i będą wykonane przy każdym pełnym pobraniu.
+                        Priorytet 1-3 = krytyczne (zawsze), 4-5 = ważne, 6+ = standardowe. RecencyFilter: day/week/month.
+                    </TextBlock>
+
+                    <DataGrid Grid.Row="2" x:Name="gridUserQueries"
+                              AutoGenerateColumns="False" CanUserAddRows="False"
+                              Background="#1A1610" Foreground="#D5CCC0"
+                              BorderBrush="#3F3830" GridLinesVisibility="Horizontal"
+                              HorizontalGridLinesBrush="#2A2520"
+                              RowBackground="#1A1610" AlternatingRowBackground="#1F1A14"
+                              SelectionMode="Single">
+                        <DataGrid.Columns>
+                            <DataGridCheckBoxColumn Header="Wł." Binding="{Binding Enabled, UpdateSourceTrigger=PropertyChanged}" Width="50"/>
+                            <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="50" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Kategoria" Binding="{Binding Category}" Width="100"/>
+                            <DataGridTextColumn Header="Pri" Binding="{Binding Priority}" Width="50"/>
+                            <DataGridTextColumn Header="Świeżość" Binding="{Binding RecencyFilter}" Width="80"/>
+                            <DataGridTextColumn Header="Tekst zapytania" Binding="{Binding QueryText}" Width="*"/>
+                            <DataGridTextColumn Header="Użyte" Binding="{Binding TimesUsed}" Width="60" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Ostatnio" Binding="{Binding LastUsedDisplay}" Width="120" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Notatki" Binding="{Binding Notes}" Width="200"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,12,0,0">
+                        <Button Content="➕ Dodaj wiersz" Style="{StaticResource ToolBtn}" Margin="0,0,8,0" Click="btnAddQuery_Click"/>
+                        <Button Content="💾 Zapisz zmiany" Style="{StaticResource ToolBtn}" Background="#1E3520" Margin="0,0,8,0" Click="btnSaveQueries_Click"/>
+                        <Button Content="🗑 Usuń zaznaczone" Style="{StaticResource ToolBtn}" Background="#3D1E1E" Margin="0,0,8,0" Click="btnDeleteQuery_Click"/>
+                        <Button Content="🔄 Odśwież z bazy" Style="{StaticResource ToolBtn}" Click="btnReloadQueries_Click"/>
+                    </StackPanel>
+                </Grid>
+            </TabItem>
+
+            <!-- =================== TAB 5: ŹRÓDŁA RSS =================== -->
+            <TabItem Header="📡 Źródła RSS">
+                <Grid Margin="16">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" Text="Skonfigurowane źródła RSS (read-only, z NewsSourceConfig.cs)" Style="{StaticResource SectionHeader}"/>
+                    <DataGrid Grid.Row="1" x:Name="gridSources"
+                              AutoGenerateColumns="False" IsReadOnly="True"
+                              Background="#1A1610" Foreground="#D5CCC0"
+                              BorderBrush="#3F3830" GridLinesVisibility="Horizontal"
+                              HorizontalGridLinesBrush="#2A2520"
+                              RowBackground="#1A1610" AlternatingRowBackground="#1F1A14">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="120"/>
+                            <DataGridTextColumn Header="Nazwa" Binding="{Binding Name}" Width="200"/>
+                            <DataGridTextColumn Header="Kategoria" Binding="{Binding Category}" Width="120"/>
+                            <DataGridTextColumn Header="Język" Binding="{Binding Language}" Width="60"/>
+                            <DataGridTextColumn Header="Pri." Binding="{Binding Priority}" Width="50"/>
+                            <DataGridTextColumn Header="URL" Binding="{Binding Url}" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+        </TabControl>
+    </Grid>
+</Window>

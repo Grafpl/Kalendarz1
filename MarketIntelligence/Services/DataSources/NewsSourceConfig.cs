@@ -20,8 +20,9 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
             {
                 Id = "farmer_pl",
                 Name = "Farmer.pl",
-                Url = "https://www.farmer.pl/rss/rss.xml",
-                AlternateUrls = new[] { "https://www.farmer.pl/feed", "https://www.farmer.pl/rss" },
+                // 2026-05-18: stary /rss/rss.xml = 404. Nowa struktura: /fragments/rss/rss000.xml (główny) + per kategoria
+                Url = "https://www.farmer.pl/fragments/rss/rss000.xml",
+                AlternateUrls = new[] { "https://www.farmer.pl/rss/produkcjazwierzeca.xml", "https://www.farmer.pl/rss/fakty.xml" },
                 Type = SourceType.Rss,
                 Category = "Rolnictwo",
                 Language = "pl",
@@ -33,8 +34,9 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
             {
                 Id = "topagrar_pl",
                 Name = "Top Agrar Polska",
-                Url = "https://www.topagrar.pl/feed/",
-                AlternateUrls = new[] { "https://www.topagrar.pl/rss", "https://www.topagrar.pl/feed/rss" },
+                // 2026-05-18: /feed/ daje 301 → /feed. Używamy bezpośrednio finalnego URL
+                Url = "https://www.topagrar.pl/feed",
+                AlternateUrls = new[] { "https://www.topagrar.pl/feed/rss" },
                 Type = SourceType.Rss,
                 Category = "Rolnictwo",
                 Language = "pl",

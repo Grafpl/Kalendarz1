@@ -25,11 +25,8 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
             string libraNetConnectionString = null,
             string sageConnectionString = null)
         {
-            _libraNetConnectionString = libraNetConnectionString ??
-                "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
-
-            _sageConnectionString = sageConnectionString ??
-                "Server=192.168.0.112;Database=Handel;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+            _libraNetConnectionString = libraNetConnectionString ?? MarketIntelligenceConfig.LibraNetConnectionString;
+            _sageConnectionString = sageConnectionString ?? MarketIntelligenceConfig.HandelConnectionString;
         }
 
         /// <summary>

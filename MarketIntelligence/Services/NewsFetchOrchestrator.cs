@@ -18,7 +18,7 @@ namespace Kalendarz1.MarketIntelligence.Services
     {
         private readonly RssFeedService _rssFeedService;
         private readonly WebScraperService _webScraperService;
-        private readonly PerplexitySearchService _perplexitySearchService;  // Zastąpiło Tavily
+        private readonly PerplexitySearchService _perplexitySearchService;
         private readonly ContentFilterService _contentFilterService;
         private readonly ClaudeAnalysisService _claudeAnalysisService;
         private readonly ContextBuilderService _contextBuilderService;
@@ -31,12 +31,11 @@ namespace Kalendarz1.MarketIntelligence.Services
 
         public NewsFetchOrchestrator(string connectionString = null, string claudeApiKey = null)
         {
-            _connectionString = connectionString ??
-                "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+            _connectionString = connectionString ?? MarketIntelligenceConfig.LibraNetConnectionString;
 
             _rssFeedService = new RssFeedService();
             _webScraperService = new WebScraperService();
-            _perplexitySearchService = new PerplexitySearchService();  // Zastąpiło Tavily
+            _perplexitySearchService = new PerplexitySearchService();
             _contentFilterService = new ContentFilterService(_connectionString);
             _claudeAnalysisService = new ClaudeAnalysisService(claudeApiKey);
             _contextBuilderService = new ContextBuilderService(_connectionString);
@@ -97,7 +96,7 @@ namespace Kalendarz1.MarketIntelligence.Services
                     Debug.WriteLine($"[Orchestrator] Scraped: {scrapedArticles.Count} articles");
                 }
 
-                // 3.5 Perplexity AI internet search (if enabled) - zastąpiło Tavily
+                // 3.5 Perplexity AI internet search (if enabled)
                 var perplexityArticles = new List<RawArticle>();
                 if (options.UsePerplexitySearch && _perplexitySearchService.IsConfigured)
                 {
@@ -619,7 +618,7 @@ namespace Kalendarz1.MarketIntelligence.Services
     public class FetchOptions
     {
         public bool IncludeScrapingSources { get; set; } = true;
-        public bool UsePerplexitySearch { get; set; } = true;  // Przeszukiwanie całego internetu przez Perplexity AI (zastąpiło Tavily)
+        public bool UsePerplexitySearch { get; set; } = true;  // Przeszukiwanie całego internetu przez Perplexity AI
         public bool UseContentEnrichment { get; set; } = true;  // Wzbogacanie artykułów o pełną treść (web scraping)
         public bool UseAiFiltering { get; set; } = true;
         public bool UseAiAnalysis { get; set; } = true;
@@ -634,7 +633,7 @@ namespace Kalendarz1.MarketIntelligence.Services
         public static FetchOptions Full => new()
         {
             IncludeScrapingSources = true,
-            UsePerplexitySearch = true,  // Zastąpiło UseTavilySearch
+            UsePerplexitySearch = true,
             UseContentEnrichment = true,
             UseAiFiltering = true,
             UseAiAnalysis = true,
@@ -648,7 +647,7 @@ namespace Kalendarz1.MarketIntelligence.Services
         public static FetchOptions Quick => new()
         {
             IncludeScrapingSources = false,
-            UsePerplexitySearch = false,  // Zastąpiło UseTavilySearch
+            UsePerplexitySearch = false,
             UseAiFiltering = false,
             UseAiAnalysis = false,
             GenerateSummary = false,
@@ -682,7 +681,7 @@ namespace Kalendarz1.MarketIntelligence.Services
     {
         public int RssArticlesFetched { get; set; }
         public int ScrapedArticlesFetched { get; set; }
-        public int PerplexityArticlesFetched { get; set; }  // Z przeszukiwania internetu przez Perplexity (zastąpiło Tavily)
+        public int PerplexityArticlesFetched { get; set; }  // Z przeszukiwania internetu przez Perplexity
         public int TotalArticlesFetched { get; set; }
         public int RelevantArticles { get; set; }
         public int AiFilteredArticles { get; set; }

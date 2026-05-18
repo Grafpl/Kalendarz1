@@ -13,8 +13,7 @@ namespace Kalendarz1.MarketIntelligence.Services
 
         public MarketIntelligenceService(string connectionString = null)
         {
-            _connectionString = connectionString ??
-                "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+            _connectionString = connectionString ?? MarketIntelligenceConfig.LibraNetConnectionString;
         }
 
         #region Inicjalizacja i Seed Data

@@ -86,15 +86,25 @@
                     </RadioButton>
                 </StackPanel>
 
-                <!-- RIGHT: Date -->
-                <StackPanel Grid.Column="4" VerticalAlignment="Center" HorizontalAlignment="Right">
-                    <TextBlock Text="{Binding DateDisplay}"
-                               FontFamily="Georgia" FontSize="12"
-                               Foreground="#D5CCC0"/>
-                    <TextBlock Text="{Binding WeekDisplay}"
-                               FontFamily="Segoe UI" FontSize="10"
-                               Foreground="#7A6F63" Margin="0,2,0,0"
-                               HorizontalAlignment="Right"/>
+                <!-- RIGHT: Diagnostyka + Date -->
+                <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right">
+                    <Button x:Name="btnDiagnostics"
+                            Content="🛠 Diagnostyka"
+                            Click="btnDiagnostics_Click"
+                            Background="#2A2520" Foreground="#C9A96E"
+                            BorderBrush="#3F3830" BorderThickness="1"
+                            Padding="12,6" FontSize="11" Cursor="Hand"
+                            ToolTip="Status API, historia pobrań, live log, edytowalne zapytania Perplexity"
+                            Margin="0,0,16,0"/>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="{Binding DateDisplay}"
+                                   FontFamily="Georgia" FontSize="12"
+                                   Foreground="#D5CCC0"/>
+                        <TextBlock Text="{Binding WeekDisplay}"
+                                   FontFamily="Segoe UI" FontSize="10"
+                                   Foreground="#7A6F63" Margin="0,2,0,0"
+                                   HorizontalAlignment="Right"/>
+                    </StackPanel>
                 </StackPanel>
             </Grid>
         </Border>

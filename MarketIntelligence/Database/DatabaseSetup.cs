@@ -14,8 +14,7 @@ namespace Kalendarz1.MarketIntelligence.Database
 
         public DatabaseSetup(string connectionString = null)
         {
-            _connectionString = connectionString ??
-                "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+            _connectionString = connectionString ?? MarketIntelligenceConfig.LibraNetConnectionString;
         }
 
         /// <summary>

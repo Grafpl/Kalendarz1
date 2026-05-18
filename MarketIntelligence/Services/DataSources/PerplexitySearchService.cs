@@ -15,7 +15,6 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
     /// <summary>
     /// Serwis wyszukiwania newsów przez Perplexity AI (Sonar API)
     /// Przeszukuje CAŁY polski internet w poszukiwaniu informacji o branży drobiarskiej i mięsnej
-    /// Zastępuje TavilySearchService
     /// </summary>
     public class PerplexitySearchService : IDisposable
     {
@@ -28,22 +27,72 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
         private readonly SemaphoreSlim _rateLimiter;
         private DateTime _lastRequestTime = DateTime.MinValue;
 
+        // Dzienny budżet zapytań — chroni przed nieoczekiwanymi kosztami (~$0.05/zapytanie × 100 = $5/dzień max)
+        // Override przez PERPLEXITY_DAILY_LIMIT env var
+        private readonly int _dailyQueryLimit;
+        private DateTime _budgetResetDate = DateTime.Today;
+        private int _dailyQueryCount = 0;
+        private readonly object _budgetLock = new object();
+
         public bool IsConfigured => !string.IsNullOrEmpty(_apiKey);
+
+        /// <summary>Aktualne zużycie dziennego budżetu zapytań</summary>
+        public (int Used, int Limit) DailyBudget
+        {
+            get { lock (_budgetLock) { ResetBudgetIfNewDay(); return (_dailyQueryCount, _dailyQueryLimit); } }
+        }
 
         public PerplexitySearchService(string apiKey = null)
         {
             _apiKey = apiKey
                 ?? Environment.GetEnvironmentVariable("PERPLEXITY_API_KEY")
+                ?? Kalendarz1.MarketIntelligence.SecretsLoader.Get("PERPLEXITY_API_KEY")
                 ?? System.Configuration.ConfigurationManager.AppSettings["PerplexityApiKey"];
+
+            // Domyślnie 100 zapytań/dzień (~$5 max). Override przez env lub secrets.json.
+            var limitStr = Environment.GetEnvironmentVariable("PERPLEXITY_DAILY_LIMIT")
+                ?? Kalendarz1.MarketIntelligence.SecretsLoader.Get("PERPLEXITY_DAILY_LIMIT");
+            _dailyQueryLimit = int.TryParse(limitStr, out var l) && l > 0 ? l : 100;
 
             _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(90) };
             _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_apiKey}");
             _rateLimiter = new SemaphoreSlim(1);
 
             if (IsConfigured)
-                Debug.WriteLine($"[Perplexity] API configured: {_apiKey.Substring(0, Math.Min(20, _apiKey.Length))}...");
+                Debug.WriteLine($"[Perplexity] API configured: {_apiKey.Substring(0, Math.Min(20, _apiKey.Length))}... (daily limit: {_dailyQueryLimit})");
             else
                 Debug.WriteLine("[Perplexity] WARNING: No API key found!");
+        }
+
+        private void ResetBudgetIfNewDay()
+        {
+            if (_budgetResetDate.Date < DateTime.Today)
+            {
+                _dailyQueryCount = 0;
+                _budgetResetDate = DateTime.Today;
+                Debug.WriteLine($"[Perplexity] Dzienny budżet zresetowany ({_dailyQueryLimit} zapytań na dziś)");
+            }
+        }
+
+        /// <summary>Czy można jeszcze zrobić zapytanie? Zwraca false po przekroczeniu dziennego limitu.</summary>
+        private bool TryReserveBudget()
+        {
+            lock (_budgetLock)
+            {
+                ResetBudgetIfNewDay();
+                if (_dailyQueryCount >= _dailyQueryLimit)
+                {
+                    Debug.WriteLine($"[Perplexity] DZIENNY LIMIT PRZEKROCZONY ({_dailyQueryCount}/{_dailyQueryLimit}) — pomijam zapytanie");
+                    return false;
+                }
+                _dailyQueryCount++;
+
+                // Warn przy 80% limitu
+                if (_dailyQueryCount == (int)(_dailyQueryLimit * 0.8))
+                    Debug.WriteLine($"[Perplexity] UWAGA: 80% dziennego budżetu zużyte ({_dailyQueryCount}/{_dailyQueryLimit})");
+
+                return true;
+            }
         }
 
         #region Main Search Methods
@@ -58,6 +107,10 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
         {
             if (!IsConfigured)
                 return new PerplexitySearchResult { Success = false, Error = "API key not configured" };
+
+            // Sprawdź dzienny budżet (ochrona przed nieoczekiwanymi kosztami)
+            if (!TryReserveBudget())
+                return new PerplexitySearchResult { Success = false, Error = $"Dzienny limit zapytań Perplexity przekroczony ({_dailyQueryLimit}/dzień)" };
 
             options ??= PerplexitySearchOptions.Default;
             await RateLimitAsync(ct);
@@ -441,10 +494,35 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
                 ("Targi rolnicze spożywcze łódzkie mazowieckie 2026. Agrotech, Polagra.", SearchPriority.Standard)
             };
 
-            return allQueries
+            var hardcoded = allQueries
                 .Where(q => q.Priority <= maxPriority)
                 .Select(q => q.Query)
                 .ToList();
+
+            // Doklej własne zapytania użytkownika z intel_UserQueries (Enabled = 1)
+            // Mapowanie Priority: 1-3 → Critical, 4-5 → Important, 6+ → Standard
+            try
+            {
+                var userQueriesService = new Kalendarz1.MarketIntelligence.Services.UserQueriesService();
+                var userQueries = userQueriesService.GetAllAsync(onlyEnabled: true).GetAwaiter().GetResult();
+                foreach (var uq in userQueries)
+                {
+                    var mapped = uq.Priority <= 3 ? SearchPriority.Critical
+                               : uq.Priority <= 5 ? SearchPriority.Important
+                               : SearchPriority.Standard;
+                    if (mapped <= maxPriority)
+                    {
+                        hardcoded.Add(uq.QueryText);
+                        Debug.WriteLine($"[Perplexity] + zapytanie użytkownika #{uq.Id}: {uq.QueryText.Substring(0, Math.Min(60, uq.QueryText.Length))}...");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Perplexity] Błąd ładowania user queries (kontynuuję z hardcoded): {ex.Message}");
+            }
+
+            return hardcoded;
         }
 
         /// <summary>

@@ -10,6 +10,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using System.Windows.Threading;
 using Kalendarz1.MarketIntelligence.Models;
 using Kalendarz1.MarketIntelligence.ViewModels;
 
@@ -19,11 +20,21 @@ namespace Kalendarz1.MarketIntelligence.Views
     {
         private PorannyBriefingViewModel _viewModel;
 
+        // Debounce dla SearchTextBox — bez tego każdy znak triggował filter na 100+ artykułach (lag)
+        private readonly DispatcherTimer _searchDebounceTimer;
+        private string _pendingSearchText;
+
         public PorannyBriefingWindow()
         {
             InitializeComponent();
             _viewModel = DataContext as PorannyBriefingViewModel;
             Loaded += PorannyBriefingWindow_Loaded;
+
+            _searchDebounceTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(250)
+            };
+            _searchDebounceTimer.Tick += SearchDebounceTimer_Tick;
         }
 
         private void PorannyBriefingWindow_Loaded(object sender, RoutedEventArgs e)
@@ -214,7 +225,18 @@ namespace Kalendarz1.MarketIntelligence.Views
         {
             if (sender is TextBox tb && _viewModel != null)
             {
-                _viewModel.SearchText = tb.Text;
+                _pendingSearchText = tb.Text;
+                _searchDebounceTimer.Stop();
+                _searchDebounceTimer.Start();
+            }
+        }
+
+        private void SearchDebounceTimer_Tick(object sender, EventArgs e)
+        {
+            _searchDebounceTimer.Stop();
+            if (_viewModel != null)
+            {
+                _viewModel.SearchText = _pendingSearchText;
             }
         }
 
@@ -241,6 +263,20 @@ namespace Kalendarz1.MarketIntelligence.Views
                 Debug.WriteLine($"Error opening link: {ex.Message}");
             }
             e.Handled = true;
+        }
+
+        private void btnDiagnostics_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var win = new BriefingDiagnosticsWindow { Owner = this };
+                win.Show();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Błąd otwierania diagnostyki: " + ex.Message, "Diagnostyka",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void OpenUrl_Click(object sender, RoutedEventArgs e)

@@ -24,17 +24,23 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
 
         // Claude API endpoints and models
         private const string ClaudeApiUrl = "https://api.anthropic.com/v1/messages";
-        private const string HaikuModel = "claude-3-haiku-20240307";
-        private const string SonnetModel = "claude-3-5-sonnet-20241022";
+        private const string HaikuModel = "claude-haiku-4-5-20251001";   // tani filtr + tłumaczenia
+        private const string SonnetModel = "claude-sonnet-4-6";           // dzienne streszczenie
+        private const string OpusModel = "claude-opus-4-7";               // pełna analiza artykułów
         private const string ApiVersion = "2023-06-01";
 
         // Rate limiting (Anthropic limits)
         private DateTime _lastRequestTime = DateTime.MinValue;
         private readonly TimeSpan _minRequestInterval = TimeSpan.FromMilliseconds(200);
 
+        // Retry policy
+        private const int MaxRetryAttempts = 3;
+
         public ClaudeAnalysisService(string apiKey = null)
         {
-            _apiKey = apiKey ?? Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY")
+            _apiKey = apiKey
+                ?? Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY")
+                ?? Kalendarz1.MarketIntelligence.SecretsLoader.Get("ANTHROPIC_API_KEY")
                 ?? System.Configuration.ConfigurationManager.AppSettings["ClaudeApiKey"];
 
             // Debug logging - help diagnose API key issues
@@ -234,12 +240,13 @@ Odpowiedz TYLKO tablicą JSON, bez dodatkowego tekstu.";
                 return CreateStubAnalysis(article);
             }
 
-            var prompt = CreateAnalysisPrompt(article, context);
+            var (systemPrompt, userPrompt) = CreateAnalysisPrompt(article, context);
 
             try
             {
+                // Opus 4.7 + prompt caching system promptu (kontekst firmy + JSON template są stałe między artykułami)
                 // ZWIĘKSZONE z 2000 na 4000 dla pełnej analizy z 3 perspektywami
-                var response = await CallClaudeAsync(prompt, SonnetModel, 4000, ct);
+                var response = await CallClaudeAsync(systemPrompt, userPrompt, OpusModel, 4000, ct, cacheSystem: true);
 
                 if (!string.IsNullOrEmpty(response))
                 {
@@ -280,7 +287,12 @@ Odpowiedz TYLKO tablicą JSON, bez dodatkowego tekstu.";
             return analyses;
         }
 
-        private string CreateAnalysisPrompt(RawArticle article, BusinessContext context)
+        /// <summary>
+        /// Buduje rozdzielony prompt analizy: system (statyczny, cacheable) + user (dynamiczny per artykuł).
+        /// System zawiera kontekst firmy + szablon JSON + zasady — te same dla wszystkich artykułów w cyklu.
+        /// User zawiera treść artykułu + wykryte podmioty — różne per artykuł.
+        /// </summary>
+        private (string systemPrompt, string userPrompt) CreateAnalysisPrompt(RawArticle article, BusinessContext context)
         {
             // 1. Pobierz pełną treść (FullContent ma priorytet nad Summary)
             var contentToAnalyze = !string.IsNullOrEmpty(article.FullContent) && article.FullContent.Length > 500
@@ -306,8 +318,21 @@ Odpowiedz TYLKO tablicą JSON, bez dodatkowego tekstu.";
                 ? EntityKnowledgeBase.GenerateWhoIsSection(detectedEntities)
                 : "Brak rozpoznanych podmiotów wymagających wyjaśnienia.";
 
-            // 3. Przygotuj skrócony kontekst firmy
-            var companyContext = $@"
+            // 3. SYSTEM PROMPT (cacheable) — kontekst firmy + zadanie + zasady
+            // Zmienia się tylko gdy zmieniają się ceny/klienci w kontekście biznesowym (raz na 4h przez ContextBuilder cache)
+            // Bieżące zagrożenia czerpiemy z context.Alerts.CriticalThreats (live data) z fallback na seed values
+            var todayPl = DateTime.Today.ToString("yyyy-MM-dd");
+            var threatsBlock = context?.Alerts?.CriticalThreats?.Any() == true
+                ? string.Join("\n", context.Alerts.CriticalThreats.Select(t => "- " + t))
+                : "- HPAI: aktywne ogniska w Polsce (sprawdź mapę WHO/GLW)\n- Import: Brazylia konkurencyjna cenowo na filet\n- Mercosur: 180k ton bezcłowego drobiu do UE\n- KSeF: faktury elektroniczne obowiązują od 01.04.2026 (już obowiązuje)";
+
+            var systemPrompt = $@"Jesteś STARSZYM ANALITYKIEM RYNKU DROBIARSKIEGO dla Ubojni Drobiu Piórkowscy.
+Przygotuj SZCZEGÓŁOWĄ i KONKRETNĄ analizę artykułu, którą otrzymasz w wiadomości użytkownika.
+DZISIEJSZA DATA: {todayPl}
+
+═══════════════════════════════════════════════════════════════════
+                    KONTEKST NASZEJ FIRMY
+═══════════════════════════════════════════════════════════════════
 FIRMA: Ubojnia Drobiu Piórkowscy, Brzeziny (łódzkie)
 ZDOLNOŚĆ: 70 000 kurczaków/dzień (~200 ton)
 SYTUACJA KRYZYSOWA: Sprzedaż spadła z 25M do 15M PLN/mies, straty ~2M PLN/mies
@@ -320,36 +345,8 @@ KONKURENCI GŁÓWNI:
 
 GŁÓWNI KLIENCI: {string.Join(", ", context?.TopCustomers?.Take(5).Select(c => c.Name) ?? new[] { "Biedronka", "Makro", "Dino" })}
 
-BIEŻĄCE ZAGROŻENIA:
-- HPAI: 19 ognisk w Polsce, 2 w łódzkim (NASZ REGION!)
-- Import: Brazylia filet 13 zł/kg vs nasze 15-17 zł
-- Mercosur: 180k ton bezcłowego drobiu do UE
-- KSeF: obowiązkowy od 01.04.2026";
-
-            // 4. Zbuduj pełny prompt
-            return $@"Jesteś STARSZYM ANALITYKIEM RYNKU DROBIARSKIEGO dla Ubojni Drobiu Piórkowscy.
-Przygotuj SZCZEGÓŁOWĄ i KONKRETNĄ analizę artykułu.
-
-═══════════════════════════════════════════════════════════════════
-                           ARTYKUŁ
-═══════════════════════════════════════════════════════════════════
-TYTUŁ: {article.Title}
-ŹRÓDŁO: {article.SourceName}
-DATA: {article.PublishDate:yyyy-MM-dd}
-KATEGORIA: {article.SourceCategory}
-
-PEŁNA TREŚĆ:
-{contentToAnalyze}
-
-═══════════════════════════════════════════════════════════════════
-                    KONTEKST NASZEJ FIRMY
-═══════════════════════════════════════════════════════════════════
-{companyContext}
-
-═══════════════════════════════════════════════════════════════════
-             KIM SĄ PODMIOTY WYMIENIONE W ARTYKULE
-═══════════════════════════════════════════════════════════════════
-{whoIsSection}
+BIEŻĄCE ZAGROŻENIA (aktualizowane z BusinessContext):
+{threatsBlock}
 
 ═══════════════════════════════════════════════════════════════════
                           ZADANIE
@@ -367,7 +364,7 @@ Przygotuj SZCZEGÓŁOWĄ analizę w formacie JSON:
 - Kim są? Czym się zajmują? Jaka jest ich skala działalności?
 - Dlaczego są ważni dla branży drobiarskiej?
 - Jakie mają powiązania kapitałowe (właściciele, inwestorzy)?
-- Użyj informacji z sekcji KIM SĄ PODMIOTY powyżej.
+- Użyj informacji z sekcji KIM SĄ PODMIOTY z wiadomości użytkownika.
 Napisz minimum 2-4 zdania na KAŻDY istotny podmiot."",
 
   ""co_to_znaczy_dla_piorkowscy"": ""KONKRETNA analiza wpływu na NASZĄ firmę (3-5 zdań):
@@ -411,6 +408,25 @@ Napisz minimum 2-4 zdania na KAŻDY istotny podmiot."",
 5. Pisz po polsku, profesjonalnie, rzeczowo.
 
 Odpowiedz WYŁĄCZNIE poprawnym JSON-em, bez żadnego tekstu przed ani po.";
+
+            // 4. USER PROMPT (dynamiczny per artykuł) — treść artykułu + wykryte podmioty
+            var userPrompt = $@"═══════════════════════════════════════════════════════════════════
+                           ARTYKUŁ
+═══════════════════════════════════════════════════════════════════
+TYTUŁ: {article.Title}
+ŹRÓDŁO: {article.SourceName}
+DATA: {article.PublishDate:yyyy-MM-dd}
+KATEGORIA: {article.SourceCategory}
+
+PEŁNA TREŚĆ:
+{contentToAnalyze}
+
+═══════════════════════════════════════════════════════════════════
+             KIM SĄ PODMIOTY WYMIENIONE W ARTYKULE
+═══════════════════════════════════════════════════════════════════
+{whoIsSection}";
+
+            return (systemPrompt, userPrompt);
         }
 
         private ArticleAnalysis ParseAnalysisResponse(string response, RawArticle article)
@@ -472,7 +488,7 @@ Odpowiedz WYŁĄCZNIE poprawnym JSON-em, bez żadnego tekstu przed ani po.";
                             RelatedTopics = parsed.PowiazaneTematy ?? new List<string>(),
 
                             AnalyzedAt = DateTime.Now,
-                            Model = SonnetModel
+                            Model = OpusModel
                         };
                     }
                 }
@@ -719,7 +735,23 @@ Odpowiedz w formacie JSON:
 
         #region API Call
 
-        private async Task<string> CallClaudeAsync(string prompt, string model, int maxTokens, CancellationToken ct)
+        // Backward-compatible single-prompt overload (no caching, used przez filter/summary/translation)
+        private Task<string> CallClaudeAsync(string prompt, string model, int maxTokens, CancellationToken ct)
+            => CallClaudeAsync(systemPrompt: null, userPrompt: prompt, model, maxTokens, ct, cacheSystem: false);
+
+        /// <summary>
+        /// Wywołuje Claude API z opcjonalnym system promptem (cacheable) + user promptem.
+        /// Cache działa tylko dla modeli Sonnet/Opus (minimum 1024 tokens w bloku);
+        /// dla Haiku (min 2048) zostawiamy cacheSystem=false bo system prompty są krótkie.
+        /// Temperature=0 → deterministyczne wyniki. Retry z exp backoff dla 429 + 5xx.
+        /// </summary>
+        private async Task<string> CallClaudeAsync(
+            string systemPrompt,
+            string userPrompt,
+            string model,
+            int maxTokens,
+            CancellationToken ct,
+            bool cacheSystem = false)
         {
             if (!IsConfigured)
             {
@@ -736,36 +768,87 @@ Odpowiedz w formacie JSON:
                     await Task.Delay(_minRequestInterval - elapsed, ct);
                 }
 
-                var request = new
+                // Zbuduj request body — z system blokami lub bez
+                object request;
+                if (!string.IsNullOrEmpty(systemPrompt))
                 {
-                    model = model,
-                    max_tokens = maxTokens,
-                    messages = new[]
+                    var systemBlock = cacheSystem
+                        ? (object)new { type = "text", text = systemPrompt, cache_control = new { type = "ephemeral" } }
+                        : new { type = "text", text = systemPrompt };
+
+                    request = new
                     {
-                        new { role = "user", content = prompt }
-                    }
-                };
-
-                var json = JsonSerializer.Serialize(request);
-                var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-                var response = await _httpClient.PostAsync(ClaudeApiUrl, content, ct);
-                _lastRequestTime = DateTime.Now;
-
-                if (!response.IsSuccessStatusCode)
+                        model,
+                        max_tokens = maxTokens,
+                        temperature = 0,
+                        system = new[] { systemBlock },
+                        messages = new[] { new { role = "user", content = userPrompt } }
+                    };
+                }
+                else
                 {
-                    var error = await response.Content.ReadAsStringAsync(ct);
-                    Debug.WriteLine($"[Claude] API error {(int)response.StatusCode}: {error}");
-                    return null;
+                    request = new
+                    {
+                        model,
+                        max_tokens = maxTokens,
+                        temperature = 0,
+                        messages = new[] { new { role = "user", content = userPrompt } }
+                    };
                 }
 
-                var responseJson = await response.Content.ReadAsStringAsync(ct);
-                var responseObj = JsonSerializer.Deserialize<ClaudeResponse>(responseJson, new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                });
+                var json = JsonSerializer.Serialize(request);
 
-                return responseObj?.Content?.FirstOrDefault()?.Text;
+                // Retry loop dla 429 (rate limit) i 5xx (server errors) z exp backoff
+                for (int attempt = 0; attempt < MaxRetryAttempts; attempt++)
+                {
+                    try
+                    {
+                        using var content = new StringContent(json, Encoding.UTF8, "application/json");
+                        var response = await _httpClient.PostAsync(ClaudeApiUrl, content, ct);
+                        _lastRequestTime = DateTime.Now;
+
+                        if (response.IsSuccessStatusCode)
+                        {
+                            var responseJson = await response.Content.ReadAsStringAsync(ct);
+                            var responseObj = JsonSerializer.Deserialize<ClaudeResponse>(responseJson, new JsonSerializerOptions
+                            {
+                                PropertyNameCaseInsensitive = true
+                            });
+
+                            // Log cache stats jeśli dostępne (pomaga zweryfikować że caching działa)
+                            if (responseObj?.Usage != null)
+                            {
+                                Debug.WriteLine($"[Claude] Tokens — in:{responseObj.Usage.InputTokens} out:{responseObj.Usage.OutputTokens} cache_read:{responseObj.Usage.CacheReadInputTokens} cache_create:{responseObj.Usage.CacheCreationInputTokens}");
+                            }
+
+                            return responseObj?.Content?.FirstOrDefault()?.Text;
+                        }
+
+                        var statusCode = (int)response.StatusCode;
+                        var error = await response.Content.ReadAsStringAsync(ct);
+
+                        // Retriable: 429 (rate limit) + 5xx (server error)
+                        if ((statusCode == 429 || statusCode >= 500) && attempt < MaxRetryAttempts - 1)
+                        {
+                            var delayMs = (int)(500 * Math.Pow(2, attempt));
+                            Debug.WriteLine($"[Claude] API {statusCode} (próba {attempt + 1}/{MaxRetryAttempts}), retry za {delayMs}ms: {error}");
+                            await Task.Delay(delayMs, ct);
+                            continue;
+                        }
+
+                        // Non-retriable lub wyczerpany budżet prób
+                        Debug.WriteLine($"[Claude] API error {statusCode} (final): {error}");
+                        return null;
+                    }
+                    catch (HttpRequestException ex) when (attempt < MaxRetryAttempts - 1)
+                    {
+                        var delayMs = (int)(500 * Math.Pow(2, attempt));
+                        Debug.WriteLine($"[Claude] Network error (próba {attempt + 1}/{MaxRetryAttempts}), retry za {delayMs}ms: {ex.Message}");
+                        await Task.Delay(delayMs, ct);
+                    }
+                }
+
+                return null;
             }
             finally
             {
@@ -885,12 +968,28 @@ Odpowiedz w formacie JSON:
         public string Id { get; set; }
         public string Model { get; set; }
         public List<ContentBlock> Content { get; set; }
+        public ClaudeUsage Usage { get; set; }
     }
 
     internal class ContentBlock
     {
         public string Type { get; set; }
         public string Text { get; set; }
+    }
+
+    internal class ClaudeUsage
+    {
+        [JsonPropertyName("input_tokens")]
+        public int InputTokens { get; set; }
+
+        [JsonPropertyName("output_tokens")]
+        public int OutputTokens { get; set; }
+
+        [JsonPropertyName("cache_creation_input_tokens")]
+        public int CacheCreationInputTokens { get; set; }
+
+        [JsonPropertyName("cache_read_input_tokens")]
+        public int CacheReadInputTokens { get; set; }
     }
 
     internal class FilterResult
@@ -1217,11 +1316,11 @@ Odpowiedz w formacie JSON:
     {
         public List<string> CriticalThreats { get; set; } = new()
         {
-            "HPAI: 19 ognisk w PL, 2 w łódzkim (NASZ REGION!)",
-            "Mrozy: -30°C, transport +15-20% kosztów",
-            "Import: Brazylia filet 13 zł vs nasze 15-17 zł",
+            "HPAI: aktywne ogniska w Polsce — sprawdzaj mapę WHO/GLW przed wysyłką",
+            "Mrozy/upały: transport +15-20% kosztów przy ekstremach pogodowych",
+            "Import: Brazylia filet ~13 zł vs nasze 15-17 zł (Makro/Selgros)",
             "Mercosur: 180k ton duty-free drób do UE",
-            "KSeF: obowiązkowy 01.04.2026 (integracja z Sage!)",
+            "KSeF: faktury elektroniczne obowiązują od 01.04.2026 (integracja z Sage wymagana)",
             "Nadpodaż Q2: relacja żywiec/pasza 4.24 → hodowcy zwiększają stada"
         };
 

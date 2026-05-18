@@ -21,6 +21,10 @@ namespace Kalendarz1.MarketIntelligence.Services
         private readonly DatabaseSetup _databaseSetup;
         private readonly string _connectionString;
 
+        // Auto-retention: cleanup raz dziennie (zapobiega niekontrolowanemu wzrostowi intel_Articles)
+        private DateTime _lastCleanupDate = DateTime.MinValue;
+        private const int RetentionDays = 30;
+
         private static BriefingDataLoaderService _instance;
         private static readonly object _lock = new object();
 
@@ -41,8 +45,11 @@ namespace Kalendarz1.MarketIntelligence.Services
 
         public BriefingDataLoaderService(string connectionString = null, string claudeApiKey = null)
         {
-            _connectionString = connectionString ??
-                "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+            // Włącz przechwytywanie Debug.WriteLine do BriefingLogHub (dla okna diagnostycznego).
+            // Idempotentne — wielokrotne wywołanie jest OK.
+            BriefingLogHub.EnsureAttached();
+
+            _connectionString = connectionString ?? MarketIntelligenceConfig.LibraNetConnectionString;
 
             _orchestrator = new NewsFetchOrchestrator(_connectionString, claudeApiKey);
             _databaseSetup = new DatabaseSetup(_connectionString);
@@ -86,6 +93,22 @@ namespace Kalendarz1.MarketIntelligence.Services
                     result.Summary = fetchResult.Summary;
                     result.Statistics = fetchResult.Statistics;
                     result.Success = true;
+
+                    // Auto-retention raz dziennie (po sukcesie) — usuwa artykuły >30 dni
+                    // oprócz oznaczonych jako bookmark + stare logi pobrań
+                    if (_lastCleanupDate.Date < DateTime.Today)
+                    {
+                        try
+                        {
+                            await _databaseSetup.CleanupOldDataAsync(RetentionDays);
+                            _lastCleanupDate = DateTime.Today;
+                            Debug.WriteLine($"[BriefingDataLoader] Auto-cleanup wykonany (retention {RetentionDays} dni)");
+                        }
+                        catch (Exception cleanupEx)
+                        {
+                            Debug.WriteLine($"[BriefingDataLoader] Cleanup error (non-fatal): {cleanupEx.Message}");
+                        }
+                    }
                 }
                 else
                 {
