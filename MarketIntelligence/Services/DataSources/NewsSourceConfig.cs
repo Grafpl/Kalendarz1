@@ -301,6 +301,60 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
                 Keywords = new[] { "regulacje", "prawo", "drób", "HPAI" },
                 Description = "MRiRW"
             },
+
+            // === NOWE ŹRÓDŁA (zweryfikowane WebFetch 2026-05-19) ===
+            new NewsSource
+            {
+                Id = "agronews_pl",
+                Name = "AgroNews",
+                Url = "https://agronews.com.pl/feed/",
+                Type = SourceType.Rss,
+                Category = "Rolnictwo",
+                Language = "pl",
+                Priority = 1,
+                Keywords = new[] { "drób", "rolnictwo", "ceny", "rynek", "HPAI" },
+                Description = "Portal AgroNews — codzienne wiadomości rolnicze"
+            },
+            new NewsSource
+            {
+                Id = "tygodnik_poradnik_rolniczy",
+                Name = "Tygodnik Poradnik Rolniczy",
+                Url = "https://www.tygodnik-rolniczy.pl/rss",
+                Type = SourceType.Rss,
+                Category = "Rolnictwo",
+                Language = "pl",
+                Priority = 1,
+                Keywords = new[] { "drób", "hodowla", "ceny", "rynek" },
+                Description = "Tygodnik Poradnik Rolniczy — 20 items/feed (NIE mylić z tygodnikrolniczy.pl)"
+            },
+
+            // === SUB-FEEDY (kategorie sub-portali — wartościowe ale niesprawdzone) ===
+            new NewsSource
+            {
+                Id = "farmer_drob",
+                Name = "Farmer.pl — Drób",
+                Url = "https://www.farmer.pl/fragments/rss/rss000.xml",
+                AlternateUrls = new[] { "https://www.farmer.pl/drob/feed", "https://www.farmer.pl/rss/produkcjazwierzeca.xml" },
+                Type = SourceType.Rss,
+                Category = "Drób",
+                Language = "pl",
+                Priority = 1,
+                Keywords = new[] { "drób", "brojler", "indyk", "kurczak", "ceny" },
+                Description = "Farmer.pl kategoria Drób (sub-feed)"
+            },
+            new NewsSource
+            {
+                Id = "portal_spozywczy_mieso",
+                Name = "Portal Spożywczy — Mięso",
+                Url = "https://www.portalspozywczy.pl/mieso-i-wedliny/rss",
+                AlternateUrls = new[] { "https://www.portalspozywczy.pl/mieso-i-wedliny/feed", "https://www.portalspozywczy.pl/rss.xml" },
+                Type = SourceType.Rss,
+                Category = "Mięso",
+                Language = "pl",
+                Priority = 1,
+                Keywords = new[] { "mięso", "drób", "ceny", "eksport", "sieci" },
+                Description = "Portal Spożywczy kategoria Mięso/Wędliny (sub-feed)"
+            },
         };
 
         #endregion
@@ -487,6 +541,20 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
                 Priority = 3,
                 Keywords = new[] { "trends", "market", "forecast" },
                 Description = "Trendy w branży drobiarskiej"
+            },
+
+            // === NOWE (zweryfikowane WebFetch 2026-05-19) ===
+            new NewsSource
+            {
+                Id = "poultry_network_uk",
+                Name = "Poultry Network (UK)",
+                Url = "https://poultry.network/feed/",
+                Type = SourceType.Rss,
+                Category = "Drób",
+                Language = "en",
+                Priority = 2,
+                Keywords = new[] { "poultry", "UK", "chicken", "HPAI", "industry" },
+                Description = "UK branżowy portal drobiarski — 10 items/feed, daily"
             },
 
             // === EUROPEJSKIE ===
