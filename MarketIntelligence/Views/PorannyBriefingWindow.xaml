@@ -86,8 +86,16 @@
                     </RadioButton>
                 </StackPanel>
 
-                <!-- RIGHT: Diagnostyka + Date -->
+                <!-- RIGHT: One-pager + Diagnostyka + Date -->
                 <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right">
+                    <Button x:Name="btnOnePager"
+                            Content="📋 One-pager"
+                            Click="btnOnePager_Click"
+                            Background="#3D2F1F" Foreground="#F5EDE0"
+                            BorderBrush="#C9A96E" BorderThickness="1"
+                            Padding="12,6" FontSize="11" Cursor="Hand"
+                            ToolTip="Esencja dnia: TOP 3 krytyczne + action items na 1 ekranie"
+                            Margin="0,0,8,0"/>
                     <Button x:Name="btnDiagnostics"
                             Content="🛠 Diagnostyka"
                             Click="btnDiagnostics_Click"

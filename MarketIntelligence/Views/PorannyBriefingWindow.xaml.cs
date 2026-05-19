@@ -279,6 +279,20 @@ namespace Kalendarz1.MarketIntelligence.Views
             }
         }
 
+        private void btnOnePager_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var win = new BriefingOnePagerWindow { Owner = this };
+                win.Show();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Błąd otwierania One-pager: " + ex.Message, "One-pager",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
         private void OpenUrl_Click(object sender, RoutedEventArgs e)
         {
             if (sender is FrameworkElement fe && fe.Tag is string url && !string.IsNullOrEmpty(url))
