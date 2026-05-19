@@ -214,16 +214,16 @@ namespace Kalendarz1.MarketIntelligence.Services
                     });
                     // 113 zapytań (80 hardcoded + user custom) × ~4s avg + 600ms delay = ~7-8 min.
                     // 720s = 12 min daje margines.
-                    // stageCt zamiast ct — przy timeout RunWithTimeoutAsync cancela stageCt
-                    // co zatrzyma pętlę 80+ zapytań w Perplexity (zamiast wycieku w tle)
+                    // TRYB OSZCZĘDNY: Critical priority + bez INT = ~22 zapytań zamiast 113-142
+                    // Koszt: 22 × $0.005 = $0.11 zamiast $0.70 (5-7x taniej)
                     var perplexityResult = await RunWithTimeoutAsync(
-                        "Perplexity (113 zapytań)",
+                        "Perplexity (22 zapytań Critical PL)",
                         stageCt => _perplexitySearchService.SearchPoultryNewsAsync(
-                            includeInternational: true,
-                            maxPriority: SearchPriority.All,
+                            includeInternational: false,
+                            maxPriority: SearchPriority.Critical,
                             ct: stageCt,
                             progress: perplexityProgress),
-                        timeoutSec: 720,
+                        timeoutSec: 240,
                         fallback: new PerplexityNewsSearchResult(),
                         ct);
 
@@ -364,13 +364,12 @@ namespace Kalendarz1.MarketIntelligence.Services
                         .Take(options.MaxArticlesToAnalyze)
                         .ToList();
 
-                    // Realny czas: Opus ~60s/artykuł (3000 tokens output). 15 × 60 = 900s.
-                    // 900s timeout daje margines + early-abort po 3 fails z rzędu.
+                    // TRYB OSZCZĘDNY: 5 art × ~40s (z 2500 tokens output) = ~200s. 360s daje margines.
                     analyses = await RunWithTimeoutAsync(
                         $"AI Analysis Opus ({topArticles.Count} art.)",
                         stageCt => _claudeAnalysisService.AnalyzeArticlesAsync(
                             topArticles, businessContext, options.MaxArticlesToAnalyze, stageCt),
-                        timeoutSec: 900,
+                        timeoutSec: 360,
                         fallback: new List<ArticleAnalysis>(),
                         ct);
                     stats.ArticlesAnalyzed = analyses.Count;
@@ -529,7 +528,7 @@ namespace Kalendarz1.MarketIntelligence.Services
                 GenerateSummary = false,
                 FetchHpaiAlerts = true,
                 FetchPrices = false,
-                MaxArticlesToAnalyze = 10,
+                MaxArticlesToAnalyze = 3, // TRYB OSZCZĘDNY: szybki test = tylko 3 artykuły
                 SaveToDatabase = false
             }, ct);
         }
@@ -926,7 +925,21 @@ WHERE TABLE_NAME = @t AND CHARACTER_MAXIMUM_LENGTH IS NOT NULL", conn);
             FetchHpaiAlerts = true,
             FetchPrices = true,
             SaveToDatabase = true,
-            MaxArticlesToAnalyze = 15 // Opus per artykuł ~60s, 15 × 60 = 900s mieści się w 900s timeout
+            MaxArticlesToAnalyze = 5 // TRYB OSZCZĘDNY: 5 × ~$0.10 = $0.50 zamiast $1.50 dla 15 art.
+        };
+
+        public static FetchOptions Economy => new()
+        {
+            IncludeScrapingSources = true,
+            UsePerplexitySearch = true,
+            UseContentEnrichment = true,
+            UseAiFiltering = true,
+            UseAiAnalysis = true,
+            GenerateSummary = true,
+            FetchHpaiAlerts = true,
+            FetchPrices = true,
+            SaveToDatabase = true,
+            MaxArticlesToAnalyze = 5
         };
 
         public static FetchOptions Quick => new()
@@ -939,7 +952,7 @@ WHERE TABLE_NAME = @t AND CHARACTER_MAXIMUM_LENGTH IS NOT NULL", conn);
             FetchHpaiAlerts = true,
             FetchPrices = false,
             SaveToDatabase = false,
-            MaxArticlesToAnalyze = 10
+            MaxArticlesToAnalyze = 3 // TRYB OSZCZĘDNY: Quick = tylko 3 artykuły
         };
     }
 

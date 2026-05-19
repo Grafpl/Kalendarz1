@@ -54,10 +54,11 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
                 ?? Kalendarz1.MarketIntelligence.SecretsLoader.Get("PERPLEXITY_API_KEY")
                 ?? System.Configuration.ConfigurationManager.AppSettings["PerplexityApiKey"];
 
-            // Domyślnie 100 zapytań/dzień (~$5 max). Override przez env lub secrets.json.
+            // TRYB OSZCZĘDNY: 30 zapytań/dzień default (~$1.50 max). Override przez env lub secrets.json.
+            // Dla pełnego fetchu wystarczy ~22 zapytań Critical, dla testów ~5-10.
             var limitStr = Environment.GetEnvironmentVariable("PERPLEXITY_DAILY_LIMIT")
                 ?? Kalendarz1.MarketIntelligence.SecretsLoader.Get("PERPLEXITY_DAILY_LIMIT");
-            _dailyQueryLimit = int.TryParse(limitStr, out var l) && l > 0 ? l : 100;
+            _dailyQueryLimit = int.TryParse(limitStr, out var l) && l > 0 ? l : 30;
 
             // Wczytaj persistent counter — bez tego każdy restart apki = świeży licznik = marnowanie API
             LoadBudgetFromFile();

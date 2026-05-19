@@ -245,8 +245,8 @@ Odpowiedz TYLKO tablicą JSON, bez dodatkowego tekstu.";
             try
             {
                 // Opus 4.7 + prompt caching system promptu (kontekst firmy + JSON template są stałe między artykułami)
-                // ZWIĘKSZONE z 2000 na 4000 dla pełnej analizy z 3 perspektywami
-                var response = await CallClaudeAsync(systemPrompt, userPrompt, OpusModel, 4000, ct, cacheSystem: true);
+                // TRYB OSZCZĘDNY: 2500 tokens (zamiast 4000) — krótsze analizy, szybsze, tańsze
+                var response = await CallClaudeAsync(systemPrompt, userPrompt, OpusModel, 2500, ct, cacheSystem: true);
 
                 if (!string.IsNullOrEmpty(response))
                 {
@@ -581,10 +581,8 @@ Odpowiedz TYLKO JSON-em.";
 
             try
             {
-                // 4000 zamiast 1500 — Summary JSON może mieć 8+ action_items, top_alerts, dwa
-                // długie summary, market mood reason itd. Przy 1500 tokens response ucinał się
-                // mid-JSON ("Expected depth to be zero at the end of the JSON payload").
-                var response = await CallClaudeAsync(prompt, SonnetModel, 4000, ct);
+                // TRYB OSZCZĘDNY: 2500 tokens (zamiast 4000) — wystarczy na summary + 5 alertów + 5 actions
+                var response = await CallClaudeAsync(prompt, SonnetModel, 2500, ct);
 
                 if (!string.IsNullOrEmpty(response))
                 {
