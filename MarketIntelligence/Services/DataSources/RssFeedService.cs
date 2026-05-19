@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
+using System.Net.Sockets;
 using System.ServiceModel.Syndication;
 using System.Threading;
 using System.Threading.Tasks;
@@ -153,10 +155,56 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
         /// <summary>
         /// Pobierz z pojedynczego źródła z retry i rate limiting
         /// </summary>
+        /// <summary>
+        /// Pre-flight DNS lookup z hard 3s timeoutem — chroni przed wiszącym DNS
+        /// na martwych domenach (dziennik-rolny.pl itd.). Task.WhenAny wymusza limit
+        /// nawet jak Dns.GetHostEntryAsync ignoruje CancellationToken (Windows quirk).
+        /// </summary>
+        private static async Task<bool> IsHostReachableAsync(string url, CancellationToken ct)
+        {
+            try
+            {
+                var host = new Uri(url).Host;
+                using var dnsCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                dnsCts.CancelAfter(TimeSpan.FromSeconds(3));
+
+                var dnsTask = Dns.GetHostEntryAsync(host);
+                var timeoutTask = Task.Delay(TimeSpan.FromSeconds(3), dnsCts.Token);
+                var finished = await Task.WhenAny(dnsTask, timeoutTask);
+
+                if (finished == timeoutTask)
+                {
+                    Debug.WriteLine($"[RSS] ⏱ DNS timeout (3s) dla {host}");
+                    return false;
+                }
+                await dnsTask;
+                return true;
+            }
+            catch (SocketException ex)
+            {
+                Debug.WriteLine($"[RSS] ❌ DNS fail: {ex.SocketErrorCode} {ex.Message}");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[RSS] ❌ DNS error: {ex.Message}");
+                return false;
+            }
+        }
+
         private async Task<List<RawArticle>> FetchFromSourceSafeAsync(NewsSource source, CancellationToken ct)
         {
             try
             {
+                // Pre-flight DNS check przed obciążaniem semafora (jeśli host martwy,
+                // nie zajmuj slotu na ratelimit). Sprawdzamy główny URL — alternates
+                // sprawdzane w FetchFromSourceAsync per URL.
+                if (!await IsHostReachableAsync(source.Url, ct))
+                {
+                    Debug.WriteLine($"[RSS] 🚫 {source.Name}: host nieosiągalny, pomijam");
+                    return new List<RawArticle>();
+                }
+
                 // Rate limiting - don't hit same source too often
                 await _rateLimiter.WaitAsync(ct);
                 try

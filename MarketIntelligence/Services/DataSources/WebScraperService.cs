@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
+using System.Net.Sockets;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -90,6 +91,13 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
                         // Hard 25s timeout per URL — niech jedna wisząca strona GLW nie blokuje pozostałych
                         using var urlCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                         urlCts.CancelAfter(TimeSpan.FromSeconds(25));
+
+                        // Pre-flight DNS check — jeśli host nie odpowiada, instant skip
+                        if (!await IsHostReachableAsync(url, urlCts.Token))
+                        {
+                            Debug.WriteLine($"[Scraper] 🚫 GLW {url}: host nieosiągalny, pomijam");
+                            continue;
+                        }
 
                         try
                         {
@@ -1025,6 +1033,48 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
             return result;
         }
 
+        /// <summary>
+        /// Pre-flight DNS lookup z hard 3s timeoutem. .NET DNS na Windows ignoruje
+        /// CancellationToken w niektórych przypadkach — TASK.WhenAny wymusza limit.
+        /// Zwraca false jeśli host nie istnieje / DNS wisi → skip źródła zamiast
+        /// czekać minutę na timeout HttpClient.
+        /// </summary>
+        private static async Task<bool> IsHostReachableAsync(string url, CancellationToken ct)
+        {
+            try
+            {
+                var host = new Uri(url).Host;
+                using var dnsCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                dnsCts.CancelAfter(TimeSpan.FromSeconds(3));
+
+                // Task.WhenAny gwarantuje że nie przekroczymy 3s niezależnie od tego
+                // czy GetHostEntryAsync honoruje token czy nie
+                var dnsTask = Dns.GetHostEntryAsync(host);
+                var timeoutTask = Task.Delay(TimeSpan.FromSeconds(3), dnsCts.Token);
+                var finished = await Task.WhenAny(dnsTask, timeoutTask);
+
+                if (finished == timeoutTask)
+                {
+                    Debug.WriteLine($"[Scraper] ⏱ DNS timeout (3s) dla {host}");
+                    return false;
+                }
+
+                // dnsTask zakończony — sprawdź czy bez błędu
+                await dnsTask;
+                return true;
+            }
+            catch (SocketException ex)
+            {
+                Debug.WriteLine($"[Scraper] ❌ DNS fail: {ex.SocketErrorCode} {ex.Message}");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Scraper] ❌ DNS error: {ex.Message}");
+                return false;
+            }
+        }
+
         private async Task<List<RawArticle>> FetchFromScrapingSourceAsync(NewsSource source, CancellationToken ct)
         {
             var articles = new List<RawArticle>();
@@ -1035,6 +1085,15 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
                 try
                 {
                     Debug.WriteLine($"[Scraper] Fetching {source.Name} from {source.Url}...");
+
+                    // PRE-FLIGHT DNS check — szybki skip dla martwych domen
+                    // (gieldadrobiowasc.pl, wir-lodz.pl itd. — bez tego DNS lookup
+                    // wisiał 15-30s nawet z 25s CTS na całe źródło, blokując socket pool)
+                    if (!await IsHostReachableAsync(source.Url, ct))
+                    {
+                        Debug.WriteLine($"[Scraper] 🚫 {source.Name}: host nieosiągalny, pomijam");
+                        return articles;
+                    }
 
                     var response = await _retryPolicy.ExecuteAsync(
                         async (token) => await _httpClient.GetAsync(source.Url, token), ct);

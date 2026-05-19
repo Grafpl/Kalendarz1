@@ -341,8 +341,9 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
                 Category = "Ceny",
                 Language = "pl",
                 Priority = 1,
+                IsActive = false, // 2026-05-18: DNS martwy (gieldadrobiowasc.pl nie istnieje). Powodował hang scrapingu.
                 Keywords = new[] { "ceny", "notowania", "kurczak", "indyk" },
-                Description = "Notowania giełdowe drobiu",
+                Description = "Notowania giełdowe drobiu (DOMENA NIEISTNIEJĄCA)",
                 ScrapingConfig = new ScrapingConfig
                 {
                     ContentSelector = ".ceny, .notowania, table",
@@ -394,8 +395,9 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
                 Category = "Regionalne",
                 Language = "pl",
                 Priority = 2,
+                IsActive = false, // 2026-05-18: DNS martwy (wir-lodz.pl nie istnieje). Powodował hang scrapingu.
                 Keywords = new[] { "łódzkie", "rolnictwo", "drób" },
-                Description = "Wielkopolska Izba Rolnicza oddział łódzki"
+                Description = "Wielkopolska Izba Rolnicza oddział łódzki (DOMENA NIEISTNIEJĄCA)"
             }
         };
 
