@@ -407,6 +407,17 @@ namespace Kalendarz1.MarketIntelligence.Services
                         timeoutSec: 90,
                         fallback: (DailySummary)null,
                         ct);
+
+                    // Zapisz Daily Summary do DB żeby historia była dostępna w One-pager.
+                    // Bez tego intel_DailySummary ma 0 rekordów mimo generowania w każdym fetchu.
+                    if (summary != null)
+                    {
+                        await RunWithTimeoutAsync(
+                            "Save Daily Summary",
+                            () => SaveDailySummaryAsync(summary, analyses, ct),
+                            timeoutSec: 15,
+                            ct);
+                    }
                 }
 
                 // 10. Fetch HPAI alerts
@@ -476,6 +487,9 @@ namespace Kalendarz1.MarketIntelligence.Services
                         timeoutSec: 15,
                         ct);
                 }
+
+                // Track w UsageTracker — koszty dnia w Diagnostyce
+                UsageTracker.TrackFetch();
 
                 // 13. Complete
                 progress?.Report(new FetchProgress
@@ -771,6 +785,85 @@ WHERE TABLE_NAME = @t AND CHARACTER_MAXIMUM_LENGTH IS NOT NULL", conn);
             catch (Exception ex)
             {
                 Debug.WriteLine($"[Orchestrator] Database save error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Zapisz Daily Summary do intel_DailySummary. UPSERT po SummaryDate
+        /// — jeden rekord per dzień, kolejne fetche tego samego dnia nadpisują.
+        /// </summary>
+        private async Task SaveDailySummaryAsync(DailySummary summary, List<ArticleAnalysis> analyses, CancellationToken ct)
+        {
+            try
+            {
+                using var conn = new SqlConnection(_connectionString);
+                await conn.OpenAsync(ct);
+
+                var critical = analyses.Count(a => a.Severity == "critical");
+                var warning = analyses.Count(a => a.Severity == "warning");
+                var positive = analyses.Count(a => a.Severity == "positive");
+
+                var topAlertsJson = System.Text.Json.JsonSerializer.Serialize(summary.TopAlerts ?? new List<Alert>());
+                var actionItemsJson = System.Text.Json.JsonSerializer.Serialize(summary.ActionItems ?? new List<ActionItem>());
+
+                var sql = @"
+MERGE intel_DailySummary AS target
+USING (SELECT @SummaryDate AS SummaryDate) AS source
+ON target.SummaryDate = source.SummaryDate
+WHEN MATCHED THEN UPDATE SET
+    Headline = @Headline,
+    CeoSummary = @CeoSummary,
+    SalesSummary = @SalesSummary,
+    BuyerSummary = @BuyerSummary,
+    MarketMood = @MarketMood,
+    MarketMoodReason = @MarketMoodReason,
+    WeeklyOutlook = @WeeklyOutlook,
+    TopAlerts = @TopAlerts,
+    ActionItems = @ActionItems,
+    ArticlesAnalyzed = @ArticlesAnalyzed,
+    CriticalCount = @CriticalCount,
+    WarningCount = @WarningCount,
+    PositiveCount = @PositiveCount,
+    GeneratedAt = @GeneratedAt,
+    AiModel = @AiModel
+WHEN NOT MATCHED THEN INSERT (
+    SummaryDate, Headline, CeoSummary, SalesSummary, BuyerSummary,
+    MarketMood, MarketMoodReason, WeeklyOutlook,
+    TopAlerts, ActionItems,
+    ArticlesAnalyzed, CriticalCount, WarningCount, PositiveCount,
+    GeneratedAt, AiModel
+) VALUES (
+    @SummaryDate, @Headline, @CeoSummary, @SalesSummary, @BuyerSummary,
+    @MarketMood, @MarketMoodReason, @WeeklyOutlook,
+    @TopAlerts, @ActionItems,
+    @ArticlesAnalyzed, @CriticalCount, @WarningCount, @PositiveCount,
+    @GeneratedAt, @AiModel
+);";
+
+                using var cmd = new SqlCommand(sql, conn) { CommandTimeout = 15 };
+                cmd.Parameters.AddWithValue("@SummaryDate", summary.Date.Date);
+                cmd.Parameters.AddWithValue("@Headline", (object)summary.Headline ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@CeoSummary", (object)summary.CeoSummary ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@SalesSummary", (object)summary.SalesSummary ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@BuyerSummary", (object)summary.BuyerSummary ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@MarketMood", (object)summary.MarketMood ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@MarketMoodReason", (object)summary.MarketMoodReason ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@WeeklyOutlook", (object)summary.WeeklyOutlook ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@TopAlerts", topAlertsJson);
+                cmd.Parameters.AddWithValue("@ActionItems", actionItemsJson);
+                cmd.Parameters.AddWithValue("@ArticlesAnalyzed", summary.ArticlesAnalyzed);
+                cmd.Parameters.AddWithValue("@CriticalCount", critical);
+                cmd.Parameters.AddWithValue("@WarningCount", warning);
+                cmd.Parameters.AddWithValue("@PositiveCount", positive);
+                cmd.Parameters.AddWithValue("@GeneratedAt", summary.GeneratedAt);
+                cmd.Parameters.AddWithValue("@AiModel", "claude-sonnet-4-6");
+
+                await cmd.ExecuteNonQueryAsync(ct);
+                Debug.WriteLine($"[Orchestrator] ✓ DailySummary saved for {summary.Date:yyyy-MM-dd}");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Orchestrator] SaveDailySummary error: {ex.Message}");
             }
         }
 

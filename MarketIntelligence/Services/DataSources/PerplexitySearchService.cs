@@ -219,6 +219,10 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
 
                 var result = ParseResponse(parsed, query);
                 Debug.WriteLine($"[Perplexity] ✓ Found {result.Articles.Count} citations for: {query.Substring(0, Math.Min(40, query.Length))}...");
+
+                // Persistent cost tracking
+                Kalendarz1.MarketIntelligence.Services.UsageTracker.TrackPerplexity();
+
                 return result;
             }
             catch (Exception ex)

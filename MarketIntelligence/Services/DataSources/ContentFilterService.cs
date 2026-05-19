@@ -127,6 +127,18 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
             @"\bemu\b",                          // emu
             @"\bperliczk",                       // perliczki (chyba że w kontekście Polski)
 
+            // ZBĘDNE TEMATY (zaśmiecały top 5 — z log 22:16-22:16)
+            @"\bkurs\s+(dolar|euro|funt|frank)",  // "Ile kosztuje dolar?", "PLN/USD" — bankier.pl spam
+            @"\bPLN\s*/\s*(USD|EUR|GBP|CHF)\b",   // kursy walut z code
+            @"\bci[ąa]gnik(i|a|iem|ach|ów|owy)?\b", // ciągniki Valtra/JCB/Tümosan — nie nasza branża
+            @"\btraktor",                          // traktor SAM
+            @"\bkosiark",                          // kosiarki Kubota
+            @"\bbi[żz]uteri",                      // biżuteria
+            @"\blego\s+insiders?\b",               // Lego program lojalnościowy
+            @"\boutlet\b",                         // designer outlet
+            @"\b(motoryzac|auto\s+w\s+gospo)",     // motoryzacja w gospodarstwie
+            @"\b(napoj|matcha|wódk|piwo|kawa)\b",  // napoje (nie dotyczy ubojni drobiu)
+
             // NIEISTOTNE REGIONY (bez kontekstu eksportu do UE/Polski)
             // Uwaga: te wzorce SĄ używane tylko gdy NIE MA słów "eksport", "import", "europa", "ue", "polska"
         };

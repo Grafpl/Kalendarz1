@@ -32,6 +32,7 @@ namespace Kalendarz1.MarketIntelligence.Services
 
             AppendEnvironmentInfo(sb);
             AppendApiStatus(sb);
+            AppendCostsSection(sb);
             AppendConfigSection(sb);
             await AppendDatabaseStatusAsync(sb);
             AppendRssSources(sb);
@@ -103,6 +104,37 @@ namespace Kalendarz1.MarketIntelligence.Services
                     sb.AppendLine($"- **Dzienny budżet:** {used}/{lim} zapytań ({(lim > 0 ? (used * 100 / lim) : 0)}%)");
                 }
                 sb.AppendLine($"- **PERPLEXITY_DAILY_LIMIT:** {limit}");
+                sb.AppendLine();
+            }
+        }
+
+        private static void AppendCostsSection(StringBuilder sb)
+        {
+            try
+            {
+                var u = Kalendarz1.MarketIntelligence.Services.UsageTracker.GetToday();
+                var (haikuPln, sonnetPln, pxPln, totalPln) = Kalendarz1.MarketIntelligence.Services.UsageTracker.ComputeCostPLN();
+
+                sb.AppendLine("## 💸 Koszty dzisiaj (przybliżone)");
+                sb.AppendLine();
+                sb.AppendLine($"- **Fetchów dziś:** {u.FetchCount}");
+                sb.AppendLine();
+                sb.AppendLine("| Usługa | Tokeny / Q | Koszt (PLN) |");
+                sb.AppendLine("|--------|------------|-------------|");
+                sb.AppendLine($"| Claude Haiku 4.5 (filter+tłum.) | {u.HaikuInputTokens:N0} in + {u.HaikuOutputTokens:N0} out | {haikuPln:F2} zł |");
+                sb.AppendLine($"| Claude Sonnet 4.6 (analiza+summary) | {u.SonnetInputTokens:N0} in + {u.SonnetOutputTokens:N0} out | {sonnetPln:F2} zł |");
+                if (u.SonnetCacheReadTokens > 0 || u.SonnetCacheCreateTokens > 0)
+                    sb.AppendLine($"|   — prompt cache (Sonnet) | {u.SonnetCacheReadTokens:N0} read + {u.SonnetCacheCreateTokens:N0} create | *(wliczone wyżej)* |");
+                sb.AppendLine($"| Perplexity Sonar | {u.PerplexityQueries} zapytań | {pxPln:F2} zł |");
+                sb.AppendLine($"| **RAZEM** | | **{totalPln:F2} zł** |");
+                sb.AppendLine();
+                sb.AppendLine($"*Cennik: Anthropic 2026-05 (Haiku $1/$5, Sonnet $3/$15 + cache 10× taniej), Perplexity $0.005/q, przelicznik 4 PLN/USD.*");
+                sb.AppendLine();
+            }
+            catch (Exception ex)
+            {
+                sb.AppendLine($"## 💸 Koszty dzisiaj");
+                sb.AppendLine($"*(błąd: {ex.Message})*");
                 sb.AppendLine();
             }
         }

@@ -41,6 +41,13 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
         // Retry policy
         private const int MaxRetryAttempts = 3;
 
+        // Early-abort gdy konto Anthropic = 0 USD (HTTP 400 "credit balance too low").
+        // Bez tego każdy z 15 batch'owanych requestów × ~400ms = ~6 sek marnowania.
+        // Po pierwszym takim błędzie: kolejne calle natychmiast zwracają null bez HTTP request.
+        private volatile bool _creditDepleted = false;
+        /// <summary>True jeśli wykryto "credit balance too low" — fetch w UI może pokazać alert.</summary>
+        public bool IsCreditDepleted => _creditDepleted;
+
         public ClaudeAnalysisService(string apiKey = null)
         {
             _apiKey = apiKey
@@ -801,6 +808,12 @@ Odpowiedz w formacie JSON:
                 throw new InvalidOperationException("Claude API key not configured");
             }
 
+            // Early-abort gdy konto puste — bez tego 15 batch'owanych requestów × 400ms = 6s marnowania
+            if (_creditDepleted)
+            {
+                return null;
+            }
+
             // Opus 4.7 odrzuca temperature (HTTP 400) — bezpiecznie strip
             var supportsTemperature = !model.Contains("opus-4-7");
 
@@ -890,6 +903,14 @@ Odpowiedz w formacie JSON:
                             if (responseObj?.Usage != null)
                             {
                                 Debug.WriteLine($"[Claude] Tokens — in:{responseObj.Usage.InputTokens} out:{responseObj.Usage.OutputTokens} cache_read:{responseObj.Usage.CacheReadInputTokens} cache_create:{responseObj.Usage.CacheCreationInputTokens}");
+
+                                // Persistent cost tracking
+                                Kalendarz1.MarketIntelligence.Services.UsageTracker.TrackClaude(
+                                    model,
+                                    responseObj.Usage.InputTokens,
+                                    responseObj.Usage.OutputTokens,
+                                    responseObj.Usage.CacheReadInputTokens,
+                                    responseObj.Usage.CacheCreationInputTokens);
                             }
 
                             return responseObj?.Content?.FirstOrDefault()?.Text;
@@ -905,6 +926,17 @@ Odpowiedz w formacie JSON:
                             Debug.WriteLine($"[Claude] API {statusCode} (próba {attempt + 1}/{MaxRetryAttempts}), retry za {delayMs}ms: {error}");
                             await Task.Delay(delayMs, ct);
                             continue;
+                        }
+
+                        // Wykryj "credit balance too low" → ustaw flag żeby kolejne calle pominąć HTTP
+                        if (statusCode == 400 && error.Contains("credit balance is too low", StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (!_creditDepleted)
+                            {
+                                _creditDepleted = true;
+                                Debug.WriteLine("[Claude] ⚠⚠ KONTO ANTHROPIC PUSTE — przerywam wszystkie kolejne wywołania w tej sesji. Doładuj na https://console.anthropic.com/settings/billing");
+                            }
+                            return null;
                         }
 
                         // Non-retriable lub wyczerpany budżet prób
