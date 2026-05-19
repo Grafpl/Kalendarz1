@@ -57,6 +57,12 @@ namespace Kalendarz1.Flota.Services
             public string? Brand { get; set; }
             public string? Model { get; set; }
             public string? Registration { get; set; }
+            // Faza 6-D — dane z VehicleDetails (mogą być NULL)
+            public DateTime? DataPrzegladu { get; set; }
+            public DateTime? DataUbezpieczenia { get; set; }
+            public string? NrPolisyOC { get; set; }
+            public int? PrzebiegKm { get; set; }
+
             public string Display => $"{Brand} {Model} ({Registration ?? ID})";
         }
 
@@ -67,6 +73,12 @@ namespace Kalendarz1.Flota.Services
             public string? FirstName { get; set; }
             public string? LastName { get; set; }
             public bool Halt { get; set; }
+            // Faza 6-D — dane z DriverDetails (mogą być NULL)
+            public DateTime? DataWaznosciPJ { get; set; }
+            public DateTime? DataWazBadanLek { get; set; }
+            public string? KategoriePrawaJazdy { get; set; }
+            public string? Telefon { get; set; }
+
             public string Display => string.IsNullOrEmpty(FirstName)
                 ? Name
                 : $"{FirstName} {LastName} (GID {GID})";
@@ -140,7 +152,9 @@ namespace Kalendarz1.Flota.Services
             await conn.OpenAsync();
             using var cmd = conn.CreateCommand();
             cmd.CommandText = @"
-                SELECT ct.ID, ct.Kind, ct.Brand, ct.Model, vd.Registration
+                SELECT ct.ID, ct.Kind, ct.Brand, ct.Model,
+                       vd.Registration, vd.DataPrzegladu, vd.DataUbezpieczenia,
+                       vd.NrPolisyOC, vd.PrzebiegKm
                 FROM CarTrailer ct
                 LEFT JOIN VehicleDetails vd ON ct.ID = vd.CarTrailerID
                 ORDER BY ct.Kind, ct.ID";
@@ -154,7 +168,11 @@ namespace Kalendarz1.Flota.Services
                     Kind = SafeNullStr(r, 1),
                     Brand = SafeNullStr(r, 2),
                     Model = SafeNullStr(r, 3),
-                    Registration = SafeNullStr(r, 4)
+                    Registration = SafeNullStr(r, 4),
+                    DataPrzegladu = r.IsDBNull(5) ? (DateTime?)null : r.GetDateTime(5),
+                    DataUbezpieczenia = r.IsDBNull(6) ? (DateTime?)null : r.GetDateTime(6),
+                    NrPolisyOC = SafeNullStr(r, 7),
+                    PrzebiegKm = r.IsDBNull(8) ? (int?)null : Convert.ToInt32(r.GetValue(8))
                 });
             }
             return list;
@@ -167,7 +185,9 @@ namespace Kalendarz1.Flota.Services
             await conn.OpenAsync();
             using var cmd = conn.CreateCommand();
             cmd.CommandText = @"
-                SELECT d.GID, d.Name, d.Halt, dd.FirstName, dd.LastName
+                SELECT d.GID, d.Name, d.Halt,
+                       dd.FirstName, dd.LastName, dd.DataWaznosciPJ, dd.DataWazBadanLek,
+                       dd.KategoriePrawaJazdy, dd.Phone1
                 FROM Driver d
                 LEFT JOIN DriverDetails dd ON d.GID = dd.DriverGID
                 WHERE ISNULL(d.Deleted, 0) = 0
@@ -181,10 +201,61 @@ namespace Kalendarz1.Flota.Services
                     Name = SafeStr(r, 1),
                     Halt = SafeBool(r, 2),
                     FirstName = SafeNullStr(r, 3),
-                    LastName = SafeNullStr(r, 4)
+                    LastName = SafeNullStr(r, 4),
+                    DataWaznosciPJ = r.IsDBNull(5) ? (DateTime?)null : r.GetDateTime(5),
+                    DataWazBadanLek = r.IsDBNull(6) ? (DateTime?)null : r.GetDateTime(6),
+                    KategoriePrawaJazdy = SafeNullStr(r, 7),
+                    Telefon = SafeNullStr(r, 8)
                 });
             }
             return list;
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // Faza 6-D — Lookup helpery: TransportPL pojazd/kierowca → Flota
+        // ════════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Zwraca słownik PojazdID → FlotaPojazd (tylko dla pojazdów które mają LibraNetCarTrailerID).
+        /// Używane w MapowaniePojazdowWindow do wzbogacania wierszy danymi z VehicleDetails.
+        /// </summary>
+        public async Task<Dictionary<int, FlotaPojazd>> GetFlotaInfoByPojazdIdAsync()
+        {
+            var result = new Dictionary<int, FlotaPojazd>();
+            var transports = await GetTransportPojazdyAsync();
+            var mapped = transports.Where(t => !string.IsNullOrEmpty(t.LibraNetCarTrailerID)).ToList();
+            if (mapped.Count == 0) return result;
+
+            var flotas = await GetFlotaPojazdyAsync();
+            var flotaById = flotas.ToDictionary(f => f.ID, f => f);
+
+            foreach (var t in mapped)
+            {
+                if (flotaById.TryGetValue(t.LibraNetCarTrailerID!, out var f))
+                    result[t.PojazdID] = f;
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Zwraca słownik KierowcaID → FlotaKierowca (tylko dla zmapowanych przez LibraNetDriverGID).
+        /// </summary>
+        public async Task<Dictionary<int, FlotaKierowca>> GetFlotaInfoByKierowcaIdAsync()
+        {
+            var result = new Dictionary<int, FlotaKierowca>();
+            var transports = await GetTransportKierowcyAsync();
+            var mapped = transports.Where(t => t.LibraNetDriverGID.HasValue).ToList();
+            if (mapped.Count == 0) return result;
+
+            var flotas = await GetFlotaKierowcyAsync();
+            var flotaByGid = flotas.ToDictionary(f => f.GID, f => f);
+
+            foreach (var t in mapped)
+            {
+                if (flotaByGid.TryGetValue(t.LibraNetDriverGID!.Value, out var f))
+                    result[t.KierowcaID] = f;
+            }
+            return result;
         }
 
         // ════════════════════════════════════════════════════════════════════

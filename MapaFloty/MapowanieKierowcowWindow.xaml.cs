@@ -163,7 +163,48 @@ namespace Kalendarz1.MapaFloty
                 });
             }
 
+            // Faza 6-D — wzbogacenie wierszy danymi z Floty (DriverDetails: PJ, badania, telefon)
+            try
+            {
+                var bridge = new Kalendarz1.Flota.Services.FlotaTransportBridgeService();
+                var flotaInfo = await bridge.GetFlotaInfoByKierowcaIdAsync();
+                foreach (var row in _rows)
+                {
+                    if (row.KierowcaID > 0 && flotaInfo.TryGetValue(row.KierowcaID, out var f))
+                        (row.FlotaStatus, row.FlotaTooltip) = BuildFlotaStatusKierowca(f);
+                }
+            }
+            catch { /* silent fallback gdy SQL alter_link_to_flota.sql nie uruchomione */ }
+
             MappingGrid.ItemsSource = _rows;
+        }
+
+        private static (string status, string tooltip) BuildFlotaStatusKierowca(
+            Kalendarz1.Flota.Services.FlotaTransportBridgeService.FlotaKierowca f)
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"👤 {f.Display}");
+            if (!string.IsNullOrEmpty(f.KategoriePrawaJazdy)) sb.AppendLine($"Kat. prawa jazdy: {f.KategoriePrawaJazdy}");
+            if (!string.IsNullOrEmpty(f.Telefon)) sb.AppendLine($"Tel: {f.Telefon}");
+
+            string worst = "✓";
+            var today = DateTime.Today;
+            string DateLine(string label, DateTime? d)
+            {
+                if (!d.HasValue) return $"{label}: — (brak danych)";
+                int days = (d.Value.Date - today).Days;
+                string icon;
+                if (days < 0) { icon = "❌"; if (worst != "❌") worst = "❌"; }
+                else if (days < 30) { icon = "⚠"; if (worst == "✓") worst = "⚠"; }
+                else icon = "✓";
+                string suffix = days < 0 ? $" (wygasły {-days} dni temu)"
+                              : days < 30 ? $" (za {days} dni)" : "";
+                return $"{label}: {d:dd.MM.yyyy} {icon}{suffix}";
+            }
+            sb.AppendLine(DateLine("Ważność PJ", f.DataWaznosciPJ));
+            sb.Append(DateLine("Badania lekarskie", f.DataWazBadanLek));
+
+            return (worst, sb.ToString());
         }
 
         private void UpdateStats()
@@ -258,6 +299,9 @@ namespace Kalendarz1.MapaFloty
                 get => _kierowcaId;
                 set { _kierowcaId = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(KierowcaID))); }
             }
+            // Faza 6-D — dane z Floty (po zmapowaniu Transport.Kierowca → LibraNet.Driver)
+            public string FlotaStatus { get; set; } = "—";
+            public string FlotaTooltip { get; set; } = "Brak mapowania do Floty.\nUruchom Menu → Mapowanie systemów.";
             public event PropertyChangedEventHandler? PropertyChanged;
         }
     }

@@ -112,20 +112,69 @@ namespace Kalendarz1.MapaFloty
                 }
             }
 
+            // Faza 6-D — load dictionary PojazdID → FlotaPojazd (z VehicleDetails: przegląd, OC, przebieg)
+            Dictionary<int, Kalendarz1.Flota.Services.FlotaTransportBridgeService.FlotaPojazd> flotaInfo;
+            try
+            {
+                var bridge = new Kalendarz1.Flota.Services.FlotaTransportBridgeService();
+                flotaInfo = await bridge.GetFlotaInfoByPojazdIdAsync();
+            }
+            catch
+            {
+                flotaInfo = new(); // gdy SQL alter_link_to_flota.sql nie uruchomione — silent fallback
+            }
+
             _rows.Clear();
             foreach (var wf in _webfleetVehicles.OrderBy(v => v.ObjectName))
             {
                 existing.TryGetValue(wf.ObjectNo, out var mappedId);
-                _rows.Add(new MappingRow
+                var pid = mappedId.HasValue && mappedId > 0 ? mappedId.Value : -1;
+                var row = new MappingRow
                 {
                     WebfleetObjectNo = wf.ObjectNo,
                     WebfleetObjectName = wf.ObjectName,
                     WebfleetDriver = wf.Driver,
-                    PojazdID = mappedId.HasValue && mappedId > 0 ? mappedId.Value : -1
-                });
+                    PojazdID = pid
+                };
+                if (pid > 0 && flotaInfo.TryGetValue(pid, out var f))
+                {
+                    (row.FlotaStatus, row.FlotaTooltip) = BuildFlotaStatusPojazd(f);
+                }
+                _rows.Add(row);
             }
 
             MappingGrid.ItemsSource = _rows;
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        // Faza 6-D — Status flota helpers
+        // ════════════════════════════════════════════════════════════════
+        private static (string status, string tooltip) BuildFlotaStatusPojazd(
+            Kalendarz1.Flota.Services.FlotaTransportBridgeService.FlotaPojazd f)
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"🚛 {f.Display}");
+            if (f.PrzebiegKm.HasValue) sb.AppendLine($"Przebieg: {f.PrzebiegKm.Value:N0} km");
+
+            string worst = "✓";
+            var today = DateTime.Today;
+            string DateLine(string label, DateTime? d)
+            {
+                if (!d.HasValue) return $"{label}: — (brak danych)";
+                int days = (d.Value.Date - today).Days;
+                string icon;
+                if (days < 0) { icon = "❌"; if (worst != "❌") worst = "❌"; }
+                else if (days < 30) { icon = "⚠"; if (worst == "✓") worst = "⚠"; }
+                else icon = "✓";
+                string suffix = days < 0 ? $" (wygasł {-days} dni temu)"
+                              : days < 30 ? $" (za {days} dni)" : "";
+                return $"{label}: {d:dd.MM.yyyy} {icon}{suffix}";
+            }
+            sb.AppendLine(DateLine("Przegląd techniczny", f.DataPrzegladu));
+            sb.Append(DateLine("Ubezpieczenie OC", f.DataUbezpieczenia));
+            if (!string.IsNullOrEmpty(f.NrPolisyOC)) sb.Append($" (polisa {f.NrPolisyOC})");
+
+            return (worst, sb.ToString());
         }
 
         private void UpdateStats()
@@ -224,6 +273,9 @@ namespace Kalendarz1.MapaFloty
                 get => _pojazdId;
                 set { _pojazdId = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(PojazdID))); }
             }
+            // Faza 6-D — dane z Floty (po zmapowaniu Transport.Pojazd → LibraNet.CarTrailer)
+            public string FlotaStatus { get; set; } = "—";
+            public string FlotaTooltip { get; set; } = "Brak mapowania do Floty.\nUruchom Menu → Mapowanie systemów.";
             public event PropertyChangedEventHandler? PropertyChanged;
         }
     }
