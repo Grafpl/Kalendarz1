@@ -537,13 +537,17 @@ namespace Kalendarz1.MapaFloty
 
         private void UpdateChipsActiveBorder()
         {
+            // Compact chipy — active state przez Background (gdzie inactive=Transparent)
             var inactive = System.Windows.Media.Brushes.Transparent;
-            var active = (System.Windows.Media.Brush)(new System.Windows.Media.SolidColorBrush(
-                System.Windows.Media.Color.FromRgb(57, 73, 171)));
-            if (ChipMoving != null)  ChipMoving.BorderBrush = _chipFilter == "moving" ? active : inactive;
-            if (ChipStopped != null) ChipStopped.BorderBrush = _chipFilter == "stopped" ? active : inactive;
-            if (ChipAll != null)     ChipAll.BorderBrush = _chipFilter == "all" ? active : inactive;
-            if (ChipBase != null)    ChipBase.BorderBrush = _chipFilter == "base" ? active : inactive;
+            var movingActive = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(232, 245, 233));
+            var stoppedActive = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 243, 224));
+            var baseActive = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(225, 245, 254));
+            var allActive = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(232, 234, 246));
+
+            if (ChipMoving != null)  ChipMoving.Background  = _chipFilter == "moving"  ? movingActive  : inactive;
+            if (ChipStopped != null) ChipStopped.Background = _chipFilter == "stopped" ? stoppedActive : inactive;
+            if (ChipBase != null)    ChipBase.Background    = _chipFilter == "base"    ? baseActive    : inactive;
+            if (ChipAll != null)     ChipAll.Background     = _chipFilter == "all"     ? allActive     : inactive;
         }
 
         private void UpdateSidePanel(List<VehiclePosition> vehicles)
@@ -617,6 +621,54 @@ namespace Kalendarz1.MapaFloty
             return                    "Wyłączony";
         }
 
+        private static string GetStateShortLabel(VehiclePosition v)
+        {
+            if (v.IsMoving)   return "trasa";
+            if (v.InGeofence) return "baza";
+            if (v.Ignition)   return "postój";
+            return                    "off";
+        }
+
+        // Polish++ pomysł 3 — skraca "Jan Kowalski" → "Jan K." dla compact card
+        private static string ShortenDriver(string? driver)
+        {
+            if (string.IsNullOrWhiteSpace(driver)) return "";
+            var parts = driver.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length == 0) return "";
+            if (parts.Length == 1) return parts[0];
+            return $"{parts[0]} {parts[parts.Length - 1][..1]}.";
+        }
+
+        // Polish++ pomysł 3 — pełen detal w Tooltip na hover (zamiast 7 rzędów w card)
+        private static string BuildVehicleTooltip(VehiclePosition v, string ageText)
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"📍 {v.ObjectName}");
+            sb.AppendLine($"   {GetStateLabel(v)}{(v.IsMoving ? $" · {v.Speed} km/h" : "")}");
+            if (!string.IsNullOrWhiteSpace(v.Driver)) sb.AppendLine($"👤 Kierowca GPS: {v.Driver}");
+            if (!string.IsNullOrWhiteSpace(v.Address)) sb.AppendLine($"🗺 {v.Address}");
+            if (!string.IsNullOrEmpty(v.KursTrasa))
+            {
+                sb.AppendLine($"📋 Kurs: {v.KursTrasa}");
+                if (!string.IsNullOrEmpty(v.KursGodzWyjazdu))
+                {
+                    var godziny = v.KursGodzWyjazdu + (string.IsNullOrEmpty(v.KursGodzPowrotu) ? "" : $" → {v.KursGodzPowrotu}");
+                    sb.AppendLine($"   ⏱ {godziny}");
+                }
+                if (!string.IsNullOrEmpty(v.KursStatus)) sb.AppendLine($"   Status: {v.KursStatus}");
+                if (!string.IsNullOrEmpty(v.KursKierowca))
+                {
+                    var diff = !string.IsNullOrEmpty(v.Driver) && v.KursKierowca != v.Driver ? " ⚠" : "";
+                    sb.AppendLine($"   Przypisany: {v.KursKierowca}{diff}");
+                }
+            }
+            if (!string.IsNullOrEmpty(v.InternalName)) sb.AppendLine($"🚛 Transport: {v.InternalName}");
+            sb.AppendLine($"📡 GPS: {ageText}");
+            if (v.DistToUbojnia > 0) sb.AppendLine($"↗ {v.DistToUbojnia:F1} km do ubojni" + (v.EtaMinutes > 0 ? $" · ETA ~{v.EtaMinutes} min" : ""));
+            sb.Append("\nKlik = śledź na mapie");
+            return sb.ToString();
+        }
+
         // Polishing — wiek GPS jako readable string + warning gdy stary
         private static (string text, bool warning) FormatGpsAge(string? lastUpdate)
         {
@@ -632,20 +684,23 @@ namespace Kalendarz1.MapaFloty
 
         private Border CreateVehicleCard(VehiclePosition v)
         {
+            // Polish++ pomysł 3 — uproszczona card (3 rzędy zamiast 7).
+            // Pełen detal w Tooltip na hover.
             var red = Color.FromRgb(198, 40, 40);
             var sc = GetStateColor(v);
             var sb = new SolidColorBrush(sc);
+            var (ageText, ageWarn) = FormatGpsAge(v.LastUpdate);
 
             var card = new Border
             {
                 Background = Brushes.White, CornerRadius = new CornerRadius(8),
-                Margin = new Thickness(0, 0, 0, 5), Padding = new Thickness(0),
+                Margin = new Thickness(0, 0, 0, 4), Padding = new Thickness(0),
                 Cursor = Cursors.Hand,
-                BorderBrush = v.InGeofence ? new SolidColorBrush(Color.FromArgb(120, red.R, red.G, red.B))
-                    : new SolidColorBrush(Color.FromRgb(232, 234, 240)),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(232, 234, 240)),
                 BorderThickness = new Thickness(1),
                 Effect = new System.Windows.Media.Effects.DropShadowEffect
-                    { ShadowDepth = 1, BlurRadius = 4, Opacity = 0.06, Direction = 270 }
+                    { ShadowDepth = 1, BlurRadius = 4, Opacity = 0.06, Direction = 270 },
+                ToolTip = BuildVehicleTooltip(v, ageText) // pełen detal na hover
             };
             card.MouseEnter += (_, _) => card.Background = new SolidColorBrush(Color.FromRgb(248, 249, 253));
             card.MouseLeave += (_, _) => card.Background = Brushes.White;
@@ -665,118 +720,84 @@ namespace Kalendarz1.MapaFloty
             Grid.SetColumn(accentBar, 0);
             outerGrid.Children.Add(accentBar);
 
-            var stack = new StackPanel { Margin = new Thickness(10, 7, 10, 7) };
+            var stack = new StackPanel { Margin = new Thickness(10, 6, 10, 6) };
             Grid.SetColumn(stack, 1);
             outerGrid.Children.Add(stack);
 
-            // Row 1: name + speed
-            var r1 = new DockPanel { Margin = new Thickness(0, 0, 0, 2) };
-            if (v.IsMoving)
+            // Row 1: name (bold) + speed/status pill (right)
+            var r1 = new DockPanel();
+            var rightBadge = new Border
             {
-                var spdBg = new Border
-                {
-                    Background = new SolidColorBrush(Color.FromArgb(35, sc.R, sc.G, sc.B)),
-                    CornerRadius = new CornerRadius(4), Padding = new Thickness(5, 1, 5, 1),
-                    HorizontalAlignment = HorizontalAlignment.Right
-                };
-                DockPanel.SetDock(spdBg, Dock.Right);
-                spdBg.Child = new TextBlock { Text = $"{v.Speed}", Foreground = sb, FontSize = 12, FontWeight = FontWeights.ExtraBold };
-                r1.Children.Add(spdBg);
-            }
+                Background = new SolidColorBrush(Color.FromArgb(38, sc.R, sc.G, sc.B)),
+                CornerRadius = new CornerRadius(4), Padding = new Thickness(6, 1, 6, 1),
+                HorizontalAlignment = HorizontalAlignment.Right
+            };
+            DockPanel.SetDock(rightBadge, Dock.Right);
+            rightBadge.Child = new TextBlock
+            {
+                Text = v.IsMoving ? $"{v.Speed} km/h" : GetStateShortLabel(v),
+                Foreground = sb, FontSize = 10, FontWeight = FontWeights.Bold
+            };
+            r1.Children.Add(rightBadge);
             r1.Children.Add(new TextBlock
             {
                 Text = v.ObjectName, FontWeight = FontWeights.Bold,
                 Foreground = new SolidColorBrush(Color.FromRgb(38, 50, 56)),
-                FontSize = 12, TextTrimming = TextTrimming.CharacterEllipsis
+                FontSize = 13, TextTrimming = TextTrimming.CharacterEllipsis,
+                VerticalAlignment = VerticalAlignment.Center
             });
             stack.Children.Add(r1);
 
-            // Row 2: driver + status pill
-            var r2 = new DockPanel { Margin = new Thickness(0, 1, 0, 0) };
-            var statusTxt = GetStateLabel(v);
-            var pill = new Border
-            {
-                Background = new SolidColorBrush(Color.FromArgb(30, sc.R, sc.G, sc.B)),
-                CornerRadius = new CornerRadius(3), Padding = new Thickness(5, 1, 5, 1),
-                HorizontalAlignment = HorizontalAlignment.Right
-            };
-            DockPanel.SetDock(pill, Dock.Right);
-            pill.Child = new TextBlock { Text = statusTxt, Foreground = sb, FontSize = 9, FontWeight = FontWeights.SemiBold };
-            r2.Children.Add(pill);
-            r2.Children.Add(new TextBlock
-            {
-                Text = v.Driver, Foreground = new SolidColorBrush(Color.FromRgb(96, 125, 139)),
-                FontSize = 10.5, TextTrimming = TextTrimming.CharacterEllipsis
-            });
-            stack.Children.Add(r2);
-
-            // Row 3: ETA + distance
-            if (v.IsMoving || v.DistToUbojnia < 50)
-            {
-                var r3 = new DockPanel { Margin = new Thickness(0, 2, 0, 0) };
-                var distTxt = new TextBlock
-                {
-                    Text = $"{v.DistToUbojnia:F1} km",
-                    Foreground = new SolidColorBrush(Color.FromRgb(144, 164, 174)),
-                    FontSize = 9, HorizontalAlignment = HorizontalAlignment.Right
-                };
-                DockPanel.SetDock(distTxt, Dock.Right);
-                r3.Children.Add(distTxt);
-                var etaStr = v.EtaMinutes > 0 ? $"Do ubojni: ok. {v.EtaMinutes} min" : $"Do ubojni: {v.DistToUbojnia:F0} km";
-                r3.Children.Add(new TextBlock
-                {
-                    Text = etaStr,
-                    Foreground = new SolidColorBrush(v.EtaMinutes > 0 ? Color.FromRgb(21, 101, 192) : Color.FromRgb(144, 164, 174)),
-                    FontSize = 9, FontWeight = v.EtaMinutes > 0 ? FontWeights.SemiBold : FontWeights.Normal
-                });
-                stack.Children.Add(r3);
-            }
-
-            // Row 4: address
-            if (!string.IsNullOrWhiteSpace(v.Address))
-            {
-                stack.Children.Add(new TextBlock
-                {
-                    Text = v.Address, Foreground = new SolidColorBrush(Color.FromRgb(144, 164, 174)),
-                    FontSize = 9, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0, 1, 0, 0)
-                });
-            }
-
-            // Row 5: internal mapping
-            if (!string.IsNullOrEmpty(v.InternalName))
-            {
-                stack.Children.Add(new TextBlock
-                {
-                    Text = $"Transport: {v.InternalName}",
-                    Foreground = new SolidColorBrush(Color.FromRgb(57, 73, 171)),
-                    FontSize = 9, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 2, 0, 0)
-                });
-            }
-
-            // Row 6: Kurs info
+            // Row 2: driver · kurs LUB driver · address
+            string secondLine;
+            Color secondColor;
             if (!string.IsNullOrEmpty(v.KursTrasa))
             {
-                var kursLine = $"Kurs: {v.KursTrasa}";
-                if (!string.IsNullOrEmpty(v.KursGodzWyjazdu)) kursLine += $" ({v.KursGodzWyjazdu})";
-                var kursColor = v.KursStatus == "Planowany" ? Color.FromRgb(255, 152, 0)
-                    : v.KursStatus == "W realizacji" ? Color.FromRgb(46, 125, 50) : Color.FromRgb(120, 144, 156);
-                stack.Children.Add(new TextBlock
-                {
-                    Text = kursLine, Foreground = new SolidColorBrush(kursColor),
-                    FontSize = 9, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 2, 0, 0)
-                });
+                var drv = ShortenDriver(v.Driver);
+                secondLine = string.IsNullOrEmpty(drv) ? v.KursTrasa : $"{drv} · {v.KursTrasa}";
+                secondColor = Color.FromRgb(94, 53, 177);  // fioletowy = ma aktywny kurs
             }
-
-            // Row 8: GPS age (polishing — wiek GPS jako readable + warning gdy stary)
-            var (ageText, ageWarn) = FormatGpsAge(v.LastUpdate);
+            else if (!string.IsNullOrWhiteSpace(v.Driver) || !string.IsNullOrWhiteSpace(v.Address))
+            {
+                var drv = ShortenDriver(v.Driver);
+                var loc = string.IsNullOrWhiteSpace(v.Address) ? "—" : v.Address;
+                secondLine = string.IsNullOrEmpty(drv) ? loc : $"{drv} · {loc}";
+                secondColor = Color.FromRgb(96, 125, 139);
+            }
+            else
+            {
+                secondLine = "—"; secondColor = Color.FromRgb(176, 190, 197);
+            }
             stack.Children.Add(new TextBlock
             {
-                Text = "📡 " + ageText,
-                Foreground = new SolidColorBrush(ageWarn ? Color.FromRgb(230, 81, 0) : Color.FromRgb(176, 190, 197)),
-                FontSize = 8.5,
-                FontWeight = ageWarn ? FontWeights.SemiBold : FontWeights.Normal,
-                Margin = new Thickness(0, 3, 0, 0)
+                Text = secondLine,
+                Foreground = new SolidColorBrush(secondColor),
+                FontSize = 10.5, TextTrimming = TextTrimming.CharacterEllipsis,
+                Margin = new Thickness(0, 2, 0, 0)
             });
+
+            // Row 3: WARUNKOWY — tylko gdy alert/info wart pokazania
+            var warnings = new List<(string text, Color color)>();
+            if (ageWarn) warnings.Add(("📡 GPS " + ageText, Color.FromRgb(230, 81, 0)));
+            if (v.InGeofence) warnings.Add(("🏠 w bazie", Color.FromRgb(25, 118, 210)));
+            if (v.IsMoving && v.EtaMinutes > 0 && v.DistToUbojnia < 50)
+                warnings.Add(($"↗ {v.DistToUbojnia:F0} km · ~{v.EtaMinutes} min", Color.FromRgb(21, 101, 192)));
+
+            if (warnings.Count > 0)
+            {
+                var r3 = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3, 0, 0) };
+                for (int i = 0; i < warnings.Count; i++)
+                {
+                    if (i > 0) r3.Children.Add(new TextBlock { Text = " · ", Foreground = new SolidColorBrush(Color.FromRgb(207, 216, 220)), FontSize = 9.5 });
+                    r3.Children.Add(new TextBlock
+                    {
+                        Text = warnings[i].text,
+                        Foreground = new SolidColorBrush(warnings[i].color),
+                        FontSize = 9.5, FontWeight = FontWeights.SemiBold
+                    });
+                }
+                stack.Children.Add(r3);
+            }
 
             card.Child = outerGrid;
             return card;
