@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
 using System.Text.RegularExpressions;
@@ -985,38 +986,57 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
 
             var tasks = scrapingSources.Select(async source =>
             {
-                // Hard cap 25s per source — niezależny od HttpClient timeout i Polly retries
-                using var sourceCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                // DWIE warstwy timeoutu:
+                // 1) CTS (próbuje cancellation cooperatively wewnątrz Fetch)
+                // 2) Task.WhenAny z Task.Delay(30s) — HARD CAP niezależny od tego
+                //    czy CTS faktycznie zadziała. Po 30s zwracamy i porzucamy task
+                //    w tle (może doczołgać się sam, my idziemy dalej).
+                var sourceCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 sourceCts.CancelAfter(TimeSpan.FromSeconds(25));
 
+                progress?.Report($"Scraping {completed + 1}/{total}: ⏳ {source.Name}");
+
                 var sw = Stopwatch.StartNew();
-                try
+                var workTask = Task.Run(async () =>
                 {
-                    var sourceArticles = await FetchFromScrapingSourceAsync(source, sourceCts.Token);
-                    foreach (var a in sourceArticles) allArticles.Add(a);
-                    sw.Stop();
-                    Debug.WriteLine($"[Scraper] ✓ {source.Name}: {sourceArticles.Count} artykułów ({sw.ElapsedMilliseconds}ms)");
-                }
-                catch (OperationCanceledException) when (sourceCts.IsCancellationRequested && !ct.IsCancellationRequested)
-                {
-                    sw.Stop();
-                    Debug.WriteLine($"[Scraper] ⏱ {source.Name}: TIMEOUT po 25s — pomijam");
-                }
-                catch (OperationCanceledException)
-                {
-                    // Główne ct anulowane — propaguj wyżej
-                    throw;
-                }
-                catch (Exception ex)
+                    try { return await FetchFromScrapingSourceAsync(source, sourceCts.Token); }
+                    catch { return new List<RawArticle>(); }
+                });
+
+                var timeoutTask = Task.Delay(TimeSpan.FromSeconds(30), ct);
+                var finished = await Task.WhenAny(workTask, timeoutTask);
+
+                if (finished == timeoutTask && !ct.IsCancellationRequested)
                 {
                     sw.Stop();
-                    Debug.WriteLine($"[Scraper] ❌ {source.Name}: {ex.Message} ({sw.ElapsedMilliseconds}ms)");
+                    sourceCts.Cancel(); // poproś task o zatrzymanie
+                    Debug.WriteLine($"[Scraper] ⏱⏱ {source.Name}: HARD TIMEOUT 30s — porzucam task (działa w tle, idziemy dalej)");
+                    // Nie awaitujemy workTask — może wisieć w tle, ale my zwalniamy slot.
+                    // Dispose sourceCts po opuszczeniu, żeby nie zabić tego co aktualnie robi.
+                    _ = workTask.ContinueWith(t => { try { sourceCts.Dispose(); } catch { } });
                 }
-                finally
+                else
                 {
-                    var done = Interlocked.Increment(ref completed);
-                    progress?.Report($"Scraping {done}/{total}: {source.Name}");
+                    try
+                    {
+                        var sourceArticles = await workTask;
+                        foreach (var a in sourceArticles) allArticles.Add(a);
+                        sw.Stop();
+                        Debug.WriteLine($"[Scraper] ✓ {source.Name}: {sourceArticles.Count} artykułów ({sw.ElapsedMilliseconds}ms)");
+                    }
+                    catch (Exception ex)
+                    {
+                        sw.Stop();
+                        Debug.WriteLine($"[Scraper] ❌ {source.Name}: {ex.Message} ({sw.ElapsedMilliseconds}ms)");
+                    }
+                    finally
+                    {
+                        sourceCts.Dispose();
+                    }
                 }
+
+                var done = Interlocked.Increment(ref completed);
+                progress?.Report($"Scraping {done}/{total}: ✓ {source.Name} ({sw.ElapsedMilliseconds}ms)");
             }).ToList();
 
             try
@@ -1095,8 +1115,9 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
                         return articles;
                     }
 
+                    Debug.WriteLine($"[Scraper] {source.Name}: HTTP GET...");
                     var response = await _retryPolicy.ExecuteAsync(
-                        async (token) => await _httpClient.GetAsync(source.Url, token), ct);
+                        async (token) => await _httpClient.GetAsync(source.Url, HttpCompletionOption.ResponseHeadersRead, token), ct);
 
                     if (!response.IsSuccessStatusCode)
                     {
@@ -1104,24 +1125,46 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
                         return articles;
                     }
 
-                    var html = await response.Content.ReadAsStringAsync(ct);
-                    var doc = new HtmlDocument();
-                    doc.LoadHtml(html);
-
-                    // Generic article extraction - look for common patterns
-                    var articleNodes = doc.DocumentNode.SelectNodes(
-                        "//article | " +
-                        "//div[contains(@class,'news')] | " +
-                        "//div[contains(@class,'aktualnosc')] | " +
-                        "//div[contains(@class,'post')] | " +
-                        "//li[contains(@class,'news')] | " +
-                        "//div[contains(@class,'article')]");
-
-                    if (articleNodes == null || !articleNodes.Any())
+                    // Limit body size do 5 MB — niech ogromny HTML nie zatka RAM/parsera
+                    var contentLength = response.Content.Headers.ContentLength ?? 0;
+                    if (contentLength > 5 * 1024 * 1024)
                     {
-                        // Try link-based extraction
-                        articleNodes = doc.DocumentNode.SelectNodes("//a[contains(@href,'/news/') or contains(@href,'/aktualnosc') or contains(@href,'/artykul')]");
+                        Debug.WriteLine($"[Scraper] {source.Name}: HTML zbyt duży ({contentLength / 1024} KB) — pomijam");
+                        return articles;
                     }
+
+                    Debug.WriteLine($"[Scraper] {source.Name}: czytam body...");
+                    var html = await response.Content.ReadAsStringAsync(ct);
+
+                    if (html.Length > 5 * 1024 * 1024)
+                    {
+                        Debug.WriteLine($"[Scraper] {source.Name}: body {html.Length / 1024} KB — pomijam parsing");
+                        return articles;
+                    }
+
+                    Debug.WriteLine($"[Scraper] {source.Name}: parsuję HTML ({html.Length / 1024} KB)...");
+                    // HtmlAgilityPack.LoadHtml + SelectNodes są synchroniczne CPU-bound.
+                    // Wrapujemy w Task.Run żeby nie blokowały UI ani worker thread pool dla await'ów.
+                    var (articleNodes, doc) = await Task.Run(() =>
+                    {
+                        var d = new HtmlDocument();
+                        d.LoadHtml(html);
+
+                        // Generic article extraction - look for common patterns
+                        var nodes = d.DocumentNode.SelectNodes(
+                            "//article | " +
+                            "//div[contains(@class,'news')] | " +
+                            "//div[contains(@class,'aktualnosc')] | " +
+                            "//div[contains(@class,'post')] | " +
+                            "//li[contains(@class,'news')] | " +
+                            "//div[contains(@class,'article')]");
+
+                        if (nodes == null || !nodes.Any())
+                        {
+                            nodes = d.DocumentNode.SelectNodes("//a[contains(@href,'/news/') or contains(@href,'/aktualnosc') or contains(@href,'/artykul')]");
+                        }
+                        return (nodes, d);
+                    }, ct);
 
                     if (articleNodes != null)
                     {

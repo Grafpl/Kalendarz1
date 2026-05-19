@@ -231,6 +231,9 @@ FROM intel_FetchLog ORDER BY FetchTime DESC", conn);
 
         private System.Windows.Threading.DispatcherTimer _elapsedTimer;
         private DateTime _fetchStartTime;
+        private DateTime _lastProgressUpdate;
+        private bool _watchdogWarned;
+        private const int WatchdogStaleSeconds = 90; // próg ostrzeżenia
 
         private async void btnForceFetch_Click(object sender, RoutedEventArgs e)
         {
@@ -242,6 +245,8 @@ FROM intel_FetchLog ORDER BY FetchTime DESC", conn);
 
             _cts = new CancellationTokenSource();
             _fetchStartTime = DateTime.Now;
+            _lastProgressUpdate = DateTime.Now;
+            _watchdogWarned = false;
             txtActionResult.Text = "";
 
             // Pokaż progress bar
@@ -256,15 +261,49 @@ FROM intel_FetchLog ORDER BY FetchTime DESC", conn);
             btnForceFetch.IsEnabled = false;
             btnCancelFetch.IsEnabled = true;
 
-            // Timer odświeża elapsed co 200ms (płynniej niż 1s)
+            // Timer odświeża elapsed co 200ms + WATCHDOG sprawdza czy progress nie utknął
             _elapsedTimer?.Stop();
-            _elapsedTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
+            _elapsedTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
             _elapsedTimer.Tick += (s, _) =>
             {
                 var elapsed = DateTime.Now - _fetchStartTime;
                 txtProgressElapsed.Text = elapsed.TotalSeconds < 60
                     ? $"{elapsed.TotalSeconds:F1}s"
                     : $"{(int)elapsed.TotalMinutes:00}:{elapsed.Seconds:00}";
+
+                // Watchdog: jeśli ostatni update progress >90s temu, ostrzeż użytkownika 1x
+                var sinceProgress = (DateTime.Now - _lastProgressUpdate).TotalSeconds;
+                if (sinceProgress > 5)
+                {
+                    txtProgressDetail.Text = $"⚠ Brak postępu od {sinceProgress:F0}s (ostatni etap: {txtProgressStage.Text})";
+                }
+                if (!_watchdogWarned && sinceProgress > WatchdogStaleSeconds && _cts != null && !_cts.IsCancellationRequested)
+                {
+                    _watchdogWarned = true;
+                    _elapsedTimer.Stop(); // zatrzymaj zanim user zdecyduje
+                    var stage = txtProgressStage.Text;
+                    var lastMsg = txtProgressMessage.Text;
+                    var result = MessageBox.Show(
+                        this,
+                        $"Pobieranie nie odpowiada od {sinceProgress:F0} sekund.\n\n" +
+                        $"Etap: {stage}\n" +
+                        $"Ostatnia wiadomość: {lastMsg}\n\n" +
+                        $"Anulować pobranie?",
+                        "⚠ Watchdog — możliwy zawiech",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Warning);
+                    if (result == MessageBoxResult.Yes)
+                    {
+                        _cts?.Cancel();
+                        txtProgressDetail.Text = "Anulowanie przez watchdog...";
+                    }
+                    else
+                    {
+                        _watchdogWarned = false; // pozwól zaalarmować ponownie za 90s
+                        _lastProgressUpdate = DateTime.Now; // reset
+                    }
+                    _elapsedTimer.Start();
+                }
             };
             _elapsedTimer.Start();
 
@@ -273,6 +312,7 @@ FROM intel_FetchLog ORDER BY FetchTime DESC", conn);
                 var loader = BriefingDataLoaderService.Instance;
                 var progress = new Progress<FetchProgress>(p =>
                 {
+                    _lastProgressUpdate = DateTime.Now; // reset watchdog
                     pbFetch.Value = p.Percent;
                     txtProgressStage.Text = p.Stage ?? "—";
                     txtProgressMessage.Text = p.Message ?? "";
