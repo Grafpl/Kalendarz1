@@ -66,9 +66,23 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
         #region GLW - HPAI Monitoring
 
         /// <summary>
-        /// Pobierz alerty HPAI z Głównego Inspektoratu Weterynaryjnego
+        /// Pobierz alerty HPAI z Głównego Inspektoratu Weterynaryjnego — z top-level Task.WhenAny
+        /// hard cap 60s na całość (3 URL-e × 25s mogłoby teoretycznie dać 75s).
         /// </summary>
         public async Task<List<HpaiAlert>> FetchHpaiAlertsAsync(CancellationToken ct = default)
+        {
+            var work = Task.Run(() => FetchHpaiAlertsCoreAsync(ct));
+            var timeout = Task.Delay(TimeSpan.FromSeconds(60), ct);
+            var finished = await Task.WhenAny(work, timeout);
+            if (finished == timeout && !ct.IsCancellationRequested)
+            {
+                Debug.WriteLine("[Scraper] ⏱⏱ FetchHpaiAlertsAsync: HARD TIMEOUT 60s — porzucam task, idziemy dalej");
+                return new List<HpaiAlert>();
+            }
+            return await work;
+        }
+
+        private async Task<List<HpaiAlert>> FetchHpaiAlertsCoreAsync(CancellationToken ct)
         {
             var alerts = new List<HpaiAlert>();
 

@@ -46,10 +46,46 @@ namespace Kalendarz1.MarketIntelligence.Views
 
             Loaded += async (s, e) =>
             {
+                txtLogFilePath.Text = BriefingLogHub.LogFilePath;
                 await RefreshStatusAsync();
                 await ReloadUserQueriesAsync();
                 await LoadFetchHistoryAsync();
             };
+        }
+
+        private void btnOpenLogFolder_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var folder = BriefingLogHub.LogFolderPath;
+                System.IO.Directory.CreateDirectory(folder);
+                Process.Start(new ProcessStartInfo { FileName = "explorer.exe", Arguments = folder, UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Nie udało się otworzyć folderu: " + ex.Message, "Log",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
+        private void btnOpenLogFile_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var path = BriefingLogHub.LogFilePath;
+                if (!System.IO.File.Exists(path))
+                {
+                    MessageBox.Show($"Plik logu jeszcze nie istnieje:\n{path}\n\nUruchom pełne pobranie aby wygenerować wpisy.",
+                        "Log", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+                Process.Start(new ProcessStartInfo { FileName = path, UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Nie udało się otworzyć pliku: " + ex.Message, "Log",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
         }
 
         private void OnLogMessage(LogEntry entry)

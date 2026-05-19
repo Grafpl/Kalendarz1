@@ -170,6 +170,27 @@
                             </Grid>
                         </Border>
 
+                        <!-- PLIK LOG na żywo -->
+                        <TextBlock Text="Plik logu na żywo" Style="{StaticResource SectionHeader}" Margin="0,0,0,8"/>
+                        <Border Background="#1A1610" CornerRadius="4" Padding="14" Margin="0,0,0,16">
+                            <StackPanel>
+                                <TextBlock TextWrapping="Wrap" Foreground="#9A8F83" FontSize="11" Margin="0,0,0,6">
+                                    Wszystkie wpisy [Claude] [Perplexity] [Scraper] [RSS] [Orchestrator] itd. są zapisywane NA ŻYWO do pliku
+                                    (AutoFlush — nawet po zawiechu/crashu masz log na dysku do diagnostyki).
+                                </TextBlock>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" x:Name="txtLogFilePath" Text="—" Foreground="#F5EDE0" FontFamily="Consolas" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                    <Button Grid.Column="1" Content="📂 Folder" Style="{StaticResource ToolBtn}" Padding="10,4" Margin="8,0,4,0" Click="btnOpenLogFolder_Click"/>
+                                    <Button Grid.Column="2" Content="📄 Otwórz log" Style="{StaticResource ToolBtn}" Padding="10,4" Click="btnOpenLogFile_Click"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
                         <!-- Akcje -->
                         <TextBlock Text="Akcje" Style="{StaticResource SectionHeader}"/>
                         <WrapPanel>
