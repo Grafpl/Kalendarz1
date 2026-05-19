@@ -29,10 +29,15 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
 
         // Dzienny budżet zapytań — chroni przed nieoczekiwanymi kosztami (~$0.05/zapytanie × 100 = $5/dzień max)
         // Override przez PERPLEXITY_DAILY_LIMIT env var
+        // PERSISTENT counter w pliku — przeżywa restart apki, reset tylko o północy
         private readonly int _dailyQueryLimit;
         private DateTime _budgetResetDate = DateTime.Today;
         private int _dailyQueryCount = 0;
         private readonly object _budgetLock = new object();
+
+        private static readonly string BudgetFilePath = System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Kalendarz1", "MarketIntelligence", "perplexity-budget.json");
 
         public bool IsConfigured => !string.IsNullOrEmpty(_apiKey);
 
@@ -54,6 +59,9 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
                 ?? Kalendarz1.MarketIntelligence.SecretsLoader.Get("PERPLEXITY_DAILY_LIMIT");
             _dailyQueryLimit = int.TryParse(limitStr, out var l) && l > 0 ? l : 100;
 
+            // Wczytaj persistent counter — bez tego każdy restart apki = świeży licznik = marnowanie API
+            LoadBudgetFromFile();
+
             // 60s HttpClient timeout — hard cap per query 30s przez CTS w SearchPoultryNewsAsync
             _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
             _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_apiKey}");
@@ -71,8 +79,51 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
             {
                 _dailyQueryCount = 0;
                 _budgetResetDate = DateTime.Today;
+                SaveBudgetToFile();
                 Debug.WriteLine($"[Perplexity] Dzienny budżet zresetowany ({_dailyQueryLimit} zapytań na dziś)");
             }
+        }
+
+        /// <summary>Wczytuje counter z pliku przy starcie. Jeśli plik z innego dnia → reset.</summary>
+        private void LoadBudgetFromFile()
+        {
+            lock (_budgetLock)
+            {
+                try
+                {
+                    if (!System.IO.File.Exists(BudgetFilePath)) return;
+                    var json = System.IO.File.ReadAllText(BudgetFilePath);
+                    using var doc = System.Text.Json.JsonDocument.Parse(json);
+                    var root = doc.RootElement;
+                    if (root.TryGetProperty("date", out var d) && DateTime.TryParse(d.GetString(), out var savedDate))
+                    {
+                        if (savedDate.Date == DateTime.Today &&
+                            root.TryGetProperty("used", out var u) && u.TryGetInt32(out var savedUsed))
+                        {
+                            _dailyQueryCount = savedUsed;
+                            _budgetResetDate = savedDate.Date;
+                            Debug.WriteLine($"[Perplexity] Wczytany persistent counter: {_dailyQueryCount}/{_dailyQueryLimit}");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[Perplexity] Load budget error (non-fatal): {ex.Message}");
+                }
+            }
+        }
+
+        /// <summary>Zapisuje counter do pliku po każdej zmianie. Atomiczny zapis.</summary>
+        private void SaveBudgetToFile()
+        {
+            try
+            {
+                var dir = System.IO.Path.GetDirectoryName(BudgetFilePath);
+                if (!string.IsNullOrEmpty(dir)) System.IO.Directory.CreateDirectory(dir);
+                var json = $"{{\"date\":\"{_budgetResetDate:yyyy-MM-dd}\",\"used\":{_dailyQueryCount},\"limit\":{_dailyQueryLimit}}}";
+                System.IO.File.WriteAllText(BudgetFilePath, json);
+            }
+            catch { /* non-fatal — budget tracking nie powinien wywalać appki */ }
         }
 
         /// <summary>Czy można jeszcze zrobić zapytanie? Zwraca false po przekroczeniu dziennego limitu.</summary>
@@ -87,6 +138,7 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
                     return false;
                 }
                 _dailyQueryCount++;
+                SaveBudgetToFile(); // persistent — przeżywa restart
 
                 // Warn przy 80% limitu
                 if (_dailyQueryCount == (int)(_dailyQueryLimit * 0.8))

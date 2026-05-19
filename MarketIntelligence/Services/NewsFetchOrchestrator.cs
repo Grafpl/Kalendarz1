@@ -364,12 +364,13 @@ namespace Kalendarz1.MarketIntelligence.Services
                         .Take(options.MaxArticlesToAnalyze)
                         .ToList();
 
-                    // 20 artykułów × ~18s Opus avg z cache = ~360s. Bezpieczne 480s (8 min).
+                    // Realny czas: Opus ~60s/artykuł (3000 tokens output). 15 × 60 = 900s.
+                    // 900s timeout daje margines + early-abort po 3 fails z rzędu.
                     analyses = await RunWithTimeoutAsync(
                         $"AI Analysis Opus ({topArticles.Count} art.)",
                         stageCt => _claudeAnalysisService.AnalyzeArticlesAsync(
                             topArticles, businessContext, options.MaxArticlesToAnalyze, stageCt),
-                        timeoutSec: 480,
+                        timeoutSec: 900,
                         fallback: new List<ArticleAnalysis>(),
                         ct);
                     stats.ArticlesAnalyzed = analyses.Count;
@@ -568,6 +569,51 @@ namespace Kalendarz1.MarketIntelligence.Services
             return result;
         }
 
+        /// <summary>
+        /// Zwraca słownik COLUMN_NAME → max length (znaków). NVARCHAR(MAX) = int.MaxValue.
+        /// Używane do trim'owania wartości stringów przed INSERT — chroni przed
+        /// "String or binary data would be truncated" gdy Summary/CeoAnalysis itp.
+        /// są długie a stara kolumna ma NVARCHAR(500).
+        /// </summary>
+        private async Task<Dictionary<string, int>> GetColumnMaxLengthsAsync(SqlConnection conn, string tableName, CancellationToken ct)
+        {
+            var result = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                using var cmd = new SqlCommand(@"
+SELECT COLUMN_NAME, CHARACTER_MAXIMUM_LENGTH
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_NAME = @t AND CHARACTER_MAXIMUM_LENGTH IS NOT NULL", conn);
+                cmd.Parameters.AddWithValue("@t", tableName);
+                cmd.CommandTimeout = 10;
+                using var reader = await cmd.ExecuteReaderAsync(ct);
+                while (await reader.ReadAsync(ct))
+                {
+                    var col = reader.GetString(0);
+                    var len = reader.IsDBNull(1) ? -1 : reader.GetInt32(1);
+                    // -1 oznacza NVARCHAR(MAX) — traktujemy jako int.MaxValue (no trim)
+                    result[col] = len == -1 ? int.MaxValue : len;
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Orchestrator] GetColumnMaxLengths({tableName}) error: {ex.Message}");
+            }
+            return result;
+        }
+
+        private static object TrimToColumn(string column, object value, Dictionary<string, int> maxLengths)
+        {
+            if (value is string s && maxLengths.TryGetValue(column, out var maxLen) && maxLen > 0 && maxLen != int.MaxValue)
+            {
+                if (s.Length > maxLen)
+                {
+                    return s.Substring(0, maxLen);
+                }
+            }
+            return value;
+        }
+
         private async Task SaveResultsToDatabaseAsync(
             List<RawArticle> articles,
             List<ArticleAnalysis> analyses,
@@ -590,6 +636,7 @@ namespace Kalendarz1.MarketIntelligence.Services
                 else
                 {
                     Debug.WriteLine($"[Orchestrator] Schema intel_Articles: {existingColumns.Count} kolumn dostępnych");
+                    var columnMaxLengths = await GetColumnMaxLengthsAsync(conn, "intel_Articles", ct);
 
                     int savedOk = 0, savedFail = 0;
                     foreach (var article in articles.Take(100))
@@ -654,7 +701,12 @@ namespace Kalendarz1.MarketIntelligence.Services
 
                         using var cmd = new SqlCommand(sql, conn);
                         foreach (var kvp in usableFields)
-                            cmd.Parameters.AddWithValue("@" + kvp.Key, kvp.Value ?? DBNull.Value);
+                        {
+                            // Trim string values do max-length kolumny żeby nie wpaść w
+                            // "String or binary data would be truncated" przy starych kolumnach NVARCHAR(500)
+                            var trimmed = TrimToColumn(kvp.Key, kvp.Value, columnMaxLengths);
+                            cmd.Parameters.AddWithValue("@" + kvp.Key, trimmed ?? DBNull.Value);
+                        }
 
                         try
                         {
@@ -874,7 +926,7 @@ namespace Kalendarz1.MarketIntelligence.Services
             FetchHpaiAlerts = true,
             FetchPrices = true,
             SaveToDatabase = true,
-            MaxArticlesToAnalyze = 25
+            MaxArticlesToAnalyze = 15 // Opus per artykuł ~60s, 15 × 60 = 900s mieści się w 900s timeout
         };
 
         public static FetchOptions Quick => new()
