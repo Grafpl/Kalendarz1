@@ -26,6 +26,16 @@ namespace Kalendarz1.Flota.Views
             InitializeComponent();
         }
 
+        /// <summary>
+        /// Faza 8-B — pozwala zewnętrznym wywołującym (FlotaWindow ctor)
+        /// ustawić startową zakładkę: 0=Kierowcy, 1=Pojazdy, 2=Przypisania.
+        /// </summary>
+        public void SetStartTab(int index)
+        {
+            if (MainTabs != null && index >= 0 && index < MainTabs.Items.Count)
+                MainTabs.SelectedIndex = index;
+        }
+
         private async void UserControl_Loaded(object sender, RoutedEventArgs e)
         {
             var errors = new System.Collections.Generic.List<string>();

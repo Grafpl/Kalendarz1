@@ -751,10 +751,12 @@ namespace Kalendarz1.Transport.Formularze
                     testForm.Dispose();
                 }
 
-                var frm = new KierowcyForm();
-                frm.ShowDialog(this);
+                // Faza 8-B — KierowcyForm wycofany, otwieramy FlotaWindow (master kierowców z LibraNet).
+                var wpfWin = new Kalendarz1.Flota.Views.FlotaWindow(Kalendarz1.Flota.Views.FlotaWindow.TabKierowcy);
+                new System.Windows.Interop.WindowInteropHelper(wpfWin) { Owner = this.Handle };
+                wpfWin.ShowDialog();
 
-                System.Diagnostics.Debug.WriteLine("KierowcyForm closed successfully");
+                System.Diagnostics.Debug.WriteLine("FlotaWindow (Kierowcy) closed successfully");
             }
             catch (System.IO.FileNotFoundException ex)
             {
@@ -791,10 +793,12 @@ namespace Kalendarz1.Transport.Formularze
                     testForm.Dispose();
                 }
 
-                var frm = new PojazdyForm();
-                frm.ShowDialog(this);
+                // Faza 8-B — PojazdyForm wycofany, otwieramy FlotaWindow (master pojazdów z LibraNet).
+                var wpfWin = new Kalendarz1.Flota.Views.FlotaWindow(Kalendarz1.Flota.Views.FlotaWindow.TabPojazdy);
+                new System.Windows.Interop.WindowInteropHelper(wpfWin) { Owner = this.Handle };
+                wpfWin.ShowDialog();
 
-                System.Diagnostics.Debug.WriteLine("PojazdyForm closed successfully");
+                System.Diagnostics.Debug.WriteLine("FlotaWindow (Pojazdy) closed successfully");
             }
             catch (System.IO.FileNotFoundException ex)
             {
