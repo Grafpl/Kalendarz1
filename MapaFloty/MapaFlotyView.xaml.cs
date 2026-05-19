@@ -73,6 +73,11 @@ namespace Kalendarz1.MapaFloty
             if (e.Key == Key.F5) { _ = RefreshVehiclePositions(); e.Handled = true; }
             else if (e.Key == Key.Escape && _mapReady)
             { _followVehicle = null; _ = MapWebView.CoreWebView2.ExecuteScriptAsync("stopFollow()"); e.Handled = true; }
+            // Polishing — skróty 1-4 dla filter chips
+            else if (e.Key == Key.D1 || e.Key == Key.NumPad1) { _chipFilter = "moving";  UpdateChipsActiveBorder(); if (_displayVehicles.Count > 0) UpdateSidePanel(_displayVehicles); e.Handled = true; }
+            else if (e.Key == Key.D2 || e.Key == Key.NumPad2) { _chipFilter = "stopped"; UpdateChipsActiveBorder(); if (_displayVehicles.Count > 0) UpdateSidePanel(_displayVehicles); e.Handled = true; }
+            else if (e.Key == Key.D3 || e.Key == Key.NumPad3) { _chipFilter = "all";     UpdateChipsActiveBorder(); if (_displayVehicles.Count > 0) UpdateSidePanel(_displayVehicles); e.Handled = true; }
+            else if (e.Key == Key.D4 || e.Key == Key.NumPad4) { _chipFilter = "base";    UpdateChipsActiveBorder(); if (_displayVehicles.Count > 0) UpdateSidePanel(_displayVehicles); e.Handled = true; }
         }
 
         private void Log(string m)
@@ -568,16 +573,67 @@ namespace Kalendarz1.MapaFloty
                 _ => list.OrderByDescending(v => v.IsMoving).ThenByDescending(v => v.Speed).ThenBy(v => v.ObjectName)
             }).ToList();
 
+            // Polishing — empty state gdy filter daje 0 wyników
+            if (list.Count == 0)
+            {
+                var emptyMsg = _chipFilter switch
+                {
+                    "moving"  => "🚛 Brak pojazdów w trasie",
+                    "stopped" => "⏸ Brak pojazdów na postoju",
+                    "base"    => "🏠 Żaden pojazd nie jest w bazie",
+                    _ => string.IsNullOrEmpty(filter) ? "Brak pojazdów" : "Brak pojazdów spełniających filtr"
+                };
+                VehicleListPanel.Children.Add(new TextBlock
+                {
+                    Text = emptyMsg,
+                    Foreground = new SolidColorBrush(Color.FromRgb(176, 190, 197)),
+                    FontSize = 12,
+                    FontStyle = FontStyles.Italic,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Margin = new Thickness(0, 24, 0, 0),
+                    TextWrapping = TextWrapping.Wrap,
+                    TextAlignment = TextAlignment.Center
+                });
+                return;
+            }
+
             foreach (var v in list) VehicleListPanel.Children.Add(CreateVehicleCard(v));
+        }
+
+        // Polishing — spójne kolory 4 stanów (matching markery na mapie)
+        private static Color GetStateColor(VehiclePosition v)
+        {
+            if (v.IsMoving)      return Color.FromRgb(67, 160, 71);   // #43a047 zielony (matches marker moving)
+            if (v.InGeofence)    return Color.FromRgb(25, 118, 210);  // #1976d2 niebieski (matches marker base)
+            if (v.Ignition)      return Color.FromRgb(245, 124, 0);   // #f57c00 pomarańczowy (matches marker idle)
+            return                      Color.FromRgb(96, 125, 139);  // #607d8b szary (matches marker off)
+        }
+
+        private static string GetStateLabel(VehiclePosition v)
+        {
+            if (v.IsMoving)   return "W trasie";
+            if (v.InGeofence) return "W bazie";
+            if (v.Ignition)   return "Postój (zapłon)";
+            return                    "Wyłączony";
+        }
+
+        // Polishing — wiek GPS jako readable string + warning gdy stary
+        private static (string text, bool warning) FormatGpsAge(string? lastUpdate)
+        {
+            if (string.IsNullOrWhiteSpace(lastUpdate)) return ("brak GPS", true);
+            if (!DateTime.TryParse(lastUpdate, out var t)) return (lastUpdate ?? "—", false);
+            var diff = DateTime.Now - t;
+            if (diff.TotalMinutes < 1)   return ("teraz", false);
+            if (diff.TotalMinutes < 60)  return ($"{(int)diff.TotalMinutes} min temu", false);
+            if (diff.TotalHours < 24)    return ($"{(int)diff.TotalHours} godz. temu", diff.TotalHours > 1);
+            if (diff.TotalDays < 7)      return ($"{(int)diff.TotalDays} dni temu", true);
+            return (t.ToString("yyyy-MM-dd HH:mm"), true);
         }
 
         private Border CreateVehicleCard(VehiclePosition v)
         {
-            var green = Color.FromRgb(46, 125, 50);
-            var orange = Color.FromRgb(230, 81, 0);
-            var gray = Color.FromRgb(120, 144, 156);
             var red = Color.FromRgb(198, 40, 40);
-            var sc = v.IsMoving ? green : (v.Ignition ? orange : gray);
+            var sc = GetStateColor(v);
             var sb = new SolidColorBrush(sc);
 
             var card = new Border
@@ -637,7 +693,7 @@ namespace Kalendarz1.MapaFloty
 
             // Row 2: driver + status pill
             var r2 = new DockPanel { Margin = new Thickness(0, 1, 0, 0) };
-            var statusTxt = v.IsMoving ? "W trasie" : (v.Ignition ? "Postój (zapłon)" : "Wyłączony");
+            var statusTxt = GetStateLabel(v);
             var pill = new Border
             {
                 Background = new SolidColorBrush(Color.FromArgb(30, sc.R, sc.G, sc.B)),
@@ -711,15 +767,16 @@ namespace Kalendarz1.MapaFloty
                 });
             }
 
-            // Row 7: geofence
-            if (v.InGeofence)
+            // Row 8: GPS age (polishing — wiek GPS jako readable + warning gdy stary)
+            var (ageText, ageWarn) = FormatGpsAge(v.LastUpdate);
+            stack.Children.Add(new TextBlock
             {
-                stack.Children.Add(new TextBlock
-                {
-                    Text = "W STREFIE ŁYSZKOWICE", Foreground = new SolidColorBrush(red),
-                    FontSize = 8.5, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 2, 0, 0)
-                });
-            }
+                Text = "📡 " + ageText,
+                Foreground = new SolidColorBrush(ageWarn ? Color.FromRgb(230, 81, 0) : Color.FromRgb(176, 190, 197)),
+                FontSize = 8.5,
+                FontWeight = ageWarn ? FontWeights.SemiBold : FontWeights.Normal,
+                Margin = new Thickness(0, 3, 0, 0)
+            });
 
             card.Child = outerGrid;
             return card;
@@ -997,12 +1054,21 @@ function updateVehicles(vs){
             var m=markers[v.ObjectNo],nll=L.latLng(v.Latitude,v.Longitude),oll=m.getLatLng();
             if(oll.distanceTo(nll)>5)animateMarker(m,oll,nll,800);
             m.setIcon(ic);m.setPopupContent(pop);
-            m.setTooltipContent(v.ObjectName+(v.IsMoving?' — '+v.Speed+' km/h':' — postój'));
+            m.setTooltipContent(mkTooltip(v));
         }else{
             markers[v.ObjectNo]=L.marker([v.Latitude,v.Longitude],{icon:ic}).addTo(map)
-                .bindPopup(pop,{maxWidth:340}).bindTooltip(v.ObjectName+(v.IsMoving?' — '+v.Speed+' km/h':' — postój'),{direction:'top',offset:[0,-28]});
+                .bindPopup(pop,{maxWidth:340}).bindTooltip(mkTooltip(v),{direction:'top',offset:[0,-28]});
         }
     });
+}
+// Polishing — tooltip wzbogacony o kurs
+function mkTooltip(v){
+    var status = v.IsMoving ? (v.Speed+' km/h')
+        : (v.InGeofence ? 'w bazie'
+        : (v.Ignition ? 'postój' : 'wyłączony'));
+    var s = v.ObjectName + ' — ' + status;
+    if(v.KursTrasa) s += '  ·  ' + v.KursTrasa;
+    return s;
 }
 function animateMarker(m,f,t,dur){
     var s=performance.now();
