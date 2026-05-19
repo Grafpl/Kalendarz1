@@ -1339,6 +1339,7 @@ namespace Kalendarz1
             /* 66 */ "AnalitykaPelna",
             /* 67 */ "CentrumNagranAI",
             /* 68 */ "MapowanieFlota",
+            /* 69 */ "TransportHub",
         };
 
         private void ParseAccessString(string accessString)
@@ -1789,6 +1790,11 @@ namespace Kalendarz1
                             var repo = new Transport.Repozytorium.TransportRepozytorium(connTransport, connectionString);
                             return new Transport.Formularze.TransportMainFormImproved(repo, App.UserID);
                         }, "🚚", "Transport"),
+
+                    new MenuItemConfig("TransportHub", "Centrum Transportu",
+                        "Hub: Planowanie + Zmiany do akceptacji + Mapa Floty LIVE w jednym oknie",
+                        Color.FromArgb(38, 116, 122),
+                        () => new Kalendarz1.Transport.TransportHubWindow(), "🎛️", "Hub"),
 
                     new MenuItemConfig("Flota", "Flota Pojazdów",
                         "Zarządzanie kierowcami, pojazdami, przypisaniami i serwisem - dokumenty, alerty, historia",
