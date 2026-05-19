@@ -82,7 +82,24 @@ namespace Kalendarz1.MarketIntelligence.Services
                 var options = fullFetch ? FetchOptions.Full : FetchOptions.Default;
                 options.SaveToDatabase = true;
 
-                var fetchResult = await _orchestrator.FetchAndAnalyzeAsync(options, ct, progress);
+                // MASTER WATCHDOG: hard 10 min na cały fetch.
+                // Każdy etap ma już swoje per-stage timeouty w orchestratorze, to jest
+                // ostateczna sieć bezpieczeństwa gdyby któraś metoda jakimś cudem się
+                // wymknęła z watchdoga RunWithTimeoutAsync.
+                var fetchTask = _orchestrator.FetchAndAnalyzeAsync(options, ct, progress);
+                var masterTimeout = Task.Delay(TimeSpan.FromMinutes(10), ct);
+                var finished = await Task.WhenAny(fetchTask, masterTimeout);
+
+                FetchResult fetchResult;
+                if (finished == masterTimeout && !ct.IsCancellationRequested)
+                {
+                    Debug.WriteLine("[BriefingDataLoader] ⏱⏱⏱ MASTER WATCHDOG 10min — porzucam fetchTask, zwracam co mam");
+                    fetchResult = new FetchResult { Success = false, Error = "Master watchdog 10 min — fetch wisiał, porzucony" };
+                }
+                else
+                {
+                    fetchResult = await fetchTask;
+                }
 
                 if (fetchResult.Success)
                 {

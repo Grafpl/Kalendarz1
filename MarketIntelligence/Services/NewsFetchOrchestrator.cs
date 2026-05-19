@@ -42,6 +42,59 @@ namespace Kalendarz1.MarketIntelligence.Services
             _contentEnrichmentService = new ContentEnrichmentService();
         }
 
+        /// <summary>
+        /// Uniwersalny watchdog: uruchamia work z hard cap timeoutu przez Task.WhenAny.
+        /// Jeśli work nie zakończy się w czasie, zwraca fallback i loguje. Task w tle żyje
+        /// dalej (sam się zakończy lub umrze z apką), my idziemy do następnego etapu.
+        ///
+        /// To jest TWARDA gwarancja: niezależnie od tego co dzieje się w środku work
+        /// (DNS hang, ReadAsStringAsync nieprzerywalne, deadlock semafora, parsing CPU),
+        /// metoda ZAWSZE zwraca w &lt;timeoutSec sekund.
+        /// </summary>
+        private async Task<T> RunWithTimeoutAsync<T>(
+            string stageName, Func<Task<T>> work, int timeoutSec, T fallback, CancellationToken ct)
+        {
+            var sw = Stopwatch.StartNew();
+            Debug.WriteLine($"[Orchestrator] ▶ {stageName} (limit {timeoutSec}s)...");
+            try
+            {
+                var workTask = Task.Run(work);
+                var timeoutTask = Task.Delay(TimeSpan.FromSeconds(timeoutSec), ct);
+                var finished = await Task.WhenAny(workTask, timeoutTask);
+
+                if (finished == timeoutTask && !ct.IsCancellationRequested)
+                {
+                    sw.Stop();
+                    Debug.WriteLine($"[Orchestrator] ⏱⏱ {stageName}: HARD TIMEOUT {timeoutSec}s — porzucam (idziemy dalej), elapsed {sw.ElapsedMilliseconds}ms");
+                    return fallback;
+                }
+
+                ct.ThrowIfCancellationRequested();
+                var result = await workTask;
+                sw.Stop();
+                Debug.WriteLine($"[Orchestrator] ✓ {stageName}: OK ({sw.ElapsedMilliseconds}ms)");
+                return result;
+            }
+            catch (OperationCanceledException)
+            {
+                Debug.WriteLine($"[Orchestrator] ⏹ {stageName}: anulowane przez użytkownika");
+                throw;
+            }
+            catch (Exception ex)
+            {
+                sw.Stop();
+                Debug.WriteLine($"[Orchestrator] ❌ {stageName}: {ex.Message} ({sw.ElapsedMilliseconds}ms) — używam fallback");
+                return fallback;
+            }
+        }
+
+        /// <summary>Wariant void (Task bez wyniku) dla operacji save-to-DB itd.</summary>
+        private async Task RunWithTimeoutAsync(
+            string stageName, Func<Task> work, int timeoutSec, CancellationToken ct)
+        {
+            await RunWithTimeoutAsync(stageName, async () => { await work(); return true; }, timeoutSec, false, ct);
+        }
+
         #region Main Fetch Pipeline
 
         /// <summary>
@@ -79,7 +132,12 @@ namespace Kalendarz1.MarketIntelligence.Services
                 {
                     progress?.Report(new FetchProgress { Stage = "RSS", Percent = 15, Message = msg });
                 });
-                var rssArticles = await _rssFeedService.FetchAllSourcesAsync(ct, rssProgress);
+                var rssArticles = await RunWithTimeoutAsync(
+                    "RSS (40 źródeł)",
+                    () => _rssFeedService.FetchAllSourcesAsync(ct, rssProgress),
+                    timeoutSec: 90,
+                    fallback: new List<RawArticle>(),
+                    ct);
                 stats.RssArticlesFetched = rssArticles.Count;
 
                 Debug.WriteLine($"[Orchestrator] RSS: {rssArticles.Count} articles");
@@ -111,14 +169,12 @@ namespace Kalendarz1.MarketIntelligence.Services
                     using var scrapingCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                     scrapingCts.CancelAfter(TimeSpan.FromSeconds(120));
 
-                    try
-                    {
-                        scrapedArticles = await _webScraperService.FetchScrapingSourcesAsync(scrapingCts.Token, scrapingProgress);
-                    }
-                    catch (OperationCanceledException) when (scrapingCts.IsCancellationRequested && !ct.IsCancellationRequested)
-                    {
-                        Debug.WriteLine($"[Orchestrator] ⏱ Scraping przekroczył 120s — przerywam, kontynuuję dalsze etapy");
-                    }
+                    scrapedArticles = await RunWithTimeoutAsync(
+                        "Scraping (7 źródeł)",
+                        () => _webScraperService.FetchScrapingSourcesAsync(scrapingCts.Token, scrapingProgress),
+                        timeoutSec: 120,
+                        fallback: new List<RawArticle>(),
+                        ct);
                     stats.ScrapedArticlesFetched = scrapedArticles.Count;
 
                     Debug.WriteLine($"[Orchestrator] Scraped: {scrapedArticles.Count} articles");
@@ -140,11 +196,16 @@ namespace Kalendarz1.MarketIntelligence.Services
                     {
                         progress?.Report(new FetchProgress { Stage = "Perplexity", Percent = 32, Message = msg });
                     });
-                    var perplexityResult = await _perplexitySearchService.SearchPoultryNewsAsync(
-                        includeInternational: true,
-                        maxPriority: SearchPriority.All,
-                        ct: ct,
-                        progress: perplexityProgress);
+                    var perplexityResult = await RunWithTimeoutAsync(
+                        "Perplexity (80+ zapytań)",
+                        () => _perplexitySearchService.SearchPoultryNewsAsync(
+                            includeInternational: true,
+                            maxPriority: SearchPriority.All,
+                            ct: ct,
+                            progress: perplexityProgress),
+                        timeoutSec: 240,
+                        fallback: new PerplexityNewsSearchResult(),
+                        ct);
 
                     // Convert to RawArticle format
                     perplexityArticles = _perplexitySearchService.ConvertToRawArticles(perplexityResult);
@@ -177,7 +238,12 @@ namespace Kalendarz1.MarketIntelligence.Services
                             Message = $"Tłumaczę {englishArticles.Count} artykułów angielskich..."
                         });
 
-                        allArticles = await _claudeAnalysisService.TranslateEnglishArticlesAsync(allArticles, ct);
+                        allArticles = await RunWithTimeoutAsync(
+                            $"Tłumaczenie ({englishArticles.Count} EN)",
+                            () => _claudeAnalysisService.TranslateEnglishArticlesAsync(allArticles, ct),
+                            timeoutSec: 120,
+                            fallback: allArticles,
+                            ct);
                         Debug.WriteLine($"[Orchestrator] Translated {englishArticles.Count} English articles");
                     }
                 }
@@ -190,7 +256,12 @@ namespace Kalendarz1.MarketIntelligence.Services
                     Message = $"Filtruję {allArticles.Count} artykułów..."
                 });
 
-                var filteredArticles = await _contentFilterService.FilterArticlesAsync(allArticles);
+                var filteredArticles = await RunWithTimeoutAsync(
+                    "Filter lokalny",
+                    () => _contentFilterService.FilterArticlesAsync(allArticles),
+                    timeoutSec: 30,
+                    fallback: allArticles,
+                    ct);
                 stats.RelevantArticles = filteredArticles.Count;
 
                 Debug.WriteLine($"[Orchestrator] Filtered: {filteredArticles.Count} relevant articles");
@@ -206,9 +277,17 @@ namespace Kalendarz1.MarketIntelligence.Services
                         Message = "Analizuję relevantność z AI..."
                     });
 
-                    aiFiltered = await _claudeAnalysisService.QuickFilterArticlesAsync(filteredArticles, ct);
-                    filteredArticles = aiFiltered.Select(f => f.Article).ToList();
-                    stats.AiFilteredArticles = filteredArticles.Count;
+                    aiFiltered = await RunWithTimeoutAsync(
+                        $"AI Filter Haiku ({filteredArticles.Count})",
+                        () => _claudeAnalysisService.QuickFilterArticlesAsync(filteredArticles, ct),
+                        timeoutSec: 90,
+                        fallback: new List<FilteredArticle>(),
+                        ct);
+                    if (aiFiltered != null && aiFiltered.Any())
+                    {
+                        filteredArticles = aiFiltered.Select(f => f.Article).ToList();
+                        stats.AiFilteredArticles = filteredArticles.Count;
+                    }
                 }
 
                 // 6.5 Content Enrichment - pobierz pełną treść artykułów
@@ -221,9 +300,12 @@ namespace Kalendarz1.MarketIntelligence.Services
                         Message = $"Pobieram pełną treść {Math.Min(options.MaxArticlesToAnalyze, filteredArticles.Count)} artykułów..."
                     });
 
-                    filteredArticles = await _contentEnrichmentService.EnrichArticlesAsync(
-                        filteredArticles,
-                        Math.Min(options.MaxArticlesToAnalyze, filteredArticles.Count),
+                    var enrichCount = Math.Min(options.MaxArticlesToAnalyze, filteredArticles.Count);
+                    filteredArticles = await RunWithTimeoutAsync(
+                        $"Content Enrichment ({enrichCount} art.)",
+                        () => _contentEnrichmentService.EnrichArticlesAsync(filteredArticles, enrichCount, ct),
+                        timeoutSec: 180,
+                        fallback: filteredArticles,
                         ct);
 
                     var enrichedCount = filteredArticles.Count(a => !string.IsNullOrEmpty(a.FullContent) && a.FullContent.Length > 500);
@@ -239,7 +321,12 @@ namespace Kalendarz1.MarketIntelligence.Services
                     Message = "Pobieram kontekst biznesowy..."
                 });
 
-                var businessContext = await _contextBuilderService.GetContextAsync();
+                var businessContext = await RunWithTimeoutAsync(
+                    "BusinessContext (HANDEL+LibraNet)",
+                    () => _contextBuilderService.GetContextAsync(false),
+                    timeoutSec: 30,
+                    fallback: new BusinessContext { Alerts = new ThreatsAndOpportunities() },
+                    ct);
 
                 // 8. Full AI analysis (top articles)
                 var analyses = new List<ArticleAnalysis>();
@@ -257,9 +344,14 @@ namespace Kalendarz1.MarketIntelligence.Services
                         .Take(options.MaxArticlesToAnalyze)
                         .ToList();
 
-                    analyses = await _claudeAnalysisService.AnalyzeArticlesAsync(
-                        topArticles, businessContext, options.MaxArticlesToAnalyze, ct);
-
+                    // 20 artykułów × ~18s Opus avg z cache = ~360s. Bezpieczne 480s (8 min).
+                    analyses = await RunWithTimeoutAsync(
+                        $"AI Analysis Opus ({topArticles.Count} art.)",
+                        () => _claudeAnalysisService.AnalyzeArticlesAsync(
+                            topArticles, businessContext, options.MaxArticlesToAnalyze, ct),
+                        timeoutSec: 480,
+                        fallback: new List<ArticleAnalysis>(),
+                        ct);
                     stats.ArticlesAnalyzed = analyses.Count;
                 }
                 else
@@ -290,7 +382,12 @@ namespace Kalendarz1.MarketIntelligence.Services
                         Message = "Generuję poranne streszczenie..."
                     });
 
-                    summary = await _claudeAnalysisService.GenerateDailySummaryAsync(analyses, businessContext, ct);
+                    summary = await RunWithTimeoutAsync(
+                        "Daily Summary Sonnet",
+                        () => _claudeAnalysisService.GenerateDailySummaryAsync(analyses, businessContext, ct),
+                        timeoutSec: 90,
+                        fallback: (DailySummary)null,
+                        ct);
                 }
 
                 // 10. Fetch HPAI alerts
@@ -304,7 +401,12 @@ namespace Kalendarz1.MarketIntelligence.Services
                         Message = "Sprawdzam alerty HPAI..."
                     });
 
-                    hpaiAlerts = await _webScraperService.FetchHpaiAlertsAsync(ct);
+                    hpaiAlerts = await RunWithTimeoutAsync(
+                        "HPAI Alerts (GLW)",
+                        () => _webScraperService.FetchHpaiAlertsAsync(ct),
+                        timeoutSec: 75,
+                        fallback: new List<HpaiAlert>(),
+                        ct);
                     stats.HpaiAlertsFound = hpaiAlerts.Count;
                 }
 
@@ -320,8 +422,18 @@ namespace Kalendarz1.MarketIntelligence.Services
                         Message = "Pobieram aktualne ceny..."
                     });
 
-                    poultryPrices = await _webScraperService.FetchPoultryPricesAsync(ct);
-                    commodityPrices = await _webScraperService.FetchCommodityPricesAsync(ct);
+                    poultryPrices = await RunWithTimeoutAsync(
+                        "Poultry Prices",
+                        () => _webScraperService.FetchPoultryPricesAsync(ct),
+                        timeoutSec: 60,
+                        fallback: new List<PoultryPrice>(),
+                        ct);
+                    commodityPrices = await RunWithTimeoutAsync(
+                        "Commodity Prices",
+                        () => _webScraperService.FetchCommodityPricesAsync(ct),
+                        timeoutSec: 60,
+                        fallback: new List<CommodityPrice>(),
+                        ct);
                 }
 
                 // 12. Save to database
@@ -334,8 +446,16 @@ namespace Kalendarz1.MarketIntelligence.Services
 
                 if (options.SaveToDatabase)
                 {
-                    await SaveResultsToDatabaseAsync(filteredArticles, analyses, hpaiAlerts, ct);
-                    await LogFetchAsync(stats, ct);
+                    await RunWithTimeoutAsync(
+                        "Save to DB",
+                        () => SaveResultsToDatabaseAsync(filteredArticles, analyses, hpaiAlerts, ct),
+                        timeoutSec: 60,
+                        ct);
+                    await RunWithTimeoutAsync(
+                        "Log fetch",
+                        () => LogFetchAsync(stats, ct),
+                        timeoutSec: 15,
+                        ct);
                 }
 
                 // 13. Complete
