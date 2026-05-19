@@ -44,28 +44,33 @@ namespace Kalendarz1.MarketIntelligence.Services
 
         /// <summary>
         /// Uniwersalny watchdog: uruchamia work z hard cap timeoutu przez Task.WhenAny.
-        /// Jeśli work nie zakończy się w czasie, zwraca fallback i loguje. Task w tle żyje
-        /// dalej (sam się zakończy lub umrze z apką), my idziemy do następnego etapu.
+        /// Przy timeout RZECZYWIŚCIE anuluje wewnętrzny ct (per-stage CTS) — bez tego
+        /// task wycieka: porzucony Perplexity nadal robi requesty w tle marnując budżet API.
         ///
-        /// To jest TWARDA gwarancja: niezależnie od tego co dzieje się w środku work
+        /// Twarda gwarancja: niezależnie od tego co dzieje się w środku work
         /// (DNS hang, ReadAsStringAsync nieprzerywalne, deadlock semafora, parsing CPU),
         /// metoda ZAWSZE zwraca w &lt;timeoutSec sekund.
         /// </summary>
         private async Task<T> RunWithTimeoutAsync<T>(
-            string stageName, Func<Task<T>> work, int timeoutSec, T fallback, CancellationToken ct)
+            string stageName, Func<CancellationToken, Task<T>> work, int timeoutSec, T fallback, CancellationToken ct)
         {
             var sw = Stopwatch.StartNew();
             Debug.WriteLine($"[Orchestrator] ▶ {stageName} (limit {timeoutSec}s)...");
+
+            // Per-stage CTS linked z głównym — żeby przy timeout faktycznie anulować wewnętrzną pracę
+            using var stageCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+
             try
             {
-                var workTask = Task.Run(work);
+                var workTask = Task.Run(() => work(stageCts.Token));
                 var timeoutTask = Task.Delay(TimeSpan.FromSeconds(timeoutSec), ct);
                 var finished = await Task.WhenAny(workTask, timeoutTask);
 
                 if (finished == timeoutTask && !ct.IsCancellationRequested)
                 {
                     sw.Stop();
-                    Debug.WriteLine($"[Orchestrator] ⏱⏱ {stageName}: HARD TIMEOUT {timeoutSec}s — porzucam (idziemy dalej), elapsed {sw.ElapsedMilliseconds}ms");
+                    stageCts.Cancel(); // ŁOPATĄ ANULUJ! żeby task się zatrzymał, a nie wisiał w tle
+                    Debug.WriteLine($"[Orchestrator] ⏱⏱ {stageName}: HARD TIMEOUT {timeoutSec}s — anuluję task ({sw.ElapsedMilliseconds}ms)");
                     return fallback;
                 }
 
@@ -75,10 +80,16 @@ namespace Kalendarz1.MarketIntelligence.Services
                 Debug.WriteLine($"[Orchestrator] ✓ {stageName}: OK ({sw.ElapsedMilliseconds}ms)");
                 return result;
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
                 Debug.WriteLine($"[Orchestrator] ⏹ {stageName}: anulowane przez użytkownika");
                 throw;
+            }
+            catch (OperationCanceledException)
+            {
+                sw.Stop();
+                Debug.WriteLine($"[Orchestrator] ⏱⏱ {stageName}: timeout (cooperative cancel), elapsed {sw.ElapsedMilliseconds}ms");
+                return fallback;
             }
             catch (Exception ex)
             {
@@ -87,6 +98,11 @@ namespace Kalendarz1.MarketIntelligence.Services
                 return fallback;
             }
         }
+
+        /// <summary>Backward-compat overload bez CancellationToken w work (przyjmuje ct z zewnątrz przez closure).</summary>
+        private Task<T> RunWithTimeoutAsync<T>(
+            string stageName, Func<Task<T>> work, int timeoutSec, T fallback, CancellationToken ct)
+            => RunWithTimeoutAsync(stageName, _ => work(), timeoutSec, fallback, ct);
 
         /// <summary>Wariant void (Task bez wyniku) dla operacji save-to-DB itd.</summary>
         private async Task RunWithTimeoutAsync(
@@ -198,12 +214,14 @@ namespace Kalendarz1.MarketIntelligence.Services
                     });
                     // 113 zapytań (80 hardcoded + user custom) × ~4s avg + 600ms delay = ~7-8 min.
                     // 720s = 12 min daje margines.
+                    // stageCt zamiast ct — przy timeout RunWithTimeoutAsync cancela stageCt
+                    // co zatrzyma pętlę 80+ zapytań w Perplexity (zamiast wycieku w tle)
                     var perplexityResult = await RunWithTimeoutAsync(
                         "Perplexity (113 zapytań)",
-                        () => _perplexitySearchService.SearchPoultryNewsAsync(
+                        stageCt => _perplexitySearchService.SearchPoultryNewsAsync(
                             includeInternational: true,
                             maxPriority: SearchPriority.All,
-                            ct: ct,
+                            ct: stageCt,
                             progress: perplexityProgress),
                         timeoutSec: 720,
                         fallback: new PerplexityNewsSearchResult(),
@@ -242,7 +260,7 @@ namespace Kalendarz1.MarketIntelligence.Services
 
                         allArticles = await RunWithTimeoutAsync(
                             $"Tłumaczenie ({englishArticles.Count} EN)",
-                            () => _claudeAnalysisService.TranslateEnglishArticlesAsync(allArticles, ct),
+                            stageCt => _claudeAnalysisService.TranslateEnglishArticlesAsync(allArticles, stageCt),
                             timeoutSec: 120,
                             fallback: allArticles,
                             ct);
@@ -281,7 +299,7 @@ namespace Kalendarz1.MarketIntelligence.Services
 
                     aiFiltered = await RunWithTimeoutAsync(
                         $"AI Filter Haiku ({filteredArticles.Count})",
-                        () => _claudeAnalysisService.QuickFilterArticlesAsync(filteredArticles, ct),
+                        stageCt => _claudeAnalysisService.QuickFilterArticlesAsync(filteredArticles, stageCt),
                         timeoutSec: 90,
                         fallback: new List<FilteredArticle>(),
                         ct);
@@ -349,8 +367,8 @@ namespace Kalendarz1.MarketIntelligence.Services
                     // 20 artykułów × ~18s Opus avg z cache = ~360s. Bezpieczne 480s (8 min).
                     analyses = await RunWithTimeoutAsync(
                         $"AI Analysis Opus ({topArticles.Count} art.)",
-                        () => _claudeAnalysisService.AnalyzeArticlesAsync(
-                            topArticles, businessContext, options.MaxArticlesToAnalyze, ct),
+                        stageCt => _claudeAnalysisService.AnalyzeArticlesAsync(
+                            topArticles, businessContext, options.MaxArticlesToAnalyze, stageCt),
                         timeoutSec: 480,
                         fallback: new List<ArticleAnalysis>(),
                         ct);
@@ -529,6 +547,27 @@ namespace Kalendarz1.MarketIntelligence.Services
 
         #region Database Operations
 
+        /// <summary>Zwraca lista kolumn tabeli (HashSet case-insensitive). Pusty = tabela nie istnieje.</summary>
+        private async Task<HashSet<string>> GetTableColumnsAsync(SqlConnection conn, string tableName, CancellationToken ct)
+        {
+            var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                using var cmd = new SqlCommand(
+                    "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = @t", conn);
+                cmd.Parameters.AddWithValue("@t", tableName);
+                cmd.CommandTimeout = 10;
+                using var reader = await cmd.ExecuteReaderAsync(ct);
+                while (await reader.ReadAsync(ct))
+                    result.Add(reader.GetString(0));
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Orchestrator] GetTableColumns({tableName}) error: {ex.Message}");
+            }
+            return result;
+        }
+
         private async Task SaveResultsToDatabaseAsync(
             List<RawArticle> articles,
             List<ArticleAnalysis> analyses,
@@ -540,61 +579,99 @@ namespace Kalendarz1.MarketIntelligence.Services
                 using var conn = new SqlConnection(_connectionString);
                 await conn.OpenAsync(ct);
 
-                // Save articles
-                foreach (var article in articles.Take(100)) // Limit to prevent overflow
+                // SCHEMA-AWARE: jeśli stara wersja tabeli intel_Articles nie ma niektórych kolumn
+                // (FetchedAt, UrlHash, SourceName itd.), buduj INSERT TYLKO z istniejących kolumn.
+                // Bez tego stary schemat dawał 50× "Invalid column name" per fetch.
+                var existingColumns = await GetTableColumnsAsync(conn, "intel_Articles", ct);
+                if (existingColumns.Count == 0)
                 {
-                    var analysis = analyses.FirstOrDefault(a => a.Article.UrlHash == article.UrlHash);
+                    Debug.WriteLine("[Orchestrator] ⚠ Tabela intel_Articles nie istnieje albo brak kolumn — pomijam zapis");
+                }
+                else
+                {
+                    Debug.WriteLine($"[Orchestrator] Schema intel_Articles: {existingColumns.Count} kolumn dostępnych");
 
-                    var sql = @"
-                        IF NOT EXISTS (SELECT 1 FROM intel_Articles WHERE UrlHash = @UrlHash)
-                        BEGIN
-                            INSERT INTO intel_Articles (
-                                SourceId, SourceName, Title, Url, UrlHash, Summary,
-                                PublishDate, FetchedAt, Language, Category, Severity,
-                                RelevanceScore, IsRelevant, MatchedKeywords,
-                                CeoAnalysis, SalesAnalysis, BuyerAnalysis, EducationalContent,
-                                AnalyzedAt, AiModel
-                            ) VALUES (
-                                @SourceId, @SourceName, @Title, @Url, @UrlHash, @Summary,
-                                @PublishDate, @FetchedAt, @Language, @Category, @Severity,
-                                @RelevanceScore, @IsRelevant, @MatchedKeywords,
-                                @CeoAnalysis, @SalesAnalysis, @BuyerAnalysis, @EducationalContent,
-                                @AnalyzedAt, @AiModel
-                            )
-                        END";
-
-                    using var cmd = new SqlCommand(sql, conn);
-                    cmd.Parameters.AddWithValue("@SourceId", article.SourceId ?? "");
-                    cmd.Parameters.AddWithValue("@SourceName", article.SourceName ?? "");
-                    cmd.Parameters.AddWithValue("@Title", article.Title ?? "");
-                    cmd.Parameters.AddWithValue("@Url", article.Url ?? "");
-                    cmd.Parameters.AddWithValue("@UrlHash", article.UrlHash ?? "");
-                    cmd.Parameters.AddWithValue("@Summary", (object)article.Summary ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@PublishDate", article.PublishDate);
-                    cmd.Parameters.AddWithValue("@FetchedAt", article.FetchedAt);
-                    cmd.Parameters.AddWithValue("@Language", article.Language ?? "pl");
-                    cmd.Parameters.AddWithValue("@Category", analysis?.Category ?? article.SourceCategory ?? "Info");
-                    cmd.Parameters.AddWithValue("@Severity", analysis?.Severity ?? "info");
-                    cmd.Parameters.AddWithValue("@RelevanceScore", article.RelevanceScore);
-                    cmd.Parameters.AddWithValue("@IsRelevant", article.IsRelevant);
-                    cmd.Parameters.AddWithValue("@MatchedKeywords",
-                        article.MatchedKeywords != null ? string.Join(",", article.MatchedKeywords) : "");
-                    cmd.Parameters.AddWithValue("@CeoAnalysis", (object)analysis?.CeoAnalysis ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@SalesAnalysis", (object)analysis?.SalesAnalysis ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@BuyerAnalysis", (object)analysis?.BuyerAnalysis ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@EducationalContent", (object)analysis?.EducationalContent ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@AnalyzedAt", analysis?.AnalyzedAt ?? DateTime.Now);
-                    cmd.Parameters.AddWithValue("@AiModel", (object)analysis?.Model ?? DBNull.Value);
-
-                    try
+                    int savedOk = 0, savedFail = 0;
+                    foreach (var article in articles.Take(100))
                     {
-                        await cmd.ExecuteNonQueryAsync(ct);
-                        _contentFilterService.MarkAsProcessed(article.UrlHash);
+                        var analysis = analyses.FirstOrDefault(a => a.Article.UrlHash == article.UrlHash);
+
+                        // Wszystkie potencjalne pola — schema-aware filter pominie te których nie ma w DB
+                        var allFields = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+                        {
+                            ["SourceId"] = article.SourceId ?? "",
+                            ["SourceName"] = article.SourceName ?? "",
+                            ["Title"] = article.Title ?? "",
+                            ["Url"] = article.Url ?? "",
+                            ["UrlHash"] = article.UrlHash ?? "",
+                            ["Summary"] = (object)article.Summary ?? DBNull.Value,
+                            ["FullContent"] = (object)article.FullContent ?? DBNull.Value,
+                            ["PublishDate"] = article.PublishDate,
+                            ["FetchedAt"] = article.FetchedAt,
+                            ["Language"] = article.Language ?? "pl",
+                            ["Category"] = analysis?.Category ?? article.SourceCategory ?? "Info",
+                            ["Severity"] = analysis?.Severity ?? "info",
+                            ["RelevanceScore"] = article.RelevanceScore,
+                            ["IsRelevant"] = article.IsRelevant,
+                            ["MatchedKeywords"] = article.MatchedKeywords != null ? string.Join(",", article.MatchedKeywords) : "",
+                            ["CeoAnalysis"] = (object)analysis?.CeoAnalysis ?? DBNull.Value,
+                            ["SalesAnalysis"] = (object)analysis?.SalesAnalysis ?? DBNull.Value,
+                            ["BuyerAnalysis"] = (object)analysis?.BuyerAnalysis ?? DBNull.Value,
+                            ["EducationalContent"] = (object)analysis?.EducationalContent ?? DBNull.Value,
+                            ["AnalyzedAt"] = (object)(analysis?.AnalyzedAt ?? (DateTime?)null) ?? DBNull.Value,
+                            ["AiModel"] = (object)analysis?.Model ?? DBNull.Value,
+                            // Stary schemat alternatywne nazwy
+                            ["Body"] = (object)article.Summary ?? DBNull.Value,
+                            ["Source"] = article.SourceName ?? "",
+                            ["SourceUrl"] = article.Url ?? "",
+                            ["AiAnalysis"] = (object)analysis?.CeoAnalysis ?? DBNull.Value,
+                        };
+
+                        // Filtruj tylko kolumny które ISTNIEJĄ w bazie
+                        var usableFields = allFields
+                            .Where(kvp => existingColumns.Contains(kvp.Key))
+                            .ToList();
+
+                        if (usableFields.Count == 0)
+                        {
+                            Debug.WriteLine("[Orchestrator] ⚠ Brak wspólnych kolumn — pomijam");
+                            break;
+                        }
+
+                        // Buduj dynamiczny INSERT — z opcjonalnym WHERE NOT EXISTS jeśli mamy UrlHash
+                        var columns = string.Join(", ", usableFields.Select(kvp => kvp.Key));
+                        var paramsList = string.Join(", ", usableFields.Select(kvp => "@" + kvp.Key));
+                        string sql;
+                        if (existingColumns.Contains("UrlHash"))
+                        {
+                            sql = $@"IF NOT EXISTS (SELECT 1 FROM intel_Articles WHERE UrlHash = @UrlHash)
+                                     BEGIN INSERT INTO intel_Articles ({columns}) VALUES ({paramsList}) END";
+                        }
+                        else
+                        {
+                            sql = $"INSERT INTO intel_Articles ({columns}) VALUES ({paramsList})";
+                        }
+
+                        using var cmd = new SqlCommand(sql, conn);
+                        foreach (var kvp in usableFields)
+                            cmd.Parameters.AddWithValue("@" + kvp.Key, kvp.Value ?? DBNull.Value);
+
+                        try
+                        {
+                            await cmd.ExecuteNonQueryAsync(ct);
+                            _contentFilterService.MarkAsProcessed(article.UrlHash);
+                            savedOk++;
+                        }
+                        catch (SqlException ex)
+                        {
+                            savedFail++;
+                            if (savedFail <= 3)
+                                Debug.WriteLine($"[Orchestrator] Save article error: {ex.Message}");
+                            else if (savedFail == 4)
+                                Debug.WriteLine($"[Orchestrator] Tłumię kolejne błędy zapisu (pierwsze 3 widoczne wyżej)");
+                        }
                     }
-                    catch (SqlException ex)
-                    {
-                        Debug.WriteLine($"[Orchestrator] Error saving article: {ex.Message}");
-                    }
+                    Debug.WriteLine($"[Orchestrator] Articles save: {savedOk} OK, {savedFail} fail");
                 }
 
                 // Save HPAI alerts

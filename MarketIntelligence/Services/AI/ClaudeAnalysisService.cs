@@ -272,6 +272,7 @@ Odpowiedz TYLKO tablicą JSON, bez dodatkowego tekstu.";
         {
             var analyses = new List<ArticleAnalysis>();
             var toAnalyze = articles.Take(maxArticles).ToList();
+            int consecutiveFailures = 0;
 
             foreach (var article in toAnalyze)
             {
@@ -282,6 +283,26 @@ Odpowiedz TYLKO tablicą JSON, bez dodatkowego tekstu.";
 
                 // Progress logging
                 Debug.WriteLine($"[Claude] Analyzed {analyses.Count}/{toAnalyze.Count}: {article.Title.Substring(0, Math.Min(50, article.Title.Length))}...");
+
+                // Early abort: jeśli API zwraca stub (Model = "local-fallback"), znaczy że Claude API
+                // failuje (np. 400 invalid_request). Po 3 fail z rzędu — przerywamy batch żeby nie
+                // marnować budżetu tokenów na 25 nieudanych wywołań.
+                if (analysis.Model == "local-fallback")
+                {
+                    consecutiveFailures++;
+                    if (consecutiveFailures >= 3)
+                    {
+                        Debug.WriteLine($"[Claude] ⚠ 3 fails z rzędu — przerywam batch ({analyses.Count}/{toAnalyze.Count} przetworzone, reszta = stub)");
+                        // Dorzuć stuby dla pozostałych żeby UI miało komplet
+                        foreach (var remaining in toAnalyze.Skip(analyses.Count))
+                            analyses.Add(CreateStubAnalysis(remaining));
+                        break;
+                    }
+                }
+                else
+                {
+                    consecutiveFailures = 0;
+                }
             }
 
             return analyses;
@@ -560,7 +581,10 @@ Odpowiedz TYLKO JSON-em.";
 
             try
             {
-                var response = await CallClaudeAsync(prompt, SonnetModel, 1500, ct);
+                // 4000 zamiast 1500 — Summary JSON może mieć 8+ action_items, top_alerts, dwa
+                // długie summary, market mood reason itd. Przy 1500 tokens response ucinał się
+                // mid-JSON ("Expected depth to be zero at the end of the JSON payload").
+                var response = await CallClaudeAsync(prompt, SonnetModel, 4000, ct);
 
                 if (!string.IsNullOrEmpty(response))
                 {
@@ -780,7 +804,7 @@ Odpowiedz w formacie JSON:
                     {
                         model,
                         max_tokens = maxTokens,
-                        temperature = 0,
+                        // temperature usunięte — Claude 4 zwraca 400 "temperature is deprecated for this model"
                         system = new[] { systemBlock },
                         messages = new[] { new { role = "user", content = userPrompt } }
                     };
@@ -791,7 +815,7 @@ Odpowiedz w formacie JSON:
                     {
                         model,
                         max_tokens = maxTokens,
-                        temperature = 0,
+                        // temperature usunięte — Claude 4 zwraca 400 "temperature is deprecated for this model"
                         messages = new[] { new { role = "user", content = userPrompt } }
                     };
                 }
