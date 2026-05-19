@@ -341,10 +341,38 @@ namespace Kalendarz1.MapaFloty
                         v.BaseSinceStr = null;
                     }
 
-                    // Kurs powiązany z pojazdem
+                    // Kurs powiązany z pojazdem — wybór wg czasu (kilka kursów dziennie OK)
+                    //   - poza bazą  → ostatni JUŻ rozpoczęty kurs (GodzWyjazdu <= now)
+                    //                  (auto jedzie tym kursem dopóki nie wróci do bazy)
+                    //   - w bazie    → najbliższy nadchodzący (GodzWyjazdu > now)
+                    //                  (po powrocie pokazujemy NASTĘPNY zaplanowany)
+                    //   - fallback   → ostatni kurs dnia gdy wszystkie minęły
                     if (v.MappedPojazdID > 0)
                     {
-                        var kurs = _todayKursy.FirstOrDefault(k => k.PojazdID == v.MappedPojazdID);
+                        var pojazdKursy = _todayKursy
+                            .Where(k => k.PojazdID == v.MappedPojazdID)
+                            .OrderBy(k => ParseHourMin(k.GodzWyjazdu) ?? TimeSpan.MaxValue)
+                            .ToList();
+
+                        KursInfo? kurs = null;
+                        if (pojazdKursy.Count > 0)
+                        {
+                            var now = DateTime.Now.TimeOfDay;
+                            var rozpoczete = pojazdKursy
+                                .Where(k => { var t = ParseHourMin(k.GodzWyjazdu); return t.HasValue && t.Value <= now; })
+                                .ToList();
+                            var nadchodzace = pojazdKursy
+                                .Where(k => { var t = ParseHourMin(k.GodzWyjazdu); return t.HasValue && t.Value > now; })
+                                .ToList();
+
+                            if (!v.InGeofence && rozpoczete.Count > 0)
+                                kurs = rozpoczete.Last();        // poza bazą — aktualny aktywny kurs
+                            else if (v.InGeofence && nadchodzace.Count > 0)
+                                kurs = nadchodzace.First();      // w bazie — następny zaplanowany
+                            else
+                                kurs = rozpoczete.LastOrDefault() ?? nadchodzace.FirstOrDefault() ?? pojazdKursy.Last();
+                        }
+
                         if (kurs != null)
                         {
                             v.KursTrasa = kurs.Trasa;
@@ -694,6 +722,13 @@ namespace Kalendarz1.MapaFloty
             if (v.DistToUbojnia > 0) sb.AppendLine($"↗ {v.DistToUbojnia:F1} km do ubojni" + (v.EtaMinutes > 0 ? $" · ETA ~{v.EtaMinutes} min" : ""));
             sb.Append("\nKlik = śledź na mapie");
             return sb.ToString();
+        }
+
+        // Parsuje "HH:mm" lub "HH:mm:ss" → TimeSpan. Null = niepoprawny.
+        private static TimeSpan? ParseHourMin(string? s)
+        {
+            if (string.IsNullOrWhiteSpace(s)) return null;
+            return TimeSpan.TryParse(s, out var t) ? t : null;
         }
 
         // Polish++ — proportion bar pod KPI (4 segmenty proporcjonalne)
