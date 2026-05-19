@@ -53,6 +53,8 @@ namespace Kalendarz1.MapaFloty
         private List<VehiclePosition> _displayVehicles = new();
         private Dictionary<string, string> _mappings = new();
         private List<KursInfo> _todayKursy = new();
+        // Trackuj kiedy pojazd przybył do bazy (jako proxy "od kiedy stoi tutaj")
+        private readonly Dictionary<string, DateTime> _vehicleBaseArrival = new();
         private bool _mapReady;
         private string _mapFolder = "";
         private int _countdown = 30;
@@ -315,9 +317,30 @@ namespace Kalendarz1.MapaFloty
                 foreach (var v in vehicles)
                 {
                     v.DistToUbojnia = Haversine(v.Latitude, v.Longitude, UbLat, UbLon);
-                    v.InGeofence = false;
+                    // Geofence 1.5 km od ubojni Koziołki 40
+                    v.InGeofence = v.DistToUbojnia < 1.5;
                     // ETA do ubojni (min) — prosta kalkulacja
                     v.EtaMinutes = v.Speed > 5 ? (int)Math.Ceiling(v.DistToUbojnia / v.Speed * 60) : -1;
+
+                    // Trackuj od kiedy pojazd jest w bazie (gdy InGeofence + nie jedzie)
+                    if (v.InGeofence && !v.IsMoving)
+                    {
+                        if (!_vehicleBaseArrival.ContainsKey(v.ObjectNo))
+                        {
+                            // Pierwszy raz widzimy — używamy LastUpdate (czas ostatniego ping GPS)
+                            // jako proxy. Jeśli niezdolny do parsowania → DateTime.Now.
+                            _vehicleBaseArrival[v.ObjectNo] = DateTime.TryParse(v.LastUpdate, out var lu)
+                                ? lu : DateTime.Now;
+                        }
+                        v.BaseSinceStr = FormatBaseSince(_vehicleBaseArrival[v.ObjectNo]);
+                    }
+                    else
+                    {
+                        // Wyjechał — wyczyść arrival, zresetuje się przy następnym wjeździe
+                        _vehicleBaseArrival.Remove(v.ObjectNo);
+                        v.BaseSinceStr = null;
+                    }
+
                     // Kurs powiązany z pojazdem
                     if (v.MappedPojazdID > 0)
                     {
@@ -669,6 +692,20 @@ namespace Kalendarz1.MapaFloty
             return sb.ToString();
         }
 
+        // Formatuje "od kiedy w bazie" dla cluster list i marker label
+        private static string FormatBaseSince(DateTime arrival)
+        {
+            // Dzisiaj — pokazujemy godzinę
+            if (arrival.Date == DateTime.Today)
+                return $"od {arrival:HH:mm}";
+            // Wczoraj
+            if (arrival.Date == DateTime.Today.AddDays(-1))
+                return $"od wczoraj {arrival:HH:mm}";
+            // Starsze
+            var days = (int)(DateTime.Now - arrival).TotalDays;
+            return $"{days} dni";
+        }
+
         // Polishing — wiek GPS jako readable string + warning gdy stary
         private static (string text, bool warning) FormatGpsAge(string? lastUpdate)
         {
@@ -886,6 +923,7 @@ html,body,#map{width:100%;height:100%;background:#f0f0f0;font-family:'Segoe UI',
 .vi-body svg{width:26px;height:26px;fill:#fff;transition:transform .4s ease-out}
 .vi-spd{position:absolute;top:-4px;right:-8px;background:#111;color:#fff;font-size:10px;font-weight:800;padding:2px 5px;border-radius:8px;border:1px solid #555;line-height:1.1;box-shadow:0 1px 4px rgba(0,0,0,.4)}
 .vi-name{position:absolute;bottom:-18px;left:50%;transform:translateX(-50%);background:rgba(15,23,42,.88);color:#fff;font-size:10px;padding:2px 7px;border-radius:5px;white-space:nowrap;font-weight:700;pointer-events:none;letter-spacing:.3px;box-shadow:0 1px 3px rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.15)}
+.vi-drv{position:absolute;bottom:-33px;left:50%;transform:translateX(-50%);background:rgba(25,118,210,.92);color:#fff;font-size:9.5px;padding:1px 6px;border-radius:4px;white-space:nowrap;font-weight:600;pointer-events:none;box-shadow:0 1px 3px rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.1)}
 /* Stany pojazdu — 4 kolory + animacje */
 @keyframes pulseGreen{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(67,160,71,.55)}50%{transform:scale(1.06);box-shadow:0 0 0 14px rgba(67,160,71,0)}}
 .vi-moving .vi-body{animation:pulseGreen 1.8s ease-in-out infinite}
@@ -942,12 +980,20 @@ html,body,#map{width:100%;height:100%;background:#f0f0f0;font-family:'Segoe UI',
 .ub-icon{background:linear-gradient(135deg,#37474f,#263238);width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;box-shadow:0 2px 6px rgba(0,0,0,.3);border:2px solid #fff}
 .leaflet-control-layers{border-radius:10px!important;box-shadow:0 2px 14px rgba(0,0,0,.15)!important;border:none!important}
 .leaflet-popup-content-wrapper{border-radius:10px!important;box-shadow:0 4px 20px rgba(0,0,0,.15)!important}
-/* Marker cluster — scalanie pojazdów w jednym miejscu */
-.vc-cluster{background:linear-gradient(135deg,#1976d2,#1565c0);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;border:3px solid #fff;box-shadow:0 3px 12px rgba(0,0,0,.5);font-family:'Segoe UI',sans-serif}
+/* Marker cluster — wrapper z permanent listą nad kółkiem */
+.vc-cluster-wrap{position:relative;width:100%;height:100%}
+.vc-cluster-list{position:absolute;bottom:60px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,.97);padding:6px 10px;border-radius:8px;font-size:10.5px;font-weight:600;line-height:1.55;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,0.25);border:1px solid #cfd8dc;color:#263238;pointer-events:none}
+.vc-cluster-list .vc-row{display:flex;align-items:center;gap:6px}
+.vc-cluster-list .vc-row .reg{font-weight:800;color:#1a237e}
+.vc-cluster-list .vc-row .drv{color:#546e7a;font-weight:500}
+.vc-cluster-list .vc-row .since{color:#1976d2;font-weight:700;margin-left:auto}
+.vc-cluster-list .vc-more{font-size:9px;color:#90a4ae;font-style:italic;text-align:center;margin-top:2px}
+.vc-cluster-list:after{content:'';position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:6px solid #fff}
+.vc-cluster{background:linear-gradient(135deg,#1976d2,#1565c0);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;border:3px solid #fff;box-shadow:0 3px 12px rgba(0,0,0,.5);font-family:'Segoe UI',sans-serif;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%)}
 .vc-cluster.small{font-size:14px}
 .vc-cluster.medium{font-size:16px;background:linear-gradient(135deg,#1565c0,#0d47a1)}
 .vc-cluster.large{font-size:18px;background:linear-gradient(135deg,#0d47a1,#01579b)}
-.vc-cluster:hover{transform:scale(1.05);transition:transform .15s}
+.vc-cluster:hover{transform:translate(-50%,-50%) scale(1.05);transition:transform .15s}
 /* Override library default cluster style */
 .marker-cluster{background:none!important;border:none!important}
 .marker-cluster div{background:none!important;border:none!important;width:auto!important;height:auto!important;margin:0!important}
@@ -998,16 +1044,42 @@ var vehicleCluster = L.markerClusterGroup({
         var count = cluster.getChildCount();
         var size = count < 5 ? 38 : count < 15 ? 44 : 52;
         var cls = count < 5 ? 'small' : count < 15 ? 'medium' : 'large';
-        // Zbierz nazwy pojazdów dla tooltipa
-        var names = cluster.getAllChildMarkers().map(function(m){ return m._vehName || ''; }).filter(function(n){ return n; });
-        var tip = names.slice(0, 12).join(', ') + (names.length > 12 ? ', +' + (names.length - 12) : '');
+        // Zbierz dane pojazdów dla listy permanent (nad kółkiem)
+        var children = cluster.getAllChildMarkers();
+        var maxRows = 8;
+        var rowsHtml = '';
+        for (var i = 0; i < Math.min(children.length, maxRows); i++) {
+            var v = children[i]._vehData || {};
+            var reg = esc(v.ObjectName || '');
+            var drv = v.Driver ? esc(shortDriver(v.Driver)) : '';
+            var since = v.BaseSinceStr ? esc(v.BaseSinceStr) : '';
+            rowsHtml += '<div class=""vc-row"">'
+                + '<span class=""reg"">' + reg + '</span>'
+                + (drv ? '<span class=""drv"">' + drv + '</span>' : '')
+                + (since ? '<span class=""since"">' + since + '</span>' : '')
+                + '</div>';
+        }
+        if (children.length > maxRows) {
+            rowsHtml += '<div class=""vc-more"">+ ' + (children.length - maxRows) + ' więcej...</div>';
+        }
+        // Wrapper musi miec iconSize wystarczajacy zeby pomiescic liste — ~200×120
         return L.divIcon({
             className: '',
-            html: '<div class=""vc-cluster ' + cls + '"" title=""' + names.length + ' pojazdów: ' + tip.replace(/""/g,'&quot;') + '"" style=""width:'+size+'px;height:'+size+'px"">' + count + '</div>',
-            iconSize: [size, size]
+            html: '<div class=""vc-cluster-wrap"">'
+                + '<div class=""vc-cluster-list"">' + rowsHtml + '</div>'
+                + '<div class=""vc-cluster ' + cls + '"" style=""width:'+size+'px;height:'+size+'px"">' + count + '</div>'
+                + '</div>',
+            iconSize: [220, 130],
+            iconAnchor: [110, 65]
         });
     }
 });
+function shortDriver(d){
+    if(!d) return '';
+    var p = d.trim().split(/\s+/);
+    if(p.length === 1) return p[0];
+    return p[0] + ' ' + p[p.length-1].charAt(0) + '.';
+}
 map.addLayer(vehicleCluster);
 var replayData=null,replayIdx=0,replayTimer=null,replayPaused=false,replaySpeedVal=10,replayMarker=null,replayTrail=null;
 
@@ -1027,7 +1099,8 @@ function mkIcon(v){
 
     var cls='vi vi-'+state+(v.InGeofence&&!v.IsMoving?' vi-geo':'');
     var spd=v.Speed>0?'<div class=""vi-spd"">'+v.Speed+'</div>':'';
-    var name='<div class=""vi-name"">'+esc(v.ObjectName.substring(0,14))+'</div>';
+    var drv=v.Driver?'<div class=""vi-drv"">'+esc(shortDriver(v.Driver))+'</div>':'';
+    var name='<div class=""vi-name"">'+esc((v.ObjectName||'').substring(0,16))+'</div>'+drv;
     // Zawsze pokazuj last known heading (nawet stop)
     var rot=v.Course||0;
     return L.divIcon({className:'',html:'<div class=""'+cls+'""><div class=""vi-body"" style=""background:'+bgColor+'""><svg viewBox=""0 0 30 30"" style=""transform:rotate('+rot+'deg)""><path d=""'+arrowPath+'""/></svg></div>'+spd+name+'</div>',iconSize:[40,40],iconAnchor:[20,20],popupAnchor:[0,-22]});
@@ -1118,8 +1191,10 @@ function updateVehicles(vs){
                 // Cluster nie obsluguje animateMarker dobrze — usuwamy i dodajemy w nowej pozycji
                 vehicleCluster.removeLayer(m);
                 m.setLatLng(nll);
-                m._vehName = v.ObjectName;
+                m._vehData = v;
                 vehicleCluster.addLayer(m);
+            } else {
+                m._vehData = v;  // BaseSinceStr moze sie zmieniac mimo braku ruchu
             }
             m.setIcon(ic);m.setPopupContent(pop);
             m.setTooltipContent(mkTooltip(v));
@@ -1127,11 +1202,13 @@ function updateVehicles(vs){
             var marker=L.marker([v.Latitude,v.Longitude],{icon:ic})
                 .bindPopup(pop,{maxWidth:340})
                 .bindTooltip(mkTooltip(v),{direction:'top',offset:[0,-28]});
-            marker._vehName = v.ObjectName;  // dla cluster tooltip
+            marker._vehData = v;  // dla cluster permanent list
             markers[v.ObjectNo]=marker;
             vehicleCluster.addLayer(marker);
         }
     });
+    // Wymus refresh ikon clustra (zeby BaseSinceStr/Driver w liscie sie odswiezyl)
+    try { vehicleCluster.refreshClusters(); } catch(e){}
 }
 // Polishing — tooltip wzbogacony o kurs
 function mkTooltip(v){
@@ -1304,6 +1381,8 @@ function logToHost(m){try{post({Action:'log',Data:m})}catch(e){}}
             public double DistToUbojnia { get; set; }
             public bool InGeofence { get; set; }
             public int EtaMinutes { get; set; }
+            // "od HH:MM" lub "2h 15min" — kiedy pojazd przybył do bazy (gdy InGeofence)
+            public string? BaseSinceStr { get; set; }
             // Kurs transportowy (dzisiaj)
             public string? KursTrasa { get; set; }
             public string? KursStatus { get; set; }
