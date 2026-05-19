@@ -436,9 +436,11 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
                 // 2026-05-19: USUNIĘTE cross-DB JOIN do [192.168.0.112].[Handel].[HM].[TW] — wymaga
                 // sp_addlinkedserver, którego użytkownik nie ma → "Could not find server" błąd.
                 // Zamiast nazwy towaru używamy kodu towaru (zmt.KodTowaru) — wystarczy do analizy.
+                // CAST KodTowaru jako NVARCHAR — niektóre wersje LibraNet trzymają KodTowaru jako INT,
+                // bez CAST reader.GetString rzuca "Unable to cast 'System.Int32' to 'System.String'"
                 var sql = @"
                     SELECT
-                        ISNULL(zmt.KodTowaru, 'TOW-?') AS Produkt,
+                        ISNULL(CAST(zmt.KodTowaru AS NVARCHAR(50)), 'TOW-?') AS Produkt,
                         AVG(CAST(REPLACE(REPLACE(zmt.Cena, ',', '.'), ' ', '') AS DECIMAL(10,2))) AS SredniaCena,
                         'kg' AS Jednostka,
                         MAX(zm.DataUboju) AS Data

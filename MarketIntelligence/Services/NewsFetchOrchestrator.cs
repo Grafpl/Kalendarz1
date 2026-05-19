@@ -364,9 +364,9 @@ namespace Kalendarz1.MarketIntelligence.Services
                         .Take(options.MaxArticlesToAnalyze)
                         .ToList();
 
-                    // TRYB OSZCZĘDNY: 5 art × ~40s (z 2500 tokens output) = ~200s. 360s daje margines.
+                    // Sonnet 4.6 parallel x3 × ~30s/art = ~50s dla 5 art. 360s daje 7x margines.
                     analyses = await RunWithTimeoutAsync(
-                        $"AI Analysis Opus ({topArticles.Count} art.)",
+                        $"AI Analysis Sonnet ({topArticles.Count} art.)",
                         stageCt => _claudeAnalysisService.AnalyzeArticlesAsync(
                             topArticles, businessContext, options.MaxArticlesToAnalyze, stageCt),
                         timeoutSec: 360,

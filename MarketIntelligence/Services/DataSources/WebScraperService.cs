@@ -333,15 +333,15 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
         {
             var prices = new List<PoultryPrice>();
 
-            // E-drob.pl
-            var edrobPrices = await FetchEdrobPricesAsync(ct);
-            prices.AddRange(edrobPrices);
+            // 2026-05-19: e-drob.pl + gieldadrobiowasc.pl + gieldadrobiowa.pl wszystkie DNS martwe.
+            // Pomijamy żeby nie marnować czasu na 3x DNS timeout (3-4s każdy).
+            // Jeśli kiedyś wrócą — odkomentuj.
+            // var edrobPrices = await FetchEdrobPricesAsync(ct);
+            // prices.AddRange(edrobPrices);
+            // var gieldaPrices = await FetchGieldaDrobiowaPricesAsync(ct);
+            // prices.AddRange(gieldaPrices);
 
-            // Giełda drobiowa
-            var gieldaPrices = await FetchGieldaDrobiowaPricesAsync(ct);
-            prices.AddRange(gieldaPrices);
-
-            // MRiRW (Ministerstwo) - ceny referencyjne
+            // MRiRW (Ministerstwo) - ceny referencyjne (działa)
             var mrirwPrices = await FetchMrirwPricesAsync(ct);
             prices.AddRange(mrirwPrices);
 

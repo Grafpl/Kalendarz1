@@ -80,7 +80,7 @@ namespace Kalendarz1.MarketIntelligence.Services
                 sb.AppendLine($"- **Modele używane:**");
                 sb.AppendLine($"  - Filter/Translation: `claude-haiku-4-5-20251001`");
                 sb.AppendLine($"  - Daily Summary: `claude-sonnet-4-6`");
-                sb.AppendLine($"  - Article Analysis: `claude-opus-4-7`");
+                sb.AppendLine($"  - Article Analysis: `claude-sonnet-4-6` (parallel x3, max_tokens 8000)");
                 sb.AppendLine();
             }
 
@@ -91,7 +91,7 @@ namespace Kalendarz1.MarketIntelligence.Services
                 var secretsKey = SecretsLoader.Get("PERPLEXITY_API_KEY");
                 var limit = Environment.GetEnvironmentVariable("PERPLEXITY_DAILY_LIMIT")
                             ?? SecretsLoader.Get("PERPLEXITY_DAILY_LIMIT")
-                            ?? "100 (default)";
+                            ?? "30 (default — tryb oszczędny)";
                 sb.AppendLine($"### Perplexity (Sonar)");
                 sb.AppendLine($"- **Skonfigurowane:** {(px.IsConfigured ? "✅ TAK" : "❌ NIE")}");
                 sb.AppendLine($"- **Źródło klucza:** {(envKey != null ? "env PERPLEXITY_API_KEY" : secretsKey != null ? "secrets.json" : "brak")}");
