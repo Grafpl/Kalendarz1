@@ -862,7 +862,7 @@ html,body,#map{width:100%;height:100%;background:#f0f0f0;font-family:'Segoe UI',
 .vi-body{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid #fff;transition:all .3s}
 .vi-body svg{width:26px;height:26px;fill:#fff;transition:transform .4s ease-out}
 .vi-spd{position:absolute;top:-4px;right:-8px;background:#111;color:#fff;font-size:10px;font-weight:800;padding:2px 5px;border-radius:8px;border:1px solid #555;line-height:1.1;box-shadow:0 1px 4px rgba(0,0,0,.4)}
-.vi-name{position:absolute;bottom:-16px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.78);color:#fff;font-size:9px;padding:2px 6px;border-radius:4px;white-space:nowrap;font-weight:600;pointer-events:none;letter-spacing:.2px}
+.vi-name{position:absolute;bottom:-18px;left:50%;transform:translateX(-50%);background:rgba(15,23,42,.88);color:#fff;font-size:10px;padding:2px 7px;border-radius:5px;white-space:nowrap;font-weight:700;pointer-events:none;letter-spacing:.3px;box-shadow:0 1px 3px rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.15)}
 /* Stany pojazdu — 4 kolory + animacje */
 @keyframes pulseGreen{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(67,160,71,.55)}50%{transform:scale(1.06);box-shadow:0 0 0 14px rgba(67,160,71,0)}}
 .vi-moving .vi-body{animation:pulseGreen 1.8s ease-in-out infinite}

@@ -132,8 +132,8 @@
                                     BorderBrush="Transparent" BorderThickness="2"
                                     ToolTip="Filtr: tylko w trasie (kliknij)">
                                 <StackPanel HorizontalAlignment="Center">
-                                    <TextBlock x:Name="MovingCountText" Text="0" Foreground="#33691e" FontWeight="Bold" FontSize="18" HorizontalAlignment="Center"/>
-                                    <TextBlock Text="W trasie" Foreground="#7cb342" FontSize="8.5" HorizontalAlignment="Center"/>
+                                    <TextBlock x:Name="MovingCountText" Text="0" Foreground="#33691e" FontWeight="Bold" FontSize="22" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="W trasie" Foreground="#7cb342" FontSize="9.5" HorizontalAlignment="Center" FontWeight="SemiBold"/>
                                 </StackPanel>
                             </Border>
                             <Border x:Name="ChipStopped" Grid.Column="1" Background="#fff8e1" CornerRadius="8" Padding="0,8" Margin="3,0,3,0"
@@ -141,8 +141,8 @@
                                     BorderBrush="Transparent" BorderThickness="2"
                                     ToolTip="Filtr: tylko postój / wyłączone (kliknij)">
                                 <StackPanel HorizontalAlignment="Center">
-                                    <TextBlock x:Name="StoppedCountText" Text="0" Foreground="#e65100" FontWeight="Bold" FontSize="18" HorizontalAlignment="Center"/>
-                                    <TextBlock Text="Postój" Foreground="#ffb74d" FontSize="8.5" HorizontalAlignment="Center"/>
+                                    <TextBlock x:Name="StoppedCountText" Text="0" Foreground="#e65100" FontWeight="Bold" FontSize="22" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Postój" Foreground="#ffb74d" FontSize="9.5" HorizontalAlignment="Center" FontWeight="SemiBold"/>
                                 </StackPanel>
                             </Border>
                             <Border x:Name="ChipAll" Grid.Column="2" Background="#e8eaf6" CornerRadius="8" Padding="0,8" Margin="3,0,3,0"
@@ -150,8 +150,8 @@
                                     BorderBrush="#3949ab" BorderThickness="2"
                                     ToolTip="Wszystkie (domyślne)">
                                 <StackPanel HorizontalAlignment="Center">
-                                    <TextBlock x:Name="AvgSpeedText" Text="0" Foreground="#283593" FontWeight="Bold" FontSize="18" HorizontalAlignment="Center"/>
-                                    <TextBlock Text="km/h śr." Foreground="#7986cb" FontSize="8.5" HorizontalAlignment="Center"/>
+                                    <TextBlock x:Name="AvgSpeedText" Text="0" Foreground="#283593" FontWeight="Bold" FontSize="22" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="km/h śr." Foreground="#7986cb" FontSize="9.5" HorizontalAlignment="Center" FontWeight="SemiBold"/>
                                 </StackPanel>
                             </Border>
                             <Border x:Name="ChipBase" Grid.Column="3" Background="#fce4ec" CornerRadius="8" Padding="0,8" Margin="3,0,0,0"
@@ -159,8 +159,8 @@
                                     BorderBrush="Transparent" BorderThickness="2"
                                     ToolTip="Filtr: tylko w bazie (kliknij)">
                                 <StackPanel HorizontalAlignment="Center">
-                                    <TextBlock x:Name="InGeofenceText" Text="0" Foreground="#b71c1c" FontWeight="Bold" FontSize="18" HorizontalAlignment="Center"/>
-                                    <TextBlock Text="W bazie" Foreground="#ef9a9a" FontSize="8.5" HorizontalAlignment="Center"/>
+                                    <TextBlock x:Name="InGeofenceText" Text="0" Foreground="#b71c1c" FontWeight="Bold" FontSize="22" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="W bazie" Foreground="#ef9a9a" FontSize="9.5" HorizontalAlignment="Center" FontWeight="SemiBold"/>
                                 </StackPanel>
                             </Border>
                         </Grid>

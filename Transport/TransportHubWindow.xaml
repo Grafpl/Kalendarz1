@@ -11,10 +11,36 @@
         WindowState="Maximized"
         Background="#f7f8fa">
     <Window.Resources>
+        <!-- Polish++ — styling TabItem z accent line gdy selected -->
         <Style TargetType="TabItem">
-            <Setter Property="Padding" Value="20,8"/>
+            <Setter Property="Padding" Value="22,10"/>
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#546e7a"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                            <Border.BorderBrush>
+                                <SolidColorBrush Color="#1565c0"/>
+                            </Border.BorderBrush>
+                            <ContentPresenter ContentSource="Header" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#fff"/>
+                                <Setter TargetName="bd" Property="BorderThickness" Value="0,0,0,3"/>
+                                <Setter Property="Foreground" Value="#1a237e"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Foreground" Value="#1565c0"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
     </Window.Resources>
     <TabControl x:Name="HubTabs" TabStripPlacement="Top" Background="#f7f8fa" BorderThickness="0">

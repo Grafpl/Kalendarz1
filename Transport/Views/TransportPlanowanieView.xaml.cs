@@ -186,6 +186,24 @@ namespace Kalendarz1.Transport.Views
             public string Status => Source.Status ?? "Planowany";
             public int PaletyNominal => Source.PaletyNominal;
 
+            // Polish++ — kolorowy pill dla statusu kursu (matching enum z Shared/Domain/KursStatus.cs)
+            public System.Windows.Media.Brush StatusBgColor => Status switch
+            {
+                "WTrasie" or "W trasie"     => new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(232, 245, 233)),
+                "Zakonczony" or "Zakończony" => new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(232, 234, 246)),
+                "Anulowany"                  => new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 235, 238)),
+                "Akceptowany"                => new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(225, 245, 254)),
+                _                            => new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 243, 224))  // Planowany
+            };
+            public System.Windows.Media.Brush StatusFgColor => Status switch
+            {
+                "WTrasie" or "W trasie"     => new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(46, 125, 50)),
+                "Zakonczony" or "Zakończony" => new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(57, 73, 171)),
+                "Anulowany"                  => new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(198, 40, 40)),
+                "Akceptowany"                => new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(2, 119, 189)),
+                _                            => new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(230, 81, 0))   // Planowany pomarańcz
+            };
+
             public string GodzinyDisplay
             {
                 get
