@@ -517,6 +517,30 @@ namespace Kalendarz1.MapaFloty
         // Panel boczny
         // ══════════════════════════════════════════════════════════════════
 
+        // Faza 10-C — chip filter w panelu bocznym (all/moving/stopped/base)
+        private string _chipFilter = "all";
+
+        private void ChipFilter_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (sender is Border b && b.Tag is string tag)
+            {
+                _chipFilter = tag;
+                UpdateChipsActiveBorder();
+                if (_displayVehicles.Count > 0) UpdateSidePanel(_displayVehicles);
+            }
+        }
+
+        private void UpdateChipsActiveBorder()
+        {
+            var inactive = System.Windows.Media.Brushes.Transparent;
+            var active = (System.Windows.Media.Brush)(new System.Windows.Media.SolidColorBrush(
+                System.Windows.Media.Color.FromRgb(57, 73, 171)));
+            if (ChipMoving != null)  ChipMoving.BorderBrush = _chipFilter == "moving" ? active : inactive;
+            if (ChipStopped != null) ChipStopped.BorderBrush = _chipFilter == "stopped" ? active : inactive;
+            if (ChipAll != null)     ChipAll.BorderBrush = _chipFilter == "all" ? active : inactive;
+            if (ChipBase != null)    ChipBase.BorderBrush = _chipFilter == "base" ? active : inactive;
+        }
+
         private void UpdateSidePanel(List<VehiclePosition> vehicles)
         {
             var filter = SearchBox.Text.Trim().ToLower();
@@ -526,6 +550,15 @@ namespace Kalendarz1.MapaFloty
                 vehicles.Where(v => v.ObjectName.ToLower().Contains(filter) || v.Driver.ToLower().Contains(filter) ||
                     v.Address.ToLower().Contains(filter) || (v.InternalName ?? "").ToLower().Contains(filter) ||
                     (v.KursTrasa ?? "").ToLower().Contains(filter)).ToList();
+
+            // Faza 10-C — chip filter (moving/stopped/base/all)
+            list = _chipFilter switch
+            {
+                "moving"  => list.Where(v => v.IsMoving).ToList(),
+                "stopped" => list.Where(v => !v.IsMoving && !v.InGeofence).ToList(),
+                "base"    => list.Where(v => v.InGeofence).ToList(),
+                _ => list
+            };
 
             list = (SortCombo.SelectedIndex switch
             {
@@ -768,22 +801,39 @@ namespace Kalendarz1.MapaFloty
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 html,body,#map{width:100%;height:100%;background:#f0f0f0;font-family:'Segoe UI',system-ui,sans-serif}
-.vi{position:relative;filter:drop-shadow(0 3px 6px rgba(0,0,0,0.5))}
-.vi-body{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #fff;transition:all .3s}
-.vi-body svg{width:18px;height:18px;fill:#fff}
-.vi-spd{position:absolute;top:-4px;right:-4px;background:#111;color:#fff;font-size:8px;font-weight:800;padding:0px 3px;border-radius:3px;border:1px solid #555;line-height:1.2}
-.vi-name{position:absolute;bottom:-14px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.65);color:#fff;font-size:7px;padding:1px 4px;border-radius:3px;white-space:nowrap;font-weight:600;pointer-events:none}
-@keyframes pulse{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(76,175,80,.4)}50%{transform:scale(1.05);box-shadow:0 0 0 12px rgba(76,175,80,0)}}
-.vi-moving .vi-body{animation:pulse 2s ease-in-out infinite}
-@keyframes glow{0%,100%{box-shadow:0 0 4px 2px rgba(229,57,53,.3)}50%{box-shadow:0 0 12px 4px rgba(229,57,53,.6)}}
+.vi{position:relative;filter:drop-shadow(0 3px 8px rgba(0,0,0,0.5))}
+.vi-body{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid #fff;transition:all .3s}
+.vi-body svg{width:26px;height:26px;fill:#fff;transition:transform .4s ease-out}
+.vi-spd{position:absolute;top:-4px;right:-8px;background:#111;color:#fff;font-size:10px;font-weight:800;padding:2px 5px;border-radius:8px;border:1px solid #555;line-height:1.1;box-shadow:0 1px 4px rgba(0,0,0,.4)}
+.vi-name{position:absolute;bottom:-16px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.78);color:#fff;font-size:9px;padding:2px 6px;border-radius:4px;white-space:nowrap;font-weight:600;pointer-events:none;letter-spacing:.2px}
+/* Stany pojazdu — 4 kolory + animacje */
+@keyframes pulseGreen{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(67,160,71,.55)}50%{transform:scale(1.06);box-shadow:0 0 0 14px rgba(67,160,71,0)}}
+.vi-moving .vi-body{animation:pulseGreen 1.8s ease-in-out infinite}
+@keyframes pulseBlue{0%,100%{box-shadow:0 0 0 0 rgba(25,118,210,.45)}50%{box-shadow:0 0 0 12px rgba(25,118,210,0)}}
+.vi-base .vi-body{animation:pulseBlue 2s ease-in-out infinite}
+.vi-idle .vi-body{box-shadow:0 0 0 3px rgba(245,124,0,.25)}
+.vi-off .vi-body{opacity:.65}
+.vi-off .vi-body svg{opacity:.85}
+@keyframes glow{0%,100%{box-shadow:0 0 4px 2px rgba(229,57,53,.3)}50%{box-shadow:0 0 14px 5px rgba(229,57,53,.65)}}
 .vi-geo .vi-body{animation:glow 1.5s ease-in-out infinite!important;border-color:#ef5350!important}
-.vp{min-width:280px;padding:0}
+.vp{min-width:300px;padding:0}
 .vp-head{background:linear-gradient(135deg,#1a237e,#283593);color:#fff;padding:14px 16px;border-radius:8px 8px 0 0;margin:-14px -20px 12px}
-.vp-head h3{margin:0;font-size:15px;font-weight:700}.vp-head .sub{opacity:.7;font-size:11px;margin-top:3px}
-.vp-badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;margin-bottom:8px}
-.vp-badge.m{background:#e8f5e9;color:#2e7d32}.vp-badge.s{background:#fff3e0;color:#e65100}.vp-badge.o{background:#f5f5f5;color:#757575}
-.vp-badge.g{background:#ffebee;color:#c62828;margin-left:4px}
-.vp-r{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f0f0f5;font-size:12px}
+.vp-head h3{margin:0;font-size:16px;font-weight:700}.vp-head .sub{opacity:.75;font-size:11px;margin-top:3px}
+/* Status pill — duży, na górze popup'u */
+.vp-state{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:8px;margin:-4px 0 10px;font-size:13px;font-weight:700}
+.vp-state.moving{background:linear-gradient(135deg,#43a047,#388e3c);color:#fff}
+.vp-state.base{background:linear-gradient(135deg,#1976d2,#1565c0);color:#fff}
+.vp-state.idle{background:linear-gradient(135deg,#f57c00,#e65100);color:#fff}
+.vp-state.off{background:linear-gradient(135deg,#78909c,#607d8b);color:#fff}
+.vp-state-emoji{font-size:18px;margin-right:8px}
+.vp-state-meta{font-size:11px;opacity:.9;font-weight:500}
+/* Kurs box — prominent gdy aktywny */
+.vp-kurs-box{background:linear-gradient(135deg,#ede7f6,#d1c4e9);padding:10px 12px;border-radius:8px;margin:8px 0;border-left:4px solid #7b1fa2}
+.vp-kurs-h{font-size:10px;font-weight:700;color:#7b1fa2;letter-spacing:.4px;margin-bottom:4px}
+.vp-kurs-route{font-size:13px;font-weight:700;color:#263238;margin-bottom:4px}
+.vp-kurs-meta{font-size:11px;color:#546e7a;line-height:1.5}
+.vp-kurs-meta b{color:#263238}
+.vp-r{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f5;font-size:12px}
 .vp-r:last-child{border:none}.vp-r .k{color:#78909c}.vp-r .v{font-weight:600;color:#263238;max-width:170px;text-align:right}
 .vp-btn{display:block;width:100%;margin-top:5px;padding:8px;text-align:center;border:none;border-radius:6px;cursor:pointer;font-size:11.5px;font-weight:600;transition:.15s}
 .vp-btn.tr{background:#1565c0;color:#fff}.vp-btn.tr:hover{background:#0d47a1}
@@ -791,7 +841,6 @@ html,body,#map{width:100%;height:100%;background:#f0f0f0;font-family:'Segoe UI',
 .vp-btn.fw{background:#00695c;color:#fff}.vp-btn.fw:hover{background:#004d40}
 .vp-btn.cl{background:#eceff1;color:#546e7a;margin-top:3px}.vp-btn.cl:hover{background:#cfd8dc}
 .vp-date{width:100%;padding:6px;margin-top:6px;border:1px solid #cfd8dc;border-radius:4px;font-size:11px}
-.vp-kurs{background:#e8eaf6;padding:6px 10px;border-radius:6px;margin:6px 0;font-size:11px;color:#283593}
 #trackStats{position:absolute;bottom:40px;left:50%;transform:translateX(-50%);z-index:1000;background:rgba(255,255,255,.95);backdrop-filter:blur(12px);color:#263238;padding:12px 20px;border-radius:12px;display:none;font-size:12px;box-shadow:0 4px 20px rgba(0,0,0,.15);border:1px solid #e0e0e0}
 #trackStats .ts-row{display:flex;gap:16px;align-items:center}
 #trackStats .ts-item{text-align:center}
@@ -849,41 +898,79 @@ var markers={},trackGroup=L.layerGroup().addTo(map),followId=null;
 var ordersLayer=L.layerGroup(),orderMarkers={},ordersVisible=false;
 var replayData=null,replayIdx=0,replayTimer=null,replayPaused=false,replaySpeedVal=10,replayMarker=null,replayTrail=null;
 
-var truckPath='M3,14h18v8H3v-8zm18,2h5l3,4v4h-8v-8zM6,24a2,2,0,1,0,0-4,2,2,0,0,0,0,4zm15,0a2,2,0,1,0,0-4,2,2,0,0,0,0,4z';
+// Strzałka nawigacyjna (czubek na góre = kierunek 0°), reagująca na Course
+var arrowPath='M15 3 L26 24 L15 19 L4 24 Z';
 function mkIcon(v){
-    var c=v.IsMoving?'#43a047':(v.Ignition?'#f57c00':'#607d8b');
-    var cls='vi'+(v.IsMoving?' vi-moving':'')+(v.InGeofence?' vi-geo':'');
+    // 4 stany kolorystyczne (Faza 10-A):
+    //   moving = zielony pulse (jedzie)
+    //   base = niebieski pulse (w geofence ubojni)
+    //   idle = pomarańczowy (zapłon wł., postój)
+    //   off = szary semi-transparent (silnik wyłączony)
+    var state, bgColor;
+    if(v.IsMoving){ state='moving'; bgColor='#43a047'; }
+    else if(v.InGeofence){ state='base'; bgColor='#1976d2'; }
+    else if(v.Ignition){ state='idle'; bgColor='#f57c00'; }
+    else{ state='off'; bgColor='#607d8b'; }
+
+    var cls='vi vi-'+state+(v.InGeofence&&!v.IsMoving?' vi-geo':'');
     var spd=v.Speed>0?'<div class=""vi-spd"">'+v.Speed+'</div>':'';
     var name='<div class=""vi-name"">'+esc(v.ObjectName.substring(0,14))+'</div>';
-    var rot=v.IsMoving?(v.Course||0):0;
-    return L.divIcon({className:'',html:'<div class=""'+cls+'""><div class=""vi-body"" style=""background:'+c+'""><svg viewBox=""0 0 30 30"" style=""transform:rotate('+rot+'deg)""><path d=""'+truckPath+'""/></svg></div>'+spd+name+'</div>',iconSize:[32,32],iconAnchor:[16,16],popupAnchor:[0,-18]});
+    // Zawsze pokazuj last known heading (nawet stop)
+    var rot=v.Course||0;
+    return L.divIcon({className:'',html:'<div class=""'+cls+'""><div class=""vi-body"" style=""background:'+bgColor+'""><svg viewBox=""0 0 30 30"" style=""transform:rotate('+rot+'deg)""><path d=""'+arrowPath+'""/></svg></div>'+spd+name+'</div>',iconSize:[40,40],iconAnchor:[20,20],popupAnchor:[0,-22]});
 }
 
 function mkPopup(v){
-    var bc=v.IsMoving?'m':(v.Ignition?'s':'o');
-    var bt=v.IsMoving?'W trasie — '+v.Speed+' km/h':(v.Ignition?'Zapłon wł. — postój':'Silnik wyłączony');
-    var geo=v.InGeofence?'<span class=""vp-badge g"">W STREFIE ŁYSZKOWICE</span>':'';
+    // Faza 10-B — status pill na górze + prominent kurs box
+    var stateCls, stateEmoji, stateLabel, stateMeta;
+    if(v.IsMoving){
+        stateCls='moving'; stateEmoji='&#9889;'; // ⚡
+        stateLabel='W TRASIE'; stateMeta=v.Speed+' km/h';
+    } else if(v.InGeofence){
+        stateCls='base'; stateEmoji='&#127968;'; // 🏠
+        stateLabel='W BAZIE'; stateMeta='Łyszkowice';
+    } else if(v.Ignition){
+        stateCls='idle'; stateEmoji='&#9208;'; // ⏸
+        stateLabel='POSTÓJ'; stateMeta='Zapłon wł.';
+    } else {
+        stateCls='off'; stateEmoji='&#9209;'; // ⏹
+        stateLabel='WYŁĄCZONY'; stateMeta='Silnik off';
+    }
+
     var dirs=['N','NE','E','SE','S','SW','W','NW'];
-    var dir=dirs[Math.round((v.Course||0)/45)%8];
+    var dirIdx=Math.round((v.Course||0)/45)%8;
+    var dirName=dirs[dirIdx];
     var dist=v.DistToUbojnia!=null?v.DistToUbojnia.toFixed(1)+' km':'—';
     var eta=v.EtaMinutes>0?'ok. '+v.EtaMinutes+' min':'—';
+
+    // Kurs box (gdy aktualny kurs przypisany)
     var kursHtml='';
     if(v.KursTrasa){
-        kursHtml='<div class=""vp-kurs"">';
-        kursHtml+='<b>Dzisiejszy kurs:</b> '+esc(v.KursTrasa);
-        if(v.KursGodzWyjazdu){kursHtml+='<br>Godz.: '+v.KursGodzWyjazdu;if(v.KursGodzPowrotu)kursHtml+=' — '+v.KursGodzPowrotu}
-        if(v.KursStatus)kursHtml+='<br>Status: <b>'+esc(v.KursStatus)+'</b>';
-        if(v.KursKierowca)kursHtml+='<br>Kierowca kursu: '+esc(v.KursKierowca);
-        kursHtml+='</div>';
+        kursHtml='<div class=""vp-kurs-box""><div class=""vp-kurs-h"">&#128205; DZISIEJSZY KURS</div>'
+            +'<div class=""vp-kurs-route"">'+esc(v.KursTrasa)+'</div>'
+            +'<div class=""vp-kurs-meta"">';
+        if(v.KursGodzWyjazdu){kursHtml+='&#9201; <b>'+v.KursGodzWyjazdu+'</b>';if(v.KursGodzPowrotu)kursHtml+=' &#8594; <b>'+v.KursGodzPowrotu+'</b>';kursHtml+='<br>'}
+        if(v.KursStatus)kursHtml+='Status: <b>'+esc(v.KursStatus)+'</b><br>';
+        if(v.KursKierowca){
+            // Highlight gdy kierowca z kursu różni się od kierowcy GPS
+            var diff=v.Driver&&v.KursKierowca!==v.Driver?' <span style=""color:#c62828"">&#9888;</span>':'';
+            kursHtml+='Kierowca przypisany: <b>'+esc(v.KursKierowca)+'</b>'+diff;
+        }
+        kursHtml+='</div></div>';
+    } else {
+        kursHtml='<div style=""padding:6px 12px;background:#fafafa;border-radius:6px;margin:6px 0;font-size:11px;color:#90a4ae"">'
+            +'&#128276; Brak dzisiejszego kursu w planowaniu</div>';
     }
+
     var today=new Date().toISOString().split('T')[0];
-    return '<div class=""vp""><div class=""vp-head""><h3>'+esc(v.ObjectName)+'</h3><div class=""sub"">Kierowca: '+esc(v.Driver)+'</div></div>'
-      +'<span class=""vp-badge '+bc+'"">'+bt+'</span>'+geo+kursHtml
-      +'<div class=""vp-r""><span class=""k"">Kierunek</span><span class=""v"">'+dir+' ('+v.Course+'°)</span></div>'
+    return '<div class=""vp""><div class=""vp-head""><h3>'+esc(v.ObjectName)+'</h3><div class=""sub"">Kierowca GPS: '+esc(v.Driver||'—')+'</div></div>'
+      +'<div class=""vp-state '+stateCls+'""><span><span class=""vp-state-emoji"">'+stateEmoji+'</span>'+stateLabel+'</span><span class=""vp-state-meta"">'+stateMeta+'</span></div>'
+      +kursHtml
+      +'<div class=""vp-r""><span class=""k"">Kierunek</span><span class=""v"">'+dirName+' ('+(v.Course||0)+'°)</span></div>'
       +'<div class=""vp-r""><span class=""k"">Pozycja</span><span class=""v"">'+esc(v.Address||'brak danych')+'</span></div>'
-      +'<div class=""vp-r""><span class=""k"">Odległość do ubojni</span><span class=""v"">'+dist+'</span></div>'
-      +'<div class=""vp-r""><span class=""k"">Szac. czas dojazdu</span><span class=""v"" style=""color:#1565c0;font-weight:700"">'+eta+'</span></div>'
-      +'<div class=""vp-r""><span class=""k"">Ostatni sygnał GPS</span><span class=""v"">'+(v.LastUpdate||'—')+'</span></div>'
+      +'<div class=""vp-r""><span class=""k"">Odl. od ubojni</span><span class=""v"">'+dist+'</span></div>'
+      +(v.IsMoving?'<div class=""vp-r""><span class=""k"">ETA do ubojni</span><span class=""v"" style=""color:#1565c0"">'+eta+'</span></div>':'')
+      +'<div class=""vp-r""><span class=""k"">Ostatni GPS</span><span class=""v"">'+(v.LastUpdate||'—')+'</span></div>'
       +'<div style=""margin-top:8px;padding-top:8px;border-top:1px solid #eee"">'
       +'<div style=""display:flex;align-items:center;gap:6px;margin-bottom:6px"">'
       +'<span style=""font-size:11px;color:#546e7a"">Data trasy:</span>'
