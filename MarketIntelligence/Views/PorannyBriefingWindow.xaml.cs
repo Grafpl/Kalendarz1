@@ -24,11 +24,20 @@ namespace Kalendarz1.MarketIntelligence.Views
         private readonly DispatcherTimer _searchDebounceTimer;
         private string _pendingSearchText;
 
+        // Auto-cron sprawdzający co minutę czy 06:00 i czy ostatni fetch >18h temu → auto-trigger.
+        // State per-day w %LOCALAPPDATA%\Kalendarz1\MarketIntelligence\autofetch-state.json
+        // żeby przeżywał restart apki i nie triggerował dwa razy w tym samym dniu.
+        private DispatcherTimer _autoFetchTimer;
+        private static readonly string AutoFetchStatePath = System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Kalendarz1", "MarketIntelligence", "autofetch-state.json");
+
         public PorannyBriefingWindow()
         {
             InitializeComponent();
             _viewModel = DataContext as PorannyBriefingViewModel;
             Loaded += PorannyBriefingWindow_Loaded;
+            Closed += PorannyBriefingWindow_Closed;
 
             _searchDebounceTimer = new DispatcherTimer
             {
@@ -41,6 +50,107 @@ namespace Kalendarz1.MarketIntelligence.Views
         {
             BuildSummaryText();
             DrawPriceChart();
+            StartAutoFetchTimer();
+        }
+
+        private void PorannyBriefingWindow_Closed(object sender, EventArgs e)
+        {
+            _autoFetchTimer?.Stop();
+        }
+
+        /// <summary>
+        /// Timer sprawdzający co 60s czy jest 06:00-06:15 i czy dziś jeszcze nie było auto-fetcha.
+        /// Per-day flag w pliku JSON żeby restart apki nie wywołał ponownie.
+        /// </summary>
+        private void StartAutoFetchTimer()
+        {
+            _autoFetchTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(60) };
+            _autoFetchTimer.Tick += async (s, e) =>
+            {
+                try
+                {
+                    var now = DateTime.Now;
+                    // Window: 06:00–06:15
+                    if (now.Hour != 6 || now.Minute > 15) return;
+
+                    var todayKey = now.ToString("yyyy-MM-dd");
+                    if (LastAutoFetchDay() == todayKey) return; // już dziś było
+
+                    Debug.WriteLine($"[AutoFetch] ⏰ 06:0X — triggering daily fetch ({todayKey})");
+                    MarkAutoFetchDone(todayKey);
+
+                    if (_viewModel?.RefreshFromInternetCommand?.CanExecute(null) == true)
+                    {
+                        _viewModel.RefreshFromInternetCommand.Execute(null);
+                        // Po fetchu — auto-eksport one-pager do MD (delayed 8min żeby fetch zdążył)
+                        var exportTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(8) };
+                        exportTimer.Tick += (_, __) =>
+                        {
+                            exportTimer.Stop();
+                            try { AutoExportOnePagerToMd(); } catch (Exception ex) { Debug.WriteLine($"[AutoFetch] MD export error: {ex.Message}"); }
+                        };
+                        exportTimer.Start();
+                    }
+                }
+                catch (Exception ex) { Debug.WriteLine($"[AutoFetch] tick error: {ex.Message}"); }
+            };
+            _autoFetchTimer.Start();
+            Debug.WriteLine("[AutoFetch] Timer started — checking every 60s for 06:00 window");
+        }
+
+        private static string LastAutoFetchDay()
+        {
+            try
+            {
+                if (!System.IO.File.Exists(AutoFetchStatePath)) return null;
+                var json = System.IO.File.ReadAllText(AutoFetchStatePath);
+                using var doc = System.Text.Json.JsonDocument.Parse(json);
+                return doc.RootElement.TryGetProperty("lastDay", out var d) ? d.GetString() : null;
+            }
+            catch { return null; }
+        }
+
+        private static void MarkAutoFetchDone(string day)
+        {
+            try
+            {
+                var dir = System.IO.Path.GetDirectoryName(AutoFetchStatePath);
+                if (!string.IsNullOrEmpty(dir)) System.IO.Directory.CreateDirectory(dir);
+                System.IO.File.WriteAllText(AutoFetchStatePath, $"{{\"lastDay\":\"{day}\",\"triggeredAt\":\"{DateTime.Now:O}\"}}");
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// Auto-eksport One-pager do MD pliku po auto-fetchu o 6:00.
+        /// Otwiera niewidocznie BriefingOnePagerWindow w tle, czeka aż załaduje dane,
+        /// klika "Zapisz MD" przez ukrytą metodę, zamyka. Plik trafia do Documents/Briefing Piorkowscy/.
+        /// </summary>
+        private void AutoExportOnePagerToMd()
+        {
+            try
+            {
+                var win = new BriefingOnePagerWindow();
+                // Trick: pokaż window minimized + invisible, daj mu się zainicjalizować, zapisz, zamknij
+                win.WindowState = WindowState.Minimized;
+                win.ShowInTaskbar = false;
+                win.Opacity = 0;
+                win.Loaded += async (s, e) =>
+                {
+                    await System.Threading.Tasks.Task.Delay(2000); // wait for DB load
+                    try
+                    {
+                        // wywołaj wewnętrzny export
+                        win.GetType().GetMethod("BtnExportMd_Click", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                            ?.Invoke(win, new object[] { null, null });
+                    }
+                    catch (Exception ex) { Debug.WriteLine($"[AutoFetch] auto-export invoke error: {ex.Message}"); }
+                    win.Close();
+                };
+                win.Show();
+                Debug.WriteLine("[AutoFetch] ✓ One-pager auto-export triggered");
+            }
+            catch (Exception ex) { Debug.WriteLine($"[AutoFetch] auto-export setup error: {ex.Message}"); }
         }
 
         #region Summary Builder
