@@ -257,11 +257,11 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
                 using var conn = new SqlConnection(_sageConnectionString);
                 await conn.OpenAsync();
 
-                // Query top customers by volume in last 30 days
+                // Query top customers by volume in last 30 days.
+                // Sage Symfonia STContractors: kolumna nazywa się Name (nie Name1), brak City.
                 var sql = @"
                     SELECT TOP 10
-                        c.Name1 AS Klient,
-                        c.City AS Miasto,
+                        c.Name AS Klient,
                         ISNULL(SUM(ABS(CAST(mz.ilosc AS DECIMAL(18,2)))), 0) AS WolumenKg,
                         ISNULL(cc.CDim_Handlowiec_Val, '') AS Handlowiec
                     FROM [HM].[MG] mg WITH (NOLOCK)
@@ -270,7 +270,7 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
                     LEFT JOIN [SSCommon].[ContractorClassification] cc WITH (NOLOCK) ON c.Id = cc.ElementId
                     WHERE mg.seria LIKE 'sWZ%'
                       AND mg.data >= DATEADD(day, -30, GETDATE())
-                    GROUP BY c.Name1, c.City, cc.CDim_Handlowiec_Val
+                    GROUP BY c.Name, cc.CDim_Handlowiec_Val
                     ORDER BY WolumenKg DESC";
 
                 using var cmd = new SqlCommand(sql, conn);
@@ -282,8 +282,8 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
                     customers.Add(new CustomerInfo
                     {
                         Name = reader.GetString(0),
-                        VolumePallets = reader.GetDecimal(2) / 500, // Approx conversion to pallets
-                        SalesRep = reader.IsDBNull(3) ? "" : reader.GetString(3)
+                        VolumePallets = reader.GetDecimal(1) / 500, // Approx conversion to pallets
+                        SalesRep = reader.IsDBNull(2) ? "" : reader.GetString(2)
                     });
                 }
 
