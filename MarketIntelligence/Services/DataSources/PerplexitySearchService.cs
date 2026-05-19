@@ -184,6 +184,7 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
                     MaxTokens = options.MaxTokens,
                     Temperature = 0.2,
                     SearchRecencyFilter = options.RecencyFilter,
+                    SearchDomainFilter = options.SearchDomains,  // 2026-05-19: focus na .pl gdy ustawione
                     ReturnCitations = true,
                     ReturnRelatedQuestions = false
                 };
@@ -274,11 +275,9 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
                 PerplexitySearchResult searchResult;
                 try
                 {
-                    searchResult = await SearchAsync(query, new PerplexitySearchOptions
-                    {
-                        RecencyFilter = "week",
-                        MaxTokens = 2000
-                    }, queryCts.Token);
+                    // PolishOnly — search_domain_filter=[".pl"] zwraca tylko źródła z polskich domen,
+                    // co bardzo poprawia jakość wyników (zero brazilian/global newsów w PL search).
+                    searchResult = await SearchAsync(query, PerplexitySearchOptions.PolishOnly, queryCts.Token);
                 }
                 catch (OperationCanceledException) when (queryCts.IsCancellationRequested && !ct.IsCancellationRequested)
                 {
@@ -1021,8 +1020,19 @@ PRIORYTET ŹRÓDEŁ:
         public int MaxTokens { get; set; } = 2000;
         public string RecencyFilter { get; set; } = "week"; // hour, day, week, month
 
+        /// <summary>Restrict search to specific domains. ['.pl'] = tylko polskie sites.</summary>
+        public List<string> SearchDomains { get; set; }
+
         public static PerplexitySearchOptions Default => new();
         public static PerplexitySearchOptions Pro => new() { UseProModel = true, MaxTokens = 4000 };
+
+        /// <summary>Focus na polski internet — Perplexity priorytetowo zwraca źródła z .pl.</summary>
+        public static PerplexitySearchOptions PolishOnly => new()
+        {
+            RecencyFilter = "week",
+            MaxTokens = 2000,
+            SearchDomains = new List<string> { ".pl" }
+        };
     }
 
     public class PerplexityRequest
@@ -1037,6 +1047,10 @@ PRIORYTET ŹRÓDEŁ:
 
         [JsonPropertyName("search_recency_filter")]
         public string SearchRecencyFilter { get; set; }
+
+        /// <summary>Lista domen do filtra (max 20 — Perplexity limit). Format: ".pl" lub "farmer.pl".</summary>
+        [JsonPropertyName("search_domain_filter")]
+        public List<string> SearchDomainFilter { get; set; }
 
         [JsonPropertyName("return_citations")]
         public bool ReturnCitations { get; set; }

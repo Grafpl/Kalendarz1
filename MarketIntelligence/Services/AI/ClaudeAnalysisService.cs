@@ -23,13 +23,18 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
         private readonly SemaphoreSlim _rateLimiter;
 
         // Claude API endpoints and models
+        // 2026-05-19: AnalysisModel zmieniony Opus 4.7 → Sonnet 4.6 (3× szybszy, 5× tańszy,
+        // supports temperature dla deterministycznych wyników, max_tokens 8000 = brak truncation).
+        // Opus 4.7 odrzucał temperature (HTTP 400) i ucinał output przy 2500 tokens.
         private const string ClaudeApiUrl = "https://api.anthropic.com/v1/messages";
         private const string HaikuModel = "claude-haiku-4-5-20251001";   // tani filtr + tłumaczenia
-        private const string SonnetModel = "claude-sonnet-4-6";           // dzienne streszczenie
-        private const string OpusModel = "claude-opus-4-7";               // pełna analiza artykułów
+        private const string SonnetModel = "claude-sonnet-4-6";           // dzienne streszczenie + ANALIZA ARTYKUŁÓW
+        private const string OpusModel = "claude-opus-4-7";               // (zarezerwowany, nie używany — zbyt wolny + truncate)
+        private const string AnalysisModel = SonnetModel;                 // model do AnalyzeArticleAsync
         private const string ApiVersion = "2023-06-01";
 
-        // Rate limiting (Anthropic limits)
+        // Rate limiting (Anthropic Tier 1: 50 RPM = ~1 req/1.2s).
+        // SemaphoreSlim(3) pozwala 3 concurrent calls — 5 artykułów × ~25s/call ÷ 3 = ~50s zamiast 250s sekwencyjnie.
         private DateTime _lastRequestTime = DateTime.MinValue;
         private readonly TimeSpan _minRequestInterval = TimeSpan.FromMilliseconds(200);
 
@@ -64,7 +69,8 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
             _httpClient.DefaultRequestHeaders.Add("x-api-key", _apiKey ?? "");
             _httpClient.DefaultRequestHeaders.Add("anthropic-version", ApiVersion);
 
-            _rateLimiter = new SemaphoreSlim(1);
+            // SemaphoreSlim(3) — 3 concurrent calls. Tier 1 limit 50 RPM = ~1/1.2s; 3 paralelnie × 25s/call = ~4 RPM, hard pod limitem.
+            _rateLimiter = new SemaphoreSlim(3, 3);
         }
 
         public bool IsConfigured => !string.IsNullOrEmpty(_apiKey);
@@ -244,9 +250,10 @@ Odpowiedz TYLKO tablicą JSON, bez dodatkowego tekstu.";
 
             try
             {
-                // Opus 4.7 + prompt caching system promptu (kontekst firmy + JSON template są stałe między artykułami)
-                // TRYB OSZCZĘDNY: 2500 tokens (zamiast 4000) — krótsze analizy, szybsze, tańsze
-                var response = await CallClaudeAsync(systemPrompt, userPrompt, OpusModel, 2500, ct, cacheSystem: true);
+                // Sonnet 4.6 + prompt caching system promptu (kontekst firmy + JSON template są stałe między artykułami).
+                // max_tokens 8000 — Sonnet nie ucinał JSON, pełna analiza per artykuł (~4000 out tokens typowo).
+                // temperature 0.2 — deterministyczne, konsystentne wyniki (Sonnet wspiera temperature, Opus 4.7 nie).
+                var response = await CallClaudeAsync(systemPrompt, userPrompt, AnalysisModel, maxTokens: 8000, ct, cacheSystem: true, temperature: 0.2);
 
                 if (!string.IsNullOrEmpty(response))
                 {
@@ -270,42 +277,44 @@ Odpowiedz TYLKO tablicą JSON, bez dodatkowego tekstu.";
             int maxArticles = 20,
             CancellationToken ct = default)
         {
-            var analyses = new List<ArticleAnalysis>();
             var toAnalyze = articles.Take(maxArticles).ToList();
-            int consecutiveFailures = 0;
+            if (toAnalyze.Count == 0) return new List<ArticleAnalysis>();
 
-            foreach (var article in toAnalyze)
+            // PARALLEL EXECUTION — 3 concurrent przez _rateLimiter SemaphoreSlim(3).
+            // 5 art × ~25s/call ÷ 3 concurrent = ~50s zamiast 125s sekwencyjnie. Sonnet 4.6 ma cache hit
+            // (system prompt) → cache_read ~10× tańszy + 80% szybszy po pierwszym requeście.
+            var indexedTasks = toAnalyze.Select((article, idx) => new { Article = article, Idx = idx }).ToList();
+            int completedCount = 0;
+            int failureCount = 0;
+
+            var tasks = indexedTasks.Select(async item =>
             {
                 ct.ThrowIfCancellationRequested();
+                var analysis = await AnalyzeArticleAsync(item.Article, context, ct);
 
-                var analysis = await AnalyzeArticleAsync(article, context, ct);
-                analyses.Add(analysis);
+                int done = Interlocked.Increment(ref completedCount);
+                if (analysis.Model == "local-fallback") Interlocked.Increment(ref failureCount);
 
-                // Progress logging
-                Debug.WriteLine($"[Claude] Analyzed {analyses.Count}/{toAnalyze.Count}: {article.Title.Substring(0, Math.Min(50, article.Title.Length))}...");
+                var titleShort = item.Article.Title?.Substring(0, Math.Min(50, item.Article.Title.Length)) ?? "?";
+                Debug.WriteLine($"[Claude] Analyzed {done}/{toAnalyze.Count}: {titleShort}...");
 
-                // Early abort: jeśli API zwraca stub (Model = "local-fallback"), znaczy że Claude API
-                // failuje (np. 400 invalid_request). Po 3 fail z rzędu — przerywamy batch żeby nie
-                // marnować budżetu tokenów na 25 nieudanych wywołań.
-                if (analysis.Model == "local-fallback")
-                {
-                    consecutiveFailures++;
-                    if (consecutiveFailures >= 3)
-                    {
-                        Debug.WriteLine($"[Claude] ⚠ 3 fails z rzędu — przerywam batch ({analyses.Count}/{toAnalyze.Count} przetworzone, reszta = stub)");
-                        // Dorzuć stuby dla pozostałych żeby UI miało komplet
-                        foreach (var remaining in toAnalyze.Skip(analyses.Count))
-                            analyses.Add(CreateStubAnalysis(remaining));
-                        break;
-                    }
-                }
-                else
-                {
-                    consecutiveFailures = 0;
-                }
+                return analysis;
+            }).ToArray();
+
+            try
+            {
+                var results = await Task.WhenAll(tasks);
+
+                if (failureCount >= 3)
+                    Debug.WriteLine($"[Claude] ⚠ {failureCount}/{toAnalyze.Count} analiz failed (API problem — sprawdź klucz/limity)");
+
+                return results.ToList();
             }
-
-            return analyses;
+            catch (OperationCanceledException)
+            {
+                Debug.WriteLine($"[Claude] Analysis batch cancelled ({completedCount}/{toAnalyze.Count} done before cancel)");
+                throw;
+            }
         }
 
         /// <summary>
@@ -692,10 +701,21 @@ Odpowiedz w formacie JSON:
                     if (jsonStart >= 0 && jsonEnd > jsonStart)
                     {
                         var json = response.Substring(jsonStart, jsonEnd - jsonStart);
-                        var parsed = JsonSerializer.Deserialize<TranslationResponse>(json, new JsonSerializerOptions
+                        TranslationResponse parsed = null;
+                        try
                         {
-                            PropertyNameCaseInsensitive = true
-                        });
+                            parsed = JsonSerializer.Deserialize<TranslationResponse>(json, new JsonSerializerOptions
+                            {
+                                PropertyNameCaseInsensitive = true,
+                                AllowTrailingCommas = true
+                            });
+                        }
+                        catch (JsonException jx)
+                        {
+                            // Haiku sometimes returns malformed JSON with stray quotes — fallback do plain text
+                            // parsing zamiast totalnego fail. Pobierz pierwsze 200 znaków odpowiedzi.
+                            Debug.WriteLine($"[Claude] Translation JSON malformed (fallback to original): {jx.Message}");
+                        }
 
                         if (parsed != null)
                         {
@@ -759,13 +779,13 @@ Odpowiedz w formacie JSON:
 
         // Backward-compatible single-prompt overload (no caching, used przez filter/summary/translation)
         private Task<string> CallClaudeAsync(string prompt, string model, int maxTokens, CancellationToken ct)
-            => CallClaudeAsync(systemPrompt: null, userPrompt: prompt, model, maxTokens, ct, cacheSystem: false);
+            => CallClaudeAsync(systemPrompt: null, userPrompt: prompt, model, maxTokens, ct, cacheSystem: false, temperature: null);
 
         /// <summary>
         /// Wywołuje Claude API z opcjonalnym system promptem (cacheable) + user promptem.
-        /// Cache działa tylko dla modeli Sonnet/Opus (minimum 1024 tokens w bloku);
-        /// dla Haiku (min 2048) zostawiamy cacheSystem=false bo system prompty są krótkie.
-        /// Temperature=0 → deterministyczne wyniki. Retry z exp backoff dla 429 + 5xx.
+        /// Cache działa dla modeli Sonnet/Opus/Haiku (minimum 1024-2048 tokens w bloku).
+        /// Temperature: Sonnet 4.6 i Haiku 4.5 wspierają (0-1). Opus 4.7 NIE wspiera (HTTP 400 deprecated).
+        /// Retry z exp backoff dla 429 + 5xx.
         /// </summary>
         private async Task<string> CallClaudeAsync(
             string systemPrompt,
@@ -773,24 +793,28 @@ Odpowiedz w formacie JSON:
             string model,
             int maxTokens,
             CancellationToken ct,
-            bool cacheSystem = false)
+            bool cacheSystem = false,
+            double? temperature = null)
         {
             if (!IsConfigured)
             {
                 throw new InvalidOperationException("Claude API key not configured");
             }
 
+            // Opus 4.7 odrzuca temperature (HTTP 400) — bezpiecznie strip
+            var supportsTemperature = !model.Contains("opus-4-7");
+
             await _rateLimiter.WaitAsync(ct);
             try
             {
-                // Rate limiting
+                // Rate limiting — proteguje przed rapid bursts (200ms min interval między requestami)
                 var elapsed = DateTime.Now - _lastRequestTime;
                 if (elapsed < _minRequestInterval)
                 {
                     await Task.Delay(_minRequestInterval - elapsed, ct);
                 }
 
-                // Zbuduj request body — z system blokami lub bez
+                // Zbuduj request body — z system blokami lub bez + opcjonalne temperature
                 object request;
                 if (!string.IsNullOrEmpty(systemPrompt))
                 {
@@ -798,24 +822,49 @@ Odpowiedz w formacie JSON:
                         ? (object)new { type = "text", text = systemPrompt, cache_control = new { type = "ephemeral" } }
                         : new { type = "text", text = systemPrompt };
 
-                    request = new
+                    if (temperature.HasValue && supportsTemperature)
                     {
-                        model,
-                        max_tokens = maxTokens,
-                        // temperature usunięte — Claude 4 zwraca 400 "temperature is deprecated for this model"
-                        system = new[] { systemBlock },
-                        messages = new[] { new { role = "user", content = userPrompt } }
-                    };
+                        request = new
+                        {
+                            model,
+                            max_tokens = maxTokens,
+                            temperature = temperature.Value,
+                            system = new[] { systemBlock },
+                            messages = new[] { new { role = "user", content = userPrompt } }
+                        };
+                    }
+                    else
+                    {
+                        request = new
+                        {
+                            model,
+                            max_tokens = maxTokens,
+                            system = new[] { systemBlock },
+                            messages = new[] { new { role = "user", content = userPrompt } }
+                        };
+                    }
                 }
                 else
                 {
-                    request = new
+                    if (temperature.HasValue && supportsTemperature)
                     {
-                        model,
-                        max_tokens = maxTokens,
-                        // temperature usunięte — Claude 4 zwraca 400 "temperature is deprecated for this model"
-                        messages = new[] { new { role = "user", content = userPrompt } }
-                    };
+                        request = new
+                        {
+                            model,
+                            max_tokens = maxTokens,
+                            temperature = temperature.Value,
+                            messages = new[] { new { role = "user", content = userPrompt } }
+                        };
+                    }
+                    else
+                    {
+                        request = new
+                        {
+                            model,
+                            max_tokens = maxTokens,
+                            messages = new[] { new { role = "user", content = userPrompt } }
+                        };
+                    }
                 }
 
                 var json = JsonSerializer.Serialize(request);

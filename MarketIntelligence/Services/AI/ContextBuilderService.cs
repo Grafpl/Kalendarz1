@@ -432,25 +432,23 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
                 using var conn = new SqlConnection(_libraNetConnectionString);
                 await conn.OpenAsync();
 
-                // Get average selling prices from recent orders
+                // Get average selling prices from recent orders.
+                // 2026-05-19: USUNIĘTE cross-DB JOIN do [192.168.0.112].[Handel].[HM].[TW] — wymaga
+                // sp_addlinkedserver, którego użytkownik nie ma → "Could not find server" błąd.
+                // Zamiast nazwy towaru używamy kodu towaru (zmt.KodTowaru) — wystarczy do analizy.
                 var sql = @"
                     SELECT
-                        tw.nazwa AS Produkt,
+                        ISNULL(zmt.KodTowaru, 'TOW-?') AS Produkt,
                         AVG(CAST(REPLACE(REPLACE(zmt.Cena, ',', '.'), ' ', '') AS DECIMAL(10,2))) AS SredniaCena,
                         'kg' AS Jednostka,
                         MAX(zm.DataUboju) AS Data
                     FROM ZamowieniaMiesoTowar zmt WITH (NOLOCK)
                     JOIN ZamowieniaMieso zm WITH (NOLOCK) ON zmt.ZamowienieId = zm.Id
-                    OUTER APPLY (
-                        SELECT TOP 1 nazwa
-                        FROM [192.168.0.112].[Handel].[HM].[TW] tw WITH (NOLOCK)
-                        WHERE tw.kod = zmt.KodTowaru
-                    ) tw
                     WHERE zm.DataUboju >= DATEADD(day, -7, GETDATE())
                       AND zmt.Cena IS NOT NULL
                       AND zmt.Cena != ''
                       AND ISNUMERIC(REPLACE(REPLACE(zmt.Cena, ',', '.'), ' ', '')) = 1
-                    GROUP BY tw.nazwa
+                    GROUP BY zmt.KodTowaru
                     HAVING AVG(CAST(REPLACE(REPLACE(zmt.Cena, ',', '.'), ' ', '') AS DECIMAL(10,2))) > 0
                     ORDER BY SredniaCena DESC";
 

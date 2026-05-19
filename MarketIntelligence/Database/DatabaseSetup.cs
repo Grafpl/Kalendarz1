@@ -45,13 +45,16 @@ namespace Kalendarz1.MarketIntelligence.Database
                 // Create intel_DailySummary table
                 await ExecuteNonQueryAsync(conn, CreateDailySummaryTableSql);
 
-                // MIGRACJA: stare instalacje miały intel_Articles z innym schematem (bez FetchedAt
-                // i innych kolumn ze nowego schematu). Dodaj brakujące kolumny zanim spróbujemy
+                // MIGRACJA: stare instalacje miały intel_Articles + intel_Prices z innym schematem
+                // (bez FetchedAt, PriceDate itd.). Dodaj brakujące kolumny zanim spróbujemy
                 // utworzyć indeksy na nich.
                 await MigrateArticlesTableAsync(conn);
+                await MigratePricesTableAsync(conn);
+                await WidenArticlesColumnsAsync(conn);
 
-                // Create indexes
-                await ExecuteNonQueryAsync(conn, CreateIndexesSql);
+                // Create indexes — wraz z indywidualnym try/catch per indeks żeby
+                // brak jednej kolumny nie wywalał całego CreateIndexesSql (problem z PriceDate).
+                await ExecuteIndexesIndividuallyAsync(conn);
 
                 Debug.WriteLine("[DatabaseSetup] All tables created/verified successfully");
                 return true;
@@ -137,6 +140,151 @@ namespace Kalendarz1.MarketIntelligence.Database
             catch (Exception ex)
             {
                 Debug.WriteLine($"[DatabaseSetup] Migracja intel_Articles error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Migracja intel_Prices: stary schemat (Date) → nowy (PriceDate, PriceType, etc.).
+        /// Idempotentne — bezpieczne do uruchamiania wielokrotnie.
+        /// </summary>
+        private async Task MigratePricesTableAsync(SqlConnection conn)
+        {
+            try
+            {
+                var migrations = new (string Column, string Sql)[]
+                {
+                    ("PriceType",          "ALTER TABLE intel_Prices ADD PriceType NVARCHAR(50) NULL"),
+                    ("Source",             "ALTER TABLE intel_Prices ADD Source NVARCHAR(100) NULL"),
+                    ("ProductName",        "ALTER TABLE intel_Prices ADD ProductName NVARCHAR(200) NULL"),
+                    ("Price",              "ALTER TABLE intel_Prices ADD Price DECIMAL(18, 4) NULL"),
+                    ("PriceChange",        "ALTER TABLE intel_Prices ADD PriceChange DECIMAL(18, 4) NULL"),
+                    ("PriceChangePercent", "ALTER TABLE intel_Prices ADD PriceChangePercent DECIMAL(8, 4) NULL"),
+                    ("Currency",           "ALTER TABLE intel_Prices ADD Currency NVARCHAR(10) NULL DEFAULT 'PLN'"),
+                    ("Unit",               "ALTER TABLE intel_Prices ADD Unit NVARCHAR(20) NULL DEFAULT 'kg'"),
+                    ("PriceDate",          "ALTER TABLE intel_Prices ADD PriceDate DATE NULL"),
+                    ("FetchedAt",          "ALTER TABLE intel_Prices ADD FetchedAt DATETIME NOT NULL DEFAULT GETDATE() WITH VALUES"),
+                    ("ContractMonth",      "ALTER TABLE intel_Prices ADD ContractMonth NVARCHAR(20) NULL"),
+                    ("Exchange",           "ALTER TABLE intel_Prices ADD Exchange NVARCHAR(50) NULL"),
+                };
+
+                foreach (var (column, sql) in migrations)
+                {
+                    var exists = await ColumnExistsAsync(conn, "intel_Prices", column);
+                    if (!exists)
+                    {
+                        try
+                        {
+                            using var cmd = new SqlCommand(sql, conn) { CommandTimeout = 30 };
+                            await cmd.ExecuteNonQueryAsync();
+                            Debug.WriteLine($"[DatabaseSetup] ➕ Migracja: dodano kolumnę intel_Prices.{column}");
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"[DatabaseSetup] ⚠ Migracja intel_Prices.{column} nieudana: {ex.Message}");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[DatabaseSetup] Migracja intel_Prices error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Poszerz wąskie kolumny intel_Articles — Perplexity zwraca długie tytuły (czasem >500 chars)
+        /// i listy słów kluczowych (>500 chars). Stara migracja używała wąskich limitów co dawało
+        /// "String or binary data would be truncated" przy zapisie.
+        /// </summary>
+        private async Task WidenArticlesColumnsAsync(SqlConnection conn)
+        {
+            try
+            {
+                var widenings = new (string Column, int NewLen, string Sql)[]
+                {
+                    ("Title",           1000, "ALTER TABLE intel_Articles ALTER COLUMN Title NVARCHAR(1000) NOT NULL"),
+                    ("MatchedKeywords", 2000, "ALTER TABLE intel_Articles ALTER COLUMN MatchedKeywords NVARCHAR(2000) NULL"),
+                    ("RelatedTopics",   2000, "ALTER TABLE intel_Articles ALTER COLUMN RelatedTopics NVARCHAR(2000) NULL"),
+                    ("Url",             2000, "ALTER TABLE intel_Articles ALTER COLUMN Url NVARCHAR(2000) NOT NULL"),
+                    ("SourceName",      500,  "ALTER TABLE intel_Articles ALTER COLUMN SourceName NVARCHAR(500) NOT NULL"),
+                };
+
+                foreach (var (column, newLen, sql) in widenings)
+                {
+                    var currentLen = await GetColumnLengthAsync(conn, "intel_Articles", column);
+                    if (currentLen > 0 && currentLen < newLen)
+                    {
+                        try
+                        {
+                            using var cmd = new SqlCommand(sql, conn) { CommandTimeout = 60 };
+                            await cmd.ExecuteNonQueryAsync();
+                            Debug.WriteLine($"[DatabaseSetup] ↔ Migracja: poszerzono intel_Articles.{column} ({currentLen} → {newLen})");
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"[DatabaseSetup] ⚠ Widen {column} nieudane (możliwe że jest indeks): {ex.Message}");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[DatabaseSetup] WidenColumns error: {ex.Message}");
+            }
+        }
+
+        private async Task<int> GetColumnLengthAsync(SqlConnection conn, string table, string column)
+        {
+            try
+            {
+                using var cmd = new SqlCommand(@"
+SELECT CHARACTER_MAXIMUM_LENGTH FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_NAME = @t AND COLUMN_NAME = @c", conn);
+                cmd.Parameters.AddWithValue("@t", table);
+                cmd.Parameters.AddWithValue("@c", column);
+                cmd.CommandTimeout = 10;
+                var result = await cmd.ExecuteScalarAsync();
+                if (result == null || result == DBNull.Value) return 0;
+                var len = (int)result;
+                return len == -1 ? int.MaxValue : len; // -1 = NVARCHAR(MAX)
+            }
+            catch { return 0; }
+        }
+
+        /// <summary>
+        /// Tworzy indeksy pojedynczo z try/catch — brak jednej kolumny (np. PriceDate jeśli migracja
+        /// nie zadziałała) nie wywala WSZYSTKICH indeksów.
+        /// </summary>
+        private async Task ExecuteIndexesIndividuallyAsync(SqlConnection conn)
+        {
+            var indexes = new (string Name, string Sql)[]
+            {
+                ("IX_intel_Articles_FetchedAt",      "CREATE INDEX IX_intel_Articles_FetchedAt ON intel_Articles(FetchedAt DESC)"),
+                ("IX_intel_Articles_Category",       "CREATE INDEX IX_intel_Articles_Category ON intel_Articles(Category)"),
+                ("IX_intel_Articles_Severity",       "CREATE INDEX IX_intel_Articles_Severity ON intel_Articles(Severity)"),
+                ("IX_intel_Articles_PublishDate",    "CREATE INDEX IX_intel_Articles_PublishDate ON intel_Articles(PublishDate DESC)"),
+                ("IX_intel_Articles_RelevanceScore", "CREATE INDEX IX_intel_Articles_RelevanceScore ON intel_Articles(RelevanceScore DESC)"),
+                ("IX_intel_HpaiAlerts_ReportDate",   "CREATE INDEX IX_intel_HpaiAlerts_ReportDate ON intel_HpaiAlerts(ReportDate DESC)"),
+                ("IX_intel_HpaiAlerts_Voivodeship",  "CREATE INDEX IX_intel_HpaiAlerts_Voivodeship ON intel_HpaiAlerts(Voivodeship)"),
+                ("IX_intel_HpaiAlerts_IsActive",     "CREATE INDEX IX_intel_HpaiAlerts_IsActive ON intel_HpaiAlerts(IsActive)"),
+                ("IX_intel_Prices_PriceDate",        "CREATE INDEX IX_intel_Prices_PriceDate ON intel_Prices(PriceDate DESC)"),
+                ("IX_intel_Prices_ProductName",      "CREATE INDEX IX_intel_Prices_ProductName ON intel_Prices(ProductName)"),
+                ("IX_intel_FetchLog_FetchTime",      "CREATE INDEX IX_intel_FetchLog_FetchTime ON intel_FetchLog(FetchTime DESC)"),
+            };
+
+            foreach (var (name, sql) in indexes)
+            {
+                try
+                {
+                    var checkSql = $"IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = '{name}') {sql}";
+                    using var cmd = new SqlCommand(checkSql, conn) { CommandTimeout = 30 };
+                    await cmd.ExecuteNonQueryAsync();
+                }
+                catch (Exception ex)
+                {
+                    // Brak kolumny lub inny problem — non-fatal
+                    Debug.WriteLine($"[DatabaseSetup] ⚠ Index {name} skipped: {ex.Message.Substring(0, Math.Min(100, ex.Message.Length))}");
+                }
             }
         }
 
