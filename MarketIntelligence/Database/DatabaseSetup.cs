@@ -45,6 +45,11 @@ namespace Kalendarz1.MarketIntelligence.Database
                 // Create intel_DailySummary table
                 await ExecuteNonQueryAsync(conn, CreateDailySummaryTableSql);
 
+                // MIGRACJA: stare instalacje miały intel_Articles z innym schematem (bez FetchedAt
+                // i innych kolumn ze nowego schematu). Dodaj brakujące kolumny zanim spróbujemy
+                // utworzyć indeksy na nich.
+                await MigrateArticlesTableAsync(conn);
+
                 // Create indexes
                 await ExecuteNonQueryAsync(conn, CreateIndexesSql);
 
@@ -70,6 +75,84 @@ namespace Kalendarz1.MarketIntelligence.Database
             {
                 // Table already exists - this is fine
             }
+        }
+
+        /// <summary>
+        /// Migracja intel_Articles ze starego schematu (Title/Body/Source/SourceUrl/AiAnalysis/Tags)
+        /// na nowy (SourceId/SourceName/Url/UrlHash/Summary/FullContent/FetchedAt + role-based AI).
+        /// Idempotentne — bezpieczne do uruchamiania wielokrotnie.
+        /// </summary>
+        private async Task MigrateArticlesTableAsync(SqlConnection conn)
+        {
+            try
+            {
+                // Każda kolumna sprawdzana osobno — jeśli już jest, INFORMATION_SCHEMA pominie ALTER.
+                var migrations = new (string Column, string Sql)[]
+                {
+                    ("SourceId",            "ALTER TABLE intel_Articles ADD SourceId NVARCHAR(50) NULL"),
+                    ("SourceName",          "ALTER TABLE intel_Articles ADD SourceName NVARCHAR(200) NULL"),
+                    ("Url",                 "ALTER TABLE intel_Articles ADD Url NVARCHAR(1000) NULL"),
+                    ("UrlHash",             "ALTER TABLE intel_Articles ADD UrlHash NVARCHAR(64) NULL"),
+                    ("Summary",             "ALTER TABLE intel_Articles ADD Summary NVARCHAR(MAX) NULL"),
+                    ("FullContent",         "ALTER TABLE intel_Articles ADD FullContent NVARCHAR(MAX) NULL"),
+                    ("FetchedAt",           "ALTER TABLE intel_Articles ADD FetchedAt DATETIME NOT NULL DEFAULT GETDATE() WITH VALUES"),
+                    ("Language",            "ALTER TABLE intel_Articles ADD Language NVARCHAR(10) NULL DEFAULT 'pl'"),
+                    ("RelevanceScore",      "ALTER TABLE intel_Articles ADD RelevanceScore INT NULL DEFAULT 0"),
+                    ("IsRelevant",          "ALTER TABLE intel_Articles ADD IsRelevant BIT NULL DEFAULT 0"),
+                    ("MatchedKeywords",     "ALTER TABLE intel_Articles ADD MatchedKeywords NVARCHAR(500) NULL"),
+                    ("CeoAnalysis",         "ALTER TABLE intel_Articles ADD CeoAnalysis NVARCHAR(MAX) NULL"),
+                    ("SalesAnalysis",       "ALTER TABLE intel_Articles ADD SalesAnalysis NVARCHAR(MAX) NULL"),
+                    ("BuyerAnalysis",       "ALTER TABLE intel_Articles ADD BuyerAnalysis NVARCHAR(MAX) NULL"),
+                    ("EducationalContent",  "ALTER TABLE intel_Articles ADD EducationalContent NVARCHAR(MAX) NULL"),
+                    ("CeoRecommendations",  "ALTER TABLE intel_Articles ADD CeoRecommendations NVARCHAR(MAX) NULL"),
+                    ("SalesRecommendations","ALTER TABLE intel_Articles ADD SalesRecommendations NVARCHAR(MAX) NULL"),
+                    ("BuyerRecommendations","ALTER TABLE intel_Articles ADD BuyerRecommendations NVARCHAR(MAX) NULL"),
+                    ("KeyNumbers",          "ALTER TABLE intel_Articles ADD KeyNumbers NVARCHAR(MAX) NULL"),
+                    ("RelatedTopics",       "ALTER TABLE intel_Articles ADD RelatedTopics NVARCHAR(500) NULL"),
+                    ("AnalyzedAt",          "ALTER TABLE intel_Articles ADD AnalyzedAt DATETIME NULL"),
+                    ("AiModel",             "ALTER TABLE intel_Articles ADD AiModel NVARCHAR(50) NULL"),
+                    ("IsRead",              "ALTER TABLE intel_Articles ADD IsRead BIT NULL DEFAULT 0"),
+                    ("IsBookmarked",        "ALTER TABLE intel_Articles ADD IsBookmarked BIT NULL DEFAULT 0"),
+                    ("UserNotes",           "ALTER TABLE intel_Articles ADD UserNotes NVARCHAR(MAX) NULL"),
+                };
+
+                foreach (var (column, sql) in migrations)
+                {
+                    var exists = await ColumnExistsAsync(conn, "intel_Articles", column);
+                    if (!exists)
+                    {
+                        try
+                        {
+                            using var cmd = new SqlCommand(sql, conn) { CommandTimeout = 30 };
+                            await cmd.ExecuteNonQueryAsync();
+                            Debug.WriteLine($"[DatabaseSetup] ➕ Migracja: dodano kolumnę intel_Articles.{column}");
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"[DatabaseSetup] ⚠ Migracja kolumny {column} nieudana: {ex.Message}");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[DatabaseSetup] Migracja intel_Articles error: {ex.Message}");
+            }
+        }
+
+        private async Task<bool> ColumnExistsAsync(SqlConnection conn, string table, string column)
+        {
+            try
+            {
+                using var cmd = new SqlCommand(
+                    "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = @t AND COLUMN_NAME = @c", conn);
+                cmd.Parameters.AddWithValue("@t", table);
+                cmd.Parameters.AddWithValue("@c", column);
+                cmd.CommandTimeout = 10;
+                var count = (int)(await cmd.ExecuteScalarAsync() ?? 0);
+                return count > 0;
+            }
+            catch { return false; }
         }
 
         #region SQL Statements

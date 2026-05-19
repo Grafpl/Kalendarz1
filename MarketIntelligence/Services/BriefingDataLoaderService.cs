@@ -82,19 +82,18 @@ namespace Kalendarz1.MarketIntelligence.Services
                 var options = fullFetch ? FetchOptions.Full : FetchOptions.Default;
                 options.SaveToDatabase = true;
 
-                // MASTER WATCHDOG: hard 10 min na cały fetch.
-                // Każdy etap ma już swoje per-stage timeouty w orchestratorze, to jest
-                // ostateczna sieć bezpieczeństwa gdyby któraś metoda jakimś cudem się
-                // wymknęła z watchdoga RunWithTimeoutAsync.
+                // MASTER WATCHDOG: hard 25 min na cały fetch.
+                // Realny czas pełnego cyklu z 113 Perplexity + 20 Opus + reszta: ~15-18 min.
+                // 25 min daje bezpieczny margines, ale wymusza globalny limit gdyby coś wisiało.
                 var fetchTask = _orchestrator.FetchAndAnalyzeAsync(options, ct, progress);
-                var masterTimeout = Task.Delay(TimeSpan.FromMinutes(10), ct);
+                var masterTimeout = Task.Delay(TimeSpan.FromMinutes(25), ct);
                 var finished = await Task.WhenAny(fetchTask, masterTimeout);
 
                 FetchResult fetchResult;
                 if (finished == masterTimeout && !ct.IsCancellationRequested)
                 {
-                    Debug.WriteLine("[BriefingDataLoader] ⏱⏱⏱ MASTER WATCHDOG 10min — porzucam fetchTask, zwracam co mam");
-                    fetchResult = new FetchResult { Success = false, Error = "Master watchdog 10 min — fetch wisiał, porzucony" };
+                    Debug.WriteLine("[BriefingDataLoader] ⏱⏱⏱ MASTER WATCHDOG 25min — porzucam fetchTask, zwracam co mam");
+                    fetchResult = new FetchResult { Success = false, Error = "Master watchdog 25 min — fetch wisiał, porzucony" };
                 }
                 else
                 {

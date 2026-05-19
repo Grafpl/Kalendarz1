@@ -196,14 +196,16 @@ namespace Kalendarz1.MarketIntelligence.Services
                     {
                         progress?.Report(new FetchProgress { Stage = "Perplexity", Percent = 32, Message = msg });
                     });
+                    // 113 zapytań (80 hardcoded + user custom) × ~4s avg + 600ms delay = ~7-8 min.
+                    // 720s = 12 min daje margines.
                     var perplexityResult = await RunWithTimeoutAsync(
-                        "Perplexity (80+ zapytań)",
+                        "Perplexity (113 zapytań)",
                         () => _perplexitySearchService.SearchPoultryNewsAsync(
                             includeInternational: true,
                             maxPriority: SearchPriority.All,
                             ct: ct,
                             progress: perplexityProgress),
-                        timeoutSec: 240,
+                        timeoutSec: 720,
                         fallback: new PerplexityNewsSearchResult(),
                         ct);
 
