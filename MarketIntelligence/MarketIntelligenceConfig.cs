@@ -27,6 +27,6 @@ namespace Kalendarz1.MarketIntelligence
         public static string HandelConnectionString =>
             Environment.GetEnvironmentVariable("HANDEL_CONNECTION_STRING")
             ?? SecretsLoader.Get("HANDEL_CONNECTION_STRING")
-            ?? "Server=192.168.0.112;Database=Handel;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+            ?? "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
     }
 }
