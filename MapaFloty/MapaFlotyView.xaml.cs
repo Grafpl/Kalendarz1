@@ -368,12 +368,16 @@ namespace Kalendarz1.MapaFloty
                 }
 
                 var moving = vehicles.Count(v => v.IsMoving);
+                var inBase = vehicles.Count(v => v.InGeofence);
+                var idle = vehicles.Count(v => !v.IsMoving && !v.InGeofence && v.Ignition);
+                var off = vehicles.Count - moving - inBase - idle;
                 var avgSpd = vehicles.Where(v => v.IsMoving).Select(v => v.Speed).DefaultIfEmpty(0).Average();
                 AvgSpeedText.Text = ((int)avgSpd).ToString();
-                InGeofenceText.Text = vehicles.Count(v => v.InGeofence).ToString();
+                InGeofenceText.Text = inBase.ToString();
                 MovingCountText.Text = moving.ToString();
                 StoppedCountText.Text = (vehicles.Count - moving).ToString();
                 VehicleCountText.Text = vehicles.Count.ToString();
+                UpdateProportionBar(moving, idle, inBase, Math.Max(0, off));
                 var unmapped = _mappings.Count > 0 ? allVehicles.Count - vehicles.Count : 0;
                 StatusText.Text = $"{vehicles.Count} pojazdów | {moving} jedzie | {DateTime.Now:HH:mm:ss}" +
                     (unmapped > 0 ? $" | {unmapped} ukrytych" : "");
@@ -692,6 +696,18 @@ namespace Kalendarz1.MapaFloty
             return sb.ToString();
         }
 
+        // Polish++ — proportion bar pod KPI (4 segmenty proporcjonalne)
+        private void UpdateProportionBar(int moving, int idle, int inBase, int off)
+        {
+            // Gdy wszystko 0 — pokazujemy puste pasy (siatka jasnoszara z Border)
+            int total = moving + idle + inBase + off;
+            if (total == 0) total = 1;  // zapobiega NaN/0 stars
+            ColMoving.Width = new GridLength(moving, GridUnitType.Star);
+            ColIdle.Width   = new GridLength(idle,   GridUnitType.Star);
+            ColBase.Width   = new GridLength(inBase, GridUnitType.Star);
+            ColOff.Width    = new GridLength(off,    GridUnitType.Star);
+        }
+
         // Formatuje "od kiedy w bazie" dla cluster list i marker label
         private static string FormatBaseSince(DateTime arrival)
         {
@@ -816,9 +832,18 @@ namespace Kalendarz1.MapaFloty
             // Row 3: WARUNKOWY — tylko gdy alert/info wart pokazania
             var warnings = new List<(string text, Color color)>();
             if (ageWarn) warnings.Add(("📡 GPS " + ageText, Color.FromRgb(230, 81, 0)));
-            if (v.InGeofence) warnings.Add(("🏠 w bazie", Color.FromRgb(25, 118, 210)));
+            // W bazie — pokaz BaseSinceStr ("od HH:MM", "od wczoraj HH:MM", "X dni") gdy znany
+            if (v.InGeofence)
+            {
+                var baseTxt = string.IsNullOrEmpty(v.BaseSinceStr) ? "🏠 w bazie" : "🏠 " + v.BaseSinceStr;
+                warnings.Add((baseTxt, Color.FromRgb(25, 118, 210)));
+            }
+            // W trasie z ETA — dist + ETA
             if (v.IsMoving && v.EtaMinutes > 0 && v.DistToUbojnia < 50)
                 warnings.Add(($"↗ {v.DistToUbojnia:F0} km · ~{v.EtaMinutes} min", Color.FromRgb(21, 101, 192)));
+            // Poza trasą i poza bazą — pokaz dystans od ubojni gdy znany
+            else if (!v.IsMoving && !v.InGeofence && v.DistToUbojnia > 0 && v.DistToUbojnia < 500)
+                warnings.Add(($"↗ {v.DistToUbojnia:F0} km od bazy", Color.FromRgb(96, 125, 139)));
 
             if (warnings.Count > 0)
             {

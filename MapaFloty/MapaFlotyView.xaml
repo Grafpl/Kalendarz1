@@ -85,7 +85,7 @@
 
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="300"/>
+            <ColumnDefinition Width="280"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
@@ -159,6 +159,24 @@
                                     </StackPanel>
                                 </Border>
                             </StackPanel>
+                        </Border>
+
+                        <!-- Proportion bar — wizualizacja rozkładu stanów (Polish++) -->
+                        <Border Margin="0,6,0,0" Height="6" CornerRadius="3" ClipToBounds="True"
+                                BorderBrush="#e4e6ea" BorderThickness="1" Background="#eceff1"
+                                ToolTip="Rozkład stanów: zielony=w trasie, pomarańcz=postój, niebieski=baza, szary=off">
+                            <Grid x:Name="ProportionGrid">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition x:Name="ColMoving" Width="0*"/>
+                                    <ColumnDefinition x:Name="ColIdle"   Width="0*"/>
+                                    <ColumnDefinition x:Name="ColBase"   Width="0*"/>
+                                    <ColumnDefinition x:Name="ColOff"    Width="0*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="0" Background="#43a047"/>
+                                <Border Grid.Column="1" Background="#f57c00"/>
+                                <Border Grid.Column="2" Background="#1976d2"/>
+                                <Border Grid.Column="3" Background="#607d8b"/>
+                            </Grid>
                         </Border>
 
                         <!-- Wyszukiwarka -->
