@@ -875,7 +875,9 @@ namespace Kalendarz1.MapaFloty
             return @"<!DOCTYPE html><html><head>
 <meta charset=""utf-8""><meta name=""viewport"" content=""width=device-width,initial-scale=1"">
 <link rel=""stylesheet"" href=""https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"" integrity=""sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="" crossorigin=""""/>
+<link rel=""stylesheet"" href=""https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css""/>
 <script src=""https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"" integrity=""sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="" crossorigin=""""></script>
+<script src=""https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js""></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 html,body,#map{width:100%;height:100%;background:#f0f0f0;font-family:'Segoe UI',system-ui,sans-serif}
@@ -940,6 +942,15 @@ html,body,#map{width:100%;height:100%;background:#f0f0f0;font-family:'Segoe UI',
 .ub-icon{background:linear-gradient(135deg,#37474f,#263238);width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;box-shadow:0 2px 6px rgba(0,0,0,.3);border:2px solid #fff}
 .leaflet-control-layers{border-radius:10px!important;box-shadow:0 2px 14px rgba(0,0,0,.15)!important;border:none!important}
 .leaflet-popup-content-wrapper{border-radius:10px!important;box-shadow:0 4px 20px rgba(0,0,0,.15)!important}
+/* Marker cluster — scalanie pojazdów w jednym miejscu */
+.vc-cluster{background:linear-gradient(135deg,#1976d2,#1565c0);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;border:3px solid #fff;box-shadow:0 3px 12px rgba(0,0,0,.5);font-family:'Segoe UI',sans-serif}
+.vc-cluster.small{font-size:14px}
+.vc-cluster.medium{font-size:16px;background:linear-gradient(135deg,#1565c0,#0d47a1)}
+.vc-cluster.large{font-size:18px;background:linear-gradient(135deg,#0d47a1,#01579b)}
+.vc-cluster:hover{transform:scale(1.05);transition:transform .15s}
+/* Override library default cluster style */
+.marker-cluster{background:none!important;border:none!important}
+.marker-cluster div{background:none!important;border:none!important;width:auto!important;height:auto!important;margin:0!important}
 </style></head><body>
 <div id=""map""></div>
 <div id=""trackStats""><span class=""ts-close"" onclick=""clearTrack()"">&times;</span>
@@ -974,6 +985,30 @@ L.control.layers({'Mapa':osm,'Ciemna':dark,'Satelita':sat},null,{position:'topri
 
 var markers={},trackGroup=L.layerGroup().addTo(map),followId=null;
 var ordersLayer=L.layerGroup(),orderMarkers={},ordersVisible=false;
+
+// Marker cluster group — scala pojazdy w tym samym miejscu (np. na bazie)
+var vehicleCluster = L.markerClusterGroup({
+    maxClusterRadius: 45,            // px radius; 0 = wyłączone
+    showCoverageOnHover: false,       // bez rysowania convex hull przy hover
+    spiderfyOnMaxZoom: true,          // przy max zoom rozsuwa w spider
+    spiderfyDistanceMultiplier: 1.5,  // szerszy spider
+    zoomToBoundsOnClick: true,        // click cluster = zoom in
+    animate: true,
+    iconCreateFunction: function(cluster) {
+        var count = cluster.getChildCount();
+        var size = count < 5 ? 38 : count < 15 ? 44 : 52;
+        var cls = count < 5 ? 'small' : count < 15 ? 'medium' : 'large';
+        // Zbierz nazwy pojazdów dla tooltipa
+        var names = cluster.getAllChildMarkers().map(function(m){ return m._vehName || ''; }).filter(function(n){ return n; });
+        var tip = names.slice(0, 12).join(', ') + (names.length > 12 ? ', +' + (names.length - 12) : '');
+        return L.divIcon({
+            className: '',
+            html: '<div class=""vc-cluster ' + cls + '"" title=""' + names.length + ' pojazdów: ' + tip.replace(/""/g,'&quot;') + '"" style=""width:'+size+'px;height:'+size+'px"">' + count + '</div>',
+            iconSize: [size, size]
+        });
+    }
+});
+map.addLayer(vehicleCluster);
 var replayData=null,replayIdx=0,replayTimer=null,replayPaused=false,replaySpeedVal=10,replayMarker=null,replayTrail=null;
 
 // Strzałka nawigacyjna (czubek na góre = kierunek 0°), reagująca na Course
@@ -1065,20 +1100,36 @@ function mkPopup(v){
 L.marker([51.86857,19.79476],{icon:L.divIcon({className:'',html:'<div class=""ub-icon"">&#127981;</div>',iconSize:[26,26],iconAnchor:[13,13]})}).addTo(map).bindPopup('<b>Ubojnia Koziołki 40</b><br>Baza');
 L.marker([51.86857,19.79476],{icon:L.divIcon({className:'ub-label',html:'BAZA — Ubojnia',iconSize:null,iconAnchor:[55,-22]}),interactive:false}).addTo(map);
 
-// ── Vehicles ──
+// ── Vehicles (z marker clustering) ──
 function updateVehicles(vs){
     var ids=vs.map(function(v){return v.ObjectNo});
-    for(var id in markers){if(ids.indexOf(id)<0){map.removeLayer(markers[id]);delete markers[id]}}
+    // Usuń znikające pojazdy z cluster i z markers
+    for(var id in markers){
+        if(ids.indexOf(id)<0){
+            vehicleCluster.removeLayer(markers[id]);
+            delete markers[id];
+        }
+    }
     vs.forEach(function(v){
         var ic=mkIcon(v),pop=mkPopup(v);
         if(markers[v.ObjectNo]){
             var m=markers[v.ObjectNo],nll=L.latLng(v.Latitude,v.Longitude),oll=m.getLatLng();
-            if(oll.distanceTo(nll)>5)animateMarker(m,oll,nll,800);
+            if(oll.distanceTo(nll)>5){
+                // Cluster nie obsluguje animateMarker dobrze — usuwamy i dodajemy w nowej pozycji
+                vehicleCluster.removeLayer(m);
+                m.setLatLng(nll);
+                m._vehName = v.ObjectName;
+                vehicleCluster.addLayer(m);
+            }
             m.setIcon(ic);m.setPopupContent(pop);
             m.setTooltipContent(mkTooltip(v));
         }else{
-            markers[v.ObjectNo]=L.marker([v.Latitude,v.Longitude],{icon:ic}).addTo(map)
-                .bindPopup(pop,{maxWidth:340}).bindTooltip(mkTooltip(v),{direction:'top',offset:[0,-28]});
+            var marker=L.marker([v.Latitude,v.Longitude],{icon:ic})
+                .bindPopup(pop,{maxWidth:340})
+                .bindTooltip(mkTooltip(v),{direction:'top',offset:[0,-28]});
+            marker._vehName = v.ObjectName;  // dla cluster tooltip
+            markers[v.ObjectNo]=marker;
+            vehicleCluster.addLayer(marker);
         }
     });
 }
