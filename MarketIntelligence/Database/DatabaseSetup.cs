@@ -200,29 +200,41 @@ namespace Kalendarz1.MarketIntelligence.Database
         {
             try
             {
-                var widenings = new (string Column, int NewLen, string Sql)[]
+                // (Col, NewLen, IsNotNull, AlterSql)
+                var widenings = new (string Column, int NewLen, bool NotNull, string Sql)[]
                 {
-                    ("Title",           1000, "ALTER TABLE intel_Articles ALTER COLUMN Title NVARCHAR(1000) NOT NULL"),
-                    ("MatchedKeywords", 2000, "ALTER TABLE intel_Articles ALTER COLUMN MatchedKeywords NVARCHAR(2000) NULL"),
-                    ("RelatedTopics",   2000, "ALTER TABLE intel_Articles ALTER COLUMN RelatedTopics NVARCHAR(2000) NULL"),
-                    ("Url",             2000, "ALTER TABLE intel_Articles ALTER COLUMN Url NVARCHAR(2000) NOT NULL"),
-                    ("SourceName",      500,  "ALTER TABLE intel_Articles ALTER COLUMN SourceName NVARCHAR(500) NOT NULL"),
+                    ("Title",           1000, true,  "ALTER TABLE intel_Articles ALTER COLUMN Title NVARCHAR(1000) NOT NULL"),
+                    ("MatchedKeywords", 2000, false, "ALTER TABLE intel_Articles ALTER COLUMN MatchedKeywords NVARCHAR(2000) NULL"),
+                    ("RelatedTopics",   2000, false, "ALTER TABLE intel_Articles ALTER COLUMN RelatedTopics NVARCHAR(2000) NULL"),
+                    ("Url",             2000, true,  "ALTER TABLE intel_Articles ALTER COLUMN Url NVARCHAR(2000) NOT NULL"),
+                    ("SourceName",      500,  true,  "ALTER TABLE intel_Articles ALTER COLUMN SourceName NVARCHAR(500) NOT NULL"),
                 };
 
-                foreach (var (column, newLen, sql) in widenings)
+                foreach (var (column, newLen, notNull, sql) in widenings)
                 {
                     var currentLen = await GetColumnLengthAsync(conn, "intel_Articles", column);
                     if (currentLen > 0 && currentLen < newLen)
                     {
                         try
                         {
+                            // Dla NOT NULL kolumn — najpierw UPDATE existing NULL → '' żeby ALTER nie failował
+                            if (notNull)
+                            {
+                                using var prep = new SqlCommand(
+                                    $"UPDATE intel_Articles SET [{column}] = '' WHERE [{column}] IS NULL",
+                                    conn) { CommandTimeout = 60 };
+                                var updated = await prep.ExecuteNonQueryAsync();
+                                if (updated > 0)
+                                    Debug.WriteLine($"[DatabaseSetup] ↔ Pre-widen {column}: wypełniono {updated} NULL → ''");
+                            }
+
                             using var cmd = new SqlCommand(sql, conn) { CommandTimeout = 60 };
                             await cmd.ExecuteNonQueryAsync();
                             Debug.WriteLine($"[DatabaseSetup] ↔ Migracja: poszerzono intel_Articles.{column} ({currentLen} → {newLen})");
                         }
                         catch (Exception ex)
                         {
-                            Debug.WriteLine($"[DatabaseSetup] ⚠ Widen {column} nieudane (możliwe że jest indeks): {ex.Message}");
+                            Debug.WriteLine($"[DatabaseSetup] ⚠ Widen {column} nieudane: {ex.Message.Substring(0, Math.Min(120, ex.Message.Length))}");
                         }
                     }
                 }

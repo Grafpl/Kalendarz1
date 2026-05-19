@@ -35,10 +35,11 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
                 UseCookies = true
             };
 
-            // 20s twardy timeout per request — wcześniej 45s × 3 retries = 149s wiszenia. Hard cap dla całego źródła ustawiany przez CTS w FetchFromScrapingSourceAsync (25s).
+            // 30s twardy timeout per request — wetgiw.gov.pl czasem >20s odpowiada dla HPAI scraping.
+            // Hard cap dla całego źródła ustawiany przez CTS w FetchFromScrapingSourceAsync (25s).
             _httpClient = new HttpClient(handler)
             {
-                Timeout = TimeSpan.FromSeconds(20)
+                Timeout = TimeSpan.FromSeconds(30)
             };
 
             // Realistic browser headers

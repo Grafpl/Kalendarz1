@@ -22,11 +22,11 @@ namespace Kalendarz1.MarketIntelligence
 
         /// <summary>
         /// HANDEL (Sage Symfonia) — schemat HM.* używany przez ContextBuilder do kontekstu klientów/handlu.
-        /// Override: env HANDEL_CONNECTION_STRING lub secrets.json.
+        /// 2026-05-19: HARDCODED ZAWSZE (user request 'wklep mi te dane sztywno w kod').
+        /// secrets.json i env IGNOROWANE bo user'a secrets.json miał stary pronova/pronova
+        /// który nadpisywał hardcoded sa i wywalał login HANDEL na każdym fetchu.
         /// </summary>
         public static string HandelConnectionString =>
-            Environment.GetEnvironmentVariable("HANDEL_CONNECTION_STRING")
-            ?? SecretsLoader.Get("HANDEL_CONNECTION_STRING")
-            ?? "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
+            "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
     }
 }

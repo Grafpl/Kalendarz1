@@ -212,12 +212,11 @@ namespace Kalendarz1.MarketIntelligence.Services
                     {
                         progress?.Report(new FetchProgress { Stage = "Perplexity", Percent = 32, Message = msg });
                     });
-                    // 113 zapytań (80 hardcoded + user custom) × ~4s avg + 600ms delay = ~7-8 min.
-                    // 720s = 12 min daje margines.
-                    // TRYB OSZCZĘDNY: Critical priority + bez INT = ~22 zapytań zamiast 113-142
-                    // Koszt: 22 × $0.005 = $0.11 zamiast $0.70 (5-7x taniej)
+                    // TRYB OSZCZĘDNY: Critical priority + bez INT = ~16 zapytań (zamiast 113 All).
+                    // 16 × ~7s avg + 600ms delay = ~120s. 240s daje 2× margines.
+                    // Koszt: 16 × $0.005 = $0.08/fetch (~30 gr).
                     var perplexityResult = await RunWithTimeoutAsync(
-                        "Perplexity (22 zapytań Critical PL)",
+                        "Perplexity (16 zapytań Critical PL)",
                         stageCt => _perplexitySearchService.SearchPoultryNewsAsync(
                             includeInternational: false,
                             maxPriority: SearchPriority.Critical,
