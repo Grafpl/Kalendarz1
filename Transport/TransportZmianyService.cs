@@ -956,6 +956,103 @@ namespace Kalendarz1.Transport
         }
 
         // ═══════════════════════════════════════════════════
+        // FAZA 9-B — Queue-based incremental detection
+        // ═══════════════════════════════════════════════════
+
+        /// <summary>
+        /// Konsumuje LibraNet.TransportZmianyQueue: jeśli są nowe wpisy (triggery na
+        /// ZamowieniaMieso je dodały), uruchamia DetectNewOrdersAsync i oznacza queue
+        /// jako processed. Niski overhead — wcześnie kończy gdy queue pusta.
+        ///
+        /// Wywoływane co 30s z Menu.cs background timer (Faza 9-C).
+        /// Wymaga uruchomionego Transport/SQL/create_transport_zmiany_queue.sql.
+        /// </summary>
+        public static async Task<int> ConsumeQueueAsync(string user)
+        {
+            var queueIds = new List<long>();
+            try
+            {
+                using var conn = new SqlConnection(_connLibra);
+                await conn.OpenAsync();
+
+                // Defensive: sprawdz czy tabela istnieje (SQL z Fazy 9-A musi byc uruchomione)
+                using (var cmdCheck = new SqlCommand(
+                    "SELECT COUNT(*) FROM sys.tables WHERE name = 'TransportZmianyQueue'", conn))
+                {
+                    if (Convert.ToInt32(await cmdCheck.ExecuteScalarAsync()) == 0)
+                        return 0; // queue nie istnieje, silent skip
+                }
+
+                // Pobierz unprocessed IDs (batch 500 max — większe consume rozbije się na kilka iteracji)
+                using (var cmdRead = new SqlCommand(
+                    "SELECT TOP 500 Id FROM dbo.TransportZmianyQueue WHERE Processed = 0 ORDER BY Id", conn))
+                using (var r = await cmdRead.ExecuteReaderAsync())
+                {
+                    while (await r.ReadAsync())
+                        queueIds.Add(r.GetInt64(0));
+                }
+            }
+            catch (Exception ex)
+            {
+                LastDetectError = "ConsumeQueueAsync read: " + ex.Message;
+                return 0;
+            }
+
+            if (queueIds.Count == 0) return 0;
+
+            // Mamy nowe wpisy w queue — uruchom pełną detekcję (re-uses istniejący DetectNewOrdersAsync).
+            // Optymalizacja na przyszłość: incremental scan tylko queued ZamowienieId, na razie full scan.
+            var detected = await DetectNewOrdersAsync(user);
+
+            // Mark queue entries as processed (po sukcesie DetectNewOrders).
+            try
+            {
+                using var conn2 = new SqlConnection(_connLibra);
+                await conn2.OpenAsync();
+                var idsCsv = string.Join(",", queueIds);
+                using var cmdMark = new SqlCommand(
+                    $"UPDATE dbo.TransportZmianyQueue SET Processed = 1, ProcessedAtUTC = SYSUTCDATETIME() WHERE Id IN ({idsCsv})",
+                    conn2);
+                await cmdMark.ExecuteNonQueryAsync();
+            }
+            catch (Exception ex)
+            {
+                LastDetectError = "ConsumeQueueAsync mark: " + ex.Message;
+                // Nie failujemy — detected już zostały zapisane do TransportZmiany,
+                // queue entries zostaną przerobione w następnym cyklu (potencjalny duplikat,
+                // ale TransportZmiany ma własną deduplikację przez (ZamowienieId, TypZmiany)).
+            }
+
+            return detected;
+        }
+
+        /// <summary>
+        /// Zwraca liczbę nieprzetworzonych wpisów w kolejce (diagnostic dla UI).
+        /// Returns -1 przy błędzie, 0 gdy queue nie istnieje.
+        /// </summary>
+        public static async Task<int> GetQueueUnprocessedCountAsync()
+        {
+            try
+            {
+                using var conn = new SqlConnection(_connLibra);
+                await conn.OpenAsync();
+
+                using var cmdCheck = new SqlCommand(
+                    "SELECT COUNT(*) FROM sys.tables WHERE name = 'TransportZmianyQueue'", conn);
+                if (Convert.ToInt32(await cmdCheck.ExecuteScalarAsync()) == 0)
+                    return 0;
+
+                using var cmd = new SqlCommand(
+                    "SELECT COUNT(*) FROM dbo.TransportZmianyQueue WHERE Processed = 0", conn);
+                return Convert.ToInt32(await cmd.ExecuteScalarAsync());
+            }
+            catch
+            {
+                return -1;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════
         // HELPERS
         // ═══════════════════════════════════════════════════
 

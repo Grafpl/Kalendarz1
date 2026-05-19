@@ -424,6 +424,17 @@ namespace Kalendarz1
         {
             if (_transportPendingBadge == null && _transportFreeBadge == null) return;
 
+            // Faza 9-C — najpierw consume queue (triggery DB na ZamowieniaMieso powodują
+            // wpisy do LibraNet.TransportZmianyQueue, my je tu konsumujemy → generuje
+            // wpisy do TransportZmiany → pojawia się w pending count).
+            // Silent — błąd queue nie blokuje aktualizacji badge.
+            try
+            {
+                await Transport.TransportZmianyService.ConsumeQueueAsync(
+                    App.UserFullName ?? App.UserID ?? "system");
+            }
+            catch { /* badge refresh nadal działa */ }
+
             // Dwa zapytania (różne bazy) równolegle, każde z hard timeoutem 5s.
             var pendingTask = RunWithTimeoutAsync(() => Transport.TransportZmianyService.GetPendingCount(), 0);
             var freeTask = RunWithTimeoutAsync(() => Transport.TransportZmianyService.GetFreeOrdersCount(), 0);
@@ -1340,6 +1351,7 @@ namespace Kalendarz1
             /* 67 */ "CentrumNagranAI",
             /* 68 */ "MapowanieFlota",
             /* 69 */ "TransportHub",
+            /* 70 */ "Sprawozdania",
         };
 
         private void ParseAccessString(string accessString)
@@ -1490,6 +1502,11 @@ namespace Kalendarz1
                         "Archiwum umów handlowych, certyfikatów i dokumentów związanych z zakupem żywca",
                         Color.FromArgb(35, 103, 38), // #236726
                         () => new Kalendarz1.WPF.SprawdzalkaUmowWindow(App.UserID), "📑", "Umowy"),
+
+                    new MenuItemConfig("Sprawozdania", "Sprawozdania",
+                        "Sprawozdanie zakupu kurczaka żywego (FVZ + FVRR) - sumy netto z poprzedniego tygodnia, tekst do maila",
+                        Color.FromArgb(46, 125, 50), // #2E7D32
+                        () => new Kalendarz1.WPF.SprawozdaniaWindow(), "📊", "Sprawozdania"),
 
                     new MenuItemConfig("PlatnosciHodowcy", "Rozliczenia z Hodowcami",
                         "Monitorowanie należności i płatności dla dostawców żywca wraz z historią transakcji",
@@ -2374,6 +2391,18 @@ namespace Kalendarz1
                 win.Show();
             };
             contextMenu.Items.Add(imagesItem);
+
+            // 5. Limity produkcyjne (Kurczak A / Filet A / Ćwiartka / …)
+            var limityItem = new ToolStripMenuItem("Limity produkcyjne");
+            limityItem.Image = CreateMenuItemImage("🎯");
+            limityItem.Click += (s, args) =>
+            {
+                var win = new Kalendarz1.Admin.LimityProdukcyjneWindow();
+                var wpfIcon = CreateWpfEmojiIcon("🎯", Color.FromArgb(79, 70, 229));
+                if (wpfIcon != null) win.Icon = wpfIcon;
+                win.ShowDialog();
+            };
+            contextMenu.Items.Add(limityItem);
 
             // Pokaż menu pod przyciskiem
             if (button != null)

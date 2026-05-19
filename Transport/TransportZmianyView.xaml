@@ -3,7 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              Loaded="View_Loaded">
 
-    <Window.Resources>
+    <UserControl.Resources>
         <Style x:Key="ActionBtn" TargetType="Button">
             <Setter Property="FontFamily" Value="Segoe UI"/>
             <Setter Property="FontSize" Value="11"/>
@@ -32,7 +32,7 @@
                 </Setter.Value>
             </Setter>
         </Style>
-    </Window.Resources>
+    </UserControl.Resources>
 
     <Grid Background="#F0F3F7">
         <Grid.RowDefinitions>
@@ -139,8 +139,20 @@
 
         <!-- Status bar -->
         <Border Grid.Row="3" Background="#00838F" Height="26">
-            <TextBlock x:Name="TxtStatus" Text="Gotowe" Foreground="#B2DFDB"
-                       FontFamily="Segoe UI" FontSize="10" VerticalAlignment="Center" Margin="16,0"/>
+            <DockPanel>
+                <TextBlock x:Name="TxtStatus" Text="Gotowe" Foreground="#B2DFDB"
+                           FontFamily="Segoe UI" FontSize="10" VerticalAlignment="Center" Margin="16,0"/>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="0,0,12,0">
+                    <Button x:Name="BtnConsumeQueueNow" Content="⚡ Consume queue"
+                            Click="BtnConsumeQueueNow_Click"
+                            ToolTip="Wymuś konsumpcję kolejki triggerów (Faza 9). Normalnie auto co 30s."
+                            Background="Transparent" Foreground="#B2DFDB"
+                            BorderBrush="#4DB6AC" BorderThickness="1"
+                            Padding="8,1" FontSize="10" Cursor="Hand" Margin="0,2"/>
+                    <TextBlock x:Name="TxtQueueStatus" Text="Queue: —" Foreground="#B2DFDB"
+                               FontFamily="Segoe UI" FontSize="10" VerticalAlignment="Center" Margin="14,0,0,0"/>
+                </StackPanel>
+            </DockPanel>
         </Border>
     </Grid>
 </UserControl>

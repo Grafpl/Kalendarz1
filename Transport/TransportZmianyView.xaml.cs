@@ -54,10 +54,63 @@ namespace Kalendarz1.Transport
                     : "Brak oczekujacych";
 
                 TxtStatus.Text = $"Zaladowano {_allItems.Count} zmian";
+
+                // Faza 9-D — refresh queue diagnostic
+                await RefreshQueueStatusAsync();
             }
             catch (Exception ex)
             {
                 TxtStatus.Text = $"Blad: {ex.Message}";
+            }
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        // Faza 9-D — Queue diagnostic + manual consume
+        // ════════════════════════════════════════════════════════════════
+        private async Task RefreshQueueStatusAsync()
+        {
+            try
+            {
+                int n = await TransportZmianyService.GetQueueUnprocessedCountAsync();
+                if (n < 0)
+                {
+                    TxtQueueStatus.Text = "Queue: błąd";
+                }
+                else if (n == 0)
+                {
+                    TxtQueueStatus.Text = "Queue: ✓ pusta";
+                }
+                else
+                {
+                    TxtQueueStatus.Text = $"Queue: ⚠ {n} unprocessed";
+                }
+            }
+            catch
+            {
+                TxtQueueStatus.Text = "Queue: —";
+            }
+        }
+
+        private async void BtnConsumeQueueNow_Click(object sender, RoutedEventArgs e)
+        {
+            BtnConsumeQueueNow.IsEnabled = false;
+            TxtStatus.Text = "Konsumpcja kolejki...";
+            try
+            {
+                var user = App.UserFullName ?? App.UserID ?? "system";
+                int detected = await TransportZmianyService.ConsumeQueueAsync(user);
+                TxtStatus.Text = detected > 0
+                    ? $"Wykryto {detected} zmian z kolejki"
+                    : "Kolejka pusta — brak nowych zmian";
+                await LoadDataAsync();
+            }
+            catch (Exception ex)
+            {
+                TxtStatus.Text = $"Błąd consume: {ex.Message}";
+            }
+            finally
+            {
+                BtnConsumeQueueNow.IsEnabled = true;
             }
         }
 
