@@ -269,7 +269,10 @@ FROM intel_FetchLog ORDER BY FetchTime DESC", conn);
         private DateTime _fetchStartTime;
         private DateTime _lastProgressUpdate;
         private bool _watchdogWarned;
-        private const int WatchdogStaleSeconds = 90; // próg ostrzeżenia
+        // 2026-05-20: 90 → 180. AI Analysis Sonnet 5 art × parallel x3 = ~105s normalnie
+        // (Anthropic API extended thinking + cache_create może trwać dłużej między progress'ami).
+        // 90s dawał false-alarm dialog "anulować?" mimo że fetch działał poprawnie.
+        private const int WatchdogStaleSeconds = 180;
 
         private async void btnForceFetch_Click(object sender, RoutedEventArgs e)
         {
