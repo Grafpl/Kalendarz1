@@ -510,6 +510,26 @@ namespace Kalendarz1.Flota.Services
         {
             string fullName = $"{firstName} {lastName}".Trim();
 
+            // gid < 0 → kierowca niezmapowany (tylko TransportPL). UPDATE TransportPL.Kierowca po KierowcaID.
+            if (gid.HasValue && gid.Value < 0)
+            {
+                int kierowcaId = -gid.Value;
+                using var connT = new SqlConnection(_connTransport);
+                await connT.OpenAsync();
+                using var cmdT = new SqlCommand(@"
+                    UPDATE dbo.Kierowca SET Imie=@imie, Nazwisko=@nazwisko, Telefon=@tel, Aktywny=@akt,
+                                            ZmienionoUTC=SYSUTCDATETIME()
+                    WHERE KierowcaID = @id", connT);
+                cmdT.Parameters.AddWithValue("@id", kierowcaId);
+                cmdT.Parameters.AddWithValue("@imie", (object?)firstName ?? "");
+                cmdT.Parameters.AddWithValue("@nazwisko", (object?)lastName ?? "");
+                cmdT.Parameters.AddWithValue("@tel", (object?)phone1 ?? DBNull.Value);
+                cmdT.Parameters.AddWithValue("@akt", !halt);
+                await cmdT.ExecuteNonQueryAsync();
+                _tCache = null;
+                return gid.Value;
+            }
+
             using var conn = new SqlConnection(_connectionString);
             await conn.OpenAsync();
             using var tx = conn.BeginTransaction();
@@ -680,15 +700,6 @@ namespace Kalendarz1.Flota.Services
             public int PaletyH1; public bool Aktywny;
         }
 
-        private sealed class LVehicleDetail
-        {
-            public string? Kind, Brand, Model, VIN, TypNadwozia, NrPolisyOC, NrPolisyAC, Ubezpieczyciel, GPSModul;
-            public int? RokProdukcji, PrzebiegKm, MaxLadownoscKg, MaxPaletH1, PojemnoscBaku, MaxPojemnikE2;
-            public decimal? SrednieSpalanie, TemperaturaMin, TemperaturaMax, KosztyYTD, Capacity;
-            public DateTime? DataPrzegladu, DataUbezpieczenia;
-            public string? AktualnyKierowca, OstatniSerwis, VdUwagi;
-        }
-
         private async Task<List<TPojazd>> FetchTransportPojazdyAllAsync()
         {
             var list = new List<TPojazd>();
@@ -712,133 +723,6 @@ namespace Kalendarz1.Flota.Services
                 });
             }
             return list;
-        }
-
-        private async Task<Dictionary<string, LVehicleDetail>> FetchLibraNetVehicleDetailMapAsync()
-        {
-            var map = new Dictionary<string, LVehicleDetail>(StringComparer.OrdinalIgnoreCase);
-            try
-            {
-                using var conn = new SqlConnection(_connectionString);
-                await conn.OpenAsync();
-                using var cmd = new SqlCommand(@"
-                    SELECT ct.ID, ct.Kind, ct.Brand, ct.Model, ct.Capacity,
-                           vd.VIN, vd.RokProdukcji, vd.TypNadwozia,
-                           vd.DataPrzegladu, vd.DataUbezpieczenia, vd.PrzebiegKm,
-                           vd.MaxLadownoscKg, vd.MaxPaletH1, vd.SrednieSpalanie,
-                           vd.NrPolisyOC, vd.NrPolisyAC, vd.Ubezpieczyciel,
-                           vd.TemperaturaMin, vd.TemperaturaMax, vd.GPSModul,
-                           vd.PojemnoscBaku, vd.MaxPojemnikE2, vd.Uwagi AS VdUwagi,
-                           STUFF((SELECT ', ' + drv.Name + ' (' + dva.Rola + ')'
-                                  FROM DriverVehicleAssignment dva
-                                  JOIN Driver drv ON dva.DriverGID = drv.GID
-                                  WHERE dva.CarTrailerID = ct.ID AND dva.DataDo IS NULL
-                                  FOR XML PATH('')), 1, 2, '') AS AktualnyKierowca,
-                           (SELECT TOP 1 TypZdarzenia + ' ' + CONVERT(varchar(10), Data, 120)
-                                  FROM VehicleServiceLog WHERE CarTrailerID = ct.ID ORDER BY Data DESC) AS OstatniSerwis,
-                           (SELECT ISNULL(SUM(KosztBrutto), 0) FROM VehicleServiceLog
-                                  WHERE CarTrailerID = ct.ID AND YEAR(Data) = YEAR(GETDATE())) AS KosztyYTD
-                    FROM CarTrailer ct
-                    LEFT JOIN VehicleDetails vd ON ct.ID = vd.CarTrailerID", conn);
-                using var r = await cmd.ExecuteReaderAsync();
-                while (await r.ReadAsync())
-                {
-                    string id = r["ID"]?.ToString() ?? "";
-                    if (string.IsNullOrEmpty(id)) continue;
-                    map[id] = new LVehicleDetail
-                    {
-                        Kind = r["Kind"] == DBNull.Value ? null : r["Kind"].ToString(),
-                        Brand = r["Brand"] == DBNull.Value ? null : r["Brand"].ToString(),
-                        Model = r["Model"] == DBNull.Value ? null : r["Model"].ToString(),
-                        Capacity = r["Capacity"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(r["Capacity"]),
-                        VIN = r["VIN"] == DBNull.Value ? null : r["VIN"].ToString(),
-                        RokProdukcji = r["RokProdukcji"] == DBNull.Value ? (int?)null : Convert.ToInt32(r["RokProdukcji"]),
-                        TypNadwozia = r["TypNadwozia"] == DBNull.Value ? null : r["TypNadwozia"].ToString(),
-                        DataPrzegladu = r["DataPrzegladu"] == DBNull.Value ? (DateTime?)null : (DateTime)r["DataPrzegladu"],
-                        DataUbezpieczenia = r["DataUbezpieczenia"] == DBNull.Value ? (DateTime?)null : (DateTime)r["DataUbezpieczenia"],
-                        PrzebiegKm = r["PrzebiegKm"] == DBNull.Value ? (int?)null : Convert.ToInt32(r["PrzebiegKm"]),
-                        MaxLadownoscKg = r["MaxLadownoscKg"] == DBNull.Value ? (int?)null : Convert.ToInt32(r["MaxLadownoscKg"]),
-                        MaxPaletH1 = r["MaxPaletH1"] == DBNull.Value ? (int?)null : Convert.ToInt32(r["MaxPaletH1"]),
-                        SrednieSpalanie = r["SrednieSpalanie"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(r["SrednieSpalanie"]),
-                        NrPolisyOC = r["NrPolisyOC"] == DBNull.Value ? null : r["NrPolisyOC"].ToString(),
-                        NrPolisyAC = r["NrPolisyAC"] == DBNull.Value ? null : r["NrPolisyAC"].ToString(),
-                        Ubezpieczyciel = r["Ubezpieczyciel"] == DBNull.Value ? null : r["Ubezpieczyciel"].ToString(),
-                        TemperaturaMin = r["TemperaturaMin"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(r["TemperaturaMin"]),
-                        TemperaturaMax = r["TemperaturaMax"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(r["TemperaturaMax"]),
-                        GPSModul = r["GPSModul"] == DBNull.Value ? null : r["GPSModul"].ToString(),
-                        PojemnoscBaku = r["PojemnoscBaku"] == DBNull.Value ? (int?)null : Convert.ToInt32(r["PojemnoscBaku"]),
-                        MaxPojemnikE2 = r["MaxPojemnikE2"] == DBNull.Value ? (int?)null : Convert.ToInt32(r["MaxPojemnikE2"]),
-                        VdUwagi = r["VdUwagi"] == DBNull.Value ? null : r["VdUwagi"].ToString(),
-                        AktualnyKierowca = r["AktualnyKierowca"] == DBNull.Value ? null : r["AktualnyKierowca"].ToString(),
-                        OstatniSerwis = r["OstatniSerwis"] == DBNull.Value ? null : r["OstatniSerwis"].ToString(),
-                        KosztyYTD = r["KosztyYTD"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(r["KosztyYTD"])
-                    };
-                }
-            }
-            catch { /* LibraNet niedostępne */ }
-            return map;
-        }
-
-        /// <summary>Backfill: dla każdego LibraNet.CarTrailer bez TransportPL.Pojazd match → INSERT do TransportPL.</summary>
-        private async Task EnsurePojazdyBackfillAsync()
-        {
-            try
-            {
-                var tList = await FetchTransportPojazdyAllAsync();
-                var mapped = new HashSet<string>(
-                    tList.Where(t => !string.IsNullOrEmpty(t.LibraNetCarTrailerID))
-                         .Select(t => t.LibraNetCarTrailerID!),
-                    StringComparer.OrdinalIgnoreCase);
-
-                // Pobierz LibraNet CarTrailer
-                var libraVehicles = new List<(string id, string? kind, string? brand, string? model, string? reg, int paletyH1)>();
-                using (var conn = new SqlConnection(_connectionString))
-                {
-                    await conn.OpenAsync();
-                    using var cmd = new SqlCommand(@"
-                        SELECT ct.ID, ct.Kind, ct.Brand, ct.Model,
-                               ISNULL(vd.Registration, ct.ID) AS Reg,
-                               ISNULL(vd.MaxPaletH1, 0) AS PaletyH1
-                        FROM CarTrailer ct LEFT JOIN VehicleDetails vd ON ct.ID = vd.CarTrailerID", conn);
-                    using var r = await cmd.ExecuteReaderAsync();
-                    while (await r.ReadAsync())
-                    {
-                        string id = r["ID"]?.ToString() ?? "";
-                        if (string.IsNullOrEmpty(id) || mapped.Contains(id)) continue;
-                        libraVehicles.Add((id,
-                            r["Kind"] == DBNull.Value ? null : r["Kind"].ToString(),
-                            r["Brand"] == DBNull.Value ? null : r["Brand"].ToString(),
-                            r["Model"] == DBNull.Value ? null : r["Model"].ToString(),
-                            r["Reg"]?.ToString(),
-                            r["PaletyH1"] == DBNull.Value ? 0 : Convert.ToInt32(r["PaletyH1"])));
-                    }
-                }
-
-                foreach (var v in libraVehicles)
-                    await SyncToTransportPLPojazdAsync(v.id, v.reg ?? v.id, v.brand, v.model, v.paletyH1, true);
-            }
-            catch { /* backfill best-effort */ }
-        }
-
-        private async Task SyncToTransportPLPojazdAsync(string libraId, string rejestracja, string? marka, string? model, int paletyH1, bool aktywny)
-        {
-            using var conn = new SqlConnection(_connTransport);
-            await conn.OpenAsync();
-            using var cmd = new SqlCommand(@"
-                MERGE dbo.Pojazd AS tgt
-                USING (SELECT @id AS LibraNetCarTrailerID) AS src ON tgt.LibraNetCarTrailerID = src.LibraNetCarTrailerID
-                WHEN MATCHED THEN UPDATE SET
-                    Rejestracja=@rej, Marka=@marka, Model=@model, PaletyH1=@palety, Aktywny=@akt,
-                    ZmienionoUTC=SYSUTCDATETIME()
-                WHEN NOT MATCHED THEN INSERT (Rejestracja, Marka, Model, PaletyH1, Aktywny, LibraNetCarTrailerID, UtworzonoUTC)
-                    VALUES (@rej, @marka, @model, @palety, @akt, @id, SYSUTCDATETIME());", conn);
-            cmd.Parameters.AddWithValue("@id", libraId);
-            cmd.Parameters.AddWithValue("@rej", (object?)rejestracja ?? "");
-            cmd.Parameters.AddWithValue("@marka", (object?)marka ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("@model", (object?)model ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("@palety", paletyH1);
-            cmd.Parameters.AddWithValue("@akt", aktywny);
-            await cmd.ExecuteNonQueryAsync();
         }
 
         public async Task<DataTable> GetVehiclesAsync()
@@ -890,24 +774,77 @@ namespace Kalendarz1.Flota.Services
             return dt;
         }
 
+        /// <summary>Primary: TransportPL.Pojazd po PojazdID (string z listy, np "123").</summary>
         public async Task<DataRow?> GetVehicleByIDAsync(string carTrailerID)
         {
-            const string sql = @"
-                SELECT ct.*, vd.*
-                FROM CarTrailer ct
-                LEFT JOIN VehicleDetails vd ON ct.ID = vd.CarTrailerID
-                WHERE ct.ID = @ID";
+            if (!int.TryParse(carTrailerID?.TrimStart('T') ?? "", out int pojazdId))
+                return null;
 
+            TPojazd? t = null;
+            using (var conn = new SqlConnection(_connTransport))
+            {
+                await conn.OpenAsync();
+                using var cmd = new SqlCommand(
+                    @"SELECT PojazdID, LibraNetCarTrailerID, Rejestracja, Marka, Model, PaletyH1, Aktywny
+                      FROM dbo.Pojazd WHERE PojazdID = @id", conn);
+                cmd.Parameters.AddWithValue("@id", pojazdId);
+                using var r = await cmd.ExecuteReaderAsync();
+                if (await r.ReadAsync())
+                {
+                    t = new TPojazd
+                    {
+                        PojazdID = Convert.ToInt32(r["PojazdID"]),
+                        LibraNetCarTrailerID = r["LibraNetCarTrailerID"] == DBNull.Value ? null : r["LibraNetCarTrailerID"].ToString(),
+                        Rejestracja = r["Rejestracja"]?.ToString() ?? "",
+                        Marka = r["Marka"] == DBNull.Value ? null : r["Marka"].ToString(),
+                        Model = r["Model"] == DBNull.Value ? null : r["Model"].ToString(),
+                        PaletyH1 = r["PaletyH1"] == DBNull.Value ? 0 : Convert.ToInt32(r["PaletyH1"]),
+                        Aktywny = r["Aktywny"] != DBNull.Value && Convert.ToBoolean(r["Aktywny"])
+                    };
+                }
+            }
+            if (t == null) return null;
+
+            // Zbuduj DataTable z polami które VehicleEditWindow expectuje (większość pusta — TransportPL.Pojazd ich nie ma)
             var dt = new DataTable();
-            using var conn = new SqlConnection(_connectionString);
-            using var cmd = new SqlCommand(sql, conn);
-            cmd.Parameters.AddWithValue("@ID", carTrailerID);
-            await conn.OpenAsync();
-            using var reader = await cmd.ExecuteReaderAsync();
-            dt.Load(reader);
-            return dt.Rows.Count > 0 ? dt.Rows[0] : null;
+            dt.Columns.Add("ID", typeof(string));
+            dt.Columns.Add("Kind", typeof(int));
+            dt.Columns.Add("Brand", typeof(string));
+            dt.Columns.Add("Model", typeof(string));
+            dt.Columns.Add("Capacity", typeof(decimal));
+            dt.Columns.Add("Registration", typeof(string));
+            dt.Columns.Add("VIN", typeof(string));
+            dt.Columns.Add("RokProdukcji", typeof(int));
+            dt.Columns.Add("TypNadwozia", typeof(string));
+            dt.Columns.Add("DataPrzegladu", typeof(DateTime));
+            dt.Columns.Add("DataUbezpieczenia", typeof(DateTime));
+            dt.Columns.Add("NrPolisyOC", typeof(string));
+            dt.Columns.Add("NrPolisyAC", typeof(string));
+            dt.Columns.Add("Ubezpieczyciel", typeof(string));
+            dt.Columns.Add("PrzebiegKm", typeof(int));
+            dt.Columns.Add("SrednieSpalanie", typeof(decimal));
+            dt.Columns.Add("PojemnoscBaku", typeof(int));
+            dt.Columns.Add("MaxLadownoscKg", typeof(int));
+            dt.Columns.Add("MaxPaletH1", typeof(int));
+            dt.Columns.Add("MaxPojemnikE2", typeof(int));
+            dt.Columns.Add("TemperaturaMin", typeof(decimal));
+            dt.Columns.Add("TemperaturaMax", typeof(decimal));
+            dt.Columns.Add("GPSModul", typeof(string));
+            dt.Columns.Add("Uwagi", typeof(string));
+            dt.Columns.Add("ZdjeciePojazdu", typeof(byte[]));
+
+            var row = dt.NewRow();
+            row["ID"] = t.PojazdID.ToString();
+            row["Brand"] = (object?)t.Marka ?? DBNull.Value;
+            row["Model"] = (object?)t.Model ?? DBNull.Value;
+            row["Registration"] = t.Rejestracja;
+            row["MaxPaletH1"] = t.PaletyH1;
+            dt.Rows.Add(row);
+            return dt.Rows[0];
         }
 
+        /// <summary>Primary: zapis do TransportPL.Pojazd. Pozostałe parametry (VIN/OC/przegląd)
+        /// nie mają miejsca w schema TransportPL — są ignorowane.</summary>
         public async Task SaveVehicleAsync(string id, bool isNew, int kind, string? brand, string? model,
             decimal? capacity, string? registration, string? vin, int? rokProdukcji,
             DateTime? dataPrzegladu, DateTime? dataUbezpieczenia,
@@ -917,94 +854,36 @@ namespace Kalendarz1.Flota.Services
             string? typNadwozia, decimal? tempMin, decimal? tempMax,
             string? gpsModul, string? uwagi, byte[]? zdjecie, string user)
         {
-            using var conn = new SqlConnection(_connectionString);
+            int paletyH1 = maxPalet ?? 0;
+            string rej = !string.IsNullOrWhiteSpace(registration) ? registration! : id;
+
+            using var conn = new SqlConnection(_connTransport);
             await conn.OpenAsync();
-            using var tx = conn.BeginTransaction();
 
-            try
+            if (isNew)
             {
-                if (isNew)
-                {
-                    const string sqlIns = @"INSERT INTO CarTrailer (ID, Kind, Brand, Model, Capacity, Created, Modified, ModifiedBy)
-                        VALUES (@ID, @Kind, @Brand, @Model, @Capacity, GETDATE(), GETDATE(), @User)";
-                    using var cmdIns = new SqlCommand(sqlIns, conn, tx);
-                    cmdIns.Parameters.AddWithValue("@ID", id);
-                    cmdIns.Parameters.AddWithValue("@Kind", kind);
-                    cmdIns.Parameters.AddWithValue("@Brand", (object?)brand ?? DBNull.Value);
-                    cmdIns.Parameters.AddWithValue("@Model", (object?)model ?? DBNull.Value);
-                    cmdIns.Parameters.AddWithValue("@Capacity", (object?)capacity ?? DBNull.Value);
-                    cmdIns.Parameters.AddWithValue("@User", user);
-                    await cmdIns.ExecuteNonQueryAsync();
-                }
-                else
-                {
-                    const string sqlUpd = @"UPDATE CarTrailer SET Kind=@Kind, Brand=@Brand, Model=@Model,
-                        Capacity=@Capacity, Modified=GETDATE(), ModifiedBy=@User WHERE ID=@ID";
-                    using var cmdUpd = new SqlCommand(sqlUpd, conn, tx);
-                    cmdUpd.Parameters.AddWithValue("@ID", id);
-                    cmdUpd.Parameters.AddWithValue("@Kind", kind);
-                    cmdUpd.Parameters.AddWithValue("@Brand", (object?)brand ?? DBNull.Value);
-                    cmdUpd.Parameters.AddWithValue("@Model", (object?)model ?? DBNull.Value);
-                    cmdUpd.Parameters.AddWithValue("@Capacity", (object?)capacity ?? DBNull.Value);
-                    cmdUpd.Parameters.AddWithValue("@User", user);
-                    await cmdUpd.ExecuteNonQueryAsync();
-                }
-
-                // UPSERT VehicleDetails
-                const string sqlMerge = @"
-                    MERGE VehicleDetails AS tgt
-                    USING (SELECT @ID AS CarTrailerID) AS src ON tgt.CarTrailerID = src.CarTrailerID
-                    WHEN MATCHED THEN UPDATE SET
-                        Registration=@Reg, VIN=@VIN, RokProdukcji=@Rok,
-                        DataPrzegladu=@DataPrzegl, DataUbezpieczenia=@DataUbezp,
-                        NrPolisyOC=@NrOC, NrPolisyAC=@NrAC, Ubezpieczyciel=@Ubezp,
-                        PrzebiegKm=@Przebieg, SrednieSpalanie=@Spalanie, PojemnoscBaku=@Bak,
-                        MaxLadownoscKg=@MaxLad, MaxPaletH1=@MaxPalet, MaxPojemnikE2=@MaxE2,
-                        TypNadwozia=@TypNad, TemperaturaMin=@TempMin, TemperaturaMax=@TempMax,
-                        GPSModul=@GPS, Uwagi=@Uwagi, ZdjeciePojazdu=@Zdjecie,
-                        ModifiedAtUTC=SYSUTCDATETIME(), ModifiedBy=@User
-                    WHEN NOT MATCHED THEN INSERT
-                        (CarTrailerID, Registration, VIN, RokProdukcji,
-                         DataPrzegladu, DataUbezpieczenia, NrPolisyOC, NrPolisyAC, Ubezpieczyciel,
-                         PrzebiegKm, SrednieSpalanie, PojemnoscBaku,
-                         MaxLadownoscKg, MaxPaletH1, MaxPojemnikE2,
-                         TypNadwozia, TemperaturaMin, TemperaturaMax, GPSModul, Uwagi, ZdjeciePojazdu, ModifiedBy)
-                    VALUES (@ID, @Reg, @VIN, @Rok,
-                         @DataPrzegl, @DataUbezp, @NrOC, @NrAC, @Ubezp,
-                         @Przebieg, @Spalanie, @Bak,
-                         @MaxLad, @MaxPalet, @MaxE2,
-                         @TypNad, @TempMin, @TempMax, @GPS, @Uwagi, @Zdjecie, @User);";
-                using var cmdM = new SqlCommand(sqlMerge, conn, tx);
-                cmdM.Parameters.AddWithValue("@ID", id);
-                cmdM.Parameters.AddWithValue("@Reg", (object?)registration ?? DBNull.Value);
-                cmdM.Parameters.AddWithValue("@VIN", (object?)vin ?? DBNull.Value);
-                cmdM.Parameters.AddWithValue("@Rok", (object?)rokProdukcji ?? DBNull.Value);
-                cmdM.Parameters.AddWithValue("@DataPrzegl", (object?)dataPrzegladu ?? DBNull.Value);
-                cmdM.Parameters.AddWithValue("@DataUbezp", (object?)dataUbezpieczenia ?? DBNull.Value);
-                cmdM.Parameters.AddWithValue("@NrOC", (object?)nrOC ?? DBNull.Value);
-                cmdM.Parameters.AddWithValue("@NrAC", (object?)nrAC ?? DBNull.Value);
-                cmdM.Parameters.AddWithValue("@Ubezp", (object?)ubezpieczyciel ?? DBNull.Value);
-                cmdM.Parameters.AddWithValue("@Przebieg", (object?)przebiegKm ?? DBNull.Value);
-                cmdM.Parameters.AddWithValue("@Spalanie", (object?)spalanie ?? DBNull.Value);
-                cmdM.Parameters.AddWithValue("@Bak", (object?)pojemnoscBaku ?? DBNull.Value);
-                cmdM.Parameters.AddWithValue("@MaxLad", (object?)maxLadownosc ?? DBNull.Value);
-                cmdM.Parameters.AddWithValue("@MaxPalet", (object?)maxPalet ?? DBNull.Value);
-                cmdM.Parameters.AddWithValue("@MaxE2", (object?)maxE2 ?? DBNull.Value);
-                cmdM.Parameters.AddWithValue("@TypNad", (object?)typNadwozia ?? DBNull.Value);
-                cmdM.Parameters.AddWithValue("@TempMin", (object?)tempMin ?? DBNull.Value);
-                cmdM.Parameters.AddWithValue("@TempMax", (object?)tempMax ?? DBNull.Value);
-                cmdM.Parameters.AddWithValue("@GPS", (object?)gpsModul ?? DBNull.Value);
-                cmdM.Parameters.AddWithValue("@Uwagi", (object?)uwagi ?? DBNull.Value);
-                cmdM.Parameters.AddWithValue("@Zdjecie", (object?)zdjecie ?? DBNull.Value);
-                cmdM.Parameters.AddWithValue("@User", user);
-                await cmdM.ExecuteNonQueryAsync();
-
-                tx.Commit();
+                using var cmd = new SqlCommand(@"
+                    INSERT INTO dbo.Pojazd (Rejestracja, Marka, Model, PaletyH1, Aktywny, UtworzonoUTC)
+                    VALUES (@rej, @marka, @model, @palety, 1, SYSUTCDATETIME())", conn);
+                cmd.Parameters.AddWithValue("@rej", rej);
+                cmd.Parameters.AddWithValue("@marka", (object?)brand ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@model", (object?)model ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@palety", paletyH1);
+                await cmd.ExecuteNonQueryAsync();
             }
-            catch
+            else
             {
-                tx.Rollback();
-                throw;
+                if (!int.TryParse(id?.TrimStart('T') ?? "", out int pojazdId)) return;
+                using var cmd = new SqlCommand(@"
+                    UPDATE dbo.Pojazd SET Rejestracja=@rej, Marka=@marka, Model=@model, PaletyH1=@palety,
+                                          ZmienionoUTC=SYSUTCDATETIME()
+                    WHERE PojazdID = @id", conn);
+                cmd.Parameters.AddWithValue("@id", pojazdId);
+                cmd.Parameters.AddWithValue("@rej", rej);
+                cmd.Parameters.AddWithValue("@marka", (object?)brand ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@model", (object?)model ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@palety", paletyH1);
+                await cmd.ExecuteNonQueryAsync();
             }
         }
 
@@ -1037,9 +916,31 @@ namespace Kalendarz1.Flota.Services
             return dt;
         }
 
+        /// <summary>Tłumaczy PojazdID (string z combo TransportPL) na LibraNet.CarTrailer.ID
+        /// — wymagane dla FK DriverVehicleAssignment.CarTrailerID. Null gdy pojazd niezmapowany.</summary>
+        private async Task<string?> ResolveLibraCarTrailerIdAsync(string idFromCombo)
+        {
+            if (string.IsNullOrEmpty(idFromCombo)) return null;
+            if (!int.TryParse(idFromCombo.TrimStart('T'), out int pojazdId)) return idFromCombo; // już LibraNet ID
+            using var conn = new SqlConnection(_connTransport);
+            await conn.OpenAsync();
+            using var cmd = new SqlCommand(
+                @"SELECT LibraNetCarTrailerID FROM dbo.Pojazd WHERE PojazdID = @id", conn);
+            cmd.Parameters.AddWithValue("@id", pojazdId);
+            var result = await cmd.ExecuteScalarAsync();
+            return result == null || result == DBNull.Value ? null : result.ToString();
+        }
+
         public async Task AssignDriverAsync(int driverGID, string carTrailerID, string rola,
             DateTime dataOd, string? powod, bool closeExistingForDriver, string user)
         {
+            // Tłumaczenie PojazdID (TransportPL) → LibraNetCarTrailerID (FK target)
+            string? libraCarId = await ResolveLibraCarTrailerIdAsync(carTrailerID);
+            if (string.IsNullOrEmpty(libraCarId))
+                throw new InvalidOperationException(
+                    "Pojazd nie ma odpowiednika w LibraNet (LibraNetCarTrailerID).\n" +
+                    "Przypisanie wymaga zmapowania — uzyj 'Flota > Mapowanie systemow'.");
+
             using var conn = new SqlConnection(_connectionString);
             await conn.OpenAsync();
             using var tx = conn.BeginTransaction();
@@ -1051,7 +952,7 @@ namespace Kalendarz1.Flota.Services
                     SET DataDo = @DataOd WHERE DriverGID = @DriverGID AND CarTrailerID = @CarID AND DataDo IS NULL";
                 using var cmd1 = new SqlCommand(sqlClose1, conn, tx);
                 cmd1.Parameters.AddWithValue("@DriverGID", driverGID);
-                cmd1.Parameters.AddWithValue("@CarID", carTrailerID);
+                cmd1.Parameters.AddWithValue("@CarID", libraCarId);
                 cmd1.Parameters.AddWithValue("@DataOd", dataOd);
                 await cmd1.ExecuteNonQueryAsync();
 
@@ -1070,7 +971,7 @@ namespace Kalendarz1.Flota.Services
                     VALUES (@DriverGID, @CarID, @Rola, @DataOd, @Powod, @User)";
                 using var cmdIns = new SqlCommand(sqlIns, conn, tx);
                 cmdIns.Parameters.AddWithValue("@DriverGID", driverGID);
-                cmdIns.Parameters.AddWithValue("@CarID", carTrailerID);
+                cmdIns.Parameters.AddWithValue("@CarID", libraCarId);
                 cmdIns.Parameters.AddWithValue("@Rola", rola);
                 cmdIns.Parameters.AddWithValue("@DataOd", dataOd);
                 cmdIns.Parameters.AddWithValue("@Powod", (object?)powod ?? DBNull.Value);
