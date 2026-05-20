@@ -119,12 +119,37 @@ namespace Kalendarz1.Flota.Services
         private Dictionary<int, TKierowca>? _tCache;
         private DateTime _tCacheTime;
 
-        /// <summary>Zwraca mapę LibraNetDriverGID → TransportPL.Kierowca. Cache 60s.</summary>
+        /// <summary>Zwraca mapę LibraNetDriverGID → TransportPL.Kierowca. Cache 60s.
+        /// Przy pierwszym wywolaniu auto-backfilluje TransportPL.Kierowca z LibraNet.Driver
+        /// dla wszystkich niezmapowanych — gwarantuje ze KAZDY LibraNet.Driver ma swoj
+        /// rekord w TransportPL.Kierowca z LibraNetDriverGID ustawionym.</summary>
         private async Task<Dictionary<int, TKierowca>> LoadTransportKierowcyMapAsync()
         {
             if (_tCache != null && (DateTime.UtcNow - _tCacheTime).TotalSeconds < 60)
                 return _tCache;
 
+            var map = await FetchTransportMapAsync();
+
+            // Backfill: dla każdego LibraNet.Driver bez TransportPL match → INSERT
+            try
+            {
+                var libraDrivers = await FetchLibraNetDriversForBackfillAsync();
+                var toInsert = libraDrivers.Where(d => !map.ContainsKey(d.gid)).ToList();
+                if (toInsert.Count > 0)
+                {
+                    foreach (var (gid, imie, nazwisko, tel, halt) in toInsert)
+                        await SyncToTransportPLAsync(gid, imie, nazwisko, tel, !halt);
+                    map = await FetchTransportMapAsync();  // re-fetch po insertach
+                }
+            }
+            catch { /* backfill best-effort, nie blokuje czytania */ }
+
+            _tCache = map; _tCacheTime = DateTime.UtcNow;
+            return map;
+        }
+
+        private async Task<Dictionary<int, TKierowca>> FetchTransportMapAsync()
+        {
             var map = new Dictionary<int, TKierowca>();
             using var conn = new SqlConnection(_connTransport);
             await conn.OpenAsync();
@@ -145,8 +170,39 @@ namespace Kalendarz1.Flota.Services
                     Aktywny = r["Aktywny"] != DBNull.Value && Convert.ToBoolean(r["Aktywny"])
                 };
             }
-            _tCache = map; _tCacheTime = DateTime.UtcNow;
             return map;
+        }
+
+        /// <summary>Ładuje LibraNet.Driver + DriverDetails (FirstName/LastName/Phone1) dla backfill.</summary>
+        private async Task<List<(int gid, string imie, string nazwisko, string? tel, bool halt)>> FetchLibraNetDriversForBackfillAsync()
+        {
+            var list = new List<(int, string, string, string?, bool)>();
+            using var conn = new SqlConnection(_connectionString);
+            await conn.OpenAsync();
+            using var cmd = new SqlCommand(@"
+                SELECT d.GID, d.Name, d.Halt, dd.FirstName, dd.LastName, dd.Phone1
+                FROM Driver d
+                LEFT JOIN DriverDetails dd ON d.GID = dd.DriverGID
+                WHERE d.Deleted = 0", conn);
+            using var r = await cmd.ExecuteReaderAsync();
+            while (await r.ReadAsync())
+            {
+                int gid = Convert.ToInt32(r["GID"]);
+                string fn = r["FirstName"] == DBNull.Value ? "" : r["FirstName"].ToString() ?? "";
+                string ln = r["LastName"]  == DBNull.Value ? "" : r["LastName"].ToString()  ?? "";
+                // Fallback: split Driver.Name "Imie Nazwisko" gdy DriverDetails puste
+                if (string.IsNullOrWhiteSpace(fn) && string.IsNullOrWhiteSpace(ln))
+                {
+                    var name = r["Name"]?.ToString() ?? "";
+                    var parts = name.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+                    if (parts.Length >= 1) fn = parts[0];
+                    if (parts.Length >= 2) ln = parts[1];
+                }
+                string? tel = r["Phone1"] == DBNull.Value ? null : r["Phone1"].ToString();
+                bool halt = r["Halt"] != DBNull.Value && Convert.ToBoolean(r["Halt"]);
+                list.Add((gid, fn, ln, tel, halt));
+            }
+            return list;
         }
 
         /// <summary>UPSERT do TransportPL.Kierowca po LibraNetDriverGID (sync edycji).</summary>
