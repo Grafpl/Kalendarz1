@@ -31,7 +31,7 @@ namespace Kalendarz1.Flota.Windows
             if (!_isNew && _gid.HasValue)
             {
                 await LoadDriverDataAsync();
-                await LoadAssignmentsAsync();
+                // LoadAssignmentsAsync() wylaczone — pobiera z LibraNet (legacy)
             }
         }
 

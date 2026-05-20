@@ -162,7 +162,7 @@
             </TabItem>
 
             <!-- ═══ TAB: Dokumenty/Ubezpieczenia ═══ -->
-            <TabItem Header="  Dokumenty/Ubezp.  ">
+            <TabItem Header="  Dokumenty/Ubezp.  " Visibility="Collapsed">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16">
                     <StackPanel>
                         <Border Style="{StaticResource SectionBorder}">
@@ -223,7 +223,7 @@
             </TabItem>
 
             <!-- ═══ TAB: Kierowcy ═══ -->
-            <TabItem Header="  Kierowcy  ">
+            <TabItem Header="  Kierowcy  " Visibility="Collapsed">
                 <Grid Margin="8">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -273,7 +273,7 @@
             </TabItem>
 
             <!-- ═══ TAB: Serwis ═══ -->
-            <TabItem Header="  Serwis  ">
+            <TabItem Header="  Serwis  " Visibility="Collapsed">
                 <Grid Margin="8">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>

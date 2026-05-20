@@ -82,23 +82,31 @@ namespace Kalendarz1
                     hodowcaAdapter.Fill(hodowcyTable);
                     colHodowca.ItemsSource = hodowcyTable.DefaultView;
 
-                    // Kierowcy
-                    string driverQuery = @"SELECT GID, [Name] FROM [LibraNet].[dbo].[Driver] WHERE Deleted = 0 ORDER BY Name ASC";
-                    SqlDataAdapter driverAdapter = new SqlDataAdapter(driverQuery, connection);
+                }
+
+                // PRIMARY: TransportPL.Kierowca + TransportPL.Pojazd (zgodnie z edytorem kursu)
+                using (SqlConnection connT = new SqlConnection(connectionStringTransport))
+                {
+                    connT.Open();
+
+                    // Kierowcy z TransportPL.Kierowca
+                    string driverQuery = @"SELECT KierowcaID AS GID, (Imie + ' ' + Nazwisko) AS Name
+                                           FROM dbo.Kierowca WHERE Aktywny = 1
+                                           ORDER BY Nazwisko, Imie";
+                    SqlDataAdapter driverAdapter = new SqlDataAdapter(driverQuery, connT);
                     kierowcyTable = new DataTable();
                     driverAdapter.Fill(kierowcyTable);
                     colKierowca.ItemsSource = kierowcyTable.DefaultView;
 
-                    // Ciągniki
-                    string carQuery = @"SELECT DISTINCT ID FROM dbo.CarTrailer WHERE kind = '1' ORDER BY ID DESC";
-                    SqlDataAdapter carAdapter = new SqlDataAdapter(carQuery, connection);
+                    // Pojazdy z TransportPL.Pojazd — uzywane jako ciagniki i naczepy
+                    string vehicleQuery = @"SELECT Rejestracja AS ID FROM dbo.Pojazd
+                                            WHERE Aktywny = 1 ORDER BY Rejestracja";
+                    SqlDataAdapter carAdapter = new SqlDataAdapter(vehicleQuery, connT);
                     ciagnikiTable = new DataTable();
                     carAdapter.Fill(ciagnikiTable);
                     colCiagnik.ItemsSource = ciagnikiTable.DefaultView;
 
-                    // Naczepy
-                    string trailerQuery = @"SELECT DISTINCT ID FROM dbo.CarTrailer WHERE kind = '2' ORDER BY ID DESC";
-                    SqlDataAdapter trailerAdapter = new SqlDataAdapter(trailerQuery, connection);
+                    SqlDataAdapter trailerAdapter = new SqlDataAdapter(vehicleQuery, connT);
                     naczepyTable = new DataTable();
                     trailerAdapter.Fill(naczepyTable);
                     colNaczepa.ItemsSource = naczepyTable.DefaultView;

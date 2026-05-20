@@ -100,7 +100,7 @@
             </TabItem>
 
             <!-- ═══ TAB: Dokumenty ═══ -->
-            <TabItem Header="  Dokumenty  ">
+            <TabItem Header="  Dokumenty  " Visibility="Collapsed">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16">
                     <StackPanel>
                         <!-- Prawo jazdy -->
@@ -184,7 +184,7 @@
             </TabItem>
 
             <!-- ═══ TAB: Pojazdy i historia ═══ -->
-            <TabItem Header="  Pojazdy i historia  ">
+            <TabItem Header="  Pojazdy i historia  " Visibility="Collapsed">
                 <Grid Margin="8">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -237,7 +237,7 @@
             </TabItem>
 
             <!-- ═══ TAB: Statystyki ═══ -->
-            <TabItem Header="  Statystyki  ">
+            <TabItem Header="  Statystyki  " Visibility="Collapsed">
                 <StackPanel Margin="16">
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
                         <TextBlock Text="Od:" VerticalAlignment="Center" Margin="0,0,6,0"/>

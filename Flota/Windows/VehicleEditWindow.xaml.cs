@@ -30,8 +30,7 @@ namespace Kalendarz1.Flota.Windows
                 TxtID.IsReadOnly = true;
                 TxtID.Background = System.Windows.Media.Brushes.LightGray;
                 await LoadVehicleDataAsync();
-                await LoadAssignmentsAsync();
-                await LoadServiceLogsAsync();
+                // LoadAssignmentsAsync() / LoadServiceLogsAsync() wylaczone — pobieraja z LibraNet (legacy)
             }
         }
 

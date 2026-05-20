@@ -223,9 +223,9 @@
                                 <Button x:Name="BtnEdytujPojazd" Content="Edytuj" Style="{StaticResource ToolbarButton}"
                                         Background="#2980B9" Click="BtnEdytujPojazd_Click"/>
                                 <Button x:Name="BtnSerwis" Content="Serwis" Style="{StaticResource ToolbarButton}"
-                                        Background="#8E44AD" Click="BtnSerwis_Click"/>
+                                        Background="#8E44AD" Click="BtnSerwis_Click" Visibility="Collapsed"/>
                                 <Button x:Name="BtnTankowanie" Content="Tankowanie" Style="{StaticResource ToolbarButton}"
-                                        Background="#D35400" Click="BtnTankowanie_Click"/>
+                                        Background="#D35400" Click="BtnTankowanie_Click" Visibility="Collapsed"/>
                                 <Border Width="1" Background="#5D6D7E" Margin="6,8"/>
                                 <Button Content="Excel" Style="{StaticResource ToolbarButton}"
                                         Background="#1E8449" Click="BtnExcelPojazdy_Click"/>
@@ -316,7 +316,7 @@
             </TabItem>
 
             <!-- ═══════════ TAB 3: PRZYPISANIA ═══════════ -->
-            <TabItem Header="  PRZYPISANIA  ">
+            <TabItem Header="  PRZYPISANIA  " Visibility="Collapsed">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>

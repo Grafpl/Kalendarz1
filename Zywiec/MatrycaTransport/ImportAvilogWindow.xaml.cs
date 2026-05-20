@@ -14,6 +14,8 @@ namespace Kalendarz1
     public partial class ImportAvilogWindow : Window
     {
         private string connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+        private const string _connTransport =
+            "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True";
 
         private ObservableCollection<ImportAvilogRow> importData;
         private AvilogPdfParser parser;
@@ -122,10 +124,11 @@ namespace Kalendarz1
 
             try
             {
-                using (SqlConnection conn = new SqlConnection(connectionString))
+                // PRIMARY = TransportPL.Pojazd
+                using (SqlConnection conn = new SqlConnection(_connTransport))
                 {
                     conn.Open();
-                    string query = "SELECT DISTINCT ID FROM dbo.CarTrailer WHERE kind = '1' ORDER BY ID DESC";
+                    string query = "SELECT Rejestracja AS ID FROM dbo.Pojazd WHERE Aktywny = 1 ORDER BY Rejestracja";
                     using (SqlCommand cmd = new SqlCommand(query, conn))
                     using (SqlDataReader reader = cmd.ExecuteReader())
                     {
@@ -152,10 +155,11 @@ namespace Kalendarz1
 
             try
             {
-                using (SqlConnection conn = new SqlConnection(connectionString))
+                // PRIMARY = TransportPL.Pojazd
+                using (SqlConnection conn = new SqlConnection(_connTransport))
                 {
                     conn.Open();
-                    string query = "SELECT DISTINCT ID FROM dbo.CarTrailer WHERE kind = '2' ORDER BY ID DESC";
+                    string query = "SELECT Rejestracja AS ID FROM dbo.Pojazd WHERE Aktywny = 1 ORDER BY Rejestracja";
                     using (SqlCommand cmd = new SqlCommand(query, conn))
                     using (SqlDataReader reader = cmd.ExecuteReader())
                     {

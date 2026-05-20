@@ -13,6 +13,9 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
         #region Pola
 
         private string connectionString;
+        // TransportPL conn — primary zrodlo kierowcow i pojazdow (zgodnie z edytorem kursu)
+        private const string _connTransport =
+            "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True";
 
         public bool SpecyfikacjaCreated { get; private set; } = false;
         public int CreatedSpecId { get; private set; } = 0;
@@ -272,10 +275,11 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
 
             try
             {
-                using (SqlConnection conn = new SqlConnection(connectionString))
+                // PRIMARY = TransportPL.Pojazd (zgodnie z edytorem kursu)
+                using (SqlConnection conn = new SqlConnection(_connTransport))
                 {
                     conn.Open();
-                    string query = "SELECT DISTINCT ID FROM dbo.CarTrailer WHERE kind = '1' ORDER BY ID";
+                    string query = "SELECT Rejestracja AS ID FROM dbo.Pojazd WHERE Aktywny = 1 ORDER BY Rejestracja";
 
                     using (SqlCommand cmd = new SqlCommand(query, conn))
                     using (SqlDataReader reader = cmd.ExecuteReader())
@@ -310,10 +314,11 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
 
             try
             {
-                using (SqlConnection conn = new SqlConnection(connectionString))
+                // PRIMARY = TransportPL.Pojazd (zgodnie z edytorem kursu) — wszystkie pojazdy aktywne
+                using (SqlConnection conn = new SqlConnection(_connTransport))
                 {
                     conn.Open();
-                    string query = "SELECT DISTINCT ID FROM dbo.CarTrailer WHERE kind = '2' ORDER BY ID";
+                    string query = "SELECT Rejestracja AS ID FROM dbo.Pojazd WHERE Aktywny = 1 ORDER BY Rejestracja";
 
                     using (SqlCommand cmd = new SqlCommand(query, conn))
                     using (SqlDataReader reader = cmd.ExecuteReader())
@@ -348,10 +353,13 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
 
             try
             {
-                using (SqlConnection conn = new SqlConnection(connectionString))
+                // PRIMARY = TransportPL.Kierowca (zgodnie z edytorem kursu)
+                using (SqlConnection conn = new SqlConnection(_connTransport))
                 {
                     conn.Open();
-                    string query = "SELECT GID, Name FROM dbo.Driver WHERE halt = 0 ORDER BY Name";
+                    string query = @"SELECT KierowcaID AS GID, (Imie + ' ' + Nazwisko) AS Name
+                                     FROM dbo.Kierowca WHERE Aktywny = 1
+                                     ORDER BY Nazwisko, Imie";
 
                     using (SqlCommand cmd = new SqlCommand(query, conn))
                     using (SqlDataReader reader = cmd.ExecuteReader())
