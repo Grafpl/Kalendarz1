@@ -267,6 +267,18 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
             foreach (var query in polishQueries)
             {
                 ct.ThrowIfCancellationRequested();
+
+                // Early-abort: jeśli już wiemy że budżet wyczerpany, przerwij całą pętlę.
+                // Bez tego 16 × 600ms delay + log spam = ~10s marnowania na pustych call'ach.
+                lock (_budgetLock)
+                {
+                    if (_dailyQueryCount >= _dailyQueryLimit)
+                    {
+                        Debug.WriteLine($"[Perplexity] ⏹ Budżet 30/30 wyczerpany — przerywam pozostałe {polishQueries.Count - currentQuery} zapytań");
+                        break;
+                    }
+                }
+
                 currentQuery++;
                 var queryPreview = query.Substring(0, Math.Min(50, query.Length));
                 Debug.WriteLine($"[Perplexity] [{currentQuery}/{totalQueries}] {queryPreview}...");

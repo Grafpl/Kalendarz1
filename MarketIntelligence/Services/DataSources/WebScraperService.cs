@@ -94,12 +94,16 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
                 {
                     Debug.WriteLine("[Scraper] Fetching GLW HPAI alerts...");
 
-                    // Main HPAI page
+                    // Main HPAI page — 2026-05-20 stare URL'e zwracają 404, dodano nowe kandydaty.
+                    // Kolejność: najpierw ścieżki potencjalnie aktywne, później archiwum.
                     var urls = new[]
                     {
-                        "https://www.wetgiw.gov.pl/nadzor-weterynaryjny/wysoce-zjadliwa-grypa-ptakow-hpai",
-                        "https://www.wetgiw.gov.pl/nadzor-weterynaryjny/grypa-ptakow",
-                        "https://www.wetgiw.gov.pl/nadzor-weterynaryjny/choroby-zakazne-zwierzat"
+                        "https://www.wetgiw.gov.pl/aktualnosci",                                       // główne aktualności
+                        "https://www.wetgiw.gov.pl/main/aktualnosci",                                  // alt path
+                        "https://www.wetgiw.gov.pl/main/zdrowie-zwierzat-i-zwalczanie-chorob",         // dział HPAI
+                        "https://www.wetgiw.gov.pl/main/zdrowie-zwierzat-i-zwalczanie-chorob/hpai",    // ewentualny sub-path
+                        "https://www.wetgiw.gov.pl/nadzor-weterynaryjny/wysoce-zjadliwa-grypa-ptakow-hpai",  // legacy (404 obecnie)
+                        "https://www.wetgiw.gov.pl/nadzor-weterynaryjny/grypa-ptakow",                 // legacy (404)
                     };
 
                     foreach (var url in urls)

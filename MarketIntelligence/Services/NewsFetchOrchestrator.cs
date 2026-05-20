@@ -1002,7 +1002,9 @@ WHEN NOT MATCHED THEN INSERT (
         public bool FetchHpaiAlerts { get; set; } = true;
         public bool FetchPrices { get; set; } = true;
         public bool SaveToDatabase { get; set; } = true;
-        public int MaxArticlesToAnalyze { get; set; } = 20;
+        // 2026-05-20: Default 20 → 5 — niespójność z Full/Economy powodowała AI Analysis timeout 360s
+        // gdy ktokolwiek wywołał FetchOptions.Default (np. auto-cron 6:00 przez RefreshFromInternetCommand).
+        public int MaxArticlesToAnalyze { get; set; } = 5;
 
         public static FetchOptions Default => new();
 
