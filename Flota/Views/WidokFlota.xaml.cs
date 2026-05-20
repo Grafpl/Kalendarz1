@@ -18,7 +18,7 @@ namespace Kalendarz1.Flota.Views
         private DataTable? _dtKierowcy;
         private DataTable? _dtPojazdy;
         private DataTable? _dtPrzypisania;
-        private DispatcherTimer? _autoRefreshTimer;
+        // _autoRefreshTimer usuniety — automatyczny refresh alertow (LibraNet) wylaczony
 
         public WidokFlota()
         {
@@ -38,10 +38,9 @@ namespace Kalendarz1.Flota.Views
 
         private async void UserControl_Loaded(object sender, RoutedEventArgs e)
         {
+            // ═══ TYLKO TransportPL ═══ Brak wywolan: EnsureTablesExistAsync (LibraNet sys.tables),
+            // LoadAssignmentsAsync (LibraNet DriverVehicleAssignment), LoadAlertsAsync (LibraNet DriverDetails/VehicleDetails).
             var errors = new System.Collections.Generic.List<string>();
-
-            try { await _svc.EnsureTablesExistAsync(); }
-            catch (Exception ex) { errors.Add($"[CREATE TABLES] {ex.GetType().Name}: {ex.Message}"); }
 
             try { await LoadDriversAsync(); }
             catch (Exception ex) { errors.Add($"[Kierowcy] {ex.GetType().Name}: {ex.Message}"); }
@@ -49,23 +48,14 @@ namespace Kalendarz1.Flota.Views
             try { await LoadVehiclesAsync(); }
             catch (Exception ex) { errors.Add($"[Pojazdy] {ex.GetType().Name}: {ex.Message}"); }
 
-            try { await LoadAssignmentsAsync(); }
-            catch (Exception ex) { errors.Add($"[Przypisania] {ex.GetType().Name}: {ex.Message}"); }
-
-            try { await LoadAlertsAsync(); }
-            catch (Exception ex) { errors.Add($"[Alerty] {ex.GetType().Name}: {ex.Message}"); }
+            // Tab Przypisania + Alerty panel — wylaczone (legacy LibraNet); nie ladujemy automatycznie.
+            if (PanelAlerty != null) PanelAlerty.Visibility = Visibility.Collapsed;
 
             if (errors.Count > 0)
             {
-                string msg = "Bledy podczas ladowania modulu Flota:\n\n" + string.Join("\n\n", errors)
-                    + "\n\nUpewnij sie, ze tabele zostaly utworzone (Flota/SQL/CreateFlotaTables.sql)."
-                    + "\n\n(Ctrl+C na tym oknie skopiuje tresc do schowka)";
+                string msg = "Bledy podczas ladowania modulu Flota:\n\n" + string.Join("\n\n", errors);
                 MessageBox.Show(msg, "Flota - bledy ladowania", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
-
-            _autoRefreshTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(5) };
-            _autoRefreshTimer.Tick += async (s, a) => { try { await LoadAlertsAsync(); } catch { } };
-            _autoRefreshTimer.Start();
         }
 
         // ══════════════════════════════════════════════════════════════
