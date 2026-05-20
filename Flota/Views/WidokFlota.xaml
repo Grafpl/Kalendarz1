@@ -149,14 +149,11 @@
                                          SelectedItemChanged="GridKierowcy_SelectedItemChanged"
                                          MouseDoubleClick="GridKierowcy_MouseDoubleClick">
                             <dxg:GridControl.Columns>
-                                <dxg:GridColumn FieldName="GID" Header="ID" Width="50" ReadOnly="True"/>
-                                <dxg:GridColumn FieldName="Name" Header="Imie i nazwisko" Width="180" ReadOnly="True"/>
-                                <dxg:GridColumn FieldName="Phone1" Header="Telefon" Width="120" ReadOnly="True"/>
-                                <dxg:GridColumn FieldName="TypZatrudnienia" Header="Typ" Width="80" ReadOnly="True"/>
-                                <dxg:GridColumn FieldName="Halt" Header="Halt" Width="50" ReadOnly="True"/>
-                                <dxg:GridColumn FieldName="AktualneAuta" Header="Pojazd" Width="150" ReadOnly="True"/>
-                                <dxg:GridColumn FieldName="KursySkup30d" Header="Kursy 30d" Width="80" ReadOnly="True"/>
-                                <dxg:GridColumn FieldName="Km30d" Header="Km 30d" Width="80" ReadOnly="True"/>
+                                <dxg:GridColumn FieldName="GID" Header="ID" Width="55" ReadOnly="True"/>
+                                <dxg:GridColumn FieldName="Imie" Header="Imie" Width="120" ReadOnly="True"/>
+                                <dxg:GridColumn FieldName="Nazwisko" Header="Nazwisko" Width="160" ReadOnly="True"/>
+                                <dxg:GridColumn FieldName="Telefon" Header="Telefon" Width="130" ReadOnly="True"/>
+                                <dxg:GridColumn FieldName="Aktywny" Header="Aktywny" Width="80" ReadOnly="True"/>
                             </dxg:GridControl.Columns>
                             <dxg:GridControl.View>
                                 <dxg:TableView AutoWidth="True"
@@ -265,14 +262,12 @@
                                          SelectedItemChanged="GridPojazdy_SelectedItemChanged"
                                          MouseDoubleClick="GridPojazdy_MouseDoubleClick">
                             <dxg:GridControl.Columns>
-                                <dxg:GridColumn FieldName="ID" Header="Symbol" Width="60" ReadOnly="True"/>
-                                <dxg:GridColumn FieldName="Registration" Header="Rejestracja" Width="110" ReadOnly="True"/>
-                                <dxg:GridColumn FieldName="Kind" Header="Typ" Width="50" ReadOnly="True"/>
-                                <dxg:GridColumn FieldName="Brand" Header="Marka" Width="80" ReadOnly="True"/>
-                                <dxg:GridColumn FieldName="Model" Header="Model" Width="100" ReadOnly="True"/>
-                                <dxg:GridColumn FieldName="Capacity" Header="Ladownosc" Width="80" ReadOnly="True"/>
-                                <dxg:GridColumn FieldName="AktualnyKierowca" Header="Kierowca" Width="150" ReadOnly="True"/>
-                                <dxg:GridColumn FieldName="KosztyYTD" Header="Koszty YTD" Width="90" ReadOnly="True"/>
+                                <dxg:GridColumn FieldName="ID" Header="ID" Width="55" ReadOnly="True"/>
+                                <dxg:GridColumn FieldName="Registration" Header="Rejestracja" Width="130" ReadOnly="True"/>
+                                <dxg:GridColumn FieldName="Brand" Header="Marka" Width="120" ReadOnly="True"/>
+                                <dxg:GridColumn FieldName="Model" Header="Model" Width="160" ReadOnly="True"/>
+                                <dxg:GridColumn FieldName="MaxPaletH1" Header="Palety H1" Width="90" ReadOnly="True"/>
+                                <dxg:GridColumn FieldName="Aktywny" Header="Aktywny" Width="80" ReadOnly="True"/>
                             </dxg:GridControl.Columns>
                             <dxg:GridControl.View>
                                 <dxg:TableView AutoWidth="True"

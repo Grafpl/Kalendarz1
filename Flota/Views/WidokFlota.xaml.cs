@@ -86,19 +86,18 @@ namespace Kalendarz1.Flota.Views
             var dv = _dtKierowcy.DefaultView;
             var filters = new System.Collections.Generic.List<string>();
 
-            // Status filter
+            // Status filter (Aktywny=1 vs 0)
             string status = (CmbStatusKierowcy.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Aktywni";
-            if (status == "Aktywni") filters.Add("Halt = 0");
-            else if (status == "Wstrzymani") filters.Add("Halt = 1");
+            if (status == "Aktywni") filters.Add("Aktywny = 1");
+            else if (status == "Wstrzymani") filters.Add("Aktywny = 0");
 
-            // Type filter
-            string typ = (CmbTypKierowcy.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Wszyscy";
-            if (typ != "Wszyscy") filters.Add($"TypZatrudnienia = '{typ}'");
-
-            // Search filter
+            // Search filter — Imie/Nazwisko/Telefon
             string search = TxtSzukajKierowce?.Text?.Trim() ?? "";
             if (search.Length > 0)
-                filters.Add($"(Name LIKE '%{search.Replace("'", "''")}%' OR Phone1 LIKE '%{search.Replace("'", "''")}%')");
+            {
+                string s = search.Replace("'", "''");
+                filters.Add($"(Imie LIKE '%{s}%' OR Nazwisko LIKE '%{s}%' OR Telefon LIKE '%{s}%')");
+            }
 
             dv.RowFilter = string.Join(" AND ", filters);
             GridKierowcy.ItemsSource = dv;
@@ -139,22 +138,18 @@ namespace Kalendarz1.Flota.Views
                 return;
             }
 
+            // PRIMARY TransportPL.Kierowca — tylko 4 pola
             TxtKierowcaNazwa.Text = row["Name"]?.ToString() ?? "";
-            TxtKierowcaTelefon.Text = $"Tel: {row["Phone1"]}";
-            TxtKierowcaTyp.Text = $"Typ: {row["TypZatrudnienia"]}";
-
-            var dataZatr = row["DataZatrudnienia"];
-            TxtKierowcaOd.Text = dataZatr != DBNull.Value ? $"Od: {((DateTime)dataZatr):yyyy-MM-dd}" : "";
-
-            TxtKierowcaPJ.Text = FormatDocDate(row, "DataWaznosciPJ", "KategoriePrawaJazdy");
-            TxtKierowcaBadania.Text = FormatDocDate(row, "DataWazBadanLek");
-            TxtKierowcaBHP.Text = FormatDocDate(row, "DataWazBHP");
-
-            TxtKierowcaPojazdy.Text = row["AktualneAuta"]?.ToString() ?? "(brak)";
-
-            int kursy = row["KursySkup30d"] != DBNull.Value ? Convert.ToInt32(row["KursySkup30d"]) : 0;
-            int km = row["Km30d"] != DBNull.Value ? Convert.ToInt32(row["Km30d"]) : 0;
-            TxtKierowcaStats.Text = $"Kursy skup: {kursy}\nKm lacznie: {km:N0}";
+            string tel = row.Table.Columns.Contains("Telefon") ? row["Telefon"]?.ToString() ?? "" : "";
+            TxtKierowcaTelefon.Text = string.IsNullOrEmpty(tel) ? "Tel: —" : $"Tel: {tel}";
+            bool aktywny = row.Table.Columns.Contains("Aktywny") && Convert.ToBoolean(row["Aktywny"]);
+            TxtKierowcaTyp.Text = aktywny ? "Status: Aktywny" : "Status: Wstrzymany";
+            TxtKierowcaOd.Text = "";
+            TxtKierowcaPJ.Text = "(brak danych)";
+            TxtKierowcaBadania.Text = "(brak danych)";
+            TxtKierowcaBHP.Text = "(brak danych)";
+            TxtKierowcaPojazdy.Text = "(brak danych)";
+            TxtKierowcaStats.Text = "(brak danych)";
         }
 
         private static string FormatDocDate(DataRow row, string dateField, string? extraField = null)
@@ -307,29 +302,23 @@ namespace Kalendarz1.Flota.Views
                 return;
             }
 
+            // PRIMARY TransportPL.Pojazd — tylko Rejestracja/Marka/Model/PaletyH1/Aktywny
             string brand = row["Brand"]?.ToString() ?? "";
             string model = row["Model"]?.ToString() ?? "";
             TxtPojazdNazwa.Text = $"{brand} {model}".Trim();
             TxtPojazdRejestracja.Text = row["Registration"]?.ToString() ?? row["ID"]?.ToString() ?? "";
 
-            int kind = row["Kind"] != DBNull.Value ? Convert.ToInt32(row["Kind"]) : 0;
-            TxtPojazdTyp.Text = kind == 1 ? "Samochod" : kind == 2 ? "Naczepa" : $"Typ {kind}";
+            int palety = row.Table.Columns.Contains("MaxPaletH1") && row["MaxPaletH1"] != DBNull.Value
+                ? Convert.ToInt32(row["MaxPaletH1"]) : 0;
+            bool aktywny = row.Table.Columns.Contains("Aktywny") && Convert.ToBoolean(row["Aktywny"]);
+            TxtPojazdTyp.Text = $"Palety H1: {palety}   ·   {(aktywny ? "Aktywny" : "Wstrzymany")}";
 
-            TxtPojazdVIN.Text = row["VIN"] != DBNull.Value ? $"VIN: {row["VIN"]}" : "";
-
-            TxtPojazdPrzeglad.Text = row["DataPrzegladu"] != DBNull.Value
-                ? FormatDocDate(row, "DataPrzegladu")
-                : "Przeglad: (brak danych)";
-
-            TxtPojazdOC.Text = row["DataUbezpieczenia"] != DBNull.Value
-                ? FormatDocDate(row, "DataUbezpieczenia")
-                : "OC/AC: (brak danych)";
-
-            TxtPojazdKierowca.Text = row["AktualnyKierowca"]?.ToString() ?? "(brak przypisanego)";
-            TxtPojazdSerwis.Text = row["OstatniSerwis"]?.ToString() ?? "(brak wpisow)";
-
-            decimal koszty = row["KosztyYTD"] != DBNull.Value ? Convert.ToDecimal(row["KosztyYTD"]) : 0;
-            TxtPojazdKoszty.Text = $"{koszty:N2} PLN (rok biezacy)";
+            TxtPojazdVIN.Text = "";
+            TxtPojazdPrzeglad.Text = "(brak danych)";
+            TxtPojazdOC.Text = "(brak danych)";
+            TxtPojazdKierowca.Text = "(brak danych)";
+            TxtPojazdSerwis.Text = "(brak danych)";
+            TxtPojazdKoszty.Text = "(brak danych)";
         }
 
         private DataRow? GetSelectedVehicleRow()
