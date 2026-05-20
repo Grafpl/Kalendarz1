@@ -843,10 +843,8 @@ namespace Kalendarz1.Flota.Services
 
         public async Task<DataTable> GetVehiclesAsync()
         {
-            // PRIMARY = TransportPL.Pojazd (te same auta co edytor kursu)
-            await EnsurePojazdyBackfillAsync();   // dla każdego LibraNet bez TransportPL match → INSERT
+            // ═══ WYŁĄCZNIE TransportPL.Pojazd — bez LibraNet, bez backfill ═══
             var tAll = await FetchTransportPojazdyAllAsync();
-            var detailMap = await FetchLibraNetVehicleDetailMapAsync();
 
             var dt = new DataTable();
             dt.Columns.Add("ID", typeof(string));
@@ -854,6 +852,10 @@ namespace Kalendarz1.Flota.Services
             dt.Columns.Add("Brand", typeof(string));
             dt.Columns.Add("Model", typeof(string));
             dt.Columns.Add("Registration", typeof(string));
+            dt.Columns.Add("MaxPaletH1", typeof(int));
+            dt.Columns.Add("AktualnyKierowca", typeof(string));
+            dt.Columns.Add("KosztyYTD", typeof(decimal));
+            // Pozostałe kolumny zachowane w schema dla detail panel (puste — TransportPL.Pojazd ich nie ma):
             dt.Columns.Add("Capacity", typeof(decimal));
             dt.Columns.Add("VIN", typeof(string));
             dt.Columns.Add("RokProdukcji", typeof(int));
@@ -862,7 +864,6 @@ namespace Kalendarz1.Flota.Services
             dt.Columns.Add("DataUbezpieczenia", typeof(DateTime));
             dt.Columns.Add("PrzebiegKm", typeof(int));
             dt.Columns.Add("MaxLadownoscKg", typeof(int));
-            dt.Columns.Add("MaxPaletH1", typeof(int));
             dt.Columns.Add("SrednieSpalanie", typeof(decimal));
             dt.Columns.Add("NrPolisyOC", typeof(string));
             dt.Columns.Add("NrPolisyAC", typeof(string));
@@ -873,47 +874,17 @@ namespace Kalendarz1.Flota.Services
             dt.Columns.Add("PojemnoscBaku", typeof(int));
             dt.Columns.Add("MaxPojemnikE2", typeof(int));
             dt.Columns.Add("VdUwagi", typeof(string));
-            dt.Columns.Add("AktualnyKierowca", typeof(string));
             dt.Columns.Add("OstatniSerwis", typeof(string));
-            dt.Columns.Add("KosztyYTD", typeof(decimal));
 
-            foreach (var t in tAll.OrderBy(t => t.Rejestracja))
+            foreach (var t in tAll.OrderBy(t => !t.Aktywny).ThenBy(t => t.Rejestracja))
             {
                 var row = dt.NewRow();
-                // ID = LibraNetCarTrailerID gdy zmapowany, inaczej "T" + PojazdID (string, by działało)
-                row["ID"] = !string.IsNullOrEmpty(t.LibraNetCarTrailerID) ? t.LibraNetCarTrailerID : $"T{t.PojazdID}";
+                row["ID"] = t.PojazdID.ToString();
                 row["Registration"] = t.Rejestracja;
                 row["Brand"] = (object?)t.Marka ?? DBNull.Value;
                 row["Model"] = (object?)t.Model ?? DBNull.Value;
                 row["MaxPaletH1"] = t.PaletyH1;
                 row["KosztyYTD"] = 0m;
-
-                if (!string.IsNullOrEmpty(t.LibraNetCarTrailerID) && detailMap.TryGetValue(t.LibraNetCarTrailerID, out var d))
-                {
-                    row["Kind"] = (object?)d.Kind ?? DBNull.Value;
-                    if (d.Capacity.HasValue) row["Capacity"] = d.Capacity.Value;
-                    row["VIN"] = (object?)d.VIN ?? DBNull.Value;
-                    if (d.RokProdukcji.HasValue) row["RokProdukcji"] = d.RokProdukcji.Value;
-                    row["TypNadwozia"] = (object?)d.TypNadwozia ?? DBNull.Value;
-                    if (d.DataPrzegladu.HasValue) row["DataPrzegladu"] = d.DataPrzegladu.Value;
-                    if (d.DataUbezpieczenia.HasValue) row["DataUbezpieczenia"] = d.DataUbezpieczenia.Value;
-                    if (d.PrzebiegKm.HasValue) row["PrzebiegKm"] = d.PrzebiegKm.Value;
-                    if (d.MaxLadownoscKg.HasValue) row["MaxLadownoscKg"] = d.MaxLadownoscKg.Value;
-                    if (d.MaxPaletH1.HasValue) row["MaxPaletH1"] = d.MaxPaletH1.Value;
-                    if (d.SrednieSpalanie.HasValue) row["SrednieSpalanie"] = d.SrednieSpalanie.Value;
-                    row["NrPolisyOC"] = (object?)d.NrPolisyOC ?? DBNull.Value;
-                    row["NrPolisyAC"] = (object?)d.NrPolisyAC ?? DBNull.Value;
-                    row["Ubezpieczyciel"] = (object?)d.Ubezpieczyciel ?? DBNull.Value;
-                    if (d.TemperaturaMin.HasValue) row["TemperaturaMin"] = d.TemperaturaMin.Value;
-                    if (d.TemperaturaMax.HasValue) row["TemperaturaMax"] = d.TemperaturaMax.Value;
-                    row["GPSModul"] = (object?)d.GPSModul ?? DBNull.Value;
-                    if (d.PojemnoscBaku.HasValue) row["PojemnoscBaku"] = d.PojemnoscBaku.Value;
-                    if (d.MaxPojemnikE2.HasValue) row["MaxPojemnikE2"] = d.MaxPojemnikE2.Value;
-                    row["VdUwagi"] = (object?)d.VdUwagi ?? DBNull.Value;
-                    row["AktualnyKierowca"] = (object?)d.AktualnyKierowca ?? DBNull.Value;
-                    row["OstatniSerwis"] = (object?)d.OstatniSerwis ?? DBNull.Value;
-                    if (d.KosztyYTD.HasValue) row["KosztyYTD"] = d.KosztyYTD.Value;
-                }
                 dt.Rows.Add(row);
             }
             return dt;
@@ -1403,23 +1374,18 @@ namespace Kalendarz1.Flota.Services
 
         public async Task<DataTable> GetActiveVehiclesComboAsync()
         {
-            // Combo zasilane z TransportPL.Pojazd (te same auta co edytor kursu).
-            // ID zwracane = LibraNetCarTrailerID (potrzebne dla DriverVehicleAssignment.CarTrailerID FK).
-            // Niezmapowane pomijane (nie da się przypisać przez FK).
-            await EnsurePojazdyBackfillAsync();
+            // WYŁĄCZNIE z TransportPL.Pojazd. ID = PojazdID (string).
             var tAll = await FetchTransportPojazdyAllAsync();
             var dt = new DataTable();
             dt.Columns.Add("ID", typeof(string));
             dt.Columns.Add("Kind", typeof(string));
             dt.Columns.Add("Display", typeof(string));
-            foreach (var t in tAll
-                .Where(t => t.Aktywny && !string.IsNullOrEmpty(t.LibraNetCarTrailerID))
-                .OrderBy(t => t.Rejestracja))
+            foreach (var t in tAll.Where(t => t.Aktywny).OrderBy(t => t.Rejestracja))
             {
                 string display = string.IsNullOrEmpty(t.Marka)
                     ? t.Rejestracja
                     : $"{t.Marka} {t.Model} ({t.Rejestracja})";
-                dt.Rows.Add(t.LibraNetCarTrailerID, "", display);
+                dt.Rows.Add(t.PojazdID.ToString(), "", display);
             }
             return dt;
         }
