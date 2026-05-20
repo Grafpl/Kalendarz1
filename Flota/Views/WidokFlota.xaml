@@ -12,29 +12,33 @@
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
 
-        <Style x:Key="ToolbarButton" TargetType="Button">
-            <Setter Property="Background" Value="Transparent"/>
+        <!-- Solid action button -->
+        <Style x:Key="ActionBtn" TargetType="Button">
+            <Setter Property="Background" Value="#1A237E"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="FontFamily" Value="Segoe UI"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Padding" Value="12,6"/>
-            <Setter Property="Margin" Value="3,0"/>
+            <Setter Property="Padding" Value="14,7"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="bd" Background="{TemplateBinding Background}"
-                                CornerRadius="4" Padding="{TemplateBinding Padding}">
+                                CornerRadius="5" Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="#4DFFFFFF"/>
+                                <Setter TargetName="bd" Property="Opacity" Value="0.88"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="#2DFFFFFF"/>
+                                <Setter TargetName="bd" Property="Opacity" Value="0.7"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="bd" Property="Opacity" Value="0.4"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -42,280 +46,478 @@
             </Setter>
         </Style>
 
-        <Style x:Key="FilterCombo" TargetType="ComboBox">
+        <!-- Ghost button (subtle border) -->
+        <Style x:Key="GhostBtn" TargetType="Button" BasedOn="{StaticResource ActionBtn}">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Foreground" Value="#37474F"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}"
+                                CornerRadius="5" Padding="{TemplateBinding Padding}"
+                                BorderBrush="#CFD8DC" BorderThickness="1">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#ECEFF1"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- KPI card -->
+        <Style x:Key="KpiCard" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="16,12"/>
+            <Setter Property="Margin" Value="0,0,10,0"/>
+            <Setter Property="BorderBrush" Value="#E0E3EA"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect ShadowDepth="1" BlurRadius="6" Opacity="0.08" Direction="270"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Search box -->
+        <Style x:Key="SearchBox" TargetType="TextBox">
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Padding" Value="10,0"/>
+            <Setter Property="BorderBrush" Value="#CFD8DC"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background" Value="White"/>
+        </Style>
+
+        <!-- Status filter ComboBox -->
+        <Style x:Key="StatusCombo" TargetType="ComboBox">
+            <Setter Property="Height" Value="34"/>
             <Setter Property="FontFamily" Value="Segoe UI"/>
             <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Margin" Value="4,0"/>
-            <Setter Property="MinWidth" Value="100"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="MinWidth" Value="140"/>
+            <Setter Property="Padding" Value="10,0"/>
         </Style>
 
         <Style x:Key="DetailLabel" TargetType="TextBlock">
             <Setter Property="FontFamily" Value="Segoe UI"/>
-            <Setter Property="FontSize" Value="11"/>
-            <Setter Property="Foreground" Value="#7F8C8D"/>
-            <Setter Property="Margin" Value="0,2"/>
+            <Setter Property="FontSize" Value="10.5"/>
+            <Setter Property="Foreground" Value="#90A4AE"/>
+            <Setter Property="Margin" Value="0,8,0,2"/>
         </Style>
 
         <Style x:Key="DetailValue" TargetType="TextBlock">
             <Setter Property="FontFamily" Value="Segoe UI"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Foreground" Value="#2C3E50"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="#263238"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Margin" Value="0,0,0,6"/>
+            <Setter Property="Margin" Value="0,0,0,2"/>
         </Style>
 
-        <Style x:Key="SectionHeader" TargetType="TextBlock">
+        <!-- TabItem accent -->
+        <Style TargetType="TabItem">
+            <Setter Property="Padding" Value="22,10"/>
             <Setter Property="FontFamily" Value="Segoe UI"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="Foreground" Value="#1E3A5F"/>
-            <Setter Property="Margin" Value="0,10,0,4"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#546E7A"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter ContentSource="Header" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#FFFFFF"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="#1A237E"/>
+                                <Setter TargetName="bd" Property="BorderThickness" Value="0,0,0,3"/>
+                                <Setter Property="Foreground" Value="#1A237E"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Foreground" Value="#3949AB"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
     </UserControl.Resources>
 
-    <Grid Background="#F0F3F7">
+    <Grid Background="#F5F7FA">
         <Grid.RowDefinitions>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- MAIN TABS -->
-        <TabControl x:Name="MainTabs" Grid.Row="0" FontFamily="Segoe UI" FontSize="13" Margin="4">
+        <TabControl x:Name="MainTabs" Grid.Row="0" Background="#F5F7FA" BorderThickness="0" Margin="0">
 
-            <!-- ═══════════ TAB 1: KIEROWCY ═══════════ -->
-            <TabItem Header="  KIEROWCY  ">
-                <Grid>
+            <!-- ═══════════════ TAB 1: KIEROWCY ═══════════════ -->
+            <TabItem Header="👤  KIEROWCY  ">
+                <Grid Background="#F5F7FA">
                     <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
-                    <!-- Toolbar -->
-                    <Border Grid.Row="0" Background="#34495E" Height="50">
-                        <DockPanel Margin="10,0">
-                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                                <Button x:Name="BtnDodajKierowce" Content="+ Dodaj" Style="{StaticResource ToolbarButton}"
-                                        Background="#27AE60" Click="BtnDodajKierowce_Click"/>
-                                <Button x:Name="BtnEdytujKierowce" Content="Edytuj" Style="{StaticResource ToolbarButton}"
-                                        Background="#2980B9" Click="BtnEdytujKierowce_Click"/>
-                                <Button x:Name="BtnWstrzymajKierowce" Content="Wstrzymaj/Aktywuj" Style="{StaticResource ToolbarButton}"
-                                        Background="#E67E22" Click="BtnWstrzymajKierowce_Click"/>
-                                <Border Width="1" Background="#5D6D7E" Margin="6,8"/>
-                                <Button x:Name="BtnExcelKierowcy" Content="Excel" Style="{StaticResource ToolbarButton}"
-                                        Background="#1E8449" Click="BtnExcelKierowcy_Click"/>
-                                <Button Content="Odswiez" Style="{StaticResource ToolbarButton}"
-                                        Click="BtnOdswiezKierowcy_Click"/>
-                            </StackPanel>
+                    <!-- KPI cards -->
+                    <Grid Grid.Row="0" Margin="14,14,14,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
 
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <TextBox x:Name="TxtSzukajKierowce" Width="220" Height="28"
-                                         FontFamily="Segoe UI" FontSize="12"
-                                         VerticalContentAlignment="Center" Padding="6,0"
-                                         TextChanged="TxtSzukajKierowce_TextChanged"/>
-                                <TextBlock Text="Status:" Foreground="White" VerticalAlignment="Center" Margin="12,0,4,0"
-                                           FontFamily="Segoe UI" FontSize="11"/>
-                                <ComboBox x:Name="CmbStatusKierowcy" Style="{StaticResource FilterCombo}" Width="110"
+                        <Border Grid.Column="0" Style="{StaticResource KpiCard}">
+                            <StackPanel>
+                                <TextBlock Text="WSZYSCY KIEROWCY" Foreground="#90A4AE" FontSize="10.5" FontWeight="SemiBold"/>
+                                <TextBlock x:Name="KpiKierTotal" Text="0" Foreground="#1A237E" FontSize="32" FontWeight="Bold" Margin="0,2,0,0"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Column="1" Style="{StaticResource KpiCard}">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <Ellipse Width="9" Height="9" Fill="#43A047" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                    <TextBlock Text="AKTYWNI" Foreground="#90A4AE" FontSize="10.5" FontWeight="SemiBold"/>
+                                </StackPanel>
+                                <TextBlock x:Name="KpiKierAktywni" Text="0" Foreground="#2E7D32" FontSize="32" FontWeight="Bold" Margin="0,2,0,0"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Column="2" Style="{StaticResource KpiCard}" Margin="0">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <Ellipse Width="9" Height="9" Fill="#E65100" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                    <TextBlock Text="WSTRZYMANI" Foreground="#90A4AE" FontSize="10.5" FontWeight="SemiBold"/>
+                                </StackPanel>
+                                <TextBlock x:Name="KpiKierWstrzymani" Text="0" Foreground="#E65100" FontSize="32" FontWeight="Bold" Margin="0,2,0,0"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <!-- Toolbar: search + filter + actions -->
+                    <Border Grid.Row="1" Background="White" Padding="14,10" BorderBrush="#E0E3EA" BorderThickness="0,1,0,1">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Orientation="Horizontal">
+                                <TextBox x:Name="TxtSzukajKierowce" Width="280"
+                                         TextChanged="TxtSzukajKierowce_TextChanged">
+                                    <TextBox.Resources>
+                                        <VisualBrush x:Key="hintKier" AlignmentX="Left" AlignmentY="Center" Stretch="None">
+                                            <VisualBrush.Visual>
+                                                <TextBlock Text="  🔍  Szukaj po imieniu, nazwisku, telefonie..."
+                                                           FontFamily="Segoe UI" FontSize="12.5" Foreground="#B0BEC5"/>
+                                            </VisualBrush.Visual>
+                                        </VisualBrush>
+                                    </TextBox.Resources>
+                                    <TextBox.Style>
+                                        <Style TargetType="TextBox" BasedOn="{StaticResource SearchBox}">
+                                            <Style.Triggers>
+                                                <Trigger Property="Text" Value="">
+                                                    <Setter Property="Background" Value="{StaticResource hintKier}"/>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBox.Style>
+                                </TextBox>
+
+                                <ComboBox x:Name="CmbStatusKierowcy" Style="{StaticResource StatusCombo}" Margin="10,0,0,0"
                                           SelectionChanged="FilterKierowcy_Changed">
                                     <ComboBoxItem Content="Aktywni" IsSelected="True"/>
                                     <ComboBoxItem Content="Wstrzymani"/>
                                     <ComboBoxItem Content="Wszyscy"/>
                                 </ComboBox>
-                                <TextBlock Text="Typ:" Foreground="White" VerticalAlignment="Center" Margin="12,0,4,0"
-                                           FontFamily="Segoe UI" FontSize="11"/>
-                                <ComboBox x:Name="CmbTypKierowcy" Style="{StaticResource FilterCombo}" Width="110"
-                                          SelectionChanged="FilterKierowcy_Changed">
+                                <!-- Compat: ukryty stub Typ (uzywany przez code-behind ApplyDriverFilter) -->
+                                <ComboBox x:Name="CmbTypKierowcy" Visibility="Collapsed">
                                     <ComboBoxItem Content="Wszyscy" IsSelected="True"/>
-                                    <ComboBoxItem Content="Etat"/>
-                                    <ComboBoxItem Content="Zlecenie"/>
-                                    <ComboBoxItem Content="B2B"/>
-                                    <ComboBoxItem Content="Agencja"/>
                                 </ComboBox>
                             </StackPanel>
-                        </DockPanel>
+
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button x:Name="BtnDodajKierowce" Content="＋ Dodaj kierowcę" Style="{StaticResource ActionBtn}"
+                                        Background="#2E7D32" Click="BtnDodajKierowce_Click"/>
+                                <Button x:Name="BtnEdytujKierowce" Content="✎ Edytuj" Style="{StaticResource ActionBtn}"
+                                        Click="BtnEdytujKierowce_Click"/>
+                                <Button x:Name="BtnWstrzymajKierowce" Content="⏸ Wstrzymaj / aktywuj" Style="{StaticResource ActionBtn}"
+                                        Background="#EF6C00" Click="BtnWstrzymajKierowce_Click"/>
+                                <Button Content="↻" Style="{StaticResource GhostBtn}" ToolTip="Odśwież listę"
+                                        Click="BtnOdswiezKierowcy_Click" Padding="14,7"/>
+                                <Button x:Name="BtnExcelKierowcy" Content="⬇ Excel" Style="{StaticResource GhostBtn}"
+                                        Click="BtnExcelKierowcy_Click" ToolTip="Eksport do Excela"/>
+                            </StackPanel>
+                        </Grid>
                     </Border>
 
                     <!-- Content: Grid + Detail Panel -->
-                    <Grid Grid.Row="1">
+                    <Grid Grid.Row="2">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="65*"/>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="35*"/>
                         </Grid.ColumnDefinitions>
 
-                        <dxg:GridControl x:Name="GridKierowcy" Grid.Column="0"
-                                         SelectionMode="Row"
-                                         SelectedItemChanged="GridKierowcy_SelectedItemChanged"
-                                         MouseDoubleClick="GridKierowcy_MouseDoubleClick">
-                            <dxg:GridControl.Columns>
-                                <dxg:GridColumn FieldName="GID" Header="ID" Width="55" ReadOnly="True"/>
-                                <dxg:GridColumn FieldName="Imie" Header="Imie" Width="120" ReadOnly="True"/>
-                                <dxg:GridColumn FieldName="Nazwisko" Header="Nazwisko" Width="160" ReadOnly="True"/>
-                                <dxg:GridColumn FieldName="Telefon" Header="Telefon" Width="130" ReadOnly="True"/>
-                                <dxg:GridColumn FieldName="Aktywny" Header="Aktywny" Width="80" ReadOnly="True"/>
-                            </dxg:GridControl.Columns>
-                            <dxg:GridControl.View>
-                                <dxg:TableView AutoWidth="True"
-                                               AllowEditing="False"
-                                               ShowGroupPanel="False"
-                                               NavigationStyle="Row"
-                                               RowStyle="{x:Null}"
-                                               x:Name="ViewKierowcy"/>
-                            </dxg:GridControl.View>
-                        </dxg:GridControl>
+                        <Border Grid.Column="0" Background="White" Margin="14,8,4,14" CornerRadius="8"
+                                BorderBrush="#E0E3EA" BorderThickness="1">
+                            <dxg:GridControl x:Name="GridKierowcy" SelectionMode="Row"
+                                             SelectedItemChanged="GridKierowcy_SelectedItemChanged"
+                                             MouseDoubleClick="GridKierowcy_MouseDoubleClick"
+                                             Background="Transparent">
+                                <dxg:GridControl.Columns>
+                                    <dxg:GridColumn FieldName="GID" Header="ID" Width="55" ReadOnly="True"/>
+                                    <dxg:GridColumn FieldName="Imie" Header="Imię" Width="140" ReadOnly="True"/>
+                                    <dxg:GridColumn FieldName="Nazwisko" Header="Nazwisko" Width="180" ReadOnly="True"/>
+                                    <dxg:GridColumn FieldName="Telefon" Header="Telefon" Width="140" ReadOnly="True"/>
+                                    <dxg:GridColumn FieldName="Aktywny" Header="Status" Width="90" ReadOnly="True"/>
+                                </dxg:GridControl.Columns>
+                                <dxg:GridControl.View>
+                                    <dxg:TableView AutoWidth="True"
+                                                   AllowEditing="False"
+                                                   ShowGroupPanel="False"
+                                                   NavigationStyle="Row"
+                                                   ShowIndicator="False"
+                                                   RowMinHeight="32"
+                                                   x:Name="ViewKierowcy"/>
+                                </dxg:GridControl.View>
+                            </dxg:GridControl>
+                        </Border>
 
-                        <GridSplitter Grid.Column="1" Width="4" Background="#BDC3C7"
+                        <GridSplitter Grid.Column="1" Width="4" Background="Transparent"
                                       HorizontalAlignment="Center" VerticalAlignment="Stretch"/>
 
                         <!-- Detail Panel -->
-                        <Border Grid.Column="2" Background="White" Margin="2" CornerRadius="4"
-                                BorderBrush="#E0E0E0" BorderThickness="1">
-                            <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="12">
+                        <Border Grid.Column="2" Background="White" Margin="4,8,14,14" CornerRadius="8"
+                                BorderBrush="#E0E3EA" BorderThickness="1">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="18,16">
                                 <StackPanel x:Name="PanelSzczegolyKierowcy">
-                                    <TextBlock x:Name="TxtKierowcaNazwa" FontSize="16" FontWeight="Bold"
-                                               Foreground="#1E3A5F" FontFamily="Segoe UI" Margin="0,0,0,4"/>
+                                    <!-- Hero header: name + status pill -->
+                                    <TextBlock Text="SZCZEGÓŁY KIEROWCY" Foreground="#90A4AE" FontSize="9.5" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                                    <TextBlock x:Name="TxtKierowcaNazwa" FontSize="22" FontWeight="Bold"
+                                               Foreground="#1A237E" FontFamily="Segoe UI" TextWrapping="Wrap"/>
+                                    <Border x:Name="KierStatusPill" Background="#C8E6C9" CornerRadius="11" Padding="10,3"
+                                            HorizontalAlignment="Left" Margin="0,8,0,0">
+                                        <TextBlock x:Name="TxtKierowcaTyp" Text="Aktywny" Foreground="#2E7D32" FontSize="11" FontWeight="SemiBold"/>
+                                    </Border>
+
+                                    <Border Height="1" Background="#E0E3EA" Margin="0,16,0,8"/>
+
+                                    <TextBlock Text="TELEFON" Style="{StaticResource DetailLabel}"/>
                                     <TextBlock x:Name="TxtKierowcaTelefon" Style="{StaticResource DetailValue}"/>
-                                    <TextBlock x:Name="TxtKierowcaTyp" Style="{StaticResource DetailValue}"/>
+
+                                    <TextBlock Text="ID W BAZIE" Style="{StaticResource DetailLabel}"/>
                                     <TextBlock x:Name="TxtKierowcaOd" Style="{StaticResource DetailValue}"/>
 
-                                    <TextBlock Text="Prawo jazdy" Style="{StaticResource SectionHeader}"/>
+                                    <TextBlock Text="DODANY" Style="{StaticResource DetailLabel}"/>
                                     <TextBlock x:Name="TxtKierowcaPJ" Style="{StaticResource DetailValue}"/>
 
-                                    <TextBlock Text="Badania lekarskie" Style="{StaticResource SectionHeader}"/>
+                                    <TextBlock Text="OSTATNIA ZMIANA" Style="{StaticResource DetailLabel}"/>
                                     <TextBlock x:Name="TxtKierowcaBadania" Style="{StaticResource DetailValue}"/>
 
-                                    <TextBlock Text="BHP" Style="{StaticResource SectionHeader}"/>
-                                    <TextBlock x:Name="TxtKierowcaBHP" Style="{StaticResource DetailValue}"/>
-
-                                    <TextBlock Text="Przypisane pojazdy" Style="{StaticResource SectionHeader}"/>
-                                    <TextBlock x:Name="TxtKierowcaPojazdy" Style="{StaticResource DetailValue}" TextWrapping="Wrap"/>
-
-                                    <TextBlock Text="Statystyki (30 dni)" Style="{StaticResource SectionHeader}"/>
-                                    <TextBlock x:Name="TxtKierowcaStats" Style="{StaticResource DetailValue}" TextWrapping="Wrap"/>
+                                    <!-- Compat: ukryte TextBlocks dla legacy code-behind -->
+                                    <TextBlock x:Name="TxtKierowcaBHP" Visibility="Collapsed"/>
+                                    <TextBlock x:Name="TxtKierowcaPojazdy" Visibility="Collapsed"/>
+                                    <TextBlock x:Name="TxtKierowcaStats" Visibility="Collapsed"/>
                                 </StackPanel>
                             </ScrollViewer>
                         </Border>
                     </Grid>
 
-                    <!-- Status Bar -->
-                    <Border Grid.Row="2" Background="#ECF0F1" Height="28">
-                        <TextBlock x:Name="TxtStatusKierowcy" VerticalAlignment="Center" Margin="10,0"
-                                   FontFamily="Segoe UI" FontSize="11" Foreground="#2C3E50"/>
+                    <!-- Status bar -->
+                    <Border Grid.Row="3" Background="White" Padding="14,6" BorderBrush="#E0E3EA" BorderThickness="0,1,0,0">
+                        <TextBlock x:Name="TxtStatusKierowcy" VerticalAlignment="Center"
+                                   FontFamily="Segoe UI" FontSize="11" Foreground="#546E7A"/>
                     </Border>
                 </Grid>
             </TabItem>
 
-            <!-- ═══════════ TAB 2: POJAZDY ═══════════ -->
-            <TabItem Header="  POJAZDY  ">
-                <Grid>
+            <!-- ═══════════════ TAB 2: POJAZDY ═══════════════ -->
+            <TabItem Header="🚚  POJAZDY  ">
+                <Grid Background="#F5F7FA">
                     <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
-                    <Border Grid.Row="0" Background="#34495E" Height="50">
-                        <DockPanel Margin="10,0">
-                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                                <Button x:Name="BtnDodajPojazd" Content="+ Dodaj" Style="{StaticResource ToolbarButton}"
-                                        Background="#27AE60" Click="BtnDodajPojazd_Click"/>
-                                <Button x:Name="BtnEdytujPojazd" Content="Edytuj" Style="{StaticResource ToolbarButton}"
-                                        Background="#2980B9" Click="BtnEdytujPojazd_Click"/>
-                                <Button x:Name="BtnSerwis" Content="Serwis" Style="{StaticResource ToolbarButton}"
-                                        Background="#8E44AD" Click="BtnSerwis_Click" Visibility="Collapsed"/>
-                                <Button x:Name="BtnTankowanie" Content="Tankowanie" Style="{StaticResource ToolbarButton}"
-                                        Background="#D35400" Click="BtnTankowanie_Click" Visibility="Collapsed"/>
-                                <Border Width="1" Background="#5D6D7E" Margin="6,8"/>
-                                <Button Content="Excel" Style="{StaticResource ToolbarButton}"
-                                        Background="#1E8449" Click="BtnExcelPojazdy_Click"/>
-                                <Button Content="Odswiez" Style="{StaticResource ToolbarButton}"
-                                        Click="BtnOdswiezPojazdy_Click"/>
-                            </StackPanel>
+                    <!-- KPI cards -->
+                    <Grid Grid.Row="0" Margin="14,14,14,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
 
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <TextBox x:Name="TxtSzukajPojazdy" Width="220" Height="28"
-                                         FontFamily="Segoe UI" FontSize="12"
-                                         VerticalContentAlignment="Center" Padding="6,0"
-                                         TextChanged="TxtSzukajPojazdy_TextChanged"/>
-                                <TextBlock Text="Typ:" Foreground="White" VerticalAlignment="Center" Margin="12,0,4,0"
-                                           FontFamily="Segoe UI" FontSize="11"/>
-                                <ComboBox x:Name="CmbTypPojazdu" Style="{StaticResource FilterCombo}" Width="110"
-                                          SelectionChanged="FilterPojazdy_Changed">
+                        <Border Grid.Column="0" Style="{StaticResource KpiCard}">
+                            <StackPanel>
+                                <TextBlock Text="WSZYSTKIE POJAZDY" Foreground="#90A4AE" FontSize="10.5" FontWeight="SemiBold"/>
+                                <TextBlock x:Name="KpiPojTotal" Text="0" Foreground="#1A237E" FontSize="32" FontWeight="Bold" Margin="0,2,0,0"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Column="1" Style="{StaticResource KpiCard}">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <Ellipse Width="9" Height="9" Fill="#43A047" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                    <TextBlock Text="AKTYWNE" Foreground="#90A4AE" FontSize="10.5" FontWeight="SemiBold"/>
+                                </StackPanel>
+                                <TextBlock x:Name="KpiPojAktywne" Text="0" Foreground="#2E7D32" FontSize="32" FontWeight="Bold" Margin="0,2,0,0"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Column="2" Style="{StaticResource KpiCard}" Margin="0">
+                            <StackPanel>
+                                <TextBlock Text="SUMA PALET (H1)" Foreground="#90A4AE" FontSize="10.5" FontWeight="SemiBold"/>
+                                <TextBlock x:Name="KpiPojPalety" Text="0" Foreground="#1565C0" FontSize="32" FontWeight="Bold" Margin="0,2,0,0"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <!-- Toolbar -->
+                    <Border Grid.Row="1" Background="White" Padding="14,10" BorderBrush="#E0E3EA" BorderThickness="0,1,0,1">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Orientation="Horizontal">
+                                <TextBox x:Name="TxtSzukajPojazdy" Width="280"
+                                         TextChanged="TxtSzukajPojazdy_TextChanged">
+                                    <TextBox.Resources>
+                                        <VisualBrush x:Key="hintPoj" AlignmentX="Left" AlignmentY="Center" Stretch="None">
+                                            <VisualBrush.Visual>
+                                                <TextBlock Text="  🔍  Szukaj po rejestracji, marce, modelu..."
+                                                           FontFamily="Segoe UI" FontSize="12.5" Foreground="#B0BEC5"/>
+                                            </VisualBrush.Visual>
+                                        </VisualBrush>
+                                    </TextBox.Resources>
+                                    <TextBox.Style>
+                                        <Style TargetType="TextBox" BasedOn="{StaticResource SearchBox}">
+                                            <Style.Triggers>
+                                                <Trigger Property="Text" Value="">
+                                                    <Setter Property="Background" Value="{StaticResource hintPoj}"/>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBox.Style>
+                                </TextBox>
+
+                                <!-- Compat: ukryty stub Typ (uzywany przez code-behind ApplyVehicleFilter) -->
+                                <ComboBox x:Name="CmbTypPojazdu" Visibility="Collapsed">
                                     <ComboBoxItem Content="Wszystkie" IsSelected="True"/>
-                                    <ComboBoxItem Content="Samochody"/>
-                                    <ComboBoxItem Content="Naczepy"/>
                                 </ComboBox>
                             </StackPanel>
-                        </DockPanel>
+
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button x:Name="BtnDodajPojazd" Content="＋ Dodaj pojazd" Style="{StaticResource ActionBtn}"
+                                        Background="#2E7D32" Click="BtnDodajPojazd_Click"/>
+                                <Button x:Name="BtnEdytujPojazd" Content="✎ Edytuj" Style="{StaticResource ActionBtn}"
+                                        Click="BtnEdytujPojazd_Click"/>
+                                <!-- Compat: BtnSerwis i BtnTankowanie ukryte (LibraNet legacy) -->
+                                <Button x:Name="BtnSerwis" Visibility="Collapsed" Click="BtnSerwis_Click"/>
+                                <Button x:Name="BtnTankowanie" Visibility="Collapsed" Click="BtnTankowanie_Click"/>
+                                <Button Content="↻" Style="{StaticResource GhostBtn}" ToolTip="Odśwież listę"
+                                        Click="BtnOdswiezPojazdy_Click" Padding="14,7"/>
+                                <Button Content="⬇ Excel" Style="{StaticResource GhostBtn}"
+                                        Click="BtnExcelPojazdy_Click" ToolTip="Eksport do Excela"/>
+                            </StackPanel>
+                        </Grid>
                     </Border>
 
-                    <Grid Grid.Row="1">
+                    <Grid Grid.Row="2">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="65*"/>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="35*"/>
                         </Grid.ColumnDefinitions>
 
-                        <dxg:GridControl x:Name="GridPojazdy" Grid.Column="0"
-                                         SelectionMode="Row"
-                                         SelectedItemChanged="GridPojazdy_SelectedItemChanged"
-                                         MouseDoubleClick="GridPojazdy_MouseDoubleClick">
-                            <dxg:GridControl.Columns>
-                                <dxg:GridColumn FieldName="ID" Header="ID" Width="55" ReadOnly="True"/>
-                                <dxg:GridColumn FieldName="Registration" Header="Rejestracja" Width="130" ReadOnly="True"/>
-                                <dxg:GridColumn FieldName="Brand" Header="Marka" Width="120" ReadOnly="True"/>
-                                <dxg:GridColumn FieldName="Model" Header="Model" Width="160" ReadOnly="True"/>
-                                <dxg:GridColumn FieldName="MaxPaletH1" Header="Palety H1" Width="90" ReadOnly="True"/>
-                                <dxg:GridColumn FieldName="Aktywny" Header="Aktywny" Width="80" ReadOnly="True"/>
-                            </dxg:GridControl.Columns>
-                            <dxg:GridControl.View>
-                                <dxg:TableView AutoWidth="True"
-                                               AllowEditing="False"
-                                               ShowGroupPanel="False"
-                                               NavigationStyle="Row"
-                                               x:Name="ViewPojazdy"/>
-                            </dxg:GridControl.View>
-                        </dxg:GridControl>
+                        <Border Grid.Column="0" Background="White" Margin="14,8,4,14" CornerRadius="8"
+                                BorderBrush="#E0E3EA" BorderThickness="1">
+                            <dxg:GridControl x:Name="GridPojazdy" SelectionMode="Row"
+                                             SelectedItemChanged="GridPojazdy_SelectedItemChanged"
+                                             MouseDoubleClick="GridPojazdy_MouseDoubleClick"
+                                             Background="Transparent">
+                                <dxg:GridControl.Columns>
+                                    <dxg:GridColumn FieldName="ID" Header="ID" Width="55" ReadOnly="True"/>
+                                    <dxg:GridColumn FieldName="Registration" Header="Rejestracja" Width="140" ReadOnly="True"/>
+                                    <dxg:GridColumn FieldName="Brand" Header="Marka" Width="130" ReadOnly="True"/>
+                                    <dxg:GridColumn FieldName="Model" Header="Model" Width="170" ReadOnly="True"/>
+                                    <dxg:GridColumn FieldName="MaxPaletH1" Header="Palety H1" Width="100" ReadOnly="True"/>
+                                    <dxg:GridColumn FieldName="Aktywny" Header="Status" Width="90" ReadOnly="True"/>
+                                </dxg:GridControl.Columns>
+                                <dxg:GridControl.View>
+                                    <dxg:TableView AutoWidth="True"
+                                                   AllowEditing="False"
+                                                   ShowGroupPanel="False"
+                                                   NavigationStyle="Row"
+                                                   ShowIndicator="False"
+                                                   RowMinHeight="32"
+                                                   x:Name="ViewPojazdy"/>
+                                </dxg:GridControl.View>
+                            </dxg:GridControl>
+                        </Border>
 
-                        <GridSplitter Grid.Column="1" Width="4" Background="#BDC3C7"
+                        <GridSplitter Grid.Column="1" Width="4" Background="Transparent"
                                       HorizontalAlignment="Center" VerticalAlignment="Stretch"/>
 
-                        <Border Grid.Column="2" Background="White" Margin="2" CornerRadius="4"
-                                BorderBrush="#E0E0E0" BorderThickness="1">
-                            <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="12">
+                        <Border Grid.Column="2" Background="White" Margin="4,8,14,14" CornerRadius="8"
+                                BorderBrush="#E0E3EA" BorderThickness="1">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="18,16">
                                 <StackPanel x:Name="PanelSzczegolyPojazdu">
-                                    <TextBlock x:Name="TxtPojazdNazwa" FontSize="16" FontWeight="Bold"
-                                               Foreground="#1E3A5F" FontFamily="Segoe UI" Margin="0,0,0,2"/>
-                                    <TextBlock x:Name="TxtPojazdRejestracja" Style="{StaticResource DetailValue}"/>
-                                    <TextBlock x:Name="TxtPojazdTyp" Style="{StaticResource DetailValue}"/>
+                                    <TextBlock Text="SZCZEGÓŁY POJAZDU" Foreground="#90A4AE" FontSize="9.5" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                                    <TextBlock x:Name="TxtPojazdNazwa" FontSize="22" FontWeight="Bold"
+                                               Foreground="#1A237E" FontFamily="Segoe UI" TextWrapping="Wrap"/>
+                                    <TextBlock x:Name="TxtPojazdRejestracja" FontSize="14" Foreground="#37474F" FontWeight="SemiBold" Margin="0,4,0,0"/>
+                                    <Border x:Name="PojStatusPill" Background="#C8E6C9" CornerRadius="11" Padding="10,3"
+                                            HorizontalAlignment="Left" Margin="0,8,0,0">
+                                        <TextBlock x:Name="TxtPojazdTyp" Text="Aktywny" Foreground="#2E7D32" FontSize="11" FontWeight="SemiBold"/>
+                                    </Border>
+
+                                    <Border Height="1" Background="#E0E3EA" Margin="0,16,0,8"/>
+
+                                    <TextBlock Text="PALETY H1" Style="{StaticResource DetailLabel}"/>
                                     <TextBlock x:Name="TxtPojazdVIN" Style="{StaticResource DetailValue}"/>
 
-                                    <TextBlock Text="Dokumenty" Style="{StaticResource SectionHeader}"/>
+                                    <TextBlock Text="ID W BAZIE" Style="{StaticResource DetailLabel}"/>
                                     <TextBlock x:Name="TxtPojazdPrzeglad" Style="{StaticResource DetailValue}"/>
+
+                                    <TextBlock Text="DODANY" Style="{StaticResource DetailLabel}"/>
                                     <TextBlock x:Name="TxtPojazdOC" Style="{StaticResource DetailValue}"/>
 
-                                    <TextBlock Text="Kierowca" Style="{StaticResource SectionHeader}"/>
-                                    <TextBlock x:Name="TxtPojazdKierowca" Style="{StaticResource DetailValue}" TextWrapping="Wrap"/>
+                                    <TextBlock Text="OSTATNIA ZMIANA" Style="{StaticResource DetailLabel}"/>
+                                    <TextBlock x:Name="TxtPojazdKierowca" Style="{StaticResource DetailValue}"/>
 
-                                    <TextBlock Text="Ostatni serwis" Style="{StaticResource SectionHeader}"/>
-                                    <TextBlock x:Name="TxtPojazdSerwis" Style="{StaticResource DetailValue}" TextWrapping="Wrap"/>
-
-                                    <TextBlock Text="Koszty YTD" Style="{StaticResource SectionHeader}"/>
-                                    <TextBlock x:Name="TxtPojazdKoszty" Style="{StaticResource DetailValue}"/>
+                                    <!-- Compat: ukryte TextBlocks dla legacy code-behind -->
+                                    <TextBlock x:Name="TxtPojazdSerwis" Visibility="Collapsed"/>
+                                    <TextBlock x:Name="TxtPojazdKoszty" Visibility="Collapsed"/>
                                 </StackPanel>
                             </ScrollViewer>
                         </Border>
                     </Grid>
 
-                    <Border Grid.Row="2" Background="#ECF0F1" Height="28">
-                        <TextBlock x:Name="TxtStatusPojazdy" VerticalAlignment="Center" Margin="10,0"
-                                   FontFamily="Segoe UI" FontSize="11" Foreground="#2C3E50"/>
+                    <Border Grid.Row="3" Background="White" Padding="14,6" BorderBrush="#E0E3EA" BorderThickness="0,1,0,0">
+                        <TextBlock x:Name="TxtStatusPojazdy" VerticalAlignment="Center"
+                                   FontFamily="Segoe UI" FontSize="11" Foreground="#546E7A"/>
                     </Border>
                 </Grid>
             </TabItem>
 
-            <!-- ═══════════ TAB 3: PRZYPISANIA ═══════════ -->
+            <!-- Tab Przypisania — ukryty (LibraNet legacy) -->
             <TabItem Header="  PRZYPISANIA  " Visibility="Collapsed">
                 <Grid>
                     <Grid.RowDefinitions>
@@ -323,85 +525,26 @@
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
-
-                    <Border Grid.Row="0" Background="#34495E" Height="50">
-                        <DockPanel Margin="10,0">
-                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                                <Button Content="DEBUG" Style="{StaticResource ToolbarButton}"
-                                        Background="#C0392B" Click="BtnDebug_Click" ToolTip="Diagnostyka modulu Flota"/>
-                                <Border Width="1" Background="#5D6D7E" Margin="6,8"/>
-                                <Button Content="Odswiez" Style="{StaticResource ToolbarButton}"
-                                        Click="BtnOdswiezPrzypisania_Click"/>
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <Button x:Name="BtnPrzypiszKierowce" Content="Przypisz kierowce do pojazdu"
-                                        Style="{StaticResource ToolbarButton}" Background="#1E3A5F"
-                                        Click="BtnPrzypiszKierowce_Click"/>
-                                <TextBlock Text="Historia:" Foreground="White" VerticalAlignment="Center" Margin="16,0,4,0"
-                                           FontFamily="Segoe UI" FontSize="11"/>
-                                <ComboBox x:Name="CmbHistoriaPrzyp" Style="{StaticResource FilterCombo}" Width="120"
-                                          SelectionChanged="FilterPrzypisania_Changed">
-                                    <ComboBoxItem Content="Aktualne" IsSelected="True"/>
-                                    <ComboBoxItem Content="Wszystkie"/>
-                                </ComboBox>
-                            </StackPanel>
-                        </DockPanel>
+                    <Border Grid.Row="0" Height="50">
+                        <StackPanel Orientation="Horizontal">
+                            <Button Content="DEBUG" Click="BtnDebug_Click"/>
+                            <Button Content="Odswiez" Click="BtnOdswiezPrzypisania_Click"/>
+                            <Button x:Name="BtnPrzypiszKierowce" Content="Przypisz" Click="BtnPrzypiszKierowce_Click"/>
+                            <ComboBox x:Name="CmbHistoriaPrzyp">
+                                <ComboBoxItem Content="Aktualne" IsSelected="True"/>
+                                <ComboBoxItem Content="Historia"/>
+                            </ComboBox>
+                        </StackPanel>
                     </Border>
-
-                    <dxg:GridControl x:Name="GridPrzypisania" Grid.Row="1"
-                                     SelectionMode="Row"
-                                     MouseDoubleClick="GridPrzypisania_MouseDoubleClick">
-                        <dxg:GridControl.Columns>
-                            <dxg:GridColumn FieldName="DriverGID" Header="GID" Width="0" ReadOnly="True" Visible="False"/>
-                            <dxg:GridColumn FieldName="KierowcaNazwa" Header="Kierowca" Width="180" ReadOnly="True"/>
-                            <dxg:GridColumn FieldName="CarTrailerID" Header="Symbol" Width="60" ReadOnly="True"/>
-                            <dxg:GridColumn FieldName="Rejestracja" Header="Rejestracja" Width="110" ReadOnly="True"/>
-                            <dxg:GridColumn FieldName="PojazdMarka" Header="Pojazd" Width="150" ReadOnly="True"/>
-                            <dxg:GridColumn FieldName="Rola" Header="Rola" Width="90" ReadOnly="True"/>
-                            <dxg:GridColumn FieldName="DataOd" Header="Od" Width="100" ReadOnly="True"/>
-                            <dxg:GridColumn FieldName="DataDo" Header="Do" Width="100" ReadOnly="True"/>
-                            <dxg:GridColumn FieldName="Dni" Header="Dni" Width="60" ReadOnly="True"/>
-                            <dxg:GridColumn FieldName="Powod" Header="Powod" Width="200" ReadOnly="True"/>
-                        </dxg:GridControl.Columns>
-                        <dxg:GridControl.View>
-                            <dxg:TableView AutoWidth="True"
-                                           AllowEditing="False"
-                                           ShowGroupPanel="True"
-                                           NavigationStyle="Row"
-                                           x:Name="ViewPrzypisania"/>
-                        </dxg:GridControl.View>
-                    </dxg:GridControl>
-
-                    <Border Grid.Row="2" Background="#ECF0F1" Height="28">
-                        <TextBlock x:Name="TxtStatusPrzypisania" VerticalAlignment="Center" Margin="10,0"
-                                   FontFamily="Segoe UI" FontSize="11" Foreground="#2C3E50"/>
-                    </Border>
+                    <dxg:GridControl x:Name="GridPrzypisania" Grid.Row="1" MouseDoubleClick="GridPrzypisania_MouseDoubleClick"/>
+                    <TextBlock x:Name="TxtStatusPrzypisania" Grid.Row="2"/>
                 </Grid>
             </TabItem>
         </TabControl>
 
-        <!-- ═══════════ ALERTS PANEL ═══════════ -->
-        <Border x:Name="PanelAlerty" Grid.Row="1" Visibility="Collapsed"
-                Background="#FFF9C4" BorderBrush="#F9A825" BorderThickness="0,2,0,0"
-                MaxHeight="120">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Text="ALERTY" FontWeight="Bold" FontFamily="Segoe UI" FontSize="11"
-                           Foreground="#E65100" VerticalAlignment="Top" Margin="10,6"/>
-                <ItemsControl x:Name="ListAlerty" Grid.Column="1" Margin="4,4">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <TextBlock FontFamily="Segoe UI" FontSize="11" Margin="0,1">
-                                <Run Text="{Binding Icon}" FontWeight="Bold"/>
-                                <Run Text="{Binding Text}"/>
-                            </TextBlock>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </Grid>
+        <!-- Alerts panel — ukryty (LibraNet legacy) -->
+        <Border x:Name="PanelAlerty" Grid.Row="1" Visibility="Collapsed">
+            <ItemsControl x:Name="ItemsAlerty"/>
         </Border>
     </Grid>
 </UserControl>

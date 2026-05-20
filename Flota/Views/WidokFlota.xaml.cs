@@ -3,6 +3,7 @@ using System.Data;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using System.Windows.Threading;
 using Kalendarz1.Flota.Services;
 using Kalendarz1.Flota.Windows;
@@ -98,7 +99,10 @@ namespace Kalendarz1.Flota.Views
             try
             {
                 var (total, active, halted) = await _svc.GetDriverCountsAsync();
-                TxtStatusKierowcy.Text = $"Kierowcow: {total} (aktywnych: {active}, wstrzymanych: {halted})";
+                if (KpiKierTotal != null) KpiKierTotal.Text = total.ToString();
+                if (KpiKierAktywni != null) KpiKierAktywni.Text = active.ToString();
+                if (KpiKierWstrzymani != null) KpiKierWstrzymani.Text = halted.ToString();
+                TxtStatusKierowcy.Text = $"Kierowcy: {total}  ·  Aktywni: {active}  ·  Wstrzymani: {halted}";
             }
             catch { }
         }
@@ -116,30 +120,50 @@ namespace Kalendarz1.Flota.Views
             var row = GetSelectedDriverRow();
             if (row == null)
             {
-                TxtKierowcaNazwa.Text = "";
+                TxtKierowcaNazwa.Text = "(wybierz kierowcę z listy)";
                 TxtKierowcaTelefon.Text = "";
                 TxtKierowcaTyp.Text = "";
                 TxtKierowcaOd.Text = "";
                 TxtKierowcaPJ.Text = "";
                 TxtKierowcaBadania.Text = "";
-                TxtKierowcaBHP.Text = "";
-                TxtKierowcaPojazdy.Text = "";
-                TxtKierowcaStats.Text = "";
                 return;
             }
 
-            // PRIMARY TransportPL.Kierowca — tylko 4 pola
-            TxtKierowcaNazwa.Text = row["Name"]?.ToString() ?? "";
-            string tel = row.Table.Columns.Contains("Telefon") ? row["Telefon"]?.ToString() ?? "" : "";
-            TxtKierowcaTelefon.Text = string.IsNullOrEmpty(tel) ? "Tel: —" : $"Tel: {tel}";
+            // Nazwa
+            TxtKierowcaNazwa.Text = row["Name"]?.ToString() ?? "—";
+
+            // Status pill
             bool aktywny = row.Table.Columns.Contains("Aktywny") && Convert.ToBoolean(row["Aktywny"]);
-            TxtKierowcaTyp.Text = aktywny ? "Status: Aktywny" : "Status: Wstrzymany";
-            TxtKierowcaOd.Text = "";
-            TxtKierowcaPJ.Text = "(brak danych)";
-            TxtKierowcaBadania.Text = "(brak danych)";
-            TxtKierowcaBHP.Text = "(brak danych)";
-            TxtKierowcaPojazdy.Text = "(brak danych)";
-            TxtKierowcaStats.Text = "(brak danych)";
+            TxtKierowcaTyp.Text = aktywny ? "● Aktywny" : "● Wstrzymany";
+            if (KierStatusPill != null)
+            {
+                KierStatusPill.Background = aktywny
+                    ? new SolidColorBrush(Color.FromRgb(200, 230, 201))   // #C8E6C9
+                    : new SolidColorBrush(Color.FromRgb(255, 224, 178));  // #FFE0B2
+                TxtKierowcaTyp.Foreground = aktywny
+                    ? new SolidColorBrush(Color.FromRgb(46, 125, 50))
+                    : new SolidColorBrush(Color.FromRgb(230, 81, 0));
+            }
+
+            // Telefon
+            string tel = row.Table.Columns.Contains("Telefon") ? row["Telefon"]?.ToString() ?? "" : "";
+            TxtKierowcaTelefon.Text = string.IsNullOrEmpty(tel) ? "—" : tel;
+
+            // ID
+            TxtKierowcaOd.Text = $"#{row["GID"]}";
+
+            // Daty
+            TxtKierowcaPJ.Text = FormatDateOrDash(row, "UtworzonoUTC");
+            TxtKierowcaBadania.Text = FormatDateOrDash(row, "ZmienionoUTC");
+        }
+
+        private static string FormatDateOrDash(System.Data.DataRow row, string col)
+        {
+            if (!row.Table.Columns.Contains(col)) return "—";
+            if (row[col] == DBNull.Value) return "—";
+            var d = (DateTime)row[col];
+            // UTC → local
+            return d.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
         }
 
         private static string FormatDocDate(DataRow row, string dateField, string? extraField = null)
@@ -261,8 +285,21 @@ namespace Kalendarz1.Flota.Views
         {
             try
             {
-                var (total, cars, trailers) = await _svc.GetVehicleCountsAsync();
-                TxtStatusPojazdy.Text = $"Pojazdow: {total} (aut: {cars}, naczep: {trailers})";
+                var (total, active, _) = await _svc.GetVehicleCountsAsync();
+                if (KpiPojTotal != null) KpiPojTotal.Text = total.ToString();
+                if (KpiPojAktywne != null) KpiPojAktywne.Text = active.ToString();
+
+                // Suma palet (z DataTable bo TransportPL.Pojazd nie ma agregatu)
+                int sumaPalet = 0;
+                if (_dtPojazdy != null)
+                {
+                    foreach (System.Data.DataRow r in _dtPojazdy.Rows)
+                        if (r["MaxPaletH1"] != DBNull.Value)
+                            sumaPalet += Convert.ToInt32(r["MaxPaletH1"]);
+                }
+                if (KpiPojPalety != null) KpiPojPalety.Text = sumaPalet.ToString();
+
+                TxtStatusPojazdy.Text = $"Pojazdy: {total}  ·  Aktywne: {active}  ·  Suma palet H1: {sumaPalet}";
             }
             catch { }
         }
@@ -280,35 +317,41 @@ namespace Kalendarz1.Flota.Views
             var row = GetSelectedVehicleRow();
             if (row == null)
             {
-                TxtPojazdNazwa.Text = "";
+                TxtPojazdNazwa.Text = "(wybierz pojazd z listy)";
                 TxtPojazdRejestracja.Text = "";
                 TxtPojazdTyp.Text = "";
                 TxtPojazdVIN.Text = "";
                 TxtPojazdPrzeglad.Text = "";
                 TxtPojazdOC.Text = "";
                 TxtPojazdKierowca.Text = "";
-                TxtPojazdSerwis.Text = "";
-                TxtPojazdKoszty.Text = "";
                 return;
             }
 
-            // PRIMARY TransportPL.Pojazd — tylko Rejestracja/Marka/Model/PaletyH1/Aktywny
             string brand = row["Brand"]?.ToString() ?? "";
             string model = row["Model"]?.ToString() ?? "";
-            TxtPojazdNazwa.Text = $"{brand} {model}".Trim();
+            string nazwa = $"{brand} {model}".Trim();
+            TxtPojazdNazwa.Text = string.IsNullOrEmpty(nazwa) ? "—" : nazwa;
             TxtPojazdRejestracja.Text = row["Registration"]?.ToString() ?? row["ID"]?.ToString() ?? "";
+
+            // Status pill
+            bool aktywny = row.Table.Columns.Contains("Aktywny") && Convert.ToBoolean(row["Aktywny"]);
+            TxtPojazdTyp.Text = aktywny ? "● Aktywny" : "● Wstrzymany";
+            if (PojStatusPill != null)
+            {
+                PojStatusPill.Background = aktywny
+                    ? new SolidColorBrush(Color.FromRgb(200, 230, 201))
+                    : new SolidColorBrush(Color.FromRgb(255, 224, 178));
+                TxtPojazdTyp.Foreground = aktywny
+                    ? new SolidColorBrush(Color.FromRgb(46, 125, 50))
+                    : new SolidColorBrush(Color.FromRgb(230, 81, 0));
+            }
 
             int palety = row.Table.Columns.Contains("MaxPaletH1") && row["MaxPaletH1"] != DBNull.Value
                 ? Convert.ToInt32(row["MaxPaletH1"]) : 0;
-            bool aktywny = row.Table.Columns.Contains("Aktywny") && Convert.ToBoolean(row["Aktywny"]);
-            TxtPojazdTyp.Text = $"Palety H1: {palety}   ·   {(aktywny ? "Aktywny" : "Wstrzymany")}";
-
-            TxtPojazdVIN.Text = "";
-            TxtPojazdPrzeglad.Text = "(brak danych)";
-            TxtPojazdOC.Text = "(brak danych)";
-            TxtPojazdKierowca.Text = "(brak danych)";
-            TxtPojazdSerwis.Text = "(brak danych)";
-            TxtPojazdKoszty.Text = "(brak danych)";
+            TxtPojazdVIN.Text = palety > 0 ? palety.ToString() : "—";
+            TxtPojazdPrzeglad.Text = $"#{row["ID"]}";
+            TxtPojazdOC.Text = FormatDateOrDash(row, "UtworzonoUTC");
+            TxtPojazdKierowca.Text = FormatDateOrDash(row, "ZmienionoUTC");
         }
 
         private DataRow? GetSelectedVehicleRow()
@@ -501,7 +544,7 @@ namespace Kalendarz1.Flota.Views
                     };
                 }).ToList();
 
-                ListAlerty.ItemsSource = items;
+                if (ItemsAlerty != null) ItemsAlerty.ItemsSource = items;
                 PanelAlerty.Visibility = Visibility.Visible;
             }
             catch { PanelAlerty.Visibility = Visibility.Collapsed; }

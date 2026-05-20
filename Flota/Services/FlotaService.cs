@@ -113,6 +113,7 @@ namespace Kalendarz1.Flota.Services
             public int KierowcaID; public int? LibraNetDriverGID;
             public string Imie = ""; public string Nazwisko = "";
             public string? Telefon; public bool Aktywny;
+            public DateTime? UtworzonoUTC; public DateTime? ZmienionoUTC;
             public string FullName => $"{Imie} {Nazwisko}".Trim();
         }
 
@@ -129,6 +130,8 @@ namespace Kalendarz1.Flota.Services
             dt.Columns.Add("Telefon", typeof(string));
             dt.Columns.Add("Aktywny", typeof(bool));
             dt.Columns.Add("Halt", typeof(bool));          // = !Aktywny (compat z filtrami XAML)
+            dt.Columns.Add("UtworzonoUTC", typeof(DateTime));
+            dt.Columns.Add("ZmienionoUTC", typeof(DateTime));
 
             foreach (var k in tAll.OrderBy(t => !t.Aktywny).ThenBy(t => t.Nazwisko).ThenBy(t => t.Imie))
             {
@@ -140,6 +143,8 @@ namespace Kalendarz1.Flota.Services
                 row["Telefon"] = (object?)k.Telefon ?? DBNull.Value;
                 row["Aktywny"] = k.Aktywny;
                 row["Halt"] = !k.Aktywny;
+                if (k.UtworzonoUTC.HasValue) row["UtworzonoUTC"] = k.UtworzonoUTC.Value;
+                if (k.ZmienionoUTC.HasValue) row["ZmienionoUTC"] = k.ZmienionoUTC.Value;
                 dt.Rows.Add(row);
             }
             return dt;
@@ -151,7 +156,8 @@ namespace Kalendarz1.Flota.Services
             using var conn = new SqlConnection(_connTransport);
             await conn.OpenAsync();
             using var cmd = new SqlCommand(
-                @"SELECT KierowcaID, LibraNetDriverGID, Imie, Nazwisko, Telefon, Aktywny
+                @"SELECT KierowcaID, LibraNetDriverGID, Imie, Nazwisko, Telefon, Aktywny,
+                         UtworzonoUTC, ZmienionoUTC
                   FROM dbo.Kierowca", conn);
             using var r = await cmd.ExecuteReaderAsync();
             while (await r.ReadAsync())
@@ -163,7 +169,9 @@ namespace Kalendarz1.Flota.Services
                     Imie = r["Imie"]?.ToString() ?? "",
                     Nazwisko = r["Nazwisko"]?.ToString() ?? "",
                     Telefon = r["Telefon"] == DBNull.Value ? null : r["Telefon"].ToString(),
-                    Aktywny = r["Aktywny"] != DBNull.Value && Convert.ToBoolean(r["Aktywny"])
+                    Aktywny = r["Aktywny"] != DBNull.Value && Convert.ToBoolean(r["Aktywny"]),
+                    UtworzonoUTC = r["UtworzonoUTC"] == DBNull.Value ? (DateTime?)null : (DateTime)r["UtworzonoUTC"],
+                    ZmienionoUTC = r["ZmienionoUTC"] == DBNull.Value ? (DateTime?)null : (DateTime)r["ZmienionoUTC"]
                 });
             }
             return list;
@@ -311,6 +319,7 @@ namespace Kalendarz1.Flota.Services
             public int PojazdID; public string? LibraNetCarTrailerID;
             public string Rejestracja = ""; public string? Marka; public string? Model;
             public int PaletyH1; public bool Aktywny;
+            public DateTime? UtworzonoUTC; public DateTime? ZmienionoUTC;
         }
 
         private async Task<List<TPojazd>> FetchTransportPojazdyAllAsync()
@@ -319,7 +328,8 @@ namespace Kalendarz1.Flota.Services
             using var conn = new SqlConnection(_connTransport);
             await conn.OpenAsync();
             using var cmd = new SqlCommand(
-                @"SELECT PojazdID, LibraNetCarTrailerID, Rejestracja, Marka, Model, PaletyH1, Aktywny
+                @"SELECT PojazdID, LibraNetCarTrailerID, Rejestracja, Marka, Model, PaletyH1, Aktywny,
+                         UtworzonoUTC, ZmienionoUTC
                   FROM dbo.Pojazd", conn);
             using var r = await cmd.ExecuteReaderAsync();
             while (await r.ReadAsync())
@@ -332,7 +342,9 @@ namespace Kalendarz1.Flota.Services
                     Marka = r["Marka"] == DBNull.Value ? null : r["Marka"].ToString(),
                     Model = r["Model"] == DBNull.Value ? null : r["Model"].ToString(),
                     PaletyH1 = r["PaletyH1"] == DBNull.Value ? 0 : Convert.ToInt32(r["PaletyH1"]),
-                    Aktywny = r["Aktywny"] != DBNull.Value && Convert.ToBoolean(r["Aktywny"])
+                    Aktywny = r["Aktywny"] != DBNull.Value && Convert.ToBoolean(r["Aktywny"]),
+                    UtworzonoUTC = r["UtworzonoUTC"] == DBNull.Value ? (DateTime?)null : (DateTime)r["UtworzonoUTC"],
+                    ZmienionoUTC = r["ZmienionoUTC"] == DBNull.Value ? (DateTime?)null : (DateTime)r["ZmienionoUTC"]
                 });
             }
             return list;
@@ -359,6 +371,8 @@ namespace Kalendarz1.Flota.Services
             dt.Columns.Add("AktualnyKierowca", typeof(string));
             dt.Columns.Add("OstatniSerwis", typeof(string));
             dt.Columns.Add("KosztyYTD", typeof(decimal));
+            dt.Columns.Add("UtworzonoUTC", typeof(DateTime));
+            dt.Columns.Add("ZmienionoUTC", typeof(DateTime));
 
             foreach (var t in tAll.OrderBy(t => !t.Aktywny).ThenBy(t => t.Rejestracja))
             {
@@ -370,6 +384,8 @@ namespace Kalendarz1.Flota.Services
                 row["MaxPaletH1"] = t.PaletyH1;
                 row["Aktywny"] = t.Aktywny;
                 row["KosztyYTD"] = 0m;
+                if (t.UtworzonoUTC.HasValue) row["UtworzonoUTC"] = t.UtworzonoUTC.Value;
+                if (t.ZmienionoUTC.HasValue) row["ZmienionoUTC"] = t.ZmienionoUTC.Value;
                 dt.Rows.Add(row);
             }
             return dt;
