@@ -1832,10 +1832,13 @@ namespace Kalendarz1
                         Color.FromArgb(0, 96, 100), // Ciemny turkusowy #006064
                         () => new Flota.Views.FlotaWindow(), "🚛", "Flota"),
 
-                    // MapowanieFlota usunieta z menu (legacy LibraNet bridge — niepotrzebne po decyzji
-                    // "wszystko z TransportPL"). Klasa MapowanieFlotaWindow zostaje w kodzie dla
-                    // kompatybilnosci ale nie jest renderowana w UI. accessMap[68] = "MapowanieFlota"
-                    // zachowany dla nie-lamania permissions w bazie.
+                    // MapowanieFlota → przekierowanie do MapaFloty (Webfleet GPS mapping).
+                    // Dawne TransportPL↔LibraNet mapowanie usuniete (nie jest juz potrzebne).
+                    // Tu otwiera mape — user klika ⚙ w lewym panelu zeby zmapowac kierowcow/pojazdy z Webfleet GPS.
+                    new MenuItemConfig("MapowanieFlota", "Mapowanie Webfleet (GPS)",
+                        "Mapuj pojazdy i kierowców z Webfleet GPS do bazy TransportPL. Otwiera Mapę Floty i automatycznie pokazuje dialog mapowania (po pobraniu pozycji z GPS).",
+                        Color.FromArgb(38, 116, 122),
+                        () => new MapaFloty.MapaFlotyHubWindow(autoOpenMapping: true), "🔗", "Mapowanie"),
 
                     // Faza 5.4 — 3 kafelki przekierowane do MapaFlotyHubWindow z odpowiednią zakładką startową.
                     // Stare shim Window'y (MapaFlotyWindow/OsCzasuFlotyWindow/RaportEfektywnosciWindow) pozostają

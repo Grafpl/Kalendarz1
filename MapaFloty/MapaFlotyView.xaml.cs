@@ -112,6 +112,16 @@ namespace Kalendarz1.MapaFloty
         }
 
         private DateTime? _pendingOrdersDate;
+        private bool _pendingOpenMapping;
+
+        /// <summary>Po załadowaniu pojazdow z Webfleet otwiera dialog mapowania.</summary>
+        public void OpenMappingAfterLoad()
+        {
+            if (_vehicles.Count > 0)
+                BtnMapping_Click(this, new RoutedEventArgs());
+            else
+                _pendingOpenMapping = true;
+        }
 
         private async void BtnToggleOrders_Click(object sender, RoutedEventArgs e)
         {
@@ -313,6 +323,13 @@ namespace Kalendarz1.MapaFloty
                     : allVehicles;
                 _vehicles = allVehicles;
                 _displayVehicles = vehicles;
+
+                // Auto-open dialog mapowania po pierwszym refresh (gdy menu zewolalo z autoOpenMapping=true)
+                if (_pendingOpenMapping && _vehicles.Count > 0)
+                {
+                    _pendingOpenMapping = false;
+                    Dispatcher.BeginInvoke(new Action(() => BtnMapping_Click(this, new RoutedEventArgs())));
+                }
 
                 foreach (var v in vehicles)
                 {

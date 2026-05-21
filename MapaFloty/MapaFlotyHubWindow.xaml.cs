@@ -30,6 +30,14 @@ namespace Kalendarz1.MapaFloty
                 HubTabs.SelectedIndex = startTab;
         }
 
+        /// <summary>Otwiera hub z tabem Live + auto-trigger dialog mapowania Webfleet po załadowaniu pojazdów.</summary>
+        public MapaFlotyHubWindow(bool autoOpenMapping) : this()
+        {
+            HubTabs.SelectedIndex = TabLive;
+            if (autoOpenMapping && FlotaView != null)
+                FlotaView.OpenMappingAfterLoad();
+        }
+
         /// <summary>Otwiera hub z auto-ładowaniem wolnych zamówień dnia (zachowuje API MapaFlotyWindow z Fazy 4-D).</summary>
         public MapaFlotyHubWindow(DateTime ordersDate) : this()
         {
