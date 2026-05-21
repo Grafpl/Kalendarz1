@@ -71,33 +71,289 @@ namespace Kalendarz1.MapaFloty
                 LoadingOverlay.Visibility = Visibility.Collapsed;
                 TxtStatus.Text = $"Błąd: {ex.GetType().Name}: {ex.Message}";
 
-                // Wciaz pokaz statystyki zmapowanych z bazy + pozwol otworzyc dialogi
                 try
                 {
                     var (mv, md) = await FetchMappedCountsAsync();
                     UpdateProgress(0, mv, md);
-                    BtnPojazdy.IsEnabled = true;   // dialog moze pokazac istniejace mapowania
+                    BtnPojazdy.IsEnabled = true;
                     BtnKierowcy.IsEnabled = true;
                 }
                 catch { }
 
-                string detail = $"Typ błędu: {ex.GetType().Name}\n" +
-                                $"Komunikat: {ex.Message}\n";
-                if (ex.InnerException != null)
-                    detail += $"\nInner: {ex.InnerException.GetType().Name}: {ex.InnerException.Message}\n";
-                detail += $"\nWebfleet URL (base): {Kalendarz1.Webfleet.WebfleetConfig.BaseUrl}\n" +
-                          $"Account: {Kalendarz1.Webfleet.WebfleetConfig.Account}\n\n" +
-                          "Sprawdź:\n" +
-                          "  • połączenie z internetem (ping csv.webfleet.com)\n" +
-                          "  • czy firewall/proxy nie blokuje :443\n" +
-                          "  • czy credentials Webfleet są aktualne\n" +
-                          "  • secrets.json w %LOCALAPPDATA%\\Kalendarz1\\Webfleet\\\n\n" +
-                          "Mimo błędu możesz otworzyć dialogi mapowania — pokazą istniejące mapowania z bazy " +
-                          "(bez nowych obiektów Webfleet).";
-
-                MessageBox.Show(detail, "Błąd Webfleet — diagnostyka",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                string report = await BuildFullDiagnosticReport(ex);
+                ShowDiagnosticDialog(report);
             }
+        }
+
+        private async Task<string> BuildFullDiagnosticReport(Exception ex)
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("════════════════════════════════════════════════════════════════");
+            sb.AppendLine("  DIAGNOSTYKA BŁĘDU WEBFLEET — MapowanieWebfletHubWindow");
+            sb.AppendLine("════════════════════════════════════════════════════════════════");
+            sb.AppendLine();
+
+            // [1] CZAS + ENV
+            sb.AppendLine("── [1] ŚRODOWISKO ─────────────────────────────────────────────");
+            sb.AppendLine($"Data/godzina:    {DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} (lokalna)");
+            sb.AppendLine($"UTC:             {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss.fff}");
+            sb.AppendLine($"Maszyna:         {Environment.MachineName}");
+            sb.AppendLine($"Użytkownik OS:   {Environment.UserName}");
+            sb.AppendLine($"OS:              {Environment.OSVersion}");
+            sb.AppendLine($"App user:        {App.UserID ?? "—"} ({App.UserFullName ?? "—"})");
+            sb.AppendLine($".NET:            {Environment.Version}");
+            sb.AppendLine();
+
+            // [2] WEBFLEET CONFIG (credentials zamaskowane)
+            sb.AppendLine("── [2] WEBFLEET CONFIG ─────────────────────────────────────────");
+            string baseUrl = Kalendarz1.Webfleet.WebfleetConfig.BaseUrl;
+            string account = Kalendarz1.Webfleet.WebfleetConfig.Account;
+            string user = Kalendarz1.Webfleet.WebfleetConfig.User;
+            string pass = Kalendarz1.Webfleet.WebfleetConfig.Pass;
+            string apiKey = Kalendarz1.Webfleet.WebfleetConfig.ApiKey;
+            sb.AppendLine($"BaseUrl:         {baseUrl}");
+            sb.AppendLine($"Account:         {account}");
+            sb.AppendLine($"User:            {user}");
+            sb.AppendLine($"Pass:            {Mask(pass)}  (len={pass?.Length ?? 0})");
+            sb.AppendLine($"ApiKey:          {Mask(apiKey)}  (len={apiKey?.Length ?? 0})");
+            sb.AppendLine($"Secrets path:    {Kalendarz1.Webfleet.WebfleetConfig.SecretsPath}");
+            sb.AppendLine($"Secrets exists:  {System.IO.File.Exists(Kalendarz1.Webfleet.WebfleetConfig.SecretsPath)}");
+            sb.AppendLine();
+
+            // [3] PEŁEN URL (z apikey w plain — ten endpoint i tak musi mieć)
+            string fullUrl = $"{baseUrl}?account={Uri.EscapeDataString(account)}" +
+                             $"&apikey={Uri.EscapeDataString(apiKey)}" +
+                             $"&lang=pl&outputformat=json&action=showObjectReportExtern";
+            sb.AppendLine("── [3] FULL REQUEST URL ────────────────────────────────────────");
+            sb.AppendLine(fullUrl);
+            sb.AppendLine();
+
+            // [4] DNS lookup
+            sb.AppendLine("── [4] DNS LOOKUP (csv.webfleet.com) ──────────────────────────");
+            try
+            {
+                var host = new Uri(baseUrl).Host;
+                sb.AppendLine($"Host:            {host}");
+                var addrs = await System.Net.Dns.GetHostAddressesAsync(host);
+                if (addrs.Length == 0) sb.AppendLine("Result:          BRAK adresów IP!");
+                else
+                {
+                    sb.AppendLine($"Result:          {addrs.Length} adres(ów)");
+                    foreach (var a in addrs) sb.AppendLine($"                 • {a.AddressFamily}: {a}");
+                }
+            }
+            catch (Exception dnsEx)
+            {
+                sb.AppendLine($"DNS FAILED:      {dnsEx.GetType().Name}: {dnsEx.Message}");
+            }
+            sb.AppendLine();
+
+            // [5] TCP probe port 443
+            sb.AppendLine("── [5] TCP CONNECT TEST (csv.webfleet.com:443) ────────────────");
+            try
+            {
+                using var tcp = new System.Net.Sockets.TcpClient();
+                var connectTask = tcp.ConnectAsync(new Uri(baseUrl).Host, 443);
+                var completed = await Task.WhenAny(connectTask, Task.Delay(5000));
+                if (completed != connectTask)
+                {
+                    sb.AppendLine("TCP:             TIMEOUT (>5s) — port nie odpowiada");
+                }
+                else
+                {
+                    await connectTask;
+                    sb.AppendLine($"TCP:             OK — połączenie nawiązane, lokalny port: {(tcp.Client.LocalEndPoint as System.Net.IPEndPoint)?.Port}");
+                }
+                tcp.Close();
+            }
+            catch (Exception tcpEx)
+            {
+                sb.AppendLine($"TCP FAILED:      {tcpEx.GetType().Name}: {tcpEx.Message}");
+                if (tcpEx.InnerException != null)
+                    sb.AppendLine($"  → inner:       {tcpEx.InnerException.GetType().Name}: {tcpEx.InnerException.Message}");
+            }
+            sb.AppendLine();
+
+            // [6] PROXY DETECTION
+            sb.AppendLine("── [6] SYSTEM PROXY ───────────────────────────────────────────");
+            try
+            {
+                var proxy = System.Net.WebRequest.GetSystemWebProxy();
+                var proxyUri = proxy.GetProxy(new Uri(baseUrl));
+                if (proxyUri == null) sb.AppendLine("Proxy:           brak (direct)");
+                else if (proxyUri.ToString() == baseUrl) sb.AppendLine("Proxy:           brak (direct dla tego URL)");
+                else sb.AppendLine($"Proxy:           {proxyUri}");
+            }
+            catch (Exception pEx)
+            {
+                sb.AppendLine($"Proxy check:     {pEx.Message}");
+            }
+            sb.AppendLine();
+
+            // [7] EXCEPTION — pełen chain
+            sb.AppendLine("── [7] EXCEPTION CHAIN ────────────────────────────────────────");
+            var cur = ex;
+            int level = 0;
+            while (cur != null)
+            {
+                sb.AppendLine($"[level {level}] {cur.GetType().FullName}");
+                sb.AppendLine($"   Message:      {cur.Message}");
+                if (cur is System.Net.Http.HttpRequestException httpEx)
+                {
+                    sb.AppendLine($"   StatusCode:   {httpEx.StatusCode}");
+                }
+                if (cur is System.Net.Sockets.SocketException sockEx)
+                {
+                    sb.AppendLine($"   SocketError:  {sockEx.SocketErrorCode}");
+                    sb.AppendLine($"   NativeError:  {sockEx.NativeErrorCode}");
+                }
+                if (cur.HResult != 0)
+                    sb.AppendLine($"   HResult:      0x{cur.HResult:X8} ({cur.HResult})");
+                if (!string.IsNullOrEmpty(cur.StackTrace))
+                {
+                    sb.AppendLine("   StackTrace:");
+                    foreach (var line in cur.StackTrace.Split('\n'))
+                        sb.AppendLine($"     {line.TrimEnd()}");
+                }
+                cur = cur.InnerException;
+                level++;
+                if (level > 10) { sb.AppendLine("(...truncated)"); break; }
+            }
+            sb.AppendLine();
+
+            // [8] CHECKLISTA
+            sb.AppendLine("── [8] CHECKLISTA ─────────────────────────────────────────────");
+            sb.AppendLine("  □ Otwórz cmd → ping csv.webfleet.com");
+            sb.AppendLine("  □ Otwórz w przeglądarce: https://csv.webfleet.com (powinno się wczytać)");
+            sb.AppendLine("  □ Sprawdź czy MapaFloty działa (jeśli też pada — problem sieciowy)");
+            sb.AppendLine("  □ Restart aplikacji (czasem credentials nie załadowane)");
+            sb.AppendLine($"  □ Otwórz: {Kalendarz1.Webfleet.WebfleetConfig.SecretsPath}");
+            sb.AppendLine("    i zweryfikuj BaseUrl/User/Pass/ApiKey/Account");
+            sb.AppendLine();
+            sb.AppendLine("════════════════════════════════════════════════════════════════");
+            sb.AppendLine("Skopiuj cały raport (Ctrl+A → Ctrl+C w dialogu) i wklej do chatu.");
+            sb.AppendLine("════════════════════════════════════════════════════════════════");
+
+            return sb.ToString();
+        }
+
+        private static string Mask(string? s)
+        {
+            if (string.IsNullOrEmpty(s)) return "(puste)";
+            if (s.Length <= 4) return new string('•', s.Length);
+            return s.Substring(0, 2) + new string('•', s.Length - 4) + s.Substring(s.Length - 2);
+        }
+
+        private void ShowDiagnosticDialog(string report)
+        {
+            // Custom window z TextBox (monospace, selectable) + przycisk Copy
+            var win = new Window
+            {
+                Title = "Diagnostyka Webfleet — szczegółowy raport (skopiuj i wklej)",
+                Width = 900,
+                Height = 700,
+                Owner = this,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Background = System.Windows.Media.Brushes.White
+            };
+
+            var grid = new System.Windows.Controls.Grid();
+            grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = System.Windows.GridLength.Auto });
+            grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new System.Windows.GridLength(1, System.Windows.GridUnitType.Star) });
+            grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = System.Windows.GridLength.Auto });
+
+            var hdr = new System.Windows.Controls.TextBlock
+            {
+                Text = "⚠  Webfleet API nie odpowiada — raport diagnostyczny",
+                FontSize = 16,
+                FontWeight = System.Windows.FontWeights.Bold,
+                Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(198, 40, 40)),
+                Margin = new System.Windows.Thickness(16, 14, 16, 8)
+            };
+            System.Windows.Controls.Grid.SetRow(hdr, 0);
+            grid.Children.Add(hdr);
+
+            var tb = new System.Windows.Controls.TextBox
+            {
+                Text = report,
+                IsReadOnly = true,
+                AcceptsReturn = true,
+                TextWrapping = System.Windows.TextWrapping.NoWrap,
+                FontFamily = new System.Windows.Media.FontFamily("Consolas, Courier New"),
+                FontSize = 11.5,
+                Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(250, 251, 252)),
+                Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(38, 50, 56)),
+                Padding = new System.Windows.Thickness(12),
+                BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(224, 227, 234)),
+                BorderThickness = new System.Windows.Thickness(1),
+                Margin = new System.Windows.Thickness(16, 0, 16, 8),
+                VerticalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Auto
+            };
+            System.Windows.Controls.Grid.SetRow(tb, 1);
+            grid.Children.Add(tb);
+
+            var footer = new System.Windows.Controls.DockPanel
+            {
+                Margin = new System.Windows.Thickness(16, 6, 16, 14)
+            };
+
+            var hint = new System.Windows.Controls.TextBlock
+            {
+                Text = "Kliknij \"Kopiuj do schowka\" lub Ctrl+A → Ctrl+C w polu tekstu",
+                FontSize = 11,
+                Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(96, 125, 139)),
+                VerticalAlignment = System.Windows.VerticalAlignment.Center
+            };
+            footer.Children.Add(hint);
+
+            var btnPanel = new System.Windows.Controls.StackPanel
+            {
+                Orientation = System.Windows.Controls.Orientation.Horizontal,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Right
+            };
+            System.Windows.Controls.DockPanel.SetDock(btnPanel, System.Windows.Controls.Dock.Right);
+
+            var btnCopy = new System.Windows.Controls.Button
+            {
+                Content = "📋  Kopiuj do schowka",
+                Padding = new System.Windows.Thickness(16, 8, 16, 8),
+                FontSize = 13,
+                FontWeight = System.Windows.FontWeights.SemiBold,
+                Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(26, 35, 126)),
+                Foreground = System.Windows.Media.Brushes.White,
+                BorderThickness = new System.Windows.Thickness(0),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                Margin = new System.Windows.Thickness(0, 0, 8, 0)
+            };
+            btnCopy.Click += (_, _) =>
+            {
+                try
+                {
+                    System.Windows.Clipboard.SetText(report);
+                    btnCopy.Content = "✓  Skopiowano!";
+                    btnCopy.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(46, 125, 50));
+                }
+                catch { btnCopy.Content = "Błąd kopiowania"; }
+            };
+            btnPanel.Children.Add(btnCopy);
+
+            var btnClose = new System.Windows.Controls.Button
+            {
+                Content = "Zamknij",
+                Padding = new System.Windows.Thickness(16, 8, 16, 8),
+                FontSize = 13,
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+            btnClose.Click += (_, _) => win.Close();
+            btnPanel.Children.Add(btnClose);
+
+            footer.Children.Add(btnPanel);
+            System.Windows.Controls.Grid.SetRow(footer, 2);
+            grid.Children.Add(footer);
+
+            win.Content = grid;
+            win.ShowDialog();
         }
 
         private void UpdateProgress(int totalWebfleet, int mappedVeh, int mappedDrv)
