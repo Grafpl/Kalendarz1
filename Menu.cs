@@ -43,6 +43,7 @@ namespace Kalendarz1
         private Label _crBadgeLabel;
         private Label _transportPendingBadge;
         private Label _transportFreeBadge;
+        private Label _zamowieniaUnreadBadge;
         private Label _reklamacjeBadgeLabel;
         private Label _reklamacjeOczekBadgeLabel;
         private Label _wstawieniaBadgeLabel;
@@ -74,6 +75,7 @@ namespace Kalendarz1
             RegisterBadge(RefreshTransportBadgeAsync, initialDelayMs: 2000);
             RegisterBadge(RefreshReklamacjeBadgeAsync, initialDelayMs: 3000);
             RegisterBadge(RefreshWstawieniaBadgeAsync, initialDelayMs: 4000);
+            RegisterBadge(RefreshZamowieniaUnreadBadgeAsync, initialDelayMs: 5000);
 
             // Po przywróceniu z minimalizacji odśwież badge od razu, nie czekaj 30s.
             this.SizeChanged += MENU_SizeChanged;
@@ -469,6 +471,20 @@ namespace Kalendarz1
             catch { count = 0; }
 
             if (!IsDisposed) SetSimpleBadge(_wstawieniaBadgeLabel, count, n => $"{n} tel");
+        }
+
+        // Badge nieprzeczytanych powiadomień zamówień po cutoff (kafelek "Zamówienia Klientów")
+        private async Task RefreshZamowieniaUnreadBadgeAsync()
+        {
+            if (_zamowieniaUnreadBadge == null) return;
+            int count = 0;
+            try
+            {
+                count = await Kalendarz1.Services.PowiadomieniaZamowienService
+                    .GetUnreadCountAsync(App.UserID ?? "");
+            }
+            catch { count = 0; }
+            if (!IsDisposed) SetSimpleBadge(_zamowieniaUnreadBadge, count);
         }
 
         private async Task RefreshReklamacjeBadgeAsync()
@@ -1832,13 +1848,12 @@ namespace Kalendarz1
                         Color.FromArgb(0, 96, 100), // Ciemny turkusowy #006064
                         () => new Flota.Views.FlotaWindow(), "🚛", "Flota"),
 
-                    // MapowanieFlota → przekierowanie do MapaFloty (Webfleet GPS mapping).
-                    // Dawne TransportPL↔LibraNet mapowanie usuniete (nie jest juz potrzebne).
-                    // Tu otwiera mape — user klika ⚙ w lewym panelu zeby zmapowac kierowcow/pojazdy z Webfleet GPS.
+                    // Lekkie osobne okno mapowania Webfleet GPS ↔ TransportPL (bez mapy/WebView2).
+                    // Pobiera vehicles z Webfleet API bezposrednio i otwiera odpowiedni dialog modal.
                     new MenuItemConfig("MapowanieFlota", "Mapowanie Webfleet (GPS)",
-                        "Mapuj pojazdy i kierowców z Webfleet GPS do bazy TransportPL. Otwiera Mapę Floty i automatycznie pokazuje dialog mapowania (po pobraniu pozycji z GPS).",
+                        "Mapuj pojazdy i kierowców z Webfleet GPS do bazy TransportPL. Lekkie osobne okno (bez mapy) z dwoma przyciskami: Pojazdy / Kierowcy.",
                         Color.FromArgb(38, 116, 122),
-                        () => new MapaFloty.MapaFlotyHubWindow(autoOpenMapping: true), "🔗", "Mapowanie"),
+                        () => new MapaFloty.MapowanieWebfletHubWindow(), "🔗", "Mapowanie"),
 
                     // Faza 5.4 — 3 kafelki przekierowane do MapaFlotyHubWindow z odpowiednią zakładką startową.
                     // Stare shim Window'y (MapaFlotyWindow/OsCzasuFlotyWindow/RaportEfektywnosciWindow) pozostają
@@ -2128,6 +2143,16 @@ namespace Kalendarz1
                         location: new Point(tile.Width - 46, 6),
                         shape: BadgeShape.Pill,
                         font: new Font("Segoe UI", 7, FontStyle.Bold));
+                    break;
+
+                case "ZamowieniaOdbiorcow":
+                    // Czerwone kółko z licznikiem nieprzeczytanych powiadomień (zmiany zamówień po cutoff)
+                    _zamowieniaUnreadBadge = AttachTileBadge(tile, "0",
+                        background: Color.FromArgb(220, 38, 38), // Czerwony #DC2626
+                        size: new Size(26, 26),
+                        location: new Point(tile.Width - 38, 8),
+                        shape: BadgeShape.Ellipse,
+                        font: new Font("Segoe UI", 9, FontStyle.Bold));
                     break;
             }
         }
