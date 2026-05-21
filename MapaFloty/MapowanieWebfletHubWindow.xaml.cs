@@ -69,11 +69,34 @@ namespace Kalendarz1.MapaFloty
             catch (Exception ex)
             {
                 LoadingOverlay.Visibility = Visibility.Collapsed;
-                TxtStatus.Text = $"Błąd: {ex.Message}";
-                MessageBox.Show(
-                    $"Nie udało się pobrać danych z Webfleet:\n{ex.Message}\n\n" +
-                    "Sprawdź połączenie z internetem i konfigurację Webfleet API.",
-                    "Błąd Webfleet", MessageBoxButton.OK, MessageBoxImage.Error);
+                TxtStatus.Text = $"Błąd: {ex.GetType().Name}: {ex.Message}";
+
+                // Wciaz pokaz statystyki zmapowanych z bazy + pozwol otworzyc dialogi
+                try
+                {
+                    var (mv, md) = await FetchMappedCountsAsync();
+                    UpdateProgress(0, mv, md);
+                    BtnPojazdy.IsEnabled = true;   // dialog moze pokazac istniejace mapowania
+                    BtnKierowcy.IsEnabled = true;
+                }
+                catch { }
+
+                string detail = $"Typ błędu: {ex.GetType().Name}\n" +
+                                $"Komunikat: {ex.Message}\n";
+                if (ex.InnerException != null)
+                    detail += $"\nInner: {ex.InnerException.GetType().Name}: {ex.InnerException.Message}\n";
+                detail += $"\nWebfleet URL (base): {Kalendarz1.Webfleet.WebfleetConfig.BaseUrl}\n" +
+                          $"Account: {Kalendarz1.Webfleet.WebfleetConfig.Account}\n\n" +
+                          "Sprawdź:\n" +
+                          "  • połączenie z internetem (ping csv.webfleet.com)\n" +
+                          "  • czy firewall/proxy nie blokuje :443\n" +
+                          "  • czy credentials Webfleet są aktualne\n" +
+                          "  • secrets.json w %LOCALAPPDATA%\\Kalendarz1\\Webfleet\\\n\n" +
+                          "Mimo błędu możesz otworzyć dialogi mapowania — pokazą istniejące mapowania z bazy " +
+                          "(bez nowych obiektów Webfleet).";
+
+                MessageBox.Show(detail, "Błąd Webfleet — diagnostyka",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
 
