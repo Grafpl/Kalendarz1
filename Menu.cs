@@ -66,6 +66,8 @@ namespace Kalendarz1
             SetupMenuItems();
             ApplyModernStyle();
             StartTaskNotifications();
+            // Powiadomienia o zamówieniach po cutoff (polling co 30s)
+            Kalendarz1.Services.PowiadomieniaPollingService.Start(App.UserID ?? "");
             // Generyczna rejestracja wszystkich badge — stagger 1/2/3/4s żeby nie zalać SQL przy starcie.
             // Komunikator wstrzymany (Spotkania też) — brak ich na liście.
             RegisterBadge(RefreshCrBadgeAsync, initialDelayMs: 1000);
@@ -1352,6 +1354,8 @@ namespace Kalendarz1
             /* 68 */ "MapowanieFlota",
             /* 69 */ "TransportHub",
             /* 70 */ "Sprawozdania",
+            /* 71 */ "ZSRIR",
+            /* 72 */ "SprawozdaniaGus",
         };
 
         private void ParseAccessString(string accessString)
@@ -1504,7 +1508,7 @@ namespace Kalendarz1
                         () => new Kalendarz1.WPF.SprawdzalkaUmowWindow(App.UserID), "📑", "Umowy"),
 
                     new MenuItemConfig("Sprawozdania", "Sprawozdania",
-                        "Sprawozdanie zakupu kurczaka żywego (FVZ + FVRR) - sumy netto z poprzedniego tygodnia, tekst do maila",
+                        "Tygodniowe sprawozdania zakupu kurczaka rzeźnego (3 źródła + tekst do ministerstwa) oraz wysyłka raportów do ZSRIR (zsrir.minrol.gov.pl) bezpośrednio z programu",
                         Color.FromArgb(46, 125, 50), // #2E7D32
                         () => new Kalendarz1.WPF.SprawozdaniaWindow(), "📊", "Sprawozdania"),
 
@@ -1596,7 +1600,12 @@ namespace Kalendarz1
                     new MenuItemConfig("ListaPartii", "Lista Partii Ubojowych",
                         "Pełna lista partii ubojowych z ważeniami, kontrolą jakości, HACCP i rozliczeniami skupu",
                         Color.FromArgb(200, 100, 0), // Ciemny pomarańczowy
-                        () => new ListaPartiiWindow(), "📋", "Partie")
+                        () => new ListaPartiiWindow(), "📋", "Partie"),
+
+                    new MenuItemConfig("SprawozdaniaGus", "Sprawozdania GUS",
+                        "P-02 (produkcja miesięczna) i pozostałe sprawozdania do Portalu Sprawozdawczego GUS — generowanie XML z bazy",
+                        Color.FromArgb(183, 88, 0), // jeszcze ciemniejszy pomarańczowy
+                        () => new Kalendarz1.Sprawozdania.Views.SprawozdaniaGusHubWindow(), "📊", "GUS")
                 },
 
                 // ═══════════════════════════════════════════════════════════════════════════
@@ -1685,6 +1694,11 @@ namespace Kalendarz1
                         "Przeglądanie i drukowanie faktur sprzedaży wraz z dokumentami WZ",
                         Color.FromArgb(30, 136, 229), // #1E88E5
                         () => new WidokFakturSprzedazy { UserID = App.UserID }, "🧾", "Faktury"),
+
+                    new MenuItemConfig("HDIDokumenty", "HDI - Dokumenty Identyfikacyjne",
+                        "Handlowe Dokumenty Identyfikacyjne dla klientów (np. JBB Bałdyga) - auto-numeracja, auto-fill z zamówień, generowanie PDF",
+                        Color.FromArgb(40, 130, 215),
+                        () => new Kalendarz1.HDI.HdiListaWindow(), "📋", "HDI"),
 
                     new MenuItemConfig("PanelFaktur", "Panel Faktur",
                         "Panel dla fakturzystki - przepisywanie zamówień do Symfonii Handel i tworzenie faktur",
@@ -1818,10 +1832,10 @@ namespace Kalendarz1
                         Color.FromArgb(0, 96, 100), // Ciemny turkusowy #006064
                         () => new Flota.Views.FlotaWindow(), "🚛", "Flota"),
 
-                    new MenuItemConfig("MapowanieFlota", "Mapowanie systemów",
-                        "Linkuje TransportPL.Kierowca/Pojazd z LibraNet.Driver/CarTrailer (Flota). Jednorazowa procedura — auto-mapowanie po Rejestracji/Imię.",
-                        Color.FromArgb(38, 116, 122),
-                        () => new Flota.Views.MapowanieFlotaWindow(), "🔗", "Mapowanie"),
+                    // MapowanieFlota usunieta z menu (legacy LibraNet bridge — niepotrzebne po decyzji
+                    // "wszystko z TransportPL"). Klasa MapowanieFlotaWindow zostaje w kodzie dla
+                    // kompatybilnosci ale nie jest renderowana w UI. accessMap[68] = "MapowanieFlota"
+                    // zachowany dla nie-lamania permissions w bazie.
 
                     // Faza 5.4 — 3 kafelki przekierowane do MapaFlotyHubWindow z odpowiednią zakładką startową.
                     // Stare shim Window'y (MapaFlotyWindow/OsCzasuFlotyWindow/RaportEfektywnosciWindow) pozostają
@@ -2148,6 +2162,10 @@ namespace Kalendarz1
                             }
                             wpfExisting.Activate();
                             wpfExisting.Focus();
+
+                            // "Zamówienia Klientów" — kliknięcie kafelka ma zawsze pokazać dzisiejszy dzień
+                            if (wpfExisting is Kalendarz1.WPF.MainWindow mw)
+                                _ = mw.JumpToTodayAsync();
                         }
                         else if (existingWindow is System.Windows.Forms.Form winFormExisting)
                         {
