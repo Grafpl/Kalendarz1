@@ -120,6 +120,36 @@
             <Setter Property="Margin" Value="0,0,0,2"/>
         </Style>
 
+        <!-- Pill template for Aktywny column in grids -->
+        <DataTemplate x:Key="StatusPillTemplate">
+            <Border CornerRadius="10" Padding="10,2" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,3">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Background" Value="#FFE0B2"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding RowData.Row.Aktywny}" Value="True">
+                                <Setter Property="Background" Value="#C8E6C9"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <TextBlock FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Foreground" Value="#E65100"/>
+                            <Setter Property="Text" Value="● Wstrzymany"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding RowData.Row.Aktywny}" Value="True">
+                                    <Setter Property="Foreground" Value="#2E7D32"/>
+                                    <Setter Property="Text" Value="● Aktywny"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </Border>
+        </DataTemplate>
+
         <!-- TabItem accent -->
         <Style TargetType="TabItem">
             <Setter Property="Padding" Value="22,10"/>
@@ -282,7 +312,8 @@
                                     <dxg:GridColumn FieldName="Imie" Header="Imię" Width="140" ReadOnly="True"/>
                                     <dxg:GridColumn FieldName="Nazwisko" Header="Nazwisko" Width="180" ReadOnly="True"/>
                                     <dxg:GridColumn FieldName="Telefon" Header="Telefon" Width="140" ReadOnly="True"/>
-                                    <dxg:GridColumn FieldName="Aktywny" Header="Status" Width="90" ReadOnly="True"/>
+                                    <dxg:GridColumn FieldName="Aktywny" Header="Status" Width="130" ReadOnly="True"
+                                                    CellTemplate="{StaticResource StatusPillTemplate}"/>
                                 </dxg:GridControl.Columns>
                                 <dxg:GridControl.View>
                                     <dxg:TableView AutoWidth="True"
@@ -290,7 +321,8 @@
                                                    ShowGroupPanel="False"
                                                    NavigationStyle="Row"
                                                    ShowIndicator="False"
-                                                   RowMinHeight="32"
+                                                   RowMinHeight="36"
+                                                   AlternateRowBackground="#FAFBFC"
                                                    x:Name="ViewKierowcy"/>
                                 </dxg:GridControl.View>
                             </dxg:GridControl>
@@ -302,45 +334,53 @@
                         <!-- Detail Panel -->
                         <Border Grid.Column="2" Background="White" Margin="4,8,14,14" CornerRadius="8"
                                 BorderBrush="#E0E3EA" BorderThickness="1">
-                            <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="18,16">
-                                <StackPanel x:Name="PanelSzczegolyKierowcy">
-                                    <!-- Hero header: name + status pill -->
-                                    <TextBlock Text="SZCZEGÓŁY KIEROWCY" Foreground="#90A4AE" FontSize="9.5" FontWeight="SemiBold" Margin="0,0,0,6"/>
-                                    <TextBlock x:Name="TxtKierowcaNazwa" FontSize="22" FontWeight="Bold"
-                                               Foreground="#1A237E" FontFamily="Segoe UI" TextWrapping="Wrap"/>
-                                    <Border x:Name="KierStatusPill" Background="#C8E6C9" CornerRadius="11" Padding="10,3"
-                                            HorizontalAlignment="Left" Margin="0,8,0,0">
-                                        <TextBlock x:Name="TxtKierowcaTyp" Text="Aktywny" Foreground="#2E7D32" FontSize="11" FontWeight="SemiBold"/>
-                                    </Border>
-
-                                    <Border Height="1" Background="#E0E3EA" Margin="0,16,0,8"/>
-
-                                    <TextBlock Text="TELEFON" Style="{StaticResource DetailLabel}"/>
-                                    <TextBlock x:Name="TxtKierowcaTelefon" Style="{StaticResource DetailValue}"/>
-
-                                    <TextBlock Text="ID W BAZIE" Style="{StaticResource DetailLabel}"/>
-                                    <TextBlock x:Name="TxtKierowcaOd" Style="{StaticResource DetailValue}"/>
-
-                                    <TextBlock Text="DODANY" Style="{StaticResource DetailLabel}"/>
-                                    <TextBlock x:Name="TxtKierowcaPJ" Style="{StaticResource DetailValue}"/>
-
-                                    <TextBlock Text="OSTATNIA ZMIANA" Style="{StaticResource DetailLabel}"/>
-                                    <TextBlock x:Name="TxtKierowcaBadania" Style="{StaticResource DetailValue}"/>
-
-                                    <!-- Compat: ukryte TextBlocks dla legacy code-behind -->
-                                    <TextBlock x:Name="TxtKierowcaBHP" Visibility="Collapsed"/>
-                                    <TextBlock x:Name="TxtKierowcaPojazdy" Visibility="Collapsed"/>
-                                    <TextBlock x:Name="TxtKierowcaStats" Visibility="Collapsed"/>
+                            <Grid>
+                                <!-- Empty state -->
+                                <StackPanel x:Name="EmptyStateKierowca" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Visible">
+                                    <TextBlock Text="👤" FontSize="64" HorizontalAlignment="Center" Foreground="#CFD8DC"/>
+                                    <TextBlock Text="Wybierz kierowcę z listy" FontSize="14" FontWeight="SemiBold"
+                                               Foreground="#90A4AE" HorizontalAlignment="Center" Margin="0,12,0,4"/>
+                                    <TextBlock Text="aby zobaczyć szczegóły" FontSize="11"
+                                               Foreground="#B0BEC5" HorizontalAlignment="Center"/>
                                 </StackPanel>
-                            </ScrollViewer>
+
+                                <!-- Detail content -->
+                                <ScrollViewer x:Name="ScrollDetailKierowca" VerticalScrollBarVisibility="Auto" Padding="18,16" Visibility="Collapsed">
+                                    <StackPanel x:Name="PanelSzczegolyKierowcy">
+                                        <TextBlock Text="SZCZEGÓŁY KIEROWCY" Foreground="#90A4AE" FontSize="9.5" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                                        <TextBlock x:Name="TxtKierowcaNazwa" FontSize="22" FontWeight="Bold"
+                                                   Foreground="#1A237E" FontFamily="Segoe UI" TextWrapping="Wrap"/>
+                                        <Border x:Name="KierStatusPill" Background="#C8E6C9" CornerRadius="11" Padding="10,3"
+                                                HorizontalAlignment="Left" Margin="0,8,0,0">
+                                            <TextBlock x:Name="TxtKierowcaTyp" Text="Aktywny" Foreground="#2E7D32" FontSize="11" FontWeight="SemiBold"/>
+                                        </Border>
+
+                                        <Border Height="1" Background="#E0E3EA" Margin="0,16,0,8"/>
+
+                                        <TextBlock Text="TELEFON" Style="{StaticResource DetailLabel}"/>
+                                        <TextBlock x:Name="TxtKierowcaTelefon" Style="{StaticResource DetailValue}"/>
+
+                                        <TextBlock Text="ID W BAZIE" Style="{StaticResource DetailLabel}"/>
+                                        <TextBlock x:Name="TxtKierowcaOd" Style="{StaticResource DetailValue}"/>
+
+                                        <TextBlock Text="DODANY" Style="{StaticResource DetailLabel}"/>
+                                        <TextBlock x:Name="TxtKierowcaPJ" Style="{StaticResource DetailValue}"/>
+
+                                        <TextBlock Text="OSTATNIA ZMIANA" Style="{StaticResource DetailLabel}"/>
+                                        <TextBlock x:Name="TxtKierowcaBadania" Style="{StaticResource DetailValue}"/>
+
+                                        <!-- Compat: ukryte TextBlocks dla legacy code-behind -->
+                                        <TextBlock x:Name="TxtKierowcaBHP" Visibility="Collapsed"/>
+                                        <TextBlock x:Name="TxtKierowcaPojazdy" Visibility="Collapsed"/>
+                                        <TextBlock x:Name="TxtKierowcaStats" Visibility="Collapsed"/>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </Grid>
                         </Border>
                     </Grid>
 
-                    <!-- Status bar -->
-                    <Border Grid.Row="3" Background="White" Padding="14,6" BorderBrush="#E0E3EA" BorderThickness="0,1,0,0">
-                        <TextBlock x:Name="TxtStatusKierowcy" VerticalAlignment="Center"
-                                   FontFamily="Segoe UI" FontSize="11" Foreground="#546E7A"/>
-                    </Border>
+                    <!-- Compat: ukryty status bar (KPI cards juz pokazuja te liczby) -->
+                    <TextBlock x:Name="TxtStatusKierowcy" Grid.Row="3" Visibility="Collapsed"/>
                 </Grid>
             </TabItem>
 
@@ -458,7 +498,8 @@
                                     <dxg:GridColumn FieldName="Brand" Header="Marka" Width="130" ReadOnly="True"/>
                                     <dxg:GridColumn FieldName="Model" Header="Model" Width="170" ReadOnly="True"/>
                                     <dxg:GridColumn FieldName="MaxPaletH1" Header="Palety H1" Width="100" ReadOnly="True"/>
-                                    <dxg:GridColumn FieldName="Aktywny" Header="Status" Width="90" ReadOnly="True"/>
+                                    <dxg:GridColumn FieldName="Aktywny" Header="Status" Width="130" ReadOnly="True"
+                                                    CellTemplate="{StaticResource StatusPillTemplate}"/>
                                 </dxg:GridControl.Columns>
                                 <dxg:GridControl.View>
                                     <dxg:TableView AutoWidth="True"
@@ -466,7 +507,8 @@
                                                    ShowGroupPanel="False"
                                                    NavigationStyle="Row"
                                                    ShowIndicator="False"
-                                                   RowMinHeight="32"
+                                                   RowMinHeight="36"
+                                                   AlternateRowBackground="#FAFBFC"
                                                    x:Name="ViewPojazdy"/>
                                 </dxg:GridControl.View>
                             </dxg:GridControl>
@@ -477,43 +519,53 @@
 
                         <Border Grid.Column="2" Background="White" Margin="4,8,14,14" CornerRadius="8"
                                 BorderBrush="#E0E3EA" BorderThickness="1">
-                            <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="18,16">
-                                <StackPanel x:Name="PanelSzczegolyPojazdu">
-                                    <TextBlock Text="SZCZEGÓŁY POJAZDU" Foreground="#90A4AE" FontSize="9.5" FontWeight="SemiBold" Margin="0,0,0,6"/>
-                                    <TextBlock x:Name="TxtPojazdNazwa" FontSize="22" FontWeight="Bold"
-                                               Foreground="#1A237E" FontFamily="Segoe UI" TextWrapping="Wrap"/>
-                                    <TextBlock x:Name="TxtPojazdRejestracja" FontSize="14" Foreground="#37474F" FontWeight="SemiBold" Margin="0,4,0,0"/>
-                                    <Border x:Name="PojStatusPill" Background="#C8E6C9" CornerRadius="11" Padding="10,3"
-                                            HorizontalAlignment="Left" Margin="0,8,0,0">
-                                        <TextBlock x:Name="TxtPojazdTyp" Text="Aktywny" Foreground="#2E7D32" FontSize="11" FontWeight="SemiBold"/>
-                                    </Border>
-
-                                    <Border Height="1" Background="#E0E3EA" Margin="0,16,0,8"/>
-
-                                    <TextBlock Text="PALETY H1" Style="{StaticResource DetailLabel}"/>
-                                    <TextBlock x:Name="TxtPojazdVIN" Style="{StaticResource DetailValue}"/>
-
-                                    <TextBlock Text="ID W BAZIE" Style="{StaticResource DetailLabel}"/>
-                                    <TextBlock x:Name="TxtPojazdPrzeglad" Style="{StaticResource DetailValue}"/>
-
-                                    <TextBlock Text="DODANY" Style="{StaticResource DetailLabel}"/>
-                                    <TextBlock x:Name="TxtPojazdOC" Style="{StaticResource DetailValue}"/>
-
-                                    <TextBlock Text="OSTATNIA ZMIANA" Style="{StaticResource DetailLabel}"/>
-                                    <TextBlock x:Name="TxtPojazdKierowca" Style="{StaticResource DetailValue}"/>
-
-                                    <!-- Compat: ukryte TextBlocks dla legacy code-behind -->
-                                    <TextBlock x:Name="TxtPojazdSerwis" Visibility="Collapsed"/>
-                                    <TextBlock x:Name="TxtPojazdKoszty" Visibility="Collapsed"/>
+                            <Grid>
+                                <!-- Empty state -->
+                                <StackPanel x:Name="EmptyStatePojazd" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Visible">
+                                    <TextBlock Text="🚚" FontSize="64" HorizontalAlignment="Center" Foreground="#CFD8DC"/>
+                                    <TextBlock Text="Wybierz pojazd z listy" FontSize="14" FontWeight="SemiBold"
+                                               Foreground="#90A4AE" HorizontalAlignment="Center" Margin="0,12,0,4"/>
+                                    <TextBlock Text="aby zobaczyć szczegóły" FontSize="11"
+                                               Foreground="#B0BEC5" HorizontalAlignment="Center"/>
                                 </StackPanel>
-                            </ScrollViewer>
+
+                                <!-- Detail content -->
+                                <ScrollViewer x:Name="ScrollDetailPojazd" VerticalScrollBarVisibility="Auto" Padding="18,16" Visibility="Collapsed">
+                                    <StackPanel x:Name="PanelSzczegolyPojazdu">
+                                        <TextBlock Text="SZCZEGÓŁY POJAZDU" Foreground="#90A4AE" FontSize="9.5" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                                        <TextBlock x:Name="TxtPojazdNazwa" FontSize="22" FontWeight="Bold"
+                                                   Foreground="#1A237E" FontFamily="Segoe UI" TextWrapping="Wrap"/>
+                                        <TextBlock x:Name="TxtPojazdRejestracja" FontSize="14" Foreground="#37474F" FontWeight="SemiBold" Margin="0,4,0,0"/>
+                                        <Border x:Name="PojStatusPill" Background="#C8E6C9" CornerRadius="11" Padding="10,3"
+                                                HorizontalAlignment="Left" Margin="0,8,0,0">
+                                            <TextBlock x:Name="TxtPojazdTyp" Text="Aktywny" Foreground="#2E7D32" FontSize="11" FontWeight="SemiBold"/>
+                                        </Border>
+
+                                        <Border Height="1" Background="#E0E3EA" Margin="0,16,0,8"/>
+
+                                        <TextBlock Text="PALETY H1" Style="{StaticResource DetailLabel}"/>
+                                        <TextBlock x:Name="TxtPojazdVIN" Style="{StaticResource DetailValue}"/>
+
+                                        <TextBlock Text="ID W BAZIE" Style="{StaticResource DetailLabel}"/>
+                                        <TextBlock x:Name="TxtPojazdPrzeglad" Style="{StaticResource DetailValue}"/>
+
+                                        <TextBlock Text="DODANY" Style="{StaticResource DetailLabel}"/>
+                                        <TextBlock x:Name="TxtPojazdOC" Style="{StaticResource DetailValue}"/>
+
+                                        <TextBlock Text="OSTATNIA ZMIANA" Style="{StaticResource DetailLabel}"/>
+                                        <TextBlock x:Name="TxtPojazdKierowca" Style="{StaticResource DetailValue}"/>
+
+                                        <!-- Compat: ukryte TextBlocks dla legacy code-behind -->
+                                        <TextBlock x:Name="TxtPojazdSerwis" Visibility="Collapsed"/>
+                                        <TextBlock x:Name="TxtPojazdKoszty" Visibility="Collapsed"/>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </Grid>
                         </Border>
                     </Grid>
 
-                    <Border Grid.Row="3" Background="White" Padding="14,6" BorderBrush="#E0E3EA" BorderThickness="0,1,0,0">
-                        <TextBlock x:Name="TxtStatusPojazdy" VerticalAlignment="Center"
-                                   FontFamily="Segoe UI" FontSize="11" Foreground="#546E7A"/>
-                    </Border>
+                    <!-- Compat: ukryty status bar (KPI cards juz pokazuja te liczby) -->
+                    <TextBlock x:Name="TxtStatusPojazdy" Grid.Row="3" Visibility="Collapsed"/>
                 </Grid>
             </TabItem>
 

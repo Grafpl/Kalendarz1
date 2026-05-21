@@ -120,14 +120,12 @@ namespace Kalendarz1.Flota.Views
             var row = GetSelectedDriverRow();
             if (row == null)
             {
-                TxtKierowcaNazwa.Text = "(wybierz kierowcę z listy)";
-                TxtKierowcaTelefon.Text = "";
-                TxtKierowcaTyp.Text = "";
-                TxtKierowcaOd.Text = "";
-                TxtKierowcaPJ.Text = "";
-                TxtKierowcaBadania.Text = "";
+                if (EmptyStateKierowca != null) EmptyStateKierowca.Visibility = Visibility.Visible;
+                if (ScrollDetailKierowca != null) ScrollDetailKierowca.Visibility = Visibility.Collapsed;
                 return;
             }
+            if (EmptyStateKierowca != null) EmptyStateKierowca.Visibility = Visibility.Collapsed;
+            if (ScrollDetailKierowca != null) ScrollDetailKierowca.Visibility = Visibility.Visible;
 
             // Nazwa
             TxtKierowcaNazwa.Text = row["Name"]?.ToString() ?? "—";
@@ -317,15 +315,12 @@ namespace Kalendarz1.Flota.Views
             var row = GetSelectedVehicleRow();
             if (row == null)
             {
-                TxtPojazdNazwa.Text = "(wybierz pojazd z listy)";
-                TxtPojazdRejestracja.Text = "";
-                TxtPojazdTyp.Text = "";
-                TxtPojazdVIN.Text = "";
-                TxtPojazdPrzeglad.Text = "";
-                TxtPojazdOC.Text = "";
-                TxtPojazdKierowca.Text = "";
+                if (EmptyStatePojazd != null) EmptyStatePojazd.Visibility = Visibility.Visible;
+                if (ScrollDetailPojazd != null) ScrollDetailPojazd.Visibility = Visibility.Collapsed;
                 return;
             }
+            if (EmptyStatePojazd != null) EmptyStatePojazd.Visibility = Visibility.Collapsed;
+            if (ScrollDetailPojazd != null) ScrollDetailPojazd.Visibility = Visibility.Visible;
 
             string brand = row["Brand"]?.ToString() ?? "";
             string model = row["Model"]?.ToString() ?? "";
