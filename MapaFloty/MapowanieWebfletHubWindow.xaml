@@ -71,17 +71,39 @@
         </Grid.RowDefinitions>
 
         <!-- Header -->
-        <Border Grid.Row="0" Background="White" Padding="24,18" BorderBrush="#E0E3EA" BorderThickness="0,0,0,1">
-            <DockPanel>
-                <Button DockPanel.Dock="Right" x:Name="BtnRefresh" Content="⟳ Odśwież"
-                        Style="{StaticResource GhostBtn}" Click="BtnRefresh_Click"
-                        ToolTip="Pobierz ponownie z Webfleet"/>
-                <StackPanel>
-                    <TextBlock Text="🔗  Mapowanie Webfleet (GPS)" FontSize="20" FontWeight="Bold" Foreground="#1A237E"/>
-                    <TextBlock Text="Połącz pojazdy i kierowców z Webfleet GPS z bazą TransportPL"
-                               FontSize="12" Foreground="#546E7A" Margin="0,4,0,0"/>
-                </StackPanel>
-            </DockPanel>
+        <Border Grid.Row="0" Background="White" Padding="24,16,24,12" BorderBrush="#E0E3EA" BorderThickness="0,0,0,1">
+            <StackPanel>
+                <DockPanel>
+                    <Button DockPanel.Dock="Right" x:Name="BtnRefresh" Content="⟳ Odśwież"
+                            Style="{StaticResource GhostBtn}" Click="BtnRefresh_Click"
+                            ToolTip="Pobierz ponownie z Webfleet"/>
+                    <StackPanel>
+                        <TextBlock Text="🔗  Mapowanie Webfleet (GPS)" FontSize="20" FontWeight="Bold" Foreground="#1A237E"/>
+                        <TextBlock Text="Połącz pojazdy i kierowców z Webfleet GPS z bazą TransportPL"
+                                   FontSize="12" Foreground="#546E7A" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </DockPanel>
+
+                <!-- URL edytor (na potrzeby naprawy gdy endpoint padł) -->
+                <Border Background="#FFF8E1" CornerRadius="5" Padding="10,7" Margin="0,12,0,0"
+                        BorderBrush="#FFCC80" BorderThickness="1">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="URL:" VerticalAlignment="Center" Foreground="#E65100"
+                                   FontSize="11" FontWeight="SemiBold" Margin="0,0,8,0"/>
+                        <TextBox Grid.Column="1" x:Name="TxtBaseUrl" Height="26" FontSize="11"
+                                 VerticalContentAlignment="Center" Padding="6,0"
+                                 BorderBrush="#FFB74D" BorderThickness="1"
+                                 ToolTip="Aktualny endpoint Webfleet API. Zmień jeśli ConnectionRefused — np. https://connect.webfleet.com/extern"/>
+                        <Button Grid.Column="2" Content="Zapisz i przeładuj" Margin="6,0,0,0"
+                                Style="{StaticResource GhostBtn}" Click="BtnSaveUrl_Click"/>
+                    </Grid>
+                </Border>
+            </StackPanel>
         </Border>
 
         <!-- Content -->

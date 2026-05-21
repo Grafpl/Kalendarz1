@@ -34,7 +34,41 @@ namespace Kalendarz1.MapaFloty
         {
             InitializeComponent();
             try { WindowIconHelper.SetIcon(this); } catch { }
-            Loaded += async (_, _) => await LoadAllAsync();
+            Loaded += async (_, _) =>
+            {
+                TxtBaseUrl.Text = Kalendarz1.Webfleet.WebfleetConfig.BaseUrl;
+                await LoadAllAsync();
+            };
+        }
+
+        private void BtnSaveUrl_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                string newUrl = TxtBaseUrl.Text?.Trim() ?? "";
+                if (string.IsNullOrEmpty(newUrl) || !newUrl.StartsWith("http"))
+                {
+                    MessageBox.Show("URL musi się zaczynać od http(s)://", "Niepoprawny URL",
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+                // Update secrets.json
+                string path = Kalendarz1.Webfleet.WebfleetConfig.SecretsPath;
+                Newtonsoft.Json.Linq.JObject json;
+                if (System.IO.File.Exists(path))
+                    json = Newtonsoft.Json.Linq.JObject.Parse(System.IO.File.ReadAllText(path));
+                else
+                    json = new Newtonsoft.Json.Linq.JObject();
+                json["BaseUrl"] = newUrl;
+                System.IO.File.WriteAllText(path, json.ToString(Newtonsoft.Json.Formatting.Indented));
+                Kalendarz1.Webfleet.WebfleetConfig.Przeladuj();
+                _ = LoadAllAsync();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Nie udało się zapisać:\n{ex.Message}", "Błąd",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private async Task LoadAllAsync()
@@ -389,7 +423,8 @@ namespace Kalendarz1.MapaFloty
 
         private async Task<List<MapaFlotyView.VehiclePosition>> FetchVehiclesAsync()
         {
-            string url = $"{WfBaseUrl}?account={Uri.EscapeDataString(WfAccount)}" +
+            // Czytaj URL na zywo z config — moze byl zaktualizowany przez TxtBaseUrl/BtnSaveUrl
+            string url = $"{Kalendarz1.Webfleet.WebfleetConfig.BaseUrl}?account={Uri.EscapeDataString(WfAccount)}" +
                          $"&apikey={Uri.EscapeDataString(WfApiKey)}&lang=pl&outputformat=json" +
                          $"&action=showObjectReportExtern";
 
