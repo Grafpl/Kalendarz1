@@ -41,6 +41,12 @@ namespace Kalendarz1.MapaFloty
             };
         }
 
+        private void BtnUrlCsv_Click(object sender, RoutedEventArgs e)
+            => TxtBaseUrl.Text = "https://csv.webfleet.com/extern";
+
+        private void BtnUrlApi_Click(object sender, RoutedEventArgs e)
+            => TxtBaseUrl.Text = "https://api.webfleet.com/extern";
+
         private void BtnSaveUrl_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -103,7 +109,10 @@ namespace Kalendarz1.MapaFloty
             catch (Exception ex)
             {
                 LoadingOverlay.Visibility = Visibility.Collapsed;
-                TxtStatus.Text = $"Błąd: {ex.GetType().Name}: {ex.Message}";
+                TxtStatus.Text = $"Błąd Webfleet: {ex.GetType().Name}: {ex.Message}";
+
+                // Pokaz banner z wyjasnieniem migracji OAuth
+                if (MigrationBanner != null) MigrationBanner.Visibility = Visibility.Visible;
 
                 try
                 {
@@ -280,16 +289,20 @@ namespace Kalendarz1.MapaFloty
 
         private void ShowDiagnosticDialog(string report)
         {
+            // Guard: parent (this) mogl zostac zamkniety jesli user zamknal okno
+            // podczas async fetch - nie da sie wtedy ustawic Owner. Pomijamy Owner w tym przypadku.
+            bool parentAlive = System.Windows.PresentationSource.FromVisual(this) != null;
+
             // Custom window z TextBox (monospace, selectable) + przycisk Copy
             var win = new Window
             {
                 Title = "Diagnostyka Webfleet — szczegółowy raport (skopiuj i wklej)",
                 Width = 900,
                 Height = 700,
-                Owner = this,
-                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                WindowStartupLocation = parentAlive ? WindowStartupLocation.CenterOwner : WindowStartupLocation.CenterScreen,
                 Background = System.Windows.Media.Brushes.White
             };
+            if (parentAlive) win.Owner = this;
 
             var grid = new System.Windows.Controls.Grid();
             grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = System.Windows.GridLength.Auto });
