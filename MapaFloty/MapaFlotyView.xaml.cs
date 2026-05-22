@@ -1097,7 +1097,9 @@ html,body,#map{width:100%;height:100%;background:#f0f0f0;font-family:'Segoe UI',
 <button class=""rb-stop"" onclick=""replayStop()"">&#x2716;</button>
 </div>
 <script>
-var map=L.map('map',{zoomControl:false}).setView([51.89,19.92],11);
+var map=L.map('map',{zoomControl:false});
+// Domyslny widok: cala Polska (bounds: SW [49.0, 14.1] -> NE [54.9, 24.2])
+map.fitBounds([[49.0,14.1],[54.9,24.2]],{padding:[20,20]});
 L.control.zoom({position:'topright'}).addTo(map);
 L.control.scale({imperial:false,position:'bottomleft'}).addTo(map);
 var osm=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'&copy; OSM',maxZoom:19});
