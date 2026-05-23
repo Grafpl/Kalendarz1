@@ -133,16 +133,19 @@ GO
 PRINT '';
 PRINT '─── [4] STAN PO NAPRAWIE ──────────────────────────────────────────';
 
+-- Weryfikacja przez LEFT JOIN (SQL Server nie pozwala subquery w SUM CASE)
 SELECT 'WebfleetVehicleMapping' AS Tabela,
        COUNT(*)                  AS Wszystkie,
-       SUM(CASE WHEN PojazdID IS NOT NULL THEN 1 ELSE 0 END) AS Z_PojazdID,
-       SUM(CASE WHEN PojazdID NOT IN (SELECT PojazdID FROM dbo.Pojazd) THEN 1 ELSE 0 END) AS Orphan
-FROM dbo.WebfleetVehicleMapping
+       SUM(CASE WHEN m.PojazdID IS NOT NULL THEN 1 ELSE 0 END) AS Z_PojazdID,
+       SUM(CASE WHEN m.PojazdID IS NOT NULL AND p.PojazdID IS NULL THEN 1 ELSE 0 END) AS Orphan
+FROM dbo.WebfleetVehicleMapping m
+LEFT JOIN dbo.Pojazd p ON p.PojazdID = m.PojazdID
 UNION ALL
 SELECT 'WebfleetDriverMapping', COUNT(*),
-       SUM(CASE WHEN KierowcaID IS NOT NULL THEN 1 ELSE 0 END),
-       SUM(CASE WHEN KierowcaID IS NOT NULL AND KierowcaID NOT IN (SELECT KierowcaID FROM dbo.Kierowca) THEN 1 ELSE 0 END)
-FROM dbo.WebfleetDriverMapping;
+       SUM(CASE WHEN m.KierowcaID IS NOT NULL THEN 1 ELSE 0 END),
+       SUM(CASE WHEN m.KierowcaID IS NOT NULL AND k.KierowcaID IS NULL THEN 1 ELSE 0 END)
+FROM dbo.WebfleetDriverMapping m
+LEFT JOIN dbo.Kierowca k ON k.KierowcaID = m.KierowcaID;
 
 PRINT '';
 PRINT 'Indeksy na tabeli Kurs:';
