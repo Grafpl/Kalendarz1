@@ -329,7 +329,7 @@ namespace Kalendarz1.MapaFloty
                         FROM Kurs k LEFT JOIN Kierowca ki ON k.KierowcaID=ki.KierowcaID
                         LEFT JOIN Pojazd p ON k.PojazdID=p.PojazdID
                         WHERE k.PojazdID IS NOT NULL
-                          AND k.DataKursu >= DATEADD(DAY, -30, CAST(GETDATE() AS DATE))
+                          AND k.DataKursu >= DATEADD(DAY, -90, CAST(GETDATE() AS DATE))
                     )
                     SELECT kr.*,
                            (SELECT TOP 1 l.KodKlienta FROM dbo.Ladunek l
@@ -445,12 +445,28 @@ namespace Kalendarz1.MapaFloty
                         v.BaseSinceStr = null;
                     }
 
+                    // HEURYSTYKA: gdy pojazd niezmapowany (MappedPojazdID=0), spróbuj match po nazwie/rejestracji.
+                    // Webfleet ObjectName moze zawierac rejestracje (lub byc identyczna).
+                    if (v.MappedPojazdID == 0 && !string.IsNullOrEmpty(v.ObjectName))
+                    {
+                        var name = v.ObjectName.Replace(" ", "").Replace("-", "").ToUpperInvariant();
+                        foreach (var kvp in _ostatnieKursyPojazdu)
+                        {
+                            var rej = (kvp.Value.FirstOrDefault()?.Rejestracja ?? "").Replace(" ", "").Replace("-", "").ToUpperInvariant();
+                            if (rej.Length >= 4 && (name.Contains(rej) || rej.Contains(name)))
+                            {
+                                v.MappedPojazdID = kvp.Key;
+                                break;
+                            }
+                        }
+                    }
+
                     // Kurs powiązany z pojazdem — wybór wg czasu (kilka kursów dziennie OK)
                     //   - poza bazą  → ostatni JUŻ rozpoczęty kurs (GodzWyjazdu <= now)
                     //                  (auto jedzie tym kursem dopóki nie wróci do bazy)
                     //   - w bazie    → najbliższy nadchodzący (GodzWyjazdu > now)
                     //                  (po powrocie pokazujemy NASTĘPNY zaplanowany)
-                    //   - brak na dziś → fallback do ostatniego historycznego kursu (z 30 dni)
+                    //   - brak na dziś → fallback do ostatniego historycznego kursu (z 90 dni)
                     if (v.MappedPojazdID > 0)
                     {
                         var pojazdKursy = _todayKursy
@@ -526,6 +542,11 @@ namespace Kalendarz1.MapaFloty
                 }
 
                 UpdateSidePanel(vehicles);
+                // Diagnostyka popup
+                int withKurs = vehicles.Count(v => !string.IsNullOrEmpty(v.KursTrasa));
+                int withPoprz = vehicles.Count(v => !string.IsNullOrEmpty(v.PoprzedniKursTrasa));
+                int mapped = vehicles.Count(v => v.MappedPojazdID > 0);
+                Log($"Vehicles: {vehicles.Count}, zmapowanych={mapped}, z kursem={withKurs}, z poprzednim={withPoprz}");
                 var json = JsonConvert.SerializeObject(vehicles);
                 await MapWebView.CoreWebView2.ExecuteScriptAsync($"updateVehicles({json})");
 
@@ -1426,8 +1447,10 @@ function mkPopup(v){
             +(v.Driver?'<br>Kierowca GPS: <b>'+esc(v.Driver)+'</b>':'')
             +'</div></div>';
     } else {
-        kursHtml='<div style=""padding:6px 12px;background:#fafafa;border-radius:6px;margin:6px 0;font-size:11px;color:#90a4ae"">'
-            +'&#128276; Brak dzisiejszego kursu w planowaniu</div>';
+        kursHtml='<div style=""padding:8px 12px;background:#fafafa;border-radius:6px;margin:6px 0;font-size:11px;color:#90a4ae"">'
+            +'&#128276; Brak kursu w bazie TransportPL dla tego pojazdu.<br>'
+            +'<span style=""font-size:10px;color:#b0bec5"">Sprawdź mapowanie w menu &raquo; Mapowanie Webfleet (GPS)</span>'
+            +'</div>';
     }
 
     // POPRZEDNI kurs — dodajemy ZAWSZE pod aktualnym (jesli pojazd ma >=2 kursy w historii)
