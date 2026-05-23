@@ -1053,7 +1053,9 @@ html,body,#map{width:100%;height:100%;background:#f0f0f0;font-family:'Segoe UI',
 #replayBar .rb-speed{background:#eceff1;color:#263238}
 #replayBar .rb-info{color:#546e7a;font-size:11px;min-width:120px}
 .geo-label{background:linear-gradient(135deg,#e53935,#b71c1c);color:#fff;padding:4px 12px;border-radius:14px;font-weight:700;font-size:11px;white-space:nowrap;border:none;box-shadow:0 2px 10px rgba(229,57,53,.5)}
-.ub-label{background:linear-gradient(135deg,#37474f,#1a2328);color:#fff;padding:4px 10px;border-radius:14px;font-weight:700;font-size:11px;white-space:nowrap;border:none;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+/* Tooltip BAZA Ubojnia — pojawia sie tylko na hover ikonki bazy */
+.ub-label-tt{background:linear-gradient(135deg,#37474f,#1a2328);color:#fff;padding:5px 12px;border-radius:14px;font-weight:700;font-size:11.5px;white-space:nowrap;border:none;box-shadow:0 3px 10px rgba(0,0,0,.4)}
+.ub-label-tt:before{display:none}
 .ub-icon{background:linear-gradient(135deg,#37474f,#263238);width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;box-shadow:0 2px 6px rgba(0,0,0,.3);border:2px solid #fff}
 .leaflet-control-layers{border-radius:10px!important;box-shadow:0 2px 14px rgba(0,0,0,.15)!important;border:none!important}
 .leaflet-popup-content-wrapper{border-radius:10px!important;box-shadow:0 4px 20px rgba(0,0,0,.15)!important}
@@ -1222,6 +1224,34 @@ function mkPopup(v){
             kursHtml+='Kierowca przypisany: <b>'+esc(v.KursKierowca)+'</b>'+diff;
         }
         kursHtml+='</div></div>';
+    } else if(v.IsMoving){
+        // Brak przypisanego kursu, ale pojazd JEDZIE — fallback skad-dokad
+        // Bazujemy na: ostatnia pozycja (Address), kierunek (Course), odleglosc do bazy
+        var skad = v.Address || '(nieznane miejsce)';
+        // Kierunek wzgledem bazy — czy zmierza do/od ubojni
+        // Bearing z pozycji do bazy (51.86857, 19.79476)
+        var bearing = (function(){
+            var lat1=v.Latitude*Math.PI/180, lat2=51.86857*Math.PI/180;
+            var dLon=(19.79476-v.Longitude)*Math.PI/180;
+            var y=Math.sin(dLon)*Math.cos(lat2);
+            var x=Math.cos(lat1)*Math.sin(lat2)-Math.sin(lat1)*Math.cos(lat2)*Math.cos(dLon);
+            return (Math.atan2(y,x)*180/Math.PI+360)%360;
+        })();
+        // Różnica między obecnym kursem a kierunkiem do bazy
+        var diffDeg = Math.abs(((v.Course||0) - bearing + 540) % 360 - 180);
+        var dokad, dokadIcon;
+        if(diffDeg < 45){ dokad = 'wraca do bazy'; dokadIcon = '&#127968;'; /* 🏠 */ }
+        else if(diffDeg > 135){ dokad = 'oddala się od bazy'; dokadIcon = '&#10145;'; /* ➡ */ }
+        else { dokad = 'jedzie bocznym kierunkiem'; dokadIcon = '&#8597;'; /* ↕ */ }
+        var etaTxt = v.EtaMinutes>0 ? 'ETA do bazy ok. '+v.EtaMinutes+' min' : '';
+        kursHtml='<div class=""vp-kurs-box"" style=""background:#fff3e0;border-color:#ffb74d"">'
+            +'<div class=""vp-kurs-h"" style=""color:#e65100"">&#128666; W TRASIE (bez planowanego kursu)</div>'
+            +'<div class=""vp-kurs-route"" style=""color:#bf360c"">'+esc(skad)+'</div>'
+            +'<div class=""vp-kurs-meta"">'
+            +dokadIcon+' <b>'+dokad+'</b> &middot; '+v.Speed+' km/h'
+            +(etaTxt?'<br>&#9201; '+etaTxt:'')
+            +(v.Driver?'<br>Kierowca GPS: <b>'+esc(v.Driver)+'</b>':'')
+            +'</div></div>';
     } else {
         kursHtml='<div style=""padding:6px 12px;background:#fafafa;border-radius:6px;margin:6px 0;font-size:11px;color:#90a4ae"">'
             +'&#128276; Brak dzisiejszego kursu w planowaniu</div>';
@@ -1249,8 +1279,11 @@ function mkPopup(v){
 
 // ── Geofence + Ubojnia ──
 // Baza — ubojnia Koziołki 40
-L.marker([51.86857,19.79476],{icon:L.divIcon({className:'',html:'<div class=""ub-icon"">&#127981;</div>',iconSize:[26,26],iconAnchor:[13,13]})}).addTo(map).bindPopup('<b>Ubojnia Koziołki 40</b><br>Baza');
-L.marker([51.86857,19.79476],{icon:L.divIcon({className:'ub-label',html:'BAZA — Ubojnia',iconSize:null,iconAnchor:[55,-22]}),interactive:false}).addTo(map);
+// Baza — tylko ikona; etykieta BAZA-Ubojnia pojawia sie na hover/click (Leaflet tooltip)
+L.marker([51.86857,19.79476],{icon:L.divIcon({className:'',html:'<div class=""ub-icon"">&#127981;</div>',iconSize:[26,26],iconAnchor:[13,13]})})
+  .addTo(map)
+  .bindPopup('<b>Ubojnia Koziołki 40</b><br>Baza')
+  .bindTooltip('BAZA — Ubojnia',{direction:'top',offset:[0,-12],className:'ub-label-tt'});
 
 // ── Vehicles (z marker clustering) ──
 function updateVehicles(vs){
@@ -1289,13 +1322,14 @@ function updateVehicles(vs){
     // Wymus refresh ikon clustra (zeby BaseSinceStr/Driver w liscie sie odswiezyl)
     try { vehicleCluster.refreshClusters(); } catch(e){}
 }
-// Polishing — tooltip wzbogacony o kurs
+// Polishing — tooltip wzbogacony o kurs lub fallback skad-dokad
 function mkTooltip(v){
     var status = v.IsMoving ? (v.Speed+' km/h')
         : (v.InGeofence ? 'w bazie'
         : (v.Ignition ? 'postój' : 'wyłączony'));
     var s = v.ObjectName + ' — ' + status;
     if(v.KursTrasa) s += '  ·  ' + v.KursTrasa;
+    else if(v.IsMoving && v.Address) s += '  ·  z ' + v.Address.substring(0,40);
     return s;
 }
 function animateMarker(m,f,t,dur){
