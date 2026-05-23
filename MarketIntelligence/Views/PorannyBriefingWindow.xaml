@@ -104,6 +104,14 @@
                             Padding="12,6" FontSize="11" Cursor="Hand"
                             ToolTip="Dodawaj własne strony i RSS feedy. AI auto-detect + fetch + analiza."
                             Margin="0,0,8,0"/>
+                    <Button x:Name="btnQueries"
+                            Content="🎯 Moje tematy"
+                            Click="btnQueries_Click"
+                            Background="#2A2520" Foreground="#C9A96E"
+                            BorderBrush="#3F3830" BorderThickness="1"
+                            Padding="12,6" FontSize="11" Cursor="Hand"
+                            ToolTip="Twoje zapytania do AI Perplexity. HPAI, ceny żywca, Cedrob, Biedronka, KSeF — co AI ma śledzić."
+                            Margin="0,0,8,0"/>
                     <Button x:Name="btnDiagnostics"
                             Content="🛠 Diagnostyka"
                             Click="btnDiagnostics_Click"

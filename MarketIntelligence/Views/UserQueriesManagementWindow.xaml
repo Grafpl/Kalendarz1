@@ -1,0 +1,248 @@
+<Window x:Class="Kalendarz1.MarketIntelligence.Views.UserQueriesManagementWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="🎯 Moje Tematy — co AI ma śledzić w internecie"
+        Width="1150" Height="760"
+        WindowStartupLocation="CenterScreen"
+        Background="#15120D"
+        Foreground="#D5CCC0"
+        FontFamily="Segoe UI">
+    <Window.Resources>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#D5CCC0"/>
+        </Style>
+        <Style x:Key="Hdr" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="20"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="#F5EDE0"/>
+        </Style>
+        <Style x:Key="Sub" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="#7A6F63"/>
+        </Style>
+        <Style x:Key="Lbl" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#A89F92"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Margin" Value="0,4,0,2"/>
+        </Style>
+        <Style x:Key="Btn" TargetType="Button">
+            <Setter Property="Background" Value="#2A2520"/>
+            <Setter Property="Foreground" Value="#D5CCC0"/>
+            <Setter Property="BorderBrush" Value="#3F3830"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="14,7"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
+        </Style>
+        <Style x:Key="PrimaryBtn" TargetType="Button" BasedOn="{StaticResource Btn}">
+            <Setter Property="Background" Value="#3D2F1F"/>
+            <Setter Property="Foreground" Value="#F5EDE0"/>
+            <Setter Property="BorderBrush" Value="#C9A96E"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+        <Style x:Key="Inp" TargetType="TextBox">
+            <Setter Property="Background" Value="#1F1A14"/>
+            <Setter Property="Foreground" Value="#F5EDE0"/>
+            <Setter Property="BorderBrush" Value="#3F3830"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="CaretBrush" Value="#F5EDE0"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+        <Style x:Key="Combo" TargetType="ComboBox">
+            <Setter Property="Background" Value="#1F1A14"/>
+            <Setter Property="Foreground" Value="#F5EDE0"/>
+            <Setter Property="BorderBrush" Value="#3F3830"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="6,4"/>
+        </Style>
+        <Style x:Key="TmplBtn" TargetType="Button">
+            <Setter Property="Background" Value="#2A2520"/>
+            <Setter Property="Foreground" Value="#C9A96E"/>
+            <Setter Property="BorderBrush" Value="#3F3830"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="0,0,6,6"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="0">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- HEADER -->
+        <Border Grid.Row="0" Background="#1F1A14" Padding="24,16" BorderBrush="#3F3830" BorderThickness="0,0,0,1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <TextBlock Style="{StaticResource Hdr}" Text="🎯 Moje Tematy — co AI ma śledzić"/>
+                    <TextBlock Style="{StaticResource Sub}"
+                               Text="Twoje własne zapytania do Perplexity. Co dzień AI przeszuka cały polski internet pod kątem każdego tematu."
+                               Margin="0,3,0,0"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock x:Name="txtStats" Style="{StaticResource Sub}" Text="" Margin="0,0,16,0" VerticalAlignment="Center"/>
+                    <Button Style="{StaticResource Btn}" Content="🔄 Odśwież" Click="BtnRefresh_Click"/>
+                    <Button Style="{StaticResource PrimaryBtn}" Content="➕ Dodaj temat" Click="BtnAdd_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- BODY -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- LEFT: lista tematów -->
+            <DataGrid x:Name="dgQueries"
+                      Grid.Column="0"
+                      AutoGenerateColumns="False"
+                      Background="#15120D"
+                      Foreground="#D5CCC0"
+                      BorderThickness="0"
+                      HeadersVisibility="Column"
+                      GridLinesVisibility="Horizontal"
+                      HorizontalGridLinesBrush="#2A2520"
+                      RowBackground="#15120D"
+                      AlternatingRowBackground="#1A1611"
+                      SelectionMode="Single"
+                      CanUserAddRows="False"
+                      CanUserDeleteRows="False"
+                      IsReadOnly="True"
+                      FontSize="12"
+                      SelectionChanged="DgQueries_SelectionChanged">
+                <DataGrid.ColumnHeaderStyle>
+                    <Style TargetType="DataGridColumnHeader">
+                        <Setter Property="Background" Value="#1F1A14"/>
+                        <Setter Property="Foreground" Value="#C9A96E"/>
+                        <Setter Property="BorderBrush" Value="#3F3830"/>
+                        <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                        <Setter Property="Padding" Value="8,6"/>
+                        <Setter Property="FontWeight" Value="SemiBold"/>
+                    </Style>
+                </DataGrid.ColumnHeaderStyle>
+                <DataGrid.CellStyle>
+                    <Style TargetType="DataGridCell">
+                        <Setter Property="BorderThickness" Value="0"/>
+                        <Setter Property="Padding" Value="8,8"/>
+                        <Setter Property="Foreground" Value="#D5CCC0"/>
+                        <Style.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Background" Value="#3D2F1F"/>
+                                <Setter Property="Foreground" Value="#F5EDE0"/>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </DataGrid.CellStyle>
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Priorytet" Binding="{Binding PriorityLabel}" Width="110"/>
+                    <DataGridTextColumn Header="Zapytanie" Binding="{Binding QueryText}" Width="*"/>
+                    <DataGridTextColumn Header="Kategoria" Binding="{Binding Category}" Width="100"/>
+                    <DataGridCheckBoxColumn Header="Akt." Binding="{Binding Enabled}" Width="40"/>
+                    <DataGridTextColumn Header="Świeżość" Binding="{Binding RecencyFilter}" Width="70"/>
+                    <DataGridTextColumn Header="Razy" Binding="{Binding TimesUsed}" Width="50"/>
+                    <DataGridTextColumn Header="Ostatnio" Binding="{Binding LastUsedDisplay}" Width="120"/>
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <!-- RIGHT: editor + templates -->
+            <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" Padding="20,16">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource Hdr}" FontSize="14" Text="📝 Szablony szybkiego dodania" Margin="0,0,0,8"/>
+                    <WrapPanel>
+                        <Button Style="{StaticResource TmplBtn}" Content="🔴 HPAI łódzkie" Click="BtnTmpl_Click" Tag="HPAI_łódzkie"/>
+                        <Button Style="{StaticResource TmplBtn}" Content="💰 Ceny żywca" Click="BtnTmpl_Click" Tag="Ceny_żywca"/>
+                        <Button Style="{StaticResource TmplBtn}" Content="🏭 Cedrob/ADQ" Click="BtnTmpl_Click" Tag="Cedrob_ADQ"/>
+                        <Button Style="{StaticResource TmplBtn}" Content="🛒 Biedronka" Click="BtnTmpl_Click" Tag="Biedronka"/>
+                        <Button Style="{StaticResource TmplBtn}" Content="🌽 Pasze MATIF" Click="BtnTmpl_Click" Tag="Pasze_MATIF"/>
+                        <Button Style="{StaticResource TmplBtn}" Content="⚖ KSeF Sage" Click="BtnTmpl_Click" Tag="KSeF_Sage"/>
+                        <Button Style="{StaticResource TmplBtn}" Content="🇧🇷 Brazylia import" Click="BtnTmpl_Click" Tag="Brazylia"/>
+                        <Button Style="{StaticResource TmplBtn}" Content="🇺🇦 MHP Ukraina" Click="BtnTmpl_Click" Tag="MHP_Ukraina"/>
+                    </WrapPanel>
+
+                    <Border Background="#3F3830" Height="1" Margin="0,16,0,16"/>
+
+                    <TextBlock Style="{StaticResource Hdr}" FontSize="14" Text="✏ Edytor tematu" Margin="0,0,0,8"/>
+
+                    <TextBlock Style="{StaticResource Lbl}" Text="Treść zapytania do AI"/>
+                    <TextBox x:Name="txtQuery" Style="{StaticResource Inp}" MinHeight="80" AcceptsReturn="True"/>
+                    <TextBlock Style="{StaticResource Sub}" TextWrapping="Wrap" Margin="0,2,0,0"
+                               Text="Wpisz konkretnie czego AI ma szukać. Np: 'Ceny skupu kurczaka brojler Polska maj 2026. Ile ubojnie płacą za kilogram?'"/>
+
+                    <TextBlock Style="{StaticResource Lbl}" Text="Kategoria"/>
+                    <ComboBox x:Name="cbCategory" Style="{StaticResource Combo}" IsEditable="True">
+                        <ComboBoxItem Content="HPAI"/>
+                        <ComboBoxItem Content="Ceny"/>
+                        <ComboBoxItem Content="Konkurencja"/>
+                        <ComboBoxItem Content="Klienci"/>
+                        <ComboBoxItem Content="Eksport"/>
+                        <ComboBoxItem Content="Import"/>
+                        <ComboBoxItem Content="Regulacje"/>
+                        <ComboBoxItem Content="Pasze"/>
+                        <ComboBoxItem Content="Region"/>
+                        <ComboBoxItem Content="Custom" IsSelected="True"/>
+                    </ComboBox>
+
+                    <Grid Margin="0,8,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Style="{StaticResource Lbl}" Text="Priorytet"/>
+                            <ComboBox x:Name="cbPriority" Style="{StaticResource Combo}">
+                                <ComboBoxItem Content="1 — Krytyczne (zawsze)" Tag="1"/>
+                                <ComboBoxItem Content="2 — Wysokie" Tag="2"/>
+                                <ComboBoxItem Content="3 — Wysokie" Tag="3"/>
+                                <ComboBoxItem Content="5 — Normalne" Tag="5" IsSelected="True"/>
+                                <ComboBoxItem Content="7 — Niskie" Tag="7"/>
+                                <ComboBoxItem Content="9 — Opcjonalne" Tag="9"/>
+                            </ComboBox>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                            <TextBlock Style="{StaticResource Lbl}" Text="Świeżość źródeł"/>
+                            <ComboBox x:Name="cbRecency" Style="{StaticResource Combo}">
+                                <ComboBoxItem Content="day — ostatnie 24h" Tag="day"/>
+                                <ComboBoxItem Content="week — ostatni tydzień" Tag="week" IsSelected="True"/>
+                                <ComboBoxItem Content="month — ostatni miesiąc" Tag="month"/>
+                                <ComboBoxItem Content="year — ostatni rok" Tag="year"/>
+                            </ComboBox>
+                        </StackPanel>
+                    </Grid>
+
+                    <TextBlock Style="{StaticResource Lbl}" Text="Notatki (opcjonalne)"/>
+                    <TextBox x:Name="txtNotes" Style="{StaticResource Inp}" MinHeight="40" AcceptsReturn="True"/>
+
+                    <CheckBox x:Name="chkEnabled" Content="✅ Aktywne (używaj w fetchu)" Foreground="#D5CCC0" IsChecked="True" Margin="0,12,0,0"/>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+                        <Button Content="💾 Zapisz" Style="{StaticResource PrimaryBtn}" Click="BtnSave_Click" Padding="20,8"/>
+                        <Button x:Name="btnDelete" Content="🗑 Usuń" Style="{StaticResource Btn}" Click="BtnDelete_Click" Margin="8,0,0,0"/>
+                        <Button Content="Anuluj" Style="{StaticResource Btn}" Click="BtnCancel_Click" Margin="8,0,0,0"/>
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+
+        <!-- FOOTER -->
+        <Border Grid.Row="2" Background="#1F1A14" Padding="24,8" BorderBrush="#3F3830" BorderThickness="0,1,0,0">
+            <Grid>
+                <TextBlock Style="{StaticResource Sub}" HorizontalAlignment="Left" VerticalAlignment="Center"
+                           Text="intel_UserQueries w LibraNet. Twoje tematy + hardcoded 16 Critical PL queries. Limit Perplexity 30/dzień."/>
+                <Button HorizontalAlignment="Right" Style="{StaticResource Btn}" Content="Zamknij" Click="BtnClose_Click"/>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

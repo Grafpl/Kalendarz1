@@ -417,6 +417,20 @@ namespace Kalendarz1.MarketIntelligence.Views
             }
         }
 
+        private void btnQueries_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var win = new UserQueriesManagementWindow { Owner = this };
+                win.Show();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Błąd otwierania Moich tematów: " + ex.Message, "Moje tematy",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
         private void OpenUrl_Click(object sender, RoutedEventArgs e)
         {
             if (sender is FrameworkElement fe && fe.Tag is string url && !string.IsNullOrEmpty(url))
