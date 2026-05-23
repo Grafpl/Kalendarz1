@@ -22,7 +22,23 @@ namespace Kalendarz1.MarketIntelligence.Views
         public BriefingOnePagerWindow()
         {
             InitializeComponent();
-            Loaded += async (s, e) => await LoadAsync();
+            Loaded += async (s, e) =>
+            {
+                await LoadAsync();
+                lstChat.ItemsSource = _chatHistory;
+                AddSystemHello();
+            };
+        }
+
+        private void AddSystemHello()
+        {
+            _chatHistory.Add(new ChatMessage
+            {
+                Author = "🤖 Asystent AI",
+                AuthorColor = new SolidColorBrush(Color.FromRgb(201, 169, 110)),
+                BgColor = new SolidColorBrush(Color.FromRgb(31, 26, 20)),
+                Content = "Cześć Sergiusz. Wiem co się działo w drobiarstwie ostatnie 30 dni + znam profil firmy. Pytaj swobodnie albo użyj szybkich pytań powyżej."
+            });
         }
 
         private async Task LoadAsync()
@@ -293,6 +309,9 @@ ORDER BY
         private void BtnClose_Click(object sender, RoutedEventArgs e) => Close();
 
         private readonly Services.FeedbackService _feedbackService = new();
+        private readonly System.Collections.ObjectModel.ObservableCollection<ChatMessage> _chatHistory = new();
+        private Services.AI.ClaudeAnalysisService _claude;
+        private string _chatSystemPrompt;
 
         private async void BtnFeedbackUp_Click(object sender, RoutedEventArgs e) => await RecordFeedbackAsync(sender, 1);
         private async void BtnFeedbackDown_Click(object sender, RoutedEventArgs e) => await RecordFeedbackAsync(sender, -1);
@@ -359,6 +378,98 @@ ORDER BY
             public string Category { get; set; }
             public string Severity { get; set; }
             public string WhatItMeans { get; set; }
+        }
+
+        private async void BtnQuickPrompt_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is System.Windows.Controls.Button btn && btn.Tag is string prompt)
+            {
+                txtChatInput.Text = prompt;
+                await SendChatAsync();
+            }
+        }
+
+        private async void TxtChatInput_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (e.Key == System.Windows.Input.Key.Enter
+                && (System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Shift) == 0)
+            {
+                e.Handled = true;
+                await SendChatAsync();
+            }
+        }
+
+        private async void BtnChatSend_Click(object sender, RoutedEventArgs e) => await SendChatAsync();
+
+        private async Task SendChatAsync()
+        {
+            var q = (txtChatInput.Text ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(q)) return;
+
+            txtChatInput.Text = "";
+            btnChatSend.IsEnabled = false;
+            txtChatStatus.Text = "⏳ AI myśli (Sonnet 4.6, ~5-15s)…";
+
+            // Append user message
+            _chatHistory.Add(new ChatMessage
+            {
+                Author = "👤 " + (App.UserFullName ?? "Sergiusz"),
+                AuthorColor = new SolidColorBrush(Color.FromRgb(245, 237, 224)),
+                BgColor = new SolidColorBrush(Color.FromRgb(42, 37, 32)),
+                Content = q
+            });
+            ScrollChatToEnd();
+
+            try
+            {
+                if (_claude == null) _claude = new Services.AI.ClaudeAnalysisService();
+                if (_chatSystemPrompt == null)
+                {
+                    var builder = new Services.BriefingChatContextBuilder();
+                    _chatSystemPrompt = await builder.BuildSystemPromptAsync(App.UserID ?? Environment.UserName);
+                }
+
+                var answer = await _claude.ChatAsync(_chatSystemPrompt, q);
+
+                _chatHistory.Add(new ChatMessage
+                {
+                    Author = "🤖 Asystent AI",
+                    AuthorColor = new SolidColorBrush(Color.FromRgb(201, 169, 110)),
+                    BgColor = new SolidColorBrush(Color.FromRgb(31, 26, 20)),
+                    Content = answer ?? "(brak odpowiedzi)"
+                });
+                ScrollChatToEnd();
+                txtChatStatus.Text = $"✅ Odpowiedź wygenerowana · {DateTime.Now:HH:mm:ss}";
+            }
+            catch (Exception ex)
+            {
+                _chatHistory.Add(new ChatMessage
+                {
+                    Author = "⚠ Błąd",
+                    AuthorColor = new SolidColorBrush(Color.FromRgb(232, 93, 93)),
+                    BgColor = new SolidColorBrush(Color.FromRgb(40, 24, 24)),
+                    Content = $"Nie udało się uzyskać odpowiedzi: {ex.Message}"
+                });
+                txtChatStatus.Text = "❌ Błąd — sprawdź klucz Claude API.";
+            }
+            finally
+            {
+                btnChatSend.IsEnabled = true;
+            }
+        }
+
+        private void ScrollChatToEnd()
+        {
+            Dispatcher.InvokeAsync(() => chatScroll?.ScrollToEnd(),
+                System.Windows.Threading.DispatcherPriority.Background);
+        }
+
+        public class ChatMessage
+        {
+            public string Author { get; set; }
+            public string Content { get; set; }
+            public SolidColorBrush AuthorColor { get; set; }
+            public SolidColorBrush BgColor { get; set; }
         }
 
         public class ActionRow

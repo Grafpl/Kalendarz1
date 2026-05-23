@@ -782,6 +782,39 @@ Odpowiedz w formacie JSON:
 
         #endregion
 
+        #region Chat (free-form conversation)
+
+        /// <summary>
+        /// Konwersacyjny chat z Claude (Sonnet 4.6, temperature 0.5, max 4000 tokens).
+        /// System prompt cache'owany (ephemeral) — kolejne pytania w sesji wykorzystują cache,
+        /// ~10× tańsze i ~5× szybsze niż za pierwszym razem.
+        /// Używane przez chat panel w BriefingOnePagerWindow.
+        /// </summary>
+        public async Task<string> ChatAsync(string systemPrompt, string userPrompt, CancellationToken ct = default)
+        {
+            if (!IsConfigured) return "[Brak klucza Claude API — wpisz w secrets.json lub zmiennej ANTHROPIC_API_KEY]";
+            try
+            {
+                var response = await CallClaudeAsync(
+                    systemPrompt: systemPrompt,
+                    userPrompt: userPrompt,
+                    model: SonnetModel,
+                    maxTokens: 4000,
+                    ct: ct,
+                    cacheSystem: true,
+                    temperature: 0.5);
+
+                return string.IsNullOrEmpty(response) ? "[Brak odpowiedzi — sprawdź credit balance lub sieć]" : response;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Claude] Chat error: {ex.Message}");
+                return $"[Błąd: {ex.Message}]";
+            }
+        }
+
+        #endregion
+
         #region API Call
 
         // Backward-compatible single-prompt overload (no caching, used przez filter/summary/translation)

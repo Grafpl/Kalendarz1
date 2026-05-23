@@ -185,6 +185,74 @@
                     <TextBlock x:Name="txtWeekly" Text="—" FontSize="12"/>
                 </Border>
 
+                <!-- CHAT Z AI -->
+                <TextBlock Style="{StaticResource Hdr2}" Text="💬 Zapytaj AI — twój asystent zna brief, artykuły, profil firmy"/>
+                <Border Background="#1F1A14" CornerRadius="4" Padding="14,12" BorderBrush="#3F3830" BorderThickness="1">
+                    <StackPanel>
+                        <!-- Quick prompts -->
+                        <WrapPanel Margin="0,0,0,10">
+                            <Button Content="🦠 Czy HPAI mnie zagraża?" Tag="Czy HPAI mnie zagraża dziś? Spójrz na ostatnie 7 dni ognisk, szczególnie łódzkie i sąsiednie. Daj mi konkretną odpowiedź TAK/NIE + 1 akcja."
+                                    Click="BtnQuickPrompt_Click" Style="{StaticResource ToolBtn}" Margin="0,0,6,6"
+                                    FontSize="11"/>
+                            <Button Content="💰 Co z cenami żywca?" Tag="Co dzieje się z cenami skupu żywca drobiowego? Porównaj tendencje, podaj liczby z ostatnich artykułów. Czy mam podnieść nasze 4.72 zł/kg?"
+                                    Click="BtnQuickPrompt_Click" Style="{StaticResource ToolBtn}" Margin="0,0,6,6"
+                                    FontSize="11"/>
+                            <Button Content="🏢 Co z Cedrobem?" Tag="Co dzieje się z Cedrob i przejęciem przez ADQ? Daj mi status, ryzyko dla nas, możliwe scenariusze."
+                                    Click="BtnQuickPrompt_Click" Style="{StaticResource ToolBtn}" Margin="0,0,6,6"
+                                    FontSize="11"/>
+                            <Button Content="🛒 Co z Biedronką?" Tag="Co dzieje się u Biedronki/Jeronimo Martins ostatnio? Promocje, ceny, kontrakty drobiowe — jak nas dotyka?"
+                                    Click="BtnQuickPrompt_Click" Style="{StaticResource ToolBtn}" Margin="0,0,6,6"
+                                    FontSize="11"/>
+                            <Button Content="📊 Esencja w 3 zdaniach" Tag="Daj mi najważniejszą esencję ostatnich 7 dni briefingów w MAKSYMALNIE 3 zdaniach. Konkretne liczby, konkretne akcje."
+                                    Click="BtnQuickPrompt_Click" Style="{StaticResource ToolBtn}" Margin="0,0,6,6"
+                                    FontSize="11"/>
+                            <Button Content="🌍 Brazylia/MHP" Tag="Jak wygląda zagrożenie importowe (Brazylia BRF/JBS + MHP Ukraina) na ten miesiąc? Wolumeny, ceny, ryzyko dla nas."
+                                    Click="BtnQuickPrompt_Click" Style="{StaticResource ToolBtn}" Margin="0,0,6,6"
+                                    FontSize="11"/>
+                        </WrapPanel>
+
+                        <!-- Conversation history -->
+                        <Border Background="#15120D" CornerRadius="3" BorderBrush="#2A2520" BorderThickness="1" MaxHeight="320" Margin="0,0,0,8">
+                            <ScrollViewer x:Name="chatScroll" VerticalScrollBarVisibility="Auto" Padding="10,8">
+                                <ItemsControl x:Name="lstChat">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="{Binding BgColor}" CornerRadius="3" Padding="10,8" Margin="0,0,0,6">
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding Author}" Foreground="{Binding AuthorColor}" FontWeight="SemiBold" FontSize="11" Margin="0,0,0,3"/>
+                                                    <TextBlock Text="{Binding Content}" Foreground="#F5EDE0" FontSize="12" TextWrapping="Wrap"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </Border>
+
+                        <!-- Input -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="txtChatInput" Grid.Column="0"
+                                     Background="#15120D" Foreground="#F5EDE0"
+                                     BorderBrush="#3F3830" BorderThickness="1" Padding="10,8"
+                                     FontSize="12" CaretBrush="#F5EDE0"
+                                     TextWrapping="Wrap" AcceptsReturn="False"
+                                     KeyDown="TxtChatInput_KeyDown"
+                                     ToolTip="Enter aby wysłać. Pytaj swobodnie — AI zna profil firmy, ostatnie 30 dni artykułów, briefingi i twoje preferencje."/>
+                            <Button x:Name="btnChatSend" Grid.Column="1"
+                                    Content="Wyślij ➤" Click="BtnChatSend_Click"
+                                    Background="#3D2F1F" Foreground="#F5EDE0"
+                                    BorderBrush="#C9A96E" BorderThickness="1"
+                                    Padding="14,8" FontSize="12" Cursor="Hand"
+                                    Margin="8,0,0,0"/>
+                        </Grid>
+                        <TextBlock x:Name="txtChatStatus" Style="{StaticResource Subtle}" Text="" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Border>
+
             </StackPanel>
         </ScrollViewer>
 
