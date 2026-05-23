@@ -53,8 +53,9 @@ namespace Kalendarz1.MapaFloty
         private List<VehiclePosition> _displayVehicles = new();
         private Dictionary<string, string> _mappings = new();
         private List<KursInfo> _todayKursy = new();
-        // Mapa PojazdID -> ostatni historyczny kurs (dla pojazdow ktore nie maja dzis kursu)
-        private Dictionary<int, KursInfo> _ostatniKursPojazdu = new();
+        private Dictionary<int, KursInfo> _ostatniKursPojazdu = new();   // pojazdID -> ostatni kurs (30 dni)
+        // Mapa PojazdID -> 2 ostatnie kursy (z 30 dni) — dla fallback + "poprzedni kurs" box
+        private Dictionary<int, List<KursInfo>> _ostatnieKursyPojazdu = new();
         // Trackuj kiedy pojazd przybył do bazy (jako proxy "od kiedy stoi tutaj")
         private readonly Dictionary<string, DateTime> _vehicleBaseArrival = new();
         private bool _mapReady;
@@ -312,14 +313,13 @@ namespace Kalendarz1.MapaFloty
             catch (Exception ex) { Log($"Kursy ERR: {ex.Message}"); _todayKursy = new(); _ostatniKursPojazdu = new(); }
         }
 
-        /// <summary>Dla kazdego pojazdu z ostatnich 30 dni — najpozniejszy kurs + ostatni klient + godz awizacji.</summary>
+        /// <summary>Dla kazdego pojazdu z ostatnich 30 dni — DWA ostatnie kursy + ostatni klient + godz awizacji.</summary>
         private async Task LoadOstatniKursPojazduAsync(SqlConnection conn)
         {
-            var map = new Dictionary<int, KursInfo>();
+            var map = new Dictionary<int, List<KursInfo>>();
             using (var cmd = conn.CreateCommand())
             {
-                // Top kurs per PojazdID (najnowszy DataKursu DESC, GodzWyjazdu DESC) +
-                // KodKlienta z OSTATNIEGO Ladunku w tym kursie (najwyzsza Kolejnosc)
+                // TOP 2 kursy per PojazdID — dla "OSTATNI" fallback + "POPRZEDNI" gdy aktualny istnieje
                 cmd.CommandText = @"
                     WITH KursyRanked AS (
                         SELECT k.KursID, k.Trasa, k.Status, k.GodzWyjazdu, k.GodzPowrotu, k.DataKursu, k.PojazdID,
@@ -334,12 +334,13 @@ namespace Kalendarz1.MapaFloty
                     SELECT kr.*,
                            (SELECT TOP 1 l.KodKlienta FROM dbo.Ladunek l
                             WHERE l.KursID = kr.KursID ORDER BY l.Kolejnosc DESC) AS OstatniKodKlienta
-                    FROM KursyRanked kr WHERE kr.rn = 1";
+                    FROM KursyRanked kr WHERE kr.rn <= 2
+                    ORDER BY kr.PojazdID, kr.rn";
                 using var r = await cmd.ExecuteReaderAsync();
                 while (await r.ReadAsync())
                 {
                     int pid = Convert.ToInt32(r["PojazdID"]);
-                    map[pid] = new KursInfo
+                    var ki = new KursInfo
                     {
                         KursID = r.GetInt64(r.GetOrdinal("KursID")),
                         Trasa = r["Trasa"]?.ToString() ?? "",
@@ -352,46 +353,44 @@ namespace Kalendarz1.MapaFloty
                         DataKursu = (DateTime)r["DataKursu"],
                         OstatniKodKlienta = r["OstatniKodKlienta"] == DBNull.Value ? null : r["OstatniKodKlienta"].ToString()
                     };
+                    if (!map.ContainsKey(pid)) map[pid] = new List<KursInfo>();
+                    map[pid].Add(ki);
                 }
             }
 
-            // Cross-DB lookup: dla wszystkich KodKlienta format "ZAM_{id}" → DataPrzyjazdu z LibraNet.ZamowieniaMieso
-            var zamIds = new List<int>();
-            var zamIdToKursPid = new Dictionary<int, int>();
-            foreach (var kvp in map)
-            {
-                var kod = kvp.Value.OstatniKodKlienta;
-                if (string.IsNullOrEmpty(kod) || !kod.StartsWith("ZAM_")) continue;
-                if (int.TryParse(kod.Substring(4), out int zid))
+            // Cross-DB lookup: zbierz ZAM_ ids ze WSZYSTKICH kursow w mapie, jeden batch do LibraNet
+            var zamIdToKurs = new Dictionary<int, KursInfo>();
+            foreach (var lista in map.Values)
+                foreach (var k in lista)
                 {
-                    zamIds.Add(zid);
-                    zamIdToKursPid[zid] = kvp.Key;
+                    var kod = k.OstatniKodKlienta;
+                    if (string.IsNullOrEmpty(kod) || !kod.StartsWith("ZAM_")) continue;
+                    if (int.TryParse(kod.Substring(4), out int zid)) zamIdToKurs[zid] = k;
                 }
-            }
 
-            if (zamIds.Count > 0)
+            if (zamIdToKurs.Count > 0)
             {
                 try
                 {
                     using var connL = new SqlConnection(_connLibra);
                     await connL.OpenAsync();
                     using var cmdL = connL.CreateCommand();
-                    cmdL.CommandText = $"SELECT Id, DataPrzyjazdu FROM dbo.ZamowieniaMieso WHERE Id IN ({string.Join(",", zamIds)})";
+                    cmdL.CommandText = $"SELECT Id, DataPrzyjazdu FROM dbo.ZamowieniaMieso WHERE Id IN ({string.Join(",", zamIdToKurs.Keys)})";
                     using var rL = await cmdL.ExecuteReaderAsync();
                     while (await rL.ReadAsync())
                     {
                         int zid = Convert.ToInt32(rL["Id"]);
-                        if (!zamIdToKursPid.TryGetValue(zid, out int pid)) continue;
-                        if (!map.TryGetValue(pid, out var k)) continue;
                         if (rL["DataPrzyjazdu"] == DBNull.Value) continue;
-                        k.OstatniaAwizacja = (DateTime)rL["DataPrzyjazdu"];
+                        if (zamIdToKurs.TryGetValue(zid, out var k))
+                            k.OstatniaAwizacja = (DateTime)rL["DataPrzyjazdu"];
                     }
                 }
                 catch (Exception ex) { Log($"Awizacja LibraNet ERR: {ex.Message}"); }
             }
 
-            _ostatniKursPojazdu = map;
-            Log($"Ostatnie kursy (30 dni): {map.Count} pojazdow, awizacji: {map.Count(x => x.Value.OstatniaAwizacja.HasValue)}");
+            _ostatnieKursyPojazdu = map;
+            int total = map.Sum(x => x.Value.Count);
+            Log($"Ostatnie kursy (30 dni): {map.Count} pojazdow ({total} kursow lacznie)");
         }
 
         // ══════════════════════════════════════════════════════════════════
@@ -481,9 +480,9 @@ namespace Kalendarz1.MapaFloty
                         else
                         {
                             // Brak kursow dziś → ostatni historyczny kurs (z 30 dni)
-                            if (_ostatniKursPojazdu.TryGetValue(v.MappedPojazdID, out var ostatni))
+                            if (_ostatnieKursyPojazdu.TryGetValue(v.MappedPojazdID, out var listaH) && listaH.Count > 0)
                             {
-                                kurs = ostatni;
+                                kurs = listaH[0];
                                 kursZHistorii = true;
                             }
                         }
@@ -499,6 +498,29 @@ namespace Kalendarz1.MapaFloty
                             v.KursAgeStr = kursZHistorii ? FormatKursAge(kurs.DataKursu) : null;
                             v.KursOstatniKlient = kurs.OstatniKodKlienta;
                             v.KursOstatniaAwizacja = kurs.OstatniaAwizacja?.ToString("dd.MM HH:mm");
+                        }
+
+                        // POPRZEDNI kurs (ZAWSZE — pod aktualnym lub jako jedyny historyczny)
+                        // Wybor: pierwszy z _ostatnieKursyPojazdu rozny od `kurs` (jesli kurs ustawiony)
+                        if (_ostatnieKursyPojazdu.TryGetValue(v.MappedPojazdID, out var lista) && lista.Count > 0)
+                        {
+                            KursInfo? poprzedni = null;
+                            foreach (var k in lista)
+                            {
+                                if (kurs != null && k.KursID == kurs.KursID) continue;
+                                poprzedni = k;
+                                break;
+                            }
+                            if (poprzedni != null)
+                            {
+                                v.PoprzedniKursTrasa = poprzedni.Trasa;
+                                v.PoprzedniKursAge = FormatKursAge(poprzedni.DataKursu);
+                                v.PoprzedniKursKierowca = poprzedni.KierowcaNazwa;
+                                v.PoprzedniKursGodzWyjazdu = poprzedni.GodzWyjazdu;
+                                v.PoprzedniKursGodzPowrotu = poprzedni.GodzPowrotu;
+                                v.PoprzedniKursOstatniKlient = poprzedni.OstatniKodKlienta;
+                                v.PoprzedniKursOstatniaAwizacja = poprzedni.OstatniaAwizacja?.ToString("dd.MM HH:mm");
+                            }
                         }
                     }
                 }
@@ -1408,6 +1430,32 @@ function mkPopup(v){
             +'&#128276; Brak dzisiejszego kursu w planowaniu</div>';
     }
 
+    // POPRZEDNI kurs — dodajemy ZAWSZE pod aktualnym (jesli pojazd ma >=2 kursy w historii)
+    if(v.PoprzedniKursTrasa){
+        var prevKlient = '';
+        if(v.PoprzedniKursOstatniKlient){
+            var pkl = v.PoprzedniKursOstatniKlient.indexOf('ZAM_') === 0
+                ? 'zamowienie #' + v.PoprzedniKursOstatniKlient.substring(4)
+                : v.PoprzedniKursOstatniKlient;
+            prevKlient = '<br>&#127968; ' + esc(pkl);
+            if(v.PoprzedniKursOstatniaAwizacja) prevKlient += ' &middot; awizacja <b>' + esc(v.PoprzedniKursOstatniaAwizacja) + '</b>';
+        }
+        var prevGodz = '';
+        if(v.PoprzedniKursGodzWyjazdu){
+            prevGodz = '<br>&#9201; wyjazd ' + v.PoprzedniKursGodzWyjazdu;
+            if(v.PoprzedniKursGodzPowrotu) prevGodz += ' &#8594; powrot ' + v.PoprzedniKursGodzPowrotu;
+        }
+        kursHtml += '<div class=""vp-kurs-box"" style=""background:#f5f5f5;border-color:#bdbdbd;margin-top:4px"">'
+            +'<div class=""vp-kurs-h"" style=""color:#757575;font-size:10px"">&#128196; POPRZEDNI KURS'
+            +'<span style=""background:#eceff1;color:#546e7a;padding:1px 7px;border-radius:8px;font-size:9px;font-weight:700;margin-left:6px"">'+esc(v.PoprzedniKursAge||'')+'</span>'
+            +'</div>'
+            +'<div class=""vp-kurs-route"" style=""color:#616161;font-size:12px"">'+esc(v.PoprzedniKursTrasa)+'</div>'
+            +'<div class=""vp-kurs-meta"" style=""font-size:10.5px"">'
+            + (v.PoprzedniKursKierowca ? 'Kierowca: <b>'+esc(v.PoprzedniKursKierowca)+'</b>' : '')
+            + prevGodz + prevKlient
+            +'</div></div>';
+    }
+
     var today=new Date().toISOString().split('T')[0];
     return '<div class=""vp""><div class=""vp-head""><h3>'+esc(v.ObjectName)+'</h3><div class=""sub"">Kierowca GPS: '+esc(v.Driver||'—')+'</div></div>'
       +'<div class=""vp-state '+stateCls+'""><span><span class=""vp-state-emoji"">'+stateEmoji+'</span>'+stateLabel+'</span><span class=""vp-state-meta"">'+stateMeta+'</span></div>'
@@ -1668,6 +1716,15 @@ function logToHost(m){try{post({Action:'log',Data:m})}catch(e){}}
             public string? KursOstatniKlient { get; set; }
             /// <summary>"dd.MM HH:mm" — data + godz awizacji u ostatniego klienta (z ZamowieniaMieso.DataPrzyjazdu).</summary>
             public string? KursOstatniaAwizacja { get; set; }
+            // POPRZEDNI kurs (pokazujemy ZAWSZE — pod aktualnym, lub jako jedyny gdy brak aktualnego).
+            // Gdy aktualny jest z historii (fallback), Poprzedni = drugi w kolejce historycznych.
+            public string? PoprzedniKursTrasa { get; set; }
+            public string? PoprzedniKursAge { get; set; }
+            public string? PoprzedniKursKierowca { get; set; }
+            public string? PoprzedniKursGodzWyjazdu { get; set; }
+            public string? PoprzedniKursGodzPowrotu { get; set; }
+            public string? PoprzedniKursOstatniKlient { get; set; }
+            public string? PoprzedniKursOstatniaAwizacja { get; set; }
             // Mapowanie
             [JsonIgnore] public string? CarTrailerID { get; set; }
             [JsonIgnore] public string? InternalName { get; set; }
