@@ -403,6 +403,20 @@ namespace Kalendarz1.MarketIntelligence.Views
             }
         }
 
+        private void btnSources_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var win = new SourcesManagementWindow { Owner = this };
+                win.Show();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Błąd otwierania Moich źródeł: " + ex.Message, "Moje źródła",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
         private void OpenUrl_Click(object sender, RoutedEventArgs e)
         {
             if (sender is FrameworkElement fe && fe.Tag is string url && !string.IsNullOrEmpty(url))

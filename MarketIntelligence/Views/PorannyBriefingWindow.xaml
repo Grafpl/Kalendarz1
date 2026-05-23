@@ -96,6 +96,14 @@
                             Padding="12,6" FontSize="11" Cursor="Hand"
                             ToolTip="Esencja dnia: TOP 3 krytyczne + action items na 1 ekranie"
                             Margin="0,0,8,0"/>
+                    <Button x:Name="btnSources"
+                            Content="🌐 Moje źródła"
+                            Click="btnSources_Click"
+                            Background="#2A2520" Foreground="#C9A96E"
+                            BorderBrush="#3F3830" BorderThickness="1"
+                            Padding="12,6" FontSize="11" Cursor="Hand"
+                            ToolTip="Dodawaj własne strony i RSS feedy. AI auto-detect + fetch + analiza."
+                            Margin="0,0,8,0"/>
                     <Button x:Name="btnDiagnostics"
                             Content="🛠 Diagnostyka"
                             Click="btnDiagnostics_Click"

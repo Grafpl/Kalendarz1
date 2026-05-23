@@ -1,0 +1,266 @@
+<Window x:Class="Kalendarz1.MarketIntelligence.Views.SourcesManagementWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="🌐 Moje Źródła — strony i RSS"
+        Width="1200" Height="780"
+        WindowStartupLocation="CenterScreen"
+        Background="#15120D"
+        Foreground="#D5CCC0"
+        FontFamily="Segoe UI">
+    <Window.Resources>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#D5CCC0"/>
+        </Style>
+        <Style x:Key="Hdr" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="20"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="#F5EDE0"/>
+        </Style>
+        <Style x:Key="Sub" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="#7A6F63"/>
+        </Style>
+        <Style x:Key="Btn" TargetType="Button">
+            <Setter Property="Background" Value="#2A2520"/>
+            <Setter Property="Foreground" Value="#D5CCC0"/>
+            <Setter Property="BorderBrush" Value="#3F3830"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="14,7"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
+        </Style>
+        <Style x:Key="PrimaryBtn" TargetType="Button" BasedOn="{StaticResource Btn}">
+            <Setter Property="Background" Value="#3D2F1F"/>
+            <Setter Property="Foreground" Value="#F5EDE0"/>
+            <Setter Property="BorderBrush" Value="#C9A96E"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+        <Style x:Key="Lbl" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#A89F92"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Margin" Value="0,4,0,2"/>
+        </Style>
+        <Style x:Key="Inp" TargetType="TextBox">
+            <Setter Property="Background" Value="#1F1A14"/>
+            <Setter Property="Foreground" Value="#F5EDE0"/>
+            <Setter Property="BorderBrush" Value="#3F3830"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="8,5"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="CaretBrush" Value="#F5EDE0"/>
+        </Style>
+        <Style x:Key="Combo" TargetType="ComboBox">
+            <Setter Property="Background" Value="#1F1A14"/>
+            <Setter Property="Foreground" Value="#F5EDE0"/>
+            <Setter Property="BorderBrush" Value="#3F3830"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="6,4"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="0">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- HEADER -->
+        <Border Grid.Row="0" Background="#1F1A14" Padding="24,16" BorderBrush="#3F3830" BorderThickness="0,0,0,1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <TextBlock Style="{StaticResource Hdr}" Text="🌐 Moje Źródła wiadomości"/>
+                    <TextBlock Style="{StaticResource Sub}"
+                               Text="Dodawaj strony internetowe (RSS lub HTML). AI codziennie pobierze artykuły i streści dla Ciebie."
+                               Margin="0,3,0,0"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock x:Name="txtStats" Style="{StaticResource Sub}" Text="" Margin="0,0,16,0" VerticalAlignment="Center"/>
+                    <Button x:Name="btnRefresh" Style="{StaticResource Btn}" Content="🔄 Odśwież" Click="BtnRefresh_Click"/>
+                    <Button x:Name="btnAdd" Style="{StaticResource PrimaryBtn}" Content="➕ Dodaj źródło" Click="BtnAdd_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- BODY -->
+        <Grid Grid.Row="1" Margin="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- LEFT: lista źródeł -->
+            <Border Grid.Column="0" Background="#15120D" BorderBrush="#3F3830" BorderThickness="0,0,1,0">
+                <DataGrid x:Name="dgSources"
+                          AutoGenerateColumns="False"
+                          Background="#15120D"
+                          Foreground="#D5CCC0"
+                          BorderThickness="0"
+                          HeadersVisibility="Column"
+                          GridLinesVisibility="Horizontal"
+                          HorizontalGridLinesBrush="#2A2520"
+                          RowBackground="#15120D"
+                          AlternatingRowBackground="#1A1611"
+                          SelectionMode="Single"
+                          CanUserAddRows="False"
+                          CanUserDeleteRows="False"
+                          IsReadOnly="True"
+                          FontSize="12"
+                          SelectionChanged="DgSources_SelectionChanged">
+                    <DataGrid.ColumnHeaderStyle>
+                        <Style TargetType="DataGridColumnHeader">
+                            <Setter Property="Background" Value="#1F1A14"/>
+                            <Setter Property="Foreground" Value="#C9A96E"/>
+                            <Setter Property="BorderBrush" Value="#3F3830"/>
+                            <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                            <Setter Property="Padding" Value="8,6"/>
+                            <Setter Property="FontWeight" Value="SemiBold"/>
+                        </Style>
+                    </DataGrid.ColumnHeaderStyle>
+                    <DataGrid.CellStyle>
+                        <Style TargetType="DataGridCell">
+                            <Setter Property="BorderThickness" Value="0"/>
+                            <Setter Property="Padding" Value="8,8"/>
+                            <Setter Property="Foreground" Value="#D5CCC0"/>
+                            <Style.Triggers>
+                                <Trigger Property="IsSelected" Value="True">
+                                    <Setter Property="Background" Value="#3D2F1F"/>
+                                    <Setter Property="Foreground" Value="#F5EDE0"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGrid.CellStyle>
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Status" Binding="{Binding StatusDisplay}" Width="80"/>
+                        <DataGridTextColumn Header="Nazwa" Binding="{Binding Name}" Width="180"/>
+                        <DataGridTextColumn Header="URL" Binding="{Binding Url}" Width="*"/>
+                        <DataGridTextColumn Header="Tematy" Binding="{Binding Topics}" Width="140"/>
+                        <DataGridTextColumn Header="Pri." Binding="{Binding PriorityDisplay}" Width="100"/>
+                        <DataGridTextColumn Header="Typ" Binding="{Binding SourceType}" Width="60"/>
+                        <DataGridTextColumn Header="Lang" Binding="{Binding Language}" Width="50"/>
+                        <DataGridCheckBoxColumn Header="Akt." Binding="{Binding IsActive}" Width="40"/>
+                        <DataGridTextColumn Header="Ostatnio" Binding="{Binding LastFetchDisplay}" Width="120"/>
+                        <DataGridTextColumn Header="Art." Binding="{Binding TotalArticlesFetched}" Width="50"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Border>
+
+            <!-- RIGHT: editor + test -->
+            <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" Padding="20,16">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource Hdr}" FontSize="15" Text="✏ Edytor źródła" Margin="0,0,0,12"/>
+                    <Grid x:Name="editorPanel">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Style="{StaticResource Lbl}" Text="Nazwa (np. 'Świat Drobiu')"/>
+                        <TextBox x:Name="txtName" Grid.Row="1" Style="{StaticResource Inp}"/>
+
+                        <TextBlock Grid.Row="2" Style="{StaticResource Lbl}" Text="URL strony lub RSS"/>
+                        <Grid Grid.Row="3">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="txtUrl" Grid.Column="0" Style="{StaticResource Inp}"/>
+                            <Button x:Name="btnDetect" Grid.Column="1" Content="🔍 Wykryj RSS" Style="{StaticResource Btn}" Click="BtnDetect_Click" Margin="6,0,0,0"/>
+                        </Grid>
+                        <TextBlock x:Name="txtDetectStatus" Grid.Row="4" Style="{StaticResource Sub}" Margin="0,4,0,0" TextWrapping="Wrap"/>
+
+                        <TextBlock Grid.Row="5" Style="{StaticResource Lbl}" Text="Tematy (oddzielone przecinkami, np. 'HPAI, ceny, Cedrob')"/>
+                        <TextBox x:Name="txtTopics" Grid.Row="6" Style="{StaticResource Inp}"/>
+
+                        <Grid Grid.Row="7" Margin="0,8,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Style="{StaticResource Lbl}" Text="Priorytet"/>
+                                <ComboBox x:Name="cbPriority" Style="{StaticResource Combo}">
+                                    <ComboBoxItem Content="🔴 Krytyczne" Tag="1"/>
+                                    <ComboBoxItem Content="🟠 Ważne" Tag="2" IsSelected="True"/>
+                                    <ComboBoxItem Content="🟡 Normalne" Tag="3"/>
+                                </ComboBox>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Margin="6,0">
+                                <TextBlock Style="{StaticResource Lbl}" Text="Kategoria"/>
+                                <ComboBox x:Name="cbCategory" Style="{StaticResource Combo}" IsEditable="True">
+                                    <ComboBoxItem Content="Drób" IsSelected="True"/>
+                                    <ComboBoxItem Content="Mięso"/>
+                                    <ComboBoxItem Content="Rolnictwo"/>
+                                    <ComboBoxItem Content="Handel"/>
+                                    <ComboBoxItem Content="Pasze"/>
+                                    <ComboBoxItem Content="HPAI"/>
+                                    <ComboBoxItem Content="Ceny"/>
+                                    <ComboBoxItem Content="Instytucje"/>
+                                </ComboBox>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Style="{StaticResource Lbl}" Text="Język"/>
+                                <ComboBox x:Name="cbLanguage" Style="{StaticResource Combo}">
+                                    <ComboBoxItem Content="pl" IsSelected="True"/>
+                                    <ComboBoxItem Content="en"/>
+                                    <ComboBoxItem Content="de"/>
+                                    <ComboBoxItem Content="fr"/>
+                                    <ComboBoxItem Content="pt"/>
+                                </ComboBox>
+                            </StackPanel>
+                        </Grid>
+
+                        <CheckBox x:Name="chkActive" Grid.Row="8" Content="✅ Aktywne (pobieraj co fetch)" Foreground="#D5CCC0" IsChecked="True" Margin="0,12,0,0"/>
+
+                        <StackPanel Grid.Row="9" Orientation="Horizontal" Margin="0,16,0,0">
+                            <Button x:Name="btnSave" Content="💾 Zapisz" Style="{StaticResource PrimaryBtn}" Click="BtnSave_Click" Padding="20,8"/>
+                            <Button x:Name="btnDelete" Content="🗑 Usuń" Style="{StaticResource Btn}" Click="BtnDelete_Click" Margin="8,0,0,0"/>
+                            <Button x:Name="btnCancel" Content="Anuluj" Style="{StaticResource Btn}" Click="BtnCancel_Click" Margin="8,0,0,0"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Sample articles po Detect -->
+                    <Border x:Name="samplePanel" Background="#1F1A14" CornerRadius="4" Padding="12,10" Margin="0,20,0,0" Visibility="Collapsed">
+                        <StackPanel>
+                            <TextBlock Text="📰 Przykładowe artykuły z tego źródła:" Foreground="#C9A96E" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                            <ItemsControl x:Name="lstSamples">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border BorderBrush="#3F3830" BorderThickness="0,0,0,1" Padding="0,4">
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Title}" Foreground="#F5EDE0" FontSize="12" TextWrapping="Wrap"/>
+                                                <TextBlock Text="{Binding Date, StringFormat='{}{0:yyyy-MM-dd HH:mm}'}" Foreground="#7A6F63" FontSize="10"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+
+        <!-- FOOTER -->
+        <Border Grid.Row="2" Background="#1F1A14" Padding="24,8" BorderBrush="#3F3830" BorderThickness="0,1,0,0">
+            <Grid>
+                <TextBlock x:Name="txtFooter" Style="{StaticResource Sub}" HorizontalAlignment="Left" VerticalAlignment="Center" Text="intel_Sources w LibraNet. Hardcoded źródła (NewsSourceConfig.cs) — nadal aktywne."/>
+                <Button HorizontalAlignment="Right" Style="{StaticResource Btn}" Content="Zamknij" Click="BtnClose_Click"/>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

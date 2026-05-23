@@ -75,9 +75,48 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
             CancellationToken ct = default,
             IProgress<string> progress = null)
         {
+            // 1. Hardcoded źródła (NewsSourceConfig)
             var allSources = NewsSourceConfig.GetAllRssSources()
                 .Where(s => s.IsActive)
                 .ToList();
+
+            // 2. User-added źródła (intel_Sources) — dynamic, edytowalne przez UI
+            try
+            {
+                var sourcesService = new Kalendarz1.MarketIntelligence.Services.SourcesService();
+                var userSources = await sourcesService.GetAllAsync(onlyActive: true);
+                var userRssSources = userSources
+                    .Where(s => s.SourceType == "RSS")
+                    .Select(s => new NewsSource
+                    {
+                        Id = s.Id,
+                        Name = s.Name,
+                        Url = s.Url,
+                        Type = SourceType.Rss,
+                        Category = s.Category,
+                        Language = s.Language,
+                        Priority = s.Priority,
+                        IsActive = true,
+                        Keywords = string.IsNullOrEmpty(s.Topics)
+                            ? Array.Empty<string>()
+                            : s.Topics.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
+                                .Select(t => t.Trim())
+                                .Where(t => !string.IsNullOrEmpty(t))
+                                .ToArray(),
+                        Description = $"Użytkownik · {s.Topics}"
+                    })
+                    .ToList();
+
+                if (userRssSources.Any())
+                {
+                    Debug.WriteLine($"[RSS] + {userRssSources.Count} user-added źródeł z intel_Sources");
+                    allSources.AddRange(userRssSources);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[RSS] Błąd ładowania user sources (kontynuuję z hardcoded): {ex.Message}");
+            }
             var articles = new System.Collections.Concurrent.ConcurrentBag<RawArticle>();
             var completed = 0;
             var total = allSources.Count;
