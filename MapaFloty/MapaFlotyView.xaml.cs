@@ -447,13 +447,13 @@ namespace Kalendarz1.MapaFloty
 
                         if (kurs != null)
                         {
-                            v.KursTrasa = kursZHistorii
-                                ? $"{kurs.Trasa}  (ostatni: {kurs.DataKursu:dd.MM})"
-                                : kurs.Trasa;
-                            v.KursStatus = kursZHistorii ? "Historia" : kurs.Status;
+                            v.KursTrasa = kurs.Trasa;
+                            v.KursStatus = kurs.Status;
                             v.KursGodzWyjazdu = kurs.GodzWyjazdu;
                             v.KursGodzPowrotu = kurs.GodzPowrotu;
                             v.KursKierowca = kurs.KierowcaNazwa;
+                            v.KursZHistorii = kursZHistorii;
+                            v.KursAgeStr = kursZHistorii ? FormatKursAge(kurs.DataKursu) : null;
                         }
                     }
                 }
@@ -818,6 +818,16 @@ namespace Kalendarz1.MapaFloty
         }
 
         // Formatuje "od kiedy w bazie" dla cluster list i marker label
+        /// <summary>Formatuje wiek kursu historycznego: "wczoraj", "3 dni temu", "12.05" (>7 dni).</summary>
+        private static string FormatKursAge(DateTime dataKursu)
+        {
+            var days = (DateTime.Today - dataKursu.Date).Days;
+            if (days <= 0) return "dziś";
+            if (days == 1) return "wczoraj";
+            if (days <= 7) return $"{days} dni temu";
+            return dataKursu.ToString("dd.MM");
+        }
+
         private static string FormatBaseSince(DateTime arrival)
         {
             // Dzisiaj — pokazujemy godzinę
@@ -916,8 +926,14 @@ namespace Kalendarz1.MapaFloty
             if (!string.IsNullOrEmpty(v.KursTrasa))
             {
                 var drv = ShortenDriver(v.Driver);
-                secondLine = string.IsNullOrEmpty(drv) ? v.KursTrasa : $"{drv} · {v.KursTrasa}";
-                secondColor = Color.FromRgb(94, 53, 177);  // fioletowy = ma aktywny kurs
+                var trasa = v.KursZHistorii && !string.IsNullOrEmpty(v.KursAgeStr)
+                    ? $"📜 {v.KursTrasa} · {v.KursAgeStr}"
+                    : v.KursTrasa;
+                secondLine = string.IsNullOrEmpty(drv) ? trasa : $"{drv} · {trasa}";
+                // Aktualny kurs → fiolet, historyczny → szary (mniej rzucający się)
+                secondColor = v.KursZHistorii
+                    ? Color.FromRgb(120, 144, 156)   // szary blue-grey
+                    : Color.FromRgb(94, 53, 177);    // fiolet
             }
             else if (!string.IsNullOrWhiteSpace(v.Driver) || !string.IsNullOrWhiteSpace(v.Address))
             {
@@ -1269,18 +1285,32 @@ function mkPopup(v){
     var dist=v.DistToUbojnia!=null?v.DistToUbojnia.toFixed(1)+' km':'—';
     var eta=v.EtaMinutes>0?'ok. '+v.EtaMinutes+' min':'—';
 
-    // Kurs box (gdy aktualny kurs przypisany)
+    // Kurs box — aktualny (fioletowy) lub historyczny (szary z badge)
     var kursHtml='';
     if(v.KursTrasa){
-        kursHtml='<div class=""vp-kurs-box""><div class=""vp-kurs-h"">&#128205; DZISIEJSZY KURS</div>'
-            +'<div class=""vp-kurs-route"">'+esc(v.KursTrasa)+'</div>'
+        var hist = v.KursZHistorii === true;
+        var boxStyle = hist
+            ? 'style=""background:#fafafa;border-color:#cfd8dc""'
+            : '';
+        var headerLabel = hist
+            ? '&#128220; OSTATNI KURS'  // 📜
+            : '&#128205; DZISIEJSZY KURS';  // 📍
+        var headerColor = hist ? 'color:#546e7a' : '';
+        var ageBadge = hist && v.KursAgeStr
+            ? '<span style=""background:#eceff1;color:#546e7a;padding:1px 7px;border-radius:8px;font-size:9.5px;font-weight:700;margin-left:6px"">'+esc(v.KursAgeStr)+'</span>'
+            : '';
+        var routeColor = hist ? 'color:#546e7a' : '';
+        kursHtml='<div class=""vp-kurs-box"" '+boxStyle+'>'
+            +'<div class=""vp-kurs-h"" style=""'+headerColor+'"">'+headerLabel+ageBadge+'</div>'
+            +'<div class=""vp-kurs-route"" style=""'+routeColor+'"">'+esc(v.KursTrasa)+'</div>'
             +'<div class=""vp-kurs-meta"">';
         if(v.KursGodzWyjazdu){kursHtml+='&#9201; <b>'+v.KursGodzWyjazdu+'</b>';if(v.KursGodzPowrotu)kursHtml+=' &#8594; <b>'+v.KursGodzPowrotu+'</b>';kursHtml+='<br>'}
-        if(v.KursStatus)kursHtml+='Status: <b>'+esc(v.KursStatus)+'</b><br>';
+        if(v.KursStatus && !hist)kursHtml+='Status: <b>'+esc(v.KursStatus)+'</b><br>';
         if(v.KursKierowca){
-            // Highlight gdy kierowca z kursu różni się od kierowcy GPS
-            var diff=v.Driver&&v.KursKierowca!==v.Driver?' <span style=""color:#c62828"">&#9888;</span>':'';
-            kursHtml+='Kierowca przypisany: <b>'+esc(v.KursKierowca)+'</b>'+diff;
+            // Highlight gdy kierowca z kursu różni się od kierowcy GPS (tylko dla AKTUALNEGO)
+            var diff=!hist && v.Driver && v.KursKierowca!==v.Driver?' <span style=""color:#c62828"">&#9888;</span>':'';
+            var label = hist ? 'Kierowca z tego kursu' : 'Kierowca przypisany';
+            kursHtml+=label+': <b>'+esc(v.KursKierowca)+'</b>'+diff;
         }
         kursHtml+='</div></div>';
     } else if(v.IsMoving){
@@ -1387,7 +1417,10 @@ function mkTooltip(v){
         : (v.InGeofence ? 'w bazie'
         : (v.Ignition ? 'postój' : 'wyłączony'));
     var s = v.ObjectName + ' — ' + status;
-    if(v.KursTrasa) s += '  ·  ' + v.KursTrasa;
+    if(v.KursTrasa){
+        s += '  ·  ' + v.KursTrasa;
+        if(v.KursZHistorii) s += '  (' + (v.KursAgeStr || 'historia') + ')';
+    }
     else if(v.IsMoving && v.Address) s += '  ·  z ' + v.Address.substring(0,40);
     return s;
 }
@@ -1561,6 +1594,10 @@ function logToHost(m){try{post({Action:'log',Data:m})}catch(e){}}
             public string? KursGodzWyjazdu { get; set; }
             public string? KursGodzPowrotu { get; set; }
             public string? KursKierowca { get; set; }
+            /// <summary>True gdy kurs to ostatni historyczny (fallback) a nie zaplanowany na dziś.</summary>
+            public bool KursZHistorii { get; set; }
+            /// <summary>"wczoraj" / "3 dni temu" / "12.05" — jak dawno był kurs (tylko gdy KursZHistorii).</summary>
+            public string? KursAgeStr { get; set; }
             // Mapowanie
             [JsonIgnore] public string? CarTrailerID { get; set; }
             [JsonIgnore] public string? InternalName { get; set; }
