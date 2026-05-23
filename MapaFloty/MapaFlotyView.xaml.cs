@@ -1061,7 +1061,9 @@ html,body,#map{width:100%;height:100%;background:#f0f0f0;font-family:'Segoe UI',
 .leaflet-popup-content-wrapper{border-radius:10px!important;box-shadow:0 4px 20px rgba(0,0,0,.15)!important}
 /* Marker cluster — wrapper z permanent listą nad kółkiem */
 .vc-cluster-wrap{position:relative;width:100%;height:100%}
-.vc-cluster-list{position:absolute;bottom:60px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,.97);padding:6px 10px;border-radius:8px;font-size:10.5px;font-weight:600;line-height:1.55;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,0.25);border:1px solid #cfd8dc;color:#263238;pointer-events:none}
+/* Lista pojazdow nad klastrem — domyslnie UKRYTA, pokazuje sie tylko na hover ikonki */
+.vc-cluster-list{position:absolute;bottom:60px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,.97);padding:6px 10px;border-radius:8px;font-size:10.5px;font-weight:600;line-height:1.55;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,0.25);border:1px solid #cfd8dc;color:#263238;pointer-events:none;opacity:0;visibility:hidden;transition:opacity .15s ease}
+.vc-cluster-wrap:hover .vc-cluster-list,.marker-cluster:hover .vc-cluster-list{opacity:1;visibility:visible}
 .vc-cluster-list .vc-row{display:flex;align-items:center;gap:6px}
 .vc-cluster-list .vc-row .reg{font-weight:800;color:#1a237e}
 .vc-cluster-list .vc-row .drv{color:#546e7a;font-weight:500}
