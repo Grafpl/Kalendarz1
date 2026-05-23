@@ -143,7 +143,7 @@ ORDER BY SummaryDate DESC, GeneratedAt DESC", conn) { CommandTimeout = 10 };
             {
                 using var cmd = new SqlCommand(@"
 SELECT TOP 3
-    Title, SourceName, Category, Severity,
+    Id, Title, SourceName, Category, Severity,
     ISNULL(CeoAnalysis, ISNULL(Summary, '')) AS WhatItMeans
 FROM intel_Articles
 WHERE CAST(FetchedAt AS DATE) >= DATEADD(day, -1, @SummaryDate)
@@ -156,14 +156,15 @@ ORDER BY
                 using var r = await cmd.ExecuteReaderAsync();
                 while (await r.ReadAsync())
                 {
-                    var what = r.IsDBNull(4) ? "" : r.GetString(4);
+                    var what = r.IsDBNull(5) ? "" : r.GetString(5);
                     if (what.Length > 280) what = what.Substring(0, 280) + "...";
                     list.Add(new CriticalArticle
                     {
-                        Title = r.GetString(0),
-                        SourceName = r.IsDBNull(1) ? "?" : r.GetString(1),
-                        Category = r.IsDBNull(2) ? "Info" : r.GetString(2),
-                        Severity = r.IsDBNull(3) ? "info" : r.GetString(3),
+                        Id = r.GetInt32(0),
+                        Title = r.GetString(1),
+                        SourceName = r.IsDBNull(2) ? "?" : r.GetString(2),
+                        Category = r.IsDBNull(3) ? "Info" : r.GetString(3),
+                        Severity = r.IsDBNull(4) ? "info" : r.GetString(4),
                         WhatItMeans = what
                     });
                 }
@@ -291,6 +292,44 @@ ORDER BY
 
         private void BtnClose_Click(object sender, RoutedEventArgs e) => Close();
 
+        private readonly Services.FeedbackService _feedbackService = new();
+
+        private async void BtnFeedbackUp_Click(object sender, RoutedEventArgs e) => await RecordFeedbackAsync(sender, 1);
+        private async void BtnFeedbackDown_Click(object sender, RoutedEventArgs e) => await RecordFeedbackAsync(sender, -1);
+
+        private async Task RecordFeedbackAsync(object sender, int vote)
+        {
+            try
+            {
+                if (sender is not System.Windows.Controls.Button btn || btn.Tag == null) return;
+                if (!int.TryParse(btn.Tag.ToString(), out var articleId) || articleId == 0) return;
+
+                var article = lstCritical.ItemsSource is IEnumerable<CriticalArticle> items
+                    ? items.FirstOrDefault(a => a.Id == articleId)
+                    : null;
+
+                await _feedbackService.RecordAsync(
+                    articleId,
+                    App.UserID ?? Environment.UserName,
+                    vote,
+                    category: article?.Category,
+                    sourceName: article?.SourceName);
+
+                // Visual feedback — change button color to confirm
+                btn.Background = new SolidColorBrush(vote > 0
+                    ? Color.FromRgb(46, 125, 50)   // green
+                    : Color.FromRgb(120, 60, 60)); // red-brown
+                btn.Foreground = new SolidColorBrush(Colors.White);
+                btn.ToolTip = vote > 0
+                    ? "✅ Zapisano — AI pokaże więcej takich"
+                    : "✅ Zapisano — AI ograniczy podobne";
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Feedback error: {ex.Message}");
+            }
+        }
+
         // POCO models
         private class SummaryRow
         {
@@ -314,6 +353,7 @@ ORDER BY
 
         public class CriticalArticle
         {
+            public int Id { get; set; }
             public string Title { get; set; }
             public string SourceName { get; set; }
             public string Category { get; set; }

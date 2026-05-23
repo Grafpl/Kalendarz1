@@ -94,18 +94,35 @@
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <Border Background="#1F1A14" BorderBrush="#5A2828" BorderThickness="1" CornerRadius="4" Padding="14,10" Margin="0,0,0,10">
-                                <StackPanel>
-                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                                        <Border Background="#E85D5D" CornerRadius="2" Padding="6,2" Margin="0,0,8,0">
-                                            <TextBlock Text="{Binding Severity}" Foreground="White" FontSize="10" FontWeight="Bold"/>
-                                        </Border>
-                                        <TextBlock Text="{Binding Category}" Foreground="#C9A96E" FontSize="11" VerticalAlignment="Center"/>
-                                        <TextBlock Text="  •  " Foreground="#7A6F63" FontSize="11" VerticalAlignment="Center"/>
-                                        <TextBlock Text="{Binding SourceName}" Foreground="#7A6F63" FontSize="11" VerticalAlignment="Center"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                            <Border Background="#E85D5D" CornerRadius="2" Padding="6,2" Margin="0,0,8,0">
+                                                <TextBlock Text="{Binding Severity}" Foreground="White" FontSize="10" FontWeight="Bold"/>
+                                            </Border>
+                                            <TextBlock Text="{Binding Category}" Foreground="#C9A96E" FontSize="11" VerticalAlignment="Center"/>
+                                            <TextBlock Text="  •  " Foreground="#7A6F63" FontSize="11" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{Binding SourceName}" Foreground="#7A6F63" FontSize="11" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        <TextBlock Text="{Binding Title}" Foreground="#F5EDE0" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,4" TextWrapping="Wrap"/>
+                                        <TextBlock Text="{Binding WhatItMeans}" Foreground="#D5CCC0" FontSize="12" TextWrapping="Wrap"/>
                                     </StackPanel>
-                                    <TextBlock Text="{Binding Title}" Foreground="#F5EDE0" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                                    <TextBlock Text="{Binding WhatItMeans}" Foreground="#D5CCC0" FontSize="12"/>
-                                </StackPanel>
+                                    <StackPanel Grid.Column="1" Orientation="Vertical" VerticalAlignment="Top" Margin="10,0,0,0">
+                                        <Button Content="👍" Tag="{Binding Id}" Click="BtnFeedbackUp_Click"
+                                                Background="#2A2520" Foreground="#C9A96E" BorderBrush="#3F3830"
+                                                BorderThickness="1" Padding="8,4" FontSize="14" Cursor="Hand"
+                                                ToolTip="Trafny — pokaż mi więcej takich artykułów"/>
+                                        <Button Content="👎" Tag="{Binding Id}" Click="BtnFeedbackDown_Click"
+                                                Background="#2A2520" Foreground="#C9A96E" BorderBrush="#3F3830"
+                                                BorderThickness="1" Padding="8,4" FontSize="14" Cursor="Hand"
+                                                Margin="0,4,0,0"
+                                                ToolTip="Nieistotne — pokazuj mniej takich artykułów"/>
+                                    </StackPanel>
+                                </Grid>
                             </Border>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
