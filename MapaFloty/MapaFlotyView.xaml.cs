@@ -53,6 +53,8 @@ namespace Kalendarz1.MapaFloty
         private List<VehiclePosition> _displayVehicles = new();
         private Dictionary<string, string> _mappings = new();
         private List<KursInfo> _todayKursy = new();
+        // Mapa PojazdID -> ostatni historyczny kurs (dla pojazdow ktore nie maja dzis kursu)
+        private Dictionary<int, KursInfo> _ostatniKursPojazdu = new();
         // Trackuj kiedy pojazd przybył do bazy (jako proxy "od kiedy stoi tutaj")
         private readonly Dictionary<string, DateTime> _vehicleBaseArrival = new();
         private bool _mapReady;
@@ -280,7 +282,7 @@ namespace Kalendarz1.MapaFloty
                 using var conn = new SqlConnection(_connTransport);
                 await conn.OpenAsync();
                 using var cmd = conn.CreateCommand();
-                cmd.CommandText = @"SELECT k.KursID, k.Trasa, k.Status, k.GodzWyjazdu, k.GodzPowrotu,
+                cmd.CommandText = @"SELECT k.KursID, k.Trasa, k.Status, k.GodzWyjazdu, k.GodzPowrotu, k.DataKursu,
                     k.PojazdID, CONCAT(ki.Imie,' ',ki.Nazwisko) AS KierowcaNazwa, p.Rejestracja
                     FROM Kurs k LEFT JOIN Kierowca ki ON k.KierowcaID=ki.KierowcaID
                     LEFT JOIN Pojazd p ON k.PojazdID=p.PojazdID
@@ -297,13 +299,56 @@ namespace Kalendarz1.MapaFloty
                         GodzPowrotu = r["GodzPowrotu"] == DBNull.Value ? null : ((TimeSpan)r["GodzPowrotu"]).ToString(@"hh\:mm"),
                         PojazdID = r["PojazdID"] == DBNull.Value ? null : Convert.ToInt32(r["PojazdID"]),
                         KierowcaNazwa = r["KierowcaNazwa"]?.ToString() ?? "",
-                        Rejestracja = r["Rejestracja"]?.ToString() ?? ""
+                        Rejestracja = r["Rejestracja"]?.ToString() ?? "",
+                        DataKursu = r["DataKursu"] == DBNull.Value ? DateTime.Today : (DateTime)r["DataKursu"]
                     });
                 }
                 _todayKursy = kursy;
                 Log($"Kursy dziś: {kursy.Count}");
+
+                // Ostatni historyczny kurs per pojazd — dla aut ktore dzis nie maja przypisanego kursu
+                await LoadOstatniKursPojazduAsync(conn);
             }
-            catch (Exception ex) { Log($"Kursy ERR: {ex.Message}"); _todayKursy = new(); }
+            catch (Exception ex) { Log($"Kursy ERR: {ex.Message}"); _todayKursy = new(); _ostatniKursPojazdu = new(); }
+        }
+
+        /// <summary>Dla kazdego pojazdu z ostatnich 30 dni — najpozniejszy kurs (po DataKursu DESC, GodzWyjazdu DESC).</summary>
+        private async Task LoadOstatniKursPojazduAsync(SqlConnection conn)
+        {
+            var map = new Dictionary<int, KursInfo>();
+            using var cmd = conn.CreateCommand();
+            // ROW_NUMBER per PojazdID: najnowszy kurs (DataKursu DESC, GodzWyjazdu DESC) = rn 1
+            cmd.CommandText = @"
+                WITH KursyRanked AS (
+                    SELECT k.KursID, k.Trasa, k.Status, k.GodzWyjazdu, k.GodzPowrotu, k.DataKursu, k.PojazdID,
+                           CONCAT(ki.Imie,' ',ki.Nazwisko) AS KierowcaNazwa, p.Rejestracja,
+                           ROW_NUMBER() OVER (PARTITION BY k.PojazdID
+                                              ORDER BY k.DataKursu DESC, k.GodzWyjazdu DESC) AS rn
+                    FROM Kurs k LEFT JOIN Kierowca ki ON k.KierowcaID=ki.KierowcaID
+                    LEFT JOIN Pojazd p ON k.PojazdID=p.PojazdID
+                    WHERE k.PojazdID IS NOT NULL
+                      AND k.DataKursu >= DATEADD(DAY, -30, CAST(GETDATE() AS DATE))
+                )
+                SELECT * FROM KursyRanked WHERE rn = 1";
+            using var r = await cmd.ExecuteReaderAsync();
+            while (await r.ReadAsync())
+            {
+                int pid = Convert.ToInt32(r["PojazdID"]);
+                map[pid] = new KursInfo
+                {
+                    KursID = r.GetInt64(r.GetOrdinal("KursID")),
+                    Trasa = r["Trasa"]?.ToString() ?? "",
+                    Status = r["Status"]?.ToString() ?? "",
+                    GodzWyjazdu = r["GodzWyjazdu"] == DBNull.Value ? null : ((TimeSpan)r["GodzWyjazdu"]).ToString(@"hh\:mm"),
+                    GodzPowrotu = r["GodzPowrotu"] == DBNull.Value ? null : ((TimeSpan)r["GodzPowrotu"]).ToString(@"hh\:mm"),
+                    PojazdID = pid,
+                    KierowcaNazwa = r["KierowcaNazwa"]?.ToString() ?? "",
+                    Rejestracja = r["Rejestracja"]?.ToString() ?? "",
+                    DataKursu = (DateTime)r["DataKursu"]
+                };
+            }
+            _ostatniKursPojazdu = map;
+            Log($"Ostatnie kursy (30 dni): {map.Count} pojazdow");
         }
 
         // ══════════════════════════════════════════════════════════════════
@@ -363,7 +408,7 @@ namespace Kalendarz1.MapaFloty
                     //                  (auto jedzie tym kursem dopóki nie wróci do bazy)
                     //   - w bazie    → najbliższy nadchodzący (GodzWyjazdu > now)
                     //                  (po powrocie pokazujemy NASTĘPNY zaplanowany)
-                    //   - fallback   → ostatni kurs dnia gdy wszystkie minęły
+                    //   - brak na dziś → fallback do ostatniego historycznego kursu (z 30 dni)
                     if (v.MappedPojazdID > 0)
                     {
                         var pojazdKursy = _todayKursy
@@ -372,6 +417,7 @@ namespace Kalendarz1.MapaFloty
                             .ToList();
 
                         KursInfo? kurs = null;
+                        bool kursZHistorii = false;
                         if (pojazdKursy.Count > 0)
                         {
                             var now = DateTime.Now.TimeOfDay;
@@ -389,11 +435,22 @@ namespace Kalendarz1.MapaFloty
                             else
                                 kurs = rozpoczete.LastOrDefault() ?? nadchodzace.FirstOrDefault() ?? pojazdKursy.Last();
                         }
+                        else
+                        {
+                            // Brak kursow dziś → ostatni historyczny kurs (z 30 dni)
+                            if (_ostatniKursPojazdu.TryGetValue(v.MappedPojazdID, out var ostatni))
+                            {
+                                kurs = ostatni;
+                                kursZHistorii = true;
+                            }
+                        }
 
                         if (kurs != null)
                         {
-                            v.KursTrasa = kurs.Trasa;
-                            v.KursStatus = kurs.Status;
+                            v.KursTrasa = kursZHistorii
+                                ? $"{kurs.Trasa}  (ostatni: {kurs.DataKursu:dd.MM})"
+                                : kurs.Trasa;
+                            v.KursStatus = kursZHistorii ? "Historia" : kurs.Status;
                             v.KursGodzWyjazdu = kurs.GodzWyjazdu;
                             v.KursGodzPowrotu = kurs.GodzPowrotu;
                             v.KursKierowca = kurs.KierowcaNazwa;
@@ -1529,6 +1586,7 @@ function logToHost(m){try{post({Action:'log',Data:m})}catch(e){}}
             public int? PojazdID { get; set; }
             public string KierowcaNazwa { get; set; } = "";
             public string Rejestracja { get; set; } = "";
+            public DateTime DataKursu { get; set; }
         }
 
         private class MapMessage
