@@ -925,7 +925,11 @@ namespace Kalendarz1.MapaFloty
             Color secondColor;
             if (!string.IsNullOrEmpty(v.KursTrasa))
             {
-                var drv = ShortenDriver(v.Driver);
+                // Dla AKTUALNEGO kursu uzyj v.Driver (kierowca z GPS — kto jedzie teraz).
+                // Dla HISTORYCZNEGO uzyj v.KursKierowca (kto byl przypisany do tego konkretnego kursu).
+                var drv = v.KursZHistorii
+                    ? ShortenDriver(v.KursKierowca)
+                    : ShortenDriver(v.Driver);
                 var trasa = v.KursZHistorii && !string.IsNullOrEmpty(v.KursAgeStr)
                     ? $"📜 {v.KursTrasa} · {v.KursAgeStr}"
                     : v.KursTrasa;
@@ -1207,7 +1211,9 @@ var vehicleCluster = L.markerClusterGroup({
         for (var i = 0; i < Math.min(children.length, maxRows); i++) {
             var v = children[i]._vehData || {};
             var reg = esc(v.ObjectName || '');
-            var drv = v.Driver ? esc(shortDriver(v.Driver)) : '';
+            // Kierowca: gdy kurs historyczny → KursKierowca (kto byl wtedy), inaczej Driver z GPS
+            var drvName = v.KursZHistorii && v.KursKierowca ? v.KursKierowca : v.Driver;
+            var drv = drvName ? esc(shortDriver(drvName)) : '';
             var since = v.BaseSinceStr ? esc(v.BaseSinceStr) : '';
             rowsHtml += '<div class=""vc-row"">'
                 + '<span class=""reg"">' + reg + '</span>'
@@ -1255,7 +1261,9 @@ function mkIcon(v){
 
     var cls='vi vi-'+state+(v.InGeofence&&!v.IsMoving?' vi-geo':'');
     var spd=v.Speed>0?'<div class=""vi-spd"">'+v.Speed+'</div>':'';
-    var drv=v.Driver?'<div class=""vi-drv"">'+esc(shortDriver(v.Driver))+'</div>':'';
+    // Marker label kierowcy: GPS gdy aktualny kurs/jedzie, kierowca z kursu gdy historyczny
+    var drvName = v.KursZHistorii && v.KursKierowca ? v.KursKierowca : v.Driver;
+    var drv=drvName?'<div class=""vi-drv"">'+esc(shortDriver(drvName))+'</div>':'';
     var name='<div class=""vi-name"">'+esc((v.ObjectName||'').substring(0,16))+'</div>'+drv;
     // Zawsze pokazuj last known heading (nawet stop)
     var rot=v.Course||0;
@@ -1419,7 +1427,11 @@ function mkTooltip(v){
     var s = v.ObjectName + ' — ' + status;
     if(v.KursTrasa){
         s += '  ·  ' + v.KursTrasa;
-        if(v.KursZHistorii) s += '  (' + (v.KursAgeStr || 'historia') + ')';
+        if(v.KursZHistorii){
+            s += '  (' + (v.KursAgeStr || 'historia');
+            if(v.KursKierowca) s += ', ' + v.KursKierowca;
+            s += ')';
+        }
     }
     else if(v.IsMoving && v.Address) s += '  ·  z ' + v.Address.substring(0,40);
     return s;
