@@ -289,35 +289,47 @@ namespace Kalendarz1.MapaFloty
                 var kursy = new List<KursInfo>();
                 using var conn = new SqlConnection(_connTransport);
                 await conn.OpenAsync();
-                using var cmd = conn.CreateCommand();
-                cmd.CommandText = @"SELECT k.KursID, k.Trasa, k.Status, k.GodzWyjazdu, k.GodzPowrotu, k.DataKursu,
-                    k.PojazdID, CONCAT(ki.Imie,' ',ki.Nazwisko) AS KierowcaNazwa, p.Rejestracja
-                    FROM Kurs k LEFT JOIN Kierowca ki ON k.KierowcaID=ki.KierowcaID
-                    LEFT JOIN Pojazd p ON k.PojazdID=p.PojazdID
-                    WHERE k.DataKursu=CAST(GETDATE() AS DATE) ORDER BY k.GodzWyjazdu";
-                using var r = await cmd.ExecuteReaderAsync();
-                while (await r.ReadAsync())
+
+                // Czytamy w zagnieżdżonym scope żeby ZAMKNĄĆ reader przed wywolaniem
+                // LoadOstatniKursPojazduAsync (SqlConnection bez MARS nie pozwala na 2 open readers).
                 {
-                    kursy.Add(new KursInfo
+                    using var cmd = conn.CreateCommand();
+                    cmd.CommandText = @"SELECT k.KursID, k.Trasa, k.Status, k.GodzWyjazdu, k.GodzPowrotu, k.DataKursu,
+                        k.PojazdID, CONCAT(ki.Imie,' ',ki.Nazwisko) AS KierowcaNazwa, p.Rejestracja
+                        FROM Kurs k LEFT JOIN Kierowca ki ON k.KierowcaID=ki.KierowcaID
+                        LEFT JOIN Pojazd p ON k.PojazdID=p.PojazdID
+                        WHERE k.DataKursu=CAST(GETDATE() AS DATE) ORDER BY k.GodzWyjazdu";
+                    using var r = await cmd.ExecuteReaderAsync();
+                    while (await r.ReadAsync())
                     {
-                        KursID = r.GetInt64(r.GetOrdinal("KursID")),
-                        Trasa = r["Trasa"]?.ToString() ?? "",
-                        Status = r["Status"]?.ToString() ?? "",
-                        GodzWyjazdu = r["GodzWyjazdu"] == DBNull.Value ? null : ((TimeSpan)r["GodzWyjazdu"]).ToString(@"hh\:mm"),
-                        GodzPowrotu = r["GodzPowrotu"] == DBNull.Value ? null : ((TimeSpan)r["GodzPowrotu"]).ToString(@"hh\:mm"),
-                        PojazdID = r["PojazdID"] == DBNull.Value ? null : Convert.ToInt32(r["PojazdID"]),
-                        KierowcaNazwa = r["KierowcaNazwa"]?.ToString() ?? "",
-                        Rejestracja = r["Rejestracja"]?.ToString() ?? "",
-                        DataKursu = r["DataKursu"] == DBNull.Value ? DateTime.Today : (DateTime)r["DataKursu"]
-                    });
-                }
+                        kursy.Add(new KursInfo
+                        {
+                            KursID = r.GetInt64(r.GetOrdinal("KursID")),
+                            Trasa = r["Trasa"]?.ToString() ?? "",
+                            Status = r["Status"]?.ToString() ?? "",
+                            GodzWyjazdu = r["GodzWyjazdu"] == DBNull.Value ? null : ((TimeSpan)r["GodzWyjazdu"]).ToString(@"hh\:mm"),
+                            GodzPowrotu = r["GodzPowrotu"] == DBNull.Value ? null : ((TimeSpan)r["GodzPowrotu"]).ToString(@"hh\:mm"),
+                            PojazdID = r["PojazdID"] == DBNull.Value ? null : Convert.ToInt32(r["PojazdID"]),
+                            KierowcaNazwa = r["KierowcaNazwa"]?.ToString() ?? "",
+                            Rejestracja = r["Rejestracja"]?.ToString() ?? "",
+                            DataKursu = r["DataKursu"] == DBNull.Value ? DateTime.Today : (DateTime)r["DataKursu"]
+                        });
+                    }
+                }   // ← reader/cmd zamkniete TUTAJ; conn nadal open
+
                 _todayKursy = kursy;
                 Log($"Kursy dziś: {kursy.Count}");
 
                 // Ostatni historyczny kurs per pojazd — dla aut ktore dzis nie maja przypisanego kursu
                 await LoadOstatniKursPojazduAsync(conn);
             }
-            catch (Exception ex) { Log($"Kursy ERR: {ex.Message}"); _todayKursy = new(); _ostatniKursPojazdu = new(); }
+            catch (Exception ex)
+            {
+                Log($"Kursy ERR: {ex.GetType().Name}: {ex.Message}");
+                if (ex.InnerException != null) Log($"  Inner: {ex.InnerException.GetType().Name}: {ex.InnerException.Message}");
+                _todayKursy = new();
+                _ostatnieKursyPojazdu = new();
+            }
         }
 
         /// <summary>Dla kazdego pojazdu z ostatnich 30 dni — DWA ostatnie kursy + ostatni klient + godz awizacji.</summary>
