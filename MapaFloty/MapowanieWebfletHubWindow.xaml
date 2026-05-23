@@ -67,6 +67,7 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
@@ -135,8 +136,38 @@
             </StackPanel>
         </Border>
 
+        <!-- Auto-map CTA (zielony banner) -->
+        <Border Grid.Row="1" Background="#E8F5E9" BorderBrush="#A5D6A7" BorderThickness="1"
+                CornerRadius="8" Margin="24,16,24,0" Padding="14,12">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" x:Name="BtnAutoMapAll" Content="⚡ Auto-mapuj wszystkie po rejestracji"
+                        Click="BtnAutoMapAll_Click"
+                        Background="#2E7D32" Foreground="White" FontWeight="Bold" FontSize="13"
+                        Padding="16,10" BorderThickness="0" Cursor="Hand">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="6"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="bd" Property="Opacity" Value="0.88"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="🎯 Szybkie mapowanie" FontSize="13" FontWeight="Bold" Foreground="#1B5E20"/>
+                    <TextBlock Text="Automatycznie zmapuj wszystkie pojazdy po numerze rejestracyjnym (Webfleet ↔ TransportPL.Pojazd)"
+                               FontSize="11" Foreground="#2E7D32" Margin="0,2,0,0" TextWrapping="Wrap"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
         <!-- Content -->
-        <Grid Grid.Row="1" Margin="24,24,24,12">
+        <Grid Grid.Row="2" Margin="24,12,24,12">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="*"/>
@@ -212,7 +243,7 @@
         </Grid>
 
         <!-- Loading overlay (visible while fetching) -->
-        <Border x:Name="LoadingOverlay" Grid.Row="1" Background="#CCFFFFFF" Visibility="Visible">
+        <Border x:Name="LoadingOverlay" Grid.Row="2" Background="#CCFFFFFF" Visibility="Visible">
             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                 <TextBlock Text="⟳" FontSize="48" Foreground="#1A237E" HorizontalAlignment="Center">
                     <TextBlock.RenderTransform>
@@ -236,7 +267,7 @@
         </Border>
 
         <!-- Status bar -->
-        <Border Grid.Row="2" Background="White" Padding="24,12" BorderBrush="#E0E3EA" BorderThickness="0,1,0,0">
+        <Border Grid.Row="3" Background="White" Padding="24,12" BorderBrush="#E0E3EA" BorderThickness="0,1,0,0">
             <DockPanel>
                 <TextBlock x:Name="TxtStatus" Text="" VerticalAlignment="Center"
                            FontSize="11.5" Foreground="#546E7A"/>

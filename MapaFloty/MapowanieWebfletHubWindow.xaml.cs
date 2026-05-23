@@ -486,6 +486,115 @@ namespace Kalendarz1.MapaFloty
             await LoadAllAsync();
         }
 
+        /// <summary>
+        /// Auto-mapuje WSZYSTKIE Webfleet vehicles do TransportPL.Pojazd po normalizowanej Rejestracji.
+        /// Match: ObjectName.Replace(" ","").Replace("-","").ToUpper() vs Rejestracja.Replace(...). Min 4 znaki.
+        /// </summary>
+        private async void BtnAutoMapAll_Click(object sender, RoutedEventArgs e)
+        {
+            if (_vehicles.Count == 0)
+            {
+                MessageBox.Show("Brak pojazdów z Webfleet — najpierw poczekaj na pobranie.",
+                    "Auto-mapowanie", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            try
+            {
+                BtnAutoMapAll.IsEnabled = false;
+                TxtStatus.Text = "Auto-mapowanie pojazdów po rejestracji...";
+
+                // 1. Pobierz wszystkie aktywne TransportPL.Pojazd
+                var pojazdy = new List<(int Id, string Rejestracja)>();
+                using (var conn = new SqlConnection(_connTransport))
+                {
+                    await conn.OpenAsync();
+                    using var cmd = new SqlCommand(
+                        "SELECT PojazdID, Rejestracja FROM dbo.Pojazd WHERE Aktywny = 1", conn);
+                    using var r = await cmd.ExecuteReaderAsync();
+                    while (await r.ReadAsync())
+                    {
+                        pojazdy.Add((Convert.ToInt32(r["PojazdID"]),
+                                    r["Rejestracja"]?.ToString() ?? ""));
+                    }
+                }
+
+                string Normalize(string s) =>
+                    (s ?? "").Replace(" ", "").Replace("-", "").Replace(".", "").ToUpperInvariant();
+
+                // 2. Match Webfleet ObjectName ↔ Rejestracja
+                int matched = 0, skipped = 0;
+                using (var conn = new SqlConnection(_connTransport))
+                {
+                    await conn.OpenAsync();
+                    foreach (var v in _vehicles)
+                    {
+                        var wfName = Normalize(v.ObjectName);
+                        if (wfName.Length < 4) { skipped++; continue; }
+
+                        int? matchPid = null;
+                        foreach (var p in pojazdy)
+                        {
+                            var rej = Normalize(p.Rejestracja);
+                            if (rej.Length < 4) continue;
+                            if (wfName.Contains(rej) || rej.Contains(wfName))
+                            {
+                                matchPid = p.Id;
+                                break;
+                            }
+                        }
+
+                        if (!matchPid.HasValue) { skipped++; continue; }
+
+                        // 3. MERGE upsert do WebfleetVehicleMapping
+                        using var cmd = conn.CreateCommand();
+                        cmd.CommandText = @"
+                            IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'WebfleetVehicleMapping')
+                            CREATE TABLE WebfleetVehicleMapping (
+                                WebfleetObjectNo    varchar(20)     NOT NULL,
+                                WebfleetObjectName  nvarchar(100)   NULL,
+                                PojazdID            int             NULL,
+                                CreatedAtUTC        datetime2       NOT NULL DEFAULT SYSUTCDATETIME(),
+                                ModifiedAtUTC       datetime2       NULL,
+                                ModifiedBy          nvarchar(64)    NULL,
+                                CONSTRAINT PK_WebfleetVehicleMapping PRIMARY KEY (WebfleetObjectNo));
+
+                            MERGE WebfleetVehicleMapping AS t
+                            USING (SELECT @wfNo AS WebfleetObjectNo) AS s ON t.WebfleetObjectNo = s.WebfleetObjectNo
+                            WHEN MATCHED THEN UPDATE SET PojazdID = @pid, WebfleetObjectName = @wfName,
+                                ModifiedAtUTC = SYSUTCDATETIME(), ModifiedBy = @user
+                            WHEN NOT MATCHED THEN INSERT (WebfleetObjectNo, WebfleetObjectName, PojazdID, ModifiedBy)
+                                VALUES (@wfNo, @wfName, @pid, @user);";
+                        cmd.Parameters.AddWithValue("@wfNo", v.ObjectNo);
+                        cmd.Parameters.AddWithValue("@wfName", (object?)v.ObjectName ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@pid", matchPid.Value);
+                        cmd.Parameters.AddWithValue("@user", App.UserFullName ?? "system");
+                        await cmd.ExecuteNonQueryAsync();
+                        matched++;
+                    }
+                }
+
+                TxtStatus.Text = $"Auto-mapowanie zakończone: zmapowano {matched}, pominięto {skipped} (brak dopasowania).";
+                MessageBox.Show(
+                    $"✓ Zmapowano automatycznie: {matched} pojazdów\n" +
+                    $"⊘ Pominięto (brak dopasowania): {skipped}\n\n" +
+                    $"Otwórz teraz Mapę Floty → kursy powinny się pojawić w popup'ach pojazdów.",
+                    "Auto-mapowanie", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                await LoadAllAsync();  // odśwież statystyki w hub
+            }
+            catch (Exception ex)
+            {
+                TxtStatus.Text = $"Błąd auto-mapowania: {ex.Message}";
+                MessageBox.Show($"Błąd auto-mapowania:\n{ex.Message}", "Błąd",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                BtnAutoMapAll.IsEnabled = true;
+            }
+        }
+
         private async void BtnPojazdy_Click(object sender, RoutedEventArgs e)
         {
             var dlg = new MapowaniePojazdowWindow(_vehicles) { Owner = this };
