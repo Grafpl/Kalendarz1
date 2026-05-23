@@ -212,7 +212,14 @@ namespace Kalendarz1.MapaFloty
                     _mapReady = true;
                     if (!a.IsSuccess) { StatusText.Text = "Błąd mapy"; return; }
                     _refreshTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
-                    _refreshTimer.Tick += async (_, _) => { _countdown = 30; await RefreshVehiclePositions(); };
+                    int kursReloadCounter = 0;  // co 10 ticków = co 5 min reload kursow
+                    _refreshTimer.Tick += async (_, _) =>
+                    {
+                        _countdown = 30;
+                        kursReloadCounter++;
+                        if (kursReloadCounter >= 10) { kursReloadCounter = 0; await LoadTodayKursy(); }
+                        await RefreshVehiclePositions();
+                    };
                     _refreshTimer.Start();
                     _countdownTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
                     _countdownTimer.Tick += (_, _) => { if (_countdown > 0) _countdown--; CountdownText.Text = $"{_countdown}s"; };
@@ -1132,7 +1139,11 @@ namespace Kalendarz1.MapaFloty
             win.Show();
         }
 
-        private void BtnRefresh_Click(object s, RoutedEventArgs e) => _ = RefreshVehiclePositions();
+        private void BtnRefresh_Click(object s, RoutedEventArgs e) => _ = Task.Run(async () =>
+        {
+            await LoadTodayKursy();
+            await Dispatcher.InvokeAsync(async () => await RefreshVehiclePositions());
+        });
         private void BtnCenterAll_Click(object s, RoutedEventArgs e)
         { if (_mapReady) _ = MapWebView.CoreWebView2.ExecuteScriptAsync("centerAll()"); }
         private void BtnToggleDebug_Click(object s, RoutedEventArgs e)
@@ -1447,9 +1458,18 @@ function mkPopup(v){
             +(v.Driver?'<br>Kierowca GPS: <b>'+esc(v.Driver)+'</b>':'')
             +'</div></div>';
     } else {
+        // Rozroznij scenariusze: niezmapowany vs zmapowany ale brak kursow
+        var diagMsg, diagHint;
+        if(!v.MappedPojazdID || v.MappedPojazdID === 0){
+            diagMsg = 'Pojazd niezmapowany do TransportPL';
+            diagHint = 'Menu &raquo; Mapowanie Webfleet (GPS) &raquo; otworz dialog mapowania pojazdow';
+        } else {
+            diagMsg = 'Brak kursow w 90 dniach dla tego pojazdu (PojazdID=' + v.MappedPojazdID + ')';
+            diagHint = 'Zmapowany OK, ale brak historii kursow. Sprawdz czy kursy w bazie TransportPL.Kurs maja PojazdID = ' + v.MappedPojazdID;
+        }
         kursHtml='<div style=""padding:8px 12px;background:#fafafa;border-radius:6px;margin:6px 0;font-size:11px;color:#90a4ae"">'
-            +'&#128276; Brak kursu w bazie TransportPL dla tego pojazdu.<br>'
-            +'<span style=""font-size:10px;color:#b0bec5"">Sprawdź mapowanie w menu &raquo; Mapowanie Webfleet (GPS)</span>'
+            +'&#128276; <b>'+esc(diagMsg)+'</b><br>'
+            +'<span style=""font-size:10px;color:#b0bec5"">'+diagHint+'</span>'
             +'</div>';
     }
 
@@ -1751,7 +1771,7 @@ function logToHost(m){try{post({Action:'log',Data:m})}catch(e){}}
             // Mapowanie
             [JsonIgnore] public string? CarTrailerID { get; set; }
             [JsonIgnore] public string? InternalName { get; set; }
-            [JsonIgnore] public int MappedPojazdID { get; set; }
+            public int MappedPojazdID { get; set; }
             [JsonIgnore] public string? WebfleetDriverId { get; set; }
         }
 
