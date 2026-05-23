@@ -574,14 +574,84 @@ namespace Kalendarz1.MapaFloty
                     }
                 }
 
-                TxtStatus.Text = $"Auto-mapowanie zakończone: zmapowano {matched}, pominięto {skipped} (brak dopasowania).";
-                MessageBox.Show(
-                    $"✓ Zmapowano automatycznie: {matched} pojazdów\n" +
-                    $"⊘ Pominięto (brak dopasowania): {skipped}\n\n" +
-                    $"Otwórz teraz Mapę Floty → kursy powinny się pojawić w popup'ach pojazdów.",
-                    "Auto-mapowanie", MessageBoxButton.OK, MessageBoxImage.Information);
+                // 4. AUTO-MAP KIEROWCOW po imię+nazwisko
+                TxtStatus.Text = "Auto-mapowanie kierowców...";
+                int matchedDrv = 0, skippedDrv = 0;
+                using (var conn = new SqlConnection(_connTransport))
+                {
+                    await conn.OpenAsync();
 
-                await LoadAllAsync();  // odśwież statystyki w hub
+                    // Pobierz wszystkich aktywnych kierowcow z TransportPL
+                    var kierowcy = new List<(int Id, string FullName)>();
+                    using (var cmdK = new SqlCommand(
+                        "SELECT KierowcaID, (Imie + ' ' + Nazwisko) AS FullName FROM dbo.Kierowca WHERE Aktywny = 1", conn))
+                    {
+                        using var rK = await cmdK.ExecuteReaderAsync();
+                        while (await rK.ReadAsync())
+                            kierowcy.Add((Convert.ToInt32(rK["KierowcaID"]), rK["FullName"]?.ToString() ?? ""));
+                    }
+
+                    // Zbierz unikalnych kierowcow z _vehicles (Webfleet)
+                    var wfDrivers = _vehicles
+                        .Where(v => !string.IsNullOrEmpty(v.WebfleetDriverId) && !string.IsNullOrEmpty(v.Driver) && v.Driver != "—")
+                        .GroupBy(v => v.WebfleetDriverId)
+                        .Select(g => new { WfId = g.Key, Name = g.First().Driver })
+                        .ToList();
+
+                    foreach (var wd in wfDrivers)
+                    {
+                        var wfName = Normalize(wd.Name);
+                        if (wfName.Length < 3) { skippedDrv++; continue; }
+
+                        int? matchKid = null;
+                        foreach (var k in kierowcy)
+                        {
+                            var kn = Normalize(k.FullName);
+                            if (kn.Length < 3) continue;
+                            if (kn == wfName || kn.Contains(wfName) || wfName.Contains(kn))
+                            {
+                                matchKid = k.Id;
+                                break;
+                            }
+                        }
+
+                        if (!matchKid.HasValue) { skippedDrv++; continue; }
+
+                        using var cmdD = conn.CreateCommand();
+                        cmdD.CommandText = @"
+                            IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'WebfleetDriverMapping')
+                            CREATE TABLE WebfleetDriverMapping (
+                                WebfleetDriverId    varchar(50)     NOT NULL,
+                                WebfleetDriverName  nvarchar(100)   NULL,
+                                KierowcaID          int             NULL,
+                                CreatedAtUTC        datetime2       NOT NULL DEFAULT SYSUTCDATETIME(),
+                                ModifiedAtUTC       datetime2       NULL,
+                                ModifiedBy          nvarchar(64)    NULL,
+                                CONSTRAINT PK_WebfleetDriverMapping PRIMARY KEY (WebfleetDriverId));
+
+                            MERGE WebfleetDriverMapping AS t
+                            USING (SELECT @wfId AS WebfleetDriverId) AS s ON t.WebfleetDriverId = s.WebfleetDriverId
+                            WHEN MATCHED THEN UPDATE SET KierowcaID = @kid, WebfleetDriverName = @wfName,
+                                ModifiedAtUTC = SYSUTCDATETIME(), ModifiedBy = @user
+                            WHEN NOT MATCHED THEN INSERT (WebfleetDriverId, WebfleetDriverName, KierowcaID, ModifiedBy)
+                                VALUES (@wfId, @wfName, @kid, @user);";
+                        cmdD.Parameters.AddWithValue("@wfId", wd.WfId);
+                        cmdD.Parameters.AddWithValue("@wfName", (object?)wd.Name ?? DBNull.Value);
+                        cmdD.Parameters.AddWithValue("@kid", matchKid.Value);
+                        cmdD.Parameters.AddWithValue("@user", App.UserFullName ?? "system");
+                        await cmdD.ExecuteNonQueryAsync();
+                        matchedDrv++;
+                    }
+                }
+
+                TxtStatus.Text = $"Auto-mapowanie: pojazdy {matched}/{matched + skipped} · kierowcy {matchedDrv}/{matchedDrv + skippedDrv}";
+                MessageBox.Show(
+                    $"✓ Pojazdy zmapowane: {matched} (pominięto {skipped})\n" +
+                    $"✓ Kierowcy zmapowani: {matchedDrv} (pominięto {skippedDrv})\n\n" +
+                    $"Otwórz teraz Mapę Floty → kursy + kierowcy powinni być widoczni w popup'ach pojazdów.",
+                    "Auto-mapowanie zakończone", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                await LoadAllAsync();
             }
             catch (Exception ex)
             {
