@@ -78,7 +78,7 @@ namespace Kalendarz1.MarketIntelligence.Views
             txtTopics.Text = s.Topics;
             cbPriority.SelectedIndex = Math.Max(0, Math.Min(2, s.Priority - 1));
             cbCategory.Text = s.Category;
-            cbLanguage.Text = s.Language ?? "pl";
+            SelectLanguage(s.Language ?? "pl");
             chkActive.IsChecked = s.IsActive;
         }
 
@@ -88,10 +88,23 @@ namespace Kalendarz1.MarketIntelligence.Views
             txtName.Text = txtUrl.Text = txtTopics.Text = "";
             cbPriority.SelectedIndex = 1;
             cbCategory.Text = "Drób";
-            cbLanguage.Text = "pl";
+            SelectLanguage("pl");
             chkActive.IsChecked = true;
             txtDetectStatus.Text = "Wybierz źródło z listy lub kliknij ➕";
             samplePanel.Visibility = Visibility.Collapsed;
+        }
+
+        private void SelectLanguage(string langCode)
+        {
+            for (int i = 0; i < cbLanguage.Items.Count; i++)
+            {
+                if (cbLanguage.Items[i] is ComboBoxItem item && item.Tag?.ToString() == langCode)
+                {
+                    cbLanguage.SelectedIndex = i;
+                    return;
+                }
+            }
+            cbLanguage.SelectedIndex = 0;
         }
 
         private async void BtnDetect_Click(object sender, RoutedEventArgs e)
@@ -172,7 +185,9 @@ namespace Kalendarz1.MarketIntelligence.Views
             _editing.Url = url;
             _editing.Topics = (txtTopics.Text ?? "").Trim();
             _editing.Category = (cbCategory.Text ?? "Drób").Trim();
-            _editing.Language = (cbLanguage.Text ?? "pl").Trim();
+            _editing.Language = (cbLanguage.SelectedItem is ComboBoxItem langItem && langItem.Tag != null)
+                ? langItem.Tag.ToString()
+                : "pl";
             _editing.IsActive = chkActive.IsChecked == true;
             if (cbPriority.SelectedItem is ComboBoxItem priItem && int.TryParse(priItem.Tag?.ToString(), out var pri))
                 _editing.Priority = pri;
@@ -226,5 +241,12 @@ namespace Kalendarz1.MarketIntelligence.Views
 
         private void BtnCancel_Click(object sender, RoutedEventArgs e) => ClearEditor();
         private void BtnClose_Click(object sender, RoutedEventArgs e) => Close();
+
+        private void BtnToggleHelp_Click(object sender, RoutedEventArgs e)
+        {
+            helpBanner.Visibility = helpBanner.Visibility == Visibility.Visible
+                ? Visibility.Collapsed
+                : Visibility.Visible;
+        }
     }
 }

@@ -1,0 +1,253 @@
+<Window x:Class="Kalendarz1.MarketIntelligence.Views.BriefingHelpWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="❓ Jak korzystać z Briefingu AI"
+        Width="980" Height="780"
+        WindowStartupLocation="CenterOwner"
+        Background="#15120D"
+        Foreground="#D5CCC0"
+        FontFamily="Segoe UI">
+    <Window.Resources>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#D5CCC0"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+        <Style x:Key="H1" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="22"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="#F5EDE0"/>
+            <Setter Property="Margin" Value="0,0,0,4"/>
+        </Style>
+        <Style x:Key="H2" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#C9A96E"/>
+            <Setter Property="Margin" Value="0,18,0,8"/>
+        </Style>
+        <Style x:Key="H3" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#F5EDE0"/>
+            <Setter Property="Margin" Value="0,10,0,4"/>
+        </Style>
+        <Style x:Key="Body" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="#D5CCC0"/>
+            <Setter Property="Margin" Value="0,2,0,2"/>
+            <Setter Property="LineHeight" Value="18"/>
+        </Style>
+        <Style x:Key="Bullet" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="#D5CCC0"/>
+            <Setter Property="Margin" Value="0,3,0,3"/>
+            <Setter Property="LineHeight" Value="18"/>
+        </Style>
+        <Style x:Key="Hint" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="#7A6F63"/>
+            <Setter Property="FontStyle" Value="Italic"/>
+            <Setter Property="Margin" Value="0,2,0,4"/>
+        </Style>
+        <Style x:Key="Card" TargetType="Border">
+            <Setter Property="Background" Value="#1F1A14"/>
+            <Setter Property="BorderBrush" Value="#3F3830"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="16,12"/>
+            <Setter Property="Margin" Value="0,0,0,10"/>
+        </Style>
+        <Style x:Key="StepBadge" TargetType="Border">
+            <Setter Property="Background" Value="#3D2F1F"/>
+            <Setter Property="CornerRadius" Value="14"/>
+            <Setter Property="Width" Value="28"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="Margin" Value="0,0,10,0"/>
+            <Setter Property="VerticalAlignment" Value="Top"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Background="#1F1A14" Padding="24,16" BorderBrush="#3F3830" BorderThickness="0,0,0,1">
+            <StackPanel>
+                <TextBlock Style="{StaticResource H1}" Text="❓ Jak korzystać z Briefingu AI"/>
+                <TextBlock Style="{StaticResource Hint}"
+                           Text="Krótki przewodnik po module. Czytaj raz, używaj codziennie."/>
+            </StackPanel>
+        </Border>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="24,16,24,16">
+            <StackPanel>
+
+                <!-- TLDR -->
+                <Border Style="{StaticResource Card}" Background="#2A2520" BorderBrush="#C9A96E">
+                    <StackPanel>
+                        <TextBlock Text="📌 W jednym zdaniu" Foreground="#C9A96E" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                        <TextBlock Style="{StaticResource Body}"
+                                   Text="To Twój prywatny agent AI, który codziennie czyta strony z drobiarstwa, streszcza je w 1 ekran z opinią dla CEO/Sales/Buyer i odpowiada na Twoje pytania używając pełnej wiedzy o firmie."/>
+                    </StackPanel>
+                </Border>
+
+                <!-- WORKFLOW DZIEŃ PIERWSZY -->
+                <TextBlock Style="{StaticResource H2}" Text="🚀 Pierwszy raz? Zrób te 3 rzeczy"/>
+
+                <Border Style="{StaticResource Card}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.Column="0" Style="{StaticResource StepBadge}">
+                            <TextBlock Text="1" Foreground="#F5EDE0" FontWeight="Bold" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Style="{StaticResource H3}" Text="Dodaj swoje źródła (🌐 Moje źródła)"/>
+                            <TextBlock Style="{StaticResource Bullet}" Text="• Wklej URL strony branżowej (np. swiatdrobiu.pl)"/>
+                            <TextBlock Style="{StaticResource Bullet}" Text="• Kliknij '🔍 Wykryj RSS' — AI sam znajdzie feed (sprawdza 9 typowych ścieżek)"/>
+                            <TextBlock Style="{StaticResource Bullet}" Text="• Dopisz tematy (np. 'HPAI, ceny, Cedrob') — AI przefiltruje pod kątem tych słów"/>
+                            <TextBlock Style="{StaticResource Hint}" Margin="0,6,0,0"
+                                       Text="Już masz hardcoded 40+ źródeł (Polskie Drób, KOWR, Wieś z Wartością, FAO itp.) — własne dochodzą na wierzch."/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <Border Style="{StaticResource Card}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.Column="0" Style="{StaticResource StepBadge}">
+                            <TextBlock Text="2" Foreground="#F5EDE0" FontWeight="Bold" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Style="{StaticResource H3}" Text="Powiedz AI czego szukać (🎯 Moje tematy)"/>
+                            <TextBlock Style="{StaticResource Bullet}" Text="• Kliknij jeden z 8 szablonów (HPAI łódzkie, Ceny żywca, Cedrob/ADQ, Biedronka, Pasze MATIF, KSeF, Brazylia, MHP)"/>
+                            <TextBlock Style="{StaticResource Bullet}" Text="• Każdy ma już sformułowane pytanie — zapisz lub edytuj pod siebie"/>
+                            <TextBlock Style="{StaticResource Bullet}" Text="• Możesz dodać własne (np. 'Co z lokalnymi targowiskami w Brzezinach?')"/>
+                            <TextBlock Style="{StaticResource Hint}" Margin="0,6,0,0"
+                                       Text="Te zapytania idą do Perplexity (limit 30/dzień) i przeszukują CAŁY polski internet — nie tylko Twoje źródła."/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <Border Style="{StaticResource Card}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.Column="0" Style="{StaticResource StepBadge}">
+                            <TextBlock Text="3" Foreground="#F5EDE0" FontWeight="Bold" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Style="{StaticResource H3}" Text="Uruchom pełne pobranie i czytaj One-pager (📋 One-pager)"/>
+                            <TextBlock Style="{StaticResource Bullet}" Text="• W głównym oknie wybierz '🔥 Pełne pobranie' lub poczekaj na auto-fetch o 06:00"/>
+                            <TextBlock Style="{StaticResource Bullet}" Text="• Otwórz '📋 One-pager' — masz: TOP 3 krytyczne + 5 action items + streszczenia CEO/Sales/Buyer"/>
+                            <TextBlock Style="{StaticResource Bullet}" Text="• Pod artykułami klikaj 👍/👎 — AI zapamięta co lubisz"/>
+                            <TextBlock Style="{StaticResource Bullet}" Text="• Pod streszczeniami jest CHAT — pytaj swobodnie, AI zna 30 dni historii + profil firmy"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- CO POTRAFI -->
+                <TextBlock Style="{StaticResource H2}" Text="🧠 Co potrafi (i czego nie potrafi)"/>
+
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource H3}" Text="✅ Potrafi"/>
+                        <TextBlock Style="{StaticResource Bullet}" Text="• Codziennie skanować ~40 polskich/zagranicznych źródeł + Twoje własne"/>
+                        <TextBlock Style="{StaticResource Bullet}" Text="• Filtrować szum (Haiku 4.5) i analizować ważne artykuły (Sonnet 4.6) z perspektywą CEO/Sales/Buyer"/>
+                        <TextBlock Style="{StaticResource Bullet}" Text="• Sprawdzać HPAI co 2h (alerty GLW), ceny co 15 min"/>
+                        <TextBlock Style="{StaticResource Bullet}" Text="• Odpowiadać na pytania z kontekstem: profil firmy, 30 dni artykułów, briefingi, Twoje tematy"/>
+                        <TextBlock Style="{StaticResource Bullet}" Text="• Uczyć się Twoich preferencji z 👍/👎 (po 30+ głosach widać efekt)"/>
+
+                        <TextBlock Style="{StaticResource H3}" Text="❌ Nie potrafi" Margin="0,12,0,4"/>
+                        <TextBlock Style="{StaticResource Bullet}" Text="• Pisać maili / robić zamówień — to tylko czytanie i analiza"/>
+                        <TextBlock Style="{StaticResource Bullet}" Text="• Sprawdzać stron za logowaniem (LinkedIn, paywalls)"/>
+                        <TextBlock Style="{StaticResource Bullet}" Text="• Czytać PDF-ów (artykuły tylko HTML/RSS)"/>
+                        <TextBlock Style="{StaticResource Bullet}" Text="• Dawać gwarancji — sprawdzaj liczby w źródle przy decyzjach finansowych"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- TIPS -->
+                <TextBlock Style="{StaticResource H2}" Text="💡 Triki dla maksymalnej skuteczności"/>
+
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource H3}" Text="Chat AI"/>
+                        <TextBlock Style="{StaticResource Bullet}" Text="• Najszybciej: użyj jednego z 6 szybkich pytań — generuje się w ~5 sek"/>
+                        <TextBlock Style="{StaticResource Bullet}" Text="• Pytaj konkretnie ('Daj liczby z ostatnich 7 dni' zamiast 'Co tam?')"/>
+                        <TextBlock Style="{StaticResource Bullet}" Text="• Drążenie: zadawaj follow-up pytania — pamięta poprzednie pytanie w sesji"/>
+                        <TextBlock Style="{StaticResource Bullet}" Text="• Enter wysyła, Shift+Enter robi nową linię"/>
+
+                        <TextBlock Style="{StaticResource H3}" Text="Tematy" Margin="0,12,0,4"/>
+                        <TextBlock Style="{StaticResource Bullet}" Text="• Mniej znaczy więcej — max 10 aktywnych tematów (Perplexity limit 30/dzień)"/>
+                        <TextBlock Style="{StaticResource Bullet}" Text="• Priorytet 'Krytyczne' tylko dla TOP 2-3 zagadnień (HPAI, ceny)"/>
+                        <TextBlock Style="{StaticResource Bullet}" Text="• Świeżość 'week' jest najbezpieczniejsza — 'day' często zwraca zero wyników"/>
+
+                        <TextBlock Style="{StaticResource H3}" Text="Źródła" Margin="0,12,0,4"/>
+                        <TextBlock Style="{StaticResource Bullet}" Text="• Najlepsze są RSS (auto-wykryje) — szybkie i niezawodne"/>
+                        <TextBlock Style="{StaticResource Bullet}" Text="• HTML scraping działa ale wolniej i mniej dokładnie"/>
+                        <TextBlock Style="{StaticResource Bullet}" Text="• Tematy w polu 'Tematy' to słowa-klucze do filtrowania artykułów z TEGO źródła"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- ROUTYNY -->
+                <TextBlock Style="{StaticResource H2}" Text="📅 Sugerowane rutyny dziennie"/>
+
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource H3}" Text="🌅 8:00 — Briefing dnia (3 minuty)"/>
+                        <TextBlock Style="{StaticResource Bullet}" Text="1. Otwórz One-pager — przeczytaj TOP 3 krytyczne"/>
+                        <TextBlock Style="{StaticResource Bullet}" Text="2. Spojrzyj na action items — co dziś robić?"/>
+                        <TextBlock Style="{StaticResource Bullet}" Text="3. Klik 👍/👎 na artykuły — AI się uczy"/>
+
+                        <TextBlock Style="{StaticResource H3}" Text="☕ 14:00 — Update (1 minuta)" Margin="0,12,0,4"/>
+                        <TextBlock Style="{StaticResource Bullet}" Text="• Auto-fetch HPAI o 14:00 — w głównym oknie sprawdź alerty"/>
+
+                        <TextBlock Style="{StaticResource H3}" Text="🌙 Wieczorem — Strategiczne pytanie (5 minut)" Margin="0,12,0,4"/>
+                        <TextBlock Style="{StaticResource Bullet}" Text="• Otwórz One-pager → chat → zadaj 1 trudne pytanie ('Co z Brazylią w przyszłym tygodniu?')"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- TROUBLESHOOTING -->
+                <TextBlock Style="{StaticResource H2}" Text="🛠 Coś nie działa?"/>
+
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource H3}" Text="One-pager pokazuje 'Brak danych'"/>
+                        <TextBlock Style="{StaticResource Body}" Text="Nie było jeszcze pełnego pobrania dziś. Kliknij '🔥 Pełne pobranie' w głównym oknie i czekaj ~3-5 min."/>
+
+                        <TextBlock Style="{StaticResource H3}" Text="Chat nie odpowiada / błąd" Margin="0,12,0,4"/>
+                        <TextBlock Style="{StaticResource Body}" Text="Sprawdź credit balance Anthropic. Klucz API jest w %LOCALAPPDATA%\Kalendarz1\MarketIntelligence\secrets.json."/>
+
+                        <TextBlock Style="{StaticResource H3}" Text="Perplexity 'DZIENNY LIMIT'" Margin="0,12,0,4"/>
+                        <TextBlock Style="{StaticResource Body}" Text="Limit 30 zapytań/dzień jest wyczerpany. Reset o północy. Wyłącz niektóre tematy w 'Moje tematy'."/>
+
+                        <TextBlock Style="{StaticResource H3}" Text="Wykrycie RSS zwraca 'nie znaleziono'" Margin="0,12,0,4"/>
+                        <TextBlock Style="{StaticResource Body}" Text="Strona nie ma standardowego feedu. Zapisz tak jak jest — system użyje HTML scraping (działa, ale wolniej)."/>
+                    </StackPanel>
+                </Border>
+
+            </StackPanel>
+        </ScrollViewer>
+
+        <Border Grid.Row="2" Background="#1F1A14" Padding="24,10" BorderBrush="#3F3830" BorderThickness="0,1,0,0">
+            <Grid>
+                <TextBlock HorizontalAlignment="Left" VerticalAlignment="Center" FontSize="11" Foreground="#7A6F63"
+                           Text="💡 Wskazówka: Im więcej dajesz 👍/👎, tym lepsze rekomendacje. Po 30 głosach widać różnicę."/>
+                <Button HorizontalAlignment="Right" Content="Rozumiem ✓"
+                        Background="#3D2F1F" Foreground="#F5EDE0"
+                        BorderBrush="#C9A96E" BorderThickness="1"
+                        Padding="20,8" FontSize="12" Cursor="Hand"
+                        Click="BtnClose_Click"/>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

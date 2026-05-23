@@ -112,6 +112,14 @@
                             Padding="12,6" FontSize="11" Cursor="Hand"
                             ToolTip="Twoje zapytania do AI Perplexity. HPAI, ceny żywca, Cedrob, Biedronka, KSeF — co AI ma śledzić."
                             Margin="0,0,8,0"/>
+                    <Button x:Name="btnHelp"
+                            Content="❓ Jak to działa?"
+                            Click="btnHelp_Click"
+                            Background="#1F1A14" Foreground="#C9A96E"
+                            BorderBrush="#C9A96E" BorderThickness="1"
+                            Padding="12,6" FontSize="11" Cursor="Hand"
+                            ToolTip="Pełny przewodnik — jak używać Briefingu AI w 3 krokach + triki + sugerowane rutyny"
+                            Margin="0,0,8,0"/>
                     <Button x:Name="btnDiagnostics"
                             Content="🛠 Diagnostyka"
                             Click="btnDiagnostics_Click"

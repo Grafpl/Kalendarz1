@@ -73,6 +73,7 @@
     <Grid Margin="0">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
@@ -92,14 +93,42 @@
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock x:Name="txtStats" Style="{StaticResource Sub}" Text="" Margin="0,0,16,0" VerticalAlignment="Center"/>
+                    <Button x:Name="btnToggleHelp" Style="{StaticResource Btn}" Content="💡 Pomoc" Click="BtnToggleHelp_Click"
+                            ToolTip="Schowaj/pokaż instrukcję"/>
                     <Button Style="{StaticResource Btn}" Content="🔄 Odśwież" Click="BtnRefresh_Click"/>
                     <Button Style="{StaticResource PrimaryBtn}" Content="➕ Dodaj temat" Click="BtnAdd_Click"/>
                 </StackPanel>
             </Grid>
         </Border>
 
+        <!-- HELP BANNER -->
+        <Border x:Name="helpBanner" Grid.Row="1" Background="#1A1611" BorderBrush="#3F3830" BorderThickness="0,0,0,1" Padding="24,14">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                    <TextBlock Text="① Wybierz szablon (najszybsze)" Foreground="#C9A96E" FontSize="12" FontWeight="SemiBold"/>
+                    <TextBlock Foreground="#A89F92" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0"
+                               Text="8 gotowych zapytań pod Twoją firmę. Klik → wypełni formularz → kliknij Zapisz."/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Margin="0,0,16,0">
+                    <TextBlock Text="② Albo napisz własne" Foreground="#C9A96E" FontSize="12" FontWeight="SemiBold"/>
+                    <TextBlock Foreground="#A89F92" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0"
+                               Text="Konkretne pytanie po polsku — np. „Co z Drosed w 2026?”. Im konkretniej, tym lepsze wyniki."/>
+                </StackPanel>
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="③ Limit: max 10 aktywnych" Foreground="#C9A96E" FontSize="12" FontWeight="SemiBold"/>
+                    <TextBlock Foreground="#A89F92" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0"
+                               Text="Perplexity ma 30 zapytań/dzień (~16 hardcoded). Mniej znaczy więcej — tylko priorytety."/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
         <!-- BODY -->
-        <Grid Grid.Row="1">
+        <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="2*"/>
                 <ColumnDefinition Width="*"/>
@@ -177,9 +206,10 @@
                     <TextBlock Style="{StaticResource Hdr}" FontSize="14" Text="✏ Edytor tematu" Margin="0,0,0,8"/>
 
                     <TextBlock Style="{StaticResource Lbl}" Text="Treść zapytania do AI"/>
-                    <TextBox x:Name="txtQuery" Style="{StaticResource Inp}" MinHeight="80" AcceptsReturn="True"/>
+                    <TextBox x:Name="txtQuery" Style="{StaticResource Inp}" MinHeight="80" AcceptsReturn="True"
+                             ToolTip="Co dokładnie ma znaleźć Perplexity? Pisz konkretnie, po polsku, z liczbami i nazwami firm — im konkretniej, tym lepsze wyniki."/>
                     <TextBlock Style="{StaticResource Sub}" TextWrapping="Wrap" Margin="0,2,0,0"
-                               Text="Wpisz konkretnie czego AI ma szukać. Np: 'Ceny skupu kurczaka brojler Polska maj 2026. Ile ubojnie płacą za kilogram?'"/>
+                               Text="✏ Przykład: 'Ceny skupu kurczaka brojler Polska maj 2026. Ile ubojnie płacą za kilogram?' — konkretnie, z datami i jednostkami."/>
 
                     <TextBlock Style="{StaticResource Lbl}" Text="Kategoria"/>
                     <ComboBox x:Name="cbCategory" Style="{StaticResource Combo}" IsEditable="True">
@@ -202,22 +232,21 @@
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0">
                             <TextBlock Style="{StaticResource Lbl}" Text="Priorytet"/>
-                            <ComboBox x:Name="cbPriority" Style="{StaticResource Combo}">
-                                <ComboBoxItem Content="1 — Krytyczne (zawsze)" Tag="1"/>
-                                <ComboBoxItem Content="2 — Wysokie" Tag="2"/>
-                                <ComboBoxItem Content="3 — Wysokie" Tag="3"/>
-                                <ComboBoxItem Content="5 — Normalne" Tag="5" IsSelected="True"/>
-                                <ComboBoxItem Content="7 — Niskie" Tag="7"/>
-                                <ComboBoxItem Content="9 — Opcjonalne" Tag="9"/>
+                            <ComboBox x:Name="cbPriority" Style="{StaticResource Combo}"
+                                      ToolTip="Krytyczne = AI zawsze pyta. Normalne = pyta gdy ma budżet. Niskie = tylko gdy zostało dużo zapytań.">
+                                <ComboBoxItem Content="🔴 Krytyczne — pytaj zawsze" Tag="1"/>
+                                <ComboBoxItem Content="🟡 Normalne — wystarczająco" Tag="5" IsSelected="True"/>
+                                <ComboBoxItem Content="🟢 Niskie — gdy zostanie czas" Tag="9"/>
                             </ComboBox>
                         </StackPanel>
                         <StackPanel Grid.Column="1" Margin="8,0,0,0">
                             <TextBlock Style="{StaticResource Lbl}" Text="Świeżość źródeł"/>
-                            <ComboBox x:Name="cbRecency" Style="{StaticResource Combo}">
-                                <ComboBoxItem Content="day — ostatnie 24h" Tag="day"/>
-                                <ComboBoxItem Content="week — ostatni tydzień" Tag="week" IsSelected="True"/>
-                                <ComboBoxItem Content="month — ostatni miesiąc" Tag="month"/>
-                                <ComboBoxItem Content="year — ostatni rok" Tag="year"/>
+                            <ComboBox x:Name="cbRecency" Style="{StaticResource Combo}"
+                                      ToolTip="Z jak starych artykułów AI ma korzystać. 'Tydzień' najbezpieczniejsze. 'Dzisiaj' często daje zero wyników.">
+                                <ComboBoxItem Content="📅 Dzisiaj (ostatnie 24h)" Tag="day"/>
+                                <ComboBoxItem Content="📅 Tydzień (zalecane)" Tag="week" IsSelected="True"/>
+                                <ComboBoxItem Content="📅 Miesiąc" Tag="month"/>
+                                <ComboBoxItem Content="📅 Rok" Tag="year"/>
                             </ComboBox>
                         </StackPanel>
                     </Grid>
@@ -237,7 +266,7 @@
         </Grid>
 
         <!-- FOOTER -->
-        <Border Grid.Row="2" Background="#1F1A14" Padding="24,8" BorderBrush="#3F3830" BorderThickness="0,1,0,0">
+        <Border Grid.Row="3" Background="#1F1A14" Padding="24,8" BorderBrush="#3F3830" BorderThickness="0,1,0,0">
             <Grid>
                 <TextBlock Style="{StaticResource Sub}" HorizontalAlignment="Left" VerticalAlignment="Center"
                            Text="intel_UserQueries w LibraNet. Twoje tematy + hardcoded 16 Critical PL queries. Limit Perplexity 30/dzień."/>

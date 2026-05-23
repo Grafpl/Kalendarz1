@@ -62,6 +62,7 @@
     <Grid Margin="0">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
@@ -81,14 +82,42 @@
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock x:Name="txtStats" Style="{StaticResource Sub}" Text="" Margin="0,0,16,0" VerticalAlignment="Center"/>
+                    <Button x:Name="btnToggleHelp" Style="{StaticResource Btn}" Content="💡 Pomoc" Click="BtnToggleHelp_Click"
+                            ToolTip="Schowaj/pokaż instrukcję"/>
                     <Button x:Name="btnRefresh" Style="{StaticResource Btn}" Content="🔄 Odśwież" Click="BtnRefresh_Click"/>
                     <Button x:Name="btnAdd" Style="{StaticResource PrimaryBtn}" Content="➕ Dodaj źródło" Click="BtnAdd_Click"/>
                 </StackPanel>
             </Grid>
         </Border>
 
+        <!-- HELP BANNER -->
+        <Border x:Name="helpBanner" Grid.Row="1" Background="#1A1611" BorderBrush="#3F3830" BorderThickness="0,0,0,1" Padding="24,14">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                    <TextBlock Text="① Wklej URL strony" Foreground="#C9A96E" FontSize="12" FontWeight="SemiBold"/>
+                    <TextBlock Foreground="#A89F92" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0"
+                               Text="np. swiatdrobiu.pl, polskiedrob.pl, krd-ip.pl. Sama nazwa wystarczy — https:// dopisze się automatycznie."/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Margin="0,0,16,0">
+                    <TextBlock Text="② Kliknij 🔍 Wykryj RSS" Foreground="#C9A96E" FontSize="12" FontWeight="SemiBold"/>
+                    <TextBlock Foreground="#A89F92" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0"
+                               Text="AI sprawdzi 9 typowych ścieżek (/feed/, /rss/, /atom.xml itp.) i pokaże próbkę artykułów. Bez RSS → HTML scraping."/>
+                </StackPanel>
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="③ Dopisz tematy i zapisz" Foreground="#C9A96E" FontSize="12" FontWeight="SemiBold"/>
+                    <TextBlock Foreground="#A89F92" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0"
+                               Text="Słowa-klucze do filtrowania (np. HPAI, ceny, Cedrob). AI weźmie tylko artykuły zawierające któreś z nich."/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
         <!-- BODY -->
-        <Grid Grid.Row="1" Margin="0">
+        <Grid Grid.Row="2" Margin="0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="2*"/>
                 <ColumnDefinition Width="*"/>
@@ -166,42 +195,48 @@
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
-                        <TextBlock Grid.Row="0" Style="{StaticResource Lbl}" Text="Nazwa (np. 'Świat Drobiu')"/>
-                        <TextBox x:Name="txtName" Grid.Row="1" Style="{StaticResource Inp}"/>
+                        <TextBlock Grid.Row="0" Style="{StaticResource Lbl}" Text="Nazwa (auto-wypełni się po wykryciu RSS)"/>
+                        <TextBox x:Name="txtName" Grid.Row="1" Style="{StaticResource Inp}"
+                                 ToolTip="Krótka, czytelna nazwa. Np. 'Świat Drobiu' albo 'KOWR'."/>
 
-                        <TextBlock Grid.Row="2" Style="{StaticResource Lbl}" Text="URL strony lub RSS"/>
+                        <TextBlock Grid.Row="2" Style="{StaticResource Lbl}" Text="URL strony lub RSS  ⬇ kliknij Wykryj"/>
                         <Grid Grid.Row="3">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBox x:Name="txtUrl" Grid.Column="0" Style="{StaticResource Inp}"/>
-                            <Button x:Name="btnDetect" Grid.Column="1" Content="🔍 Wykryj RSS" Style="{StaticResource Btn}" Click="BtnDetect_Click" Margin="6,0,0,0"/>
+                            <TextBox x:Name="txtUrl" Grid.Column="0" Style="{StaticResource Inp}"
+                                     ToolTip="Wpisz adres strony — np. swiatdrobiu.pl. Nie musisz dodawać https:// — system dopisze sam."/>
+                            <Button x:Name="btnDetect" Grid.Column="1" Content="🔍 Wykryj RSS" Style="{StaticResource Btn}" Click="BtnDetect_Click" Margin="6,0,0,0"
+                                    ToolTip="Sprawdza 9 typowych ścieżek do RSS (/feed/, /rss.xml itd.). Zajmie ~5-10 sek."/>
                         </Grid>
                         <TextBlock x:Name="txtDetectStatus" Grid.Row="4" Style="{StaticResource Sub}" Margin="0,4,0,0" TextWrapping="Wrap"/>
 
-                        <TextBlock Grid.Row="5" Style="{StaticResource Lbl}" Text="Tematy (oddzielone przecinkami, np. 'HPAI, ceny, Cedrob')"/>
-                        <TextBox x:Name="txtTopics" Grid.Row="6" Style="{StaticResource Inp}"/>
+                        <TextBlock Grid.Row="5" Style="{StaticResource Lbl}" Text="Tematy — słowa-klucze do filtrowania (oddziel przecinkami)"/>
+                        <TextBox x:Name="txtTopics" Grid.Row="6" Style="{StaticResource Inp}"
+                                 ToolTip="AI weźmie tylko artykuły z tymi słowami. Przykład: HPAI, ceny, Cedrob, Biedronka. Pusto = wszystkie artykuły."/>
 
                         <Grid Grid.Row="7" Margin="0,8,0,0">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-                            <StackPanel Grid.Column="0">
+                            <StackPanel Grid.Column="0" Margin="0,0,6,0">
                                 <TextBlock Style="{StaticResource Lbl}" Text="Priorytet"/>
-                                <ComboBox x:Name="cbPriority" Style="{StaticResource Combo}">
+                                <ComboBox x:Name="cbPriority" Style="{StaticResource Combo}"
+                                          ToolTip="Krytyczne = zawsze sprawdza. Normalne = wystarczająco. Niskie = tylko gdy jest czas.">
                                     <ComboBoxItem Content="🔴 Krytyczne" Tag="1"/>
                                     <ComboBoxItem Content="🟠 Ważne" Tag="2" IsSelected="True"/>
                                     <ComboBoxItem Content="🟡 Normalne" Tag="3"/>
                                 </ComboBox>
                             </StackPanel>
-                            <StackPanel Grid.Column="1" Margin="6,0">
+                            <StackPanel Grid.Column="1">
                                 <TextBlock Style="{StaticResource Lbl}" Text="Kategoria"/>
-                                <ComboBox x:Name="cbCategory" Style="{StaticResource Combo}" IsEditable="True">
+                                <ComboBox x:Name="cbCategory" Style="{StaticResource Combo}" IsEditable="True"
+                                          ToolTip="Pomaga grupować źródła w raportach. Możesz wpisać własną.">
                                     <ComboBoxItem Content="Drób" IsSelected="True"/>
                                     <ComboBoxItem Content="Mięso"/>
                                     <ComboBoxItem Content="Rolnictwo"/>
@@ -212,21 +247,25 @@
                                     <ComboBoxItem Content="Instytucje"/>
                                 </ComboBox>
                             </StackPanel>
-                            <StackPanel Grid.Column="2">
-                                <TextBlock Style="{StaticResource Lbl}" Text="Język"/>
-                                <ComboBox x:Name="cbLanguage" Style="{StaticResource Combo}">
-                                    <ComboBoxItem Content="pl" IsSelected="True"/>
-                                    <ComboBoxItem Content="en"/>
-                                    <ComboBoxItem Content="de"/>
-                                    <ComboBoxItem Content="fr"/>
-                                    <ComboBoxItem Content="pt"/>
-                                </ComboBox>
-                            </StackPanel>
                         </Grid>
 
-                        <CheckBox x:Name="chkActive" Grid.Row="8" Content="✅ Aktywne (pobieraj co fetch)" Foreground="#D5CCC0" IsChecked="True" Margin="0,12,0,0"/>
+                        <Expander Grid.Row="8" Header="Zaawansowane" Foreground="#7A6F63" FontSize="11" Margin="0,10,0,0">
+                            <StackPanel Margin="0,8,0,0">
+                                <TextBlock Style="{StaticResource Lbl}" Text="Język (domyślnie polski — AI sam tłumaczy obce)"/>
+                                <ComboBox x:Name="cbLanguage" Style="{StaticResource Combo}">
+                                    <ComboBoxItem Content="pl — polski" Tag="pl" IsSelected="True"/>
+                                    <ComboBoxItem Content="en — angielski" Tag="en"/>
+                                    <ComboBoxItem Content="de — niemiecki" Tag="de"/>
+                                    <ComboBoxItem Content="fr — francuski" Tag="fr"/>
+                                    <ComboBoxItem Content="pt — portugalski" Tag="pt"/>
+                                </ComboBox>
+                            </StackPanel>
+                        </Expander>
 
-                        <StackPanel Grid.Row="9" Orientation="Horizontal" Margin="0,16,0,0">
+                        <CheckBox x:Name="chkActive" Grid.Row="9" Content="✅ Aktywne (pobieraj co fetch)" Foreground="#D5CCC0" IsChecked="True" Margin="0,12,0,0"
+                                  ToolTip="Odznacz żeby tymczasowo wstrzymać to źródło bez usuwania."/>
+
+                        <StackPanel Grid.Row="10" Orientation="Horizontal" Margin="0,16,0,0">
                             <Button x:Name="btnSave" Content="💾 Zapisz" Style="{StaticResource PrimaryBtn}" Click="BtnSave_Click" Padding="20,8"/>
                             <Button x:Name="btnDelete" Content="🗑 Usuń" Style="{StaticResource Btn}" Click="BtnDelete_Click" Margin="8,0,0,0"/>
                             <Button x:Name="btnCancel" Content="Anuluj" Style="{StaticResource Btn}" Click="BtnCancel_Click" Margin="8,0,0,0"/>
@@ -256,7 +295,7 @@
         </Grid>
 
         <!-- FOOTER -->
-        <Border Grid.Row="2" Background="#1F1A14" Padding="24,8" BorderBrush="#3F3830" BorderThickness="0,1,0,0">
+        <Border Grid.Row="3" Background="#1F1A14" Padding="24,8" BorderBrush="#3F3830" BorderThickness="0,1,0,0">
             <Grid>
                 <TextBlock x:Name="txtFooter" Style="{StaticResource Sub}" HorizontalAlignment="Left" VerticalAlignment="Center" Text="intel_Sources w LibraNet. Hardcoded źródła (NewsSourceConfig.cs) — nadal aktywne."/>
                 <Button HorizontalAlignment="Right" Style="{StaticResource Btn}" Content="Zamknij" Click="BtnClose_Click"/>

@@ -189,6 +189,17 @@
                 <TextBlock Style="{StaticResource Hdr2}" Text="💬 Zapytaj AI — twój asystent zna brief, artykuły, profil firmy"/>
                 <Border Background="#1F1A14" CornerRadius="4" Padding="14,12" BorderBrush="#3F3830" BorderThickness="1">
                     <StackPanel>
+                        <!-- Hint -->
+                        <Border Background="#1A1611" CornerRadius="3" Padding="10,7" Margin="0,0,0,10" BorderBrush="#3F3830" BorderThickness="1">
+                            <TextBlock FontSize="11" Foreground="#A89F92" TextWrapping="Wrap">
+                                <Run Text="💡 " Foreground="#C9A96E"/>
+                                <Run Text="Najszybciej: klik jednego z 6 pytań poniżej. "/>
+                                <Run Text="Albo:" FontWeight="SemiBold"/>
+                                <Run Text=" wpisz własne pytanie i Enter. "/>
+                                <Run Text="AI pamięta:" FontWeight="SemiBold"/>
+                                <Run Text=" 30 dni artykułów, 7 dni briefingów, profil firmy, Twoje preferencje 👍/👎."/>
+                            </TextBlock>
+                        </Border>
                         <!-- Quick prompts -->
                         <WrapPanel Margin="0,0,0,10">
                             <Button Content="🦠 Czy HPAI mnie zagraża?" Tag="Czy HPAI mnie zagraża dziś? Spójrz na ostatnie 7 dni ognisk, szczególnie łódzkie i sąsiednie. Daj mi konkretną odpowiedź TAK/NIE + 1 akcja."

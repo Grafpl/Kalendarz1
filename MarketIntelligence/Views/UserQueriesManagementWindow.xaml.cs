@@ -71,10 +71,11 @@ namespace Kalendarz1.MarketIntelligence.Views
             txtNotes.Text = q.Notes;
             chkEnabled.IsChecked = q.Enabled;
 
-            // Priority
+            // Priority: mapuje stary zakres 1-9 na 3 widoczne kubełki (1=Krytyczne / 5=Normalne / 9=Niskie)
+            var bucket = q.Priority <= 3 ? 1 : (q.Priority <= 6 ? 5 : 9);
             for (int i = 0; i < cbPriority.Items.Count; i++)
             {
-                if (cbPriority.Items[i] is ComboBoxItem item && int.TryParse(item.Tag?.ToString(), out var p) && p == q.Priority)
+                if (cbPriority.Items[i] is ComboBoxItem item && int.TryParse(item.Tag?.ToString(), out var p) && p == bucket)
                 {
                     cbPriority.SelectedIndex = i;
                     break;
@@ -98,8 +99,15 @@ namespace Kalendarz1.MarketIntelligence.Views
             cbCategory.Text = "Custom";
             txtNotes.Text = "";
             chkEnabled.IsChecked = true;
-            cbPriority.SelectedIndex = 3; // 5 - Normalne
-            cbRecency.SelectedIndex = 1; // week
+            cbPriority.SelectedIndex = 1; // Normalne (5)
+            cbRecency.SelectedIndex = 1;  // week
+        }
+
+        private void BtnToggleHelp_Click(object sender, RoutedEventArgs e)
+        {
+            helpBanner.Visibility = helpBanner.Visibility == Visibility.Visible
+                ? Visibility.Collapsed
+                : Visibility.Visible;
         }
 
         private void BtnTmpl_Click(object sender, RoutedEventArgs e)
@@ -146,7 +154,7 @@ namespace Kalendarz1.MarketIntelligence.Views
             {
                 QueryText = "Biedronka Jeronimo Martins mięso drobiowe 2026 - promocje, ceny detaliczne kurczak, dostawcy, kontrakty, marża, ekspansja.",
                 Category = "Klienci",
-                Priority = 2,
+                Priority = 1,
                 RecencyFilter = "week",
                 Enabled = true,
                 Notes = "Biedronka DC = 380 palet/mies, NIEPRZYPISANY handlowiec, potencjał ogromny."
@@ -155,7 +163,7 @@ namespace Kalendarz1.MarketIntelligence.Views
             {
                 QueryText = "Ceny pasz drobiowych Polska 2026 - kukurydza, śruta sojowa, pszenica. Notowania MATIF Euronext, CBOT. Prognozy. Wpływ na koszty hodowli brojlerów.",
                 Category = "Pasze",
-                Priority = 3,
+                Priority = 5,
                 RecencyFilter = "week",
                 Enabled = true,
                 Notes = "Pasza = 65-70% kosztu hodowcy. Relacja żywiec/pasza wpływa na nasze ceny skupu."
@@ -182,7 +190,7 @@ namespace Kalendarz1.MarketIntelligence.Views
             {
                 QueryText = "MHP Myronivsky Hliboproduct Ukraina drób 2026 - wolumeny, ceny, eksport do UE i Polski. Przeniesienie produkcji do UE. Wpływ na polski rynek.",
                 Category = "Import",
-                Priority = 2,
+                Priority = 1,
                 RecencyFilter = "week",
                 Enabled = true,
                 Notes = "MHP rośnie 8% rocznie, większość przez UE division — bezpośrednia konkurencja."

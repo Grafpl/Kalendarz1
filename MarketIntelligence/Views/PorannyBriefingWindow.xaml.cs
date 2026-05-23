@@ -431,6 +431,20 @@ namespace Kalendarz1.MarketIntelligence.Views
             }
         }
 
+        private void btnHelp_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var win = new BriefingHelpWindow { Owner = this };
+                win.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Błąd otwierania pomocy: " + ex.Message, "Pomoc",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
         private void OpenUrl_Click(object sender, RoutedEventArgs e)
         {
             if (sender is FrameworkElement fe && fe.Tag is string url && !string.IsNullOrEmpty(url))
