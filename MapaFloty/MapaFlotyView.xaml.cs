@@ -586,6 +586,26 @@ namespace Kalendarz1.MapaFloty
 
                     // FAZA 4 — WOLNY: auto w bazie bez dzisiejszego kursu = dostepne do przydzielenia
                     v.Wolny = v.InGeofence && (string.IsNullOrEmpty(v.KursTrasa) || v.KursZHistorii);
+
+                    // FAZA 3 — realny status kursu z GPS (baza ma tylko martwe "Planowany")
+                    if (!string.IsNullOrEmpty(v.KursTrasa) && !v.KursZHistorii)
+                    {
+                        var wy = ParseHourMin(v.KursGodzWyjazdu);
+                        var nowTod = DateTime.Now.TimeOfDay;
+                        if (v.IsMoving)
+                        { v.KursStatusReal = "Realizuje (w trasie)"; v.KursStatusRealKolor = "green"; }
+                        else if (v.InGeofence)
+                        {
+                            if (wy.HasValue && nowTod < wy.Value)
+                            { v.KursStatusReal = "Oczekuje na wyjazd"; v.KursStatusRealKolor = "blue"; }
+                            else
+                            { v.KursStatusReal = "Zakończony / w bazie"; v.KursStatusRealKolor = "grey"; }
+                        }
+                        else if (v.Ignition)
+                        { v.KursStatusReal = "Postój w trasie"; v.KursStatusRealKolor = "orange"; }
+                        else
+                        { v.KursStatusReal = "Zatrzymany w trasie"; v.KursStatusRealKolor = "grey"; }
+                    }
                 }
 
                 UpdateSidePanel(vehicles);
@@ -1561,7 +1581,19 @@ function mkPopup(v){
             +'<div class=""vp-kurs-route"" style=""'+routeColor+'"">'+esc(v.KursTrasa)+'</div>'
             +'<div class=""vp-kurs-meta"">';
         if(v.KursGodzWyjazdu){kursHtml+='&#9201; wyjazd <b>'+v.KursGodzWyjazdu+'</b>';if(v.KursGodzPowrotu)kursHtml+=' &#8594; powrot <b>'+v.KursGodzPowrotu+'</b>';kursHtml+='<br>'}
-        if(v.KursStatus && !hist)kursHtml+='Status: <b>'+esc(v.KursStatus)+'</b><br>';
+        if(!hist){
+            // FAZA 3 — realny status z GPS (kolorowy) zamiast martwego planowany
+            if(v.KursStatusReal){
+                var scol = v.KursStatusRealKolor==='green'?'#2e7d32'
+                         : v.KursStatusRealKolor==='blue'?'#1565c0'
+                         : v.KursStatusRealKolor==='orange'?'#e65100':'#607d8b';
+                kursHtml+='Stan: <b style=""color:'+scol+'"">'+esc(v.KursStatusReal)+'</b>';
+                if(v.KursStatus) kursHtml+=' <span style=""color:#b0bec5;font-size:10px"">(plan: '+esc(v.KursStatus)+')</span>';
+                kursHtml+='<br>';
+            } else if(v.KursStatus){
+                kursHtml+='Status: <b>'+esc(v.KursStatus)+'</b><br>';
+            }
+        }
         if(v.KursKierowca){
             // Highlight gdy kierowca z kursu różni się od kierowcy GPS (tylko dla AKTUALNEGO)
             var diff=!hist && v.Driver && v.KursKierowca!==v.Driver?' <span style=""color:#c62828"">&#9888;</span>':'';
@@ -1929,6 +1961,10 @@ function logToHost(m){try{post({Action:'log',Data:m})}catch(e){}}
             public int AwizacjaMinutyDo { get; set; }
             /// <summary>FAZA 4 — auto w bazie bez kursu na dziś = dostępne do przydzielenia.</summary>
             public bool Wolny { get; set; }
+            /// <summary>FAZA 3 — realny status kursu wyliczony z GPS (zamiast martwego "Planowany").</summary>
+            public string? KursStatusReal { get; set; }
+            /// <summary>Kolor realnego statusu dla UI ("green"/"blue"/"orange"/"grey").</summary>
+            public string? KursStatusRealKolor { get; set; }
             // POPRZEDNI kurs (pokazujemy ZAWSZE — pod aktualnym, lub jako jedyny gdy brak aktualnego).
             // Gdy aktualny jest z historii (fallback), Poprzedni = drugi w kolejce historycznych.
             public string? PoprzedniKursTrasa { get; set; }
