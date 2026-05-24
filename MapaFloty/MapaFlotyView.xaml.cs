@@ -1376,6 +1376,16 @@ html,body,#map{width:100%;height:100%;background:#f0f0f0;font-family:'Segoe UI',
 .map-legend .leg-dot{width:11px;height:11px;border-radius:50%;display:inline-block;flex-shrink:0}
 .map-legend .leg-badge{font-size:8.5px;font-weight:700;padding:1px 5px;border-radius:7px}
 .map-legend .leg-sep{height:1px;background:#e0e3ea;margin:5px 0}
+/* FAZA 4 — pasek czasu (gantt) kursu */
+.tl-wrap{margin:8px 0 2px 0}
+.tl-track{position:relative;height:8px;background:#eceff1;border-radius:4px;margin:8px 2px}
+.tl-seg{position:absolute;top:0;height:8px;border-radius:4px;opacity:.8}
+.tl-mark{position:absolute;top:-3px;width:3px;height:14px;border-radius:2px;transform:translateX(-1px)}
+.tl-mark.tl-wy{background:#2e7d32}
+.tl-mark.tl-aw{background:#e65100}
+.tl-now{position:absolute;top:-5px;width:0;height:18px;border-left:2px dashed #1565c0;transform:translateX(-1px)}
+.tl-labels{display:flex;justify-content:space-between;font-size:9px;font-weight:700;margin-top:3px}
+.tl-labels span{white-space:nowrap}
 .leaflet-control-layers{border-radius:10px!important;box-shadow:0 2px 14px rgba(0,0,0,.15)!important;border:none!important}
 .leaflet-popup-content-wrapper{border-radius:10px!important;box-shadow:0 4px 20px rgba(0,0,0,.15)!important}
 /* Marker cluster — wrapper z permanent listą nad kółkiem */
@@ -1538,6 +1548,49 @@ function mkIcon(v){
     return L.divIcon({className:'',html:'<div class=""'+cls+'""><div class=""vi-body"" style=""background:'+bgColor+'""><svg viewBox=""0 0 30 30"" style=""transform:rotate('+rot+'deg)""><path d=""'+arrowPath+'""/></svg></div>'+spd+name+'</div>',iconSize:[40,40],iconAnchor:[20,20],popupAnchor:[0,-22]});
 }
 
+// FAZA 4 — gantt 24h: wyjazd → awizacja → teraz. Wizualnie czy auto zdazy.
+function buildTimeline(v){
+    function toMin(hhmm){
+        if(!hhmm) return null;
+        var m = String(hhmm).match(/(\d{1,2}):(\d{2})/);
+        return m ? (parseInt(m[1])*60 + parseInt(m[2])) : null;
+    }
+    var wy = toMin(v.KursGodzWyjazdu);
+    // awizacja string format ""dd.MM HH:mm"" — wyciagnij HH:mm
+    var aw = v.KursOstatniaAwizacja ? toMin(v.KursOstatniaAwizacja) : null;
+    if(wy === null && aw === null) return '';
+
+    var d = new Date();
+    var now = d.getHours()*60 + d.getMinutes();
+
+    // Zakres osi: od min(wy, now)-30 do max(aw, now)+30
+    var pts = [wy, aw, now].filter(function(x){ return x !== null; });
+    var lo = Math.max(0, Math.min.apply(null, pts) - 30);
+    var hi = Math.min(1440, Math.max.apply(null, pts) + 30);
+    var span = Math.max(hi - lo, 1);
+    function pct(x){ return Math.max(0, Math.min(100, (x - lo) / span * 100)); }
+
+    var bar = '<div class=""tl-track"">';
+    // segment wyjazd→awizacja (zielony jesli now < aw, czerwony jesli po)
+    if(wy !== null && aw !== null){
+        var segColor = (now > aw) ? '#ef9a9a' : '#a5d6a7';
+        bar += '<div class=""tl-seg"" style=""left:'+pct(wy)+'%;width:'+(pct(aw)-pct(wy))+'%;background:'+segColor+'""></div>';
+    }
+    if(wy !== null) bar += '<div class=""tl-mark tl-wy"" style=""left:'+pct(wy)+'%"" title=""Wyjazd""></div>';
+    if(aw !== null) bar += '<div class=""tl-mark tl-aw"" style=""left:'+pct(aw)+'%"" title=""Awizacja""></div>';
+    bar += '<div class=""tl-now"" style=""left:'+pct(now)+'%"" title=""Teraz""></div>';
+    bar += '</div>';
+
+    function hm(x){ if(x===null) return '—'; var h=Math.floor(x/60), m=x%60; return (h<10?'0':'')+h+':'+(m<10?'0':'')+m; }
+    var labels = '<div class=""tl-labels"">'
+        + (wy!==null?'<span style=""color:#2e7d32"">▲ wyjazd '+hm(wy)+'</span>':'')
+        + (aw!==null?'<span style=""color:#e65100"">▼ awiz. '+hm(aw)+'</span>':'')
+        + '<span style=""color:#1565c0"">● teraz '+hm(now)+'</span>'
+        + '</div>';
+
+    return '<div class=""tl-wrap"">' + bar + labels + '</div>';
+}
+
 function mkPopup(v){
     // Faza 10-B — status pill na górze + prominent kurs box
     var stateCls, stateEmoji, stateLabel, stateMeta;
@@ -1609,6 +1662,8 @@ function mkPopup(v){
             if(v.KursOstatniaAwizacja) kursHtml+=' &middot; awizacja <b>'+esc(v.KursOstatniaAwizacja)+'</b>';
             kursHtml+='<br>';
         }
+        // FAZA 4 — pasek czasu kursu (gantt: wyjazd → awizacja → teraz)
+        if(!hist) kursHtml += buildTimeline(v);
         kursHtml+='</div></div>';
     } else if(v.IsMoving){
         // Brak przypisanego kursu, ale pojazd JEDZIE — fallback skad-dokad
