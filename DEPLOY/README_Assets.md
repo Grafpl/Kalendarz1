@@ -1,176 +1,229 @@
-# 🖼️ Memy i Logo w splashu aktualizacji ZPSP
+# 🎨 Splash aktualizacji ZPSP — pełna konfiguracja
 
-Launcher pokazuje **carousel memów** (jak Steam) podczas aktualizacji.
-Sergiusz może dodawać/zmieniać memy **bez rekompilacji** — po prostu wrzucasz pliki na QNAP.
+Splash launchera jest **w 100% konfigurowalny** przez plik `theme.json` na QNAP.
+**Zmieniasz JSON → następna aktualizacja u pracownika widzi nowe ustawienia. BEZ rekompilacji.**
 
 ---
 
-## 📂 Lokalizacja na QNAP
+## 📂 STRUKTURA NA QNAP
 
 ```
 \\192.168.0.170\Install\Kalendarz1L\Launcher\Assets\
-├── logo.png              ← LOGO PIORKOWSCY (top-left splash)
-└── memes\                ← FOLDER Z MEMAMI (rotacja co 5s)
+├── theme.json              ← KONFIG (rozmiary, kolory, teksty)
+├── logo.png                ← Twoje logo (auto fallback gdy brak)
+└── memes\                  ← Folder z memami (carousel co 5s)
     ├── mem01.jpg
     ├── mem02.png
-    ├── kurczak.gif
-    ├── jola_smieje_sie.jpg
-    └── ... (dowolnie ile chcesz)
+    ├── mem03.gif
+    └── ... (dowolnie ile)
 ```
 
 ---
 
-## 🚀 PIERWSZE WGRYWANIE
+## 🚀 PIERWSZE WGRYWANIE (10 min)
 
-### Krok 1 — Stwórz strukturę folderów
-
+### Krok 1 — Stwórz strukturę
 Otwórz w Eksploratorze:
 ```
 \\192.168.0.170\Install\Kalendarz1L\Launcher\
 ```
 
-Stwórz nowy folder **`Assets`**, w nim folder **`memes`**.
+Stwórz:
+- Folder `Assets`
+- W nim folder `memes`
 
-### Krok 2 — Wrzuć logo
+### Krok 2 — Wgraj `theme.json`
+Skopiuj plik:
+```
+C:\Users\PC\source\repos\Grafpl\Kalendarz1\DEPLOY\theme.json.example
+```
+na:
+```
+\\192.168.0.170\Install\Kalendarz1L\Launcher\Assets\theme.json
+```
+(zmień nazwę z `.example` na samo `.json`)
 
-Logo:
-- **Plik:** `logo.png` (TAK MUSI SIĘ NAZYWAĆ)
-- **Lokalizacja:** `\\192.168.0.170\Install\Kalendarz1L\Launcher\Assets\logo.png`
-- **Rozmiar:** najlepiej 200×200 px lub większy, format PNG z przezroczystym tłem
-- **Skąd wziąć:** masz już w repo `C:\Users\PC\source\repos\Grafpl\Kalendarz1\logo-2-green.png` lub `Logo.png` — skopiuj jeden z nich, zmień nazwę na `logo.png`
+### Krok 3 — Wgraj logo
+- Skopiuj `C:\Users\PC\source\repos\Grafpl\Kalendarz1\logo-2-green.png`
+- Wklej do `\\192.168.0.170\Install\Kalendarz1L\Launcher\Assets\`
+- **Zmień nazwę na `logo.png`** (małymi literami!)
 
-### Krok 3 — Wrzuć memy
+**Jeśli nie wgrasz logo** — launcher wygeneruje **fallback** (zielone kółko z literą "P") — splash nadal działa.
 
-W `\\192.168.0.170\Install\Kalendarz1L\Launcher\Assets\memes\` wrzuć dowolną liczbę zdjęć:
-
-**Akceptowane formaty:** `.jpg`, `.jpeg`, `.png`, `.gif`
-
-**Rekomendowane rozmiary:**
-- Najlepiej **16:9** (np. 1280×720, 1920×1080)
-- Minimum 480×270 px (wymiar widoku w splashu)
-- Maksimum sensowny: 1920×1080 (większe = wolniejsze ładowanie)
-
-**Nazewnictwo:** dowolne — kolejność jest **losowa przy każdym uruchomieniu**
+### Krok 4 — Wgraj memy
+Wrzuć dowolne pliki .jpg/.png/.gif do `Assets\memes\`:
+- Minimum 2 sztuki (jeden się nie zmienia)
+- Format 16:9 najlepszy (1280×720)
+- Maks 10 MB na plik (większe są pomijane z logiem)
 
 ---
 
-## 🎯 PROPOZYCJE MEMÓW (do wrzucenia)
+## ⚙️ EDYCJA `theme.json` — WSZYSTKIE PARAMETRY
+
+Wszystko jest **z polskimi komentarzami** w `theme.json.example`. Otwórz Notepad++ albo Visual Studio Code i edytuj na QNAP bezpośrednio.
+
+### Najczęstsze zmiany:
+
+#### Większe okno
+```json
+"WindowWidth": 1200,
+"WindowHeight": 900
+```
+
+#### Większe logo
+```json
+"LogoSize": 140,
+"LogoMargin": 32
+```
+
+#### Inny tytuł
+```json
+"Title": "AKTUALIZACJA KALENDARZ",
+"Subtitle": "Najlepszy program na swiecie"
+```
+
+#### Niebieskie zamiast zielone
+```json
+"TopBarGradientStart": "#3B82F6",
+"TopBarGradientEnd": "#1E40AF",
+"DotActiveColor": "#3B82F6",
+"ProgressBarFgColor": "#3B82F6",
+"ProgressBarFgColorTop": "#60A5FA"
+```
+
+#### Memy co 3 sekundy (zamiast 5)
+```json
+"MemeRotationSeconds": 3
+```
+
+#### Wyłącz ETA "Pozostalo XX sek"
+```json
+"ProgressBarShowEta": false
+```
+
+#### Wyłącz click na mem
+```json
+"MemeClickToSkip": false
+```
+
+### Sekcje (po `_section_*`)
+1. **OKNO** — rozmiar + tło + obramowanie
+2. **TOPBAR** — pasek u góry z logo + tytułem
+3. **LOGO** — logo Piórkowscy
+4. **TEKSTY** — tytuł + podtytuł
+5. **MEMY** — carousel
+6. **KROPKI** — wskaźnik aktywnego mema
+7. **OSTRZEŻENIE** — "NIE KLIKAJ NICZEGO"
+8. **PROGRESS** — pasek postępu
+9. **DÓŁ** — licznik plików + nazwa pliku
+10. **STOPKA** — info na dole
+
+---
+
+## 🎨 FUNKCJE SPLASH
+
+### ✨ Smooth progress bar
+Pasek **animuje się płynnie** (60 FPS interpolation) do nowej wartości — zamiast skakać.
+Wyłącz: `"ProgressBarSmooth": false`
+
+### ⏱️ ETA "Pozostalo XX sek"
+Po 5+ skopiowanych plikach automatycznie liczy ile zostało.
+Wyłącz: `"ProgressBarShowEta": false`
+
+### 👆 Click-to-skip
+Klik na mem = następny natychmiast (easter egg).
+Wyłącz: `"MemeClickToSkip": false`
+
+### 🖼️ Fallback logo
+Jeśli `logo.png` nie istnieje — launcher narysuje sam (zielone kółko z "P").
+
+### 📝 Log błędów
+Każde uruchomienie launchera dopisuje do:
+```
+%LOCALAPPDATA%\ZPSP\launcher.log
+```
+Możesz tam sprawdzić co się działo (np. które memy zostały pominięte).
+
+---
+
+## 🛡️ BULLETPROOF — co już się NIE zepsuje
+
+Launcher jest odporny na:
+
+| Problem | Co robi launcher |
+|---|---|
+| Brak `theme.json` | Używa wbudowanych defaults |
+| Uszkodzony `theme.json` | Loguje warn, używa defaults |
+| Brak logo.png | Generuje fallback z literą "P" |
+| Brak folderu memes\ | Pokazuje placeholder z instrukcją |
+| Uszkodzony mem | Loguje i pomija, ładuje pozostałe |
+| Mem > 10 MB | Loguje warn i pomija |
+| Brak QNAP | Tryb offline — odpala lokalną kopię |
+| Plik zablokowany | Pomija, kopiuje resztę |
+| Niewłaściwy kolor (#XYZ) | Używa fallback (np. czarny) |
+| Crash przy zmianie mema | Loguje i jedzie dalej |
+
+---
+
+## 📋 PRZYKŁADY MEMÓW DO WGRANIA
 
 ### Branżowe drobiarskie:
-- Kurczak biegający (GIF) — coolasy classic
-- Mem z kurczakiem-szefem "Ja kontroluje wszystko"
-- "Drogie kurczaki, dziękujemy za 30 lat służby" (logo Piórkowscy)
-- "Linia ubojowa 7500 szt/h" (wykres growth)
-- Wykres "Polski drób na podboj swiata"
+- Kurczak biegający (GIF)
+- "Polska drób > Mercosur" (z flagą)
+- Wykres "200 ton dziennie"
+- "Linia ubojowa 7500 szt/h"
 
-### Firmowe / wewnętrzne:
-- Zdjęcie zespołu z imprezy firmowej
-- Zdjęcie hali z lotu ptaka
+### Firmowe:
+- Zdjęcia zespołu
+- Hala z lotu ptaka
 - Logo Piórkowscy w stylu rocznicowym
-- Marcin (brat) w kuchni masarni
-- Justyna kontrolujaca kurczaki
+- Marcin w masarni Zgierz
 
-### Motywacyjne / żartobliwe:
-- "Tylko spokojnie, juz prawie!"
-- "Kurczak by byl dumny!"
-- "Polska drób > Mercosur" (z polską flagą)
+### Motywacyjne:
+- "Trzymaj sie, juz prawie!"
+- "Kurczak bylby dumny!"
 - "Im wieksza paleta tym wiekszy zysk"
 
-**Tip:** Możesz po prostu wrzucić **screenshoty z Memów Internetowych** zapisanych z Facebooka, Reddita, 9GAG itp. — launcher wszystko obsłuży.
+**Tip:** Po prostu zapisz memy z Facebook / Reddit / WhatsApp i wrzuć do folderu — launcher wszystko obsłuży.
 
 ---
 
-## ⚙️ JAK TO DZIAŁA
+## 🔄 JAK SZYBKO ZOBACZYĆ ZMIANY (TY)
 
-### Synchronizacja
-1. **Pracownik klika skrót ZPSP**
-2. Launcher startuje
-3. **Najpierw kopiuje Assets** z QNAP do lokalnego cache `%LOCALAPPDATA%\ZPSP\Assets\` (~2-5 sekund, kilka MB)
-4. Otwiera się splash z logo + losowym memem
-5. Pasek postępu pokazuje aktualizację ZPSP
-6. **Co 5 sekund** zmienia się mem (z dots indicator na dole)
-7. Po skończeniu — uruchamia się ZPSP
+1. Zmień `theme.json` na QNAP (Notepad++ → zapisz)
+2. U siebie: usuń `%LOCALAPPDATA%\ZPSP\Assets\theme.json` żeby wymusić ponowne ściągnięcie
+3. Odpal launcher (skrót ZPSP) → splash z nowymi ustawieniami
 
-### Co widzi pracownik:
-```
-+----------------------------------------------------+
-|  [LOGO]   AKTUALIZACJA ZPSP                       |
-|           Piorkowscy - Mistrz Drobiarstwa od 1996  |
-+----------------------------------------------------+
-|                                                    |
-|        +-----------------------+                   |
-|        |                       |                   |
-|        |    [MEM #3]           |                   |
-|        |    (losowy z folderu) |                   |
-|        |                       |                   |
-|        +-----------------------+                   |
-|         o o O o o   (dots = mem 3 of 5)            |
-|                                                    |
-|  ⚠ PROSZE NIE KLIKAC NICZEGO - pojawi sie sam!    |
-|                                                    |
-|  [################----------] 56 %                 |
-|                                                    |
-|  Pliki: 324/567                                    |
-|  Kopiuje: DevExpress.Xpf.Grid.dll                  |
-+----------------------------------------------------+
-```
+LUB prościej: poczekaj na następną aktualizację ZPSP — Assets synchronizują się automatycznie.
 
 ---
 
-## 🔄 ZMIANA MEMÓW BEZ REBOOTA APKI
+## 🚨 TROUBLESHOOTING
 
-Sergiusz może zmieniać memy **kiedy chce**:
+### "Nie widać zmian w theme.json"
+- Launcher cache'uje lokalnie — sprawdź `%LOCALAPPDATA%\ZPSP\Assets\theme.json`
+- Usuń cache i odpal launcher ponownie
 
-1. Wrzuca/usuwa pliki w `\\192.168.0.170\Install\Kalendarz1L\Launcher\Assets\memes\`
-2. **Następna aktualizacja u pracownika** → automatycznie ładuje nowe memy
+### "Splash crashuje przy memie"
+- Sprawdź `%LOCALAPPDATA%\ZPSP\launcher.log`
+- Mem może być uszkodzony — usuń z QNAP
 
-**Bez ponownego deploya `deploy.bat`. Bez ponownej instalacji u pracowników. Po prostu kopiuj-wklej na QNAP.**
+### "Logo nie wyświetla się"
+- Sprawdź czy plik nazywa się **dokładnie** `logo.png` (małe litery)
+- Sprawdź format — PNG działa najlepiej
 
----
-
-## 🛡️ SAFE MODE
-
-Jeśli na QNAP nie ma folderu Assets (np. zapomniałeś wgrać) — splash pokaże:
-- Pole z napisem "Wrzuc memy do: ..."
-- Pasek postępu działa normalnie
-- Logo pole będzie puste (białe)
-
-Nic się nie zepsuje — splash jest **fail-safe**.
-
----
-
-## 📋 CHECKLIST PIERWSZEGO WGRANIA
-
-- [ ] Stworzony folder `\\192.168.0.170\Install\Kalendarz1L\Launcher\Assets\`
-- [ ] Wgrane `logo.png` (z `logo-2-green.png` lub `Logo.png` z repo)
-- [ ] Stworzony podfolder `\\...\Launcher\Assets\memes\`
-- [ ] Wgrane min. 3-5 memów (jpg/png/gif)
-- [ ] Uruchomiony `DEPLOY\build-launcher.bat` (rebuild nowego launchera z carousel)
-- [ ] Test: kliknąć skrót ZPSP → splash powinien pokazać logo + memy carousel
-
----
-
-## 🐛 TROUBLESHOOTING
-
-### "Brak logo w splashu"
-- Sprawdź czy `\\192.168.0.170\Install\Kalendarz1L\Launcher\Assets\logo.png` istnieje
-- Nazwa **MUSI** być dokładnie `logo.png` (lowercase)
-- Sprawdź czy plik nie jest uszkodzony
-
-### "Memy nie wyświetlają się"
-- Sprawdź `\\192.168.0.170\Install\Kalendarz1L\Launcher\Assets\memes\`
-- Pliki muszą mieć rozszerzenie `.jpg`, `.jpeg`, `.png` lub `.gif`
-- Sprawdź `%LOCALAPPDATA%\ZPSP\Assets\memes\` — czy są tam zsynchronizowane?
+### "Kolory wyglądają dziwnie"
+- Format hex MUSI być `#RRGGBB` lub `#AARRGGBB`
+- Bez `#` lub w innej długości — fallback
 
 ### "Carousel nie rotuje"
-- Trzeba minimum **2 pliki** w memes/ — jeden mem nie rotuje
-- Rotacja co 5s — czekaj chwilę
-- Sprawdź `%LOCALAPPDATA%\ZPSP\Assets\memes\` — czy są tam wszystkie pliki?
-
-### "Splash z opóźnieniem"
-- Synchronizacja Assets z QNAP może trwać 2-5 sek przy pierwszym uruchomieniu (sieć)
-- Następne uruchomienia: cache lokalny, ~instant
+- Trzeba minimum 2 memy
+- Sprawdź `MemeRotationSeconds` w theme.json (musi być >= 2)
 
 ---
+
+## 📞 W razie problemów
+
+Sprawdź `%LOCALAPPDATA%\ZPSP\launcher.log` — pierwsze 10 ostatnich linii zwykle wystarczy żeby zlokalizować problem.
 
 **Powodzenia!** 🐔

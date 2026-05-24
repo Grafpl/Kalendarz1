@@ -521,10 +521,17 @@
                                     </StackPanel>
                                 </CheckBox>
 
-                                <CheckBox x:Name="chkKomentarz" Style="{StaticResource ToggleSwitch}">
+                                <CheckBox x:Name="chkKomentarz" Style="{StaticResource ToggleSwitch}" Margin="0,0,0,12">
                                     <StackPanel>
                                         <TextBlock Text="Wymagaj komentarza przy zmianie" Style="{StaticResource FieldLabel}"/>
                                         <TextBlock Text="Operator musi podać powód edycji zamówienia" Style="{StaticResource FieldHint}"/>
+                                    </StackPanel>
+                                </CheckBox>
+
+                                <CheckBox x:Name="chkBlokujFakturzystki" Style="{StaticResource ToggleSwitch}">
+                                    <StackPanel>
+                                        <TextBlock Text="Blokuj limity 92% także dla fakturzystek" Style="{StaticResource FieldLabel}"/>
+                                        <TextBlock Text="Domyślnie WYŁĄCZONE — fakturzystki w Panel Faktur zawsze przepuszczają zamówienia (hurtownik dostaje towar bez ograniczeń). Włącz tylko jeśli chcesz wymusić blokadę także na nich." Style="{StaticResource FieldHint}" TextWrapping="Wrap"/>
                                     </StackPanel>
                                 </CheckBox>
                             </StackPanel>

@@ -612,163 +612,270 @@
         <!-- ═════════════ LEWA STRONA ═════════════ -->
         <Grid Grid.Column="0">
             <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>  <!-- ToolBarTray -->
+                <RowDefinition Height="Auto"/>  <!-- ToolBarTray (z verifyBar w środku, na samej górze) -->
                 <RowDefinition Height="*"/>      <!-- DataGrid pełnowymiarowy -->
             </Grid.RowDefinitions>
 
-            <!-- ───── TOOLBAR — Light Pro: białe tło z subtle border ───── -->
+            <!-- ═══════════════════════════════════════════════════════════════
+                 TOOLBAR — kompaktowy, responsywny, 1 rząd akcji + 1 linia info
+                 ═══════════════════════════════════════════════════════════════ -->
             <Border Grid.Row="0" Background="{StaticResource Brush.PrimaryGrad}"
                     BorderBrush="{StaticResource Brush.Border}" BorderThickness="0,0,0,1"
-                    Padding="16,12">
+                    Padding="14,8">
                 <StackPanel>
 
-                    <!-- ROW 1: pasek nawigacji + akcje + info wybranego zamowienia -->
-                    <Grid Margin="0,0,0,10">
+                    <!-- ═════ ROW 1: WSZYSTKIE AKCJE + STATUS W JEDNYM RZĘDZIE ═════ -->
+                    <Grid>
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>  <!-- 0 prev -->
-                            <ColumnDefinition Width="Auto"/>  <!-- 1 date hero -->
-                            <ColumnDefinition Width="Auto"/>  <!-- 2 next -->
-                            <ColumnDefinition Width="Auto"/>  <!-- 3 today -->
-                            <ColumnDefinition Width="Auto"/>  <!-- 4 +nowe -->
-                            <ColumnDefinition Width="Auto"/>  <!-- 5 density toggle -->
-                            <ColumnDefinition Width="Auto"/>  <!-- 6 refresh -->
-                            <ColumnDefinition Width="*"/>     <!-- 7 spacer -->
-                            <ColumnDefinition Width="Auto"/>  <!-- 8 paneOrderInfo -->
+                            <ColumnDefinition Width="Auto"/>  <!-- 0 Nawigacja  -->
+                            <ColumnDefinition Width="Auto"/>  <!-- 1 Separator   -->
+                            <ColumnDefinition Width="Auto"/>  <!-- 2 Akcje       -->
+                            <ColumnDefinition Width="Auto"/>  <!-- 3 Separator   -->
+                            <ColumnDefinition Width="*"/>     <!-- 4 Status/chipy (rozciągliwa) -->
+                            <ColumnDefinition Width="Auto"/>  <!-- 5 Separator   -->
+                            <ColumnDefinition Width="Auto"/>  <!-- 6 Netto       -->
                         </Grid.ColumnDefinitions>
 
-                        <Button x:Name="btnPrevDay" Grid.Column="0"
-                                Content="‹" Style="{StaticResource BtnIcon}"
-                                FontSize="{StaticResource Font.Lg}"
-                                Click="BtnPrevDay_Click" ToolTip="Poprzedni dzień (←)"/>
+                        <!-- ── Grupa A: NAWIGACJA DAT ── -->
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button x:Name="btnPrevDay" Content="‹" Style="{StaticResource BtnIcon}"
+                                    FontSize="{StaticResource Font.Md}" Padding="6,2" MinHeight="28"
+                                    Click="BtnPrevDay_Click" ToolTip="Poprzedni dzień (←)"/>
 
-                        <Button x:Name="btnDate" Grid.Column="1"
-                                Style="{StaticResource BtnDateHero}"
-                                Margin="6,0"
-                                Click="BtnDate_Click">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock x:Name="txtSelectedDate" Text="—"
-                                           FontSize="{StaticResource Font.Lg}"
-                                           FontWeight="SemiBold" Foreground="{StaticResource Brush.Text}"
-                                           VerticalAlignment="Center"/>
-                                <TextBlock Text="▾" Margin="10,0,0,0"
-                                           FontSize="{StaticResource Font.Xs}" Foreground="{StaticResource Brush.TextMuted}"
-                                           VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Button>
+                            <Button x:Name="btnDate" Style="{StaticResource BtnDateHero}"
+                                    Margin="4,0" Padding="10,3" MinHeight="28"
+                                    Click="BtnDate_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock x:Name="txtSelectedDate" Text="—"
+                                               FontSize="13" FontWeight="SemiBold"
+                                               Foreground="{StaticResource Brush.Text}"
+                                               VerticalAlignment="Center"/>
+                                    <TextBlock Text="▾" Margin="8,0,0,0" FontSize="9"
+                                               Foreground="{StaticResource Brush.TextMuted}"
+                                               VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
 
-                        <Popup x:Name="popupCalendar" PlacementTarget="{Binding ElementName=btnDate}"
-                               Placement="Bottom" StaysOpen="False" AllowsTransparency="True">
-                            <Border Background="White" BorderBrush="{StaticResource Brush.Border}"
-                                    BorderThickness="1" CornerRadius="8" Padding="4"
-                                    Effect="{StaticResource Fx.Card}">
-                                <Calendar x:Name="calendarPicker"
-                                          SelectedDatesChanged="Calendar_SelectedDatesChanged"/>
-                            </Border>
-                        </Popup>
+                            <Popup x:Name="popupCalendar" PlacementTarget="{Binding ElementName=btnDate}"
+                                   Placement="Bottom" StaysOpen="False" AllowsTransparency="True">
+                                <Border Background="White" BorderBrush="{StaticResource Brush.Border}"
+                                        BorderThickness="1" CornerRadius="8" Padding="4"
+                                        Effect="{StaticResource Fx.Card}">
+                                    <Calendar x:Name="calendarPicker"
+                                              SelectedDatesChanged="Calendar_SelectedDatesChanged"/>
+                                </Border>
+                            </Popup>
 
-                        <Button x:Name="btnNextDay" Grid.Column="2"
-                                Content="›" Style="{StaticResource BtnIcon}"
-                                FontSize="{StaticResource Font.Lg}"
-                                Click="BtnNextDay_Click" ToolTip="Następny dzień (→)"/>
+                            <Button x:Name="btnNextDay" Content="›" Style="{StaticResource BtnIcon}"
+                                    FontSize="{StaticResource Font.Md}" Padding="6,2" MinHeight="28"
+                                    Click="BtnNextDay_Click" ToolTip="Następny dzień (→)"/>
 
-                        <Button x:Name="btnToday" Grid.Column="3" Content="Dziś"
-                                Style="{StaticResource BtnIcon}"
-                                FontWeight="Medium" FontSize="{StaticResource Font.Sm}"
-                                Margin="14,0,0,0"
-                                Click="BtnToday_Click" ToolTip="Skocz do dziś (Home)"/>
-
-                        <!-- Nowy przycisk: Stwórz zamówienie (mniejszy) -->
-                        <Button x:Name="btnNoweZamowienie" Grid.Column="4" Content="+ Nowe"
-                                FontWeight="SemiBold" FontSize="{StaticResource Font.Xs}"
-                                Foreground="White" Background="#16A34A"
-                                BorderThickness="0" Padding="10,5" Cursor="Hand"
-                                Margin="10,0,0,0" MinHeight="{StaticResource Size.Btn.Md}"
-                                Click="BtnNoweZamowienie_Click"
-                                ToolTip="Stwórz nowe zamówienie (Ctrl+N)">
-                            <Button.Template>
-                                <ControlTemplate TargetType="Button">
-                                    <Border x:Name="b" Background="{TemplateBinding Background}" CornerRadius="6"
-                                            Padding="{TemplateBinding Padding}">
-                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                    </Border>
-                                    <ControlTemplate.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter TargetName="b" Property="Background" Value="#15803D"/>
-                                        </Trigger>
-                                    </ControlTemplate.Triggers>
-                                </ControlTemplate>
-                            </Button.Template>
-                        </Button>
-
-                        <!-- Density toggle przeniesiony z ROW 2 do ROW 1 obok "Stwórz zamówienie" -->
-                        <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,0,0">
-                            <RadioButton x:Name="rbDensityCompact" GroupName="Density"
-                                         Style="{StaticResource SegmentBtnFirst}"
-                                         Content="≡" ToolTip="Kompaktowa"
-                                         IsChecked="True" Checked="DensityRadio_Checked" Tag="Compact"/>
-                            <RadioButton x:Name="rbDensityDefault" GroupName="Density"
-                                         Style="{StaticResource SegmentBtn}"
-                                         Content="☰" ToolTip="Domyślna"
-                                         Checked="DensityRadio_Checked" Tag="Default"/>
-                            <RadioButton x:Name="rbDensityComfort" GroupName="Density"
-                                         Style="{StaticResource SegmentBtnLast}"
-                                         Content="▤" ToolTip="Komfortowa"
-                                         Checked="DensityRadio_Checked" Tag="Comfort"/>
+                            <Button x:Name="btnToday" Content="Dziś" Style="{StaticResource BtnIcon}"
+                                    FontWeight="Medium" FontSize="11" Padding="10,2" MinHeight="28"
+                                    Margin="8,0,0,0"
+                                    Click="BtnToday_Click" ToolTip="Skocz do dziś (Home)"/>
                         </StackPanel>
 
-                        <Button Grid.Column="6" x:Name="btnRefresh" Content="Odśwież"
-                                Style="{StaticResource BtnIcon}"
-                                FontWeight="Medium" FontSize="{StaticResource Font.Sm}"
-                                Margin="10,0,0,0"
-                                Click="BtnRefresh_Click" ToolTip="Odśwież dane (F5)"/>
+                        <!-- ── Separator pionowy ── -->
+                        <Border Grid.Column="1" Width="1" Background="#33000000" Margin="12,4"/>
 
-                        <!-- Hidden compat (code-behind nadal pisze do txtWeekInfo) -->
-                        <TextBlock x:Name="txtWeekInfo" Visibility="Collapsed"/>
+                        <!-- ── Grupa B: AKCJE ── -->
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button x:Name="btnNoweZamowienie" Content="+ Nowe"
+                                    FontWeight="SemiBold" FontSize="11"
+                                    Foreground="White" Background="#16A34A"
+                                    BorderThickness="0" Padding="10,4" Cursor="Hand"
+                                    MinHeight="28"
+                                    Click="BtnNoweZamowienie_Click"
+                                    ToolTip="Stwórz nowe zamówienie (Ctrl+N)">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="b" Background="{TemplateBinding Background}" CornerRadius="5"
+                                                Padding="{TemplateBinding Padding}">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="b" Property="Background" Value="#15803D"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
 
-                        <!-- WYBRANE ZAMÓWIENIE (po prawej) — ZAWSZE widoczne (puste gdy nic nie wybrane) -->
-                        <Border x:Name="paneOrderInfo" Grid.Column="8"
-                                VerticalAlignment="Center" HorizontalAlignment="Right"
-                                Width="460" Height="80"
-                                Background="{StaticResource Brush.SurfaceAlt}"
-                                BorderBrush="{StaticResource Brush.Border}" BorderThickness="1"
-                                CornerRadius="6" Padding="14,9">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                    <TextBlock x:Name="txtOdbiorca" Text="—"
-                                               FontSize="{StaticResource Font.Lg}" FontWeight="SemiBold"
-                                               Foreground="{StaticResource Brush.Text}" TextTrimming="CharacterEllipsis"/>
-                                    <TextBlock x:Name="txtOrderMeta" Text=""
-                                               FontSize="{StaticResource Font.Sm}"
-                                               Foreground="{StaticResource Brush.TextSecondary}"
-                                               Margin="0,4,0,0" TextTrimming="CharacterEllipsis"/>
-                                    <!-- ukryte (zachowane dla compatibility z code-behind) -->
-                                    <TextBlock x:Name="txtHandlowiec" Visibility="Collapsed"/>
-                                    <TextBlock x:Name="txtDataZamowienia" Visibility="Collapsed"/>
-                                </StackPanel>
-                                <Border x:Name="borderTransport" Grid.Column="1"
-                                        Background="White" BorderBrush="{StaticResource Brush.Border}" BorderThickness="1"
-                                        CornerRadius="4" Padding="8,4" Margin="10,0,0,0"
-                                        Visibility="Collapsed">
-                                    <StackPanel>
-                                        <TextBlock x:Name="txtGodzWyjazdu" Text="" FontSize="{StaticResource Font.Sm}"
-                                                   FontWeight="SemiBold" Foreground="{StaticResource Brush.PrimaryDark}"/>
-                                        <TextBlock x:Name="txtKierowca" Text="" FontSize="10"
-                                                   Foreground="{StaticResource Brush.TextSecondary}"/>
-                                        <TextBlock x:Name="txtPojazd" Text="" FontSize="10"
-                                                   Foreground="{StaticResource Brush.TextMuted}"/>
+                            <Button x:Name="btnRefresh" Content="Odśwież"
+                                    Style="{StaticResource BtnIcon}"
+                                    FontWeight="Medium" FontSize="11"
+                                    Padding="10,2" MinHeight="28"
+                                    Margin="6,0,0,0"
+                                    Click="BtnRefresh_Click" ToolTip="Odśwież dane (F5)"/>
+
+                            <!-- Density toggle (segment buttons) -->
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0">
+                                <RadioButton x:Name="rbDensityCompact" GroupName="Density"
+                                             Style="{StaticResource SegmentBtnFirst}"
+                                             Content="≡" ToolTip="Kompaktowa"
+                                             IsChecked="True" Checked="DensityRadio_Checked" Tag="Compact"/>
+                                <RadioButton x:Name="rbDensityDefault" GroupName="Density"
+                                             Style="{StaticResource SegmentBtn}"
+                                             Content="☰" ToolTip="Domyślna"
+                                             Checked="DensityRadio_Checked" Tag="Default"/>
+                                <RadioButton x:Name="rbDensityComfort" GroupName="Density"
+                                             Style="{StaticResource SegmentBtnLast}"
+                                             Content="▤" ToolTip="Komfortowa"
+                                             Checked="DensityRadio_Checked" Tag="Comfort"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- ── Separator pionowy (chowa się gdy verifyBar Collapsed) ── -->
+                        <Border Grid.Column="3" Width="1" Background="#33000000" Margin="12,4"
+                                Visibility="{Binding ElementName=verifyBar, Path=Visibility}"/>
+
+                        <!-- ── Grupa C: LICZNIK zafakturowanych/wszystkich (chipy przeniesione do linii klient) ── -->
+                        <Border Grid.Column="4" x:Name="verifyBar" Visibility="Collapsed"
+                                VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
+                                        HorizontalAlignment="Left">
+                                <Border x:Name="counterPill"
+                                        Background="#EEF2FF" BorderBrush="#C7D2FE" BorderThickness="1"
+                                        CornerRadius="11" Padding="8,2" Margin="0,0,0,0"
+                                        ToolTip="Liczba zamówień zafakturowanych / wszystkich z wybranego dnia">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="📋" FontSize="11" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="txtCntZafaktBadge" Text="0" Foreground="#3730A3" FontWeight="Bold" FontSize="11"/>
+                                        <TextBlock Text="/" Foreground="#6366F1" FontSize="11" Margin="2,0"/>
+                                        <TextBlock x:Name="txtCntAllBadge" Text="0" Foreground="#6366F1" FontWeight="SemiBold" FontSize="11"/>
+                                        <TextBlock Text=" zafakt." Foreground="#3730A3" FontSize="11" Margin="3,0,0,0"/>
                                     </StackPanel>
                                 </Border>
-                            </Grid>
+                            </StackPanel>
                         </Border>
+
+                        <!-- ── Separator pionowy ── -->
+                        <Border Grid.Column="5" Width="1" Background="#33000000" Margin="12,4"/>
+
+                        <!-- ── Grupa D: NETTO CHECKBOX ── -->
+                        <CheckBox Grid.Column="6" x:Name="chkPokazNettoOrders"
+                                  Content="📋 Netto"
+                                  FontSize="11" VerticalAlignment="Center"
+                                  Foreground="{StaticResource Brush.Text}"
+                                  ToolTip="Domyślnie pokazujemy tylko kolumnę BRUTTO — lepiej dla fakturzystki. Zaznacz aby dodatkowo pokazać kolumnę 'Netto' z LibraNet."
+                                  Checked="ChkPokazNettoOrders_Toggle"
+                                  Unchecked="ChkPokazNettoOrders_Toggle"/>
                     </Grid>
 
-                    <!-- ROW 2 i ROW 3 usuniete - wszystko przeniesione do ROW 1.
-                         Hidden compat elements (code-behind nadal pisze do nich, ale nie sa wyswietlane). -->
+                    <!-- ═════ ROW 2: WYBRANE ZAMÓWIENIE — kompaktowa linia z elipsą ═════ -->
+                    <Border x:Name="paneOrderInfo" Margin="0,7,0,0"
+                            Background="White"
+                            BorderBrush="{StaticResource Brush.Border}" BorderThickness="1"
+                            CornerRadius="5" Padding="10,4">
+                        <DockPanel LastChildFill="True">
+                            <!-- Transport chip (skrajnie prawo) -->
+                            <Border x:Name="borderTransport" DockPanel.Dock="Right"
+                                    Background="{StaticResource Brush.SurfaceAlt}"
+                                    BorderBrush="{StaticResource Brush.Border}" BorderThickness="1"
+                                    CornerRadius="3" Padding="6,2" Margin="8,0,0,0"
+                                    VerticalAlignment="Center"
+                                    Visibility="Collapsed">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="🚚 " FontSize="10" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="txtGodzWyjazdu" Text="" FontSize="11"
+                                               FontWeight="SemiBold" Foreground="{StaticResource Brush.PrimaryDark}"
+                                               VerticalAlignment="Center"/>
+                                    <TextBlock Text=" · " FontSize="10" Foreground="{StaticResource Brush.TextMuted}"
+                                               VerticalAlignment="Center" Margin="3,0"/>
+                                    <TextBlock x:Name="txtKierowca" Text="" FontSize="10"
+                                               Foreground="{StaticResource Brush.TextSecondary}"
+                                               VerticalAlignment="Center"/>
+                                    <TextBlock Text=" " VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="txtPojazd" Text="" FontSize="10"
+                                               Foreground="{StaticResource Brush.TextMuted}"
+                                               VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Status chipy + filter (po prawej, przed transport, mini-zwinięte) -->
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center"
+                                        Margin="8,0,0,0">
+                                <!-- ALARM ✖ -->
+                                <Border x:Name="chipAlarm" Visibility="Collapsed" Cursor="Hand"
+                                        Background="#FEE2E2" BorderBrush="#DC2626" BorderThickness="1"
+                                        CornerRadius="8" Padding="4,0" Margin="0,0,2,0" MinHeight="18"
+                                        MouseLeftButtonUp="ChipAlarm_Click"
+                                        ToolTip="Alarm — kliknij aby filtrować, ponownie aby wyłączyć.">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="✖" Foreground="#DC2626" FontWeight="Bold" FontSize="10" Margin="0,0,2,0" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="txtAlarmCnt" Text="0" Foreground="#7F1D1D" FontWeight="SemiBold" FontSize="10" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- WARN ⚠ -->
+                                <Border x:Name="chipWarn" Visibility="Collapsed" Cursor="Hand"
+                                        Background="#FFEDD5" BorderBrush="#EA580C" BorderThickness="1"
+                                        CornerRadius="8" Padding="4,0" Margin="0,0,2,0" MinHeight="18"
+                                        MouseLeftButtonUp="ChipWarn_Click"
+                                        ToolTip="Do sprawdzenia — różnica ilości. Kliknij aby filtrować, ponownie aby wyłączyć.">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="⚠" Foreground="#EA580C" FontWeight="Bold" FontSize="10" Margin="0,0,2,0" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="txtWarnCnt" Text="0" Foreground="#9A3412" FontWeight="SemiBold" FontSize="10" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- OK ✓ -->
+                                <Border x:Name="chipOk" Visibility="Collapsed" Cursor="Hand"
+                                        Background="#DCFCE7" BorderBrush="#16A34A" BorderThickness="1"
+                                        CornerRadius="8" Padding="4,0" Margin="0,0,2,0" MinHeight="18"
+                                        MouseLeftButtonUp="ChipOk_Click"
+                                        ToolTip="Zgodne. Kliknij aby filtrować, ponownie aby wyłączyć.">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="✓" Foreground="#16A34A" FontWeight="Bold" FontSize="10" Margin="0,0,2,0" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="txtOkCnt" Text="0" Foreground="#166534" FontWeight="SemiBold" FontSize="10" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Filter button — mini -->
+                                <Button x:Name="btnFilterMismatch" Content="⚠ Niezgodne"
+                                        Padding="5,0" Margin="4,0,0,0" MinHeight="18"
+                                        Background="#FEF3C7" Foreground="#92400E" FontWeight="SemiBold" FontSize="10"
+                                        BorderBrush="#D97706" BorderThickness="1" Cursor="Hand"
+                                        ToolTip="Pokaż tylko zamówienia niezgodne z fakturą"
+                                        Click="BtnFilterMismatch_Click"/>
+                                <Button x:Name="btnFilterReset" Content="✕"
+                                        Padding="3,0" Margin="2,0,0,0" MinHeight="18"
+                                        Background="White" Foreground="#475569" FontSize="10"
+                                        BorderBrush="#CBD5E1" BorderThickness="1" Cursor="Hand"
+                                        Click="BtnFilterReset_Click"
+                                        ToolTip="Wyczyść filtr"
+                                        Visibility="Collapsed"/>
+                            </StackPanel>
+
+                            <!-- Klient + meta (lewy, ellipsizable) -->
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="📋" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="KLIENT:" FontSize="9" FontWeight="Bold"
+                                           Foreground="{StaticResource Brush.TextMuted}"
+                                           VerticalAlignment="Center" Margin="0,1,5,0"/>
+                                <TextBlock x:Name="txtOdbiorca" Text="(nic nie wybrano — kliknij wiersz)"
+                                           FontSize="12" FontWeight="SemiBold"
+                                           Foreground="{StaticResource Brush.Text}"
+                                           VerticalAlignment="Center"
+                                           TextTrimming="CharacterEllipsis"/>
+                                <TextBlock x:Name="txtOrderMeta" Text=""
+                                           FontSize="11"
+                                           Foreground="{StaticResource Brush.TextSecondary}"
+                                           VerticalAlignment="Center"
+                                           TextTrimming="CharacterEllipsis"
+                                           Margin="8,0,0,0"/>
+                                <!-- Ukryte (compat z code-behind) -->
+                                <TextBlock x:Name="txtHandlowiec" Visibility="Collapsed"/>
+                                <TextBlock x:Name="txtDataZamowienia" Visibility="Collapsed"/>
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+
+                    <!-- Hidden compat (code-behind nadal pisze do tych elementów) -->
                     <StackPanel Visibility="Collapsed">
+                        <TextBlock x:Name="txtWeekInfo"/>
                         <ComboBox x:Name="cmbProduct" SelectionChanged="CmbProduct_SelectionChanged"/>
                         <CheckBox x:Name="chkShowFakturowane" IsChecked="True"
                                   Checked="ChkShowFakturowane_Changed" Unchecked="ChkShowFakturowane_Changed"/>
@@ -782,138 +889,11 @@
                 </StackPanel>
             </Border>
 
-            <!-- ───── DataGrid pełnowymiarowy (bez nagłówka karty — przeniesione do toolbara) ───── -->
+            <!-- ───── DataGrid pełnowymiarowy ───── -->
             <Border Grid.Row="1" Background="White" Margin="10,10,5,10"
                     CornerRadius="{StaticResource Radius.Card}" Effect="{StaticResource Fx.Card}">
                 <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>  <!-- Verification status bar -->
-                        <RowDefinition Height="*"/>     <!-- DataGrid -->
-                    </Grid.RowDefinitions>
-
-                    <!-- VERIFICATION BAR — KPI tile + klikalne chipy + filter -->
-                    <Border Grid.Row="0" x:Name="verifyBar" Visibility="Collapsed"
-                            Background="{StaticResource Brush.SurfaceAlt}"
-                            BorderBrush="{StaticResource Brush.Border}" BorderThickness="0,0,0,1"
-                            Padding="14,8">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>  <!-- KPI tile -->
-                                <ColumnDefinition Width="*"/>     <!-- chipy + filter -->
-                            </Grid.ColumnDefinitions>
-
-                            <!-- KPI TILE — dzienne statystyki (lewa strona) -->
-                            <Border Grid.Column="0" x:Name="kpiTile"
-                                    Background="White" BorderBrush="{StaticResource Brush.Border}" BorderThickness="1"
-                                    CornerRadius="6" Padding="12,4" Margin="0,0,16,0"
-                                    VerticalAlignment="Center">
-                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Text="📊" FontSize="14" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                    <!-- Faktury count -->
-                                    <StackPanel Margin="0,0,14,0" VerticalAlignment="Center">
-                                        <TextBlock Text="FAKTUR" FontSize="9" FontWeight="Bold"
-                                                   Foreground="{StaticResource Brush.TextMuted}"/>
-                                        <TextBlock x:Name="txtKpiFakturCnt" Text="—"
-                                                   FontSize="14" FontWeight="Bold"
-                                                   Foreground="{StaticResource Brush.Text}"/>
-                                    </StackPanel>
-                                    <!-- Problemy -->
-                                    <StackPanel Margin="0,0,14,0" VerticalAlignment="Center">
-                                        <TextBlock Text="PROBLEMÓW" FontSize="9" FontWeight="Bold"
-                                                   Foreground="{StaticResource Brush.TextMuted}"/>
-                                        <TextBlock x:Name="txtKpiProblems" Text="—"
-                                                   FontSize="14" FontWeight="Bold"
-                                                   Foreground="{StaticResource Brush.Text}"/>
-                                    </StackPanel>
-                                    <!-- Tonaż -->
-                                    <StackPanel Margin="0,0,14,0" VerticalAlignment="Center">
-                                        <TextBlock Text="WAGA" FontSize="9" FontWeight="Bold"
-                                                   Foreground="{StaticResource Brush.TextMuted}"/>
-                                        <TextBlock x:Name="txtKpiWaga" Text="—"
-                                                   FontSize="14" FontWeight="Bold"
-                                                   Foreground="{StaticResource Brush.Text}"/>
-                                    </StackPanel>
-                                    <!-- Wartość -->
-                                    <StackPanel VerticalAlignment="Center">
-                                        <TextBlock Text="WARTOŚĆ" FontSize="9" FontWeight="Bold"
-                                                   Foreground="{StaticResource Brush.TextMuted}"/>
-                                        <TextBlock x:Name="txtKpiWartosc" Text="—"
-                                                   FontSize="14" FontWeight="Bold"
-                                                   Foreground="{StaticResource Brush.Text}"/>
-                                    </StackPanel>
-                                </StackPanel>
-                            </Border>
-
-                            <!-- Chipy + filter (prawa strona) -->
-                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"
-                                        HorizontalAlignment="Right">
-                                <!-- ALARM — klikalny -->
-                                <Border x:Name="chipAlarm" Visibility="Collapsed" Cursor="Hand"
-                                        Background="#FEE2E2" BorderBrush="#DC2626" BorderThickness="1"
-                                        CornerRadius="12" Padding="8,2" Margin="0,0,8,0"
-                                        MouseLeftButtonUp="ChipAlarm_Click"
-                                        ToolTip="Pokaż tylko zamówienia z alarmem (kliknij ponownie aby wyłączyć filtr)">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="✖" Foreground="#DC2626" FontWeight="Bold" Margin="0,0,5,0"/>
-                                        <TextBlock x:Name="txtAlarmCnt" Text="0" Foreground="#7F1D1D" FontWeight="SemiBold" FontSize="12"/>
-                                        <TextBlock Text=" alarm" Foreground="#7F1D1D" FontSize="12" Margin="3,0,0,0"/>
-                                    </StackPanel>
-                                </Border>
-
-                                <!-- WARN — klikalny -->
-                                <Border x:Name="chipWarn" Visibility="Collapsed" Cursor="Hand"
-                                        Background="#FFEDD5" BorderBrush="#EA580C" BorderThickness="1"
-                                        CornerRadius="12" Padding="8,2" Margin="0,0,8,0"
-                                        MouseLeftButtonUp="ChipWarn_Click"
-                                        ToolTip="Pokaż tylko zamówienia z różnicą ilości (kliknij ponownie aby wyłączyć filtr)">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="⚠" Foreground="#EA580C" FontWeight="Bold" Margin="0,0,5,0"/>
-                                        <TextBlock x:Name="txtWarnCnt" Text="0" Foreground="#9A3412" FontWeight="SemiBold" FontSize="12"/>
-                                        <TextBlock Text=" do sprawdzenia" Foreground="#9A3412" FontSize="12" Margin="3,0,0,0"/>
-                                    </StackPanel>
-                                </Border>
-
-                                <!-- OK — klikalny -->
-                                <Border x:Name="chipOk" Visibility="Collapsed" Cursor="Hand"
-                                        Background="#DCFCE7" BorderBrush="#16A34A" BorderThickness="1"
-                                        CornerRadius="12" Padding="8,2" Margin="0,0,8,0"
-                                        MouseLeftButtonUp="ChipOk_Click"
-                                        ToolTip="Pokaż tylko zgodne faktury (kliknij ponownie aby wyłączyć filtr)">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="✓" Foreground="#16A34A" FontWeight="Bold" Margin="0,0,5,0"/>
-                                        <TextBlock x:Name="txtOkCnt" Text="0" Foreground="#166534" FontWeight="SemiBold" FontSize="12"/>
-                                        <TextBlock Text=" zgodne" Foreground="#166534" FontSize="12" Margin="3,0,0,0"/>
-                                    </StackPanel>
-                                </Border>
-
-                                <!-- Filter button + reset -->
-                                <Button x:Name="btnFilterMismatch" Content="  Pokaż tylko niezgodne  "
-                                        Padding="10,4" Margin="14,0,0,0" MinHeight="26"
-                                        Background="#FEF3C7" Foreground="#92400E" FontWeight="SemiBold" FontSize="12"
-                                        BorderBrush="#D97706" BorderThickness="1" Cursor="Hand"
-                                        Click="BtnFilterMismatch_Click"/>
-                                <Button x:Name="btnFilterReset" Content="  ✕ Wyczyść filtr  "
-                                        Padding="10,4" Margin="6,0,0,0" MinHeight="26"
-                                        Background="White" Foreground="#475569" FontSize="12"
-                                        BorderBrush="#CBD5E1" BorderThickness="1" Cursor="Hand"
-                                        Click="BtnFilterReset_Click"
-                                        Visibility="Collapsed"/>
-
-                                <!-- Separator -->
-                                <Border Width="1" Background="#E5E7EB" Margin="14,2,14,2"/>
-
-                                <!-- Checkbox: pokaż też kolumnę netto (domyślnie ukryta — fakturzystka widzi tylko brutto) -->
-                                <CheckBox x:Name="chkPokazNettoOrders"
-                                          Content="📋 Pokaż też netto"
-                                          FontSize="12" VerticalAlignment="Center"
-                                          ToolTip="Domyślnie pokazujemy tylko kolumnę BRUTTO — lepiej dla fakturzystki. Zaznacz aby dodatkowo pokazać kolumnę 'Netto' z LibraNet."
-                                          Checked="ChkPokazNettoOrders_Toggle"
-                                          Unchecked="ChkPokazNettoOrders_Toggle"/>
-                            </StackPanel>
-                        </Grid>
-                    </Border>
-
-                    <DataGrid Grid.Row="1" x:Name="dgOrders"
+                    <DataGrid x:Name="dgOrders"
                               Style="{StaticResource ProDataGrid}"
                               ColumnHeaderStyle="{StaticResource ProColHeader}"
                               CellStyle="{StaticResource ProCell}"
@@ -924,6 +904,10 @@
 
                         <DataGrid.ContextMenu>
                             <ContextMenu>
+                                <MenuItem Header="📋  Zrób HDI z tego zamówienia"
+                                          FontWeight="SemiBold"
+                                          Click="MenuItem_ZrobHDI_Click"/>
+                                <Separator/>
                                 <MenuItem Header="Dopasuj fakturę do klienta..."
                                           Click="MenuItem_DopasujFakture_Click"/>
                                 <MenuItem Header="Wyczyść numer faktury (cofnij dopasowanie)"
@@ -980,6 +964,11 @@
                                                        Margin="0,0,6,0" VerticalAlignment="Center"
                                                        Visibility="{Binding MatchVis}"
                                                        ToolTip="{Binding MatchTooltip}"/>
+                                            <!-- 📄 = HDI wystawione dla tego zamówienia -->
+                                            <TextBlock Text="📄" FontSize="13"
+                                                       Margin="0,0,5,0" VerticalAlignment="Center"
+                                                       Visibility="{Binding HdiVis}"
+                                                       ToolTip="HDI wystawione dla tego zamówienia"/>
                                             <TextBlock Text="{Binding KlientName}" FontWeight="Medium"
                                                        FontSize="{DynamicResource Density.Row.Font}"
                                                        Foreground="{StaticResource Brush.Text}"

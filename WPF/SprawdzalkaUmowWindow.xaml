@@ -282,11 +282,14 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="GroupItem">
-                        <StackPanel>
-                            <Border x:Name="banner" Margin="0,6,0,0"
+                        <StackPanel Margin="0,0,0,8">
+                            <Border x:Name="banner" Margin="0,10,0,0"
                                     BorderBrush="{StaticResource BorderBrush}"
                                     BorderThickness="0,1,0,2"
                                     SnapsToDevicePixels="True">
+                                <Border.Effect>
+                                    <DropShadowEffect Color="#000000" Opacity="0.08" BlurRadius="6" ShadowDepth="1" Direction="270"/>
+                                </Border.Effect>
                                 <Border.Background>
                                     <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
                                         <GradientStop Color="#FFFFFF" Offset="0"/>
@@ -603,14 +606,21 @@
 
             <DataGrid.Columns>
                 <!-- DOSTAWCA -->
-                <DataGridTemplateColumn Header="DOSTAWCA" Width="240" SortMemberPath="Dostawca">
+                <DataGridTemplateColumn Header="DOSTAWCA" Width="260" SortMemberPath="Dostawca">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <StackPanel Orientation="Vertical" VerticalAlignment="Center">
-                                <TextBlock Text="{Binding Dostawca}" Style="{StaticResource PrimaryCell}"/>
-                                <TextBlock Text="{Binding StatusLabel}" FontSize="10.5"
-                                           Foreground="{Binding StatusKey, Converter={StaticResource StatusBrush}}"
-                                           FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Text="{Binding Dostawca}" Style="{StaticResource PrimaryCell}" Margin="0,0,0,3"/>
+                                <Border CornerRadius="3" Padding="6,1" HorizontalAlignment="Left"
+                                        Background="{Binding StatusKey, Converter={StaticResource StatusBrush}, ConverterParameter=Tint}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Ellipse Width="6" Height="6" VerticalAlignment="Center" Margin="0,0,5,0"
+                                                 Fill="{Binding StatusKey, Converter={StaticResource StatusBrush}}"/>
+                                        <TextBlock Text="{Binding StatusLabel}" FontSize="10.5"
+                                                   Foreground="{Binding StatusKey, Converter={StaticResource StatusBrush}, ConverterParameter=Dark}"
+                                                   FontWeight="SemiBold"/>
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
@@ -798,6 +808,22 @@
                 </ContextMenu>
             </DataGrid.ContextMenu>
         </DataGrid>
+
+        <!-- Empty state — nic nie pasuje do filtra -->
+        <Border x:Name="emptyState" Grid.Row="2" Background="Transparent" Visibility="Collapsed"
+                IsHitTestVisible="False">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="380">
+                <Border CornerRadius="40" Width="80" Height="80" Background="#F0F3F6" HorizontalAlignment="Center">
+                    <TextBlock Text="🔍" FontSize="40" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+                <TextBlock Text="Nic nie pasuje do filtra"
+                           FontSize="18" FontWeight="SemiBold" Margin="0,18,0,6"
+                           HorizontalAlignment="Center" Foreground="{StaticResource TextPrimaryBrush}"/>
+                <TextBlock Text="Spróbuj zmienić zapytanie lub wyczyść filtry (Esc)"
+                           FontSize="12.5" HorizontalAlignment="Center" TextAlignment="Center"
+                           Foreground="{StaticResource TextMutedBrush}" TextWrapping="Wrap"/>
+            </StackPanel>
+        </Border>
 
         <!-- Loading overlay -->
         <Border x:Name="loadingOverlay" Grid.Row="0" Grid.RowSpan="3" Background="#80FFFFFF" Visibility="Collapsed">

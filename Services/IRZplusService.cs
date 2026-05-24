@@ -334,8 +334,8 @@ namespace Kalendarz1.Services
                             TypZdarzenia = new KodOpisDto { Kod = "ZURDUR" }, // ZURDUR = przybycie do rzeźni i ubój drobiu
                             DataZdarzenia = request.DataUboju.ToString("yyyy-MM-dd"),
                             DataKupnaWwozu = request.DataUboju.ToString("yyyy-MM-dd"),  // WYMAGANE! K0181
-                            // NumerSiedliska juz zawiera pelny numer np. "038481631-001" - NIE DODAWAC -001!
-                            PrzyjeteZDzialalnosci = d.NumerSiedliska,
+                            // Normalizuj — niektóre rekordy w bazie nie mają myślnika (K0182 błąd ARiMR)
+                            PrzyjeteZDzialalnosci = IRZplusApiService.NormalizujNumerSiedliska(d.NumerSiedliska),
                             UbojRytualny = false
                         }).ToList()
                     }
@@ -493,8 +493,8 @@ namespace Kalendarz1.Services
                     TypZdarzenia = new KodOpisDto { Kod = "ZURDUR" }, // ZURDUR = przybycie do rzeźni i ubój drobiu
                     DataZdarzenia = spec.DataZdarzenia.ToString("yyyy-MM-dd"),
                     DataKupnaWwozu = spec.DataZdarzenia.ToString("yyyy-MM-dd"),  // WYMAGANE! K0181 - Pole Data kupna/wwozu
-                    // irzPlus juz zawiera pelny numer np. "080640491-001" - NIE DODAWAC -001!
-                    PrzyjeteZDzialalnosci = irzPlus,
+                    // Normalizuj — niektóre rekordy w bazie nie mają myślnika (K0182 błąd ARiMR)
+                    PrzyjeteZDzialalnosci = IRZplusApiService.NormalizujNumerSiedliska(irzPlus),
                     UbojRytualny = false
                 });
             }

@@ -1,0 +1,209 @@
+<Window x:Class="Kalendarz1.HistoriaFakturKontrahentaWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Historia faktur kontrahenta"
+        Height="720" Width="1180"
+        MinHeight="560" MinWidth="900"
+        WindowStartupLocation="CenterOwner"
+        Background="#F5F5F5">
+
+    <Window.Resources>
+        <Style x:Key="KpiCardStyle" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="14,10"/>
+            <Setter Property="Margin" Value="0,0,10,0"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect BlurRadius="6" ShadowDepth="1" Opacity="0.10" Color="#000"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="KpiTitleStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="#6B7280"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+        <Style x:Key="KpiValueStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="20"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="#111827"/>
+            <Setter Property="Margin" Value="0,3,0,0"/>
+        </Style>
+        <Style x:Key="PrimaryButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#1976D2"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Padding" Value="14,7"/>
+            <Setter Property="Margin" Value="4,0"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="14">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- HEADER: kontrahent -->
+        <Border Grid.Row="0" Background="#0F172A" CornerRadius="6" Padding="16,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock x:Name="txtKontrahent" Text="—" FontSize="20" FontWeight="Bold" Foreground="White"/>
+                    <TextBlock x:Name="txtKontrahentMeta" Text="—" FontSize="12" Foreground="#94A3B8" Margin="0,2,0,0"/>
+                </StackPanel>
+                <Button Grid.Column="1" Content="✕" Width="32" Height="32" Background="Transparent" Foreground="White"
+                        BorderThickness="0" FontSize="16" Cursor="Hand" Click="BtnClose_Click"/>
+            </Grid>
+        </Border>
+
+        <!-- KPI cards -->
+        <Grid Grid.Row="1" Margin="0,10,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Border Grid.Column="0" Style="{StaticResource KpiCardStyle}" BorderBrush="#3B82F6" BorderThickness="0,0,0,3">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource KpiTitleStyle}" Text="LICZBA FAKTUR (FV)"/>
+                    <TextBlock x:Name="kpiLiczbaFv" Style="{StaticResource KpiValueStyle}" Text="0"/>
+                </StackPanel>
+            </Border>
+            <Border Grid.Column="1" Style="{StaticResource KpiCardStyle}" BorderBrush="#10B981" BorderThickness="0,0,0,3">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource KpiTitleStyle}" Text="SUMA NETTO (PLN)"/>
+                    <TextBlock x:Name="kpiSumaNetto" Style="{StaticResource KpiValueStyle}" Text="0,00"/>
+                </StackPanel>
+            </Border>
+            <Border Grid.Column="2" Style="{StaticResource KpiCardStyle}" BorderBrush="#F59E0B" BorderThickness="0,0,0,3">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource KpiTitleStyle}" Text="SUMA KG"/>
+                    <TextBlock x:Name="kpiSumaKg" Style="{StaticResource KpiValueStyle}" Text="0"/>
+                </StackPanel>
+            </Border>
+            <Border Grid.Column="3" Style="{StaticResource KpiCardStyle}" BorderBrush="#8B5CF6" BorderThickness="0,0,0,3">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource KpiTitleStyle}" Text="ŚR. CENA NETTO"/>
+                    <TextBlock x:Name="kpiSrCena" Style="{StaticResource KpiValueStyle}" Text="0,00"/>
+                </StackPanel>
+            </Border>
+            <Border Grid.Column="4" Style="{StaticResource KpiCardStyle}" BorderBrush="#EF4444" BorderThickness="0,0,0,3" Margin="0">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource KpiTitleStyle}" Text="OSTATNIA FV"/>
+                    <TextBlock x:Name="kpiOstatniaFv" Style="{StaticResource KpiValueStyle}" Text="—"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- FILTRY -->
+        <Border Grid.Row="2" Background="White" CornerRadius="6" Padding="12,10" Margin="0,10,0,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="Zakres:" VerticalAlignment="Center" Margin="0,0,8,0" FontWeight="SemiBold"/>
+                <DatePicker Grid.Column="1" x:Name="dpOd" Width="120" Margin="0,0,8,0"/>
+                <TextBlock Grid.Column="2" Text="—" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <DatePicker Grid.Column="3" x:Name="dpDo" Width="120" Margin="0,0,16,0"/>
+
+                <CheckBox Grid.Column="4" x:Name="chkFv" Content="FV (zakup)" IsChecked="True" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                <CheckBox Grid.Column="5" x:Name="chkKor" Content="Korekty (FKZ)" IsChecked="True" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                <CheckBox Grid.Column="6" x:Name="chkPz" Content="PZ" IsChecked="True" VerticalAlignment="Center" Margin="0,0,12,0"/>
+
+                <StackPanel Grid.Column="8" Orientation="Horizontal">
+                    <Button Content="📅 Ostatnie 3 mc" Click="BtnQuick3M_Click" Background="#E5E7EB" Foreground="#111827"
+                            Padding="10,6" Margin="0,0,6,0" BorderThickness="0" Cursor="Hand"/>
+                    <Button Content="📅 12 mc" Click="BtnQuick12M_Click" Background="#E5E7EB" Foreground="#111827"
+                            Padding="10,6" Margin="0,0,6,0" BorderThickness="0" Cursor="Hand"/>
+                    <Button Content="🔄 Odśwież" Click="BtnRefresh_Click" Style="{StaticResource PrimaryButtonStyle}"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- LISTA -->
+        <DataGrid Grid.Row="3" x:Name="dgHistoria" Margin="0,10,0,0"
+                  AutoGenerateColumns="False"
+                  CanUserAddRows="False"
+                  CanUserDeleteRows="False"
+                  IsReadOnly="True"
+                  GridLinesVisibility="Horizontal"
+                  HeadersVisibility="Column"
+                  AlternatingRowBackground="#F9FAFB"
+                  RowHeight="32"
+                  Background="White">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Data" Binding="{Binding Data, StringFormat=yyyy-MM-dd}" Width="100"/>
+                <DataGridTextColumn Header="Typ" Binding="{Binding Typ}" Width="70"/>
+                <DataGridTextColumn Header="Nr dokumentu" Binding="{Binding NrDok}" Width="180"/>
+                <DataGridTextColumn Header="Towar" Binding="{Binding Towar}" Width="160"/>
+                <DataGridTextColumn Header="Kg" Binding="{Binding Kg, StringFormat=N0}" Width="90">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                            <Setter Property="Margin" Value="0,0,8,0"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+                <DataGridTextColumn Header="Cena" Binding="{Binding Cena, StringFormat=N2}" Width="90">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                            <Setter Property="Margin" Value="0,0,8,0"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+                <DataGridTextColumn Header="Wartość netto" Binding="{Binding Wartosc, StringFormat=N2}" Width="130">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                            <Setter Property="Margin" Value="0,0,8,0"/>
+                            <Setter Property="FontWeight" Value="SemiBold"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+                <DataGridTextColumn Header="Źródło" Binding="{Binding Zrodlo}" Width="100"/>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <!-- STATUS BAR -->
+        <Border Grid.Row="4" Background="White" CornerRadius="4" Padding="10,6" Margin="0,8,0,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock x:Name="txtStatus" Text="Gotowy" VerticalAlignment="Center" Foreground="#6B7280"/>
+                <Button Grid.Column="1" Content="Zamknij" Style="{StaticResource PrimaryButtonStyle}" Click="BtnClose_Click"/>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

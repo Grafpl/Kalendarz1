@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  R-09U — wzorzec XML z Symfonii (dostarczony przez Sergiusza 2026-05-23).
+  Sprawozdanie miesięczne o wielkości ubojów zwierząt.
+
+  STRUKTURA:
+    Dział 1   (D1, 22 wiersze × 5 kolumn)   — Skup i ubój dokonany w jednostce sprawozdawczej
+    Dział 1A  (D1A, 19 wierszy × 5 kolumn)  — Skup i ubój z dostarczonego materiału z importu
+    Dział 2   (D2, 22 wiersze × 5 kolumn)   — Ubój dokonany z materiału dostarczonego
+    Dział 3   (D3, 10 wierszy × 6 kolumn)   — Produkcja mięsa (struktura)
+
+  KOLUMNY r1..r5 (D1/D1A/D2):
+    r1 = liczba sztuk
+    r2 = waga żywa (kg)
+    r3 = waga poubojowa, brutto (kg)
+    r4 = waga handlowa, netto (kg)
+    r5 = wartość (zł)?
+
+  WIERSZE w01..w22 (zwierzęta gospodarskie):
+    w01..w13  — bydło, trzoda chlewna, owce, kozy, konie
+    w14       — BROJLERY KURZE  ⭐ (jedyne wypełnione dla Piórkowskich)
+    w15..w19  — kury rosołowe, indyki, kaczki, gęsi
+    w20..w22  — inne drobne kategorie
+
+  Sage zapisuje WSZYSTKIE wiersze (nawet z zerami) i 7+ działów sekcji ukrytych.
+-->
+<Sprawozdanie xmlns="http://ps.stat.gov.pl/ps/schema/sprawozdanie"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://ps.stat.gov.pl/ps/schema/sprawozdanie sprawozdanie.xsd"
+              formularzSymbol="R-09U" formularzWersja="2.0" numerSprawozdania="0">
+    <!-- ... pełny wzorzec zachowany w trace .trc i wklejony 2026-05-23 ... -->
+    <!-- Pełna struktura odtwarzana przez R09UXmlGenerator.cs -->
+</Sprawozdanie>

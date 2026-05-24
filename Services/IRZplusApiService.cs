@@ -439,12 +439,34 @@ namespace Kalendarz1.Services
         }
 
         /// <summary>
-        /// Tworzy obiekt DyspozycjaZURDApi z danych specyfikacji
+        /// Normalizuje numer siedliska/działalności do formatu IRZplus "NNNNNNNNN-NNN".
+        /// Niektóre rekordy w Dostawcy.IRZPlus są zapisane bez myślnika (np. "082134952001")
+        /// co powoduje błąd K0182 "Błędny format lub cyfra kontrolna pola przyjęte z działalności".
+        /// </summary>
+        public static string NormalizujNumerSiedliska(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input)) return input;
+            var s = input.Trim();
+            if (s.Contains("-")) return s; // już ma myślnik — zostaw
+            // wyłuskaj same cyfry
+            var digits = new string(s.Where(char.IsDigit).ToArray());
+            if (digits.Length == 12) return digits.Substring(0, 9) + "-" + digits.Substring(9);
+            if (digits.Length == 9)  return digits + "-001"; // domyślnie pierwsza działalność
+            return s; // nietypowy format — zostaw, ARiMR zwróci błąd diagnostyczny
+        }
+
+        /// <summary>
+        /// Tworzy obiekt DyspozycjaZURDApi z danych specyfikacji.
+        /// Normalizuje PrzyjeteZDzialalnosci na każdej pozycji (chroni przed K0182).
         /// </summary>
         public DyspozycjaZURDApi UtworzDyspozycje(
             string numerPartiiUboju,
             List<PozycjaZURDApi> pozycje)
         {
+            // Normalizuj numer siedliska "przyjęte z działalności" na każdej pozycji
+            foreach (var p in pozycje)
+                p.PrzyjeteZDzialalnosci = NormalizujNumerSiedliska(p.PrzyjeteZDzialalnosci);
+
             return new DyspozycjaZURDApi
             {
                 NumerProducenta = NUMER_PRODUCENTA,

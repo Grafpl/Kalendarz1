@@ -107,6 +107,7 @@ namespace Kalendarz1
 
             chkLogowanie.IsChecked = s.CzyLogowacZmianyDoHistorii;
             chkKomentarz.IsChecked = s.CzyWymagacKomentarzaPrzyZmianie;
+            chkBlokujFakturzystki.IsChecked = s.BlokowacLimityDlaFakturzystek;
 
             if (s.ModifiedAt.HasValue)
                 txtLastModified.Text = $"Zapisano {s.ModifiedAt.Value:yyyy-MM-dd HH:mm} przez {s.ModifiedBy ?? "?"}";
@@ -143,6 +144,7 @@ namespace Kalendarz1
 
             s.CzyLogowacZmianyDoHistorii = chkLogowanie.IsChecked == true;
             s.CzyWymagacKomentarzaPrzyZmianie = chkKomentarz.IsChecked == true;
+            s.BlokowacLimityDlaFakturzystek = chkBlokujFakturzystki.IsChecked == true;
 
             return s;
         }

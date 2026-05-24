@@ -1,0 +1,208 @@
+<!--
+════════════════════════════════════════════════════════════════════════════
+KontraktyEditorWindow.xaml — formularz nowego/edycji kontraktu (Faza 1)
+Część 4 audytu — domyka MVP modułu Kontrakty
+Target: Kontrakty/Windows/KontraktyEditorWindow.xaml(.cs)
+════════════════════════════════════════════════════════════════════════════
+-->
+<Window x:Class="Kalendarz1.Kontrakty.Windows.KontraktyEditorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="📜 Kontrakt — edycja"
+        Height="720" Width="680"
+        WindowStartupLocation="CenterOwner"
+        Background="#F5F7FA" FontFamily="Segoe UI">
+
+    <Window.Resources>
+        <Style x:Key="Lbl" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="#607D8B"/>
+            <Setter Property="Margin" Value="0,8,0,2"/>
+        </Style>
+        <Style x:Key="Fld" TargetType="Control">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="6,4"/>
+            <Setter Property="Margin" Value="0,0,0,2"/>
+        </Style>
+        <Style x:Key="Card" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="14"/>
+            <Setter Property="Margin" Value="0,0,0,10"/>
+        </Style>
+        <Style x:Key="PrimaryBtn" TargetType="Button">
+            <Setter Property="Background" Value="#5C8A3A"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="Margin" Value="4,0"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style x:Key="SecondaryBtn" TargetType="Button" BasedOn="{StaticResource PrimaryBtn}">
+            <Setter Property="Background" Value="#95A5A6"/>
+        </Style>
+    </Window.Resources>
+
+    <DockPanel>
+        <!-- Header -->
+        <Border DockPanel.Dock="Top" Background="#5C8A3A" Padding="14,10">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="📜" FontSize="20" Margin="0,0,8,0"/>
+                <StackPanel>
+                    <TextBlock x:Name="txtTytul" Text="Nowy kontrakt" FontSize="15" FontWeight="Bold" Foreground="White"/>
+                    <TextBlock x:Name="txtNumer" Text="numer nadany przy zapisie" FontSize="10" Foreground="#E8F5E9"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- Footer (przyciski) -->
+        <Border DockPanel.Dock="Bottom" Background="White" Padding="14,10" BorderBrush="#E0E0E0" BorderThickness="0,1,0,0">
+            <Grid>
+                <Button Content="❌ Anuluj" Style="{StaticResource SecondaryBtn}"
+                        HorizontalAlignment="Left" Click="BtnAnuluj_Click"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button x:Name="btnGenerujWord" Content="📄 Generuj Word" Style="{StaticResource SecondaryBtn}"
+                            Click="BtnGenerujWord_Click"/>
+                    <Button Content="💾 Zapisz" Style="{StaticResource PrimaryBtn}" Click="BtnZapisz_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Scrollable form -->
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="14">
+
+                <!-- SEKCJA: Strony umowy -->
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock Text="🤝 STRONY UMOWY" FontWeight="Bold" FontSize="13" Foreground="#37474F"/>
+                        <TextBlock Text="Hodowca (dostawca)" Style="{StaticResource Lbl}"/>
+                        <ComboBox x:Name="cmbDostawca" Style="{StaticResource Fld}" IsEditable="True"
+                                  IsTextSearchEnabled="True" SelectionChanged="CmbDostawca_SelectionChanged"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Margin="0,0,6,0">
+                                <TextBlock Text="NIP" Style="{StaticResource Lbl}"/>
+                                <TextBox x:Name="txtNip" Style="{StaticResource Fld}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Margin="6,0,0,0">
+                                <TextBlock Text="Nr gospodarstwa (ARiMR)" Style="{StaticResource Lbl}"/>
+                                <TextBox x:Name="txtNrGosp" Style="{StaticResource Fld}"/>
+                            </StackPanel>
+                        </Grid>
+                        <TextBlock Text="Adres" Style="{StaticResource Lbl}"/>
+                        <TextBox x:Name="txtAdres" Style="{StaticResource Fld}"/>
+                        <TextBlock Text="Nasz podmiot" Style="{StaticResource Lbl}"/>
+                        <ComboBox x:Name="cmbPodmiot" Style="{StaticResource Fld}">
+                            <ComboBoxItem Content="Piórkowscy" Tag="PIORKOWSCY" IsSelected="True"/>
+                            <ComboBoxItem Content="Piórkowscy sp. z o.o. (po 01.08.2026)" Tag="PIORKOWSCY_SPZOO"/>
+                        </ComboBox>
+                    </StackPanel>
+                </Border>
+
+                <!-- SEKCJA: Typ + terminy -->
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock Text="📅 TYP I TERMINY" FontWeight="Bold" FontSize="13" Foreground="#37474F"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Margin="0,0,6,0">
+                                <TextBlock Text="Typ kontraktu" Style="{StaticResource Lbl}"/>
+                                <ComboBox x:Name="cmbTyp" Style="{StaticResource Fld}" SelectionChanged="CmbTyp_SelectionChanged">
+                                    <ComboBoxItem Content="ARiMR 3-letni" Tag="ARIMR_3LAT" IsSelected="True"/>
+                                    <ComboBoxItem Content="Roczny" Tag="ROCZNY"/>
+                                    <ComboBoxItem Content="Wieczny (czas nieokreślony)" Tag="WIECZNY"/>
+                                    <ComboBoxItem Content="Spot (jednorazowy)" Tag="SPOT"/>
+                                </ComboBox>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Margin="6,0,0,0">
+                                <TextBlock Text="Liczy się do ARiMR (50%)?" Style="{StaticResource Lbl}"/>
+                                <CheckBox x:Name="chkArimr" Content="Tak — pod dotację" Margin="0,6,0,0" IsChecked="True"/>
+                            </StackPanel>
+                        </Grid>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Margin="0,0,4,0">
+                                <TextBlock Text="Data od" Style="{StaticResource Lbl}"/>
+                                <DatePicker x:Name="dpOd" Style="{StaticResource Fld}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Margin="4,0">
+                                <TextBlock Text="Data do (puste = wieczny)" Style="{StaticResource Lbl}"/>
+                                <DatePicker x:Name="dpDo" Style="{StaticResource Fld}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2" Margin="4,0,0,0">
+                                <TextBlock Text="Wypowiedzenie (dni)" Style="{StaticResource Lbl}"/>
+                                <TextBox x:Name="txtWypowiedzenie" Text="90" Style="{StaticResource Fld}"/>
+                            </StackPanel>
+                        </Grid>
+                        <TextBlock Text="Data podpisania" Style="{StaticResource Lbl}"/>
+                        <DatePicker x:Name="dpPodpisania" Style="{StaticResource Fld}" Width="200" HorizontalAlignment="Left"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- SEKCJA: Warunki handlowe -->
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock Text="💰 WARUNKI HANDLOWE" FontWeight="Bold" FontSize="13" Foreground="#37474F"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Margin="0,0,4,0">
+                                <TextBlock Text="% ubytku" Style="{StaticResource Lbl}"/>
+                                <TextBox x:Name="txtUbytku" Text="3.00" Style="{StaticResource Fld}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Margin="4,0">
+                                <TextBlock Text="Cena zł/kg (puste=cennik dnia)" Style="{StaticResource Lbl}"/>
+                                <TextBox x:Name="txtCena" Style="{StaticResource Fld}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2" Margin="4,0,0,0">
+                                <TextBlock Text="Termin płatności (dni)" Style="{StaticResource Lbl}"/>
+                                <TextBox x:Name="txtTermin" Text="21" Style="{StaticResource Fld}"/>
+                            </StackPanel>
+                        </Grid>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Margin="0,0,6,0">
+                                <TextBlock Text="Typ ceny" Style="{StaticResource Lbl}"/>
+                                <ComboBox x:Name="cmbTypCeny" Style="{StaticResource Fld}">
+                                    <ComboBoxItem Content="wolnorynkowa" Tag="wolnorynkowa" IsSelected="True"/>
+                                    <ComboBoxItem Content="rolnicza" Tag="rolnicza"/>
+                                    <ComboBoxItem Content="ministerialna" Tag="ministerialna"/>
+                                    <ComboBoxItem Content="łączona" Tag="laczona"/>
+                                </ComboBox>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Margin="6,0,0,0">
+                                <TextBlock Text="Rozliczana waga" Style="{StaticResource Lbl}"/>
+                                <ComboBox x:Name="cmbWaga" Style="{StaticResource Fld}">
+                                    <ComboBoxItem Content="netto deklarowana hodowcy" Tag="NETTO_HODOWCY" IsSelected="True"/>
+                                    <ComboBoxItem Content="netto z ważenia ubojni" Tag="NETTO_UBOJNI"/>
+                                </ComboBox>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- WALIDACJA -->
+                <TextBlock x:Name="txtWalidacja" Foreground="#E74C3C" FontSize="12" TextWrapping="Wrap" Margin="2,0"/>
+
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</Window>

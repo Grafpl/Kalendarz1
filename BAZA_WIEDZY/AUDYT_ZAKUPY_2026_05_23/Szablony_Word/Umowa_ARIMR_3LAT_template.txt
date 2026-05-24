@@ -1,0 +1,166 @@
+════════════════════════════════════════════════════════════════════════════
+SZABLON: Umowa ARIMR 3-letnia
+Wersja: 1.0 — DRAFT — WYMAGA AKCEPTACJI PRAWNICZKI
+
+INSTRUKCJA: Wklej do Worda, sformatuj, zamień {{bm_xxx}} na bookmarki Worda.
+            Szczegóły: 00_README_jak_zrobic_bookmarki.md
+════════════════════════════════════════════════════════════════════════════
+
+
+                        UMOWA SPRZEDAŻY ŻYWCA DROBIOWEGO
+                                Nr {{bm_NumerKontraktu}}
+
+zawarta w dniu {{bm_DataPodpisania}} w Koziołkach pomiędzy:
+
+  1) {{bm_NazwaPiorkowscy}}
+     z siedzibą w Koziołkach,
+     wpisaną do rejestru przedsiębiorców,
+     reprezentowaną przez: Sergiusza Piórkowskiego — Właściciela,
+     zwaną dalej "Kupującym",
+
+a
+
+  2) {{bm_NazwaHodowcy}}
+     adres: {{bm_AdresHodowcy}}
+     NIP: {{bm_Nip}}
+     Numer gospodarstwa: {{bm_NrGospodarstwa}}
+     zwanym dalej "Sprzedającym".
+
+
+§ 1. PRZEDMIOT UMOWY
+
+1. Sprzedający zobowiązuje się dostarczać Kupującemu żywiec drobiowy (kurczęta brojlery)
+   pochodzący z hodowli prowadzonej na terenie gospodarstwa Sprzedającego.
+
+2. Kupujący zobowiązuje się odbierać żywiec na warunkach określonych w niniejszej umowie
+   i dokonywać zapłaty zgodnie z § 4.
+
+
+§ 2. OKRES OBOWIĄZYWANIA
+
+1. Umowa zostaje zawarta na okres **3 (trzech) lat**, od dnia {{bm_DataOd}}
+   do dnia {{bm_DataDo}}.
+
+2. Umowa może zostać przedłużona pisemnym aneksem podpisanym przez obie Strony
+   nie później niż 30 dni przed jej wygaśnięciem.
+
+3. Niniejsza umowa stanowi podstawę do ubiegania się Kupującego o dofinansowanie
+   ze środków ARiMR i jako taka **nie może zostać jednostronnie rozwiązana** w okresie
+   jej obowiązywania, z wyjątkiem przypadków określonych w § 6.
+
+
+§ 3. WARUNKI HANDLOWE
+
+1. Sprzedający dostarcza żywiec w cyklach produkcyjnych zgodnie z planem ustalanym
+   z Kupującym z wyprzedzeniem co najmniej 7 dni.
+
+2. **Procent ubytku** stosowany przy rozliczeniach wynosi: **{{bm_ProcentUbytku}}**.
+   Procent ubytku obejmuje naturalne ubytki transportowe i wagowe.
+
+3. **Rozliczana waga**: {{bm_RozliczanaWaga}}.
+
+4. **Cena za 1 kg żywca**:
+   - **{{bm_Cena}}**
+   - **Typ ceny**: {{bm_TypCeny}}
+   - Cena podlega okresowej weryfikacji nie częściej niż raz na kwartał,
+     na podstawie pisemnego porozumienia Stron.
+
+
+§ 4. PŁATNOŚCI
+
+1. **Termin płatności**: {{bm_TerminPlatnosci}} od dnia dostarczenia faktury.
+
+2. Płatność następuje przelewem na rachunek bankowy Sprzedającego wskazany
+   w fakturze lub w pisemnej dyspozycji.
+
+3. W razie nieterminowej płatności Kupujący zapłaci odsetki ustawowe.
+
+4. Sprzedający zobowiązuje się wystawić fakturę zgodnie z obowiązującymi przepisami
+   (w tym KSeF od 2026 r.) najpóźniej w terminie 7 dni od odbioru żywca.
+
+
+§ 5. JAKOŚĆ I ZGODNOŚĆ
+
+1. Żywiec dostarczany na podstawie niniejszej umowy musi spełniać:
+   a) wymogi weterynaryjne (świadectwo zdrowia, IRZplus),
+   b) wymogi jakościowe ustalone w specyfikacji surowca (oddzielny dokument),
+   c) standardy dobrostanu zwierząt.
+
+2. W przypadku stwierdzenia padłych powyżej 5% w dostawie, Kupujący zastrzega sobie
+   prawo do reklamacji i zmiany sposobu rozliczenia tej konkretnej dostawy.
+
+3. Sprzedający zobowiązuje się umożliwić Kupującemu wizytację gospodarstwa
+   z wyprzedzeniem 48 godzin.
+
+
+§ 6. WYPOWIEDZENIE I ROZWIĄZANIE
+
+1. Niniejsza umowa może zostać wypowiedziana w okresie obowiązywania wyłącznie:
+   a) za pisemnym porozumieniem Stron,
+   b) z winy jednej ze Stron, w przypadku **rażącego naruszenia warunków umowy**
+      (np. uporczywe niedotrzymywanie terminów, oszustwo wagowe, ukrywanie chorób),
+   c) w przypadku zaistnienia siły wyższej (np. wybuch HPAI).
+
+2. **Okres wypowiedzenia**: {{bm_OkresWypowiedzenia}} od daty doręczenia pisemnego
+   oświadczenia o wypowiedzeniu.
+
+3. Strona wypowiadająca umowę bez podstawy określonej w pkt 1 zobowiązana jest
+   do zapłaty kary umownej w wysokości równowartości zysku Kupującego z umowy
+   przez pozostały okres obowiązywania.
+
+
+§ 7. POSTANOWIENIA KOŃCOWE
+
+1. Wszelkie zmiany umowy wymagają **formy pisemnej** pod rygorem nieważności.
+
+2. W sprawach nieuregulowanych niniejszą umową stosuje się przepisy Kodeksu Cywilnego
+   oraz ustawy o organizacji rynku zbożowego, mięsa i mleka.
+
+3. Spory wynikające z niniejszej umowy rozstrzyga sąd właściwy dla siedziby
+   Kupującego.
+
+4. Umowę sporządzono w dwóch jednobrzmiących egzemplarzach, po jednym dla każdej
+   ze Stron.
+
+5. Sprzedający wyraża zgodę na przetwarzanie danych osobowych przez Kupującego
+   w zakresie niezbędnym do realizacji umowy oraz do celów raportowania wymaganego
+   przez prawo (GUS, ARiMR, ZSRIR, IRZplus, KSeF).
+
+
+PODPISY STRON:
+
+
+   ___________________________                 ___________________________
+
+   Kupujący                                    Sprzedający
+   {{bm_NazwaPiorkowscy}}                      {{bm_NazwaHodowcy}}
+   (Sergiusz Piórkowski)                       (właściciel gospodarstwa)
+
+
+════════════════════════════════════════════════════════════════════════════
+
+UWAGI DLA PRAWNICZKI (do usunięcia przed produkcją):
+
+1. § 2 pkt 3 — sprawdzić zgodność z aktualnymi wymogami ARiMR (rok 2026).
+   Czy zakaz wypowiedzenia jednostronnego musi być explicite w umowie czy wystarczy
+   w regulaminie ARiMR?
+
+2. § 3 pkt 2 — Domyślny ubytek 3%. Czy w skrajnych przypadkach (długi transport,
+   ekstremalne upały) dopuszczamy negocjowane wyższe wartości?
+
+3. § 5 pkt 2 — Próg 5% padłych. Sprawdzić czy to spójne ze specyfikacją surowca
+   i z naszą praktyką (instrukcja Magdy #14).
+
+4. § 6 pkt 3 — Wysokość kary umownej. Czy "równowartość zysku za pozostały okres"
+   jest egzekwowalna? Może lepiej kwota stała (np. 50 000 zł)?
+
+5. § 7 pkt 5 — GDPR / RODO — czy obecny zapis zgody jest wystarczający?
+
+6. Brak klauzuli o **transformacji w sp. z o.o.** (01.08.2026) — czy umowy
+   podpisywane PRZED tą datą wymagają aneksu po transformacji? Czy podstawiamy
+   nową stronę umowy przez bookmark `bm_NazwaPiorkowscy`?
+
+7. Brak klauzuli o **KSeF** (Krajowy System e-Faktur, obowiązkowy 2026) —
+   warto dodać że Sprzedający korzysta z KSeF.
+
+════════════════════════════════════════════════════════════════════════════

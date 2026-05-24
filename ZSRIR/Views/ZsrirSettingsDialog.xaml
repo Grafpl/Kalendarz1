@@ -1,0 +1,200 @@
+<Window x:Class="Kalendarz1.ZSRIR.Views.ZsrirSettingsDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="ZSRIR — ustawienia API"
+        Width="640" Height="540"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        Background="#F2F4F7"
+        FontFamily="Segoe UI"
+        UseLayoutRounding="True">
+
+    <Window.Resources>
+        <SolidColorBrush x:Key="PrimaryBrush" Color="#2E7D32"/>
+        <SolidColorBrush x:Key="PrimaryDarkBrush" Color="#1B5E20"/>
+        <SolidColorBrush x:Key="TextPrimaryBrush" Color="#1F2A36"/>
+        <SolidColorBrush x:Key="TextSecondaryBrush" Color="#5B6772"/>
+        <SolidColorBrush x:Key="TextMutedBrush" Color="#8B95A0"/>
+        <SolidColorBrush x:Key="BorderBrush" Color="#D7DBE0"/>
+        <SolidColorBrush x:Key="BorderSubtleBrush" Color="#EAEDF0"/>
+
+        <Style x:Key="CloseButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Width" Value="44"/>
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#D32F2F"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="PrimaryButton" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource PrimaryBrush}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}"
+                                CornerRadius="4" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#256528"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SecondaryButton" TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}"
+                                BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                                CornerRadius="4" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#F2F4F6"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="10.5"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+            <Setter Property="Margin" Value="0,0,0,4"/>
+        </Style>
+
+        <Style TargetType="TextBox">
+            <Setter Property="Padding" Value="10,7"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Height" Value="34"/>
+        </Style>
+        <Style TargetType="PasswordBox">
+            <Setter Property="Padding" Value="10,7"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Height" Value="34"/>
+        </Style>
+        <Style TargetType="ComboBox">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Height" Value="34"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="44"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Background="{StaticResource PrimaryDarkBrush}" MouseLeftButtonDown="TitleBar_MouseDown">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0,0,0">
+                    <TextBlock Text="⚙" FontSize="14" Foreground="White" Margin="0,0,8,0"/>
+                    <TextBlock Text="ZSRIR — ustawienia API" FontSize="13" FontWeight="SemiBold" Foreground="White"/>
+                </StackPanel>
+                <Button Grid.Column="1" Style="{StaticResource CloseButton}" Click="BtnCancel_Click">
+                    <Path Width="10" Height="10" Stretch="Uniform" Stroke="White" StrokeThickness="1.4"
+                          Data="M 0,0 L 10,10 M 10,0 L 0,10"/>
+                </Button>
+            </Grid>
+        </Border>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="24">
+            <StackPanel>
+                <TextBlock Text="🔐 Login + hasło service account"
+                           FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,10"/>
+                <TextBlock Text="Konto API z portalu zsrir.minrol.gov.pl. Dla bezpieczeństwa używaj osobnego konta service account, nie konta admina WWW."
+                           FontSize="11.5" TextWrapping="Wrap" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,16"/>
+
+                <TextBlock Style="{StaticResource FieldLabel}" Text="LOGIN (email)"/>
+                <TextBox x:Name="txtUsername" Margin="0,0,0,12"/>
+
+                <TextBlock Style="{StaticResource FieldLabel}" Text="HASŁO"/>
+                <PasswordBox x:Name="txtPassword" Margin="0,0,0,12"/>
+
+                <TextBlock Style="{StaticResource FieldLabel}" Text="API BASE URL"/>
+                <TextBox x:Name="txtApiUrl" Margin="0,0,0,22"/>
+
+                <Border BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="0,1,0,0" Margin="0,0,0,16"/>
+
+                <TextBlock Text="🏢 Dostawca i formularz"
+                           FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,10"/>
+                <TextBlock Text="Po podaniu loginu kliknij ‘Pobierz z API’ — zaczyta listę dostawców i formularzy. Wybierz "
+                           FontSize="11.5" TextWrapping="Wrap" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,14">
+                    <Run Text="dostawcę"/>
+                    <Run Text=" (zwykle jedna firma) oraz formularz "/>
+                    <Run Text="‘Drób rzeźny’" FontWeight="SemiBold"/>
+                    <Run Text="."/>
+                </TextBlock>
+
+                <Button x:Name="btnFetchMeta" Style="{StaticResource SecondaryButton}" Click="BtnFetchMeta_Click"
+                        HorizontalAlignment="Left" Margin="0,0,0,12" Padding="11,6">
+                    <TextBlock Text="📥  Pobierz dostawców i formularze z API"/>
+                </Button>
+
+                <TextBlock Style="{StaticResource FieldLabel}" Text="DOSTAWCA"/>
+                <ComboBox x:Name="cmbDataSupplier" DisplayMemberPath="Name" Margin="0,0,0,12"/>
+
+                <TextBlock Style="{StaticResource FieldLabel}" Text="FORMULARZ"/>
+                <ComboBox x:Name="cmbForm" DisplayMemberPath="Name" Margin="0,0,0,12"/>
+
+                <TextBlock x:Name="lblMetaStatus" Text="" FontSize="11" Foreground="{StaticResource TextMutedBrush}" TextWrapping="Wrap"/>
+            </StackPanel>
+        </ScrollViewer>
+
+        <Border Grid.Row="2" Background="White" Padding="20,14" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="0,1,0,0">
+            <Grid>
+                <TextBlock x:Name="lblSecretsPath" Text="" FontSize="10" Foreground="{StaticResource TextMutedBrush}"
+                           VerticalAlignment="Center" HorizontalAlignment="Left" TextTrimming="CharacterEllipsis"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Style="{StaticResource SecondaryButton}" Click="BtnCancel_Click" Margin="0,0,8,0">
+                        <TextBlock Text="Anuluj"/>
+                    </Button>
+                    <Button Style="{StaticResource PrimaryButton}" Click="BtnSave_Click">
+                        <TextBlock Text="💾  Zapisz"/>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

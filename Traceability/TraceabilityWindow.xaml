@@ -1,0 +1,243 @@
+<Window x:Class="Kalendarz1.Traceability.TraceabilityWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Traceability — śledzenie palet + recall" Height="760" Width="1180"
+        WindowStartupLocation="CenterScreen" Background="White"
+        UseLayoutRounding="True" TextOptions.TextFormattingMode="Display">
+    <Window.Resources>
+        <SolidColorBrush x:Key="TextPrimary" Color="#0F172A"/>
+        <SolidColorBrush x:Key="TextMuted" Color="#94A3B8"/>
+        <SolidColorBrush x:Key="BorderColor" Color="#E2E8F0"/>
+        <SolidColorBrush x:Key="Surface" Color="#F8FAFC"/>
+        <Style TargetType="TextBox">
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Padding" Value="6,0"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+        <Style x:Key="Lbl" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="{StaticResource TextMuted}"/>
+            <Setter Property="Margin" Value="0,6,0,2"/>
+        </Style>
+    </Window.Resources>
+
+    <TabControl Margin="0" BorderThickness="0">
+        <!-- ════ TAB 1: Rejestracja palety ════ -->
+        <TabItem Header="📦 Rejestracja palety">
+            <Grid Margin="20">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="380"/>
+                    <ColumnDefinition Width="20"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Formularz -->
+                <Border Grid.Column="0" Background="{StaticResource Surface}" BorderBrush="{StaticResource BorderColor}"
+                        BorderThickness="1" CornerRadius="10" Padding="18">
+                    <StackPanel>
+                        <TextBlock Text="Nowa paleta wyrobu" FontSize="16" FontWeight="Bold"
+                                   Foreground="{StaticResource TextPrimary}"/>
+                        <Grid Margin="0,8,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Style="{StaticResource Lbl}" Text="Lot number"/>
+                            <Button Grid.Column="1" Content="Generuj" Padding="8,2" Margin="0,4,0,0"
+                                    FontSize="11" Click="BtnGenerujLot_Click"/>
+                        </Grid>
+                        <TextBox x:Name="txtLot" FontWeight="Bold"/>
+
+                        <TextBlock Style="{StaticResource Lbl}" Text="Towar (nazwa)"/>
+                        <TextBox x:Name="txtTowar"/>
+                        <TextBlock Style="{StaticResource Lbl}" Text="Kod towaru"/>
+                        <TextBox x:Name="txtKodTowaru"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Style="{StaticResource Lbl}" Text="Waga kg"/>
+                                <TextBox x:Name="txtWaga"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Style="{StaticResource Lbl}" Text="Liczba sztuk"/>
+                                <TextBox x:Name="txtSztuk"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <TextBlock Style="{StaticResource Lbl}" Text="Dodaj partię surową do składu"/>
+                        <ComboBox x:Name="cbPartia" Height="32" IsEditable="True" DisplayMemberPath="Partia"
+                                  FontSize="13"/>
+                        <Button Content="➕ Dodaj do składu" Padding="8,4" Margin="0,6,0,0"
+                                Click="BtnDodajSklad_Click"/>
+
+                        <Button x:Name="btnZapiszPalete" Content="💾 Zarejestruj paletę" Height="40"
+                                FontSize="14" FontWeight="SemiBold" Background="#2563EB" Foreground="White"
+                                BorderThickness="0" Cursor="Hand" Margin="0,14,0,0" Click="BtnZapiszPalete_Click"/>
+                        <TextBlock x:Name="txtKomunikatRej" FontSize="12" Margin="0,8,0,0" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Skład bieżący -->
+                <Border Grid.Column="2" BorderBrush="{StaticResource BorderColor}" BorderThickness="1" CornerRadius="10">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Top" Text="Skład palety (partie surowe → hodowcy)"
+                                   FontWeight="Bold" FontSize="14" Margin="14,12,14,8"
+                                   Foreground="{StaticResource TextPrimary}"/>
+                        <DataGrid x:Name="dgSklad" AutoGenerateColumns="False" IsReadOnly="True"
+                                  HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                  BorderThickness="0" RowHeight="32" FontSize="12.5">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Partia" Binding="{Binding Partia}" Width="120"/>
+                                <DataGridTextColumn Header="Hodowca" Binding="{Binding CustomerName}" Width="*"/>
+                                <DataGridTextColumn Header="Udział kg" Binding="{Binding UdzialFormatted}" Width="100"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </DockPanel>
+                </Border>
+            </Grid>
+        </TabItem>
+
+        <!-- ════ TAB 2: Reverse Trace ════ -->
+        <TabItem Header="🔍 Reverse Trace">
+            <Grid Margin="20">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,12">
+                    <TextBlock Text="Lot number:" VerticalAlignment="Center" FontSize="14"
+                               Foreground="{StaticResource TextPrimary}" Margin="0,0,8,0"/>
+                    <TextBox x:Name="txtLotSzukaj" Width="240" Height="34" FontSize="14"/>
+                    <Button Content="🔍 Szukaj źródła" Padding="14,6" Margin="8,0,0,0" Click="BtnReverse_Click"/>
+                </StackPanel>
+
+                <Border Grid.Row="1" x:Name="boxPaleta" Background="{StaticResource Surface}"
+                        BorderBrush="{StaticResource BorderColor}" BorderThickness="1" CornerRadius="10"
+                        Padding="16" Margin="0,0,0,12" Visibility="Collapsed">
+                    <StackPanel>
+                        <TextBlock x:Name="txtPaletaInfo" FontSize="15" FontWeight="Bold"
+                                   Foreground="{StaticResource TextPrimary}"/>
+                        <TextBlock x:Name="txtPaletaMeta" FontSize="12" Foreground="{StaticResource TextMuted}" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <Grid Grid.Row="2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="14"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Border Grid.Column="0" BorderBrush="{StaticResource BorderColor}" BorderThickness="1" CornerRadius="10">
+                        <DockPanel>
+                            <TextBlock DockPanel.Dock="Top" Text="🐔 Skład (hodowcy)" FontWeight="Bold" FontSize="13"
+                                       Margin="14,12,14,8" Foreground="{StaticResource TextPrimary}"/>
+                            <DataGrid x:Name="dgRevSklad" AutoGenerateColumns="False" IsReadOnly="True"
+                                      HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                      BorderThickness="0" RowHeight="32" FontSize="12.5">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Partia" Binding="{Binding Partia}" Width="110"/>
+                                    <DataGridTextColumn Header="Hodowca" Binding="{Binding CustomerName}" Width="*"/>
+                                    <DataGridTextColumn Header="Udział" Binding="{Binding UdzialFormatted}" Width="90"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </DockPanel>
+                    </Border>
+
+                    <Border Grid.Column="2" BorderBrush="{StaticResource BorderColor}" BorderThickness="1" CornerRadius="10">
+                        <DockPanel>
+                            <TextBlock DockPanel.Dock="Top" Text="🚚 Wydania (klienci)" FontWeight="Bold" FontSize="13"
+                                       Margin="14,12,14,8" Foreground="{StaticResource TextPrimary}"/>
+                            <DataGrid x:Name="dgRevWydania" AutoGenerateColumns="False" IsReadOnly="True"
+                                      HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                      BorderThickness="0" RowHeight="32" FontSize="12.5">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Data" Binding="{Binding DataFormatted}" Width="130"/>
+                                    <DataGridTextColumn Header="Klient" Binding="{Binding KlientNazwa}" Width="*"/>
+                                    <DataGridTextColumn Header="Dok." Binding="{Binding NumerDokumentu}" Width="90"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </DockPanel>
+                    </Border>
+                </Grid>
+            </Grid>
+        </TabItem>
+
+        <!-- ════ TAB 3: Recall ════ -->
+        <TabItem Header="🚨 Recall">
+            <Grid Margin="20">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="340"/>
+                    <ColumnDefinition Width="20"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Inicjacja -->
+                <Border Grid.Column="0" Background="#FEF2F2" BorderBrush="#FECACA"
+                        BorderThickness="1" CornerRadius="10" Padding="18">
+                    <StackPanel>
+                        <TextBlock Text="🚨 Inicjuj recall" FontSize="16" FontWeight="Bold" Foreground="#991B1B"/>
+                        <TextBlock Style="{StaticResource Lbl}" Text="Typ zakresu"/>
+                        <ComboBox x:Name="cbTypZakresu" Height="32" FontSize="13" SelectedIndex="0">
+                            <ComboBoxItem Content="PARTIA"/>
+                            <ComboBoxItem Content="HODOWCA"/>
+                            <ComboBoxItem Content="DATA"/>
+                            <ComboBoxItem Content="TOWAR"/>
+                        </ComboBox>
+                        <TextBlock Style="{StaticResource Lbl}" Text="Identyfikator (nr partii / ID hodowcy / data RRRR-MM-DD / kod towaru)"/>
+                        <TextBox x:Name="txtZakresIdent"/>
+                        <TextBlock Style="{StaticResource Lbl}" Text="Kategoria"/>
+                        <ComboBox x:Name="cbKategoria" Height="32" FontSize="13" SelectedIndex="3">
+                            <ComboBoxItem Content="BEZPIECZENSTWO"/>
+                            <ComboBoxItem Content="ALERGENY"/>
+                            <ComboBoxItem Content="MIKROBIOLOGIA"/>
+                            <ComboBoxItem Content="JAKOSC"/>
+                            <ComboBoxItem Content="INNE"/>
+                        </ComboBox>
+                        <TextBlock Style="{StaticResource Lbl}" Text="Powód"/>
+                        <TextBox x:Name="txtPowod" Height="56" TextWrapping="Wrap" AcceptsReturn="True"
+                                 VerticalContentAlignment="Top" Padding="6,4"/>
+
+                        <Button Content="🔎 Sprawdź zakres" Padding="10,5" Margin="0,10,0,0"
+                                Click="BtnSprawdzZakres_Click"/>
+                        <TextBlock x:Name="txtZakresPodglad" FontSize="12" Margin="0,8,0,0" TextWrapping="Wrap"
+                                   Foreground="#991B1B"/>
+
+                        <Button x:Name="btnInicjujRecall" Content="🚨 INICJUJ RECALL" Height="42"
+                                FontSize="14" FontWeight="Bold" Background="#DC2626" Foreground="White"
+                                BorderThickness="0" Cursor="Hand" Margin="0,12,0,0" Click="BtnInicjujRecall_Click"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Lista recalli -->
+                <Border Grid.Column="2" BorderBrush="{StaticResource BorderColor}" BorderThickness="1" CornerRadius="10">
+                    <DockPanel>
+                        <Grid DockPanel.Dock="Top" Margin="14,12,14,8">
+                            <TextBlock Text="📋 Historia recalli" FontWeight="Bold" FontSize="14"
+                                       Foreground="{StaticResource TextPrimary}"/>
+                            <Button Content="↻" HorizontalAlignment="Right" Width="32" Click="BtnOdswiezRecall_Click"/>
+                        </Grid>
+                        <DataGrid x:Name="dgRecalle" AutoGenerateColumns="False" IsReadOnly="True"
+                                  HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                  BorderThickness="0" RowHeight="36" FontSize="12.5">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Numer" Binding="{Binding RecallNumber}" Width="120"/>
+                                <DataGridTextColumn Header="Data" Binding="{Binding DataFormatted}" Width="120"/>
+                                <DataGridTextColumn Header="Zakres" Binding="{Binding ZakresFormatted}" Width="150"/>
+                                <DataGridTextColumn Header="Podsumowanie" Binding="{Binding PodsumowanieFormatted}" Width="*"/>
+                                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="90"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </DockPanel>
+                </Border>
+            </Grid>
+        </TabItem>
+    </TabControl>
+</Window>

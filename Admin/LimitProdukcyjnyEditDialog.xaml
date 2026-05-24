@@ -199,12 +199,27 @@
 
                 <!-- LEFT: Form -->
                 <StackPanel Grid.Column="0">
-                    <Border Style="{StaticResource Card}" Margin="0,0,0,16">
+                    <!-- Quick presets — one-click wypełnia formę -->
+                    <Border Style="{StaticResource Card}" Margin="0,0,0,12">
                         <StackPanel>
-                            <TextBlock Text="📛 Identyfikacja grupy" Style="{StaticResource Label}" FontSize="14"/>
+                            <TextBlock Text="⚡ Szybki wybór" Style="{StaticResource Label}" FontSize="14"/>
+                            <TextBlock Style="{StaticResource HelpLabel}" Text="Kliknij gotowy szablon — wypełni formularz za ciebie."/>
+                            <WrapPanel>
+                                <Button Tag="Kurczak A|🍗|KURCZAK A|H|92"  Click="BtnPreset_Click" Content="🍗 Kurczak A"  Style="{StaticResource GhostButton}" Margin="0,4,6,0"/>
+                                <Button Tag="Filet A|🍖|FILET A|K|92"      Click="BtnPreset_Click" Content="🍖 Filet A"   Style="{StaticResource GhostButton}" Margin="0,4,6,0"/>
+                                <Button Tag="Ćwiartka|🍗|ĆWIARTKA|K|92"     Click="BtnPreset_Click" Content="🍗 Ćwiartka"  Style="{StaticResource GhostButton}" Margin="0,4,6,0"/>
+                                <Button Tag="Skrzydło|🐔|SKRZYDŁO|K|92"     Click="BtnPreset_Click" Content="🐔 Skrzydło"  Style="{StaticResource GhostButton}" Margin="0,4,6,0"/>
+                                <Button Tag="Nóżka|🍗|NÓŻKA|K|92"           Click="BtnPreset_Click" Content="🍗 Nóżka"     Style="{StaticResource GhostButton}" Margin="0,4,6,0"/>
+                                <Button Tag="Korpus|🦴|KORPUS|K|92"          Click="BtnPreset_Click" Content="🦴 Korpus"    Style="{StaticResource GhostButton}" Margin="0,4,6,0"/>
+                            </WrapPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{StaticResource Card}" Margin="0,0,0,12">
+                        <StackPanel>
                             <Grid Margin="0,4,0,0">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="80"/>
+                                    <ColumnDefinition Width="72"/>
                                     <ColumnDefinition Width="12"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
@@ -213,13 +228,12 @@
                                     <TextBox x:Name="TxtIkona" Text="🍗" FontSize="22" HorizontalContentAlignment="Center"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="2">
-                                    <TextBlock Text="Nazwa grupy" Style="{StaticResource Label}"/>
+                                    <TextBlock Text="Nazwa" Style="{StaticResource Label}"/>
                                     <TextBox x:Name="TxtNazwa" />
-                                    <TextBlock Style="{StaticResource HelpLabel}" Text="Wyświetlana w komunikacie błędu, w panelu admina i podglądzie."/>
                                 </StackPanel>
                             </Grid>
 
-                            <TextBlock Text="Wzorzec dopasowania" Style="{StaticResource Label}"/>
+                            <TextBlock Text="Szukaj towaru" Style="{StaticResource Label}" Margin="0,12,0,6"/>
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
@@ -228,13 +242,36 @@
                                 </Grid.ColumnDefinitions>
                                 <ComboBox x:Name="CmbWzorzec" IsEditable="True" StaysOpenOnEdit="True"
                                           FontFamily="Consolas" MinHeight="36"
-                                          TextSearch.TextPath="Nazwa"
-                                          IsTextSearchEnabled="True" IsTextSearchCaseSensitive="False"
+                                          IsTextSearchEnabled="False"
                                           SelectionChanged="CmbWzorzec_SelectionChanged"
                                           Loaded="CmbWzorzec_Loaded">
+                                    <ComboBox.Resources>
+                                        <Style TargetType="ComboBoxItem">
+                                            <Setter Property="Padding" Value="8,6"/>
+                                            <Setter Property="Margin" Value="4,2"/>
+                                            <Setter Property="Cursor" Value="Hand"/>
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="ComboBoxItem">
+                                                        <Border x:Name="bd" Background="Transparent" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                            <ContentPresenter/>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter TargetName="bd" Property="Background" Value="#EEF2FF"/>
+                                                            </Trigger>
+                                                            <Trigger Property="IsHighlighted" Value="True">
+                                                                <Setter TargetName="bd" Property="Background" Value="#E0E7FF"/>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </ComboBox.Resources>
                                     <ComboBox.ItemTemplate>
                                         <DataTemplate>
-                                            <Grid>
+                                            <Grid ToolTip="{Binding Nazwa}">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="36"/>
                                                     <ColumnDefinition Width="*"/>
@@ -246,7 +283,7 @@
                                                     </Grid>
                                                 </Border>
                                                 <StackPanel Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding Nazwa}" FontFamily="Segoe UI" FontSize="12" FontWeight="SemiBold"/>
+                                                    <TextBlock Text="{Binding Nazwa}" FontFamily="Segoe UI" FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
                                                     <TextBlock FontSize="10" Foreground="#64748B" FontFamily="Consolas">
                                                         <Run Text="{Binding Kod}"/><Run Text=" · #"/><Run Text="{Binding Id}"/>
                                                     </TextBlock>
@@ -266,33 +303,33 @@
                                     <TextBlock Text="📋 Z bazy" FontSize="12" FontWeight="SemiBold"/>
                                 </Button>
                             </Grid>
-                            <TextBlock Style="{StaticResource HelpLabel}">
-                                Wpisz lub wybierz z listy. Każdy towar którego nazwa <Italic>zawiera</Italic> ten tekst (case-insensitive) — należy do grupy.
-                                <LineBreak/>
-                                <Bold>Przykłady:</Bold> <Run FontFamily="Consolas">KURCZAK A</Run> · <Run FontFamily="Consolas">FILET A</Run> · <Run FontFamily="Consolas">ĆWIARTKA</Run>
-                            </TextBlock>
+                            <TextBlock Style="{StaticResource HelpLabel}" Text="Wpisz fragment nazwy lub wybierz z listy."/>
                         </StackPanel>
                     </Border>
 
-                    <Border Style="{StaticResource Card}" Margin="0,0,0,16">
+                    <Border Style="{StaticResource Card}" Margin="0,0,0,12">
                         <StackPanel>
-                            <TextBlock Text="📊 Jak liczyć plan na dany dzień ubojowy" Style="{StaticResource Label}" FontSize="14"/>
+                            <TextBlock Text="📊 Jak liczyć ile mamy do dyspozycji" Style="{StaticResource Label}" FontSize="14"/>
+
+                            <RadioButton x:Name="RbKonfiguracja" GroupName="Sposob" Style="{StaticResource CardRadio}" Checked="Sposob_Checked">
+                                <StackPanel>
+                                    <TextBlock FontWeight="SemiBold" Text="✅ Z Podsumowania dnia (zalecane)"/>
+                                    <TextBlock Style="{StaticResource HelpLabel}" Margin="0,2,0,0" Text="Plan i stan dokładnie takie jak w panelu 'Podsumowanie dnia' (KonfiguracjaProduktow). Najprostsze i najpewniejsze."/>
+                                </StackPanel>
+                            </RadioButton>
 
                             <RadioButton x:Name="RbHarmonogram" GroupName="Sposob" Style="{StaticResource CardRadio}" Checked="Sposob_Checked">
                                 <StackPanel>
-                                    <TextBlock FontWeight="SemiBold" Text="Plan z HarmonogramDostaw (dla Kurczaka A)"/>
-                                    <TextBlock Style="{StaticResource HelpLabel}" Margin="0,2,0,0"
-                                               Text="Plan = Σ(WagaDek × SztukiDek) × WspolczynnikTuszki% × ProcentTuszkaA% (z KonfiguracjaWydajnosci)"/>
+                                    <TextBlock FontWeight="SemiBold" Text="🐔 Tak jak Kurczak A"/>
+                                    <TextBlock Style="{StaticResource HelpLabel}" Margin="0,2,0,0" Text="Plan z HarmonogramDostaw × WspTuszki × %TuszkaA. Wybierz dla głównej grupy Kurczaka A."/>
                                 </StackPanel>
                             </RadioButton>
 
                             <RadioButton x:Name="RbProcent" GroupName="Sposob" Style="{StaticResource CardRadio}" Checked="Sposob_Checked">
                                 <StackPanel>
-                                    <TextBlock FontWeight="SemiBold" Text="% planu Kurczaka A (dla Filet / Ćwiartka / elementów)"/>
-                                    <TextBlock Style="{StaticResource HelpLabel}" Margin="0,2,0,4"
-                                               Text="Plan = X% planu Kurczaka A. Np. jeśli z tuszki wychodzi ~35% fileta, ustaw 35."/>
+                                    <TextBlock FontWeight="SemiBold" Text="📐 Procent z Kurczaka A"/>
+                                    <TextBlock Style="{StaticResource HelpLabel}" Margin="0,2,0,4" Text="Np. Filet to ~35% tuszki, Ćwiartka ~22%."/>
                                     <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                        <TextBlock Text="X = " VerticalAlignment="Center" Margin="0,0,8,0"/>
                                         <TextBox x:Name="TxtProcentZKurczakaA" Width="80" Text="35"/>
                                         <TextBlock Text="%" VerticalAlignment="Center" Margin="6,0,0,0"/>
                                     </StackPanel>
@@ -301,9 +338,8 @@
 
                             <RadioButton x:Name="RbStaly" GroupName="Sposob" Style="{StaticResource CardRadio}" Checked="Sposob_Checked">
                                 <StackPanel>
-                                    <TextBlock FontWeight="SemiBold" Text="Stała wartość kg / dzień"/>
-                                    <TextBlock Style="{StaticResource HelpLabel}" Margin="0,2,0,4"
-                                               Text="Niezależna od HarmonogramDostaw. Np. 'Ćwiartka — 500 kg/dzień'."/>
+                                    <TextBlock FontWeight="SemiBold" Text="💰 Stała ilość kg / dzień"/>
+                                    <TextBlock Style="{StaticResource HelpLabel}" Margin="0,2,0,4" Text="Sztywna wartość niezależna od planu."/>
                                     <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                                         <TextBox x:Name="TxtPlanStaly" Width="140" Text="500"/>
                                         <TextBlock Text="kg/dzień" VerticalAlignment="Center" Margin="8,0,0,0"/>
@@ -313,7 +349,7 @@
                         </StackPanel>
                     </Border>
 
-                    <Border Style="{StaticResource Card}" Margin="0,0,0,16">
+                    <Border Style="{StaticResource Card}" Margin="0,0,0,12">
                         <StackPanel>
                             <TextBlock Text="🎯 Limit (% z planu + stanu)" Style="{StaticResource Label}" FontSize="14"/>
                             <Grid>
@@ -327,38 +363,34 @@
                                     <TextBlock x:Name="LblLimitValue" Text="92%" FontSize="20" FontWeight="Bold" Foreground="#92400E" HorizontalAlignment="Center"/>
                                 </Border>
                             </Grid>
-                            <TextBlock Style="{StaticResource HelpLabel}">
-                                Limit dla grupy = (Plan + Stan z poprzedniego dnia) × <Run FontWeight="Bold">tym procentem</Run>.
-                                Jeśli suma zamówień przekroczy tę wartość, aplikacja zablokuje dodawanie.
-                            </TextBlock>
+                            <!-- Live preview: ile to kg dla dziś -->
+                            <Border x:Name="LivePreviewBox" Background="#F0FDF4" BorderBrush="#86EFAC" BorderThickness="1" CornerRadius="8" Padding="10,8" Margin="0,10,0,0" Visibility="Collapsed">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock>
+                                        <Run Text="💡 Dziś to limit:" Foreground="#15803D" FontSize="12"/>
+                                    </TextBlock>
+                                    <TextBlock Grid.Column="1" x:Name="LblLivePreviewKg" Text="—" FontWeight="Bold" FontSize="16" Foreground="#15803D"/>
+                                </Grid>
+                            </Border>
                         </StackPanel>
                     </Border>
 
                     <Border Style="{StaticResource Card}">
-                        <StackPanel>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel>
-                                    <TextBlock Text="🟢 Aktywny" FontWeight="SemiBold" FontSize="14"/>
-                                    <TextBlock Style="{StaticResource HelpLabel}" Text="Wyłączone grupy NIE są używane w walidacji zamówień."/>
-                                </StackPanel>
-                                <CheckBox Grid.Column="1" x:Name="ChkAktywny" IsChecked="True" VerticalAlignment="Center" Margin="16,0,0,0"/>
-                            </Grid>
-                            <Grid Margin="0,12,0,0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="120"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel>
-                                    <TextBlock Text="↕️ Kolejność" FontWeight="SemiBold"/>
-                                    <TextBlock Style="{StaticResource HelpLabel}" Text="Wpływa na sortowanie listy w panelu admina."/>
-                                </StackPanel>
-                                <TextBox Grid.Column="1" x:Name="TxtKolejnosc" Text="0" HorizontalContentAlignment="Center"/>
-                            </Grid>
-                        </StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="🟢 Aktywny" FontWeight="SemiBold" FontSize="14"/>
+                                <TextBlock Style="{StaticResource HelpLabel}" Text="Wyłączone grupy nie blokują zamówień."/>
+                            </StackPanel>
+                            <CheckBox Grid.Column="1" x:Name="ChkAktywny" IsChecked="True" VerticalAlignment="Center" Margin="16,0,0,0"/>
+                        </Grid>
                     </Border>
                 </StackPanel>
 

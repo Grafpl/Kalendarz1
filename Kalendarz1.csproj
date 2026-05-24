@@ -28,6 +28,11 @@
     <EmbeddedResource Remove="ZPSP.Launcher\**" />
     <!-- DEPLOY scripts excluded -->
     <None Remove="DEPLOY\**" />
+    <!-- BAZA_WIEDZY to folder dokumentacji/audytów/instrukcji (md, sql, txt, kod startowy referencyjny). NIE kompilować. -->
+    <Compile Remove="BAZA_WIEDZY\**" />
+    <None Remove="BAZA_WIEDZY\**" />
+    <Page Remove="BAZA_WIEDZY\**" />
+    <EmbeddedResource Remove="BAZA_WIEDZY\**" />
     <EmbeddedResource Remove="Kalendarz\**" />
     <EmbeddedResource Remove="Menu\**" />
     <EmbeddedResource Remove="Nowy folder2\**" />

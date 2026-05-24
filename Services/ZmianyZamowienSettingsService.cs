@@ -22,6 +22,12 @@ namespace Kalendarz1.Services
         public bool CzyWymagacKomentarzaPrzyZmianie { get; set; }
         public bool CzyLogowacZmianyDoHistorii { get; set; } = true;
         public string DniTygodniaAktywne { get; set; } = "1,2,3,4,5";
+        /// <summary>
+        /// Czy walidacja limitów produkcyjnych (Kurczak A 92% itp.) ma obowiązywać też fakturzystki
+        /// otwierające okno z Panel Faktur? Default false — fakturzystka zawsze przepuszcza zamówienie,
+        /// limity blokują tylko handlowców tworzących zamówienia z menu "Zamówienia Klientów".
+        /// </summary>
+        public bool BlokowacLimityDlaFakturzystek { get; set; } = false;
         public DateTime? ModifiedAt { get; set; }
         public string? ModifiedBy { get; set; }
     }
@@ -116,6 +122,7 @@ namespace Kalendarz1.Services
                         CzyWymagacKomentarzaPrzyZmianie = (bool)rdr["CzyWymagacKomentarzaPrzyZmianie"],
                         CzyLogowacZmianyDoHistorii = (bool)rdr["CzyLogowacZmianyDoHistorii"],
                         DniTygodniaAktywne = rdr["DniTygodniaAktywne"]?.ToString() ?? "1,2,3,4,5",
+                        BlokowacLimityDlaFakturzystek = HasCol(rdr, "BlokowacLimityDlaFakturzystek") && rdr["BlokowacLimityDlaFakturzystek"] != DBNull.Value && (bool)rdr["BlokowacLimityDlaFakturzystek"],
                         ModifiedAt = rdr["ModifiedAt"] == DBNull.Value ? null : (DateTime)rdr["ModifiedAt"],
                         ModifiedBy = rdr["ModifiedBy"]?.ToString()
                     };
@@ -169,6 +176,7 @@ namespace Kalendarz1.Services
                         CzyWymagacKomentarzaPrzyZmianie = @Komentarz,
                         CzyLogowacZmianyDoHistorii = @Logowanie,
                         DniTygodniaAktywne = @Dni,
+                        BlokowacLimityDlaFakturzystek = @BlokowacFakt,
                         ModifiedAt = GETDATE(),
                         ModifiedBy = @ModifiedBy
                 ELSE
@@ -176,12 +184,12 @@ namespace Kalendarz1.Services
                         (GodzinaOdKtorejPowiadamiac, GodzinaBlokadyEdycji, CzyBlokowacEdycjePoGodzinie,
                          KafelkiDocelowe, RodzajPowiadomienia, MinimalnaZmianaKgDoPowiadomienia,
                          CzyWymagacKomentarzaPrzyZmianie, CzyLogowacZmianyDoHistorii,
-                         DniTygodniaAktywne, ModifiedBy)
+                         DniTygodniaAktywne, BlokowacLimityDlaFakturzystek, ModifiedBy)
                     VALUES
                         (@Godzina, @GodzinaBlokady, @Blokada,
                          @Kafelki, @Rodzaj, @MinKg,
                          @Komentarz, @Logowanie,
-                         @Dni, @ModifiedBy)";
+                         @Dni, @BlokowacFakt, @ModifiedBy)";
 
             await using var cmd = new SqlCommand(sql, cn);
             cmd.Parameters.AddWithValue("@Godzina", settings.GodzinaOdKtorejPowiadamiac);
@@ -193,6 +201,7 @@ namespace Kalendarz1.Services
             cmd.Parameters.AddWithValue("@Komentarz", settings.CzyWymagacKomentarzaPrzyZmianie);
             cmd.Parameters.AddWithValue("@Logowanie", settings.CzyLogowacZmianyDoHistorii);
             cmd.Parameters.AddWithValue("@Dni", settings.DniTygodniaAktywne ?? "1,2,3,4,5");
+            cmd.Parameters.AddWithValue("@BlokowacFakt", settings.BlokowacLimityDlaFakturzystek);
             cmd.Parameters.AddWithValue("@ModifiedBy", modifiedBy ?? "SYSTEM");
 
             await cmd.ExecuteNonQueryAsync();
@@ -450,6 +459,13 @@ namespace Kalendarz1.Services
         // ═══════════════════════════════════════════════════════════════
         // AUTO-CREATE TABLES
         // ═══════════════════════════════════════════════════════════════
+        private static bool HasCol(System.Data.IDataReader rdr, string col)
+        {
+            try { for (int i = 0; i < rdr.FieldCount; i++) if (string.Equals(rdr.GetName(i), col, StringComparison.OrdinalIgnoreCase)) return true; }
+            catch { }
+            return false;
+        }
+
         private static void EnsureTablesSync(SqlConnection cn)
         {
             var sql = @"
@@ -473,9 +489,11 @@ namespace Kalendarz1.Services
                 END
                 ELSE
                 BEGIN
-                    -- Migracja: dodaj nową kolumnę jeśli nie istnieje
+                    -- Migracja: dodaj nowe kolumny jeśli nie istnieją
                     IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('UstawieniaZmianZamowien') AND name = 'KafelkiDocelowe')
                         ALTER TABLE [dbo].[UstawieniaZmianZamowien] ADD [KafelkiDocelowe] NVARCHAR(MAX) NOT NULL DEFAULT '';
+                    IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('UstawieniaZmianZamowien') AND name = 'BlokowacLimityDlaFakturzystek')
+                        ALTER TABLE [dbo].[UstawieniaZmianZamowien] ADD [BlokowacLimityDlaFakturzystek] BIT NOT NULL DEFAULT 0;
                 END
 
                 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[UstawieniaZmianZamowien_Wylaczenia]') AND type = N'U')

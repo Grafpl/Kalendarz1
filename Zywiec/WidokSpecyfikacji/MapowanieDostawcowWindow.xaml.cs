@@ -4,73 +4,72 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
 
 namespace Kalendarz1.Zywiec.WidokSpecyfikacji
 {
     /// <summary>
-    /// Okno mapowania dostawców z LibraNet do kontrahentów w Symfonii Handel
+    /// Mapowanie LibraNet.Dostawcy → Symfonia.STContractors.
+    /// V2: jeden DataGrid z inline autocomplete per wiersz. Brak osobnej listy kontrahentów.
     /// </summary>
-    public partial class MapowanieDostawcowWindow : Window, INotifyPropertyChanged
+    public partial class MapowanieDostawcowWindow : Window
     {
-        private string libraNetConnectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
-        private string symfoniaConnectionString = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
+        private const string ConnLibra   = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+        private const string ConnHandel  = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
 
-        public ObservableCollection<DostawcaMapowanie> Dostawcy { get; set; }
-        public ObservableCollection<KontrahentSymfonia> Kontrahenci { get; set; }
+        public ObservableCollection<DostawcaMapowanie> Dostawcy { get; } = new();
 
-        private List<DostawcaMapowanie> _allDostawcy;
-        private List<KontrahentSymfonia> _allKontrahenci;
-
-        public event PropertyChangedEventHandler PropertyChanged;
+        private List<DostawcaMapowanie> _allDostawcy = new();
+        private List<KontrahentSymfonia> _allKontrahenci = new();
+        private Dictionary<int, KontrahentSymfonia> _kontrahenciById = new();
 
         public MapowanieDostawcowWindow()
         {
+            // Rejestracja konwerterów PRZED InitializeComponent (bo XAML ich używa)
+            if (!Application.Current.Resources.Contains("BoolToVisConv"))
+                Application.Current.Resources.Add("BoolToVisConv", new BoolToVisibilityConv());
+            if (!Application.Current.Resources.Contains("StrToVisConv"))
+                Application.Current.Resources.Add("StrToVisConv", new NonEmptyStringToVisibilityConv());
+
             InitializeComponent();
             WindowIconHelper.SetIcon(this);
             DataContext = this;
-
-            Dostawcy = new ObservableCollection<DostawcaMapowanie>();
-            Kontrahenci = new ObservableCollection<KontrahentSymfonia>();
-
-            _allDostawcy = new List<DostawcaMapowanie>();
-            _allKontrahenci = new List<KontrahentSymfonia>();
-
-            Loaded += async (s, e) => await LoadDataAsync();
+            Loaded += async (_, __) => await LoadAsync();
         }
 
-        private async Task LoadDataAsync()
+        // ============ LOADING ============
+        private async Task LoadAsync()
         {
-            ShowLoading("Ładowanie danych...");
+            ShowLoading("Ładowanie dostawców i kontrahentów Symfonii...");
             try
             {
                 await Task.Run(() =>
                 {
-                    LoadDostawcyFromDb();
-                    LoadKontrahenciFromDb();
+                    LoadDostawcy();
+                    LoadKontrahenci();
                 });
+
+                _kontrahenciById = _allKontrahenci.ToDictionary(k => k.Id);
 
                 Dispatcher.Invoke(() =>
                 {
-                    // Uzupełnij nazwy zmapowanych kontrahentów
-                    UpdateMappedNames();
-                    ApplyDostawcyFilter();
-                    ApplyKontrahenciFilter();
-                    UpdateStatistics();
-                    txtStatus.Text = $"Załadowano {_allDostawcy.Count} dostawców i {_allKontrahenci.Count} kontrahentów";
+                    foreach (var d in _allDostawcy) d.Owner = this;
+                    UpdateMappedDisplay();
+                    ApplyFilter();
+                    UpdateStats();
+                    txtStatus.Text = $"Załadowano {_allDostawcy.Count} dostawców, {_allKontrahenci.Count} kontrahentów Symfonii";
                 });
             }
             catch (Exception ex)
             {
-                Dispatcher.Invoke(() =>
-                {
-                    txtStatus.Text = $"Błąd: {ex.Message}";
-                    MessageBox.Show($"Błąd ładowania danych:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-                });
+                Dispatcher.Invoke(() => MessageBox.Show("Błąd ładowania: " + ex.Message, "Błąd",
+                    MessageBoxButton.OK, MessageBoxImage.Error));
             }
             finally
             {
@@ -78,633 +77,469 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
             }
         }
 
-        private void LoadDostawcyFromDb()
+        private void LoadDostawcy()
         {
-            _allDostawcy = new List<DostawcaMapowanie>();
-
-            using (var conn = new SqlConnection(libraNetConnectionString))
+            _allDostawcy.Clear();
+            using var conn = new SqlConnection(ConnLibra);
+            conn.Open();
+            using var cmd = new SqlCommand(@"
+                SELECT ID,
+                       ISNULL(ShortName,'') AS ShortName,
+                       ISNULL(NIP,'')       AS NIP,
+                       ISNULL(IdSymf, 0)    AS IdSymf
+                FROM dbo.Dostawcy ORDER BY ShortName", conn);
+            using var rdr = cmd.ExecuteReader();
+            while (rdr.Read())
             {
-                conn.Open();
-                var cmd = new SqlCommand(@"
-                    SELECT ID, ShortName, ISNULL(IdSymf, 0) AS IdSymf
-                    FROM dbo.Dostawcy
-                    ORDER BY ShortName", conn);
-
-                using (var reader = cmd.ExecuteReader())
+                _allDostawcy.Add(new DostawcaMapowanie
                 {
-                    while (reader.Read())
-                    {
-                        _allDostawcy.Add(new DostawcaMapowanie
-                        {
-                            ID = reader["ID"]?.ToString()?.Trim() ?? "",
-                            ShortName = reader["ShortName"]?.ToString()?.Trim() ?? "",
-                            IdSymf = Convert.ToInt32(reader["IdSymf"])
-                        });
-                    }
-                }
+                    ID = rdr["ID"]?.ToString()?.Trim() ?? "",
+                    ShortName = rdr["ShortName"]?.ToString()?.Trim() ?? "",
+                    Nip = NormalizeNip(rdr["NIP"]?.ToString() ?? ""),
+                    IdSymf = Convert.ToInt32(rdr["IdSymf"])
+                });
             }
         }
 
-        private void LoadKontrahenciFromDb()
+        private static string NormalizeNip(string nip) =>
+            new string((nip ?? "").Where(char.IsDigit).ToArray());
+
+        private void LoadKontrahenci()
         {
-            _allKontrahenci = new List<KontrahentSymfonia>();
-
-            using (var conn = new SqlConnection(symfoniaConnectionString))
+            _allKontrahenci.Clear();
+            using var conn = new SqlConnection(ConnHandel);
+            conn.Open();
+            using (var cmd = new SqlCommand(@"
+                SELECT Id, ISNULL(Shortcut,'') AS Code, ISNULL(NIP,'') AS NIP, ISNULL(Name,'') AS Name
+                FROM SSCommon.STContractors
+                ORDER BY Name", conn))
+            using (var rdr = cmd.ExecuteReader())
             {
-                conn.Open();
-                var cmd = new SqlCommand(@"
-                    SELECT Id, ISNULL(Shortcut,'') AS Code, ISNULL(NIP,'') AS NIP, ISNULL(Name,'') AS Name
-                    FROM SSCommon.STContractors
-                    ORDER BY Name", conn);
-
-                using (var reader = cmd.ExecuteReader())
+                while (rdr.Read())
                 {
-                    while (reader.Read())
+                    _allKontrahenci.Add(new KontrahentSymfonia
                     {
-                        _allKontrahenci.Add(new KontrahentSymfonia
-                        {
-                            Id = Convert.ToInt32(reader["Id"]),
-                            Code = reader["Code"]?.ToString()?.Trim() ?? "",
-                            NIP = reader["NIP"]?.ToString()?.Trim() ?? "",
-                            Name = reader["Name"]?.ToString()?.Trim() ?? ""
-                        });
-                    }
+                        Id = Convert.ToInt32(rdr["Id"]),
+                        Code = rdr["Code"]?.ToString()?.Trim() ?? "",
+                        NIP = rdr["NIP"]?.ToString()?.Trim() ?? "",
+                        NipDigits = NormalizeNip(rdr["NIP"]?.ToString() ?? ""),
+                        Name = rdr["Name"]?.ToString()?.Trim() ?? ""
+                    });
                 }
             }
+
+            // Batch query - liczba faktur FVR/FVZ/FKZ w ostatnich 12mc per khid
+            var fvCounts = new Dictionary<int, int>();
+            using (var cmd = new SqlCommand(@"
+                SELECT khid, COUNT(*) AS cnt
+                FROM HM.DK
+                WHERE khid IS NOT NULL
+                  AND typ_dk IN ('FVR','FVZ','FKZ')
+                  AND ISNULL(anulowany,0)=0 AND aktywny=1
+                  AND data >= DATEADD(MONTH, -12, GETDATE())
+                GROUP BY khid", conn) { CommandTimeout = 60 })
+            using (var rdr = cmd.ExecuteReader())
+            {
+                while (rdr.Read())
+                    fvCounts[rdr.GetInt32(0)] = rdr.GetInt32(1);
+            }
+            foreach (var k in _allKontrahenci)
+                k.FvCount12m = fvCounts.TryGetValue(k.Id, out var c) ? c : 0;
         }
 
-        private void UpdateMappedNames()
+        private void UpdateMappedDisplay()
         {
-            var kontrahenciDict = _allKontrahenci.ToDictionary(k => k.Id, k => k.Name);
             foreach (var d in _allDostawcy)
             {
-                if (d.IdSymf > 0 && kontrahenciDict.TryGetValue(d.IdSymf, out var name))
-                {
-                    d.MappedName = name;
-                }
+                if (d.IdSymf > 0 && _kontrahenciById.TryGetValue(d.IdSymf, out var k))
+                    d.ApplyMapping(k);
                 else
-                {
-                    d.MappedName = "";
-                }
+                    d.ClearMapping();
             }
         }
 
-        private void UpdateStatistics()
+        private void ApplyFilter()
         {
-            var total = _allDostawcy.Count;
-            var mapped = _allDostawcy.Count(d => d.IdSymf > 0);
-            var unmapped = total - mapped;
-            var percent = total > 0 ? (mapped * 100 / total) : 0;
-
-            txtStatZmapowani.Text = mapped.ToString();
-            txtStatNiezmapowani.Text = unmapped.ToString();
-            txtStatProcent.Text = $"{percent}%";
-        }
-
-        private void ApplyDostawcyFilter()
-        {
-            var filter = txtFilterDostawcy?.Text?.ToLower() ?? "";
-            var onlyUnmapped = chkOnlyUnmapped?.IsChecked ?? false;
-
+            string q = (txtFilter?.Text ?? "").Trim().ToLowerInvariant();
+            bool onlyBrak = chkOnlyBrak?.IsChecked == true;
             var filtered = _allDostawcy
-                .Where(d => string.IsNullOrEmpty(filter) ||
-                           (d.ShortName?.ToLower().Contains(filter) == true) ||
-                           (d.ID?.ToLower().Contains(filter) == true))
-                .Where(d => !onlyUnmapped || d.IsUnmapped)
+                .Where(d => string.IsNullOrEmpty(q) ||
+                            d.ID.ToLowerInvariant().Contains(q) ||
+                            d.ShortName.ToLowerInvariant().Contains(q))
+                .Where(d => !onlyBrak || d.IsUnmapped)
                 .ToList();
 
             Dostawcy.Clear();
-            foreach (var d in filtered)
-                Dostawcy.Add(d);
-
-            txtDostawcyCount.Text = $"({filtered.Count} z {_allDostawcy.Count})";
+            foreach (var d in filtered) Dostawcy.Add(d);
+            txtStatus.Text = $"Widoczne: {filtered.Count} z {_allDostawcy.Count}";
         }
 
-        private void ApplyKontrahenciFilter()
+        private void UpdateStats()
         {
-            var filter = txtFilterKontrahenci?.Text?.ToLower() ?? "";
+            int total = _allDostawcy.Count;
+            int mapped = _allDostawcy.Count(d => d.IdSymf > 0);
+            int brak = total - mapped;
+            int percent = total > 0 ? (mapped * 100 / total) : 0;
+            txtStatZmapowani.Text = mapped.ToString();
+            txtStatBrak.Text = brak.ToString();
+            txtStatProc.Text = percent + "%";
+        }
 
-            var filtered = _allKontrahenci
-                .Where(k => string.IsNullOrEmpty(filter) ||
-                           (k.Name?.ToLower().Contains(filter) == true) ||
-                           (k.Code?.ToLower().Contains(filter) == true) ||
-                           (k.NIP?.Contains(filter) == true))
-                .Take(500) // Limit dla wydajności
+        // ============ FUZZY MATCH ============
+        // Zwraca top 7 najlepszych dopasowań posortowane wg score
+        internal List<KontrahentSymfonia> Match(string query, int max = 7)
+        {
+            if (string.IsNullOrWhiteSpace(query)) return new List<KontrahentSymfonia>();
+            string q = query.Trim().ToLowerInvariant();
+
+            return _allKontrahenci
+                .Select(k => (k, score: Score(k, q)))
+                .Where(x => x.score > 0)
+                .OrderByDescending(x => x.score)
+                .ThenBy(x => x.k.Name)
+                .Take(max)
+                .Select(x => x.k)
                 .ToList();
-
-            Kontrahenci.Clear();
-            foreach (var k in filtered)
-                Kontrahenci.Add(k);
-
-            var totalFiltered = _allKontrahenci.Count(k => string.IsNullOrEmpty(filter) ||
-                           (k.Name?.ToLower().Contains(filter) == true) ||
-                           (k.Code?.ToLower().Contains(filter) == true) ||
-                           (k.NIP?.Contains(filter) == true));
-
-            txtKontrahenciCount.Text = totalFiltered > 500
-                ? $"(pokazano 500 z {totalFiltered})"
-                : $"({totalFiltered} z {_allKontrahenci.Count})";
         }
 
-        private void UpdateButtonStates()
+        private static int Score(KontrahentSymfonia k, string q)
         {
-            var dostawca = dgDostawcy.SelectedItem as DostawcaMapowanie;
-            var kontrahent = dgKontrahenci.SelectedItem as KontrahentSymfonia;
+            // Higher = better match
+            int score = 0;
+            string name = (k.Name ?? "").ToLowerInvariant();
+            string code = (k.Code ?? "").ToLowerInvariant();
+            string nip  = (k.NIP ?? "").Trim();
 
-            btnPrzypisz.IsEnabled = dostawca != null && kontrahent != null;
-            btnUsunMapowanie.IsEnabled = dostawca != null && dostawca.IdSymf > 0;
+            if (name == q || code == q || nip == q) return 1000;            // exact
+            if (name.StartsWith(q)) score = 700;
+            else if (code.StartsWith(q)) score = 650;
+            else if (name.Contains(q)) score = 400;
+            else if (code.Contains(q)) score = 350;
+            else if (nip.Contains(q)) score = 300;
+            // jeśli wpisany NIP (10+ cyfr) i pasuje częściowo
+            if (q.Length >= 3 && q.All(char.IsDigit) && nip.Contains(q)) score = Math.Max(score, 500);
+            return score;
         }
 
-        private void DgDostawcy_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        // ============ ZAPIS MAPOWANIA ============
+        internal async Task<bool> ZapiszMapowanieAsync(DostawcaMapowanie dostawca, KontrahentSymfonia kontrahent)
         {
-            var dostawca = dgDostawcy.SelectedItem as DostawcaMapowanie;
-            if (dostawca != null)
-            {
-                txtSelectedDostawca.Text = $"{dostawca.ShortName} (ID: {dostawca.ID})";
-                if (dostawca.IdSymf > 0)
-                {
-                    txtSelectedDostawca.Text += $" → Symfonia ID: {dostawca.IdSymf}";
-                    txtSelectedHint.Text = "🔄 Możesz zmienić przypisanie lub usunąć mapowanie";
-                }
-                else
-                {
-                    txtSelectedHint.Text = "💡 Wybierz kontrahenta poniżej i kliknij PRZYPISZ";
-                }
-
-                // Auto-filtruj kontrahentów po nazwie dostawcy
-                if (string.IsNullOrEmpty(txtFilterKontrahenci.Text))
-                {
-                    var nameParts = dostawca.ShortName?.Split(' ');
-                    if (nameParts != null && nameParts.Length > 0)
-                    {
-                        txtFilterKontrahenci.Text = nameParts[0];
-                    }
-                }
-            }
-            else
-            {
-                txtSelectedDostawca.Text = "(kliknij na dostawcę aby wybrać)";
-                txtSelectedHint.Text = "💡 Dwuklik = szybkie przypisanie";
-            }
-
-            UpdateButtonStates();
-        }
-
-        private void DgDostawcy_MouseDoubleClick(object sender, MouseButtonEventArgs e)
-        {
-            var dostawca = dgDostawcy.SelectedItem as DostawcaMapowanie;
-            if (dostawca != null && dostawca.IdSymf > 0)
-            {
-                // Jeśli już zmapowany - przewiń do kontrahenta
-                var kontrahent = _allKontrahenci.FirstOrDefault(k => k.Id == dostawca.IdSymf);
-                if (kontrahent != null)
-                {
-                    txtFilterKontrahenci.Text = "";
-                    ApplyKontrahenciFilter();
-                    dgKontrahenci.SelectedItem = Kontrahenci.FirstOrDefault(k => k.Id == kontrahent.Id);
-                    dgKontrahenci.ScrollIntoView(dgKontrahenci.SelectedItem);
-                }
-            }
-        }
-
-        private void DgKontrahenci_MouseDoubleClick(object sender, MouseButtonEventArgs e)
-        {
-            // Dwuklik na kontrahenta = przypisz
-            if (dgDostawcy.SelectedItem != null && dgKontrahenci.SelectedItem != null)
-            {
-                BtnPrzypisz_Click(sender, null);
-            }
-        }
-
-        private void BtnPrzypisz_Click(object sender, RoutedEventArgs e)
-        {
-            var dostawca = dgDostawcy.SelectedItem as DostawcaMapowanie;
-            var kontrahent = dgKontrahenci.SelectedItem as KontrahentSymfonia;
-
-            if (dostawca == null)
-            {
-                MessageBox.Show("Wybierz dostawcę z górnej listy!", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            if (kontrahent == null)
-            {
-                MessageBox.Show("Wybierz kontrahenta Symfonia z dolnej listy!", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            // Szczegółowe potwierdzenie
-            string message;
-            if (dostawca.IdSymf > 0)
-            {
-                var oldKontrahent = _allKontrahenci.FirstOrDefault(k => k.Id == dostawca.IdSymf);
-                message = $"ZMIANA MAPOWANIA\n\n" +
-                          $"Dostawca LibraNet:\n" +
-                          $"   {dostawca.ShortName} (ID: {dostawca.ID})\n\n" +
-                          $"Obecne przypisanie:\n" +
-                          $"   {oldKontrahent?.Name ?? "nieznany"} (IdSymf: {dostawca.IdSymf})\n\n" +
-                          $"Nowe przypisanie:\n" +
-                          $"   {kontrahent.Name} (Id: {kontrahent.Id})\n\n" +
-                          $"Czy na pewno chcesz zmienić przypisanie?";
-            }
-            else
-            {
-                message = $"NOWE MAPOWANIE\n\n" +
-                          $"Dostawca LibraNet:\n" +
-                          $"   {dostawca.ShortName} (ID: {dostawca.ID})\n\n" +
-                          $"Zostanie przypisany do:\n" +
-                          $"   {kontrahent.Name}\n" +
-                          $"   Kod: {kontrahent.Code}\n" +
-                          $"   NIP: {kontrahent.NIP}\n" +
-                          $"   Id Symfonia: {kontrahent.Id}\n\n" +
-                          $"Czy potwierdzasz przypisanie?";
-            }
-
-            var result = MessageBox.Show(message, "Potwierdzenie mapowania",
-                MessageBoxButton.YesNo, MessageBoxImage.Question);
-
-            if (result != MessageBoxResult.Yes)
-                return;
-
             try
             {
-                txtStatus.Text = "Zapisywanie mapowania...";
+                using var conn = new SqlConnection(ConnLibra);
+                await conn.OpenAsync();
+                using var cmd = new SqlCommand("UPDATE dbo.Dostawcy SET IdSymf = @IdSymf WHERE ID = @ID", conn);
+                cmd.Parameters.AddWithValue("@IdSymf", kontrahent.Id);
+                cmd.Parameters.AddWithValue("@ID", dostawca.ID);
+                await cmd.ExecuteNonQueryAsync();
 
-                using (var conn = new SqlConnection(libraNetConnectionString))
-                {
-                    conn.Open();
-                    var cmd = new SqlCommand("UPDATE dbo.Dostawcy SET IdSymf = @IdSymf WHERE ID = @ID", conn);
-                    cmd.Parameters.AddWithValue("@IdSymf", kontrahent.Id);
-                    cmd.Parameters.AddWithValue("@ID", dostawca.ID);
-                    cmd.ExecuteNonQuery();
-                }
-
-                // Aktualizuj lokalnie
                 dostawca.IdSymf = kontrahent.Id;
-                dostawca.MappedName = kontrahent.Name;
-
-                // Aktualizuj w źródłowej liście
-                var sourceDostawca = _allDostawcy.FirstOrDefault(d => d.ID == dostawca.ID);
-                if (sourceDostawca != null)
-                {
-                    sourceDostawca.IdSymf = kontrahent.Id;
-                    sourceDostawca.MappedName = kontrahent.Name;
-                }
-
-                UpdateStatistics();
-                UpdateButtonStates();
-
-                txtStatus.Text = $"✅ Przypisano: {dostawca.ShortName} → {kontrahent.Name}";
-
-                MessageBox.Show(
-                    $"✅ MAPOWANIE ZAPISANE\n\n" +
-                    $"{dostawca.ShortName}\n" +
-                    $"   ↓\n" +
-                    $"{kontrahent.Name}\n\n" +
-                    $"IdSymf = {kontrahent.Id}",
-                    "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
-
-                // Przejdź do następnego niezmapowanego
-                MoveToNextUnmapped();
+                dostawca.ApplyMapping(kontrahent);
+                UpdateStats();
+                txtStatus.Text = $"✓ Zapisano: {dostawca.ShortName} → {kontrahent.Name} (IdSymf={kontrahent.Id})";
+                return true;
             }
             catch (Exception ex)
             {
-                txtStatus.Text = $"❌ Błąd: {ex.Message}";
-                MessageBox.Show($"Błąd zapisu:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show("Błąd zapisu:\n" + ex.Message, "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                return false;
             }
         }
 
-        private void MoveToNextUnmapped()
+        internal async Task UsunMapowanieAsync(DostawcaMapowanie dostawca)
         {
-            var currentIndex = dgDostawcy.SelectedIndex;
-            for (int i = currentIndex + 1; i < Dostawcy.Count; i++)
+            try
             {
-                if (Dostawcy[i].IsUnmapped)
-                {
-                    dgDostawcy.SelectedIndex = i;
-                    dgDostawcy.ScrollIntoView(Dostawcy[i]);
-                    txtFilterKontrahenci.Text = "";
-                    return;
-                }
+                using var conn = new SqlConnection(ConnLibra);
+                await conn.OpenAsync();
+                using var cmd = new SqlCommand("UPDATE dbo.Dostawcy SET IdSymf = NULL WHERE ID = @ID", conn);
+                cmd.Parameters.AddWithValue("@ID", dostawca.ID);
+                await cmd.ExecuteNonQueryAsync();
+
+                dostawca.IdSymf = 0;
+                dostawca.ClearMapping();
+                UpdateStats();
+                txtStatus.Text = $"🗑 Usunięto mapowanie: {dostawca.ShortName}";
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Błąd: " + ex.Message, "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
-        private void BtnUsunMapowanie_Click(object sender, RoutedEventArgs e)
+        // ============ UI EVENT HANDLERS ============
+        private void TxtFilter_TextChanged(object sender, TextChangedEventArgs e) => ApplyFilter();
+        private void ChkOnlyBrak_Changed(object sender, RoutedEventArgs e) => ApplyFilter();
+        private async void BtnRefresh_Click(object sender, RoutedEventArgs e) => await LoadAsync();
+        private void BtnClose_Click(object sender, RoutedEventArgs e) => Close();
+
+        // ============ BULK AUTO-MAP po NIP ============
+        private async void BtnBulkAutoMap_Click(object sender, RoutedEventArgs e)
         {
-            var dostawca = dgDostawcy.SelectedItem as DostawcaMapowanie;
+            // Indeks po NIP dla kontrahentow Symfonii (tylko 10-cyfrowe NIP)
+            var byNip = _allKontrahenci
+                .Where(k => k.NipDigits.Length == 10)
+                .GroupBy(k => k.NipDigits)
+                .Where(g => g.Count() == 1)  // tylko unikalne NIPy (jak NIP duplikat - rezygnujemy z auto-mapy)
+                .ToDictionary(g => g.Key, g => g.First());
 
-            if (dostawca == null)
+            var pary = new List<(DostawcaMapowanie d, KontrahentSymfonia k)>();
+            foreach (var d in _allDostawcy.Where(x => x.IsUnmapped && x.Nip.Length == 10))
             {
-                MessageBox.Show("Wybierz dostawcę z listy!", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
+                if (byNip.TryGetValue(d.Nip, out var k))
+                    pary.Add((d, k));
+            }
+
+            if (pary.Count == 0)
+            {
+                MessageBox.Show(
+                    "Nie znaleziono par o identycznym NIP.\n\n" +
+                    "Sprawdzono dostawcow z 10-cyfrowym NIP-em i kontrahentow Symfonii z unikalnymi 10-cyfrowymi NIP-ami.",
+                    "Auto-map po NIP", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
 
-            if (dostawca.IdSymf == 0)
-            {
-                MessageBox.Show("Ten dostawca nie ma przypisanego mapowania.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
-
-            var kontrahent = _allKontrahenci.FirstOrDefault(k => k.Id == dostawca.IdSymf);
+            var preview = string.Join("\n", pary.Take(15).Select(p => $"  • {p.d.ShortName}  →  {p.k.Name}  ({p.d.Nip})"));
+            if (pary.Count > 15) preview += $"\n  ... i {pary.Count - 15} więcej";
 
             var result = MessageBox.Show(
-                $"USUWANIE MAPOWANIA\n\n" +
-                $"Dostawca LibraNet:\n" +
-                $"   {dostawca.ShortName} (ID: {dostawca.ID})\n\n" +
-                $"Obecne przypisanie:\n" +
-                $"   {kontrahent?.Name ?? "nieznany"} (IdSymf: {dostawca.IdSymf})\n\n" +
-                $"Czy na pewno chcesz USUNĄĆ to mapowanie?",
-                "Potwierdzenie usunięcia", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                $"Znaleziono {pary.Count} par o identycznym NIP:\n\n{preview}\n\n" +
+                $"Zmapowac wszystkie automatycznie?",
+                "Auto-map po NIP", MessageBoxButton.YesNo, MessageBoxImage.Question);
 
-            if (result != MessageBoxResult.Yes)
-                return;
+            if (result != MessageBoxResult.Yes) return;
 
+            ShowLoading($"Zapisywanie {pary.Count} mapowań...");
+            int ok = 0, err = 0;
             try
             {
-                txtStatus.Text = "Usuwanie mapowania...";
-
-                using (var conn = new SqlConnection(libraNetConnectionString))
+                using var conn = new SqlConnection(ConnLibra);
+                await conn.OpenAsync();
+                foreach (var (d, k) in pary)
                 {
-                    conn.Open();
-                    var cmd = new SqlCommand("UPDATE dbo.Dostawcy SET IdSymf = NULL WHERE ID = @ID", conn);
-                    cmd.Parameters.AddWithValue("@ID", dostawca.ID);
-                    cmd.ExecuteNonQuery();
-                }
-
-                // Aktualizuj lokalnie
-                dostawca.IdSymf = 0;
-                dostawca.MappedName = "";
-
-                // Aktualizuj w źródłowej liście
-                var sourceDostawca = _allDostawcy.FirstOrDefault(d => d.ID == dostawca.ID);
-                if (sourceDostawca != null)
-                {
-                    sourceDostawca.IdSymf = 0;
-                    sourceDostawca.MappedName = "";
-                }
-
-                UpdateStatistics();
-                UpdateButtonStates();
-
-                txtStatus.Text = $"🗑️ Usunięto mapowanie: {dostawca.ShortName}";
-
-                MessageBox.Show(
-                    $"Mapowanie dla '{dostawca.ShortName}' zostało usunięte.",
-                    "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-            catch (Exception ex)
-            {
-                txtStatus.Text = $"❌ Błąd: {ex.Message}";
-                MessageBox.Show($"Błąd:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        private void BtnAutoMatch_Click(object sender, RoutedEventArgs e)
-        {
-            var unmapped = _allDostawcy.Where(d => d.IsUnmapped).ToList();
-            if (unmapped.Count == 0)
-            {
-                MessageBox.Show("Wszyscy dostawcy są już zmapowani!", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
-
-            var matches = new List<(DostawcaMapowanie dostawca, KontrahentSymfonia kontrahent)>();
-
-            foreach (var d in unmapped)
-            {
-                // Szukaj dokładnego dopasowania po nazwie
-                var match = _allKontrahenci.FirstOrDefault(k =>
-                    k.Name?.Equals(d.ShortName, StringComparison.OrdinalIgnoreCase) == true ||
-                    k.Code?.Equals(d.ShortName, StringComparison.OrdinalIgnoreCase) == true);
-
-                if (match != null)
-                {
-                    matches.Add((d, match));
-                }
-            }
-
-            if (matches.Count == 0)
-            {
-                MessageBox.Show(
-                    $"Nie znaleziono automatycznych dopasowań.\n\n" +
-                    $"Sprawdzono {unmapped.Count} niezmapowanych dostawców.\n" +
-                    $"Dopasowanie wymaga identycznej nazwy.",
-                    "Brak dopasowań", MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
-
-            var message = $"Znaleziono {matches.Count} potencjalnych dopasowań:\n\n";
-            foreach (var m in matches.Take(10))
-            {
-                message += $"• {m.dostawca.ShortName} → {m.kontrahent.Name}\n";
-            }
-            if (matches.Count > 10)
-            {
-                message += $"... i {matches.Count - 10} więcej\n";
-            }
-            message += $"\nCzy chcesz automatycznie przypisać te mapowania?";
-
-            var result = MessageBox.Show(message, "Auto-dopasowanie",
-                MessageBoxButton.YesNo, MessageBoxImage.Question);
-
-            if (result != MessageBoxResult.Yes)
-                return;
-
-            try
-            {
-                txtStatus.Text = "Zapisywanie auto-dopasowań...";
-                int saved = 0;
-
-                using (var conn = new SqlConnection(libraNetConnectionString))
-                {
-                    conn.Open();
-                    foreach (var m in matches)
+                    try
                     {
-                        var cmd = new SqlCommand("UPDATE dbo.Dostawcy SET IdSymf = @IdSymf WHERE ID = @ID", conn);
-                        cmd.Parameters.AddWithValue("@IdSymf", m.kontrahent.Id);
-                        cmd.Parameters.AddWithValue("@ID", m.dostawca.ID);
-                        cmd.ExecuteNonQuery();
-
-                        m.dostawca.IdSymf = m.kontrahent.Id;
-                        m.dostawca.MappedName = m.kontrahent.Name;
-
-                        var source = _allDostawcy.FirstOrDefault(d => d.ID == m.dostawca.ID);
-                        if (source != null)
-                        {
-                            source.IdSymf = m.kontrahent.Id;
-                            source.MappedName = m.kontrahent.Name;
-                        }
-
-                        saved++;
+                        using var cmd = new SqlCommand("UPDATE dbo.Dostawcy SET IdSymf = @IdSymf WHERE ID = @ID", conn);
+                        cmd.Parameters.AddWithValue("@IdSymf", k.Id);
+                        cmd.Parameters.AddWithValue("@ID", d.ID);
+                        await cmd.ExecuteNonQueryAsync();
+                        d.IdSymf = k.Id;
+                        d.ApplyMapping(k);
+                        ok++;
                     }
+                    catch { err++; }
                 }
-
-                ApplyDostawcyFilter();
-                UpdateStatistics();
-
-                txtStatus.Text = $"✅ Auto-dopasowano {saved} dostawców";
-                MessageBox.Show($"Automatycznie przypisano {saved} mapowań.", "Sukces",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
+                UpdateStats();
+                txtStatus.Text = $"✓ Auto-mapowano: {ok} sukcesow, {err} bledow";
             }
-            catch (Exception ex)
+            finally
             {
-                txtStatus.Text = $"❌ Błąd: {ex.Message}";
-                MessageBox.Show($"Błąd:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                HideLoading();
             }
+
+            MessageBox.Show($"Zapisano {ok} z {pary.Count} mapowań.", "Auto-map po NIP",
+                MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         private void Window_KeyDown(object sender, KeyEventArgs e)
         {
-            if (e.Key == Key.Enter)
+            if (e.Key == Key.Escape) Close();
+            if (e.Key == Key.F5) _ = LoadAsync();
+        }
+
+        private void SearchBox_GotFocus(object sender, RoutedEventArgs e)
+        {
+            if (sender is TextBox tb && tb.Tag is DostawcaMapowanie d)
             {
-                if (btnPrzypisz.IsEnabled)
-                    BtnPrzypisz_Click(sender, null);
+                // Niezmapowany + pusty SearchText -> wypelnij od pierwszego slowa z nazwy dostawcy
+                // Zmapowany -> NIE otwieraj popupu automatycznie (uzytkownik moze chciec tylko zobaczyc nazwe)
+                if (d.IsUnmapped)
+                {
+                    if (string.IsNullOrWhiteSpace(d.SearchText))
+                        d.SearchText = ExtractFirstWord(d.ShortName);
+                    else
+                        d.RefreshSuggestions(this);
+                    tb.SelectAll();
+                }
+                else
+                {
+                    // Juz zmapowany - tylko zaznacz tekst, popup zostanie zamkniety
+                    tb.SelectAll();
+                }
+            }
+        }
+
+        private void SearchBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            // Daj 200ms zeby klik w popup się zarejestrował
+            if (sender is TextBox tb && tb.Tag is DostawcaMapowanie d)
+            {
+                _ = Task.Delay(200).ContinueWith(_ => Dispatcher.Invoke(() => { d.IsPopupOpen = false; }));
+            }
+        }
+
+        private async void SearchBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (sender is not TextBox tb || tb.Tag is not DostawcaMapowanie d) return;
+
+            if (e.Key == Key.Escape)
+            {
+                d.IsPopupOpen = false;
+                Keyboard.ClearFocus();
                 e.Handled = true;
             }
-            else if (e.Key == Key.Delete)
+            else if (e.Key == Key.Enter)
             {
-                if (btnUsunMapowanie.IsEnabled)
-                    BtnUsunMapowanie_Click(sender, null);
-                e.Handled = true;
-            }
-            else if (e.Key == Key.F5)
-            {
-                BtnRefresh_Click(sender, null);
-                e.Handled = true;
-            }
-            else if (e.Key == Key.Escape)
-            {
-                Close();
+                // wybierz pierwsza sugestie
+                var first = d.Suggestions.FirstOrDefault();
+                if (first != null) await ZapiszMapowanieAsync(d, first);
+                d.IsPopupOpen = false;
                 e.Handled = true;
             }
         }
 
-        private void ShowLoading(string message)
+        private async void Suggestion_MouseDown(object sender, MouseButtonEventArgs e)
         {
-            Dispatcher.Invoke(() =>
+            // ListBox PreviewMouseLeftButtonDown - znajdz ListBoxItem clicked
+            if (sender is not ListBox lb) return;
+            DependencyObject? src = e.OriginalSource as DependencyObject;
+            while (src != null && src is not ListBoxItem) src = VisualTreeHelper.GetParent(src);
+            if (src is not ListBoxItem lbi || lbi.DataContext is not KontrahentSymfonia k) return;
+            if (lb.DataContext is not DostawcaMapowanie d) return;
+
+            await ZapiszMapowanieAsync(d, k);
+            // SearchText jest ustawiany przez ApplyMapping na k.Name - NIE czyscic.
+            // IsPopupOpen jest ustawiany na false przez ApplyMapping.
+            Keyboard.ClearFocus(); // odejdz focusem zeby popup nie wyskoczyl ponownie
+            e.Handled = true;
+        }
+
+        private async void BtnClearMapping_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is DostawcaMapowanie d)
             {
-                txtLoading.Text = message;
-                loadingOverlay.Visibility = Visibility.Visible;
-            });
+                await UsunMapowanieAsync(d);
+            }
         }
 
-        private void HideLoading()
+        private static string ExtractFirstWord(string s)
         {
-            Dispatcher.Invoke(() =>
-            {
-                loadingOverlay.Visibility = Visibility.Collapsed;
-            });
+            if (string.IsNullOrWhiteSpace(s)) return "";
+            var parts = s.Split(new[] { ' ', '.', ',', '-', '/' }, StringSplitOptions.RemoveEmptyEntries);
+            return parts.Length > 0 ? parts[0] : s;
         }
 
-        // Event handlers
-        private void TxtFilterDostawcy_TextChanged(object sender, TextChangedEventArgs e) => ApplyDostawcyFilter();
-        private void ChkOnlyUnmapped_Changed(object sender, RoutedEventArgs e) => ApplyDostawcyFilter();
-        private void TxtFilterKontrahenci_TextChanged(object sender, TextChangedEventArgs e)
+        // ============ LOADING OVERLAY ============
+        private void ShowLoading(string msg)
         {
-            ApplyKontrahenciFilter();
-            UpdateButtonStates();
+            loadingText.Text = msg;
+            loadingOverlay.Visibility = Visibility.Visible;
         }
-        private async void BtnRefresh_Click(object sender, RoutedEventArgs e) => await LoadDataAsync();
-        private void BtnClose_Click(object sender, RoutedEventArgs e) => Close();
-
-        protected void OnPropertyChanged(string propertyName)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        }
+        private void HideLoading() => loadingOverlay.Visibility = Visibility.Collapsed;
     }
 
-    /// <summary>
-    /// Model dostawcy z LibraNet do mapowania
-    /// </summary>
+    // ============ MODELS ============
     public class DostawcaMapowanie : INotifyPropertyChanged
     {
-        private string _id;
-        private string _shortName;
+        public string ID { get; set; } = "";
+        public string ShortName { get; set; } = "";
+        public string Nip { get; set; } = "";  // tylko cyfry
+        public string NipDisplay => string.IsNullOrEmpty(Nip) ? "—" : Nip;
+
         private int _idSymf;
-        private string _mappedName;
+        public int IdSymf { get => _idSymf; set { _idSymf = value; OnChanged(); OnChanged(nameof(IsUnmapped)); OnChanged(nameof(HasMapping)); OnChanged(nameof(StatusText)); OnChanged(nameof(StatusBackground)); OnChanged(nameof(StatusForeground)); } }
 
-        public string ID
-        {
-            get => _id;
-            set { _id = value; OnPropertyChanged(nameof(ID)); }
-        }
-
-        public string ShortName
-        {
-            get => _shortName;
-            set { _shortName = value; OnPropertyChanged(nameof(ShortName)); }
-        }
-
-        public int IdSymf
-        {
-            get => _idSymf;
-            set
-            {
-                _idSymf = value;
-                OnPropertyChanged(nameof(IdSymf));
-                OnPropertyChanged(nameof(StatusIcon));
-                OnPropertyChanged(nameof(StatusBackground));
-                OnPropertyChanged(nameof(StatusForeground));
-                OnPropertyChanged(nameof(IsUnmapped));
-            }
-        }
-
-        public string MappedName
-        {
-            get => _mappedName;
-            set { _mappedName = value; OnPropertyChanged(nameof(MappedName)); }
-        }
-
-        public string StatusIcon => IdSymf > 0 ? "✓ Zmapowany" : "⚠ Brak";
-        public Brush StatusBackground => IdSymf > 0 ? new SolidColorBrush(Color.FromRgb(200, 230, 201)) : new SolidColorBrush(Color.FromRgb(255, 224, 178));
-        public Brush StatusForeground => IdSymf > 0 ? new SolidColorBrush(Color.FromRgb(46, 125, 50)) : new SolidColorBrush(Color.FromRgb(230, 81, 0));
         public bool IsUnmapped => IdSymf == 0;
+        public bool HasMapping => IdSymf > 0;
 
-        public event PropertyChangedEventHandler PropertyChanged;
-        protected void OnPropertyChanged(string propertyName)
+        // === Per-row autocomplete state ===
+        internal MapowanieDostawcowWindow? Owner { get; set; }
+
+        private string _searchText = "";
+        public string SearchText
         {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+            get => _searchText;
+            set { _searchText = value; OnChanged(); RefreshSuggestions(Owner); }
+        }
+
+        public ObservableCollection<KontrahentSymfonia> Suggestions { get; } = new();
+
+        private bool _isPopupOpen;
+        public bool IsPopupOpen { get => _isPopupOpen; set { _isPopupOpen = value; OnChanged(); } }
+
+        internal void RefreshSuggestions(MapowanieDostawcowWindow? owner)
+        {
+            Suggestions.Clear();
+            if (owner == null) return;
+            var matches = owner.Match(SearchText);
+            foreach (var k in matches) Suggestions.Add(k);
+            IsPopupOpen = matches.Count > 0;
+        }
+
+        // === Status / wyświetlanie ===
+        public string StatusText => IsUnmapped ? "⚠ BRAK MAPOWANIA" : $"✓ ID Symf. {IdSymf}";
+        public Brush StatusBackground => IsUnmapped ? new SolidColorBrush(Color.FromRgb(254, 226, 226)) : new SolidColorBrush(Color.FromRgb(220, 252, 231));
+        public Brush StatusForeground => IsUnmapped ? new SolidColorBrush(Color.FromRgb(185, 28, 28)) : new SolidColorBrush(Color.FromRgb(22, 101, 52));
+
+        internal void ApplyMapping(KontrahentSymfonia k)
+        {
+            // Po sukcesie zapisz nazwę kontrahenta w SearchText
+            _searchText = k.Name;
+            OnChanged(nameof(SearchText));
+            IsPopupOpen = false;
+        }
+
+        internal void ClearMapping()
+        {
+            _searchText = "";
+            OnChanged(nameof(SearchText));
+            IsPopupOpen = false;
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+        protected void OnChanged([CallerMemberName] string? name = null) =>
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    }
+
+    public class KontrahentSymfonia
+    {
+        public int Id { get; set; }
+        public string Code { get; set; } = "";
+        public string NIP { get; set; } = "";          // raw (z myslnikami itp.)
+        public string NipDigits { get; set; } = "";    // tylko cyfry
+        public string Name { get; set; } = "";
+        public int FvCount12m { get; set; }
+
+        public string FvCountText => FvCount12m > 0 ? FvCount12m + " FV / 12mc" : "brak FV";
+        public bool HasFv => FvCount12m > 0;
+
+        public string Hint
+        {
+            get
+            {
+                var parts = new List<string>();
+                if (!string.IsNullOrWhiteSpace(Code)) parts.Add("Kod: " + Code);
+                parts.Add("IdSymf: " + Id);
+                parts.Add(FvCountText);
+                return string.Join("  ·  ", parts);
+            }
         }
     }
 
-    /// <summary>
-    /// Model kontrahenta z Symfonii
-    /// </summary>
-    public class KontrahentSymfonia : INotifyPropertyChanged
+    // ============ CONVERTERS ============
+    internal class BoolToVisibilityConv : IValueConverter
     {
-        private int _id;
-        private string _code;
-        private string _nip;
-        private string _name;
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture) =>
+            (value is bool b && b) ? Visibility.Visible : Visibility.Collapsed;
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture) =>
+            throw new NotImplementedException();
+    }
 
-        public int Id
-        {
-            get => _id;
-            set { _id = value; OnPropertyChanged(nameof(Id)); }
-        }
-
-        public string Code
-        {
-            get => _code;
-            set { _code = value; OnPropertyChanged(nameof(Code)); }
-        }
-
-        public string NIP
-        {
-            get => _nip;
-            set { _nip = value; OnPropertyChanged(nameof(NIP)); }
-        }
-
-        public string Name
-        {
-            get => _name;
-            set { _name = value; OnPropertyChanged(nameof(Name)); }
-        }
-
-        public event PropertyChangedEventHandler PropertyChanged;
-        protected void OnPropertyChanged(string propertyName)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        }
+    internal class NonEmptyStringToVisibilityConv : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture) =>
+            (value is string s && !string.IsNullOrWhiteSpace(s)) ? Visibility.Visible : Visibility.Collapsed;
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture) =>
+            throw new NotImplementedException();
     }
 }

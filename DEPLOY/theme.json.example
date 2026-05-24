@@ -1,0 +1,69 @@
+{
+  "_komentarz": "WGRAJ TEN PLIK na QNAP jako: \\\\192.168.0.170\\Install\\Kalendarz1L\\Launcher\\Assets\\theme.json — zmiany widoczne PRZY NASTEPNEJ AKTUALIZACJI bez rekompilacji",
+
+  "_section_OKNO": "----- ROZMIAR I KOLOR OKNA -----",
+  "WindowWidth": 900,
+  "WindowHeight": 720,
+  "BackgroundColor": "#FFFFFF",
+  "BorderColor": "#1F2937",
+  "BorderThickness": 2,
+
+  "_section_TOPBAR": "----- ZIELONY PASEK U GORY -----",
+  "TopBarHeight": 120,
+  "TopBarGradientStart": "#22C55E",
+  "TopBarGradientEnd": "#15803D",
+
+  "_section_LOGO": "----- LOGO (plik logo.png w Assets/) -----",
+  "LogoSize": 100,
+  "LogoMargin": 24,
+  "LogoDropShadow": true,
+
+  "_section_TEKSTY": "----- TYTULY -----",
+  "Title": "AKTUALIZACJA ZPSP",
+  "TitleFontSize": 28,
+  "TitleColor": "#FFFFFF",
+
+  "Subtitle": "Piorkowscy - Mistrz Drobiarstwa od 1996",
+  "SubtitleFontSize": 12,
+  "SubtitleColor": "#DCFCE7",
+
+  "_section_MEMY": "----- MEMY (folder Assets/memes/) -----",
+  "MemeWidth": 560,
+  "MemeHeight": 315,
+  "MemeRotationSeconds": 5,
+  "MemeBackground": "#F9FAFB",
+  "MemeBorder": "#E5E7EB",
+  "MemeClickToSkip": true,
+
+  "_section_KROPKI": "----- KROPKI WSKAZNIK CAROUSEL -----",
+  "DotSize": 10,
+  "DotSpacing": 6,
+  "DotActiveColor": "#16A34A",
+  "DotInactiveColor": "#D1D5DB",
+
+  "_section_OSTRZEZENIE": "----- CZERWONE OSTRZEZENIE -----",
+  "WarningText": "PROSZE NIE KLIKAC NICZEGO - aplikacja pojawi sie sama!",
+  "WarningFontSize": 13,
+  "WarningColor": "#DC2626",
+  "WarningBold": true,
+
+  "_section_PROGRESS": "----- PASEK POSTEPU -----",
+  "ProgressBarHeight": 42,
+  "ProgressBarBgColor": "#FEE2E2",
+  "ProgressBarBorderColor": "#FCA5A5",
+  "ProgressBarFgColor": "#16A34A",
+  "ProgressBarFgColorTop": "#22C55E",
+  "ProgressBarSmooth": true,
+  "ProgressBarShowEta": true,
+
+  "_section_DOL": "----- LICZNIK I PLIK -----",
+  "CounterFontSize": 11,
+  "CounterColor": "#1F2937",
+  "CurrentFileFontSize": 9,
+  "CurrentFileColor": "#6B7280",
+
+  "_section_STOPKA": "----- STOPKA -----",
+  "FooterText": "Po zakonczeniu aplikacja uruchomi sie sama",
+  "FooterFontSize": 9,
+  "FooterColor": "#9CA3AF"
+}

@@ -25,6 +25,11 @@ namespace Kalendarz1.HDI
         private List<byte[]>? _cachedPdfImages = null;
         private System.Threading.CancellationTokenSource? _pdfCacheCts;
 
+        // Dirty tracking — ostrzeż usera przed utratą niezapisanych zmian
+        private bool _isDirty = false;
+        private bool _savedSuccessfully = false;
+        private bool _suppressDirty = false;   // gdy programowo wypełniamy (BindFromModel/auto-fill), nie ustawiaj dirty
+
         public HdiEditWindow() : this(null, null, null) { }
         public HdiEditWindow(int? existingId) : this(existingId, null, null) { }
 
@@ -57,8 +62,23 @@ namespace Kalendarz1.HDI
             RbInny.Checked += (s, e) => TxtInnePanstwo.IsEnabled = true;
             RbInny.Unchecked += (s, e) => TxtInnePanstwo.IsEnabled = false;
 
+            // Ostrzeż przed zamknięciem [X] z niezapisanymi zmianami
+            Closing += (s, e) =>
+            {
+                if (_isDirty && !_savedSuccessfully)
+                {
+                    var r = MessageBox.Show(this,
+                        "Masz niezapisane zmiany.\n\nZamknąć BEZ ZAPISU?",
+                        "Niezapisane zmiany", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                    if (r != MessageBoxResult.Yes) e.Cancel = true;
+                }
+            };
+
             Loaded += async (s, e) =>
             {
+                // Hook dirty tracking RAZ — przed pierwszym BindFromModel (który resetuje dirty)
+                HookDirtyTracking();
+
                 if (existingId.HasValue)
                 {
                     var loaded = await _service.GetByIdAsync(existingId.Value);
@@ -85,7 +105,11 @@ namespace Kalendarz1.HDI
 
                 bool filledOk = false;
                 bool willAutoFill = !string.IsNullOrWhiteSpace(numerFaktury) || orderId.HasValue;
-                if (willAutoFill) ShowLoading("Pobieranie danych z bazy…");
+                if (willAutoFill)
+                {
+                    ShowLoading("Pobieranie danych z bazy…");
+                    HdiDiag.Log("HdiEditWindow", $"🚀 LOADED — auto-fill start: numerFaktury='{numerFaktury}' orderId={orderId}");
+                }
                 try
                 {
                     if (!string.IsNullOrWhiteSpace(numerFaktury))
@@ -93,9 +117,12 @@ namespace Kalendarz1.HDI
 
                     if (!filledOk && orderId.HasValue)
                     {
+                        HdiDiag.Log("HdiEditWindow", $"Fallback do TryAutoFillFromOrderAsync({orderId.Value}) bo invoice path nie dał wyników");
                         TxtZamowienieId.Text = orderId.Value.ToString();
                         filledOk = await TryAutoFillFromOrderAsync(orderId.Value);
                     }
+
+                    HdiDiag.Log("HdiEditWindow", $"🏁 auto-fill END: filledOk={filledOk}, Partie.Count={_model.Partie.Count}, KlientNazwa='{_model.KlientNazwa}'");
                 }
                 finally { if (willAutoFill) HideLoading(); }
 
@@ -118,10 +145,13 @@ namespace Kalendarz1.HDI
         // Zwraca true jeśli udało się załadować klienta i/lub pozycje.
         private async Task<bool> TryAutoFillFromInvoiceAsync(string numerFaktury, int? orderId)
         {
+            HdiDiag.Log("HdiEditWindow", $"⚡ START TryAutoFillFromInvoiceAsync('{numerFaktury}', orderId={orderId})");
+            var swAll = System.Diagnostics.Stopwatch.StartNew();
             try
             {
                 // ⚡ PARALLEL: 3 niezależne zapytania jednocześnie zamiast sekwencyjnie.
                 // Skraca czas z ~3-5s do ~1-1.5s w typowym przypadku.
+                HdiDiag.Log("HdiEditWindow", "Start 3 PARALLEL tasks (Invoice+Transport+Order)");
                 var invTask   = _service.LoadFromInvoiceAsync(numerFaktury);
                 var transTask = orderId.HasValue ? _service.LoadTransportInfoAsync(orderId.Value)
                                                   : Task.FromResult<HdiService.TransportInfo?>(null);
@@ -176,16 +206,31 @@ namespace Kalendarz1.HDI
                 // ── PARTIE: per-asortyment, RÓWNOLEGLE ────────────────────
                 // Wcześniej: foreach + await (sekwencyjnie N×czas zapytania)
                 // Teraz: Task.WhenAll dla wszystkich asortymentów naraz.
-                var groups = inv.Pozycje
+                //
+                // FALLBACK: jeśli faktura nie ma pozycji ALE zamówienie ma — bierzemy
+                // pozycje z zamówienia. Inaczej tabela partii byłaby pusta.
+                var srcPozycje = new List<(string Nazwa, decimal Ilosc, int Twid)>();
+                if (inv.Pozycje.Count > 0)
+                    srcPozycje.AddRange(inv.Pozycje.Select(p => (p.Nazwa, p.Ilosc, p.Idtw)));
+                else if (order?.Pozycje != null)
+                    srcPozycje.AddRange(order.Pozycje.Select(p => (p.Nazwa, p.Ilosc, p.KodTowaru)));
+
+                var groups = srcPozycje
                     .Where(p => !string.IsNullOrWhiteSpace(p.Nazwa) && p.Ilosc > 0)
                     .GroupBy(p => p.Nazwa)
-                    .Select(g => new { Asortyment = g.Key, SumKg = g.Sum(x => x.Ilosc) })
+                    .Select(g => new { Asortyment = g.Key, SumKg = g.Sum(x => x.Ilosc), Twid = g.First().Twid })
                     .ToList();
+
+                // Batch load obrazków towarów — jedno zapytanie dla wszystkich asortymentów
+                var twImagesTask = _service.GetTowarImagesAsync(groups.Select(g => g.Twid));
 
                 var partieTasks = groups.Select(g =>
                     _service.LoadPartieDlaDniaAsync(dataUboju, g.Asortyment)
                 ).ToList();
-                var partieResults = await Task.WhenAll(partieTasks);
+                var partieResults = partieTasks.Count > 0
+                    ? await Task.WhenAll(partieTasks)
+                    : System.Array.Empty<List<HdiPartia>>();
+                var twImages = await twImagesTask;
 
                 var allPartie = new List<HdiPartia>();
                 for (int gi = 0; gi < groups.Count; gi++)
@@ -194,6 +239,7 @@ namespace Kalendarz1.HDI
                     var partieDlaDnia = partieResults[gi];
                     var dataPrzyd = HdiProduktKlasyfikator.PrzydatnoscOd(dataUboju.Date, g.Asortyment);
                     bool mrozony = HdiProduktKlasyfikator.IsMrozony(g.Asortyment);
+                    twImages.TryGetValue(g.Twid, out var img);
                     if (partieDlaDnia.Count > 0)
                     {
                         decimal perPartia = Math.Round(g.SumKg / partieDlaDnia.Count, 0);
@@ -203,6 +249,8 @@ namespace Kalendarz1.HDI
                             partieDlaDnia[i].WagaKg = perPartia;
                             partieDlaDnia[i].DataPrzydatnosci = dataPrzyd;
                             if (!mrozony) partieDlaDnia[i].DataMrozenia = null;
+                            partieDlaDnia[i].Idtw = g.Twid;
+                            partieDlaDnia[i].Image = img;
                         }
                         partieDlaDnia[^1].WagaKg = g.SumKg - perPartia * (partieDlaDnia.Count - 1);
                         allPartie.AddRange(partieDlaDnia);
@@ -216,18 +264,23 @@ namespace Kalendarz1.HDI
                             DataUboju = dataUboju.Date,
                             DataMrozenia = mrozony ? dataUboju.Date : (DateTime?)null,
                             DataPrzydatnosci = dataPrzyd,
-                            WagaKg = g.SumKg
+                            WagaKg = g.SumKg,
+                            Idtw = g.Twid,
+                            Image = img
                         });
                     }
                 }
                 if (allPartie.Count > 0) _model.Partie = allPartie;
 
                 LblStatus.Text = $"✓ Z faktury {numerFaktury}: {inv.Pozycje.Count} poz · {inv.SumaIlosc:0.##} kg · {allPartie.Count} part. · {(string.IsNullOrEmpty(_model.NumerRejestracyjny) ? "—" : _model.NumerRejestracyjny)}";
+                swAll.Stop();
+                HdiDiag.Time("HdiEditWindow", $"✅ DONE TryAutoFillFromInvoiceAsync: {inv.Pozycje.Count} poz, {allPartie.Count} part, klient='{_model.KlientNazwa}'", swAll.ElapsedMilliseconds);
                 return true;
             }
             catch (Exception ex)
             {
                 LblStatus.Text = $"⚠ Błąd auto-fill faktury: {ex.Message}";
+                HdiDiag.Error("HdiEditWindow", "TryAutoFillFromInvoiceAsync EXCEPTION", ex);
                 return false;
             }
         }
@@ -270,9 +323,12 @@ namespace Kalendarz1.HDI
                     int sumaPoj = fill.Pozycje.Where(p => p.Pojemniki.HasValue).Sum(p => p.Pojemniki!.Value);
                     if (!_model.LiczbaOpakowan.HasValue && sumaPoj > 0) _model.LiczbaOpakowan = sumaPoj;
 
-                    // ⚡ PARALLEL: partie per asortyment + transport jednocześnie
-                    if (_model.Partie.Count == 0 && fill.DataUboju.HasValue)
+                    // ⚡ PARALLEL: partie per asortyment + transport jednocześnie.
+                    // FIX: nie wymagamy fill.DataUboju.HasValue — gdy null, używamy DataWysylki lub Today
+                    // żeby ZAWSZE stworzyć wiersze partii dla każdego asortymentu.
+                    if (_model.Partie.Count == 0 && fill.Pozycje.Count > 0)
                     {
+                        var dataUbojuFallback = fill.DataUboju ?? fill.DataWysylki ?? DateTime.Today;
                         var groups = fill.Pozycje
                             .Where(p => !string.IsNullOrWhiteSpace(p.Nazwa) && p.Ilosc > 0)
                             .GroupBy(p => p.Nazwa)
@@ -280,7 +336,7 @@ namespace Kalendarz1.HDI
                             .ToList();
 
                         var partieTasks = groups.Select(g =>
-                            _service.LoadPartieDlaDniaAsync(fill.DataUboju.Value, g.Asortyment)
+                            _service.LoadPartieDlaDniaAsync(dataUbojuFallback, g.Asortyment)
                         ).ToList();
                         var transTask = string.IsNullOrWhiteSpace(_model.NumerRejestracyjny)
                             ? _service.LoadTransportInfoAsync(orderId)
@@ -295,7 +351,7 @@ namespace Kalendarz1.HDI
                         {
                             var g = groups[gi];
                             var partieDlaDnia = partieResults[gi];
-                            var dataPrzyd = HdiProduktKlasyfikator.PrzydatnoscOd(fill.DataUboju.Value.Date, g.Asortyment);
+                            var dataPrzyd = HdiProduktKlasyfikator.PrzydatnoscOd(dataUbojuFallback.Date, g.Asortyment);
                             bool mrozony = HdiProduktKlasyfikator.IsMrozony(g.Asortyment);
                             if (partieDlaDnia.Count > 0)
                             {
@@ -312,11 +368,13 @@ namespace Kalendarz1.HDI
                             }
                             else
                             {
+                                // Fallback row — listapartii nie ma rekordów dla tego dnia,
+                                // tworzymy 1 wiersz z asortymentem + wagą żeby user widział towar w tabeli.
                                 allPartie.Add(new HdiPartia
                                 {
                                     Asortyment = g.Asortyment, NumerPartii = "",
-                                    DataUboju = fill.DataUboju.Value.Date,
-                                    DataMrozenia = mrozony ? fill.DataUboju.Value.Date : (DateTime?)null,
+                                    DataUboju = dataUbojuFallback.Date,
+                                    DataMrozenia = mrozony ? dataUbojuFallback.Date : (DateTime?)null,
                                     DataPrzydatnosci = dataPrzyd,
                                     WagaKg = g.SumKg
                                 });
@@ -344,6 +402,8 @@ namespace Kalendarz1.HDI
 
         private void BindFromModel()
         {
+            var swBind = System.Diagnostics.Stopwatch.StartNew();
+            HdiDiag.Log("BindFromModel", "START");
             LblNumer.Text = _model.NumerPelny;
             TxtKlientNazwa.Text = _model.KlientNazwa;
             TxtKlientAdres.Text = _model.KlientAdres;
@@ -356,6 +416,7 @@ namespace Kalendarz1.HDI
             TxtWagaBrutto.Text = _model.WagaBrutto?.ToString("0.##", CultureInfo.InvariantCulture) ?? "";
             DpDataWysylki.SelectedDate = _model.DataWysylki;
             TxtNumerRejestracyjny.Text = _model.NumerRejestracyjny;
+            TxtNumerRejNaczepy.Text = _model.NumerRejNaczepy;
             TxtUwagiTransport.Text = _model.UwagiTransport;
             TxtMiejscowosc.Text = _model.MiejscowoscWystawienia;
             DpDataWystawienia.SelectedDate = _model.DataWystawienia;
@@ -373,23 +434,175 @@ namespace Kalendarz1.HDI
             TxtInnePanstwo.Text = _model.InnePanstwo;
             TxtInnePanstwo.IsEnabled = _model.RynekInny;
 
+            HdiDiag.Time("BindFromModel", "All TextBox/DatePicker filled", swBind.ElapsedMilliseconds);
+            var swPartie = System.Diagnostics.Stopwatch.StartNew();
             PartieRows.Clear();
             foreach (var p in _model.Partie) PartieRows.Add(p);
-            // Po każdym wczytaniu / Bind — regeneruj PDF w tle, żeby preview był instant
+            HdiDiag.Time("BindFromModel", $"PartieRows populated ({_model.Partie.Count} rows — TRIGGERS DataGrid render)", swPartie.ElapsedMilliseconds);
+
             SchedulePdfPrecache();
+            _isDirty = false;
+            HdiDiag.Time("BindFromModel", "✅ DONE (after this UI should be responsive)", swBind.ElapsedMilliseconds);
+
+            // Log gdy WPF skończy render (Loaded priority = bardzo nisko, fires gdy nic innego się nie dzieje)
+            Dispatcher.BeginInvoke(new Action(() =>
+                HdiDiag.Log("BindFromModel", "🎨 WPF render dispatcher returned — UI is now responsive")),
+                System.Windows.Threading.DispatcherPriority.Loaded);
         }
 
-        // Auto-przeliczanie DataPrzydatnosci dla wiersza partii po zmianie DataUboju.
-        // Wyzwalane bezpośrednio przez DatePicker.SelectedDateChanged (działa natychmiast,
-        // w przeciwieństwie do CellEditEnding które dla TemplateColumn z DatePicker nie odpala).
+        // Wpinane raz w Loaded — łapie wszystkie edycje pól użytkownika do _isDirty.
+        // Programowe zmiany przez BindFromModel są chronione przez _suppressDirty (nie używane teraz,
+        // bo BindFromModel ustawia _isDirty=false na końcu).
+        private void HookDirtyTracking()
+        {
+            void OnText(object s, TextChangedEventArgs e) { if (!_suppressDirty) _isDirty = true; }
+            void OnSel(object s, SelectionChangedEventArgs e) { if (!_suppressDirty) _isDirty = true; }
+            void OnChk(object s, RoutedEventArgs e) { if (!_suppressDirty) _isDirty = true; }
+            void OnDate(object s, SelectionChangedEventArgs e) { if (!_suppressDirty) _isDirty = true; }
+
+            TxtKlientNazwa.TextChanged += OnText;
+            TxtKlientAdres.TextChanged += OnText;
+            TxtOpisTowaru.TextChanged += OnText;
+            TxtRodzajOpakowan.TextChanged += OnText;
+            TxtLiczbaOpakowan.TextChanged += OnText;
+            TxtWagaNetto.TextChanged += OnText;
+            TxtWagaBrutto.TextChanged += OnText;
+            TxtNumerRejestracyjny.TextChanged += OnText;
+            TxtNumerRejNaczepy.TextChanged += OnText;
+            TxtUwagiTransport.TextChanged += OnText;
+            TxtMiejscowosc.TextChanged += OnText;
+            TxtWystawiajacy.TextChanged += OnText;
+            TxtInnePanstwo.TextChanged += OnText;
+            DpDataWysylki.SelectedDateChanged += OnDate;
+            DpDataWystawienia.SelectedDateChanged += OnDate;
+            ChkPaletaDrewno.Checked += OnChk; ChkPaletaDrewno.Unchecked += OnChk;
+            ChkPoliblok.Checked += OnChk; ChkPoliblok.Unchecked += OnChk;
+            ChkPaletaH1.Checked += OnChk; ChkPaletaH1.Unchecked += OnChk;
+            ChkPaletaEuro.Checked += OnChk; ChkPaletaEuro.Unchecked += OnChk;
+            ChkPojemnikE2.Checked += OnChk; ChkPojemnikE2.Unchecked += OnChk;
+            RbKrajowy.Checked += OnChk; RbUE.Checked += OnChk; RbInny.Checked += OnChk;
+            PartieRows.CollectionChanged += (s, e) => { if (!_suppressDirty) _isDirty = true; };
+        }
+
+        // Auto-przeliczanie dat dla wiersza partii po zmianie DataUboju.
+        // ZACHOWUJE DELTĘ: gdy stara DataPrzydatnosci była uboj+6 dni, po zmianie uboju
+        // nowa DataPrzydatnosci też będzie nowy_uboj+6 dni (user już ją skorygował ręcznie,
+        // nie wracamy do auto-klasyfikatora).
+        //
+        // Przykład user'a: uboj 1 stycznia → przyd 7 stycznia (delta=6). Zmień uboj→2 stycznia,
+        // przyd automatycznie skoczy na 8 stycznia (zachowana delta=6).
+        //
+        // Pierwsza edycja (gdy partia świeżo dodana, brak starych dat) → użyj klasyfikatora.
         private void DpDataUbojuPartia_Changed(object sender, SelectionChangedEventArgs e)
         {
             if (sender is not DatePicker dp) return;
             if (dp.DataContext is not HdiPartia partia) return;
+            if (!partia.DataUboju.HasValue) return;
+
+            // Wyciągnij STARĄ datę uboju z eventArgs (przed user'ską zmianą)
+            DateTime? oldUboj = null;
+            if (e.RemovedItems.Count > 0 && e.RemovedItems[0] is DateTime rem) oldUboj = rem;
+            DateTime newUboj = partia.DataUboju.Value.Date;
+
+            // Mamy starą datę uboju i starą przydatność → PRZESUŃ proporcjonalnie (zachowaj deltę)
+            if (oldUboj.HasValue && partia.DataPrzydatnosci.HasValue)
+            {
+                var delta = partia.DataPrzydatnosci.Value.Date - oldUboj.Value.Date;
+                partia.DataPrzydatnosci = newUboj + delta;
+
+                // To samo dla DataMrozenia (jeśli była ustawiona — czyli mrożone)
+                if (partia.DataMrozenia.HasValue)
+                {
+                    var deltaMroz = partia.DataMrozenia.Value.Date - oldUboj.Value.Date;
+                    partia.DataMrozenia = newUboj + deltaMroz;
+                }
+
+                // INPC w HdiPartia powoduje że bindingi DatePicker auto-update — Refresh() nie potrzebny
+                // (i powodował "Refresh niedozwolony podczas EditItem transaction").
+            }
+            else
+            {
+                // Brak starej daty (pierwsze ustawienie) → użyj auto-klasyfikatora
+                RecalcPartiaPrzydatnosc(partia);
+            }
+        }
+
+        // Klik na miniaturę towaru w wierszu partii → otwiera picker mrożone/świeże.
+        // Po wyborze: aktualizuje Asortyment + Idtw + Image + przelicza datę przydatności wg nowej kategorii.
+        private void TowarThumb_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            try
+            {
+                if (sender is not FrameworkElement fe) return;
+                if (fe.DataContext is not HdiPartia partia) return;
+
+                HdiDiag.Log("HdiEditWindow", $"TowarThumb_Click → opening picker for partia '{partia.Asortyment}' (Idtw={partia.Idtw})");
+                var dlg = new TowarPickerDialog(_service) { Owner = this };
+                bool? result = dlg.ShowDialog();
+                if (result != true || dlg.SelectedTowar == null)
+                {
+                    HdiDiag.Log("HdiEditWindow", "TowarPicker → user anulował lub brak wyboru");
+                    return;
+                }
+
+                var t = dlg.SelectedTowar;
+                partia.Asortyment = string.IsNullOrWhiteSpace(t.Nazwa) ? t.Kod : t.Nazwa;
+                partia.Idtw = t.Id;
+                partia.Image = t.Image;
+
+                if (partia.DataUboju.HasValue)
+                {
+                    partia.DataPrzydatnosci = HdiProduktKlasyfikator.PrzydatnoscOd(partia.DataUboju.Value.Date, partia.Asortyment);
+                    partia.DataMrozenia = t.IsMrozone ? partia.DataUboju.Value.Date : (DateTime?)null;
+                }
+
+                LblStatus.Text = $"✓ Zmieniono na: {partia.Asortyment} ({(t.IsMrozone ? "mrożone" : "świeże")})";
+                HdiDiag.Log("HdiEditWindow", $"TowarPicker → wybrano: {partia.Asortyment} (Idtw={t.Id}, mrożone={t.IsMrozone})");
+            }
+            catch (Exception ex)
+            {
+                HdiDiag.Error("HdiEditWindow", "TowarThumb_Click EXCEPTION", ex);
+                MessageBox.Show(this, $"Błąd otwarcia katalogu towarów:\n\n{ex.GetType().Name}: {ex.Message}\n\n{ex.StackTrace}",
+                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        // Reset wiersza partii — przywraca domyślną deltę wg klasyfikatora (tuszka +7 / etc.)
+        // User klika 🔄 gdy chce wrócić do domyślnej formuły (np. po ręcznej edycji która już nie jest aktualna).
+        private void BtnResetRow_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not Button btn) return;
+            if (btn.DataContext is not HdiPartia partia) return;
             RecalcPartiaPrzydatnosc(partia);
+            LblStatus.Text = $"🔄 Zresetowano przydatność dla '{partia.Asortyment}' do domyślnej formuły";
+        }
+
+        // Cascade: gdy user zmienia DataWysylki, wszystkie partie się przesuwają o tę samą liczbę dni.
+        // Wpięte w XAML jako DpDataWysylki SelectedDateChanged.
+        private void DpDataWysylki_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            // Tylko gdy mamy STARĄ datę z eventArgs (czyli był wcześniejszy SelectedDate, nie pierwsze ustawienie)
+            if (e.RemovedItems.Count == 0 || e.RemovedItems[0] is not DateTime oldDate) return;
+            if (!DpDataWysylki.SelectedDate.HasValue) return;
+            var newDate = DpDataWysylki.SelectedDate.Value.Date;
+            var delta = newDate - oldDate.Date;
+            if (delta == TimeSpan.Zero) return;
+
+            // Przesuń wszystkie partie o tę samą liczbę dni
+            int n = 0;
+            foreach (var p in PartieRows)
+            {
+                if (p.DataUboju.HasValue) p.DataUboju = p.DataUboju.Value + delta;
+                if (p.DataMrozenia.HasValue) p.DataMrozenia = p.DataMrozenia.Value + delta;
+                if (p.DataPrzydatnosci.HasValue) p.DataPrzydatnosci = p.DataPrzydatnosci.Value + delta;
+                n++;
+            }
+            if (n > 0)
+                LblStatus.Text = $"📅 Przesunięto {n} partii o {delta.Days:+0;-0} dni (zmiana daty wysyłki)";
         }
 
         // Wspólna logika: licz DataPrzydatnosci wg klasyfikacji + ustaw DataMrozenia tylko gdy mrożone.
+        // Używana TYLKO przy pierwszym ustawieniu daty (gdy nie mamy starej delty do zachowania).
         private void RecalcPartiaPrzydatnosc(HdiPartia partia)
         {
             try
@@ -399,8 +612,8 @@ namespace Kalendarz1.HDI
                 partia.DataPrzydatnosci = HdiProduktKlasyfikator.PrzydatnoscOd(partia.DataUboju.Value.Date, nazwa);
                 bool mrozony = HdiProduktKlasyfikator.IsMrozony(nazwa);
                 partia.DataMrozenia = mrozony ? partia.DataUboju.Value.Date : (DateTime?)null;
-                // Refresh wiersza grida (DataPicker DataPrzydatnosci + DataMrozenia)
-                GridPartie.Items.Refresh();
+                // INPC w HdiPartia powoduje że bindingi DatePicker auto-update — Refresh() nie potrzebny
+                // (i powodował "Refresh niedozwolony podczas EditItem transaction").
             }
             catch { }
         }
@@ -469,6 +682,7 @@ namespace Kalendarz1.HDI
             _model.WagaBrutto = TryParseDecimal(TxtWagaBrutto.Text);
             _model.DataWysylki = DpDataWysylki.SelectedDate;
             _model.NumerRejestracyjny = (TxtNumerRejestracyjny.Text ?? "").Trim();
+            _model.NumerRejNaczepy = (TxtNumerRejNaczepy.Text ?? "").Trim();
             _model.UwagiTransport = (TxtUwagiTransport.Text ?? "").Trim();
             _model.MiejscowoscWystawienia = (TxtMiejscowosc.Text ?? "").Trim();
             _model.DataWystawienia = DpDataWystawienia.SelectedDate ?? DateTime.Now;
@@ -550,31 +764,13 @@ namespace Kalendarz1.HDI
         }
         private void HideLoading() => LoadingOverlay.Visibility = Visibility.Collapsed;
 
-        // Pre-generowanie PDF w tle (po Bind) — preview otwiera się instant z cache.
-        // Inwalidowany za każdym wywołaniem (gdy user wpisuje, cache staje się przestarzały).
+        // Pre-generowanie PDF — WYŁĄCZONE (powodowało zwieszanie apki przy każdym Bind).
+        // Preview generuje synchronicznie w momencie kliknięcia "Podgląd PDF".
         private void SchedulePdfPrecache()
         {
-            _pdfCacheCts?.Cancel();
-            _pdfCacheCts = new System.Threading.CancellationTokenSource();
-            var ct = _pdfCacheCts.Token;
-            // Snapshot modelu (deep enough na potrzeby PDF)
-            BindToModel();
-            var snapshot = CloneModelForPdf(_model);
-            _ = Task.Run(() =>
-            {
-                try
-                {
-                    if (ct.IsCancellationRequested) return;
-                    var gen = new HdiPdfGenerator();
-                    var pdf = gen.Generate(snapshot);
-                    if (ct.IsCancellationRequested) return;
-                    var imgs = gen.GenerateImages(snapshot);
-                    if (ct.IsCancellationRequested) return;
-                    _cachedPdfBytes = pdf;
-                    _cachedPdfImages = imgs;
-                }
-                catch { /* best-effort; preview path zrobi to synchronicznie jako fallback */ }
-            }, ct);
+            // No-op. Cache inwalidujemy bo dane mogły się zmienić.
+            _cachedPdfBytes = null;
+            _cachedPdfImages = null;
         }
 
         // Płytka kopia modelu wystarczająca dla PDF (lista partii skopiowana po referencji wartości).
@@ -674,16 +870,22 @@ namespace Kalendarz1.HDI
 
             try
             {
+                var sw = System.Diagnostics.Stopwatch.StartNew();
                 if (_model.Id == 0)
                 {
                     var id = await _service.CreateAsync(_model);
-                    LblStatus.Text = $"✓ Zapisano HDI {_model.NumerPelny} (ID: {id})";
+                    LblStatus.Text = $"✓ Zapisano HDI {_model.NumerPelny} (ID: {id}) · ⚡ {sw.ElapsedMilliseconds}ms";
                 }
                 else
                 {
                     await _service.UpdateAsync(_model);
-                    LblStatus.Text = $"✓ Zaktualizowano HDI {_model.NumerPelny}";
+                    LblStatus.Text = $"✓ Zaktualizowano HDI {_model.NumerPelny} · ⚡ {sw.ElapsedMilliseconds}ms";
                 }
+                _savedSuccessfully = true;
+                _isDirty = false;
+                FlashButton(BtnSave, "✓ Zapisz HDI", "✅ Zapisano!");
+                // Krótkie opóźnienie żeby user zobaczył toast przed zamknięciem
+                await Task.Delay(700);
                 DialogResult = true;
                 Close();
             }
@@ -693,16 +895,108 @@ namespace Kalendarz1.HDI
             }
         }
 
-        private void BtnCancel_Click(object sender, RoutedEventArgs e) { DialogResult = false; Close(); }
+        private void BtnCancel_Click(object sender, RoutedEventArgs e)
+        {
+            // Dirty flag — ostrzeż przed utratą zmian
+            if (_isDirty && !_savedSuccessfully)
+            {
+                var r = MessageBox.Show(this,
+                    "Masz niezapisane zmiany.\n\nZamknąć BEZ ZAPISU?\n\n(TAK = zamknij, NIE = wróć do edycji)",
+                    "Niezapisane zmiany", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                if (r != MessageBoxResult.Yes) return;
+            }
+            DialogResult = false;
+            Close();
+        }
 
-        // Keyboard shortcuts: Ctrl+S zapisz, Ctrl+P podgląd PDF, Ctrl+R pobierz, Esc zamknij, F5 odśwież auto-fill
+        // Drukuj bez podglądu — przez WPF PrintDialog (oryginał + kopia).
+        private void BtnDirectPrint_Click(object sender, RoutedEventArgs e)
+        {
+            if (!BindToModel()) return;
+            try
+            {
+                var dialog = new System.Windows.Controls.PrintDialog();
+                if (dialog.ShowDialog() != true) { LblStatus.Text = "Drukowanie anulowane"; return; }
+
+                var gen = new HdiPdfGenerator();
+                var pages = gen.GenerateImages(_model);
+                var doc = HdiPreviewWindow.BuildPrintDocument(pages, dialog.PrintableAreaWidth, dialog.PrintableAreaHeight);
+                dialog.PrintDocument(doc.DocumentPaginator, $"HDI {_model.NumerPelny}");
+                LblStatus.Text = $"🖨️ HDI {_model.NumerPelny}: oryginał + kopia → '{dialog.PrintQueue?.Name ?? "domyślna"}'";
+                FlashButton(BtnDirectPrint, "🖨️ Drukuj", "🖨️ Wysłano!");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this,
+                    "Błąd drukowania:\n\n" + ex.Message + "\n\nSpróbuj zapisać PDF i wydrukować ręcznie.",
+                    "Drukowanie", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
+        // Otwiera live-log okno (F12 lub przycisk 🐛 w footerze)
+        private static HdiDiagWindow? _diagWindow;
+        private void OpenDiagWindow()
+        {
+            if (_diagWindow == null || !_diagWindow.IsVisible)
+            {
+                _diagWindow = new HdiDiagWindow();
+                _diagWindow.Closed += (s, e) => _diagWindow = null;
+                _diagWindow.Show();
+            }
+            else { _diagWindow.Activate(); }
+        }
+
+        private void BtnOpenDiag_Click(object sender, RoutedEventArgs e) => OpenDiagWindow();
+
+        // Otwiera plik logu w Notatniku — bulletproof debugging
+        // Plik: %TEMP%\Kalendarz1_HDI_diag.log
+        private void BtnOpenLogFile_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var path = HdiDiag.LogFilePath;
+                if (!System.IO.File.Exists(path))
+                {
+                    System.IO.File.WriteAllText(path, "(brak logów — wykonaj akcję w HDI najpierw)\n");
+                }
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "notepad.exe",
+                    Arguments = $"\"{path}\"",
+                    UseShellExecute = true
+                });
+                LblStatus.Text = $"📂 Otwarto: {path}";
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, $"Nie mogę otworzyć: {HdiDiag.LogFilePath}\n\n{ex.Message}",
+                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        // Visual feedback po akcji — przycisk zmienia tekst na 1.5s
+        private void FlashButton(Button btn, string original, string flash)
+        {
+            try
+            {
+                btn.Content = flash;
+                var t = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1500) };
+                t.Tick += (s, e) => { btn.Content = original; t.Stop(); };
+                t.Start();
+            }
+            catch { btn.Content = original; }
+        }
+
+        // Keyboard shortcuts: Ctrl+S zapisz, Ctrl+P podgląd PDF, Ctrl+D drukuj direct, Ctrl+R pobierz, Esc zamknij, F5 auto-fill
         private void Window_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
         {
             if (e.Handled) return;
-            // Pomijaj gdy user pisze w TextBox/DatePicker — wymaga modyfikatora Ctrl
             bool isText = e.OriginalSource is TextBox || e.OriginalSource is DatePickerTextBox;
 
             if (e.Key == System.Windows.Input.Key.Escape && !isText) { BtnCancel_Click(this, new RoutedEventArgs()); e.Handled = true; }
+            else if (e.Key == System.Windows.Input.Key.F12) { OpenDiagWindow(); e.Handled = true; }
+            else if (e.Key == System.Windows.Input.Key.D && (System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Control) != 0)
+            { BtnDirectPrint_Click(this, new RoutedEventArgs()); e.Handled = true; }
             else if (e.Key == System.Windows.Input.Key.S && (System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Control) != 0)
             { BtnSave_Click(this, new RoutedEventArgs()); e.Handled = true; }
             else if (e.Key == System.Windows.Input.Key.P && (System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Control) != 0)

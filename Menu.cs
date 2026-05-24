@@ -1372,6 +1372,10 @@ namespace Kalendarz1
             /* 70 */ "Sprawozdania",
             /* 71 */ "ZSRIR",
             /* 72 */ "SprawozdaniaGus",
+            /* 73 */ "Customer360",
+            /* 74 */ "DOA",
+            /* 75 */ "ColdChain",
+            /* 76 */ "Traceability",
         };
 
         private void ParseAccessString(string accessString)
@@ -1551,7 +1555,12 @@ namespace Kalendarz1
                     new MenuItemConfig("ZmianyUHodowcow", "Wnioski o Zmiany",
                         "Przeglądanie i zatwierdzanie wniosków o zmiany danych hodowców zgłoszonych przez użytkowników",
                         Color.FromArgb(27, 94, 32), // Ciemny zielony #1B5E20
-                        () => new Hodowcy.AdminChangeRequestsWindow(connectionString, App.UserID), "📝", "Zmiany Danych")
+                        () => new Hodowcy.AdminChangeRequestsWindow(connectionString, App.UserID), "📝", "Zmiany Danych"),
+
+                    new MenuItemConfig("DOA", "DOA — Padłe w Transporcie",
+                        "Rejestr padłych sztuk w transporcie (Dead On Arrival) + ranking hodowców wg % DOA. Norma <0.2%, max 0.5%.",
+                        Color.FromArgb(220, 38, 38), // Czerwony #DC2626
+                        () => new Kalendarz1.DOA.DOAWindow(), "💀", "DOA")
                 },
 
                 // ═══════════════════════════════════════════════════════════════════════════
@@ -1577,6 +1586,16 @@ namespace Kalendarz1
                         "Zarządzanie stanami magazynowymi produktów mrożonych z kontrolą partii i dat",
                         Color.FromArgb(255, 152, 0), // #FF9800
                         () => new Mroznia(), "❄️", "Mroźnia"),
+
+                    new MenuItemConfig("ColdChain", "Cold Chain HACCP",
+                        "Monitoring punktów kontroli krytycznej (CCP) — temperatury parzelnika/chłodni/mroźni + incydenty + działania naprawcze. Tryb manualny działa od razu.",
+                        Color.FromArgb(14, 165, 233), // #0EA5E9
+                        () => new Kalendarz1.ColdChain.ColdChainWindow(), "🛡", "Cold Chain"),
+
+                    new MenuItemConfig("Traceability", "Traceability + Recall",
+                        "Śledzenie palet wyrobu (lot number) — reverse trace od produktu do hodowcy + zarządzanie wycofaniem (recall). Drukarka etykiet osobno.",
+                        Color.FromArgb(5, 150, 105), // #059669
+                        () => new Kalendarz1.Traceability.TraceabilityWindow(), "🔍", "Traceability"),
 
                     new MenuItemConfig("LiczenieMagazynu", "Inwentaryzacja Magazynu",
                         "Codzienna rejestracja stanów magazynowych produktów gotowych i surowców",
@@ -1697,6 +1716,11 @@ namespace Kalendarz1
                         Color.FromArgb(33, 150, 243), // Niebieski #2196F3
                         () => new HandlowiecDashboardWindow(), "📊", "Dashboard"),
 
+                    new MenuItemConfig("Customer360", "Karta Klienta 360°",
+                        "Pełny widok klienta w jednym oknie - historia zamówień, marża, limit kredytowy, reklamacje, top towary, churn risk",
+                        Color.FromArgb(25, 118, 210), // Niebieski #1976D2
+                        () => new Kalendarz1.Customer360.Customer360Window(), "👤", "Klient 360"),
+
                     new MenuItemConfig("PanelPaniJola", "Panel Pani Jola",
                         "Uproszczony widok zamówień i produktów - duże kafelki, łatwa nawigacja",
                         Color.FromArgb(30, 136, 229), // Niebieski #1E88E5
@@ -1720,9 +1744,35 @@ namespace Kalendarz1
                         "Panel dla fakturzystki - przepisywanie zamówień do Symfonii Handel i tworzenie faktur",
                         Color.FromArgb(25, 118, 210), // #1976D2
                         () => {
-                            var window = new Kalendarz1.WPF.PanelFakturWindow();
-                            window.UserID = App.UserID;
-                            return window;
+                            try
+                            {
+                                var window = new Kalendarz1.WPF.PanelFakturWindow();
+                                window.UserID = App.UserID;
+                                return window;
+                            }
+                            catch (Exception ex)
+                            {
+                                // Wyświetl pełny błąd + stack trace + inner exceptions
+                                var sb = new System.Text.StringBuilder();
+                                sb.AppendLine("BŁĄD OTWIERANIA PANEL FAKTURZYSTKI");
+                                sb.AppendLine("======================================");
+                                var cur = ex;
+                                int level = 0;
+                                while (cur != null)
+                                {
+                                    sb.AppendLine($"[{level}] {cur.GetType().FullName}");
+                                    sb.AppendLine($"    {cur.Message}");
+                                    if (!string.IsNullOrEmpty(cur.StackTrace))
+                                        sb.AppendLine($"    {cur.StackTrace}");
+                                    sb.AppendLine();
+                                    cur = cur.InnerException;
+                                    level++;
+                                }
+                                try { System.IO.File.WriteAllText(System.IO.Path.Combine(System.IO.Path.GetTempPath(), "Kalendarz1_PanelFaktur_error.log"), sb.ToString()); } catch { }
+                                System.Windows.Forms.MessageBox.Show(sb.ToString(), "Panel Fakturzystki - błąd",
+                                    System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Error);
+                                throw;
+                            }
                         }, "📋", "Fakturowanie"),
 
                     new MenuItemConfig("OfertaCenowa", "Kreator Ofert",

@@ -8865,6 +8865,9 @@ namespace Kalendarz1
                 {
                     conn.Open();
 
+                    // Pola Symfonia: fc.SymfoniaNrFV (nr FV z eksportu AmBasic).
+                    // KLUCZOWE: Wartosc liczona z PayWgt (= DoZapl. z PDF, po potraceniach: padle, konf., ubytek, opas., klB)
+                    //           i Cena = Price + Addition. ROUND(..., 0) zgodnie z PDF Math.Round(..., 0).
                     string query = @"
                         SELECT
                             fc.ID,
@@ -8873,20 +8876,27 @@ namespace Kalendarz1
                             COALESCE(k.ShortName, 'Nieznany') as Dostawca,
                             ISNULL(fc.DeclI1, 0) as SztukiDek,
                             ISNULL(fc.NettoWeight, 0) as NettoKg,
+                            ISNULL(fc.PayWgt, 0) as DoZaplaty,
                             ISNULL(fc.Price, 0) as Cena,
                             ISNULL(fc.Addition, 0) as Dodatek,
                             pt.Name as TypCeny,
                             ISNULL(fc.TerminDni, 0) as TerminDni,
-                            ISNULL(fc.NettoWeight, 0) * (ISNULL(fc.Price, 0) + ISNULL(fc.Addition, 0)) as Wartosc,
+                            CAST(ROUND(ISNULL(fc.PayWgt, 0) * (ISNULL(fc.Price, 0) + ISNULL(fc.Addition, 0)), 0) AS DECIMAL(18, 2)) as Wartosc,
                             ISNULL(fc.Symfonia, 0) as Symfonia,
                             ISNULL(k.IdSymf, 0) as IdSymf,
+                            ISNULL(CAST(fc.CustomerGID AS NVARCHAR(50)), '') as CustomerGID,
                             ISNULL(fc.SymfoniaNrFV, '') as NrFaktury,
                             ISNULL(fc.NrDokArimr, '') as NrDokArimr
                         FROM dbo.FarmerCalc fc
                         LEFT JOIN dbo.Dostawcy k ON fc.CustomerGID = k.ID
                         LEFT JOIN dbo.PriceType pt ON fc.PriceTypeID = pt.ID
                         WHERE fc.CalcDate = @CalcDate
-                        ORDER BY fc.CarLp";
+                        ORDER BY
+                            -- Najpierw wiersze z FV (grupowane po nr), potem bez FV.
+                            -- Grupa tej samej FV pojawia sie obok siebie, wewnatrz wg CarLp.
+                            CASE WHEN ISNULL(fc.SymfoniaNrFV, '') = '' THEN 1 ELSE 0 END,
+                            ISNULL(fc.SymfoniaNrFV, ''),
+                            fc.CarLp";
 
                     using (SqlCommand cmd = new SqlCommand(query, conn))
                     {
@@ -8904,6 +8914,7 @@ namespace Kalendarz1
                                     Dostawca = reader.IsDBNull(reader.GetOrdinal("Dostawca")) ? "" : reader["Dostawca"].ToString(),
                                     SztukiDek = reader.IsDBNull(reader.GetOrdinal("SztukiDek")) ? 0 : Convert.ToInt32(reader["SztukiDek"]),
                                     NettoKg = reader.IsDBNull(reader.GetOrdinal("NettoKg")) ? 0 : Convert.ToDecimal(reader["NettoKg"]),
+                                    DoZaplaty = reader.IsDBNull(reader.GetOrdinal("DoZaplaty")) ? 0 : Convert.ToDecimal(reader["DoZaplaty"]),
                                     Cena = reader.IsDBNull(reader.GetOrdinal("Cena")) ? 0 : Convert.ToDecimal(reader["Cena"]),
                                     Dodatek = reader.IsDBNull(reader.GetOrdinal("Dodatek")) ? 0 : Convert.ToDecimal(reader["Dodatek"]),
                                     TypCeny = reader.IsDBNull(reader.GetOrdinal("TypCeny")) ? "" : reader["TypCeny"].ToString(),
@@ -8911,6 +8922,7 @@ namespace Kalendarz1
                                     Wartosc = reader.IsDBNull(reader.GetOrdinal("Wartosc")) ? 0 : Convert.ToDecimal(reader["Wartosc"]),
                                     Symfonia = !reader.IsDBNull(reader.GetOrdinal("Symfonia")) && Convert.ToBoolean(reader["Symfonia"]),
                                     IdSymf = reader.IsDBNull(reader.GetOrdinal("IdSymf")) ? 0 : Convert.ToInt32(reader["IdSymf"]),
+                                    CustomerGID = reader.IsDBNull(reader.GetOrdinal("CustomerGID")) ? "" : reader["CustomerGID"].ToString(),
                                     NrFaktury = reader.IsDBNull(reader.GetOrdinal("NrFaktury")) ? "" : reader["NrFaktury"].ToString(),
                                     NrDokArimr = reader.IsDBNull(reader.GetOrdinal("NrDokArimr")) ? "" : reader["NrDokArimr"].ToString(),
                                     ARIMR = !reader.IsDBNull(reader.GetOrdinal("NrDokArimr")) && !string.IsNullOrWhiteSpace(reader["NrDokArimr"].ToString())
@@ -8936,7 +8948,11 @@ namespace Kalendarz1
                 lblRozliczeniaSumaWierszy.Text = rozliczeniaData.Count.ToString();
                 lblRozliczeniaSumaSztuk.Text = rozliczeniaData.Sum(r => r.SztukiDek).ToString("N0");
                 lblRozliczeniaSumaKg.Text = rozliczeniaData.Sum(r => r.NettoKg).ToString("N0");
+                lblRozliczeniaSumaDoZapl.Text = rozliczeniaData.Sum(r => r.DoZaplaty).ToString("N0");
                 lblRozliczeniaSumaWartosc.Text = rozliczeniaData.Sum(r => r.Wartosc).ToString("N2") + " zł";
+
+                // Async auto-walidacja FV vs HANDEL (per-row + counters w pasku)
+                _ = WalidujFvAsync(rozliczeniaData.ToList());
 
                 totalStopwatch.Stop();
                 debugLog.AppendLine($"=== RAZEM Rozliczenia: {totalStopwatch.ElapsedMilliseconds}ms ===");
@@ -8948,6 +8964,662 @@ namespace Kalendarz1
             {
                 UpdateStatus($"Błąd ładowania rozliczeń: {ex.Message}");
                 System.Diagnostics.Debug.WriteLine($"LoadRozliczeniaData ERROR: {ex}");
+            }
+        }
+
+        // === Filtrowanie gridu wg statusu FV ===
+        // null = brak filtra; "NIEPOP" / "BRAK" / "OK"
+        private string _fvFilter = "";
+
+        private void ApplyFvFilter()
+        {
+            var view = System.Windows.Data.CollectionViewSource.GetDefaultView(dataGridRozliczenia.ItemsSource);
+            if (view == null) return;
+
+            if (string.IsNullOrEmpty(_fvFilter))
+            {
+                view.Filter = null;
+                btnFvClearFilter.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                view.Filter = obj =>
+                {
+                    if (obj is not RozliczenieRow r) return true;
+                    return _fvFilter switch
+                    {
+                        "NIEPOP" => r.FvStatus == "DIFF_KG" || r.FvStatus == "DIFF_KH" || r.FvStatus == "NOT_FOUND",
+                        "BRAK"   => string.IsNullOrWhiteSpace(r.NrFaktury),
+                        "OK"     => r.FvStatus == "OK",
+                        _ => true
+                    };
+                };
+                btnFvClearFilter.Visibility = Visibility.Visible;
+            }
+        }
+
+        private void ToggleFvFilter(string filter)
+        {
+            _fvFilter = _fvFilter == filter ? "" : filter;
+            ApplyFvFilter();
+            // Wizualne podswietlenie aktywnego: ramka 2px wokol aktywnej pigulki
+            var redBorder   = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xB9, 0x1C, 0x1C));
+            var blueBorder  = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x37, 0x30, 0xA3));
+            var greenBorder = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x16, 0x65, 0x34));
+            var noBorder = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Transparent);
+            boxFvNiepoprawne.BorderBrush     = _fvFilter == "NIEPOP" ? redBorder   : noBorder;
+            boxFvBrak.BorderBrush            = _fvFilter == "BRAK"   ? blueBorder  : noBorder;
+            boxFvOk.BorderBrush              = _fvFilter == "OK"     ? greenBorder : noBorder;
+            boxFvNiepoprawne.BorderThickness = _fvFilter == "NIEPOP" ? new Thickness(2) : new Thickness(0);
+            boxFvBrak.BorderThickness        = _fvFilter == "BRAK"   ? new Thickness(2) : new Thickness(0);
+            boxFvOk.BorderThickness          = _fvFilter == "OK"     ? new Thickness(2) : new Thickness(0);
+        }
+
+        private void FvFilter_Niepoprawne_Click(object sender, System.Windows.Input.MouseButtonEventArgs e) => ToggleFvFilter("NIEPOP");
+        private void FvFilter_Brak_Click(object sender, System.Windows.Input.MouseButtonEventArgs e) => ToggleFvFilter("BRAK");
+        private void FvFilter_Ok_Click(object sender, System.Windows.Input.MouseButtonEventArgs e) => ToggleFvFilter("OK");
+        private void FvFilter_Clear_Click(object sender, RoutedEventArgs e) => ToggleFvFilter(_fvFilter); // toggle off
+
+        // === Kopiowanie listy bledow do schowka ===
+        private void FvKopiujBledy_Click(object sender, RoutedEventArgs e)
+        {
+            var bledne = rozliczeniaData
+                .Where(r => r.FvStatus == "DIFF_KG" || r.FvStatus == "DIFF_KH" || r.FvStatus == "NOT_FOUND")
+                .ToList();
+            if (bledne.Count == 0)
+            {
+                MessageBox.Show("Brak niepoprawnych FV do skopiowania.", "Kopiuj błędy",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("Lp\tDostawca\tNr FV\tKg dostawa\tStatus\tSzczegoly");
+            int i = 1;
+            foreach (var r in bledne)
+            {
+                string statusTxt = r.FvStatus switch
+                {
+                    "DIFF_KG" => "Roznica kg",
+                    "DIFF_KH" => "Inny kontrahent",
+                    "NOT_FOUND" => "Brak w HANDEL",
+                    _ => r.FvStatus
+                };
+                sb.AppendLine($"{i}\t{r.Dostawca}\t{r.NrFaktury}\t{r.NettoKg:N2}\t{statusTxt}\t{r.FvStatusDetail}");
+                i++;
+            }
+
+            try
+            {
+                Clipboard.SetText(sb.ToString());
+                MessageBox.Show($"Skopiowano {bledne.Count} niepoprawnych FV do schowka (TSV).",
+                    "Kopiuj błędy", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Błąd kopiowania: " + ex.Message, "Błąd",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        // === Historia faktur kontrahenta (dialog) ===
+        private void DataGridRozliczenia_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            OtworzHistorieDostawcy();
+        }
+
+        // Right-click selects row pod kursorem zeby ContextMenu dzialal na wlasciwym wierszu (a nie poprzednio zaznaczonym)
+        private void DataGridRozliczenia_PreviewMouseRightButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            var dep = e.OriginalSource as System.Windows.DependencyObject;
+            while (dep != null && dep is not System.Windows.Controls.DataGridRow)
+                dep = System.Windows.Media.VisualTreeHelper.GetParent(dep);
+            if (dep is System.Windows.Controls.DataGridRow row)
+            {
+                row.IsSelected = true;
+                row.Focus();
+            }
+        }
+
+        private void MenuHistoriaFaktur_Click(object sender, RoutedEventArgs e)
+        {
+            OtworzHistorieDostawcy();
+        }
+
+        // === Dopasuj fakture (manual re-pair) ===
+        private async void MenuDopasujFakture_Click(object sender, RoutedEventArgs e)
+        {
+            if (dataGridRozliczenia.SelectedItem is not RozliczenieRow row)
+            {
+                MessageBox.Show("Zaznacz wiersz dostawy.", "Dopasuj fakturę",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            // Jesli row ma pośrednika -> używamy Posrednicy.SymfoniaId zamiast Dostawcy.IdSymf
+            // (bo FV jest wystawiona na pośrednika, nie hodowcę)
+            int effectiveIdSymf = row.IdSymf;
+            string effectiveName = row.Dostawca;
+            try
+            {
+                const string connLibra =
+                    "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+                using var conn = new Microsoft.Data.SqlClient.SqlConnection(connLibra);
+                await conn.OpenAsync();
+                using var cmd = new Microsoft.Data.SqlClient.SqlCommand(@"
+SELECT TOP 1 p.SymfoniaId, p.Name1
+FROM dbo.FarmerCalc fc
+INNER JOIN dbo.Posrednicy p ON p.Id = fc.IdPosrednik
+WHERE fc.ID = @ID AND p.SymfoniaId IS NOT NULL", conn);
+                cmd.Parameters.AddWithValue("@ID", row.ID);
+                using var rdr = await cmd.ExecuteReaderAsync();
+                if (await rdr.ReadAsync())
+                {
+                    effectiveIdSymf = rdr.GetInt32(0);
+                    effectiveName = "[POSR] " + (rdr["Name1"]?.ToString() ?? row.Dostawca);
+                }
+            }
+            catch { /* fallback do Dostawcy.IdSymf */ }
+
+            if (effectiveIdSymf == 0)
+            {
+                MessageBox.Show(
+                    "Ani dostawca ani pośrednik nie mają mapowania na Symfonie (IdSymf = 0).\nNajpierw zmapuj w menu Mapowanie.",
+                    "Brak mapowania", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            try
+            {
+                var dlg = new Kalendarz1.Zywiec.WidokSpecyfikacji.DopasujFaktureZakupuWindow(
+                    farmerCalcId: row.ID,
+                    idSymf: effectiveIdSymf,
+                    dostawcaNazwa: effectiveName,
+                    calcDate: row.Data,
+                    expectedKg: row.DoZaplaty > 0 ? row.DoZaplaty : row.NettoKg,
+                    obecnyNrFV: row.NrFaktury)
+                {
+                    Owner = Window.GetWindow(this)
+                };
+                if (dlg.ShowDialog() == true)
+                {
+                    row.NrFaktury = dlg.SelectedNumerFaktury ?? "";
+                    row.Symfonia = !dlg.Odepnieto && !string.IsNullOrWhiteSpace(dlg.SelectedNumerFaktury);
+                    // Reset statusu przed rewalidacja (bo zmienil sie nrFv)
+                    row.FvStatus = "";
+                    row.FvStatusDetail = "";
+                    dataGridRozliczenia.Items.Refresh();
+                    UpdateStatus(dlg.Odepnieto
+                        ? $"🗑 Odpięto FV od dostawy #{row.ID}"
+                        : $"✓ Przypisano FV {dlg.SelectedNumerFaktury} do dostawy #{row.ID} · rewalidacja...");
+                    // Auto-rewalidacja zeby liczniki + ikony sie odswiezyly
+                    _ = WalidujFvAsync(rozliczeniaData.ToList());
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Nie udało się otworzyć okna dopasowania: " + ex.Message,
+                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        // === Sprawdz zgodnosc wszystkich FV (batch validation) ===
+        private async void MenuSprawdzZgodnosc_Click(object sender, RoutedEventArgs e)
+        {
+            await SprawdzZgodnoscFvAsync();
+        }
+
+        // Silent walidacja per row + update counters w pasku. Wywoływana automatycznie po LoadRozliczeniaData.
+        private async System.Threading.Tasks.Task WalidujFvAsync(List<RozliczenieRow> rows)
+        {
+            try
+            {
+                var rowsWithFv = rows.Where(r => !string.IsNullOrWhiteSpace(r.NrFaktury)).ToList();
+                int brakCount = rows.Count - rowsWithFv.Count;
+
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    // Pigułki w dolnym pasku
+                    lblFvOk.Text = "—"; lblFvWarn.Text = "—"; lblFvErr.Text = "—";
+                    lblFvBrak.Text = brakCount.ToString();
+                    // Inline pigulki obok tytulu — schowane podczas walidacji
+                    boxFvNiepoprawne.Visibility = Visibility.Collapsed;
+                    boxFvBrak.Visibility = brakCount > 0 ? Visibility.Visible : Visibility.Collapsed;
+                    boxFvOk.Visibility = Visibility.Collapsed;
+                    btnFvKopiuj.Visibility = Visibility.Collapsed;
+                    lblFvBannerBrak.Text = brakCount.ToString();
+                    // Badge na karcie zakladki — schowane podczas walidacji (oprocz "brak")
+                    tabRozliczeniaBadgeErr.Visibility = Visibility.Collapsed;
+                    tabRozliczeniaBadgeOk.Visibility = Visibility.Collapsed;
+                    tabRozliczeniaBadgeBrak.Visibility = brakCount > 0 ? Visibility.Visible : Visibility.Collapsed;
+                    tabRozliczeniaBadgeBrakText.Text = brakCount.ToString();
+                    // Status badge: "Sprawdzam..."
+                    bannerFvStatus.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xE0, 0xE7, 0xFF));
+                    lblFvBannerStatus.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x37, 0x30, 0xA3));
+                    lblFvBannerStatus.Text = rowsWithFv.Count == 0 ? "Brak FV do sprawdzenia" : "Sprawdzam...";
+                });
+
+                if (rowsWithFv.Count == 0) return;
+
+                const string connHandel =
+                    "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
+                const string connLibra =
+                    "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+
+                // Batch 1: HANDEL FV (kod, khid, suma kg, liczba pozycji)
+                var numery = rowsWithFv.Select(r => r.NrFaktury).Distinct().ToList();
+                var paramList = string.Join(",", numery.Select((_, i) => "@n" + i));
+                string sql = $@"
+SELECT dk.kod, dk.khid,
+       COALESCE(SUM(ABS(dp.ilosc)),0) AS Suma,
+       COUNT(dp.id)                   AS LiczbaPozycji
+FROM HM.DK dk
+LEFT JOIN HM.DP dp ON dp.super = dk.id
+WHERE dk.kod IN ({paramList})
+  AND dk.typ_dk IN ('FVR','FVZ','FKZ')
+  AND ISNULL(dk.anulowany,0) = 0
+GROUP BY dk.kod, dk.khid";
+
+                var found = new Dictionary<string, (int khid, decimal suma, int liczbaPozycji)>(StringComparer.OrdinalIgnoreCase);
+                using (var conn = new Microsoft.Data.SqlClient.SqlConnection(connHandel))
+                {
+                    await conn.OpenAsync();
+                    using var cmd = new Microsoft.Data.SqlClient.SqlCommand(sql, conn) { CommandTimeout = 60 };
+                    for (int i = 0; i < numery.Count; i++)
+                        cmd.Parameters.Add("@n" + i, System.Data.SqlDbType.NVarChar, 50).Value = numery[i];
+                    using var rdr = await cmd.ExecuteReaderAsync();
+                    while (await rdr.ReadAsync())
+                    {
+                        string kod = rdr["kod"]?.ToString() ?? "";
+                        int khid = rdr.IsDBNull(1) ? 0 : Convert.ToInt32(rdr["khid"]);
+                        decimal suma = rdr.IsDBNull(2) ? 0 : Convert.ToDecimal(rdr["Suma"]);
+                        int liczbaPozycji = rdr.IsDBNull(3) ? 0 : Convert.ToInt32(rdr["LiczbaPozycji"]);
+                        if (!found.ContainsKey(kod)) found[kod] = (khid, suma, liczbaPozycji);
+                    }
+                }
+
+                // Batch 2: LibraNet — Posrednicy.SymfoniaId per FarmerCalc.ID
+                var posrednikSymf = new Dictionary<int, int>();
+                using (var conn = new Microsoft.Data.SqlClient.SqlConnection(connLibra))
+                {
+                    await conn.OpenAsync();
+                    var ids = string.Join(",", rowsWithFv.Select(r => r.ID));
+                    if (ids.Length > 0)
+                    {
+                        using var cmd = new Microsoft.Data.SqlClient.SqlCommand($@"
+SELECT fc.ID, p.SymfoniaId
+FROM dbo.FarmerCalc fc
+INNER JOIN dbo.Posrednicy p ON p.Id = fc.IdPosrednik
+WHERE fc.ID IN ({ids}) AND p.SymfoniaId IS NOT NULL", conn);
+                        using var rdr = await cmd.ExecuteReaderAsync();
+                        while (await rdr.ReadAsync())
+                            posrednikSymf[rdr.GetInt32(0)] = rdr.GetInt32(1);
+                    }
+                }
+
+                // KLUCZOWE: 1 FV w Symfonii moze odpowiadac wielu wierszom FarmerCalc (np. 7 dostaw Knery -> 1 FV ze suma 96869 kg).
+                // Wiec walidacja grupuje wiersze po NrFaktury i porownuje SUM(DoZaplaty) z FV.suma.
+                // Liczbe pozycji FV traktujemy informacyjnie: FV moze legalnie miec WIECEJ pozycji (transport/opakowania/dodatki).
+                // Tylko gdy FV ma MNIEJ pozycji niz wierszy w grupie -> sygnal "moze brakuje dostaw".
+                int ok = 0, warn = 0, err = 0;
+                var rowsByFv = rowsWithFv
+                    .GroupBy(r => r.NrFaktury, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                // Zbieramy wyniki lokalnie, aplikujemy jednym Dispatcher.Invoke na koncu (wydajnosc).
+                var wyniki = new List<(RozliczenieRow row, string status, string detail)>();
+
+                foreach (var grp in rowsByFv)
+                {
+                    string nrFv = grp.Key;
+                    var grpRows = grp.ToList();
+                    int grpCount = grpRows.Count;
+                    decimal expectedSum = grpRows.Sum(r => r.DoZaplaty > 0 ? r.DoZaplaty : r.NettoKg);
+
+                    if (!found.TryGetValue(nrFv, out var fv))
+                    {
+                        string detail = grpCount > 1
+                            ? $"nr {nrFv} brak w HM.DK (grupa {grpCount} wierszy, suma {expectedSum:N0} kg)"
+                            : $"nr {nrFv} brak w HM.DK";
+                        foreach (var r in grpRows)
+                        {
+                            wyniki.Add((r, "NOT_FOUND", detail));
+                            err++;
+                        }
+                        continue;
+                    }
+
+                    decimal tol = Math.Max(1m, expectedSum * 0.005m);
+                    bool kgOk = Math.Abs(fv.suma - expectedSum) <= tol;
+                    // FV ma MNIEJ pozycji niz grupa = podejrzane (moze brakuje dostaw). Wiecej = OK (transport itp.)
+                    bool pozBrakuje = fv.liczbaPozycji > 0 && fv.liczbaPozycji < grpCount;
+
+                    foreach (var r in grpRows)
+                    {
+                        int? posrSymf = posrednikSymf.TryGetValue(r.ID, out var ps) ? ps : (int?)null;
+                        bool khOk = (r.IdSymf == 0 && posrSymf == null)
+                                    || (r.IdSymf > 0 && fv.khid == r.IdSymf)
+                                    || (posrSymf.HasValue && fv.khid == posrSymf.Value);
+
+                        string status; string detail;
+                        string grpInfo = grpCount > 1 ? $"  ·  grupa {grpCount}w" : "";
+                        string pozNota = pozBrakuje ? $"  ⚠ FV ma tylko {fv.liczbaPozycji} pozycji vs {grpCount} wierszy" : "";
+
+                        if (kgOk && khOk && !pozBrakuje)
+                        {
+                            status = "OK";
+                            detail = $"FV {fv.suma:N0} kg = suma DoZapl {expectedSum:N0}, khid {fv.khid}{grpInfo}";
+                            ok++;
+                        }
+                        else if (kgOk && khOk && pozBrakuje)
+                        {
+                            status = "DIFF_KG";
+                            detail = $"kg ✓ ({expectedSum:N0}){pozNota}";
+                            warn++;
+                        }
+                        else if (!kgOk && khOk)
+                        {
+                            status = "DIFF_KG";
+                            decimal diff = fv.suma - expectedSum;
+                            detail = $"FV {fv.suma:N2} vs suma DoZapl {expectedSum:N2} (Δ{diff:+#.00;-#.00;0}){grpInfo}{pozNota}";
+                            warn++;
+                        }
+                        else if (kgOk && !khOk)
+                        {
+                            status = "DIFF_KH";
+                            string expected = posrSymf.HasValue ? $"{r.IdSymf} (dost.) lub {posrSymf.Value} (posr.)" : r.IdSymf.ToString();
+                            detail = $"FV.khid={fv.khid}, oczek. {expected}{grpInfo}";
+                            warn++;
+                        }
+                        else
+                        {
+                            status = "DIFF_KG";
+                            decimal diff = fv.suma - expectedSum;
+                            string expected = posrSymf.HasValue ? $"{r.IdSymf}/{posrSymf.Value}" : r.IdSymf.ToString();
+                            detail = $"kg Δ{diff:+#.00;-#.00;0}  ·  khid {fv.khid}≠{expected}{grpInfo}{pozNota}";
+                            warn++;
+                        }
+
+                        wyniki.Add((r, status, detail));
+                    }
+                }
+
+                int okF = ok, warnF = warn, errF = err;
+                int brakF = brakCount;
+                int niepoprawneF = warnF + errF;
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    // Aplikuj wszystkie statusy naraz (jeden Invoke = wydajnosc)
+                    foreach (var w in wyniki)
+                    {
+                        w.row.FvStatusDetail = w.detail;
+                        w.row.FvStatus = w.status;
+                    }
+
+                    // Pigulki w dolnym pasku
+                    lblFvOk.Text = okF.ToString();
+                    lblFvWarn.Text = warnF.ToString();
+                    lblFvErr.Text = errF.ToString();
+
+                    // Prominentny banner u gory
+                    lblFvBannerOk.Text = okF.ToString();
+                    lblFvBannerBrak.Text = brakF.ToString();
+                    lblFvBannerNiepoprawne.Text = niepoprawneF.ToString();
+                    AktualizujKoloryBanneraFv(niepoprawneF, brakF, okF, rowsWithFv.Count);
+
+                    dataGridRozliczenia.Items.Refresh();
+                });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("WalidujFvAsync ERROR: " + ex);
+            }
+        }
+
+        // Aktualizacja badge na karcie zakladki "💰 Rozliczenia (3)"
+        private void AktualizujBadgeZakladki(int niepoprawne, int brak, int ok)
+        {
+            // Czerwona pigulka — liczba bledow
+            if (niepoprawne > 0)
+            {
+                tabRozliczeniaBadgeErr.Visibility = Visibility.Visible;
+                tabRozliczeniaBadgeErrText.Text = niepoprawne.ToString();
+            }
+            else
+            {
+                tabRozliczeniaBadgeErr.Visibility = Visibility.Collapsed;
+            }
+            // Niebieska pigulka — liczba bez FV
+            if (brak > 0)
+            {
+                tabRozliczeniaBadgeBrak.Visibility = Visibility.Visible;
+                tabRozliczeniaBadgeBrakText.Text = brak.ToString();
+            }
+            else
+            {
+                tabRozliczeniaBadgeBrak.Visibility = Visibility.Collapsed;
+            }
+            // Zielona pigulka ✓ — tylko gdy wszystko OK (zaden blad, zaden brak, ale sa sprawdzone FV)
+            tabRozliczeniaBadgeOk.Visibility = (niepoprawne == 0 && brak == 0 && ok > 0)
+                ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        // Koloryzacja inline pigułek walidacji FV.
+        // - Pigułka NIEPOPRAWNE / BEZ FV widoczna tylko gdy count > 0 (mniej wizualnego szumu)
+        // - Pigułka OK widoczna gdy są jakiekolwiek sprawdzone FV
+        // - Status text adaptacyjny do priorytetu
+        // - Kopiuj button widoczny tylko gdy są błędy
+        private void AktualizujKoloryBanneraFv(int niepoprawne, int brak, int ok, int sprawdzonych)
+        {
+            // Sync badge na karcie zakladki
+            AktualizujBadgeZakladki(niepoprawne, brak, ok);
+
+            var red   = System.Windows.Media.Color.FromRgb(0xB9, 0x1C, 0x1C);
+            var amber = System.Windows.Media.Color.FromRgb(0x92, 0x40, 0x0E);
+            var green = System.Windows.Media.Color.FromRgb(0x16, 0x65, 0x34);
+            var gray  = System.Windows.Media.Color.FromRgb(0x6B, 0x72, 0x80);
+
+            // Widoczność pigułek (auto-hide gdy 0)
+            boxFvNiepoprawne.Visibility = niepoprawne > 0 ? Visibility.Visible : Visibility.Collapsed;
+            boxFvBrak.Visibility        = brak > 0        ? Visibility.Visible : Visibility.Collapsed;
+            boxFvOk.Visibility          = ok > 0          ? Visibility.Visible : Visibility.Collapsed;
+            btnFvKopiuj.Visibility      = niepoprawne > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+            // Status text — adaptacyjny do priorytetu
+            if (niepoprawne > 0)
+            {
+                bannerFvStatus.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xFE, 0xE2, 0xE2));
+                lblFvBannerStatus.Foreground = new System.Windows.Media.SolidColorBrush(red);
+                lblFvBannerStatus.Text = $"❌ {niepoprawne} z {sprawdzonych} FV wymaga uwagi";
+            }
+            else if (brak > 0 && sprawdzonych > 0)
+            {
+                bannerFvStatus.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xFE, 0xF3, 0xC7));
+                lblFvBannerStatus.Foreground = new System.Windows.Media.SolidColorBrush(amber);
+                lblFvBannerStatus.Text = $"FV poprawne, ale {brak} wierszy bez przypisania";
+            }
+            else if (sprawdzonych > 0)
+            {
+                bannerFvStatus.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xDC, 0xFC, 0xE7));
+                lblFvBannerStatus.Foreground = new System.Windows.Media.SolidColorBrush(green);
+                lblFvBannerStatus.Text = $"✓ Wszystko zgodne ({sprawdzonych} FV)";
+            }
+            else if (brak > 0)
+            {
+                bannerFvStatus.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xE0, 0xE7, 0xFF));
+                lblFvBannerStatus.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x37, 0x30, 0xA3));
+                lblFvBannerStatus.Text = $"{brak} wierszy do zafakturowania";
+            }
+            else
+            {
+                bannerFvStatus.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xF3, 0xF4, 0xF6));
+                lblFvBannerStatus.Foreground = new System.Windows.Media.SolidColorBrush(gray);
+                lblFvBannerStatus.Text = "Brak danych";
+            }
+        }
+
+        private async System.Threading.Tasks.Task SprawdzZgodnoscFvAsync()
+        {
+            UpdateStatus("🔍 Sprawdzam zgodność FV w HANDEL...");
+            try
+            {
+                var rowsWithFv = rozliczeniaData
+                    .Where(r => !string.IsNullOrWhiteSpace(r.NrFaktury))
+                    .ToList();
+                if (rowsWithFv.Count == 0)
+                {
+                    MessageBox.Show("Brak wierszy z przypisana FV do sprawdzenia.", "Sprawdz zgodnosc",
+                        MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                const string connHandel =
+                    "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
+                const string connLibra =
+                    "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+
+                // === Batch 1: HANDEL — FV po numerze (suma kg + khid) ===
+                var numery = rowsWithFv.Select(r => r.NrFaktury).Distinct().ToList();
+                var paramList = string.Join(",", numery.Select((_, i) => "@n" + i));
+                string sql = $@"
+SELECT dk.kod, dk.khid, dk.typ_dk, COALESCE(SUM(ABS(dp.ilosc)),0) AS Suma
+FROM HM.DK dk
+LEFT JOIN HM.DP dp ON dp.super = dk.id
+WHERE dk.kod IN ({paramList})
+  AND dk.typ_dk IN ('FVR','FVZ','FKZ')
+  AND ISNULL(dk.anulowany,0) = 0
+GROUP BY dk.kod, dk.khid, dk.typ_dk";
+
+                var found = new Dictionary<string, (int khid, string typ, decimal suma)>(StringComparer.OrdinalIgnoreCase);
+                using (var conn = new Microsoft.Data.SqlClient.SqlConnection(connHandel))
+                {
+                    await conn.OpenAsync();
+                    using var cmd = new Microsoft.Data.SqlClient.SqlCommand(sql, conn) { CommandTimeout = 60 };
+                    for (int i = 0; i < numery.Count; i++)
+                        cmd.Parameters.Add("@n" + i, System.Data.SqlDbType.NVarChar, 50).Value = numery[i];
+                    using var rdr = await cmd.ExecuteReaderAsync();
+                    while (await rdr.ReadAsync())
+                    {
+                        string kod = rdr["kod"]?.ToString() ?? "";
+                        int khid = rdr.IsDBNull(1) ? 0 : Convert.ToInt32(rdr["khid"]);
+                        string typ = rdr["typ_dk"]?.ToString() ?? "";
+                        decimal suma = rdr.IsDBNull(3) ? 0 : Convert.ToDecimal(rdr["Suma"]);
+                        if (!found.ContainsKey(kod)) found[kod] = (khid, typ, suma);
+                    }
+                }
+
+                // === Batch 2: LibraNet — Posrednicy.SymfoniaId per FarmerCalc.IdPosrednik ===
+                // Mapowanie: per FarmerCalc.ID -> SymfoniaId pośrednika (jeśli ustawiony)
+                var posrednikSymf = new Dictionary<int, int>();
+                using (var conn = new Microsoft.Data.SqlClient.SqlConnection(connLibra))
+                {
+                    await conn.OpenAsync();
+                    var ids = string.Join(",", rowsWithFv.Select(r => r.ID));
+                    if (ids.Length > 0)
+                    {
+                        using var cmd = new Microsoft.Data.SqlClient.SqlCommand($@"
+SELECT fc.ID, p.SymfoniaId
+FROM dbo.FarmerCalc fc
+INNER JOIN dbo.Posrednicy p ON p.Id = fc.IdPosrednik
+WHERE fc.ID IN ({ids}) AND p.SymfoniaId IS NOT NULL", conn);
+                        using var rdr = await cmd.ExecuteReaderAsync();
+                        while (await rdr.ReadAsync())
+                        {
+                            int fcId = rdr.GetInt32(0);
+                            int symf = rdr.GetInt32(1);
+                            posrednikSymf[fcId] = symf;
+                        }
+                    }
+                }
+
+                // GRUPUJEMY wiersze po NrFaktury bo 1 FV moze odpowiadac wielu wierszom FarmerCalc (suma).
+                int ok = 0, mismatchKg = 0, mismatchKh = 0, missing = 0;
+                int sprawdzanychFv = 0;
+                var errors = new System.Text.StringBuilder();
+                var rowsByFv = rowsWithFv
+                    .GroupBy(r => r.NrFaktury, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                foreach (var grp in rowsByFv)
+                {
+                    sprawdzanychFv++;
+                    string nrFv = grp.Key;
+                    var grpRows = grp.ToList();
+                    int grpCount = grpRows.Count;
+                    decimal expectedSum = grpRows.Sum(r => r.DoZaplaty > 0 ? r.DoZaplaty : r.NettoKg);
+                    string dostawcaNazwa = grpRows.First().Dostawca;
+                    string grpInfo = grpCount > 1 ? $" [grupa {grpCount}w]" : "";
+
+                    if (!found.TryGetValue(nrFv, out var fv))
+                    {
+                        missing++;
+                        errors.AppendLine($"❌ {nrFv} ({dostawcaNazwa}){grpInfo} — nie znaleziono w HANDEL");
+                        continue;
+                    }
+
+                    decimal tol = Math.Max(1m, expectedSum * 0.005m);
+                    bool kgOk = Math.Abs(fv.suma - expectedSum) <= tol;
+
+                    // khid OK gdy zgadza sie z dostawca LUB posrednikiem (dla jakiegokolwiek z wierszy w grupie).
+                    bool khOk = false;
+                    if (grpRows.Any(r => r.IdSymf > 0 && fv.khid == r.IdSymf)) khOk = true;
+                    else if (grpRows.Any(r => posrednikSymf.TryGetValue(r.ID, out var ps) && fv.khid == ps)) khOk = true;
+                    else if (grpRows.All(r => r.IdSymf == 0 && !posrednikSymf.ContainsKey(r.ID))) khOk = true;
+
+                    if (kgOk && khOk) ok++;
+                    else
+                    {
+                        if (!kgOk) mismatchKg++;
+                        if (!khOk) mismatchKh++;
+                        string diff = (fv.suma - expectedSum).ToString("+#.00;-#.00;0");
+                        string khInfo = !khOk ? $" | INNY kontrahent (FV.khid={fv.khid})" : "";
+                        string kgPart = kgOk ? "kg ✓" : $"FV: {fv.suma:N2} vs suma DoZapl {expectedSum:N2} (Δ{diff})";
+                        errors.AppendLine($"⚠  {nrFv} ({dostawcaNazwa}){grpInfo} — {kgPart}{khInfo}");
+                    }
+                }
+
+                string summary = $"Sprawdzono {sprawdzanychFv} FV ({rowsWithFv.Count} wierszy):\n" +
+                                 $"   ✓ OK:        {ok}\n" +
+                                 $"   ⚠ Zła kg:    {mismatchKg}\n" +
+                                 $"   ⚠ Inny kh:   {mismatchKh}\n" +
+                                 $"   ❌ Brak w bazie: {missing}\n\n" +
+                                 (errors.Length == 0 ? "Wszystko zgodne!" : "Szczegóły:\n\n" + errors.ToString());
+
+                MessageBox.Show(summary, "Sprawdź zgodność FV",
+                    MessageBoxButton.OK,
+                    (mismatchKg + mismatchKh + missing) == 0 ? MessageBoxImage.Information : MessageBoxImage.Warning);
+
+                UpdateStatus($"Zgodnosc FV: ✓{ok}  ⚠{mismatchKg + mismatchKh}  ❌{missing}");
+            }
+            catch (Exception ex)
+            {
+                UpdateStatus("Błąd sprawdzenia: " + ex.Message);
+                MessageBox.Show("Błąd sprawdzenia: " + ex.Message, "Błąd",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void OtworzHistorieDostawcy()
+        {
+            if (dataGridRozliczenia.SelectedItem is not RozliczenieRow row)
+            {
+                MessageBox.Show("Zaznacz wiersz dostawcy.", "Historia faktur",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            try
+            {
+                var dlg = new HistoriaFakturKontrahentaWindow(row.IdSymf, row.CustomerGID, row.Dostawca)
+                {
+                    Owner = Window.GetWindow(this)
+                };
+                dlg.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Nie udało się otworzyć historii: " + ex.Message,
+                    "Historia faktur", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -15050,6 +15722,11 @@ public class RozliczenieRow : INotifyPropertyChanged
     public string Dostawca { get; set; }
     public int SztukiDek { get; set; }
     public decimal NettoKg { get; set; }
+    /// <summary>
+    /// "Do zapłaty" z PDF specyfikacji (= FarmerCalc.PayWgt, po potrąceniach: padłe, konf., ubytek, opas., klasa B).
+    /// Wartosc = DoZaplaty × (Cena + Dodatek).
+    /// </summary>
+    public decimal DoZaplaty { get; set; }
     public decimal Cena { get; set; }
     public decimal Dodatek { get; set; }
     public string TypCeny { get; set; }
@@ -15063,14 +15740,74 @@ public class RozliczenieRow : INotifyPropertyChanged
     public int IdSymf { get; set; }
 
     /// <summary>
+    /// CustomerGID — klucz dostawcy w LibraNet.Dostawcy.ID (FK z FarmerCalc.CustomerGID).
+    /// Uzywane w dialogu "Historia faktur kontrahenta" do pobrania historii FarmerCalc.
+    /// </summary>
+    public string CustomerGID { get; set; } = "";
+
+    /// <summary>
     /// Czy dostawca jest zmapowany do kontrahenta Symfonia (IdSymf > 0)
     /// </summary>
     public bool IsZmapowany => IdSymf > 0;
 
     /// <summary>
-    /// Numer faktury (FVR lub FVZ) jeśli dostawa ma przypisaną fakturę
+    /// Numer faktury (FVR lub FVZ) jeśli dostawa ma przypisaną fakturę.
+    /// Zapisywany przez skrypt AmBasic ExportPZLibraNet po sukcesie.
     /// </summary>
     public string NrFaktury { get; set; }
+
+    /// <summary>
+    /// Status walidacji FV vs HANDEL: "" (no FV), "OK", "DIFF_KG", "DIFF_KH", "NOT_FOUND"
+    /// Ustawiane przez batch validation po LoadRozliczeniaData.
+    /// </summary>
+    private string _fvStatus = "";
+    public string FvStatus
+    {
+        get => _fvStatus;
+        set
+        {
+            _fvStatus = value;
+            OnPropertyChanged(nameof(FvStatus));
+            OnPropertyChanged(nameof(FvStatusIcon));
+            OnPropertyChanged(nameof(FvStatusBrush));
+            OnPropertyChanged(nameof(FvStatusTooltip));
+        }
+    }
+
+    /// <summary>Szczegoly walidacji (np. "FV: 1240 kg vs dostawa 1280 kg, Δ-40")</summary>
+    private string _fvStatusDetail = "";
+    public string FvStatusDetail
+    {
+        get => _fvStatusDetail;
+        set { _fvStatusDetail = value; OnPropertyChanged(nameof(FvStatusDetail)); OnPropertyChanged(nameof(FvStatusTooltip)); }
+    }
+
+    public string FvStatusIcon => _fvStatus switch
+    {
+        "OK" => "✓",
+        "DIFF_KG" => "⚠",
+        "DIFF_KH" => "⚠",
+        "NOT_FOUND" => "✗",
+        _ => string.IsNullOrWhiteSpace(NrFaktury) ? "○" : "…"  // ○ = brak FV, … = jeszcze nie sprawdzone
+    };
+
+    public System.Windows.Media.Brush FvStatusBrush => _fvStatus switch
+    {
+        "OK" => new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x16, 0x65, 0x34)),
+        "DIFF_KG" => new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x92, 0x40, 0x0E)),
+        "DIFF_KH" => new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xB9, 0x1C, 0x1C)),
+        "NOT_FOUND" => new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xB9, 0x1C, 0x1C)),
+        _ => new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x9C, 0xA3, 0xAF))
+    };
+
+    public string FvStatusTooltip => _fvStatus switch
+    {
+        "OK" => "✓ Zgodne z HANDEL: " + _fvStatusDetail,
+        "DIFF_KG" => "⚠ Różnica kg: " + _fvStatusDetail,
+        "DIFF_KH" => "⚠ Inny kontrahent: " + _fvStatusDetail,
+        "NOT_FOUND" => "✗ FV nie istnieje w HANDEL: " + _fvStatusDetail,
+        _ => string.IsNullOrWhiteSpace(NrFaktury) ? "Brak FV przypisanej" : "Walidacja w toku..."
+    };
 
     /// <summary>
     /// Numer dokumentu ARiMR

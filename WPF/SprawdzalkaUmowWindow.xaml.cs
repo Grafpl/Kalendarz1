@@ -90,10 +90,13 @@ namespace Kalendarz1.WPF
                 _items.Clear();
                 foreach (DataRow r in dt.Rows)
                 {
-                    _items.Add(DostawaItem.FromRow(r, this));
+                    _items.Add(DostawaItem.FromRow(r));
                 }
                 RefreshView();
                 UpdateStats();
+
+                // Avatary doładujemy w tle (fire-and-forget) — UI nie blokuje na 500+ wierszach
+                _ = LoadAvatarsBackgroundAsync();
             }
             catch (Exception ex)
             {
@@ -106,10 +109,44 @@ namespace Kalendarz1.WPF
             }
         }
 
+        // Progresywne ładowanie avatarów: Dispatcher Background = UI ma priorytet, avatary pojawiają się
+        // wsuwając się w wolne chwile między renderingiem. Dla typowych 500-1500 wierszy zakończy się w 1-3s
+        // bez najmniejszego "freezu" UI (input/scroll/klik checkboxa działa natychmiast).
+        private async Task LoadAvatarsBackgroundAsync()
+        {
+            var snapshot = _items.ToList();
+            const int batchSize = 25;
+            for (int i = 0; i < snapshot.Count; i += batchSize)
+            {
+                int end = Math.Min(i + batchSize, snapshot.Count);
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    for (int j = i; j < end; j++)
+                    {
+                        var it = snapshot[j];
+                        if (it.AvatarUtw == null && !string.IsNullOrWhiteSpace(it.KtoUtw))
+                            it.AvatarUtw = GetOrCreateAvatar(it.KtoUtwID, it.KtoUtw);
+                        if (it.AvatarWysl == null && !string.IsNullOrWhiteSpace(it.KtoWysl))
+                            it.AvatarWysl = GetOrCreateAvatar(it.KtoWyslID, it.KtoWysl);
+                        if (it.AvatarOtrzym == null && !string.IsNullOrWhiteSpace(it.KtoOtrzym))
+                            it.AvatarOtrzym = GetOrCreateAvatar(it.KtoOtrzymID, it.KtoOtrzym);
+                    }
+                }, System.Windows.Threading.DispatcherPriority.Background);
+            }
+        }
+
         private void RefreshView()
         {
             _viewSource.View?.Refresh();
             UpdateStats();
+            UpdateEmptyState();
+        }
+
+        private void UpdateEmptyState()
+        {
+            if (emptyState == null) return;
+            bool isEmpty = _items.Count > 0 && (_viewSource.View?.Cast<object>().Any() == false);
+            emptyState.Visibility = isEmpty ? Visibility.Visible : Visibility.Collapsed;
         }
 
         // ============ FILTERING ============
@@ -734,9 +771,10 @@ namespace Kalendarz1.WPF
             OnChanged(nameof(StatusLabel));
         }
 
-        public static DostawaItem FromRow(DataRow r, SprawdzalkaUmowWindow owner)
+        public static DostawaItem FromRow(DataRow r)
         {
-            var it = new DostawaItem
+            // Avatary NIE ładowane tutaj — patrz LoadAvatarsBackgroundAsync (progresywnie po renderze).
+            return new DostawaItem
             {
                 Id = r["ID"] != DBNull.Value ? Convert.ToInt32(r["ID"]) : 0,
                 DataOdbioru = r["DataOdbioru"] != DBNull.Value ? Convert.ToDateTime(r["DataOdbioru"]) : DateTime.MinValue,
@@ -759,10 +797,6 @@ namespace Kalendarz1.WPF
                 KtoOtrzymID = r["KtoOtrzymID"] as string,
                 KiedyOtrzm = r["KiedyOtrzm"] != DBNull.Value ? Convert.ToDateTime(r["KiedyOtrzm"]) : (DateTime?)null,
             };
-            it.AvatarUtw = owner.GetOrCreateAvatar(it.KtoUtwID, it.KtoUtw);
-            it.AvatarWysl = owner.GetOrCreateAvatar(it.KtoWyslID, it.KtoWysl);
-            it.AvatarOtrzym = owner.GetOrCreateAvatar(it.KtoOtrzymID, it.KtoOtrzym);
-            return it;
         }
     }
 
@@ -799,11 +833,27 @@ namespace Kalendarz1.WPF
 
     public class StatusToBrushConv : IValueConverter
     {
+        // Solid (left accent bar / dot)
         private static readonly System.Windows.Media.SolidColorBrush _overdue = Freeze("#D93B3B");
         private static readonly System.Windows.Media.SolidColorBrush _today = Freeze("#E89614");
         private static readonly System.Windows.Media.SolidColorBrush _kompletna = Freeze("#3A9D4A");
         private static readonly System.Windows.Media.SolidColorBrush _posrednik = Freeze("#3578D9");
         private static readonly System.Windows.Media.SolidColorBrush _pending = Freeze("#B6BFC8");
+
+        // Tint (pigułka tło)
+        private static readonly System.Windows.Media.SolidColorBrush _overdueTint = Freeze("#FCE3E3");
+        private static readonly System.Windows.Media.SolidColorBrush _todayTint = Freeze("#FCEDD0");
+        private static readonly System.Windows.Media.SolidColorBrush _kompletnaTint = Freeze("#DCEFDE");
+        private static readonly System.Windows.Media.SolidColorBrush _posrednikTint = Freeze("#DCE7F7");
+        private static readonly System.Windows.Media.SolidColorBrush _pendingTint = Freeze("#ECEFF2");
+
+        // Dark text na tincie
+        private static readonly System.Windows.Media.SolidColorBrush _overdueDark = Freeze("#9C2828");
+        private static readonly System.Windows.Media.SolidColorBrush _todayDark = Freeze("#7C4A00");
+        private static readonly System.Windows.Media.SolidColorBrush _kompletnaDark = Freeze("#1E6B2C")
+;
+        private static readonly System.Windows.Media.SolidColorBrush _posrednikDark = Freeze("#1F4D90");
+        private static readonly System.Windows.Media.SolidColorBrush _pendingDark = Freeze("#4D5763");
 
         private static System.Windows.Media.SolidColorBrush Freeze(string hex)
         {
@@ -815,12 +865,24 @@ namespace Kalendarz1.WPF
 
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            return (value as string) switch
+            string variant = parameter as string ?? "Solid";
+            string key = value as string ?? "";
+            return (variant, key) switch
             {
-                "Overdue" => _overdue,
-                "Today" => _today,
-                "Kompletna" => _kompletna,
-                "Posrednik" => _posrednik,
+                ("Tint", "Overdue") => _overdueTint,
+                ("Tint", "Today") => _todayTint,
+                ("Tint", "Kompletna") => _kompletnaTint,
+                ("Tint", "Posrednik") => _posrednikTint,
+                ("Tint", _) => _pendingTint,
+                ("Dark", "Overdue") => _overdueDark,
+                ("Dark", "Today") => _todayDark,
+                ("Dark", "Kompletna") => _kompletnaDark,
+                ("Dark", "Posrednik") => _posrednikDark,
+                ("Dark", _) => _pendingDark,
+                (_, "Overdue") => _overdue,
+                (_, "Today") => _today,
+                (_, "Kompletna") => _kompletna,
+                (_, "Posrednik") => _posrednik,
                 _ => _pending
             };
         }

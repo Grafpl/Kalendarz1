@@ -4181,7 +4181,7 @@
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
                                     <!-- EDYTOWALNE KOLUMNY - żółte tło przy edycji -->
-                                    <DataGridTextColumn Header="nr.dok.Arimr" Binding="{Binding NrDokArimr, UpdateSourceTrigger=PropertyChanged}" Width="140">
+                                    <DataGridTextColumn Header="nr.dok.Arimr" Binding="{Binding NrDokArimr, UpdateSourceTrigger=PropertyChanged}" Width="200">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="Background" Value="#E8F5E9"/>
@@ -4296,7 +4296,30 @@
             </TabItem>
 
             <!-- === KARTA ROZLICZENIA === -->
-            <TabItem Header="💰 Rozliczenia">
+            <TabItem x:Name="tabRozliczenia">
+                <TabItem.Header>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="💰 Rozliczenia" VerticalAlignment="Center"/>
+                        <!-- Badge błędów (auto-hide gdy 0) -->
+                        <Border x:Name="tabRozliczeniaBadgeErr" Background="#DC2626" CornerRadius="9" Padding="6,1" Margin="6,0,0,0"
+                                VerticalAlignment="Center" Visibility="Collapsed"
+                                ToolTip="Niepoprawne FV (wymaga uwagi)">
+                            <TextBlock x:Name="tabRozliczeniaBadgeErrText" Text="0" Foreground="White" FontSize="10" FontWeight="Bold"/>
+                        </Border>
+                        <!-- Badge bez FV (drugorzedne) -->
+                        <Border x:Name="tabRozliczeniaBadgeBrak" Background="#6366F1" CornerRadius="9" Padding="6,1" Margin="4,0,0,0"
+                                VerticalAlignment="Center" Visibility="Collapsed"
+                                ToolTip="Wiersze bez przypisanej FV">
+                            <TextBlock x:Name="tabRozliczeniaBadgeBrakText" Text="0" Foreground="White" FontSize="10" FontWeight="Bold"/>
+                        </Border>
+                        <!-- Badge OK (zielony) -->
+                        <Border x:Name="tabRozliczeniaBadgeOk" Background="#16A34A" CornerRadius="9" Padding="6,1" Margin="4,0,0,0"
+                                VerticalAlignment="Center" Visibility="Collapsed"
+                                ToolTip="Wszystkie FV zgodne">
+                            <TextBlock Text="✓" Foreground="White" FontSize="10" FontWeight="Bold"/>
+                        </Border>
+                    </StackPanel>
+                </TabItem.Header>
                 <Border Background="White" CornerRadius="8" Margin="5" Padding="10">
                     <Border.Effect>
                         <DropShadowEffect ShadowDepth="1" Color="#000000" Opacity="0.08" BlurRadius="10"/>
@@ -4318,11 +4341,92 @@
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
-                        <!-- Nagłówek -->
-                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
+                        <!-- Nagłówek z inline pigułkami walidacji -->
+                        <StackPanel x:Name="bannerFvWalidacja" Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10" VerticalAlignment="Center">
                             <TextBlock Text="Rozliczenia dostaw" FontSize="18" FontWeight="Bold" Foreground="#2C3E50" VerticalAlignment="Center"/>
+
+                            <!-- Status walidacji — zawsze widoczny, kontekstowy -->
+                            <Border x:Name="bannerFvStatus" Background="#F3F4F6" CornerRadius="10" Padding="10,4" VerticalAlignment="Center" Margin="14,0,0,0">
+                                <TextBlock x:Name="lblFvBannerStatus" Text="…" FontSize="11.5" FontWeight="SemiBold" Foreground="#6B7280"/>
+                            </Border>
+
+                            <!-- Pigułka NIEPOPRAWNE — auto-hide gdy 0 -->
+                            <Border x:Name="boxFvNiepoprawne" Cursor="Hand" Padding="9,4" CornerRadius="10"
+                                    Background="#FEE2E2" Margin="6,0,0,0" VerticalAlignment="Center"
+                                    BorderThickness="0" Visibility="Collapsed"
+                                    MouseLeftButtonDown="FvFilter_Niepoprawne_Click"
+                                    ToolTip="Kliknij aby filtrować tylko niepoprawne FV">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="#FECACA"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock x:Name="iconFvBanner" Text="⚠" FontWeight="Bold" Foreground="#B91C1C" Margin="0,0,5,0" FontSize="13"/>
+                                    <TextBlock x:Name="lblFvBannerNiepoprawne" Text="0" FontWeight="Bold" Foreground="#B91C1C" FontSize="13"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Pigułka BEZ FV — auto-hide gdy 0 -->
+                            <Border x:Name="boxFvBrak" Cursor="Hand" Padding="9,4" CornerRadius="10"
+                                    Background="#E0E7FF" Margin="6,0,0,0" VerticalAlignment="Center"
+                                    BorderThickness="0" Visibility="Collapsed"
+                                    MouseLeftButtonDown="FvFilter_Brak_Click"
+                                    ToolTip="Kliknij aby filtrować tylko wiersze bez FV">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="#C7D2FE"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="○" FontWeight="Bold" Foreground="#3730A3" Margin="0,0,5,0" FontSize="13"/>
+                                    <TextBlock x:Name="lblFvBannerBrak" Text="0" FontWeight="Bold" Foreground="#3730A3" FontSize="13"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Pigułka OK — zawsze widoczna gdy są jakieś sprawdzone -->
+                            <Border x:Name="boxFvOk" Cursor="Hand" Padding="9,4" CornerRadius="10"
+                                    Background="#DCFCE7" Margin="6,0,0,0" VerticalAlignment="Center"
+                                    BorderThickness="0" Visibility="Collapsed"
+                                    MouseLeftButtonDown="FvFilter_Ok_Click"
+                                    ToolTip="Kliknij aby filtrować tylko poprawne FV">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="#BBF7D0"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="✓" FontWeight="Bold" Foreground="#166534" Margin="0,0,5,0" FontSize="13"/>
+                                    <TextBlock x:Name="lblFvBannerOk" Text="0" FontWeight="Bold" Foreground="#166534" FontSize="13"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Akcje: filtr clear + kopiuj — tylko gdy potrzebne -->
+                            <Button x:Name="btnFvClearFilter" Content="✕" FontSize="11" FontWeight="Bold"
+                                    Width="22" Height="22" Background="#FEF3C7" Foreground="#92400E"
+                                    BorderThickness="0" Cursor="Hand" Margin="6,0,0,0"
+                                    Padding="0" Visibility="Collapsed" Click="FvFilter_Clear_Click"
+                                    VerticalAlignment="Center" ToolTip="Wyczyść filtr"/>
+                            <Button x:Name="btnFvKopiuj" Content="📋" FontSize="11"
+                                    Width="22" Height="22" Background="Transparent" Foreground="#6B7280"
+                                    BorderThickness="0" Cursor="Hand" Margin="6,0,0,0"
+                                    Padding="0" Visibility="Collapsed" Click="FvKopiujBledy_Click"
+                                    VerticalAlignment="Center"
+                                    ToolTip="Kopiuj listę błędnych FV do schowka (TSV)"/>
+
                             <Border Width="1" Background="#E0E0E0" Margin="15,2"/>
-                            <!-- Checkbox grupowania -->
                             <CheckBox x:Name="chkGroupBySupplierRozliczenia" Content="Grupuj wg dostawcy"
                                       VerticalAlignment="Center" FontSize="11" Foreground="#455A64"
                                       Checked="ChkGroupBySupplierRozliczenia_Changed" Unchecked="ChkGroupBySupplierRozliczenia_Changed"/>
@@ -4406,7 +4510,18 @@
                                   GridLinesVisibility="Horizontal"
                                   HorizontalGridLinesBrush="#E0E0E0"
                                   BorderThickness="1"
-                                  BorderBrush="#BDBDBD">
+                                  BorderBrush="#BDBDBD"
+                                  MouseDoubleClick="DataGridRozliczenia_MouseDoubleClick"
+                                  PreviewMouseRightButtonDown="DataGridRozliczenia_PreviewMouseRightButtonDown">
+                            <DataGrid.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="🔄  Dopasuj fakturę zakupu..." Click="MenuDopasujFakture_Click" FontWeight="SemiBold"/>
+                                    <Separator/>
+                                    <MenuItem Header="📜  Historia faktur tego dostawcy" Click="MenuHistoriaFaktur_Click"/>
+                                    <Separator/>
+                                    <MenuItem Header="🔍  Sprawdź zgodność wszystkich FV (z HANDEL)" Click="MenuSprawdzZgodnosc_Click"/>
+                                </ContextMenu>
+                            </DataGrid.ContextMenu>
                             <!-- Styl wiersza z obsługą separatora grupy dostawcy -->
                             <DataGrid.RowStyle>
                                 <Style TargetType="DataGridRow">
@@ -4456,13 +4571,25 @@
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="KG Netto" Binding="{Binding NettoKg, StringFormat={}{0:N0}}" Width="70">
+                                <DataGridTextColumn Header="KG Netto" Binding="{Binding NettoKg, StringFormat={}{0:N0}}" Width="70"
+                                                    ToolTipService.ToolTip="Waga netto przed potrąceniami (NettoWeight)">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="HorizontalAlignment" Value="Right"/>
                                             <Setter Property="Padding" Value="0,0,8,0"/>
                                             <Setter Property="Foreground" Value="#1565C0"/>
                                             <Setter Property="FontWeight" Value="SemiBold"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Do zapł." Binding="{Binding DoZaplaty, StringFormat={}{0:N0}}" Width="80"
+                                                    ToolTipService.ToolTip="Kg do zapłaty z PDF (po potrąceniach: padłe, konfiskaty, ubytek, opasienie, klasa B)">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Setter Property="Padding" Value="0,0,8,0"/>
+                                            <Setter Property="Foreground" Value="#0D47A1"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
@@ -4531,8 +4658,9 @@
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
-                                <!-- Wartość końcowa -->
-                                <DataGridTextColumn Header="WARTOŚĆ" Binding="{Binding Wartosc, StringFormat={}{0:N2}}" Width="95">
+                                <!-- Wartość końcowa = round(DoZapł × (Cena + Dodatek), 0) — identyczna z PDF -->
+                                <DataGridTextColumn Header="WARTOŚĆ" Binding="{Binding Wartosc, StringFormat={}{0:N2}}" Width="95"
+                                                    ToolTipService.ToolTip="Wartość netto = round(Do zapł. × (Cena + Dodatek), 0) — identyczna z PDF specyfikacji">
                                     <DataGridTextColumn.HeaderStyle>
                                         <Style TargetType="DataGridColumnHeader">
                                             <Setter Property="Background" Value="#2E7D32"/>
@@ -4573,8 +4701,8 @@
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
                                 <DataGridCheckBoxColumn Header="Symf" Binding="{Binding Symfonia}" Width="45" ToolTipService.ToolTip="Przeniesione do Symfonii"/>
-                                <!-- Numer faktury (FVR/FVZ) -->
-                                <DataGridTextColumn Header="Nr Fakt." Binding="{Binding NrFaktury}" Width="85" ToolTipService.ToolTip="Numer faktury (FVR/FVZ)">
+                                <!-- Numer faktury (FVR/FVZ) z dzisiejszego eksportu -->
+                                <DataGridTextColumn Header="Nr Fakt. (dziś)" Binding="{Binding NrFaktury}" Width="120" ToolTipService.ToolTip="Numer faktury z dzisiejszego eksportu (FVR/FVZ) — zapisywany przez skrypt AmBasic w Symfonii">
                                     <DataGridTextColumn.HeaderStyle>
                                         <Style TargetType="DataGridColumnHeader">
                                             <Setter Property="Background" Value="#B3E5FC"/>
@@ -4588,11 +4716,33 @@
                                         <Style TargetType="TextBlock">
                                             <Setter Property="HorizontalAlignment" Value="Center"/>
                                             <Setter Property="VerticalAlignment" Value="Center"/>
-                                            <Setter Property="FontSize" Value="10"/>
+                                            <Setter Property="FontSize" Value="10.5"/>
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
                                             <Setter Property="Foreground" Value="#0277BD"/>
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
+                                <!-- Walidacja zgodnosci FV: ✓/⚠/✗/○  z tooltipem szczegolow -->
+                                <DataGridTemplateColumn Header="OK?" Width="45" ToolTipService.ToolTip="Auto-walidacja vs HANDEL: ✓=zgodne, ⚠=różnica kg/kh, ✗=brak w bazie, ○=bez FV">
+                                    <DataGridTemplateColumn.HeaderStyle>
+                                        <Style TargetType="DataGridColumnHeader">
+                                            <Setter Property="Background" Value="#B3E5FC"/>
+                                            <Setter Property="Foreground" Value="#0277BD"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                                            <Setter Property="Padding" Value="5,3"/>
+                                        </Style>
+                                    </DataGridTemplateColumn.HeaderStyle>
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding FvStatusIcon}"
+                                                       Foreground="{Binding FvStatusBrush}"
+                                                       FontSize="14" FontWeight="Bold"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                       ToolTip="{Binding FvStatusTooltip}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
                                 <DataGridCheckBoxColumn Header="ARiMR" Binding="{Binding ARIMR}" Width="50" ToolTipService.ToolTip="Dokument ARiMR"/>
                                 <!-- Numer dokumentu ARiMR -->
                                 <DataGridTextColumn Header="Nr Dok.ARiMR" Binding="{Binding NrDokArimr}" Width="95" ToolTipService.ToolTip="Numer dokumentu ARiMR">
@@ -4836,10 +4986,44 @@
                                     <TextBlock x:Name="lblRozliczeniaSumaWierszy" Text="0" FontWeight="Bold" Foreground="#2C3E50" Margin="0,0,20,0"/>
                                     <TextBlock Text="Suma sztuk: " FontWeight="SemiBold"/>
                                     <TextBlock x:Name="lblRozliczeniaSumaSztuk" Text="0" FontWeight="Bold" Foreground="#E65100" Margin="0,0,20,0"/>
-                                    <TextBlock Text="Suma KG: " FontWeight="SemiBold"/>
+                                    <TextBlock Text="Suma KG: " FontWeight="SemiBold" ToolTip="Suma wagi netto (przed potrąceniami)"/>
                                     <TextBlock x:Name="lblRozliczeniaSumaKg" Text="0" FontWeight="Bold" Foreground="#1565C0" Margin="0,0,20,0"/>
-                                    <TextBlock Text="Suma wartość: " FontWeight="SemiBold"/>
+                                    <TextBlock Text="Suma do zapł.: " FontWeight="SemiBold" Foreground="#0D47A1" ToolTip="Suma kg po potrąceniach (= suma DoZapł z PDF, używana do liczenia Wartości)"/>
+                                    <TextBlock x:Name="lblRozliczeniaSumaDoZapl" Text="0" FontWeight="Bold" Foreground="#0D47A1" Margin="0,0,20,0"/>
+                                    <TextBlock Text="Suma wartość: " FontWeight="SemiBold" ToolTip="Suma wartości: round(DoZapł × (Cena + Dodatek), 0) per wiersz — identyczna z PDF"/>
                                     <TextBlock x:Name="lblRozliczeniaSumaWartosc" Text="0,00" FontWeight="Bold" Foreground="#2E7D32"/>
+                                </StackPanel>
+
+                                <!-- Pigulki walidacji FV (auto-check po loadzie) -->
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                    <Border x:Name="badgeFvOk" Background="#DCFCE7" CornerRadius="3" Padding="8,3" Margin="0,0,6,0"
+                                            ToolTip="FV poprawne (kg + kontrahent OK)">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="✓ " FontWeight="Bold" Foreground="#166534"/>
+                                            <TextBlock x:Name="lblFvOk" Text="0" FontWeight="Bold" Foreground="#166534"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border x:Name="badgeFvWarn" Background="#FEF3C7" CornerRadius="3" Padding="8,3" Margin="0,0,6,0"
+                                            ToolTip="FV z roznica kg lub innym kontrahentem">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="⚠ " FontWeight="Bold" Foreground="#92400E"/>
+                                            <TextBlock x:Name="lblFvWarn" Text="0" FontWeight="Bold" Foreground="#92400E"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border x:Name="badgeFvErr" Background="#FEE2E2" CornerRadius="3" Padding="8,3" Margin="0,0,6,0"
+                                            ToolTip="FV nie istnieje w HANDEL (anulowana lub blad numeru)">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="✗ " FontWeight="Bold" Foreground="#B91C1C"/>
+                                            <TextBlock x:Name="lblFvErr" Text="0" FontWeight="Bold" Foreground="#B91C1C"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Background="#E0E7FF" CornerRadius="3" Padding="8,3"
+                                            ToolTip="Wiersze bez przypisanej FV">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="○ " FontWeight="Bold" Foreground="#3730A3"/>
+                                            <TextBlock x:Name="lblFvBrak" Text="0" FontWeight="Bold" Foreground="#3730A3"/>
+                                        </StackPanel>
+                                    </Border>
                                 </StackPanel>
                             </Grid>
                         </Border>

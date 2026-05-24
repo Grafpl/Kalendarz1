@@ -1,0 +1,128 @@
+<Window x:Class="Kalendarz1.DOA.DOAWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="DOA — Padłe w transporcie (analiza)" Height="740" Width="1180"
+        WindowStartupLocation="CenterScreen" Background="White"
+        UseLayoutRounding="True" TextOptions.TextFormattingMode="Display">
+    <Window.Resources>
+        <SolidColorBrush x:Key="TextPrimary" Color="#0F172A"/>
+        <SolidColorBrush x:Key="TextMuted" Color="#94A3B8"/>
+        <SolidColorBrush x:Key="BorderColor" Color="#E2E8F0"/>
+        <SolidColorBrush x:Key="Surface" Color="#F8FAFC"/>
+    </Window.Resources>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Nagłówek + zakres -->
+        <Grid Grid.Row="0" Margin="0,0,0,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0">
+                <TextBlock Text="🐔 DOA — padłe w transporcie" FontSize="20" FontWeight="Bold"
+                           Foreground="{StaticResource TextPrimary}"/>
+                <TextBlock Text="Analiza danych ze Specyfikacji Drobiu (FarmerCalc). % DOA = padłe ÷ sztuki zadeklarowane."
+                           FontSize="11" Foreground="{StaticResource TextMuted}" Margin="0,2,0,0"/>
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="Od:" VerticalAlignment="Center" Margin="0,0,4,0" Foreground="{StaticResource TextMuted}"/>
+                <DatePicker x:Name="dpOd" Width="120"/>
+                <TextBlock Text="Do:" VerticalAlignment="Center" Margin="10,0,4,0" Foreground="{StaticResource TextMuted}"/>
+                <DatePicker x:Name="dpDo" Width="120"/>
+                <Button x:Name="btnOdswiez" Content="↻ Odśwież" Padding="12,6" Margin="8,0,0,0" Click="BtnOdswiez_Click"/>
+                <Button x:Name="btnCsv" Content="📥 CSV" Padding="12,6" Margin="6,0,0,0" Click="BtnCsv_Click"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Info banner -->
+        <Border Grid.Row="1" Background="#EFF6FF" BorderBrush="#BFDBFE" BorderThickness="1"
+                CornerRadius="8" Padding="14,8" Margin="0,0,0,12">
+            <TextBlock FontSize="12" Foreground="#1E40AF" TextWrapping="Wrap"
+                       Text="ℹ Padłe wpisujesz w module „Specyfikacja Drobiu" (kolumna Padłe). To okno tylko analizuje te dane — ranking hodowców, trendy, alerty. Norma branżowa: cel &lt;0.2%, max 0.5%."/>
+        </Border>
+
+        <!-- KPI -->
+        <UniformGrid Grid.Row="2" Rows="1" Columns="4" Margin="0,0,0,14">
+            <Border Background="#EFF6FF" CornerRadius="10" Padding="16,12" Margin="0,0,5,0">
+                <StackPanel>
+                    <TextBlock Text="ŚREDNIE DOA (okres)" FontSize="10.5" Foreground="#1E40AF" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="kpiSrednie" Text="—" FontSize="24" FontWeight="Bold" Foreground="#1E3A8A"/>
+                </StackPanel>
+            </Border>
+            <Border Background="#FEF2F2" CornerRadius="10" Padding="16,12" Margin="5,0">
+                <StackPanel>
+                    <TextBlock Text="PADŁE / ZADEKLAROWANE" FontSize="10.5" Foreground="#991B1B" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="kpiPadle" Text="—" FontSize="24" FontWeight="Bold" Foreground="#7F1D1D"/>
+                </StackPanel>
+            </Border>
+            <Border Background="#FFFBEB" CornerRadius="10" Padding="16,12" Margin="5,0">
+                <StackPanel>
+                    <TextBlock Text="HODOWCY POWYŻEJ NORMY" FontSize="10.5" Foreground="#92400E" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="kpiAlerty" Text="—" FontSize="24" FontWeight="Bold" Foreground="#78350F"/>
+                </StackPanel>
+            </Border>
+            <Border Background="#F0FDF4" CornerRadius="10" Padding="16,12" Margin="5,0,0,0">
+                <StackPanel>
+                    <TextBlock Text="DOSTAW W OKRESIE" FontSize="10.5" Foreground="#166534" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="kpiDostaw" Text="—" FontSize="24" FontWeight="Bold" Foreground="#14532D"/>
+                </StackPanel>
+            </Border>
+        </UniformGrid>
+
+        <!-- Ranking + szczegóły -->
+        <Grid Grid.Row="3">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="12"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" BorderBrush="{StaticResource BorderColor}" BorderThickness="1" CornerRadius="10">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top" Text="🏆 Ranking hodowców (najwyższe DOA)"
+                               FontWeight="Bold" FontSize="13" Margin="14,12,14,8"
+                               Foreground="{StaticResource TextPrimary}"/>
+                    <DataGrid x:Name="dgRanking" AutoGenerateColumns="False" IsReadOnly="True"
+                              HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                              BorderThickness="0" RowHeight="32" FontSize="12.5">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="#" Binding="{Binding Pozycja}" Width="34"/>
+                            <DataGridTextColumn Header="Hodowca" Binding="{Binding Hodowca}" Width="*"/>
+                            <DataGridTextColumn Header="Dostaw" Binding="{Binding LiczbaPartii}" Width="55"/>
+                            <DataGridTextColumn Header="Padłe/Zadekl." Binding="{Binding PadleFormatted}" Width="120"/>
+                            <DataGridTextColumn Header="DOA %" Binding="{Binding ProcentFormatted}" Width="70"/>
+                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="120"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </DockPanel>
+            </Border>
+
+            <Border Grid.Column="2" BorderBrush="{StaticResource BorderColor}" BorderThickness="1" CornerRadius="10">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top" Text="📋 Dostawy w okresie"
+                               FontWeight="Bold" FontSize="13" Margin="14,12,14,8"
+                               Foreground="{StaticResource TextPrimary}"/>
+                    <DataGrid x:Name="dgRekordy" AutoGenerateColumns="False" IsReadOnly="True"
+                              HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                              BorderThickness="0" RowHeight="30" FontSize="12.5">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Data" Binding="{Binding DataFormatted}" Width="85"/>
+                            <DataGridTextColumn Header="LP" Binding="{Binding CarLp}" Width="40"/>
+                            <DataGridTextColumn Header="Hodowca" Binding="{Binding Hodowca}" Width="*"/>
+                            <DataGridTextColumn Header="Padłe/Zad." Binding="{Binding SztukiFormatted}" Width="100"/>
+                            <DataGridTextColumn Header="DOA %" Binding="{Binding ProcentFormatted}" Width="65"/>
+                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="110"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </DockPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

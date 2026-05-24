@@ -53,6 +53,21 @@ namespace Kalendarz1.WPF
         private bool _slaughterDateColumnExists = true;
         private bool _walutaColumnExists = false;
         private bool _isInitialized = false;
+
+        // ── STATIC CACHE: schema check (kolumny są permanentne, nie zmieniają się — sprawdź RAZ na proces) ──
+        private static volatile bool _staticSchemaChecked;
+        private static bool _staticSlaughterDateExists, _staticWalutaExists, _staticStrefaExists;
+        private static bool _staticTransportKursIDExists, _staticStatusColumnsExist, _staticAnulowanieColumnsExist;
+        private static readonly object _staticSchemaLock = new();
+
+        // ── STATIC CACHE: catalog produktów / users / salesmen (TTL 5 min, shared między oknami) ──
+        private static Dictionary<int, string> _staticProductCodeCache = new();
+        private static Dictionary<int, string> _staticProductCatalogCache = new();
+        private static Dictionary<int, string> _staticProductCatalogSwieze = new();
+        private static Dictionary<int, string> _staticProductCatalogMrozone = new();
+        private static Dictionary<string, string> _staticUserCache = new();
+        private static List<string> _staticSalesmenCache = new();
+        private static DateTime _staticCatalogCacheTime = DateTime.MinValue;
         private bool _showAnulowane = false;
         private bool _isRefreshing = false;
         private List<(string name, long ms)> _lastLoadOrdersDiag = new();
@@ -85,13 +100,14 @@ namespace Kalendarz1.WPF
         private Dictionary<int, decimal> _cachedPrzychodyElementy = new();
         private DateTime _cachedPrzychodyDate = DateTime.MinValue;
 
-        // ✅ CACHE dla kontrahentów - dane klientów rzadko się zmieniają
-        private Dictionary<int, (string Name, string Salesman)> _cachedKontrahenci = new();
-        private DateTime _cachedKontrahenciTime = DateTime.MinValue;
+        // ✅ STATIC CACHE dla kontrahentów - shared między oknami, TTL 5 min
+        // (instance field = każde nowe okno ponownie ładuje tysiące kontrahentów; static = 1× per 5 min na proces)
+        private static Dictionary<int, (string Name, string Salesman)> _cachedKontrahenci = new();
+        private static DateTime _cachedKontrahenciTime = DateTime.MinValue;
 
-        // Cache kategorii odbiorców z KartotekaOdbiorcyDane
-        private Dictionary<int, string> _kategorieOdbiorcow = new();
-        private DateTime _kategorieOdbiorcowTime = DateTime.MinValue;
+        // ✅ STATIC CACHE kategorii odbiorców - TTL 30 min (kategorie zmieniają się rzadko)
+        private static Dictionary<int, string> _kategorieOdbiorcow = new();
+        private static DateTime _kategorieOdbiorcowTime = DateTime.MinValue;
 
         // ✅ CACHE dla konfiguracji produktów - wywoływana 2x w jednym cyklu odświeżania
         private Dictionary<int, decimal> _cachedKonfiguracjaProduktow = new();
@@ -1026,18 +1042,15 @@ namespace Kalendarz1.WPF
         }
         private async Task LoadInitialDataAsync()
         {
-            // ✅ Równoległe sprawdzanie/tworzenie kolumn (zamiast sekwencyjne)
+            // ✅ SCHEMA CHECK: 1 zapytanie + static cache (sprawdzane RAZ na proces — kolumny są permanentne)
+            // Stare 7 zapytań było robione przy każdym otwarciu okna (7 połączeń × ~30ms = ~200ms tylko na sprawdzenia)
             await Task.WhenAll(
-                CheckAndCreateSlaughterDateColumnAsync(),
-                CheckAndCreateTransportKursIDColumnAsync(),
-                CheckAndCreateStatusColumnsAsync(),
-                CheckAndCreateAnulowanieColumnsAsync(),
-                CheckAndCreateWalutaColumnAsync(),
-                CheckAndCreateStrefaColumnAsync(),
+                EnsureSchemaCheckedFastAsync(),
                 EnsureHandlowiecMappingLoadedAsync()
             );
 
-            // ✅ Równoległe ładowanie: produkty, zdjęcia, użytkownicy, handlowcy
+            // ✅ STATIC CACHE TTL 5 min: produkty/users/salesmen rzadko się zmieniają — shared między oknami
+            // Pierwsza inicjalizacja: 3 SQL równolegle. Kolejne otwarcia okna w ciągu 5 min: 0 SQL, instant copy z static.
             _productCodeCache.Clear();
             _productCatalogCache.Clear();
             _productCatalogSwieze.Clear();
@@ -1045,62 +1058,90 @@ namespace Kalendarz1.WPF
             _userCache.Clear();
             _salesmenCache.Clear();
 
-            var taskProdukty = Task.Run(async () =>
+            bool cacheValid = (DateTime.Now - _staticCatalogCacheTime).TotalMinutes < 5
+                              && _staticProductCodeCache.Count > 0;
+
+            if (cacheValid)
             {
-                await using var cn = new SqlConnection(_connHandel);
-                await cn.OpenAsync();
-                await using var cmd = new SqlCommand("SELECT ID, kod, katalog FROM [HANDEL].[HM].[TW]", cn);
-                await using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
+                // Instant copy z static cache
+                foreach (var kvp in _staticProductCodeCache) _productCodeCache[kvp.Key] = kvp.Value;
+                foreach (var kvp in _staticProductCatalogCache) _productCatalogCache[kvp.Key] = kvp.Value;
+                foreach (var kvp in _staticProductCatalogSwieze) _productCatalogSwieze[kvp.Key] = kvp.Value;
+                foreach (var kvp in _staticProductCatalogMrozone) _productCatalogMrozone[kvp.Key] = kvp.Value;
+                foreach (var kvp in _staticUserCache) _userCache[kvp.Key] = kvp.Value;
+                _salesmenCache.AddRange(_staticSalesmenCache);
+            }
+            else
+            {
+                var taskProdukty = Task.Run(async () =>
                 {
-                    int idtw = reader.GetInt32(0);
-                    string kod = reader.IsDBNull(1) ? "" : reader.GetString(1);
-                    object katObj = reader.GetValue(2);
-                    _productCodeCache[idtw] = kod;
-                    if (!(katObj is DBNull))
+                    await using var cn = new SqlConnection(_connHandel);
+                    await cn.OpenAsync();
+                    await using var cmd = new SqlCommand("SELECT ID, kod, katalog FROM [HANDEL].[HM].[TW]", cn);
+                    await using var reader = await cmd.ExecuteReaderAsync();
+                    while (await reader.ReadAsync())
                     {
-                        int katalog = 0;
-                        if (katObj is int ki) katalog = ki;
-                        else int.TryParse(Convert.ToString(katObj), out katalog);
-                        if (katalog == 67095) { _productCatalogSwieze[idtw] = kod; _productCatalogCache[idtw] = kod; }
-                        else if (katalog == 67153) { _productCatalogMrozone[idtw] = kod; _productCatalogCache[idtw] = kod; }
+                        int idtw = reader.GetInt32(0);
+                        string kod = reader.IsDBNull(1) ? "" : reader.GetString(1);
+                        object katObj = reader.GetValue(2);
+                        _productCodeCache[idtw] = kod;
+                        if (!(katObj is DBNull))
+                        {
+                            int katalog = 0;
+                            if (katObj is int ki) katalog = ki;
+                            else int.TryParse(Convert.ToString(katObj), out katalog);
+                            if (katalog == 67095) { _productCatalogSwieze[idtw] = kod; _productCatalogCache[idtw] = kod; }
+                            else if (katalog == 67153) { _productCatalogMrozone[idtw] = kod; _productCatalogCache[idtw] = kod; }
+                        }
                     }
-                }
-            });
+                });
 
-            var taskUsers = Task.Run(async () =>
-            {
-                await using var cn = new SqlConnection(_connLibra);
-                await cn.OpenAsync();
-                await using var cmd = new SqlCommand("SELECT ID, Name FROM dbo.operators", cn);
-                await using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
+                var taskUsers = Task.Run(async () =>
                 {
-                    var idStr = reader.IsDBNull(0) ? "" : reader.GetString(0);
-                    var name = reader.IsDBNull(1) ? "" : reader.GetString(1);
-                    if (!string.IsNullOrEmpty(idStr)) _userCache[idStr] = name;
-                }
-            });
+                    await using var cn = new SqlConnection(_connLibra);
+                    await cn.OpenAsync();
+                    await using var cmd = new SqlCommand("SELECT ID, Name FROM dbo.operators", cn);
+                    await using var reader = await cmd.ExecuteReaderAsync();
+                    while (await reader.ReadAsync())
+                    {
+                        var idStr = reader.IsDBNull(0) ? "" : reader.GetString(0);
+                        var name = reader.IsDBNull(1) ? "" : reader.GetString(1);
+                        if (!string.IsNullOrEmpty(idStr)) _userCache[idStr] = name;
+                    }
+                });
 
-            var taskSalesmen = Task.Run(async () =>
-            {
-                await using var cn = new SqlConnection(_connHandel);
-                await cn.OpenAsync();
-                await using var cmd = new SqlCommand(
-                    @"SELECT DISTINCT CDim_Handlowiec_Val
-                      FROM [HANDEL].[SSCommon].[ContractorClassification]
-                      WHERE CDim_Handlowiec_Val IS NOT NULL
-                      ORDER BY 1", cn);
-                await using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
+                var taskSalesmen = Task.Run(async () =>
                 {
-                    var val = reader.IsDBNull(0) ? "" : reader.GetString(0);
-                    if (!string.IsNullOrWhiteSpace(val)) _salesmenCache.Add(val);
-                }
-            });
+                    await using var cn = new SqlConnection(_connHandel);
+                    await cn.OpenAsync();
+                    await using var cmd = new SqlCommand(
+                        @"SELECT DISTINCT CDim_Handlowiec_Val
+                          FROM [HANDEL].[SSCommon].[ContractorClassification]
+                          WHERE CDim_Handlowiec_Val IS NOT NULL
+                          ORDER BY 1", cn);
+                    await using var reader = await cmd.ExecuteReaderAsync();
+                    while (await reader.ReadAsync())
+                    {
+                        var val = reader.IsDBNull(0) ? "" : reader.GetString(0);
+                        if (!string.IsNullOrWhiteSpace(val)) _salesmenCache.Add(val);
+                    }
+                });
 
-            // Zdjęcia + 3 zapytania równolegle (zdjęcia na wątku tła — Freeze() pozwala)
-            await Task.WhenAll(taskProdukty, Task.Run(async () => await LoadProductImagesAsync()), taskUsers, taskSalesmen);
+                await Task.WhenAll(taskProdukty, taskUsers, taskSalesmen);
+
+                // Zapisz do static cache (shared między oknami przez 5 min)
+                _staticProductCodeCache = new Dictionary<int, string>(_productCodeCache);
+                _staticProductCatalogCache = new Dictionary<int, string>(_productCatalogCache);
+                _staticProductCatalogSwieze = new Dictionary<int, string>(_productCatalogSwieze);
+                _staticProductCatalogMrozone = new Dictionary<int, string>(_productCatalogMrozone);
+                _staticUserCache = new Dictionary<string, string>(_userCache);
+                _staticSalesmenCache = new List<string>(_salesmenCache);
+                _staticCatalogCacheTime = DateTime.Now;
+            }
+
+            // Zdjęcia (BLOBy) — ŁADUJEMY W TLE, nie blokujemy startu okna.
+            // Bindingi mają INPC — obrazki dograne kiedy będą gotowe.
+            _ = Task.Run(async () => await LoadProductImagesAsync());
 
             GenerateProductButtons();
 
@@ -1114,6 +1155,119 @@ namespace Kalendarz1.WPF
                 rbSlaughterDate.Content = "Data uboju (niedostępne)";
                 rbPickupDate.IsChecked = true;
             }
+        }
+
+        // ✅ FAST schema check — 1 SQL dla wszystkich kolumn + static cache (raz na proces).
+        // Pierwsze otwarcie okna w sesji: 1 SQL (~30ms). Każde kolejne: 0 SQL (instant z cache).
+        // ALTER tylko gdy kolumna naprawdę nie istnieje (rzadka ścieżka — świeża instalacja).
+        private async Task EnsureSchemaCheckedFastAsync()
+        {
+            if (_staticSchemaChecked)
+            {
+                _slaughterDateColumnExists = _staticSlaughterDateExists;
+                _walutaColumnExists = _staticWalutaExists;
+                _strefaColumnExists = _staticStrefaExists;
+                return;
+            }
+
+            lock (_staticSchemaLock)
+            {
+                if (_staticSchemaChecked)
+                {
+                    _slaughterDateColumnExists = _staticSlaughterDateExists;
+                    _walutaColumnExists = _staticWalutaExists;
+                    _strefaColumnExists = _staticStrefaExists;
+                    return;
+                }
+            }
+
+            var existingCols = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+                const string sqlAll = @"
+                    SELECT TABLE_NAME + '.' + COLUMN_NAME AS FullName
+                    FROM INFORMATION_SCHEMA.COLUMNS
+                    WHERE (TABLE_NAME = 'ZamowieniaMieso'
+                            AND COLUMN_NAME IN ('DataUboju','Waluta','TransportKursID',
+                                                'CzyZrealizowane','DataRealizacji','KtoZrealizowal','CzyWydane',
+                                                'AnulowanePrzez','DataAnulowania'))
+                       OR (TABLE_NAME = 'ZamowieniaMiesoTowar' AND COLUMN_NAME = 'Strefa')";
+                await using (var cmd = new SqlCommand(sqlAll, cn))
+                await using (var rd = await cmd.ExecuteReaderAsync())
+                {
+                    while (await rd.ReadAsync()) existingCols.Add(rd.GetString(0));
+                }
+
+                // ALTERy — tylko brakujące. Każdy w oddzielnym SqlCommand bo SQL Server nie lubi multi-DDL w batch.
+                var alters = new List<(string col, string sql)>();
+                if (!existingCols.Contains("ZamowieniaMieso.DataUboju"))
+                    alters.Add(("DataUboju", "ALTER TABLE [dbo].[ZamowieniaMieso] ADD DataUboju DATE NULL"));
+                if (!existingCols.Contains("ZamowieniaMieso.Waluta"))
+                    alters.Add(("Waluta", "ALTER TABLE [dbo].[ZamowieniaMieso] ADD Waluta NVARCHAR(10) NULL DEFAULT 'PLN'"));
+                if (!existingCols.Contains("ZamowieniaMiesoTowar.Strefa"))
+                    alters.Add(("Strefa", "ALTER TABLE [dbo].[ZamowieniaMiesoTowar] ADD Strefa BIT NULL DEFAULT 0"));
+                if (!existingCols.Contains("ZamowieniaMieso.TransportKursID"))
+                    alters.Add(("TransportKursID", "ALTER TABLE [dbo].[ZamowieniaMieso] ADD TransportKursID INT NULL"));
+                if (!existingCols.Contains("ZamowieniaMieso.CzyZrealizowane"))
+                    alters.Add(("CzyZrealizowane", "ALTER TABLE [dbo].[ZamowieniaMieso] ADD CzyZrealizowane BIT DEFAULT 0 NOT NULL"));
+                if (!existingCols.Contains("ZamowieniaMieso.DataRealizacji"))
+                    alters.Add(("DataRealizacji", "ALTER TABLE [dbo].[ZamowieniaMieso] ADD DataRealizacji DATETIME NULL"));
+                if (!existingCols.Contains("ZamowieniaMieso.KtoZrealizowal"))
+                    alters.Add(("KtoZrealizowal", "ALTER TABLE [dbo].[ZamowieniaMieso] ADD KtoZrealizowal INT NULL"));
+                if (!existingCols.Contains("ZamowieniaMieso.CzyWydane"))
+                    alters.Add(("CzyWydane", "ALTER TABLE [dbo].[ZamowieniaMieso] ADD CzyWydane BIT DEFAULT 0 NOT NULL"));
+                if (!existingCols.Contains("ZamowieniaMieso.AnulowanePrzez"))
+                    alters.Add(("AnulowanePrzez", "ALTER TABLE [dbo].[ZamowieniaMieso] ADD AnulowanePrzez NVARCHAR(100) NULL"));
+                if (!existingCols.Contains("ZamowieniaMieso.DataAnulowania"))
+                    alters.Add(("DataAnulowania", "ALTER TABLE [dbo].[ZamowieniaMieso] ADD DataAnulowania DATETIME NULL"));
+
+                foreach (var (col, sql) in alters)
+                {
+                    try
+                    {
+                        await using var cmd = new SqlCommand(sql, cn);
+                        await cmd.ExecuteNonQueryAsync();
+                    }
+                    catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[Schema ALTER {col}] {ex.Message}"); }
+                }
+
+                // Migracja danych — tylko gdy CzyZrealizowane/CzyWydane były świeżo dodane (rzadka ścieżka)
+                bool migrateStatus = alters.Exists(a => a.col == "CzyZrealizowane" || a.col == "CzyWydane");
+                if (migrateStatus)
+                {
+                    try
+                    {
+                        await using var cmdMig = new SqlCommand(@"
+                            UPDATE dbo.ZamowieniaMieso SET CzyZrealizowane = 1
+                            WHERE Status IN ('Zrealizowane', 'Wydany') AND CzyZrealizowane = 0;
+                            UPDATE dbo.ZamowieniaMieso SET CzyWydane = 1
+                            WHERE (Status = 'Wydany' OR DataWydania IS NOT NULL) AND CzyWydane = 0;", cn);
+                        await cmdMig.ExecuteNonQueryAsync();
+                    }
+                    catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[Schema migrate] {ex.Message}"); }
+                }
+
+                // Po sukcesie — wszystkie kolumny istnieją (lub zostały utworzone)
+                _staticSlaughterDateExists = true;
+                _staticWalutaExists = true;
+                _staticStrefaExists = true;
+                _staticTransportKursIDExists = true;
+                _staticStatusColumnsExist = true;
+                _staticAnulowanieColumnsExist = true;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[Schema check] {ex.Message}");
+                // Fallback — pozostaw static flags w domyślnym false (graceful degradation)
+            }
+
+            // Kopiuj static → instance + ustaw flagę
+            _slaughterDateColumnExists = _staticSlaughterDateExists;
+            _walutaColumnExists = _staticWalutaExists;
+            _strefaColumnExists = _staticStrefaExists;
+            _staticSchemaChecked = true;
         }
 
         private async Task CheckAndCreateSlaughterDateColumnAsync()
@@ -1437,6 +1591,19 @@ namespace Kalendarz1.WPF
             _selectedDate = _selectedDate.AddDays(7);
             int delta = ((int)_selectedDate.DayOfWeek + 6) % 7;
             _selectedDate = _selectedDate.AddDays(-delta);
+            UpdateDayButtonDates();
+            await RefreshAllDataAsync();
+        }
+
+        /// <summary>
+        /// Publiczna metoda — przeskocz na dzisiejszy dzień i odśwież dane.
+        /// Wywoływana z Menu.cs gdy kafelek "Zamówienia Klientów" aktywuje istniejące okno.
+        /// </summary>
+        public async Task JumpToTodayAsync()
+        {
+            if (!_isInitialized) return; // jeszcze się ładuje — Window_Loaded sam ustawi today
+            if (_selectedDate.Date == DateTime.Today) return; // już na dziś
+            _selectedDate = DateTime.Today;
             UpdateDayButtonDates();
             await RefreshAllDataAsync();
         }
@@ -3938,10 +4105,10 @@ ORDER BY zm.Id";
             // Zadanie 3: Wydania z HANDEL (równolegle!)
             var taskWydania = GetReleasesPerClientProductAsync(day);
 
-            // Zadanie 4: Kategorie odbiorców z KartotekaOdbiorcyDane (równolegle!)
+            // Zadanie 4: Kategorie odbiorców z KartotekaOdbiorcyDane (równolegle!) — TTL 30 min (kategorie zmieniają się rzadko)
             var taskKategorie = Task.Run(async () =>
             {
-                if (_kategorieOdbiorcow.Count > 0 && (DateTime.Now - _kategorieOdbiorcowTime).TotalMinutes < 5)
+                if (_kategorieOdbiorcow.Count > 0 && (DateTime.Now - _kategorieOdbiorcowTime).TotalMinutes < 30)
                     return _kategorieOdbiorcow;
 
                 var result = new Dictionary<int, string>();
@@ -4051,111 +4218,97 @@ ORDER BY zm.Id";
 
             var taskTransportInfo = GetTransportInfoAsync(day);
 
-            var taskGrupyTowarowe = Task.Run(async () =>
+            // ✅ KONSOLIDACJA: 1 zapytanie zamiast 3 (Grupy + Ceny + Mrożone wszystkie na ZamowieniaMiesoTowar WHERE Id IN (...))
+            // Pobieramy wszystkie wiersze raz, potem rozparcelować w C# — eliminuje 2 roundtripy + 2 połączenia.
+            var taskPozycjeWiersze = Task.Run(async () =>
             {
-                var result = new Dictionary<int, Dictionary<string, decimal>>();
-                if (_grupyTowaroweNazwy.Any() && zamowieniaIds.Any())
+                var wiersze = new List<(int ZamId, int KodTowaru, decimal Ilosc, string Cena)>();
+                if (!zamowieniaIds.Any()) return wiersze;
+                try
                 {
                     await using var cn = new SqlConnection(_connLibra);
                     await cn.OpenAsync();
-                    var sqlGrupy = $"SELECT ZamowienieId, KodTowaru, SUM(Ilosc) AS Ilosc FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId IN ({string.Join(",", zamowieniaIds)}) GROUP BY ZamowienieId, KodTowaru";
-                    await using var cmd = new SqlCommand(sqlGrupy, cn);
-                    await using var reader = await cmd.ExecuteReaderAsync();
-                    while (await reader.ReadAsync())
+                    var sql = $@"SELECT ZamowienieId, KodTowaru, ISNULL(Ilosc, 0) AS Ilosc, ISNULL(Cena, '') AS Cena
+                                 FROM [dbo].[ZamowieniaMiesoTowar]
+                                 WHERE ZamowienieId IN ({string.Join(",", zamowieniaIds)})";
+                    await using var cmd = new SqlCommand(sql, cn);
+                    await using var rd = await cmd.ExecuteReaderAsync();
+                    while (await rd.ReadAsync())
                     {
-                        int zamId = reader.GetInt32(0);
-                        int kodTowaru = reader.GetInt32(1);
-                        decimal iloscTowaru = reader.IsDBNull(2) ? 0m : Convert.ToDecimal(reader.GetValue(2));
-                        if (_mapowanieScalowania.TryGetValue(kodTowaru, out var nazwaGrupy))
-                        {
-                            if (!result.ContainsKey(zamId))
-                                result[zamId] = new Dictionary<string, decimal>();
-                            if (!result[zamId].ContainsKey(nazwaGrupy))
-                                result[zamId][nazwaGrupy] = 0m;
-                            result[zamId][nazwaGrupy] += iloscTowaru;
-                        }
+                        wiersze.Add((
+                            rd.GetInt32(0),
+                            rd.GetInt32(1),
+                            rd.IsDBNull(2) ? 0m : Convert.ToDecimal(rd.GetValue(2)),
+                            rd.IsDBNull(3) ? "" : rd.GetString(3)
+                        ));
                     }
                 }
-                return result;
+                catch { }
+                return wiersze;
             });
 
-            var taskSrednieCeny = Task.Run(async () =>
-            {
-                var result = new Dictionary<int, decimal>();
-                if (zamowieniaIds.Any())
-                {
-                    try
-                    {
-                        await using var cn = new SqlConnection(_connLibra);
-                        await cn.OpenAsync();
-
-                        string sqlCeny;
-                        if (selectedProductId.HasValue)
-                        {
-                            // Gdy wybrany konkretny produkt - pokaż cenę tego produktu
-                            sqlCeny = $@"SELECT ZamowienieId,
-                                ISNULL(TRY_CAST(Cena AS DECIMAL(18,2)), 0) AS Cena
-                                FROM [dbo].[ZamowieniaMiesoTowar]
-                                WHERE ZamowienieId IN ({string.Join(",", zamowieniaIds)})
-                                  AND KodTowaru = {selectedProductId.Value}
-                                  AND Cena IS NOT NULL AND Cena <> '' AND Cena <> '0'";
-                        }
-                        else
-                        {
-                            // Gdy brak filtra - średnia ważona wszystkich produktów
-                            sqlCeny = $@"SELECT ZamowienieId,
-                                CASE WHEN SUM(Ilosc) > 0
-                                     THEN SUM(Ilosc * TRY_CAST(Cena AS DECIMAL(18,2))) / SUM(Ilosc)
-                                     ELSE 0 END AS SredniaCena
-                                FROM [dbo].[ZamowieniaMiesoTowar]
-                                WHERE ZamowienieId IN ({string.Join(",", zamowieniaIds)})
-                                  AND Cena IS NOT NULL AND Cena <> '' AND Cena <> '0'
-                                GROUP BY ZamowienieId";
-                        }
-
-                        await using var cmd = new SqlCommand(sqlCeny, cn);
-                        await using var reader = await cmd.ExecuteReaderAsync();
-                        while (await reader.ReadAsync())
-                        {
-                            int zamId = reader.GetInt32(0);
-                            decimal cena = reader.IsDBNull(1) ? 0m : Convert.ToDecimal(reader.GetValue(1));
-                            result[zamId] = cena;
-                        }
-                    }
-                    catch { }
-                }
-                return result;
-            });
-
-            // Zadanie 5: Sprawdź które zamówienia mają mrożone towary (katalog 67153)
-            var taskMrozone = Task.Run(async () =>
-            {
-                var result = new HashSet<int>();
-                if (zamowieniaIds.Any() && _productCatalogMrozone.Any())
-                {
-                    try
-                    {
-                        await using var cn = new SqlConnection(_connLibra);
-                        await cn.OpenAsync();
-                        var mrozonaIds = string.Join(",", _productCatalogMrozone.Keys);
-                        var sql = $"SELECT DISTINCT ZamowienieId FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId IN ({string.Join(",", zamowieniaIds)}) AND KodTowaru IN ({mrozonaIds})";
-                        await using var cmd = new SqlCommand(sql, cn);
-                        await using var rd = await cmd.ExecuteReaderAsync();
-                        while (await rd.ReadAsync())
-                            result.Add(rd.GetInt32(0));
-                    }
-                    catch { }
-                }
-                return result;
-            });
-
-            // Czekaj na wszystkie równoległe zadania
-            await Task.WhenAll(taskTransportKurs, taskTransportInfo, taskGrupyTowarowe, taskSrednieCeny, taskMrozone);
+            // Czekaj na transportowe + skonsolidowane pozycje
+            await Task.WhenAll(taskTransportKurs, taskTransportInfo, taskPozycjeWiersze);
             transportTimes = await taskTransportKurs;
             transportInfo = await taskTransportInfo;
-            sumaPerZamowieniePerGrupa = await taskGrupyTowarowe;
-            srednieCenyZamowien = await taskSrednieCeny;
-            var zamowieniaMrozone = await taskMrozone;
+            var wszystkieWiersze = await taskPozycjeWiersze;
+
+            // Rozparcelowanie w C#: 1 pętla zamiast 3 zapytań SQL
+            var zamowieniaMrozone = new HashSet<int>();
+            var iloscNaZamowienie = new Dictionary<int, decimal>();      // ZamId → SUM(Ilosc) (do średniej ważonej)
+            var iloscRazyCenaNaZamowienie = new Dictionary<int, decimal>(); // ZamId → SUM(Ilosc × Cena)
+
+            foreach (var (zamId, kodTowaru, ilosc, cenaStr) in wszystkieWiersze)
+            {
+                // Grupy towarowe (mapowanie scalania)
+                if (_mapowanieScalowania.TryGetValue(kodTowaru, out var nazwaGrupy))
+                {
+                    if (!sumaPerZamowieniePerGrupa.ContainsKey(zamId))
+                        sumaPerZamowieniePerGrupa[zamId] = new Dictionary<string, decimal>();
+                    if (!sumaPerZamowieniePerGrupa[zamId].ContainsKey(nazwaGrupy))
+                        sumaPerZamowieniePerGrupa[zamId][nazwaGrupy] = 0m;
+                    sumaPerZamowieniePerGrupa[zamId][nazwaGrupy] += ilosc;
+                }
+
+                // Mrożone (katalog 67153)
+                if (_productCatalogMrozone.ContainsKey(kodTowaru))
+                    zamowieniaMrozone.Add(zamId);
+
+                // Średnia cena: agregacja ważona (ilość × cena), tylko niepuste ceny
+                if (!string.IsNullOrWhiteSpace(cenaStr) && cenaStr != "0"
+                    && decimal.TryParse(cenaStr.Replace(",", "."), System.Globalization.NumberStyles.Any,
+                                        System.Globalization.CultureInfo.InvariantCulture, out var cenaVal)
+                    && cenaVal > 0)
+                {
+                    // Gdy filtr produktu — używamy ceny tylko tego produktu (nadpisanie)
+                    if (selectedProductId.HasValue)
+                    {
+                        if (kodTowaru == selectedProductId.Value)
+                            srednieCenyZamowien[zamId] = cenaVal;
+                    }
+                    else
+                    {
+                        // Średnia ważona: gromadzimy ilość i ilość × cena, na końcu dzielimy
+                        if (!iloscNaZamowienie.ContainsKey(zamId))
+                        {
+                            iloscNaZamowienie[zamId] = 0m;
+                            iloscRazyCenaNaZamowienie[zamId] = 0m;
+                        }
+                        iloscNaZamowienie[zamId] += ilosc;
+                        iloscRazyCenaNaZamowienie[zamId] += ilosc * cenaVal;
+                    }
+                }
+            }
+
+            // Finalizuj średnie ważone (tylko gdy nie ma filtra produktu)
+            if (!selectedProductId.HasValue)
+            {
+                foreach (var kvp in iloscNaZamowienie)
+                {
+                    if (kvp.Value > 0)
+                        srednieCenyZamowien[kvp.Key] = iloscRazyCenaNaZamowienie[kvp.Key] / kvp.Value;
+                }
+            }
 
             diagTimes.Add(("Trans+Grupy+Ceny(||)", diagSw.ElapsedMilliseconds));
             var cultureInfo = new CultureInfo("pl-PL");

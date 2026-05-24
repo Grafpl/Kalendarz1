@@ -1,0 +1,420 @@
+<Window x:Class="Kalendarz1.Admin.LimityProdukcyjneWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:Kalendarz1.Admin"
+        Title="🎯 Limity produkcyjne — Panel Admin"
+        Width="1280" Height="780"
+        MinWidth="1080" MinHeight="640"
+        WindowStartupLocation="CenterScreen"
+        Background="#F7F8FA"
+        FontFamily="Segoe UI"
+        FontSize="13"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
+        Loaded="Window_Loaded">
+    <Window.Resources>
+        <SolidColorBrush x:Key="Primary" Color="#4F46E5"/>
+        <SolidColorBrush x:Key="PrimaryDark" Color="#3730A3"/>
+        <SolidColorBrush x:Key="Surface" Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="Border" Color="#E2E8F0"/>
+        <SolidColorBrush x:Key="TextPrimary" Color="#0F172A"/>
+        <SolidColorBrush x:Key="TextSecondary" Color="#64748B"/>
+        <SolidColorBrush x:Key="Danger" Color="#DC2626"/>
+        <SolidColorBrush x:Key="Success" Color="#16A34A"/>
+        <SolidColorBrush x:Key="Warning" Color="#F59E0B"/>
+
+        <DropShadowEffect x:Key="CardShadow" BlurRadius="16" ShadowDepth="2" Color="#0F172A" Opacity="0.08"/>
+
+        <Style x:Key="PrimaryButton" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource Primary}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="MinHeight" Value="36"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="8" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource PrimaryDark}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="GhostButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="MinHeight" Value="36"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="{StaticResource Border}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="8" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#F1F5F9"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource GhostButton}">
+            <Setter Property="Foreground" Value="{StaticResource Danger}"/>
+            <Setter Property="BorderBrush" Value="#FCA5A5"/>
+        </Style>
+
+        <Style x:Key="SmallIconButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Width" Value="32"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#F1F5F9"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- DataGrid styling: cleaner headers, hover/selected -->
+        <Style x:Key="GridHeaderStyle" TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="#F8FAFC"/>
+            <Setter Property="Foreground" Value="#475569"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="BorderBrush" Value="{StaticResource Border}"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+        </Style>
+        <Style x:Key="GridRowStyle" TargetType="DataGridRow">
+            <Setter Property="Background" Value="White"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#EEF2FF"/>
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#E0E7FF"/>
+                    <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+                </Trigger>
+                <!-- Wyszarz nieaktywne grupy -->
+                <DataTrigger Binding="{Binding Aktywny}" Value="False">
+                    <Setter Property="Opacity" Value="0.45"/>
+                    <Setter Property="Background" Value="#F8FAFC"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="GridCellStyle" TargetType="DataGridCell">
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DataGridCell">
+                        <Border Background="{TemplateBinding Background}" Padding="0">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- HEADER -->
+        <Border Grid.Row="0" Background="White" Padding="24,18" BorderBrush="{StaticResource Border}" BorderThickness="0,0,0,1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock Text="🎯 Limity produkcyjne" FontSize="22" FontWeight="Bold" Foreground="{StaticResource TextPrimary}"/>
+                    <TextBlock FontSize="13" Foreground="{StaticResource TextSecondary}" Margin="0,4,0,0">
+                        Konfigurowalne limity zamówień dla wybranych grup towarów (Kurczak A, Filet A, Ćwiartka, …).
+                        <LineBreak/>
+                        Aplikacja blokuje zapis zamówienia jeśli SUMA dla grupy przekroczy zdefiniowany procent (Plan + Stan z poprzedniego dnia).
+                    </TextBlock>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <CheckBox x:Name="ChkOnlyActive" Content="Tylko aktywne" VerticalAlignment="Center" Margin="0,0,16,0" Checked="ChkOnlyActive_Changed" Unchecked="ChkOnlyActive_Changed"/>
+                    <Button Style="{StaticResource GhostButton}" Content="🔄 Odśwież" Click="BtnRefresh_Click" Margin="0,0,8,0"/>
+                    <Button Style="{StaticResource PrimaryButton}" Content="➕ Dodaj grupę" Click="BtnAdd_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- CONTENT: left = grid, right = preview -->
+        <Grid Grid.Row="1" Margin="24,16,24,16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="380"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- DATAGRID + EMPTY STATE -->
+            <Border Background="White" CornerRadius="12" BorderBrush="{StaticResource Border}" BorderThickness="1" Effect="{StaticResource CardShadow}" Padding="0">
+                <Grid>
+                    <!-- Empty state -->
+                    <StackPanel x:Name="EmptyState" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <Border Width="96" Height="96" CornerRadius="48" Background="#F1F5F9" HorizontalAlignment="Center">
+                            <TextBlock Text="🎯" FontSize="46" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <TextBlock Text="Brak zdefiniowanych grup" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" HorizontalAlignment="Center" Margin="0,18,0,4"/>
+                        <TextBlock Text="Dodaj pierwszą grupę aby zacząć monitorować limity zamówień" FontSize="13" Foreground="{StaticResource TextSecondary}" HorizontalAlignment="Center" TextAlignment="Center" MaxWidth="380" Margin="0,0,0,18"/>
+                        <Button Style="{StaticResource PrimaryButton}" Content="➕ Dodaj pierwszą grupę" Click="BtnAdd_Click" Padding="22,12" FontSize="14" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                    <DataGrid x:Name="GridLimity" AutoGenerateColumns="False" IsReadOnly="True"
+                          HeadersVisibility="Column" GridLinesVisibility="None"
+                          BorderThickness="0" Background="Transparent" RowBackground="White" AlternatingRowBackground="#FAFBFC"
+                          SelectionMode="Single" SelectionUnit="FullRow"
+                          CanUserAddRows="False" CanUserDeleteRows="False" CanUserResizeRows="False" CanUserSortColumns="False"
+                          ColumnWidth="*" RowHeight="64"
+                          ColumnHeaderHeight="40"
+                          ColumnHeaderStyle="{StaticResource GridHeaderStyle}"
+                          RowStyle="{StaticResource GridRowStyle}"
+                          CellStyle="{StaticResource GridCellStyle}"
+                          SelectionChanged="GridLimity_SelectionChanged">
+                    <DataGrid.Columns>
+                        <DataGridTemplateColumn Header="Ikona" Width="60">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Ikona}" FontSize="22" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTextColumn Header="Nazwa grupy" Binding="{Binding NazwaGrupy}" Width="160">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                    <Setter Property="Padding" Value="12,0"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="Wzorzec" Binding="{Binding Wzorzec}" Width="140">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="FontFamily" Value="Consolas"/>
+                                    <Setter Property="Foreground" Value="#475569"/>
+                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                    <Setter Property="Padding" Value="8,0"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="Sposób liczenia planu" Binding="{Binding SposobDisplay}" Width="*">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                    <Setter Property="Padding" Value="8,0"/>
+                                    <Setter Property="TextWrapping" Value="Wrap"/>
+                                    <Setter Property="FontSize" Value="12"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTemplateColumn Header="Limit" Width="80">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Border Background="#FEF3C7" CornerRadius="6" Padding="8,4" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <TextBlock>
+                                            <Run Text="{Binding ProcentLimitu, StringFormat=N0}"/>
+                                            <Run Text="%" FontWeight="Bold" Foreground="#92400E"/>
+                                        </TextBlock>
+                                    </Border>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTemplateColumn Header="Aktywny" Width="90">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Button Style="{StaticResource SmallIconButton}" Click="BtnToggleActive_Click"
+                                            ToolTip="Kliknij aby przełączyć aktywność" Width="48" Height="32">
+                                        <TextBlock Text="{Binding Aktywny, Converter={x:Static local:LimityProdukcyjneWindow.BoolToCheckConv}}"
+                                                   FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Button>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTemplateColumn Header="Akcje" Width="130">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <Button Style="{StaticResource SmallIconButton}" Click="BtnEdit_Click" ToolTip="Edytuj">
+                                            <TextBlock Text="✏️" FontSize="16"/>
+                                        </Button>
+                                        <Button Style="{StaticResource SmallIconButton}" Click="BtnDuplicate_Click" ToolTip="Duplikuj (utwórz kopię)">
+                                            <TextBlock Text="📋" FontSize="16"/>
+                                        </Button>
+                                        <Button Style="{StaticResource SmallIconButton}" Click="BtnDelete_Click" ToolTip="Usuń">
+                                            <TextBlock Text="🗑" FontSize="16" Foreground="{StaticResource Danger}"/>
+                                        </Button>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+                </Grid>
+            </Border>
+
+            <!-- PREVIEW -->
+            <Border Grid.Column="1" Background="White" CornerRadius="12" BorderBrush="{StaticResource Border}" BorderThickness="1" Effect="{StaticResource CardShadow}" Margin="16,0,0,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <StackPanel Grid.Row="0" Margin="20,18,20,12">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock x:Name="PreviewTitle" Text="🔍 Podgląd grupy" FontSize="15" FontWeight="Bold" Foreground="{StaticResource TextPrimary}"/>
+                                <TextBlock x:Name="PreviewSubtitle" Text="Wybierz grupę z listy po lewej" FontSize="12" Foreground="{StaticResource TextSecondary}" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                            </StackPanel>
+                            <Border Grid.Column="1" x:Name="PreviewInactiveBadge" Visibility="Collapsed" Background="#FEF2F2" CornerRadius="6" Padding="8,4" VerticalAlignment="Top" Margin="8,0,0,0">
+                                <TextBlock Text="⛔ NIEAKTYWNA" FontSize="10" FontWeight="Bold" Foreground="#991B1B"/>
+                            </Border>
+                        </Grid>
+                    </StackPanel>
+
+                    <!-- Empty state w preview (gdy nic nie wybrane) -->
+                    <StackPanel x:Name="PreviewEmpty" Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="20" Visibility="Collapsed">
+                        <Border Width="72" Height="72" CornerRadius="36" Background="#F1F5F9" HorizontalAlignment="Center">
+                            <TextBlock Text="🔍" FontSize="32" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <TextBlock Text="Wybierz grupę z listy" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" HorizontalAlignment="Center" Margin="0,14,0,4"/>
+                        <TextBlock Text="Klikając pozycję po lewej zobaczysz tutaj plan, stan, limit oraz wszystkie towary pasujące do wzorca." FontSize="11" Foreground="{StaticResource TextSecondary}" HorizontalAlignment="Center" TextAlignment="Center" MaxWidth="280" TextWrapping="Wrap"/>
+                    </StackPanel>
+
+                    <ScrollViewer x:Name="PreviewScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="20,0,20,18">
+                        <StackPanel>
+                            <!-- KPI tabela limitu dla dziś -->
+                            <Border x:Name="PreviewKpiBox" Background="#F8FAFC" BorderBrush="{StaticResource Border}" BorderThickness="1" CornerRadius="10" Padding="0" Margin="0,0,0,16" Visibility="Collapsed">
+                                <StackPanel>
+                                    <Border BorderBrush="{StaticResource Border}" BorderThickness="0,0,0,1" Padding="12,10">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="📅 Preview na dziś:" FontSize="11" Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center"/>
+                                            <TextBlock x:Name="PreviewKpiDate" Text="—" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Grid Margin="12,10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="📊 Plan" Foreground="{StaticResource TextSecondary}" FontSize="12"/>
+                                        <TextBlock Grid.Column="1" x:Name="PreviewKpiPlan" Text="0 kg" FontWeight="SemiBold" FontSize="13"/>
+                                    </Grid>
+                                    <Grid Margin="12,4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="📦 Stan z wczoraj" Foreground="{StaticResource TextSecondary}" FontSize="12"/>
+                                        <TextBlock Grid.Column="1" x:Name="PreviewKpiStan" Text="0 kg" FontWeight="SemiBold" FontSize="13"/>
+                                    </Grid>
+                                    <Border Background="#FEF3C7" Margin="12,8,12,4" CornerRadius="6" Padding="8,6">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock x:Name="PreviewKpiLimitTitle" Text="🎯 LIMIT 92%" Foreground="#92400E" FontWeight="Bold" FontSize="12"/>
+                                            <TextBlock Grid.Column="1" x:Name="PreviewKpiLimit" Text="0 kg" Foreground="#92400E" FontWeight="Bold" FontSize="14"/>
+                                        </Grid>
+                                    </Border>
+                                    <Grid Margin="12,4,12,12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="🛒 Już zamówione" Foreground="{StaticResource TextSecondary}" FontSize="12"/>
+                                        <TextBlock Grid.Column="1" x:Name="PreviewKpiZam" Text="0 kg" FontWeight="SemiBold" FontSize="13"/>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Lista towarów matchujących -->
+                            <TextBlock x:Name="PreviewArticlesTitle" Text="📋 Towary pasujące do wzorca" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,8" Visibility="Collapsed"/>
+                            <Border x:Name="PreviewArticlesBox" BorderBrush="{StaticResource Border}" BorderThickness="1" CornerRadius="8" Visibility="Collapsed">
+                                <ItemsControl x:Name="PreviewArticlesList">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border BorderBrush="{StaticResource Border}" BorderThickness="0,0,0,1" Padding="10,8">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="56"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <Border Width="48" Height="48" CornerRadius="6" ClipToBounds="True" Background="#F1F5F9" VerticalAlignment="Center">
+                                                        <Grid>
+                                                            <Image Source="{Binding Image}" Stretch="UniformToFill" Visibility="{Binding HasImageVisibility}"/>
+                                                            <TextBlock Text="🍗" FontSize="22" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="{Binding PlaceholderVisibility}"/>
+                                                        </Grid>
+                                                    </Border>
+                                                    <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding Nazwa}" FontWeight="SemiBold" FontSize="12" Foreground="{StaticResource TextPrimary}" TextTrimming="CharacterEllipsis"/>
+                                                        <TextBlock FontSize="11" Foreground="{StaticResource TextSecondary}">
+                                                            <Run Text="kod: "/>
+                                                            <Run Text="{Binding Kod}" FontFamily="Consolas"/>
+                                                            <Run Text=" · ID: "/>
+                                                            <Run Text="{Binding Id}" FontFamily="Consolas"/>
+                                                        </TextBlock>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </Border>
+                            <TextBlock x:Name="PreviewArticlesCount" Text="" FontSize="11" Foreground="{StaticResource TextSecondary}" Margin="0,6,0,0" Visibility="Collapsed"/>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- FOOTER -->
+        <Border Grid.Row="2" Background="White" Padding="24,12" BorderBrush="{StaticResource Border}" BorderThickness="0,1,0,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock x:Name="LblStatus" Text="" Foreground="{StaticResource TextSecondary}" FontSize="12" VerticalAlignment="Center"/>
+                <Button Grid.Column="1" Style="{StaticResource GhostButton}" Content="Zamknij" Click="BtnClose_Click" MinWidth="100"/>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

@@ -94,6 +94,7 @@ namespace Kalendarz1.AnalitykaPelna
                     case Key.D2: tabGlowny.SelectedIndex = 1; e.Handled = true; break;
                     case Key.D3: tabGlowny.SelectedIndex = 2; e.Handled = true; break;
                     case Key.D4: tabGlowny.SelectedIndex = 3; e.Handled = true; break;
+                    case Key.D5: tabGlowny.SelectedIndex = 4; e.Handled = true; break;
                 }
             }
 
@@ -119,6 +120,7 @@ namespace Kalendarz1.AnalitykaPelna
                 1 => TrybZakladki.Realizacja,
                 2 => TrybZakladki.Bilans,
                 3 => TrybZakladki.Wydajnosc,
+                4 => TrybZakladki.Wydajnosc,
                 _ => TrybZakladki.Bilans
             };
         }
@@ -168,6 +170,7 @@ namespace Kalendarz1.AnalitykaPelna
                     case 1: await widokRealizacja.ZastosujFiltryAsync(f); break;
                     case 2: await widokBilans.ZastosujFiltryAsync(f); break;
                     case 3: await widokWydajnosc.ZastosujFiltryAsync(f); break;
+                    case 4: await widokWodospad.ZastosujFiltryAsync(f); break;
                 }
                 stoper.Stop();
                 txtStatus.Text = $"✓ {f.DataOd:dd.MM.yyyy} – {f.DataDo:dd.MM.yyyy} • załadowano w {stoper.Elapsed.TotalSeconds:F1}s";
@@ -215,6 +218,7 @@ namespace Kalendarz1.AnalitykaPelna
             1 => "Wczytuję ważenia In0E…",
             2 => "Liczę bilans produkcji vs sprzedaży…",
             3 => "Liczę wydajność krojenia…",
+            4 => "Liczę wodospad uzysku…",
             _ => "Ładowanie danych…"
         };
 
@@ -257,6 +261,7 @@ namespace Kalendarz1.AnalitykaPelna
                 case 1: widokRealizacja.EksportujCsv(); break;
                 case 2: widokBilans.EksportujCsv(); break;
                 case 3: widokWydajnosc.EksportujCsv(); break;
+                case 4: widokWodospad.EksportujCsv(); break;
             }
         }
 

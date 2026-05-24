@@ -67,12 +67,23 @@ namespace Kalendarz1.Zamowienia.Views
         // Klasyfikacja tuszki — jeden rozkład per zamówienie (schema RezerwacjeKlasWagowych jest per ZamowienieId).
         private Kalendarz1.RozkladKlasWagowych? _rozkladKlas;
 
-        public NoweZamowienieTestWindow(string userId) : this(userId, null) { }
+        // Limit 92% Kurczaka A (overlay)
+        private bool _limitOverlayShowing;
+        private ProductVm? _pendingLimitProduct;
+        private decimal _pendingLimitSuggest;
 
-        public NoweZamowienieTestWindow(string userId, int? orderId)
+        // Flaga: czy okno otwarte z Panel Faktur (tryb fakturzystki).
+        // Domyślnie false (handlowiec). Setting BlokowacLimityDlaFakturzystek decyduje czy walidacja limitów obowiązuje.
+        private readonly bool _trybFakturzystki;
+
+        public NoweZamowienieTestWindow(string userId) : this(userId, null, false) { }
+        public NoweZamowienieTestWindow(string userId, int? orderId) : this(userId, orderId, false) { }
+
+        public NoweZamowienieTestWindow(string userId, int? orderId, bool trybFakturzystki)
         {
             UserID = userId ?? "";
             _editOrderId = orderId;
+            _trybFakturzystki = trybFakturzystki;
             InitializeComponent();
             WindowIconHelper.SetIcon(this);
             if (_isEditMode) Title = $"Edytuj zamówienie #{_editOrderId}";
@@ -84,6 +95,8 @@ namespace Kalendarz1.Zamowienia.Views
 
                 if (e.Key == Key.Escape)
                 {
+                    // Priorytet: overlay limitu > popup hotkeys > zamknięcie okna
+                    if (_limitOverlayShowing) { HideLimitOverlay(); e.Handled = true; return; }
                     if (PopupHotkeys != null && PopupHotkeys.IsOpen) { PopupHotkeys.IsOpen = false; e.Handled = true; return; }
                     BtnCancel_Click(s, e);
                     e.Handled = true;
@@ -299,6 +312,8 @@ namespace Kalendarz1.Zamowienia.Views
                 _ = LoadProductImagesAsync();
                 // Tło: pre-load avatarów handlowców do static cache (jeden raz na sesję).
                 _ = Task.Run(PreloadHandlowiecAvatars);
+                // Tło: oznacz produkty monitorowane przez aktywne LimityProdukcyjne (Kurczak A / Filet A / …)
+                _ = RefreshIsMonitoredFlagsAsync();
             }
             catch (Exception ex)
             {
@@ -1450,6 +1465,9 @@ namespace Kalendarz1.Zamowienia.Views
             public int KodTowaru { get; set; }
             public string Display { get; set; } = "";
             public string Tooltip { get; set; } = "";
+            public ImageSource? ImageSource { get; set; }
+            public Visibility HasImageVisibility { get; set; } = Visibility.Collapsed;
+            public Visibility PlaceholderVisibility => HasImageVisibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
         }
 
         private async Task EnsureSugestieKoszykaSchemaAsync()
@@ -1507,7 +1525,14 @@ namespace Kalendarz1.Zamowienia.Views
                 p.Strefa = sug.StrefaDominant;
             }
 
-            var display = list.Select(s =>
+            var display = list
+                // Pomijaj produkty już w koszyku — chip ma się ukryć po wstawieniu/wpisaniu ilości
+                .Where(s =>
+                {
+                    var p = _produkty.FirstOrDefault(x => x.Id == s.KodTowaru);
+                    return p == null || p.QtyKg == 0;
+                })
+                .Select(s =>
             {
                 var p = _produkty.FirstOrDefault(x => x.Id == s.KodTowaru);
                 string nazwa = p?.Kod ?? $"Towar {s.KodTowaru}";
@@ -1520,7 +1545,8 @@ namespace Kalendarz1.Zamowienia.Views
                 if (s.StrefaDominant) flagiDom.Add("Strefa");
 
                 string statusStr = flagiDom.Count > 0 ? " · " + string.Join(" ", flagiDom) : "";
-                string disp = $"📦 {skrot} · {s.SugerowanaIlosc:N0}kg{statusStr}";
+                // Bez 📦 emoji w treści — będzie ikonka obrazka lub placeholder przed tekstem
+                string disp = $"{skrot} · {s.SugerowanaIlosc:N0}kg{statusStr}";
 
                 string flagiPct = $"E2 {s.E2Pct:P0} · Folia {s.FoliaPct:P0} · Halal {s.HallalPct:P0} · Strefa {s.StrefaPct:P0}";
                 string tip = $"{nazwa}\n• {s.Czestotliwosc} zamówień (90 dni)"
@@ -1532,13 +1558,67 @@ namespace Kalendarz1.Zamowienia.Views
                            + (flagiDom.Count > 0 ? $"\n• Domyślnie (≥70%): {string.Join(" + ", flagiDom)}" : "\n• Brak dominanty flag (<70%)")
                            + "\n\nKlik = pre-fill ilości/ceny/flag";
 
+                // Dorzuć miniaturę z cache obrazków produktów (s_productImageCache).
+                // Gdy brak — pokaże placeholder 📦 w XAML.
+                ImageSource? img = null;
+                if (s_productImageCache.TryGetValue(s.KodTowaru, out var cached)) img = cached;
+
                 return new KoszykSuggestionDisplayVm
                 {
                     KodTowaru = s.KodTowaru,
                     Display = disp,
-                    Tooltip = tip
+                    Tooltip = tip,
+                    ImageSource = img,
+                    HasImageVisibility = img != null ? Visibility.Visible : Visibility.Collapsed
                 };
             }).ToList();
+
+            ListKoszykSuggestions.ItemsSource = display;
+            KoszykSuggestionsPanel.Visibility = display.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+            LblKoszykSuggestionsHeader.Text = display.Count > 0
+                ? $"Smart-fill · {display.Count} z historii klienta (klik = wstaw)"
+                : "Smart-fill (z historii klienta)";
+        }
+
+        // Lekki refresh smart-fill — używany gdy zmienia się koszyk (chip ma zniknąć po wstawieniu).
+        // Nie odpytuje DB ponownie, tylko przerenderowuje listę z _ostatnieSugestieKoszyka.
+        private void RefreshKoszykSuggestionsDisplay()
+        {
+            if (_ostatnieSugestieKoszyka == null || _ostatnieSugestieKoszyka.Count == 0)
+            {
+                KoszykSuggestionsPanel.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            var display = _ostatnieSugestieKoszyka
+                .Where(s =>
+                {
+                    var p = _produkty.FirstOrDefault(x => x.Id == s.KodTowaru);
+                    return p == null || p.QtyKg == 0;
+                })
+                .Select(s =>
+                {
+                    var p = _produkty.FirstOrDefault(x => x.Id == s.KodTowaru);
+                    string nazwa = p?.Kod ?? $"Towar {s.KodTowaru}";
+                    string skrot = nazwa.Length > 24 ? nazwa.Substring(0, 23) + "…" : nazwa;
+                    var flagiDom = new List<string>();
+                    if (s.E2Dominant) flagiDom.Add("E2");
+                    if (s.FoliaDominant) flagiDom.Add("Folia");
+                    if (s.HallalDominant) flagiDom.Add("Halal");
+                    if (s.StrefaDominant) flagiDom.Add("Strefa");
+                    string statusStr = flagiDom.Count > 0 ? " · " + string.Join(" ", flagiDom) : "";
+                    string disp = $"{skrot} · {s.SugerowanaIlosc:N0}kg{statusStr}";
+                    ImageSource? img = null;
+                    if (s_productImageCache.TryGetValue(s.KodTowaru, out var cached)) img = cached;
+                    return new KoszykSuggestionDisplayVm
+                    {
+                        KodTowaru = s.KodTowaru,
+                        Display = disp,
+                        Tooltip = nazwa + "\nKlik = pre-fill ilości/ceny/flag",
+                        ImageSource = img,
+                        HasImageVisibility = img != null ? Visibility.Visible : Visibility.Collapsed
+                    };
+                }).ToList();
 
             ListKoszykSuggestions.ItemsSource = display;
             KoszykSuggestionsPanel.Visibility = display.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -2464,7 +2544,279 @@ namespace Kalendarz1.Zamowienia.Views
         {
             if (e.Key == Key.Enter) MoveFocusNext(sender);
         }
-        private void TxtQty_LostFocus(object sender, RoutedEventArgs e) { }
+        private async void TxtQty_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (sender is not TextBox tb || tb.Tag is not int id) return;
+            var p = _produkty.FirstOrDefault(x => x.Id == id);
+            if (p == null) return;
+            // UWAGA: NIE polegamy na p.IsMonitored (static cache 60s — może być stale po edit w adminie).
+            // ValidateLimitOnInputAsync sam pobiera świeże definicje grup z bazy.
+            if (p.QtyKg <= 0) return;
+
+            // Edit-mode: pomiń jeśli nowa ilość ≤ pierwotnej (obniżka lub bez zmiany — nie blokuj).
+            if (_isEditMode && _originalSnapshot != null
+                && _originalSnapshot.Items.TryGetValue(p.Id, out var orig)
+                && p.QtyKg <= orig.Ilosc)
+                return;
+
+            await ValidateLimitOnInputAsync(p);
+        }
+
+        // ── Limity produkcyjne (Kurczak A / Filet A / Ćwiartka / …) ──────────
+        // Walidacja per pole (po LostFocus). Pokazuje overlay tylko dla grupy do której p należy.
+        private async Task ValidateLimitOnInputAsync(ProductVm p)
+        {
+            if (_limitOverlayShowing) return; // już otwarte — nie spamuj
+            if (ShouldSkipLimitValidation()) return; // tryb fakturzystki + setting Blokuj=false → przepuść
+
+            try
+            {
+                // Załaduj świeże definicje (cache 60s)
+                if (_cachedLimitDefinicje == null || (DateTime.Now - _cachedLimitDefinicjeAt).TotalSeconds > 60)
+                {
+                    var svcCache = new Kalendarz1.Zamowienia.Services.LimityProdukcyjneService(_connLibra);
+                    _cachedLimitDefinicje = await svcCache.GetAllAsync(tylkoAktywne: true);
+                    _cachedLimitDefinicjeAt = DateTime.Now;
+                }
+
+                // Szybki check: czy p w ogóle pasuje do którejkolwiek aktywnej grupy?
+                bool pasujeDoGrupy = _cachedLimitDefinicje.Any(d =>
+                    Kalendarz1.Zamowienia.Services.LimityProdukcyjneService.MatchesPattern(p.Kod, d.Wzorzec));
+                if (!pasujeDoGrupy) return;
+
+                // Pełna walidacja — pobiera plan/stan/sumy
+                var koszyk = BuildKoszykForValidation();
+                var svc = new Kalendarz1.Zamowienia.Services.LimityProdukcyjneService(_connLibra);
+                var evals = await svc.EvaluateAllAsync(_dataProdukcji, koszyk, _editOrderId);
+
+                foreach (var eval in evals)
+                {
+                    if (!eval.Matching.Any(m => m.Id == p.Id)) continue; // p nie należy do tej grupy
+                    if (eval.DaneBrakuje) continue;
+                    if (!eval.Przekroczony) continue;
+
+                    ShowLimitOverlayForGroup(p, eval);
+                    return; // jedno overlay na raz
+                }
+            }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[Limit input] {ex.Message}"); }
+        }
+
+        // Invaliduje static cache definicji limitów — wołane gdy admin window edytuje grupy
+        public static void InvalidateLimitDefinicjeCache()
+        {
+            _cachedLimitDefinicje = null;
+            _cachedLimitDefinicjeAt = DateTime.MinValue;
+        }
+
+        // Helper: czy pominąć walidację limitów? (tryb fakturzystki + setting Blokuj=false)
+        private bool ShouldSkipLimitValidation()
+        {
+            if (!_trybFakturzystki) return false; // handlowiec — zawsze waliduj
+            try
+            {
+                var settings = Kalendarz1.Services.ZmianyZamowienSettingsService.GetSettingsCached();
+                return !settings.BlokowacLimityDlaFakturzystek;
+            }
+            catch { return true; } // soft fail — w trybie fakturzystki przy błędzie settings, przepuść
+        }
+
+        // Walidacja przed zapisem (final guard). Zwraca false ⇒ wstrzymaj save.
+        private async Task<bool> ValidateKurczakABeforeSaveAsync()
+        {
+            if (ShouldSkipLimitValidation()) return true; // tryb fakturzystki + setting Blokuj=false → przepuść
+            try
+            {
+                var koszyk = BuildKoszykForValidation();
+                if (koszyk.Count == 0) return true;
+
+                var svc = new Kalendarz1.Zamowienia.Services.LimityProdukcyjneService(_connLibra);
+                var evals = await svc.EvaluateAllAsync(_dataProdukcji, koszyk, _editOrderId);
+
+                foreach (var eval in evals)
+                {
+                    if (eval.DaneBrakuje || !eval.Przekroczony) continue;
+                    if (!ShouldShowOverlayForGroup(eval)) continue;
+
+                    // Znajdź największą pozycję w grupie — będzie 'focal' w overlayu
+                    var focal = eval.Matching.OrderByDescending(m => m.QtyKg).First();
+                    var focalProduct = _produkty.FirstOrDefault(x => x.Id == focal.Id);
+                    if (focalProduct == null) continue;
+
+                    ShowLimitOverlayForGroup(focalProduct, eval);
+                    return false;
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[Limit save] {ex.Message}");
+                return true; // soft fail — nie blokuj zapisu z powodu błędu DB
+            }
+        }
+
+        // Edit-mode: pokazuj overlay tylko gdy w grupie coś NOWE lub WZROSŁO.
+        private bool ShouldShowOverlayForGroup(Kalendarz1.Zamowienia.Services.LimityProdukcyjneService.GroupEvaluation eval)
+        {
+            if (!_isEditMode || _originalSnapshot == null) return true;
+            foreach (var m in eval.Matching)
+            {
+                if (!_originalSnapshot.Items.TryGetValue(m.Id, out var orig)) return true; // nowa pozycja
+                if (m.QtyKg > orig.Ilosc) return true; // wzrost
+            }
+            return false; // tylko spadki / bez zmian — przepuść
+        }
+
+        private List<Kalendarz1.Zamowienia.Services.LimityProdukcyjneService.TowarKoszyka> BuildKoszykForValidation()
+        {
+            return _produkty.Where(p => p.QtyKg > 0)
+                            .Select(p => new Kalendarz1.Zamowienia.Services.LimityProdukcyjneService.TowarKoszyka
+                            {
+                                Id = p.Id, Kod = p.Kod, QtyKg = p.QtyKg
+                            }).ToList();
+        }
+
+        private void ShowLimitOverlayForGroup(ProductVm p, Kalendarz1.Zamowienia.Services.LimityProdukcyjneService.GroupEvaluation eval)
+        {
+            decimal innyWGrupie = eval.SumaWKoszyku - p.QtyKg;
+            decimal suggest = Math.Max(0, eval.LimitKg - eval.SumaInnychKg - innyWGrupie);
+
+            _pendingLimitProduct = p;
+            _pendingLimitSuggest = suggest;
+
+            string nazwaGrupy = (eval.Definicja.NazwaGrupy ?? "").ToUpperInvariant();
+            string ikona = eval.Definicja.Ikona ?? "🍗";
+
+            LimitOverlayKod.Text = p.Kod;
+            LimitOverlayWpisano.Text = $"{p.QtyKg:N0} kg";
+            LimitOverlayHeader.Text = $"ZA DUŻO {nazwaGrupy}!";
+            LimitOverlayHeaderSub.Text = $"Przekraczasz limit {eval.Definicja.ProcentLimitu:N0}% planu produkcyjnego";
+            LimitOverlayIcon.Text = ikona;
+            LimitOverlayExplain.Text =
+                $"Łączna ilość {eval.Definicja.NazwaGrupy} w zamówieniach na ten dzień przekroczy limit produkcyjny. " +
+                $"Aby uniknąć konfliktu między handlowcami, MOŻESZ ZAMÓWIĆ MAKSYMALNIE {eval.Definicja.ProcentLimitu:N0}% planowanej produkcji.";
+
+            if (p.ImageSource != null)
+            {
+                LimitOverlayImage.Source = p.ImageSource;
+                LimitOverlayEmoji.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                LimitOverlayImage.Source = null;
+                LimitOverlayEmoji.Text = ikona;
+                LimitOverlayEmoji.Visibility = Visibility.Visible;
+            }
+
+            LimitOverlayPlanTitle.Text = $"📊 Plan produkcyjny ({eval.Definicja.NazwaGrupy})";
+            LimitOverlayPlan.Text = $"{eval.PlanKg:N0} kg";
+            LimitOverlayPlanInfo.Text = $"dzień ubojowy {_dataProdukcji:dd.MM.yyyy} · {eval.Definicja.SposobDisplay}";
+            LimitOverlayStan.Text = $"{eval.StanKg:N0} kg";
+            LimitOverlayLimitTitle.Text = $"🎯 LIMIT {eval.Definicja.ProcentLimitu:N0}% (Plan + Stan)";
+            LimitOverlayLimit.Text = $"{eval.LimitKg:N0} kg";
+            LimitOverlaySumaInnych.Text = $"{eval.SumaInnychKg:N0} kg";
+            LimitOverlaySuggest.Text = $"{suggest:N0} kg";
+            BtnLimitAcceptText.Text = $"✓ Wstaw {suggest:N0} kg";
+
+            if (innyWGrupie > 0)
+                LimitOverlaySuggestHint.Text = $"W koszyku masz już {innyWGrupie:N0} kg innych pozycji z grupy '{eval.Definicja.NazwaGrupy}' — sugestia to uwzględnia.";
+            else
+                LimitOverlaySuggestHint.Text = $"Po wstawieniu zmieścisz się dokładnie w limicie {eval.Definicja.ProcentLimitu:N0}% (plan + stan).";
+
+            _limitOverlayShowing = true;
+            LimitOverlay.Opacity = 0;
+            LimitOverlay.Visibility = Visibility.Visible;
+
+            var easeOut = new System.Windows.Media.Animation.CubicEase
+            {
+                EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut
+            };
+            var fade = new System.Windows.Media.Animation.DoubleAnimation
+            {
+                From = 0, To = 1,
+                Duration = new Duration(TimeSpan.FromMilliseconds(180)),
+                EasingFunction = easeOut
+            };
+            LimitOverlay.BeginAnimation(UIElement.OpacityProperty, fade);
+
+            var scale = new System.Windows.Media.Animation.DoubleAnimation
+            {
+                From = 0.92, To = 1.0,
+                Duration = new Duration(TimeSpan.FromMilliseconds(220)),
+                EasingFunction = easeOut
+            };
+            LimitOverlayCardScale.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleXProperty, scale);
+            LimitOverlayCardScale.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleYProperty, scale);
+        }
+
+        // Po załadowaniu produktów ustaw IsMonitored na podstawie definicji LimityProdukcyjne (cache).
+        private static List<Kalendarz1.Zamowienia.Services.LimitProdukcyjny>? _cachedLimitDefinicje;
+        private static DateTime _cachedLimitDefinicjeAt = DateTime.MinValue;
+        private async Task RefreshIsMonitoredFlagsAsync()
+        {
+            try
+            {
+                // Cache 60s — admin window może invalidować nawet częściej, ale tutaj OK
+                if (_cachedLimitDefinicje == null || (DateTime.Now - _cachedLimitDefinicjeAt).TotalSeconds > 60)
+                {
+                    var svc = new Kalendarz1.Zamowienia.Services.LimityProdukcyjneService(_connLibra);
+                    _cachedLimitDefinicje = await svc.GetAllAsync(tylkoAktywne: true);
+                    _cachedLimitDefinicjeAt = DateTime.Now;
+                }
+                foreach (var p in _produkty)
+                {
+                    p.IsMonitored = _cachedLimitDefinicje.Any(d =>
+                        Kalendarz1.Zamowienia.Services.LimityProdukcyjneService.MatchesPattern(p.Kod, d.Wzorzec));
+                }
+            }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[Limit flags] {ex.Message}"); }
+        }
+
+        private void HideLimitOverlay()
+        {
+            _limitOverlayShowing = false;
+            LimitOverlay.Visibility = Visibility.Collapsed;
+            _pendingLimitProduct = null;
+            _pendingLimitSuggest = 0;
+        }
+
+        private void BtnLimitCancel_Click(object sender, RoutedEventArgs e) => HideLimitOverlay();
+
+        // Click w ciemne tło (poza kartą) zamyka overlay
+        private void LimitOverlay_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.OriginalSource == LimitOverlay) HideLimitOverlay();
+        }
+
+        private void BtnLimitAccept_Click(object sender, RoutedEventArgs e)
+        {
+            if (_pendingLimitProduct != null)
+            {
+                var p = _pendingLimitProduct;
+                decimal newQty = Math.Max(0, _pendingLimitSuggest);
+                p.QtyKg = newQty;
+                RecalcProductDisplay(p);
+                // Wymuś synchronizację TextBox-ów (KG/POJ/PAL) — bez tego user widzi starą wartość w polu
+                try
+                {
+                    var tbKg = FindTextBoxByName(this, p.Id, "FieldKg");
+                    var tbPoj = FindTextBoxByName(this, p.Id, "FieldPoj");
+                    var tbPal = FindTextBoxByName(this, p.Id, "FieldPal");
+                    _internalTextUpdate = true;
+                    try
+                    {
+                        if (tbKg != null) tbKg.Text = p.QtyKgDisplay;
+                        if (tbPoj != null) tbPoj.Text = p.PojDisplay;
+                        if (tbPal != null) tbPal.Text = p.PalDisplay;
+                    }
+                    finally { _internalTextUpdate = false; }
+                }
+                catch { }
+                RebuildCart();
+                ShowToast($"✓ Ustawiono {newQty:N0} kg dla {p.Kod}", true);
+            }
+            HideLimitOverlay();
+        }
 
         // ── POJEMNIKI ──
         private void TxtPoj_TextChanged(object sender, TextChangedEventArgs e)
@@ -2609,6 +2961,10 @@ namespace Kalendarz1.Zamowienia.Views
             // Re-rankuj sugestie notatek bo koszyk się zmienił (towar-aware boost)
             ScheduleSuggestionsReload();
 
+            // Smart-fill chip ma zniknąć z listy gdy produkt trafi do koszyka
+            // (a wrócić gdy ilość zostanie wyzerowana).
+            try { RefreshKoszykSuggestionsDisplay(); } catch { /* best-effort */ }
+
             int pozycji = inCart.Count;
             decimal pojemniki = inCart.Sum(p => p.Pojemniki);
             decimal palety = inCart.Sum(p => p.Palety);
@@ -2750,7 +3106,7 @@ namespace Kalendarz1.Zamowienia.Views
 
         // ════════════════════ ZAPIS ════════════════════
 
-        private void BtnSave_Click(object sender, RoutedEventArgs e)
+        private async void BtnSave_Click(object sender, RoutedEventArgs e)
         {
             if (_wybranyKlient == null) { ShowToast("Wybierz klienta", false); return; }
             var inCart = _produkty.Where(p => p.QtyKg > 0).ToList();
@@ -2764,6 +3120,9 @@ namespace Kalendarz1.Zamowienia.Views
                     "Przekroczenie limitu", MessageBoxButton.YesNo, MessageBoxImage.Warning);
                 if (r != MessageBoxResult.Yes) return;
             }
+
+            // LIMIT 92% Kurczaka A — final guard (gdy user pominął LostFocus)
+            if (!await ValidateKurczakABeforeSaveAsync()) return;
 
             // Pokaż dialog potwierdzenia
             FillConfirmDialog(inCart);
@@ -3226,39 +3585,47 @@ namespace Kalendarz1.Zamowienia.Views
             {
                 int orderId = await SaveOrderAsync(inCart);
 
-                // ── Zapis rozkładu klas wagowych (jeśli ustawiony) — schema per ZamowienieId
+                // ── Zadania post-save jako fire-and-forget — NIE blokują zamykania okna ──
+                // 1. Zapis rozkładu klas wagowych (jeśli ustawiony) — schema per ZamowienieId
                 if (_rozkladKlas != null && _rozkladKlas.SumaPojemnikow > 0)
                 {
-                    try
+                    var rozkladSnapshot = _rozkladKlas;
+                    var connSnap = _connLibra;
+                    var dataSnap = _dataProdukcji;
+                    var handlSnap = _wybranyKlient?.Handlowiec;
+                    var klSnap = _wybranyKlient?.Nazwa;
+                    _ = Task.Run(async () =>
                     {
-                        await Kalendarz1.RezerwacjeKlasManager.ZapiszRezerwacjeAsync(
-                            _connLibra, orderId, _dataProdukcji, _rozkladKlas,
-                            _wybranyKlient?.Handlowiec, _wybranyKlient?.Nazwa);
-                    }
-                    catch (Exception exRez)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[Rezerwacje klas] {exRez.Message}");
-                    }
+                        try
+                        {
+                            await Kalendarz1.RezerwacjeKlasManager.ZapiszRezerwacjeAsync(
+                                connSnap, orderId, dataSnap, rozkladSnapshot, handlSnap, klSnap);
+                        }
+                        catch (Exception exRez)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[Rezerwacje klas] {exRez.Message}");
+                        }
+                    });
                 }
 
-                // ── Logowanie historii zmian — szczegółowo per pozycja, żeby filtr towaru w HistoriaZmianWindow
-                //    pokazał "0 kg → 100 kg" dla wpisów UTWORZENIA i "100 → 150 kg" dla edycji.
+                // 2. Logowanie historii zmian — fire-and-forget
                 _ = LogujHistorieAsync(orderId, inCart);
 
-                // Tracking: notatka wpisana ręcznie (system uczy się że istniejące propozycje nie wystarczyły)
+                // 3. Tracking notatki — fire-and-forget
                 string finalNote = (TxtUwagi.Text ?? "").Trim();
                 if (!string.IsNullOrEmpty(finalNote) && _notatkiSvc != null && _wybranyKlient != null
                     && int.TryParse(_wybranyKlient.Id, out int kidLog))
                 {
-                    var towary = inCart.Select(p => p.Id);
+                    var towary = inCart.Select(p => p.Id).ToList();
                     _ = _notatkiSvc.LogUsageAsync(finalNote, kidLog, UserID,
                         Kalendarz1.Zamowienia.Services.NotatkiService.AkcjaWpisana,
                         towary, null);
                 }
 
-                ConfirmOverlay.Visibility = Visibility.Collapsed;
-                ShowToast(_isEditMode ? $"✓ Zamówienie #{orderId} zaktualizowane" : $"✓ Zamówienie #{orderId} zapisane", true);
-                await Task.Delay(900);
+                // 4. Powiadomienie wszystkich gdy zmiana >= 300 kg po godzinie cutoff — fire-and-forget
+                _ = WyslijPowiadomienieOZmianieAsync(orderId, inCart);
+
+                // Zamykamy NATYCHMIAST po zapisie — toast/komunikat zobaczy user w MainWindow po refreshu listy
                 DialogResult = true;
                 Close();
             }
@@ -3270,6 +3637,108 @@ namespace Kalendarz1.Zamowienia.Views
             {
                 BtnSave.IsEnabled = true;
                 Cursor = Cursors.Arrow;
+            }
+        }
+
+        // ── Powiadomienia po cutoff: zmiana kg ≥ 300 (DODANIE/USUNIECIE też >=300) → broadcast do tabeli ──
+        private async Task WyslijPowiadomienieOZmianieAsync(int orderId, List<ProductVm> inCart)
+        {
+            try
+            {
+                // Tylko po godzinie cutoff (uwzględnia dni tyg., indywidualne wyjątki)
+                if (!await Kalendarz1.Services.PowiadomieniaZamowienService.IsAfterCutoffAsync(UserID))
+                    return;
+
+                const decimal PROG_KG = Kalendarz1.Services.PowiadomieniaZamowienService.DOMYSLNY_PROG_KG;
+                var zmiany = new List<Kalendarz1.Services.PowiadomieniaZamowienService.PowiadomienieZmiana>();
+                string typ = _isEditMode ? "EDYCJA" : "NOWE";
+
+                if (!_isEditMode || _originalSnapshot == null)
+                {
+                    // NOWE — każda pozycja >= 300 kg
+                    foreach (var p in inCart)
+                    {
+                        if (p.QtyKg < PROG_KG) continue;
+                        zmiany.Add(new Kalendarz1.Services.PowiadomieniaZamowienService.PowiadomienieZmiana
+                        {
+                            Akcja = Kalendarz1.Services.PowiadomieniaZamowienService.AkcjaDodanie,
+                            KodTowaru = p.Id,
+                            NazwaTowaru = p.Kod,
+                            StaraIlosc = 0,
+                            NowaIlosc = p.QtyKg,
+                            ZmianaKg = p.QtyKg
+                        });
+                    }
+                }
+                else
+                {
+                    var nowyKoszyk = inCart.ToDictionary(p => p.Id);
+
+                    // DODANIE / ZWIEKSZENIE / ZMNIEJSZENIE — porównanie ze snapshotem
+                    foreach (var p in inCart)
+                    {
+                        if (!_originalSnapshot.Items.TryGetValue(p.Id, out var orig))
+                        {
+                            // Nowa pozycja w edycji
+                            if (p.QtyKg < PROG_KG) continue;
+                            zmiany.Add(new Kalendarz1.Services.PowiadomieniaZamowienService.PowiadomienieZmiana
+                            {
+                                Akcja = Kalendarz1.Services.PowiadomieniaZamowienService.AkcjaDodanie,
+                                KodTowaru = p.Id, NazwaTowaru = p.Kod,
+                                StaraIlosc = 0, NowaIlosc = p.QtyKg, ZmianaKg = p.QtyKg
+                            });
+                        }
+                        else
+                        {
+                            decimal delta = p.QtyKg - orig.Ilosc;
+                            if (Math.Abs(delta) < PROG_KG) continue;
+                            zmiany.Add(new Kalendarz1.Services.PowiadomieniaZamowienService.PowiadomienieZmiana
+                            {
+                                Akcja = delta > 0
+                                    ? Kalendarz1.Services.PowiadomieniaZamowienService.AkcjaZwiekszenie
+                                    : Kalendarz1.Services.PowiadomieniaZamowienService.AkcjaZmniejszenie,
+                                KodTowaru = p.Id, NazwaTowaru = p.Kod,
+                                StaraIlosc = orig.Ilosc, NowaIlosc = p.QtyKg,
+                                ZmianaKg = Math.Abs(delta)
+                            });
+                        }
+                    }
+
+                    // USUNIECIE — pozycje w snapshot ale nie w nowym koszyku
+                    foreach (var kvp in _originalSnapshot.Items)
+                    {
+                        if (nowyKoszyk.ContainsKey(kvp.Key)) continue;
+                        if (kvp.Value.Ilosc < PROG_KG) continue;
+                        var pVm = _produkty.FirstOrDefault(x => x.Id == kvp.Key);
+                        zmiany.Add(new Kalendarz1.Services.PowiadomieniaZamowienService.PowiadomienieZmiana
+                        {
+                            Akcja = Kalendarz1.Services.PowiadomieniaZamowienService.AkcjaUsuniecie,
+                            KodTowaru = kvp.Key,
+                            NazwaTowaru = pVm?.Kod ?? kvp.Value.Kod,
+                            StaraIlosc = kvp.Value.Ilosc, NowaIlosc = 0,
+                            ZmianaKg = kvp.Value.Ilosc
+                        });
+                    }
+                }
+
+                if (zmiany.Count == 0) return;
+
+                int? klientId = null;
+                if (_wybranyKlient != null && int.TryParse(_wybranyKlient.Id, out var kid)) klientId = kid;
+
+                await Kalendarz1.Services.PowiadomieniaZamowienService.InsertChangesAsync(
+                    zamowienieId: orderId,
+                    typ: typ,
+                    klientId: klientId,
+                    klientNazwa: _wybranyKlient?.Nazwa ?? "",
+                    handlowiec: _wybranyKlient?.Handlowiec ?? App.UserFullName ?? UserID,
+                    dataUboju: _dataProdukcji,
+                    utworzonoPrzez: UserID,
+                    zmiany: zmiany);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[Powiadomienie] {ex.Message}");
             }
         }
 
@@ -3561,13 +4030,22 @@ namespace Kalendarz1.Zamowienia.Views
             }
         }
 
+        // STATIC cache wyników — kolumny w SQL Server są permanentne, sprawdzamy raz na proces.
+        // Eliminuje 6 sekwencyjnych SQL roundtripów w SaveOrderAsync (~200-600 ms oszczędności).
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, bool> _staticColumnCache = new();
+
         private async Task<bool> ColumnExistsAsync(SqlConnection cn, string table, string column)
         {
+            string key = $"{table}.{column}";
+            if (_staticColumnCache.TryGetValue(key, out var cached)) return cached;
+
             var cmd = new SqlCommand(
                 "SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID(@t) AND name = @c", cn);
             cmd.Parameters.AddWithValue("@t", "dbo." + table);
             cmd.Parameters.AddWithValue("@c", column);
-            return Convert.ToInt32(await cmd.ExecuteScalarAsync()) > 0;
+            bool result = Convert.ToInt32(await cmd.ExecuteScalarAsync()) > 0;
+            _staticColumnCache[key] = result;
+            return result;
         }
 
         // ════════════════════ ACTION BAR ════════════════════
@@ -3694,6 +4172,10 @@ namespace Kalendarz1.Zamowienia.Views
             public bool IsKurczak => KategoriaDisplay == "Tuszka"
                                      || Kod.StartsWith("KURCZAK", StringComparison.OrdinalIgnoreCase)
                                      || Kod.StartsWith("Kurczak", StringComparison.OrdinalIgnoreCase);
+
+            // Czy ten produkt jest monitorowany (Kurczak A / Filet A / Ćwiartka / …)
+            // Ustawiane przez NoweZamowienieTestWindow po załadowaniu definicji LimityProdukcyjne.
+            public bool IsMonitored { get; set; }
             public Visibility RozmiaryButtonVisibility => IsKurczak ? Visibility.Visible : Visibility.Collapsed;
             private string _rozmiaryBadge = "";
             public string RozmiaryBadge

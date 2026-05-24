@@ -1,0 +1,210 @@
+<Window x:Class="Kalendarz1.Customer360.KlientPickerDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="🔍 Wybierz klienta"
+        Width="900" Height="700"
+        MinWidth="700" MinHeight="500"
+        WindowStartupLocation="CenterOwner"
+        Background="#F5F7FA"
+        FontFamily="Segoe UI" FontSize="12"
+        UseLayoutRounding="True"
+        Loaded="Window_Loaded">
+    <Window.Resources>
+        <SolidColorBrush x:Key="Primary" Color="#1E40AF"/>
+        <SolidColorBrush x:Key="Border" Color="#E2E8F0"/>
+        <SolidColorBrush x:Key="TextPrimary" Color="#0F172A"/>
+        <SolidColorBrush x:Key="TextSecondary" Color="#64748B"/>
+        <SolidColorBrush x:Key="TextMuted" Color="#94A3B8"/>
+
+        <Style x:Key="ChipFilter" TargetType="ToggleButton">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#CBD5E1"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#475569"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="14" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#1E40AF"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="#1E40AF"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="BorderBrush" Value="#1E40AF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="TextBox">
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="MinHeight" Value="40"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border Background="White" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="8">
+                            <ScrollViewer x:Name="PART_ContentHost" Padding="{TemplateBinding Padding}" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header z search input -->
+        <Border Grid.Row="0" Background="White" BorderBrush="{StaticResource Border}" BorderThickness="0,0,0,1" Padding="20,16">
+            <StackPanel>
+                <TextBlock Text="🔍 Wybierz klienta" FontSize="20" FontWeight="Bold" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,8"/>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="🔎" FontSize="16" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <TextBox Grid.Column="1" x:Name="TxtSearch" KeyUp="TxtSearch_KeyUp"/>
+                    <TextBlock Grid.Column="2" x:Name="LblCount" Text="0" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center" Margin="12,0,0,0"/>
+                </Grid>
+                <TextBlock Text="Wpisz nazwę, NIP lub miasto" FontSize="11" Foreground="{StaticResource TextMuted}" Margin="26,4,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Filters (chipy) -->
+        <Border Grid.Row="1" Background="White" BorderBrush="{StaticResource Border}" BorderThickness="0,0,0,1" Padding="20,10">
+            <StackPanel>
+                <TextBlock Text="Filtr po handlowcu:" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,6"/>
+                <WrapPanel x:Name="HandlowcyChips"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Lista klientów (cards) — ListBox z wirtualizacją -->
+        <ListBox Grid.Row="2" x:Name="ListaKlientow"
+                 Background="Transparent" BorderThickness="0" Padding="20,12,20,12"
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                 ScrollViewer.VerticalScrollBarVisibility="Auto"
+                 VirtualizingStackPanel.IsVirtualizing="True"
+                 VirtualizingStackPanel.VirtualizationMode="Recycling"
+                 SelectionChanged="ListaKlientow_SelectionChanged">
+            <ListBox.ItemContainerStyle>
+                <Style TargetType="ListBoxItem">
+                    <Setter Property="Padding" Value="0"/>
+                    <Setter Property="Margin" Value="0,0,0,8"/>
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                    <Setter Property="Background" Value="Transparent"/>
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="ListBoxItem">
+                                <ContentPresenter/>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </ListBox.ItemContainerStyle>
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <Border Background="White" BorderBrush="{StaticResource Border}" BorderThickness="1" CornerRadius="10" Padding="14,12" Cursor="Hand">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="BorderBrush" Value="{StaticResource Primary}"/>
+                                        <Setter Property="Background" Value="#EFF6FF"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <!-- Avatar = inicjały -->
+                            <Border Grid.Column="0" Width="48" Height="48" CornerRadius="24" Background="#DBEAFE" VerticalAlignment="Center" Margin="0,0,14,0">
+                                <TextBlock Text="{Binding Inicjaly}" FontSize="16" FontWeight="Bold" Foreground="#1E40AF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <!-- Nazwa + meta -->
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding Nazwa}" FontSize="15" FontWeight="SemiBold" Foreground="#0F172A" TextTrimming="CharacterEllipsis"/>
+                                <Grid Margin="0,4,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0">
+                                        <Run Text="🏢" Foreground="#94A3B8" FontSize="11"/>
+                                        <Run Text=" NIP " Foreground="#94A3B8" FontSize="11"/>
+                                        <Run Text="{Binding NIP}" FontSize="11" Foreground="#475569" FontFamily="Consolas"/>
+                                    </TextBlock>
+                                    <TextBlock Grid.Column="1" Margin="16,0,0,0">
+                                        <Run Text="📍" Foreground="#94A3B8" FontSize="11"/>
+                                        <Run Text=" " FontSize="11"/>
+                                        <Run Text="{Binding Miasto}" FontSize="11" Foreground="#475569"/>
+                                    </TextBlock>
+                                </Grid>
+                            </StackPanel>
+                            <!-- Chip handlowca -->
+                            <Border Grid.Column="2" Background="#EFF6FF" BorderBrush="#BFDBFE" BorderThickness="1" CornerRadius="6" Padding="10,4" VerticalAlignment="Center">
+                                <StackPanel>
+                                    <TextBlock Text="HANDLOWIEC" FontSize="9" FontWeight="SemiBold" Foreground="#3730A3"/>
+                                    <TextBlock Text="{Binding Handlowiec}" FontSize="12" FontWeight="Bold" Foreground="#1E40AF"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <!-- Empty state -->
+        <Grid Grid.Row="2" x:Name="EmptyState" Visibility="Collapsed" Background="#F5F7FA">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                <TextBlock Text="🔍" FontSize="48" HorizontalAlignment="Center" Foreground="{StaticResource TextMuted}"/>
+                <TextBlock Text="Brak klientów spełniających kryteria" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextSecondary}" Margin="0,12,0,0"/>
+                <TextBlock Text="Zmień wyszukiwanie lub filtry" FontSize="11" Foreground="{StaticResource TextMuted}" Margin="0,4,0,0"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Footer -->
+        <Border Grid.Row="3" Background="White" BorderBrush="{StaticResource Border}" BorderThickness="0,1,0,0" Padding="20,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="Kliknij klienta aby wybrać" FontSize="11" Foreground="{StaticResource TextMuted}" VerticalAlignment="Center"/>
+                <Button Grid.Column="1" Content="Anuluj" Click="BtnCancel_Click" Padding="20,8" MinHeight="36" Background="White" BorderBrush="{StaticResource Border}" Cursor="Hand">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

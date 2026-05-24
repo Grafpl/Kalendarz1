@@ -178,6 +178,10 @@
             <TabItem Header="📈 Wydajność" Style="{StaticResource TabHeaderStyle}">
                 <views:WidokWydajnosc x:Name="widokWydajnosc"/>
             </TabItem>
+
+            <TabItem Header="💧 Wodospad" Style="{StaticResource TabHeaderStyle}">
+                <views:WidokWodospad x:Name="widokWodospad"/>
+            </TabItem>
         </TabControl>
 
         <!-- ═══ Loading overlay (nad TabControl) ═══ -->

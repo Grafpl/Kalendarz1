@@ -1,0 +1,606 @@
+<Window x:Class="Kalendarz1.HDI.HdiEditWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:Kalendarz1.HDI"
+        Title="HDI — Handlowy Dokument Identyfikacyjny"
+        Width="1300" Height="850"
+        MinWidth="900" MinHeight="640"
+        WindowStartupLocation="CenterScreen"
+        WindowState="Maximized"
+        Background="#F4F6F8"
+        FontFamily="Segoe UI" FontSize="11"
+        UseLayoutRounding="True"
+        KeyDown="Window_KeyDown">
+    <Window.Resources>
+        <!-- Converter: null → Visible (pokazuje placeholder), not-null → Collapsed -->
+        <local:NullToVisibilityConverter x:Key="NullToVisConverter"/>
+
+        <SolidColorBrush x:Key="Primary" Color="#1E40AF"/>
+        <SolidColorBrush x:Key="PrimaryDark" Color="#1E3A8A"/>
+        <SolidColorBrush x:Key="Border" Color="#D1D5DB"/>
+        <SolidColorBrush x:Key="TextPrimary" Color="#111827"/>
+        <SolidColorBrush x:Key="TextSecondary" Color="#6B7280"/>
+        <SolidColorBrush x:Key="Surface" Color="#FFFFFF"/>
+
+        <Style TargetType="TextBox">
+            <Setter Property="BorderBrush" Value="{StaticResource Border}"/>
+            <Setter Property="Padding" Value="6,3"/>
+            <Setter Property="MinHeight" Value="26"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border Background="White" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="4">
+                            <ScrollViewer x:Name="PART_ContentHost" Padding="{TemplateBinding Padding}" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="DatePicker">
+            <Setter Property="MinHeight" Value="26"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Foreground" Value="{StaticResource TextSecondary}"/>
+            <Setter Property="Margin" Value="0,0,0,2"/>
+        </Style>
+
+        <!-- Card BEZ DropShadowEffect — efekt ten powoduje masywne re-layouty w Maximized window
+             i może powodować zwieszanie UI. Mamy CornerRadius+border, wystarczająco subtelnie. -->
+        <Style x:Key="Card" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource Surface}"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="BorderBrush" Value="{StaticResource Border}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10,8"/>
+        </Style>
+
+        <!-- Section header z kolorowym akcentem -->
+        <Style x:Key="SectionHeader" TargetType="Border">
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="Margin" Value="0,0,0,6"/>
+        </Style>
+        <Style x:Key="SectionHeaderText" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <Style x:Key="PrimaryButton" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource Primary}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="12,5"/>
+            <Setter Property="MinHeight" Value="28"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="8" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource PrimaryDark}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="GhostButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+            <Setter Property="Padding" Value="10,4"/>
+            <Setter Property="MinHeight" Value="28"/>
+            <Setter Property="BorderBrush" Value="{StaticResource Border}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="8" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- LOADING OVERLAY — lekki, BEZ animacji i DropShadowEffect (powodują UI freeze).
+             Statyczny "⏳ Pobieranie…" — wystarczająco czytelny. -->
+        <Border x:Name="LoadingOverlay" Grid.RowSpan="3"
+                Background="#80FFFFFF" Visibility="Collapsed"
+                Panel.ZIndex="1000">
+            <Border Background="White" CornerRadius="10" Padding="28,16"
+                    VerticalAlignment="Center" HorizontalAlignment="Center"
+                    BorderBrush="{StaticResource Border}" BorderThickness="1">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="⏳" FontSize="20" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock x:Name="LblLoading" Text="Pobieranie danych z bazy…" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}"/>
+                        <TextBlock x:Name="LblLoadingDetail" Text="Faktura · Klient · Transport · Partie" FontSize="10" Foreground="{StaticResource TextSecondary}" Margin="0,2,0,0"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Border>
+
+        <!-- HEADER kompaktowy: tytuł + nr (KPI usunięte na życzenie) -->
+        <Border Grid.Row="0" BorderBrush="{StaticResource Border}" BorderThickness="0,0,0,1" Padding="14,5">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                    <GradientStop Color="#FFFFFF" Offset="0"/>
+                    <GradientStop Color="#EFF6FF" Offset="1"/>
+                </LinearGradientBrush>
+            </Border.Background>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>   <!-- Tytuł -->
+                    <ColumnDefinition Width="*"/>      <!-- Rynek + miejscowość (NOWE) -->
+                    <ColumnDefinition Width="Auto"/>   <!-- Numer -->
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                    <TextBlock x:Name="LblTitle" Text="📋 Nowy HDI" FontSize="14" FontWeight="Bold" Foreground="{StaticResource TextPrimary}"/>
+                    <TextBlock Text="Handlowy Dokument Identyfikacyjny" FontSize="9" Foreground="{StaticResource TextSecondary}" Margin="0,1,0,0"/>
+                </StackPanel>
+
+                <!-- RYNEK + MIEJSCOWOŚĆ — kompaktowo w nagłówku (na życzenie usera) -->
+                <Border Grid.Column="1" Background="#F3E8FF" BorderBrush="#C4B5FD" BorderThickness="1"
+                        CornerRadius="6" Padding="10,4" Margin="20,0,12,0" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <!-- Rynek -->
+                        <TextBlock Text="📍 Rynek:" FontSize="10" FontWeight="SemiBold" Foreground="#5B21B6" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <RadioButton x:Name="RbKrajowy" GroupName="Rynek" Content="🇵🇱 Krajowy" IsChecked="True"
+                                     FontSize="11" Margin="0,0,10,0" VerticalAlignment="Center" Foreground="#1E293B"/>
+                        <RadioButton x:Name="RbUE" GroupName="Rynek" Content="🇪🇺 UE"
+                                     FontSize="11" Margin="0,0,10,0" VerticalAlignment="Center" Foreground="#1E293B"/>
+                        <RadioButton x:Name="RbInny" GroupName="Rynek" Content="🌍 Inne:"
+                                     FontSize="11" VerticalAlignment="Center" Foreground="#1E293B"/>
+                        <TextBox x:Name="TxtInnePanstwo" Width="100" Margin="4,0,12,0" IsEnabled="False"
+                                 FontSize="11"/>
+
+                        <!-- Separator -->
+                        <Border Width="1" Background="#C4B5FD" Margin="0,2,12,2"/>
+
+                        <!-- Miejscowość wystawienia + data -->
+                        <TextBlock Text="🏢 Wystaw.:" FontSize="10" FontWeight="SemiBold" Foreground="#5B21B6" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                        <TextBox x:Name="TxtMiejscowosc" Text="KOZIOŁKI" Width="100" FontSize="11" Margin="0,0,6,0"
+                                 ToolTip="Miejscowość wystawienia"/>
+                        <DatePicker x:Name="DpDataWystawienia" Width="125" VerticalAlignment="Center" Margin="0,0,8,0"
+                                    ToolTip="Data wystawienia HDI"/>
+
+                        <Border Width="1" Background="#C4B5FD" Margin="0,2,8,2"/>
+
+                        <!-- Wystawiający -->
+                        <TextBlock Text="✍ Podpis:" FontSize="10" FontWeight="SemiBold" Foreground="#5B21B6" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                        <TextBox x:Name="TxtWystawiajacy" Width="160" FontSize="11"
+                                 ToolTip="Pełne imię i nazwisko osoby wystawiającej HDI"/>
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Column="2" Background="{StaticResource Primary}" CornerRadius="6" Padding="10,3" VerticalAlignment="Center">
+                    <StackPanel>
+                        <TextBlock Text="NR DOKUMENTU" FontSize="8" Foreground="#BFDBFE" FontWeight="SemiBold"/>
+                        <TextBlock x:Name="LblNumer" Text="—/26" FontSize="16" FontWeight="Bold" Foreground="White"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- BODY -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="10,6,10,6">
+            <StackPanel>
+
+                <!-- TOP ROW: KLIENT + ADRES + ID ZAMÓWIENIA + POBIERZ (wszystko w jednej linii) -->
+                <Border Style="{StaticResource Card}" Margin="0,0,0,6">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="2*"/>
+                            <ColumnDefinition Width="6"/>
+                            <ColumnDefinition Width="3*"/>
+                            <ColumnDefinition Width="6"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="🏢 Nazwa klienta" Style="{StaticResource FieldLabel}"/>
+                            <TextBox x:Name="TxtKlientNazwa"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="📍 Adres odbiorcy" Style="{StaticResource FieldLabel}"/>
+                            <TextBox x:Name="TxtKlientAdres"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="4" Width="110">
+                            <TextBlock Text="🆔 ID zamówienia" Style="{StaticResource FieldLabel}"/>
+                            <TextBox x:Name="TxtZamowienieId"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="5" VerticalAlignment="Bottom">
+                            <TextBlock Text=" " Style="{StaticResource FieldLabel}"/>
+                            <Button x:Name="BtnPobierz" Style="{StaticResource PrimaryButton}" Content="📥 Pobierz"
+                                    Click="BtnLoadFromOrder_Click" Margin="6,0,0,0"
+                                    ToolTip="Wpisz ID i kliknij ALBO kliknij ze pustym ID → otworzy się lista zamówień dla daty wysyłki"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- OPIS TOWARU + OPAKOWANIA + WAGI -->
+                <Border Style="{StaticResource Card}" Margin="0,0,0,6">
+                    <StackPanel>
+                        <Border Style="{StaticResource SectionHeader}">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                    <GradientStop Color="#16A34A" Offset="0"/>
+                                    <GradientStop Color="#22C55E" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <TextBlock Text="📦 Towar i opakowania" Style="{StaticResource SectionHeaderText}"/>
+                        </Border>
+
+                        <TextBlock Text="Opis towaru" Style="{StaticResource FieldLabel}"/>
+                        <TextBox x:Name="TxtOpisTowaru"/>
+
+                        <Grid Margin="0,10,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="2*"/>
+                                <ColumnDefinition Width="12"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="12"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="12"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <!-- Kol. 0: Checkboxy rodzaj opakowań -->
+                            <StackPanel>
+                                <TextBlock Text="Rodzaj opakowań (zaznacz)" Style="{StaticResource FieldLabel}"/>
+                                <Border Background="#F8FAFC" BorderBrush="{StaticResource Border}" BorderThickness="1"
+                                        CornerRadius="6" Padding="6,3">
+                                    <UniformGrid Columns="2" Rows="3">
+                                        <CheckBox x:Name="ChkPaletaDrewno" Content="🪵 Paleta drewniana"
+                                                  FontSize="10" Margin="0,1"
+                                                  Checked="PackagingChk_Changed" Unchecked="PackagingChk_Changed"/>
+                                        <CheckBox x:Name="ChkPoliblok" Content="📦 Poliblok"
+                                                  FontSize="10" Margin="0,1"
+                                                  Checked="PackagingChk_Changed" Unchecked="PackagingChk_Changed"/>
+                                        <CheckBox x:Name="ChkPaletaH1" Content="🟦 Paleta H1"
+                                                  FontSize="10" Margin="0,1"
+                                                  Checked="PackagingChk_Changed" Unchecked="PackagingChk_Changed"/>
+                                        <CheckBox x:Name="ChkPaletaEuro" Content="🇪🇺 Paleta Euro"
+                                                  FontSize="10" Margin="0,1"
+                                                  Checked="PackagingChk_Changed" Unchecked="PackagingChk_Changed"/>
+                                        <CheckBox x:Name="ChkPojemnikE2" Content="🟧 Pojemnik E2"
+                                                  FontSize="10" Margin="0,1"
+                                                  Checked="PackagingChk_Changed" Unchecked="PackagingChk_Changed"/>
+                                    </UniformGrid>
+                                </Border>
+                            </StackPanel>
+                            <!-- Kol. 2: Liczba opakowań NA GÓRZE + TxtRodzajOpakowan POD spodem -->
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="Liczba opakowań (szt)" Style="{StaticResource FieldLabel}"/>
+                                <TextBox x:Name="TxtLiczbaOpakowan" PreviewTextInput="LiczbaOpakowan_PreviewTextInput"
+                                         ToolTip="Wpisz liczbę palet/pojemników (manualnie). Auto-fill z zamówienia jeśli dostępne."/>
+                                <TextBlock Text="Tekst do druku" Style="{StaticResource FieldLabel}" Margin="0,6,0,0"/>
+                                <TextBox x:Name="TxtRodzajOpakowan" Text="PALETA DREWNO, POLIBLOK"
+                                         FontSize="11"
+                                         ToolTip="Auto-wypełniane przez checkboxy. Można edytować ręcznie (np. dodać E2, Skrzynka itp.)"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="4">
+                                <TextBlock Text="Waga netto (kg)" Style="{StaticResource FieldLabel}"/>
+                                <TextBox x:Name="TxtWagaNetto"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="6">
+                                <TextBlock Text="Waga brutto (kg)" Style="{StaticResource FieldLabel}"/>
+                                <TextBox x:Name="TxtWagaBrutto"/>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- TRANSPORT — wszystko w 1 linii: Data | Nr rej pojazdu | Nr rej naczepy | Uwagi -->
+                <Border Style="{StaticResource Card}" Margin="0,0,0,6">
+                    <StackPanel>
+                        <Border Style="{StaticResource SectionHeader}">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                    <GradientStop Color="#2563EB" Offset="0"/>
+                                    <GradientStop Color="#3B82F6" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <TextBlock Text="🚛 Transport i wysyłka" Style="{StaticResource SectionHeaderText}"/>
+                        </Border>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>   <!-- Data wysyłki -->
+                                <ColumnDefinition Width="8"/>
+                                <ColumnDefinition Width="Auto"/>   <!-- Nr rej pojazdu -->
+                                <ColumnDefinition Width="8"/>
+                                <ColumnDefinition Width="Auto"/>   <!-- Nr rej naczepy (NOWE) -->
+                                <ColumnDefinition Width="8"/>
+                                <ColumnDefinition Width="*"/>      <!-- Uwagi (reszta) -->
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Width="120">
+                                <TextBlock Text="📅 Data wysyłki" Style="{StaticResource FieldLabel}"/>
+                                <DatePicker x:Name="DpDataWysylki" SelectedDateChanged="DpDataWysylki_Changed"
+                                            ToolTip="Zmiana tej daty przesunie WSZYSTKIE partie o tę samą liczbę dni"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2" Width="110">
+                                <TextBlock Text="🚛 Nr rej. pojazdu" Style="{StaticResource FieldLabel}"/>
+                                <TextBox x:Name="TxtNumerRejestracyjny" CharacterCasing="Upper"
+                                         ToolTip="Numer rejestracyjny ciągnika"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="4" Width="110">
+                                <TextBlock Text="🛻 Nr rej. naczepy" Style="{StaticResource FieldLabel}"/>
+                                <TextBox x:Name="TxtNumerRejNaczepy" CharacterCasing="Upper"
+                                         ToolTip="Numer rejestracyjny naczepy (wpisać ręcznie)"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="6">
+                                <TextBlock Text="📝 Uwagi do transportu" Style="{StaticResource FieldLabel}"/>
+                                <TextBox x:Name="TxtUwagiTransport"
+                                         Text="Samochody wyposażone w agregaty chłodnicze, temperatura mrożenia -18C stopni"
+                                         TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- TABELA PARTII -->
+                <Border Style="{StaticResource Card}" Margin="0,0,0,6">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Style="{StaticResource SectionHeader}" Margin="0,0,8,0">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                        <GradientStop Color="#EA580C" Offset="0"/>
+                                        <GradientStop Color="#F97316" Offset="1"/>
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                                <TextBlock Text="🏷 Partie (nr, data uboju, mrożenia, przydatności, waga)" Style="{StaticResource SectionHeaderText}"/>
+                            </Border>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                <Button Style="{StaticResource GhostButton}" Content="📥 Z dnia uboju" Click="BtnLoadPartie_Click" Margin="0,0,6,0" ToolTip="Pobierz partie z bazy dla wybranego dnia uboju"/>
+                                <Button Style="{StaticResource GhostButton}" Content="➕ Dodaj wiersz" Click="BtnAddRow_Click"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <DataGrid x:Name="GridPartie" AutoGenerateColumns="False" HeadersVisibility="Column"
+                                  CanUserAddRows="False" CanUserDeleteRows="False"
+                                  GridLinesVisibility="Horizontal" Margin="0,6,0,0" MinHeight="180"
+                                  RowHeight="40" ColumnHeaderHeight="28"
+                                  FontSize="11" AlternatingRowBackground="#FAFBFC"
+                                  HorizontalGridLinesBrush="#E5E7EB"
+                                  EnableRowVirtualization="True"
+                                  EnableColumnVirtualization="True"
+                                  IsReadOnly="False">
+                            <DataGrid.RowStyle>
+                                <Style TargetType="DataGridRow">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsDataInvalid}" Value="True">
+                                            <Setter Property="Background" Value="#FEF2F2"/>
+                                            <Setter Property="ToolTip" Value="⚠ Data przydatności jest PRZED datą uboju — popraw!"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </DataGrid.RowStyle>
+                            <DataGrid.Columns>
+                                <!-- PRODUKT: miniatura (klikalna → otwiera picker) + nazwa -->
+                                <DataGridTemplateColumn Header="Asortyment" Width="3*" MinWidth="240" CanUserResize="True">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="4,0">
+                                                <!-- Miniatura 38x38 KLIKALNA — otwiera TowarPickerDialog -->
+                                                <Border Width="38" Height="38" CornerRadius="6" ClipToBounds="True"
+                                                        BorderBrush="#E5E7EB" BorderThickness="1" Margin="0,0,8,0"
+                                                        VerticalAlignment="Center" Cursor="Hand"
+                                                        MouseLeftButtonDown="TowarThumb_Click"
+                                                        ToolTip="Klik → wybierz inny towar (świeży/mrożony) z katalogu">
+                                                    <Border.Background>
+                                                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                            <GradientStop Color="#FAFCF7" Offset="0"/>
+                                                            <GradientStop Color="#F0F4EB" Offset="1"/>
+                                                        </LinearGradientBrush>
+                                                    </Border.Background>
+                                                    <Grid>
+                                                        <TextBlock Text="📦" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                   Foreground="#94A3B8"
+                                                                   Visibility="{Binding Image, Converter={StaticResource NullToVisConverter}}"/>
+                                                        <Image Source="{Binding Image}" Stretch="Uniform"/>
+                                                    </Grid>
+                                                </Border>
+                                                <!-- Nazwa edytowalna w TextBox + kategoria badge -->
+                                                <StackPanel VerticalAlignment="Center" MinWidth="160">
+                                                    <TextBox Text="{Binding Asortyment, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                             BorderThickness="0" Background="Transparent" Padding="0"
+                                                             FontWeight="SemiBold" FontSize="11"/>
+                                                    <TextBlock Text="ID towaru w Sage" FontSize="9" Foreground="#9CA3AF" Visibility="Collapsed"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="Nr partii" Binding="{Binding NumerPartii, UpdateSourceTrigger=PropertyChanged}" Width="*" MinWidth="70">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                            <Setter Property="FontFamily" Value="Consolas"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <!-- Daty: TextColumn (1000× szybsze niż DatePicker), edytowalne ręcznie.
+                                     Format: dd.MM.yyyy. DataPicker tylko w CellEditingTemplate (popup gdy user kliknie do edycji) -->
+                                <DataGridTemplateColumn Header="Data uboju/produkcji" Width="1.5*" MinWidth="105">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding DataUboju, StringFormat='dd.MM.yyyy'}"
+                                                       ToolTip="Zmiana tej daty automatycznie przesunie datę przydatności o tę samą liczbę dni"
+                                                       VerticalAlignment="Center" HorizontalAlignment="Center" FontFamily="Consolas"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                    <DataGridTemplateColumn.CellEditingTemplate>
+                                        <DataTemplate>
+                                            <DatePicker SelectedDate="{Binding DataUboju, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                        SelectedDateChanged="DpDataUbojuPartia_Changed"
+                                                        VerticalAlignment="Center"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellEditingTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="Data mrożenia" Width="1.5*" MinWidth="105">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding DataMrozenia, StringFormat='dd.MM.yyyy'}" VerticalAlignment="Center" HorizontalAlignment="Center" FontFamily="Consolas"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                    <DataGridTemplateColumn.CellEditingTemplate>
+                                        <DataTemplate>
+                                            <DatePicker SelectedDate="{Binding DataMrozenia, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellEditingTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="Data przydatności" Width="1.5*" MinWidth="105">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border ToolTip="{Binding PrzydatnoscTooltip}">
+                                                <TextBlock VerticalAlignment="Center" HorizontalAlignment="Center"
+                                                           FontFamily="Consolas" FontWeight="SemiBold">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Text" Value="{Binding DataPrzydatnosci, StringFormat='dd.MM.yyyy'}"/>
+                                                            <Setter Property="Foreground" Value="#16A34A"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsDataInvalid}" Value="True">
+                                                                    <Setter Property="Foreground" Value="#DC2626"/>
+                                                                    <Setter Property="Text" Value="⚠ błąd"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                    <DataGridTemplateColumn.CellEditingTemplate>
+                                        <DataTemplate>
+                                            <DatePicker SelectedDate="{Binding DataPrzydatnosci, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellEditingTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="Waga (kg)" Binding="{Binding WagaKg, UpdateSourceTrigger=PropertyChanged}" Width="*" MinWidth="75">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Setter Property="Padding" Value="0,0,8,0"/>
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                            <Setter Property="Foreground" Value="#1E40AF"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTemplateColumn Width="66" CanUserResize="False">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                <Button Content="🔄" Width="26" Height="26" Click="BtnResetRow_Click"
+                                                        Background="Transparent" BorderThickness="0" Cursor="Hand"
+                                                        FontSize="13"
+                                                        ToolTip="Przywróć domyślną datę przydatności wg klasyfikatora (tuszka +7 / elementy +6 / podroby +4 / mrożone +6 mies.)">
+                                                    <Button.Template>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border x:Name="b" Background="{TemplateBinding Background}" CornerRadius="13">
+                                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="b" Property="Background" Value="#DBEAFE"/>
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Button.Template>
+                                                </Button>
+                                                <Button Content="✕" Width="26" Height="26" Click="BtnRemoveRow_Click"
+                                                        Background="Transparent" BorderThickness="0" Cursor="Hand"
+                                                        Foreground="#DC2626" FontWeight="Bold" FontSize="14"
+                                                        ToolTip="Usuń ten wiersz partii">
+                                                    <Button.Template>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border x:Name="b" Background="{TemplateBinding Background}" CornerRadius="13">
+                                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="b" Property="Background" Value="#FEE2E2"/>
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Button.Template>
+                                                </Button>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </StackPanel>
+                </Border>
+
+                <!-- (sekcja Rynek + miejsce wystawienia przeniesiona do nagłówka okna) -->
+
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- FOOTER -->
+        <Border Grid.Row="2" Background="White" BorderBrush="{StaticResource Border}" BorderThickness="0,1,0,0" Padding="24,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock x:Name="LblStatus" Foreground="{StaticResource TextSecondary}" FontSize="11"/>
+                    <TextBlock Text="⌨ Ctrl+S zapisz · Ctrl+P podgląd · Ctrl+D drukuj · Ctrl+R pobierz · F12 diagnostyka · Esc anuluj"
+                               Foreground="#9CA3AF" FontSize="9" Margin="0,2,0,0"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button Style="{StaticResource GhostButton}" Content="📂 Log"
+                            Click="BtnOpenLogFile_Click" Margin="0,0,4,0"
+                            ToolTip="Otwórz plik z live logami w Notatniku — zapisywane na żywo, dostępne nawet jak apka się zwiesi"/>
+                    <Button Style="{StaticResource GhostButton}" Content="🐛"
+                            Click="BtnOpenDiag_Click" Margin="0,0,8,0" Width="36"
+                            ToolTip="Otwórz panel diagnostyki (F12) — live logi w oknie"/>
+                    <Button Style="{StaticResource GhostButton}" Content="Anuluj"
+                            Click="BtnCancel_Click" Margin="0,0,8,0" MinWidth="80"
+                            ToolTip="Zamknij bez zapisu (Esc)"/>
+                    <Button Style="{StaticResource GhostButton}" Content="📄 Podgląd"
+                            Click="BtnPreviewPdf_Click" Margin="0,0,4,0"
+                            ToolTip="Otwórz podgląd PDF (Ctrl+P)"/>
+                    <Button x:Name="BtnDirectPrint" Style="{StaticResource GhostButton}" Content="🖨️ Drukuj"
+                            Click="BtnDirectPrint_Click" Margin="0,0,8,0"
+                            ToolTip="Drukuj bez podglądu — wysyła PDF na domyślną drukarkę (Ctrl+D)"/>
+                    <Button x:Name="BtnSave" Style="{StaticResource PrimaryButton}" Content="✓ Zapisz HDI"
+                            Click="BtnSave_Click" MinWidth="140"
+                            ToolTip="Zapisz dokument (Ctrl+S)"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

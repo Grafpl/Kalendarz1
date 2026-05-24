@@ -420,7 +420,9 @@ namespace Kalendarz1.WPF
         {
             try
             {
-                var widok = new Kalendarz1.Zamowienia.Views.NoweZamowienieTestWindow(UserID, null);
+                // trybFakturzystki=true → walidacja limitów 92% przepuszczana
+                // (chyba że admin włączy "BlokowacLimityDlaFakturzystek" w Ustawieniach Zmian Zamówień).
+                var widok = new Kalendarz1.Zamowienia.Views.NoweZamowienieTestWindow(UserID, null, trybFakturzystki: true);
                 widok.Owner = this;
                 widok.ShowDialog();
                 // Po zamknieciu okna - odswiez liste, bo moglo powstac nowe zamowienie
@@ -474,11 +476,14 @@ namespace Kalendarz1.WPF
             {
                 await using var cn = new SqlConnection(_connHandel);
                 await cn.OpenAsync();
-                // Pełne dane towarów w jednym zapytaniu — likwiduje N+1 z LoadOrderDetails
+                // Bulk load tylko mięsa (świeże + mrożone) — szybki start (~500 rekordów).
+                // Pozostałe towary (Karma, opakowania, odpady) są dociągane lazy w EnsureProductsInCacheAsync
+                // przy pierwszym wyświetleniu zamówienia/faktury które ich dotyczy.
                 const string sql = @"SELECT ID, kod, ISNULL(nazwa, '') FROM [HANDEL].[HM].[TW]
                                      WHERE katalog IN (67095, 67153)
                                      ORDER BY kod";
                 await using var cmd = new SqlCommand(sql, cn);
+                cmd.CommandTimeout = 30;
                 await using var reader = await cmd.ExecuteReaderAsync();
                 _productCodeCache.Clear();
                 _productNameCache.Clear();
@@ -492,6 +497,37 @@ namespace Kalendarz1.WPF
                 }
             }
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"LoadProducts error: {ex.Message}"); }
+        }
+
+        // Lazy dociąga z HM.TW konkretne ID których brakuje w cache (np. Karma Max, opakowania).
+        // Pojedyncze zapytanie batch — IN (...) — zamiast N+1.
+        private async Task EnsureProductsInCacheAsync(IEnumerable<int> twIds)
+        {
+            var missing = twIds.Where(id => id > 0 && !_productCodeCache.ContainsKey(id) && !_productNameCache.ContainsKey(id))
+                               .Distinct()
+                               .ToList();
+            if (missing.Count == 0) return;
+            try
+            {
+                await using var cn = new SqlConnection(_connHandel);
+                await cn.OpenAsync();
+                var paramNames = missing.Select((_, i) => $"@i{i}").ToList();
+                string sql = $@"SELECT ID, kod, ISNULL(nazwa, '') FROM [HANDEL].[HM].[TW]
+                                WHERE ID IN ({string.Join(",", paramNames)})";
+                await using var cmd = new SqlCommand(sql, cn);
+                for (int i = 0; i < missing.Count; i++) cmd.Parameters.AddWithValue(paramNames[i], missing[i]);
+                cmd.CommandTimeout = 15;
+                await using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    int id = reader.GetInt32(0);
+                    string kod = reader.IsDBNull(1) ? "" : reader.GetString(1);
+                    string nazwa = reader.IsDBNull(2) ? "" : reader.GetString(2);
+                    if (!string.IsNullOrWhiteSpace(kod)) _productCodeCache[id] = kod;
+                    _productNameCache[id] = !string.IsNullOrWhiteSpace(nazwa) ? nazwa : kod;
+                }
+            }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"EnsureProductsInCache error: {ex.Message}"); }
         }
 
         // Ładuje obrazki towarów z LibraNet.dbo.TowarZdjecia (raz na uruchomienie)
@@ -759,6 +795,9 @@ namespace Kalendarz1.WPF
                 // Weryfikacja faktur (klient + suma kg) - PRZED budową VM, żeby ikony były od razu
                 await VerifyInvoicesAsync(tempList);
 
+                // Sprawdź które zamówienia mają wystawione HDI → ikonka 📄 obok klienta
+                await LoadHdiFlagsAsync(tempList);
+
                 // BATCH update — zafakturowane zawsze pokazujemy (są na dole grupowania)
                 var newList = new ObservableCollection<ZamowienieViewModel>();
                 foreach (var info in tempList)
@@ -894,7 +933,7 @@ namespace Kalendarz1.WPF
         }
 
         // ════════════════════════════════════════════════════════════
-        // VERIFICATION BAR — KPI tile + klikalne chipy + filter
+        // VERIFICATION BAR — klikalne chipy + filter + Netto checkbox
         // ════════════════════════════════════════════════════════════
         private void UpdateVerificationBar(List<ZamowienieInfo> orders)
         {
@@ -902,7 +941,6 @@ namespace Kalendarz1.WPF
                                            || o.MatchStatus == InvoiceMatchStatus.ClientMismatch);
             int warnCnt  = orders.Count(o => o.MatchStatus == InvoiceMatchStatus.QtyMismatch);
             int okCnt    = orders.Count(o => o.MatchStatus == InvoiceMatchStatus.Ok);
-            int fakturCnt = alarmCnt + warnCnt + okCnt;  // wszystkie zafakturowane (z weryfikacją)
 
             txtAlarmCnt.Text = alarmCnt.ToString();
             txtWarnCnt.Text  = warnCnt.ToString();
@@ -911,26 +949,6 @@ namespace Kalendarz1.WPF
             chipAlarm.Visibility = alarmCnt > 0 ? Visibility.Visible : Visibility.Collapsed;
             chipWarn.Visibility  = warnCnt  > 0 ? Visibility.Visible : Visibility.Collapsed;
             chipOk.Visibility    = okCnt    > 0 ? Visibility.Visible : Visibility.Collapsed;
-
-            // === KPI TILE (dzienne stats) ===
-            // Liczymy ze WSZYSTKICH zamówień widocznych dla wybranego dnia (nie tylko zafakturowanych)
-            var pl = CultureInfo.GetCultureInfo("pl-PL");
-            decimal totalKg = orders.Sum(o => o.TotalIlosc);
-            decimal totalPln = orders.Where(o => (o.Waluta ?? "PLN") != "EUR").Sum(o => o.Wartosc);
-            decimal totalEur = orders.Where(o => o.Waluta == "EUR").Sum(o => o.Wartosc);
-
-            txtKpiFakturCnt.Text = fakturCnt > 0 ? $"{fakturCnt}/{orders.Count}" : orders.Count.ToString();
-            txtKpiProblems.Text  = (alarmCnt + warnCnt).ToString();
-            // Kolor liczby problemów - czerwony gdy >0, szary gdy 0
-            txtKpiProblems.Foreground = (alarmCnt + warnCnt) > 0
-                ? new SolidColorBrush(Color.FromRgb(0xDC, 0x26, 0x26))
-                : (Brush)FindResource("Brush.Text");
-            // Waga: gdy >=1000 kg pokazuj jako tony z 1 miejscem dziesiętnym
-            txtKpiWaga.Text = totalKg >= 1000m
-                ? $"{(totalKg / 1000m).ToString("N1", pl)} t"
-                : $"{totalKg.ToString("N0", pl)} kg";
-            // Wartość: skróć jeśli >=10k (np. "280 k zł" / "1,2 mln zł")
-            txtKpiWartosc.Text = FormatKpiAmount(totalPln, totalEur, pl);
 
             verifyBar.Visibility = orders.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
 
@@ -1102,6 +1120,10 @@ namespace Kalendarz1.WPF
             txtCntZmian.Text     = $"{zmian} zmian";
             txtCntKwota.Text     = $"{kwotaPln:N0} zł";
 
+            // Widoczny licznik w toolbarze: X zafakturowanych / Y wszystkich
+            txtCntZafaktBadge.Text = zafakt.ToString();
+            txtCntAllBadge.Text    = all.Count.ToString();
+
             // Pokaż badge EUR tylko gdy są zamówienia w euro
             if (kwotaEur > 0)
             {
@@ -1112,6 +1134,40 @@ namespace Kalendarz1.WPF
             {
                 badgeKwotaEur.Visibility = Visibility.Collapsed;
             }
+        }
+
+        // Sprawdza które zamówienia mają wystawione HDI (status AKTYWNY) — ustawia Info.HasHdi.
+        // Jedno zapytanie batch do dbo.HDIDokumenty (LibraNet).
+        private async Task LoadHdiFlagsAsync(List<ZamowienieInfo> orders)
+        {
+            var ids = orders.Where(o => o.Id > 0).Select(o => o.Id).Distinct().ToList();
+            if (ids.Count == 0) return;
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+                // Tabela może jeszcze nie istnieć (jeśli nikt nie wystawił HDI) — sprawdź
+                await using (var chk = new SqlCommand(
+                    "SELECT CASE WHEN EXISTS (SELECT 1 FROM sys.tables WHERE name='HDIDokumenty') THEN 1 ELSE 0 END", cn))
+                {
+                    if ((int)(await chk.ExecuteScalarAsync())! == 0) return;
+                }
+                var withHdi = new HashSet<int>();
+                string inClause = string.Join(",", ids);
+                await using var cmd = new SqlCommand(
+                    $@"SELECT DISTINCT ZamowienieId FROM dbo.HDIDokumenty
+                       WHERE ZamowienieId IN ({inClause})
+                         AND ISNULL(Status,'AKTYWNY') <> 'ANULOWANY'
+                         AND ZamowienieId IS NOT NULL", cn);
+                cmd.CommandTimeout = 15;
+                await using var rd = await cmd.ExecuteReaderAsync();
+                while (await rd.ReadAsync())
+                    if (!rd.IsDBNull(0)) withHdi.Add(Convert.ToInt32(rd.GetValue(0)));
+
+                foreach (var o in orders)
+                    o.HasHdi = withHdi.Contains(o.Id);
+            }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"LoadHdiFlags error: {ex.Message}"); }
         }
 
         private async Task<Dictionary<long, (string GodzWyjazdu, string Kierowca, string Pojazd)>> LoadTransportInfoAsync(HashSet<long> kursIds)
@@ -1260,10 +1316,13 @@ namespace Kalendarz1.WPF
 
             int invKhid = 0;
             string invKhName = "";
-            // Rozszerzona struktura: oprócz Qty/Cena netto/Wartość netto dodajemy
-            // stawkę VAT (np. 8.00), kwotę VAT i wartość brutto (= netto + VAT).
-            var invoicePositions = new Dictionary<int, (decimal Qty, decimal Cena, decimal WartNetto, decimal StawkaVat, decimal WartVat, decimal WartBrutto)>();
-            var orderPositions   = new Dictionary<int, decimal>();
+            // Każda linia z HM.DP jako osobny rekord (tak jak na dokumencie Symfonii).
+            // Brak scalania duplikatów po idtw — preferujemy wierność dokumentowi.
+            var invoiceLines = new List<(int Lp, int TwId, decimal Ilosc, decimal Cena,
+                decimal WartNetto, decimal StawkaVat, decimal WartVat, decimal WartBrutto, string Jm)>();
+            // Mapa sumarycznych ilości per twId — używana TYLKO do obliczenia statusu porównania.
+            var invoiceQtySumByTw = new Dictionary<int, decimal>();
+            var orderPositions    = new Dictionary<int, decimal>();
 
             try
             {
@@ -1287,42 +1346,46 @@ namespace Kalendarz1.WPF
                         }
                     }
 
-                    // wartstvat = stawka VAT × 100 (np. 800 = 8%, 2300 = 23%, 500 = 5%)
-                    // wartVat = kwota podatku VAT pozycji
-                    // walBrutto = wartość brutto pozycji (netto + VAT)
-                    const string posSql = @"SELECT dp.idtw, dp.ilosc, dp.cena, dp.wartNetto,
-                                                   dp.wartstvat, dp.wartVat, dp.walBrutto
+                    // dp.lp        = numer linii (1, 2, 3...) — kolejność dokumentu
+                    // dp.jm        = jednostka miary ("kg", "szt", "opak")
+                    // wartstvat    = stawka VAT × 100 (np. 800 = 8%, 2300 = 23%, 500 = 5%)
+                    // wartVat      = kwota podatku VAT pozycji
+                    // walBrutto    = wartość brutto pozycji (netto + VAT)
+                    // KRYTYCZNE: ISNULL(dk.anulowany,0)=0 ZAWSZE w WHERE (HANDEL gotcha) —
+                    // Sage zostawia anulowane dokumenty z pozycjami; bez tego widać duchy.
+                    const string posSql = @"SELECT dp.lp, dp.idtw, dp.ilosc, dp.cena, dp.wartNetto,
+                                                   dp.wartstvat, dp.wartVat, dp.walBrutto, ISNULL(dp.jm, '')
                                             FROM HM.DP dp
                                             INNER JOIN HM.DK dk ON dk.id = dp.super
-                                            WHERE dk.kod = @kod
+                                            WHERE dk.kod = @kod AND ISNULL(dk.anulowany, 0) = 0
                                             ORDER BY dp.lp";
                     await using var cmdP = new SqlCommand(posSql, cnH);
                     cmdP.Parameters.AddWithValue("@kod", numerFaktury);
+                    cmdP.CommandTimeout = 30;
                     await using var rdrP = await cmdP.ExecuteReaderAsync(ct);
                     while (await rdrP.ReadAsync(ct))
                     {
-                        int twId       = rdrP.GetInt32(0);
-                        decimal ilosc  = rdrP.IsDBNull(1) ? 0 : Convert.ToDecimal(rdrP.GetValue(1));
-                        decimal cena   = rdrP.IsDBNull(2) ? 0 : Convert.ToDecimal(rdrP.GetValue(2));
-                        decimal wartN  = rdrP.IsDBNull(3) ? 0 : Convert.ToDecimal(rdrP.GetValue(3));
+                        int lp         = rdrP.IsDBNull(0) ? 0 : Convert.ToInt32(rdrP.GetValue(0));
+                        int twId       = rdrP.GetInt32(1);
+                        decimal ilosc  = rdrP.IsDBNull(2) ? 0 : Convert.ToDecimal(rdrP.GetValue(2));
+                        decimal cena   = rdrP.IsDBNull(3) ? 0 : Convert.ToDecimal(rdrP.GetValue(3));
+                        decimal wartN  = rdrP.IsDBNull(4) ? 0 : Convert.ToDecimal(rdrP.GetValue(4));
                         // wartstvat zwracane jako smallint × 100 — przelicz na procent (np. 800 → 8.00)
-                        decimal stVat  = rdrP.IsDBNull(4) ? 0 : Convert.ToDecimal(rdrP.GetValue(4)) / 100m;
-                        decimal wartV  = rdrP.IsDBNull(5) ? 0 : Convert.ToDecimal(rdrP.GetValue(5));
-                        decimal wartB  = rdrP.IsDBNull(6) ? 0 : Convert.ToDecimal(rdrP.GetValue(6));
+                        decimal stVat  = rdrP.IsDBNull(5) ? 0 : Convert.ToDecimal(rdrP.GetValue(5)) / 100m;
+                        decimal wartV  = rdrP.IsDBNull(6) ? 0 : Convert.ToDecimal(rdrP.GetValue(6));
+                        decimal wartB  = rdrP.IsDBNull(7) ? 0 : Convert.ToDecimal(rdrP.GetValue(7));
+                        string  jm     = rdrP.IsDBNull(8) ? "" : rdrP.GetString(8);
                         // Fallback: jeśli walBrutto = 0 z jakiegoś powodu, policz z netto + VAT
                         if (wartB == 0 && (wartN != 0 || wartV != 0)) wartB = wartN + wartV;
 
-                        // Jeśli ten sam towar występuje w wielu pozycjach faktury — sumujemy
-                        if (invoicePositions.TryGetValue(twId, out var prev))
-                            invoicePositions[twId] = (prev.Qty + ilosc, cena, prev.WartNetto + wartN, stVat, prev.WartVat + wartV, prev.WartBrutto + wartB);
-                        else
-                            invoicePositions[twId] = (ilosc, cena, wartN, stVat, wartV, wartB);
+                        invoiceLines.Add((lp, twId, ilosc, cena, wartN, stVat, wartV, wartB, jm));
+                        invoiceQtySumByTw[twId] = invoiceQtySumByTw.GetValueOrDefault(twId) + ilosc;
                     }
                 }
 
                 if (ct.IsCancellationRequested) return;
 
-                // 2) ZAMÓWIENIE z .109 — pozycje (prosty SUM żeby zsumować ewentualne duplikaty)
+                // 2) ZAMÓWIENIE z .109 — pozycje (SUM dla duplikatów)
                 if (orderId > 0)
                 {
                     await using var cnL = new SqlConnection(_connLibra);
@@ -1333,6 +1396,7 @@ namespace Kalendarz1.WPF
                                             GROUP BY KodTowaru";
                     await using var cmdO = new SqlCommand(ordSql, cnL);
                     cmdO.Parameters.AddWithValue("@OrderId", orderId);
+                    cmdO.CommandTimeout = 30;
                     await using var rdrO = await cmdO.ExecuteReaderAsync(ct);
                     while (await rdrO.ReadAsync(ct))
                     {
@@ -1344,86 +1408,101 @@ namespace Kalendarz1.WPF
 
                 if (ct.IsCancellationRequested) return;
 
-                // Faktura nie istnieje w Symfonii
-                if (invoicePositions.Count == 0 && invKhid == 0)
+                // Faktura nie istnieje w Symfonii (albo wszystkie pozycje anulowane)
+                if (invoiceLines.Count == 0 && invKhid == 0)
                 {
-                    txtInvoiceHint.Text = $"Nie znaleziono faktury {numerFaktury} w Symfonii";
+                    txtInvoiceHint.Text = $"Nie znaleziono faktury {numerFaktury} w Symfonii (lub wszystkie pozycje anulowane)";
                     panelInvoiceEmpty.Visibility = Visibility.Visible;
                     dgInvoiceItems.Visibility = Visibility.Collapsed;
                     return;
                 }
 
-                // 3) MERGE - dla każdego unikalnego towaru z OBYDWU stron tworzę wiersz
-                var allTwIds = new HashSet<int>(invoicePositions.Keys);
-                allTwIds.UnionWith(orderPositions.Keys);
-                const decimal QTY_TOL = 0.05m;  // 50g tolerancji per pozycja
+                // Dociągnij z HM.TW nazwy towarów których nie ma w bulk-cache (Karma, opakowania itp.)
+                await EnsureProductsInCacheAsync(invoiceLines.Select(l => l.TwId).Concat(orderPositions.Keys));
 
+                if (ct.IsCancellationRequested) return;
+
+                // 3) MERGE
+                // Krok A: pokaż KAŻDĄ linię faktury jako osobny wiersz w kolejności dp.lp.
+                //         Status porównania wyliczany z sum per twId (czy całość się zgadza).
+                //         OrderQty wyświetlamy TYLKO na pierwszej linii danego twId (kolejne null).
+                // Krok B: na końcu dorzuć rekordy "Brak na fakturze" dla towarów z zamówienia
+                //         których w ogóle nie ma na fakturze.
+                const decimal QTY_TOL = 0.05m;
+                var shownOrderForTw = new HashSet<int>();
                 decimal sumOrderKg = 0, sumInvoiceKg = 0, sumInvoiceNetto = 0, sumInvoiceVat = 0, sumInvoiceBrutto = 0;
-                foreach (var twId in allTwIds)
-                {
-                    bool hasOrder   = orderPositions.TryGetValue(twId, out var ordQty);
-                    bool hasInvoice = invoicePositions.TryGetValue(twId, out var invPos);
 
+                foreach (var line in invoiceLines)
+                {
+                    decimal invSumForTw = invoiceQtySumByTw.GetValueOrDefault(line.TwId);
+                    bool hasOrder       = orderPositions.TryGetValue(line.TwId, out var ordQty);
                     PositionCompareStatus stat;
-                    if (hasOrder && hasInvoice)
+                    if (hasOrder)
                     {
-                        stat = Math.Abs(invPos.Qty - ordQty) <= QTY_TOL
+                        stat = Math.Abs(invSumForTw - ordQty) <= QTY_TOL
                             ? PositionCompareStatus.Match
                             : PositionCompareStatus.QtyDiff;
                     }
-                    else if (hasInvoice)
+                    else
                     {
                         stat = PositionCompareStatus.OnlyOnInvoice;
                     }
-                    else
+
+                    string nazwa = _productCodeCache.TryGetValue(line.TwId, out var c) ? c
+                                 : _productNameCache.TryGetValue(line.TwId, out var n) ? n
+                                 : $"Towar {line.TwId}";
+
+                    // Pierwszy raz widzimy ten twId → pokaż OrderQty + zaznacz jako shown
+                    decimal? orderQtyToShow = null;
+                    if (hasOrder && !shownOrderForTw.Contains(line.TwId))
                     {
-                        stat = PositionCompareStatus.OnlyOnOrder;
+                        orderQtyToShow = ordQty;
+                        shownOrderForTw.Add(line.TwId);
+                        sumOrderKg += ordQty;
                     }
 
+                    _invoiceCompareItems.Add(new InvoicePositionCompare
+                    {
+                        Image         = _productImagesCache.TryGetValue(line.TwId, out var img) ? img : null,
+                        Lp            = line.Lp,
+                        Jm            = line.Jm,
+                        Produkt       = nazwa,
+                        OrderQty      = orderQtyToShow,
+                        InvoiceQty    = line.Ilosc,
+                        Cena          = line.Cena,
+                        Wartosc       = line.WartNetto,
+                        StawkaVat     = line.StawkaVat,
+                        WartoscVat    = line.WartVat,
+                        WartoscBrutto = line.WartBrutto,
+                        Status        = stat
+                    });
+
+                    sumInvoiceKg     += line.Ilosc;
+                    sumInvoiceNetto  += line.WartNetto;
+                    sumInvoiceVat    += line.WartVat;
+                    sumInvoiceBrutto += line.WartBrutto;
+                }
+
+                // Krok B: towary z zamówienia których w ogóle nie ma na fakturze
+                foreach (var (twId, qty) in orderPositions)
+                {
+                    if (invoiceQtySumByTw.ContainsKey(twId)) continue;
                     string nazwa = _productCodeCache.TryGetValue(twId, out var c) ? c
                                  : _productNameCache.TryGetValue(twId, out var n) ? n
                                  : $"Towar {twId}";
-
-                    var item = new InvoicePositionCompare
+                    _invoiceCompareItems.Add(new InvoicePositionCompare
                     {
-                        Image         = _productImagesCache.TryGetValue(twId, out var img) ? img : null,
-                        Produkt       = nazwa,
-                        OrderQty      = hasOrder   ? ordQty           : null,
-                        InvoiceQty    = hasInvoice ? invPos.Qty       : null,
-                        Cena          = hasInvoice ? invPos.Cena      : null,
-                        Wartosc       = hasInvoice ? invPos.WartNetto : null,
-                        StawkaVat     = hasInvoice ? invPos.StawkaVat : null,
-                        WartoscVat    = hasInvoice ? invPos.WartVat   : null,
-                        WartoscBrutto = hasInvoice ? invPos.WartBrutto: null,
-                        Status        = stat
-                    };
-                    _invoiceCompareItems.Add(item);
-
-                    if (hasOrder)   sumOrderKg += ordQty;
-                    if (hasInvoice)
-                    {
-                        sumInvoiceKg     += invPos.Qty;
-                        sumInvoiceNetto  += invPos.WartNetto;
-                        sumInvoiceVat    += invPos.WartVat;
-                        sumInvoiceBrutto += invPos.WartBrutto;
-                    }
+                        Image      = _productImagesCache.TryGetValue(twId, out var img) ? img : null,
+                        Lp         = null,
+                        Jm         = "",
+                        Produkt    = nazwa,
+                        OrderQty   = qty,
+                        InvoiceQty = null,
+                        Status     = PositionCompareStatus.OnlyOnOrder
+                    });
+                    sumOrderKg += qty;
                 }
-                // Backward compat — pozostawiamy istniejące pole sumInvoiceVal jako alias netto (jeśli używane gdzieś niżej)
                 decimal sumInvoiceVal = sumInvoiceNetto;
-
-                // 4) Sortowanie: najpierw alarmy, potem ostrzeżenia, na koniec zgodne
-                var sorted = _invoiceCompareItems
-                    .OrderBy(i => i.Status switch
-                    {
-                        PositionCompareStatus.OnlyOnOrder   => 0,
-                        PositionCompareStatus.OnlyOnInvoice => 1,
-                        PositionCompareStatus.QtyDiff       => 2,
-                        _                                    => 3
-                    })
-                    .ThenBy(i => i.Produkt)
-                    .ToList();
-                _invoiceCompareItems.Clear();
-                foreach (var s in sorted) _invoiceCompareItems.Add(s);
 
                 // 5) Header
                 txtInvoiceNumer.Text  = numerFaktury;
@@ -1509,6 +1588,22 @@ namespace Kalendarz1.WPF
             rightStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Right));
             rightStyle.Setters.Add(new Setter(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center));
             rightStyle.Setters.Add(new Setter(TextBlock.PaddingProperty, new Thickness(0, 0, 8, 0)));
+
+            // LP (numer linii dokumentu Symfonii)
+            var lpCol = new DataGridTextColumn
+            {
+                Header = "Lp",
+                Binding = new System.Windows.Data.Binding(nameof(InvoicePositionCompare.LpStr)),
+                Width = new DataGridLength(0, DataGridLengthUnitType.Auto),
+                MinWidth = 36
+            };
+            var lpStyle = new Style(typeof(TextBlock));
+            lpStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center));
+            lpStyle.Setters.Add(new Setter(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center));
+            lpStyle.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.SemiBold));
+            lpStyle.Setters.Add(new Setter(TextBlock.OpacityProperty, 0.65));
+            lpCol.ElementStyle = lpStyle;
+            dgInvoiceItems.Columns.Add(lpCol);
 
             // PRODUKT (image + nazwa, jak w zakładce zamówienia)
             var spFactory = new FrameworkElementFactory(typeof(StackPanel));
@@ -1842,6 +1937,10 @@ namespace Kalendarz1.WPF
                 return;
             }
 
+            // Dociągnij nazwy nieznanych towarów (np. Karma) z HM.TW
+            await EnsureProductsInCacheAsync(allTwIds);
+            if (ct.IsCancellationRequested) return;
+
             decimal sumZ = 0, sumW = 0, sumF = 0;
             foreach (var twId in allTwIds)
             {
@@ -1873,7 +1972,8 @@ namespace Kalendarz1.WPF
                 .ThenBy(i => i.Produkt)
                 .ToList();
             _flowItems.Clear();
-            foreach (var s in sorted) _flowItems.Add(s);
+            int lpFlow = 0;
+            foreach (var s in sorted) { s.Lp = ++lpFlow; _flowItems.Add(s); }
 
             // 4) Summary
             var pl = CultureInfo.GetCultureInfo("pl-PL");
@@ -1917,6 +2017,21 @@ namespace Kalendarz1.WPF
             rowStyle.Setters.Add(new Setter(DataGridRow.BackgroundProperty,
                 new System.Windows.Data.Binding(nameof(ProductFlowItem.RowBg))));
             dgFlowItems.RowStyle = rowStyle;
+
+            // Kolumna Lp — wąska, wyśrodkowana
+            var lpFactory = new FrameworkElementFactory(typeof(TextBlock));
+            lpFactory.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding(nameof(ProductFlowItem.Lp)));
+            lpFactory.SetValue(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+            lpFactory.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+            lpFactory.SetValue(TextBlock.FontWeightProperty, FontWeights.SemiBold);
+            lpFactory.SetValue(TextBlock.OpacityProperty, 0.65);
+            dgFlowItems.Columns.Add(new DataGridTemplateColumn
+            {
+                Header = "Lp",
+                CellTemplate = new DataTemplate { VisualTree = lpFactory },
+                Width = new DataGridLength(0, DataGridLengthUnitType.Auto),
+                MinWidth = 30
+            });
 
             // Produkt (image + nazwa)
             var spFactory = new FrameworkElementFactory(typeof(StackPanel));
@@ -2012,6 +2127,7 @@ namespace Kalendarz1.WPF
         {
             _dtDetails.Clear();
             _dtDetails.Columns.Clear();
+            _dtDetails.Columns.Add("Lp",      typeof(int));            // numer wiersza (1, 2, 3...)
             _dtDetails.Columns.Add("Image",   typeof(BitmapImage));   // miniaturka towaru (nullable)
             _dtDetails.Columns.Add("Produkt", typeof(string));
             _dtDetails.Columns.Add("Ilosc",   typeof(decimal));
@@ -2021,11 +2137,11 @@ namespace Kalendarz1.WPF
             // Info wybranego zamówienia w toolbarze (paneOrderInfo zawsze visible — tylko teksty się zmieniają)
             txtOdbiorca.Text = vm.Info.Klient;
 
-            // Meta jako single-line: "Handlowiec · 18.03.2026"
+            // Meta jako single-line: "• Handlowiec · 18.03.2026" (z prefixem bullet)
             var metaParts = new List<string>();
             if (!string.IsNullOrEmpty(vm.Info.Handlowiec)) metaParts.Add(vm.Info.Handlowiec);
             if (vm.Info.DataZamowienia.HasValue) metaParts.Add(vm.Info.DataZamowienia.Value.ToString("dd.MM.yyyy"));
-            txtOrderMeta.Text = string.Join("  ·  ", metaParts);
+            txtOrderMeta.Text = metaParts.Count > 0 ? "•  " + string.Join("  ·  ", metaParts) : "";
 
             if (!string.IsNullOrEmpty(vm.Info.GodzWyjazdu) || !string.IsNullOrEmpty(vm.Info.Kierowca))
             {
@@ -2041,29 +2157,40 @@ namespace Kalendarz1.WPF
 
             try
             {
-                await using var cn = new SqlConnection(_connLibra);
-                await cn.OpenAsync(ct);
-
-                const string sql = "SELECT KodTowaru, Ilosc, Cena FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = @OrderId";
-                await using var cmd = new SqlCommand(sql, cn);
-                cmd.Parameters.AddWithValue("@OrderId", vm.Info.Id);
-                await using var reader = await cmd.ExecuteReaderAsync(ct);
-
-                while (await reader.ReadAsync(ct))
+                // Najpierw pobieramy wiersze, potem dociągamy brakujące nazwy z HM.TW (Karma itp.)
+                var rawRows = new List<(int Kod, decimal Ilosc, string Cena)>();
+                await using (var cn = new SqlConnection(_connLibra))
                 {
-                    int kod = reader.GetInt32(0);
-                    decimal ilosc = reader.IsDBNull(1) ? 0 : reader.GetDecimal(1);
-                    string cena = reader.IsDBNull(2) ? "" : reader.GetString(2);
+                    await cn.OpenAsync(ct);
+                    const string sql = "SELECT KodTowaru, Ilosc, Cena FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = @OrderId";
+                    await using var cmd = new SqlCommand(sql, cn);
+                    cmd.Parameters.AddWithValue("@OrderId", vm.Info.Id);
+                    await using var reader = await cmd.ExecuteReaderAsync(ct);
+                    while (await reader.ReadAsync(ct))
+                    {
+                        int kod = reader.GetInt32(0);
+                        decimal ilosc = reader.IsDBNull(1) ? 0 : reader.GetDecimal(1);
+                        string cena = reader.IsDBNull(2) ? "" : reader.GetString(2);
+                        rawRows.Add((kod, ilosc, cena));
+                    }
+                }
 
+                if (ct.IsCancellationRequested) return;
+                await EnsureProductsInCacheAsync(rawRows.Select(r => r.Kod));
+                if (ct.IsCancellationRequested) return;
+
+                int lp = 0;
+                foreach (var (kod, ilosc, cena) in rawRows)
+                {
                     decimal cenaNum = 0;
                     decimal.TryParse(cena.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out cenaNum);
 
-                    // Nazwa produktu = kolumna 'kod' z HM.TW (jak w oknie nowego zamówienia)
                     string nazwa = _productCodeCache.TryGetValue(kod, out var c) ? c
                                  : _productNameCache.TryGetValue(kod, out var n) ? n
                                  : $"Towar {kod}";
 
                     var row = _dtDetails.NewRow();
+                    row["Lp"]      = ++lp;
                     row["Image"]   = _productImagesCache.TryGetValue(kod, out var img) ? (object)img : DBNull.Value;
                     row["Produkt"] = nazwa;
                     row["Ilosc"]   = ilosc;
@@ -2072,7 +2199,6 @@ namespace Kalendarz1.WPF
                     _dtDetails.Rows.Add(row);
                 }
 
-                if (ct.IsCancellationRequested) return;
                 _currentWalutaSymbol = vm.WalutaSymbol;   // synchronizuj nagłówki kolumn z walutą zamówienia
                 SetupDetailsGrid();
             }
@@ -2102,6 +2228,21 @@ namespace Kalendarz1.WPF
             rightStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Right));
             rightStyle.Setters.Add(new Setter(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center));
             rightStyle.Setters.Add(new Setter(TextBlock.TextWrappingProperty, TextWrapping.Wrap));
+
+            // Kolumna LP — numer wiersza (1, 2, 3...) — wąska, wyśrodkowana, przygaszona
+            var lpFactory = new FrameworkElementFactory(typeof(TextBlock));
+            lpFactory.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("Lp"));
+            lpFactory.SetValue(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+            lpFactory.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+            lpFactory.SetValue(TextBlock.FontWeightProperty, FontWeights.SemiBold);
+            lpFactory.SetValue(TextBlock.OpacityProperty, 0.65);
+            dg.Columns.Add(new DataGridTemplateColumn
+            {
+                Header = "Lp",
+                CellTemplate = new DataTemplate { VisualTree = lpFactory },
+                Width = new DataGridLength(0, DataGridLengthUnitType.Auto),
+                MinWidth = 30
+            });
 
             // Kolumna PRODUKT — image + nazwa razem (auto-wrap dla długich nazw)
             var spFactory = new FrameworkElementFactory(typeof(StackPanel));
@@ -2368,12 +2509,15 @@ namespace Kalendarz1.WPF
 
         private void DgOrders_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
-            if (_currentOrderId.HasValue)
+            var oid = ResolveActiveOrderId();
+            if (oid.HasValue)
             {
-                var widok = new Kalendarz1.Zamowienia.Views.NoweZamowienieTestWindow(UserID, _currentOrderId.Value);
+                // trybFakturzystki=true → walidacja limitów 92% przepuszczana dla edycji z Panelu Faktur
+                var widok = new Kalendarz1.Zamowienia.Views.NoweZamowienieTestWindow(UserID, oid.Value, trybFakturzystki: true);
                 widok.Owner = this;
                 widok.ShowDialog();
-                _ = RefreshDataAsync();
+                int prev = oid.Value;
+                _ = RefreshDataAsync().ContinueWith(_ => Dispatcher.Invoke(() => TryRestoreSelection(prev)));
             }
         }
 
@@ -2381,7 +2525,7 @@ namespace Kalendarz1.WPF
         {
             _currentOrderId = null;
             // paneOrderInfo zostaje widoczny — tylko teksty wracają do "pustego" stanu
-            txtOdbiorca.Text = "— wybierz zamówienie z listy —";
+            txtOdbiorca.Text = "(nic nie wybrano — kliknij wiersz)";
             txtOrderMeta.Text = "";
             _dtDetails.Clear();
             dgDetails.ItemsSource = null;
@@ -2410,8 +2554,36 @@ namespace Kalendarz1.WPF
         }
 
         // ════════════════════════════════════════════════════════════
-        // CONTEXT MENU - Dopasuj fakturę / wyczyść
+        // CONTEXT MENU - Zrób HDI z zamówienia / Dopasuj fakturę / wyczyść
         // ════════════════════════════════════════════════════════════
+        private void MenuItem_ZrobHDI_Click(object sender, RoutedEventArgs e)
+        {
+            if (dgOrders.SelectedItem is not ZamowienieViewModel vm)
+            {
+                MessageBox.Show(this, "Najpierw zaznacz zamówienie na liście.", "Brak wyboru",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            try
+            {
+                int orderId = vm.Info.Id;
+                string? numerFaktury = string.IsNullOrWhiteSpace(vm.Info.NumerFaktury) ? null : vm.Info.NumerFaktury;
+                var win = new Kalendarz1.HDI.HdiEditWindow(null, orderId, numerFaktury)
+                {
+                    Owner = this
+                };
+                bool? result = win.ShowDialog();
+                // Po zapisaniu HDI (DialogResult=true) → odśwież listę żeby ikona 📄 się pojawiła
+                if (result == true)
+                    _ = RefreshDataAsync();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, $"Błąd otwierania HDI: {ex.Message}", "Błąd",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
         private async void MenuItem_DopasujFakture_Click(object sender, RoutedEventArgs e)
         {
             if (dgOrders.SelectedItem is not ZamowienieViewModel vm) return;
@@ -2477,51 +2649,102 @@ namespace Kalendarz1.WPF
         // ════════════════════════════════════════════════════════════
         // AKCJE BIZNESOWE z UNDO
         // ════════════════════════════════════════════════════════════
+
+        // Wybiera ID zamówienia z aktualnej selekcji dgOrders LUB z _currentOrderId.
+        // Race-condition safe: gdy refresh wyczyścił _currentOrderId ale user nadal
+        // widzi zaznaczony wiersz, użyjemy ID z DataGrida.
+        private int? ResolveActiveOrderId()
+        {
+            if (dgOrders.SelectedItem is ZamowienieViewModel vm) return vm.Info.Id;
+            return _currentOrderId;
+        }
+
         private async void BtnAcceptChange_Click(object sender, RoutedEventArgs e)
         {
-            if (!_currentOrderId.HasValue) return;
-            var orderId = _currentOrderId.Value;
+            var oid = ResolveActiveOrderId();
+            if (!oid.HasValue)
+            {
+                MessageBox.Show("Nie wybrano zamówienia. Kliknij wiersz na liście i spróbuj ponownie.",
+                    "Brak zaznaczenia", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            int orderId = oid.Value;
 
+            btnAcceptChange.IsEnabled = false;
             try
             {
-                await UpdateZamowienieFlagAsync(orderId, "CzyZmodyfikowaneDlaFaktur", false);
+                int rows = await UpdateZamowienieFlagAsync(orderId, "CzyZmodyfikowaneDlaFaktur", false);
+                if (rows == 0)
+                {
+                    MessageBox.Show($"Zamówienie {orderId} nie zostało zaktualizowane (0 wierszy). " +
+                                    "Możliwe że zostało usunięte lub zmienione przez innego użytkownika.",
+                                    "Nic nie zmieniono", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
                 ShowUndoBanner("Zmiana przyjęta", async () =>
                 {
                     await UpdateZamowienieFlagAsync(orderId, "CzyZmodyfikowaneDlaFaktur", true);
                 });
                 await RefreshDataAsync();
+                TryRestoreSelection(orderId);
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                btnAcceptChange.IsEnabled = true;
             }
         }
 
         private async void BtnMarkFakturowane_Click(object sender, RoutedEventArgs e)
         {
-            if (!_currentOrderId.HasValue) return;
-            var orderId = _currentOrderId.Value;
+            var oid = ResolveActiveOrderId();
+            if (!oid.HasValue)
+            {
+                MessageBox.Show("Nie wybrano zamówienia. Kliknij wiersz na liście i spróbuj ponownie.",
+                    "Brak zaznaczenia", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            int orderId = oid.Value;
 
+            btnMarkFakturowane.IsEnabled = false;
             try
             {
-                await UpdateZamowienieFlagAsync(orderId, "CzyZafakturowane", true);
+                int rows = await UpdateZamowienieFlagAsync(orderId, "CzyZafakturowane", true);
+                if (rows == 0)
+                {
+                    MessageBox.Show($"Zamówienie {orderId} nie zostało zaktualizowane (0 wierszy).",
+                                    "Nic nie zmieniono", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
                 ShowUndoBanner("Oznaczono jako zafakturowane", async () =>
                 {
                     await UpdateZamowienieFakturaAsync(orderId, false, null);
                 });
                 await RefreshDataAsync();
+                TryRestoreSelection(orderId);
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+            // btnMarkFakturowane.IsEnabled przywracane przez DgOrders_SelectionChanged po restore
         }
 
         private async void BtnCofnijFakturowanie_Click(object sender, RoutedEventArgs e)
         {
-            if (!_currentOrderId.HasValue) return;
-            var orderId = _currentOrderId.Value;
+            var oid = ResolveActiveOrderId();
+            if (!oid.HasValue)
+            {
+                MessageBox.Show("Nie wybrano zamówienia. Kliknij wiersz na liście i spróbuj ponownie.",
+                    "Brak zaznaczenia", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            int orderId = oid.Value;
 
+            btnCofnijFakturowanie.IsEnabled = false;
             try
             {
                 await UpdateZamowienieFakturaAsync(orderId, false, null);
@@ -2530,14 +2753,37 @@ namespace Kalendarz1.WPF
                     await UpdateZamowienieFlagAsync(orderId, "CzyZafakturowane", true);
                 });
                 await RefreshDataAsync();
+                TryRestoreSelection(orderId);
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+            // btnCofnijFakturowanie.IsEnabled przywracane przez DgOrders_SelectionChanged
         }
 
-        private async Task UpdateZamowienieFlagAsync(int orderId, string columnName, bool value)
+        // Przywraca zaznaczenie po refresh, żeby user nie tracił kontekstu.
+        // Przewija też dgOrders do widocznego wiersza.
+        private void TryRestoreSelection(int orderId)
+        {
+            try
+            {
+                var items = dgOrders.ItemsSource as System.Collections.IEnumerable;
+                if (items == null) return;
+                foreach (var item in items)
+                {
+                    if (item is ZamowienieViewModel vm && vm.Info.Id == orderId)
+                    {
+                        dgOrders.SelectedItem = vm;
+                        dgOrders.ScrollIntoView(vm);
+                        break;
+                    }
+                }
+            }
+            catch { /* best-effort */ }
+        }
+
+        private async Task<int> UpdateZamowienieFlagAsync(int orderId, string columnName, bool value)
         {
             // columnName z whitelistą — chroni przed SQL injection
             string allowed = columnName switch
@@ -2551,7 +2797,7 @@ namespace Kalendarz1.WPF
             await using var cmd = new SqlCommand($"UPDATE [dbo].[ZamowieniaMieso] SET [{allowed}] = @V WHERE Id = @Id", cn);
             cmd.Parameters.AddWithValue("@V", value);
             cmd.Parameters.AddWithValue("@Id", orderId);
-            await cmd.ExecuteNonQueryAsync();
+            return await cmd.ExecuteNonQueryAsync();
         }
 
         private async Task UpdateZamowienieFakturaAsync(int orderId, bool zafakturowane, string? numerFaktury)
@@ -2612,7 +2858,7 @@ namespace Kalendarz1.WPF
             else if (e.Key == Key.Right && Keyboard.Modifiers == ModifierKeys.None) { BtnNextDay_Click(this, new RoutedEventArgs()); e.Handled = true; }
             else if (e.Key == Key.Home  && Keyboard.Modifiers == ModifierKeys.None) { BtnToday_Click(this, new RoutedEventArgs()); e.Handled = true; }
             else if (e.Key == Key.N     && Keyboard.Modifiers == ModifierKeys.Control) { BtnNoweZamowienie_Click(this, new RoutedEventArgs()); e.Handled = true; }
-            else if (_currentOrderId.HasValue)
+            else if (ResolveActiveOrderId().HasValue)
             {
                 if (e.Key == Key.F && btnMarkFakturowane.IsEnabled) { BtnMarkFakturowane_Click(this, new RoutedEventArgs()); e.Handled = true; }
                 else if (e.Key == Key.U && btnCofnijFakturowanie.IsEnabled) { BtnCofnijFakturowanie_Click(this, new RoutedEventArgs()); e.Handled = true; }
@@ -2673,6 +2919,7 @@ namespace Kalendarz1.WPF
             public string ModyfikowalPrzez { get; set; } = "";
             public bool CzyMaCeny { get; set; }
             public string Waluta { get; set; } = "PLN";
+            public bool HasHdi { get; set; }   // czy dla tego zamówienia wystawiono HDI
 
             // Wyniki weryfikacji faktura ↔ zamówienie (uzupełniane po VerifyInvoicesAsync)
             public InvoiceMatchStatus MatchStatus { get; set; } = InvoiceMatchStatus.None;
@@ -2720,6 +2967,8 @@ namespace Kalendarz1.WPF
             private static Brush Freeze(SolidColorBrush b) { b.Freeze(); return b; }
 
             public BitmapImage? Image { get; set; }
+            public int? Lp { get; set; }                  // numer linii z faktury (dp.lp) — null gdy tylko zamówienie
+            public string Jm { get; set; } = "";          // jednostka miary (dp.jm np. "kg", "szt")
             public string Produkt { get; set; } = "";
             public decimal? OrderQty { get; set; }
             public decimal? InvoiceQty { get; set; }
@@ -2729,6 +2978,8 @@ namespace Kalendarz1.WPF
             public decimal? WartoscVat { get; set; }      // kwota VAT pozycji (z HM.DP.wartVat)
             public decimal? WartoscBrutto { get; set; }   // wartość brutto pozycji (z HM.DP.walBrutto)
             public PositionCompareStatus Status { get; set; }
+
+            public string LpStr => Lp.HasValue ? Lp.Value.ToString() : "—";
 
             public string OrderQtyStr   => OrderQty.HasValue   ? OrderQty.Value.ToString("N2", PL)   : "—";
             public string InvoiceQtyStr => InvoiceQty.HasValue ? InvoiceQty.Value.ToString("N2", PL) : "—";
@@ -2808,6 +3059,7 @@ namespace Kalendarz1.WPF
             private static Brush Freeze(SolidColorBrush b) { b.Freeze(); return b; }
 
             public BitmapImage? Image { get; set; }
+            public int Lp { get; set; }                         // numer wiersza w widoku (1, 2, 3...)
             public string Produkt { get; set; } = "";
             public decimal? Zamowiono { get; set; }
             public decimal? Wydano { get; set; }
@@ -3029,10 +3281,17 @@ namespace Kalendarz1.WPF
             public string Kierowca    => Info.Kierowca ?? "";
             public string NumerFaktury => Info.NumerFaktury ?? "";
 
+            // ─── HDI wystawione? (ikonka 📄 obok klienta) ───
+            public bool HasHdi => Info.HasHdi;
+            public Visibility HdiVis => Info.HasHdi ? Visibility.Visible : Visibility.Collapsed;
+
             // ─── Status dopasowania faktury (ikona + kolor + tooltip obok klienta) ───
+            // ✖ = alarm krytyczny (niezgodność klienta z fakturą LUB faktury nie ma w Symfonii)
+            // ⚠ = ostrzeżenie (zgodny klient, ale różnica ilości)
+            // ✓ = zgodne
             public string MatchIcon => Info.MatchStatus switch
             {
-                InvoiceMatchStatus.NotFound       => "⚠",
+                InvoiceMatchStatus.NotFound       => "✖",
                 InvoiceMatchStatus.ClientMismatch => "✖",
                 InvoiceMatchStatus.QtyMismatch    => "⚠",
                 InvoiceMatchStatus.Ok             => "✓",
@@ -3051,7 +3310,7 @@ namespace Kalendarz1.WPF
             };
             public string MatchTooltip => Info.MatchStatus switch
             {
-                InvoiceMatchStatus.NotFound       => $"Faktura {Info.NumerFaktury} nie istnieje w Symfonii",
+                InvoiceMatchStatus.NotFound       => $"✖ Faktura {Info.NumerFaktury} nie istnieje w Symfonii",
                 InvoiceMatchStatus.ClientMismatch => $"✖ Klient na fakturze: {(string.IsNullOrEmpty(Info.InvoiceKhName) ? $"khid={Info.InvoiceKhId}" : Info.InvoiceKhName)}\nKlient zamówienia: {Info.Klient}",
                 InvoiceMatchStatus.QtyMismatch    => $"⚠ Suma kg na fakturze ({Info.InvoiceTotalIlosc:N0}) ≠ na zamówieniu ({Info.TotalIlosc:N0})\nKlient na fakturze: {Info.InvoiceKhName}",
                 InvoiceMatchStatus.Ok             => $"✓ Faktura {Info.NumerFaktury}\nKlient: {Info.InvoiceKhName}\nSuma kg: {Info.InvoiceTotalIlosc:N0}",

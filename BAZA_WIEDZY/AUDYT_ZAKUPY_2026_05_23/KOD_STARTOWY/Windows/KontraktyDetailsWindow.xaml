@@ -1,0 +1,84 @@
+<!--
+════════════════════════════════════════════════════════════════════════════
+KontraktyDetailsWindow.xaml — szczegóły kontraktu (Faza 2), read-only + 4 zakładki
+Target: Kontrakty/Windows/KontraktyDetailsWindow.xaml(.cs)
+════════════════════════════════════════════════════════════════════════════
+-->
+<Window x:Class="Kalendarz1.Kontrakty.Windows.KontraktyDetailsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="📜 Szczegóły kontraktu"
+        Height="700" Width="820"
+        WindowStartupLocation="CenterOwner"
+        Background="#F5F7FA" FontFamily="Segoe UI">
+    <DockPanel>
+        <Border DockPanel.Dock="Top" Background="#5C8A3A" Padding="14,10">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="📜" FontSize="20" Margin="0,0,8,0"/>
+                <StackPanel>
+                    <TextBlock x:Name="txtHeader" FontSize="15" FontWeight="Bold" Foreground="White"/>
+                    <TextBlock x:Name="txtSub" FontSize="10" Foreground="#E8F5E9"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <Border DockPanel.Dock="Bottom" Background="White" Padding="14,8" BorderBrush="#E0E0E0" BorderThickness="0,1,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="✏ Edytuj" Padding="14,7" Margin="4,0" Click="BtnEdit_Click"/>
+                <Button Content="📎 Dodaj skan" Padding="14,7" Margin="4,0" Click="BtnAddScan_Click"/>
+                <Button Content="Zamknij" Padding="14,7" Margin="4,0" Click="BtnClose_Click"/>
+            </StackPanel>
+        </Border>
+
+        <TabControl Margin="10">
+            <!-- ZAKŁADKA 1: Podstawowe -->
+            <TabItem Header="📋 Podstawowe">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel x:Name="panelPodstawowe" Margin="14"/>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ZAKŁADKA 2: Załączniki PDF -->
+            <TabItem Header="📎 Załączniki">
+                <DataGrid x:Name="dgZalaczniki" AutoGenerateColumns="False" IsReadOnly="True"
+                          Margin="10" RowHeight="30" FontSize="12"
+                          MouseDoubleClick="DgZalaczniki_DoubleClick">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Typ" Binding="{Binding TypZalacznika}" Width="140"/>
+                        <DataGridTextColumn Header="Nazwa pliku" Binding="{Binding NazwaPliku}" Width="240"/>
+                        <DataGridTextColumn Header="Dodał" Binding="{Binding DodalUserId}" Width="90"/>
+                        <DataGridTextColumn Header="Kiedy" Binding="{Binding DodanyKiedy, StringFormat='dd.MM.yyyy HH:mm'}" Width="130"/>
+                        <DataGridTextColumn Header="Opis" Binding="{Binding Opis}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </TabItem>
+
+            <!-- ZAKŁADKA 3: Audit log -->
+            <TabItem Header="🕑 Historia zmian">
+                <DataGrid x:Name="dgAudit" AutoGenerateColumns="False" IsReadOnly="True"
+                          Margin="10" RowHeight="28" FontSize="11">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Kiedy" Binding="{Binding Kiedy, StringFormat='dd.MM.yyyy HH:mm'}" Width="130"/>
+                        <DataGridTextColumn Header="Kto" Binding="{Binding UserId}" Width="100"/>
+                        <DataGridTextColumn Header="Akcja" Binding="{Binding Akcja}" Width="140"/>
+                        <DataGridTextColumn Header="Pole" Binding="{Binding PoleZmienione}" Width="120"/>
+                        <DataGridTextColumn Header="Stara → Nowa" Binding="{Binding Zmiana}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </TabItem>
+
+            <!-- ZAKŁADKA 4: Dostawy pod kontraktem -->
+            <TabItem Header="🚚 Dostawy w okresie">
+                <DataGrid x:Name="dgDostawy" AutoGenerateColumns="False" IsReadOnly="True"
+                          Margin="10" RowHeight="28" FontSize="11">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Data odbioru" Binding="{Binding DataOdbioru, StringFormat='dd.MM.yyyy'}" Width="120"/>
+                        <DataGridTextColumn Header="Sztuki" Binding="{Binding Sztuki}" Width="90"/>
+                        <DataGridTextColumn Header="Waga kg" Binding="{Binding Waga}" Width="90"/>
+                        <DataGridTextColumn Header="Auta" Binding="{Binding Auta}" Width="60"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </TabItem>
+        </TabControl>
+    </DockPanel>
+</Window>
