@@ -533,6 +533,31 @@ namespace Kalendarz1.MapaFloty
                             v.KursAgeStr = kursZHistorii ? FormatKursAge(kurs.DataKursu) : null;
                             v.KursOstatniKlient = kurs.OstatniKodKlienta;
                             v.KursOstatniaAwizacja = kurs.OstatniaAwizacja?.ToString("dd.MM HH:mm");
+
+                            // FAZA 1 — status awizacji (ETA do klienta). Tylko dla AKTUALNEGO kursu (nie historii)
+                            // i gdy auto poza bazą (jeszcze w trasie). Awizacja = deadline u ostatniego klienta.
+                            if (!kursZHistorii && kurs.OstatniaAwizacja.HasValue && !v.InGeofence)
+                            {
+                                var deadline = kurs.OstatniaAwizacja.Value;
+                                var minutyDo = (int)(deadline - DateTime.Now).TotalMinutes;
+                                v.AwizacjaMinutyDo = minutyDo;
+                                if (minutyDo < 0)
+                                {
+                                    v.AwizacjaStatus = "late";
+                                    v.AwizacjaInfo = $"PO TERMINIE o {Math.Abs(minutyDo)} min (awizacja {deadline:HH:mm})";
+                                }
+                                else if (minutyDo <= 60)
+                                {
+                                    v.AwizacjaStatus = "risk";
+                                    v.AwizacjaInfo = $"Awizacja {deadline:HH:mm} — zostało {minutyDo} min";
+                                }
+                                else
+                                {
+                                    v.AwizacjaStatus = "ontime";
+                                    int h = minutyDo / 60, m = minutyDo % 60;
+                                    v.AwizacjaInfo = $"Awizacja {deadline:HH:mm} — za {(h > 0 ? h + "h " : "")}{m}min";
+                                }
+                            }
                         }
 
                         // POPRZEDNI kurs (ZAWSZE — pod aktualnym lub jako jedyny historyczny)
@@ -837,7 +862,77 @@ namespace Kalendarz1.MapaFloty
                 return;
             }
 
+            // FAZA 1 — sekcja alertów spóźnień na GÓRZE (auta po terminie lub z ryzykiem)
+            var zagrozone = vehicles
+                .Where(v => v.AwizacjaStatus == "late" || v.AwizacjaStatus == "risk")
+                .OrderBy(v => v.AwizacjaMinutyDo)   // najpilniejsze (najbardziej spóźnione) na górze
+                .ToList();
+            if (zagrozone.Count > 0)
+                VehicleListPanel.Children.Add(BuildAlertSpoznienBox(zagrozone));
+
             foreach (var v in list) VehicleListPanel.Children.Add(CreateVehicleCard(v));
+        }
+
+        /// <summary>FAZA 1 — box alertów spóźnień (auta po terminie / z ryzykiem awizacji).</summary>
+        private Border BuildAlertSpoznienBox(List<VehiclePosition> zagrozone)
+        {
+            var outer = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(255, 243, 224)),  // #FFF3E0
+                BorderBrush = new SolidColorBrush(Color.FromRgb(255, 152, 0)),    // #FF9800
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(10, 8, 10, 8),
+                Margin = new Thickness(0, 0, 0, 8)
+            };
+            var stack = new StackPanel();
+            stack.Children.Add(new TextBlock
+            {
+                Text = $"⚠ ZAGROŻONE AWIZACJĄ ({zagrozone.Count})",
+                FontSize = 11, FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Color.FromRgb(191, 54, 12)),
+                Margin = new Thickness(0, 0, 0, 6)
+            });
+            foreach (var v in zagrozone.Take(8))
+            {
+                bool late = v.AwizacjaStatus == "late";
+                var row = new Border
+                {
+                    Background = Brushes.White, CornerRadius = new CornerRadius(5),
+                    Padding = new Thickness(8, 4, 8, 4), Margin = new Thickness(0, 0, 0, 3),
+                    Cursor = Cursors.Hand,
+                    BorderBrush = new SolidColorBrush(late ? Color.FromRgb(229, 57, 53) : Color.FromRgb(245, 124, 0)),
+                    BorderThickness = new Thickness(0, 0, 0, 0)
+                };
+                var capturedNo = v.ObjectNo;
+                row.MouseLeftButtonUp += async (_, _) =>
+                { if (_mapReady) await MapWebView.CoreWebView2.ExecuteScriptAsync($"focusVehicle('{Esc(capturedNo)}')"); };
+
+                var rowStack = new StackPanel();
+                rowStack.Children.Add(new TextBlock
+                {
+                    Text = (late ? "🔴 " : "⚠ ") + v.ObjectName,
+                    FontSize = 11.5, FontWeight = FontWeights.Bold,
+                    Foreground = new SolidColorBrush(late ? Color.FromRgb(198, 40, 40) : Color.FromRgb(230, 81, 0))
+                });
+                rowStack.Children.Add(new TextBlock
+                {
+                    Text = v.AwizacjaInfo ?? "",
+                    FontSize = 10, Foreground = new SolidColorBrush(Color.FromRgb(96, 125, 139)),
+                    TextTrimming = TextTrimming.CharacterEllipsis
+                });
+                if (!string.IsNullOrEmpty(v.KursTrasa))
+                    rowStack.Children.Add(new TextBlock
+                    {
+                        Text = "→ " + v.KursTrasa,
+                        FontSize = 9.5, Foreground = new SolidColorBrush(Color.FromRgb(120, 144, 156)),
+                        TextTrimming = TextTrimming.CharacterEllipsis
+                    });
+                row.Child = rowStack;
+                stack.Children.Add(row);
+            }
+            outer.Child = stack;
+            return outer;
         }
 
         // Polishing — spójne kolory 4 stanów (matching markery na mapie)
@@ -1511,9 +1606,22 @@ function mkPopup(v){
             +'</div></div>';
     }
 
+    // FAZA 1 — banner awizacji (kolorowy pasek nad kursem gdy auto w trasie z deadline)
+    var awizHtml='';
+    if(v.AwizacjaStatus && v.AwizacjaInfo){
+        var awBg, awColor, awIcon;
+        if(v.AwizacjaStatus==='late'){ awBg='#ffebee'; awColor='#c62828'; awIcon='&#128308;'; /* 🔴 */ }
+        else if(v.AwizacjaStatus==='risk'){ awBg='#fff3e0'; awColor='#e65100'; awIcon='&#9888;'; /* ⚠ */ }
+        else { awBg='#e8f5e9'; awColor='#2e7d32'; awIcon='&#9989;'; /* ✅ */ }
+        awizHtml='<div style=""background:'+awBg+';color:'+awColor+';padding:7px 12px;border-radius:6px;'
+            +'margin:6px 0;font-size:11.5px;font-weight:700"">'
+            +awIcon+' '+esc(v.AwizacjaInfo)+'</div>';
+    }
+
     var today=new Date().toISOString().split('T')[0];
     return '<div class=""vp""><div class=""vp-head""><h3>'+esc(v.ObjectName)+'</h3><div class=""sub"">Kierowca GPS: '+esc(v.Driver||'—')+'</div></div>'
       +'<div class=""vp-state '+stateCls+'""><span><span class=""vp-state-emoji"">'+stateEmoji+'</span>'+stateLabel+'</span><span class=""vp-state-meta"">'+stateMeta+'</span></div>'
+      +awizHtml
       +kursHtml
       +'<div class=""vp-r""><span class=""k"">Kierunek</span><span class=""v"">'+dirName+' ('+(v.Course||0)+'°)</span></div>'
       +'<div class=""vp-r""><span class=""k"">Pozycja</span><span class=""v"">'+esc(v.Address||'brak danych')+'</span></div>'
@@ -1771,6 +1879,12 @@ function logToHost(m){try{post({Action:'log',Data:m})}catch(e){}}
             public string? KursOstatniKlient { get; set; }
             /// <summary>"dd.MM HH:mm" — data + godz awizacji u ostatniego klienta (z ZamowieniaMieso.DataPrzyjazdu).</summary>
             public string? KursOstatniaAwizacja { get; set; }
+            /// <summary>"ontime" / "risk" / "late" — status zdążenia na awizację (FAZA 1). Null gdy brak/historia/baza.</summary>
+            public string? AwizacjaStatus { get; set; }
+            /// <summary>Opisowy tekst statusu awizacji ("Awizacja 21:00 — zostało 40 min").</summary>
+            public string? AwizacjaInfo { get; set; }
+            /// <summary>Minut do awizacji (ujemne = po terminie). Dla sortowania alertów.</summary>
+            public int AwizacjaMinutyDo { get; set; }
             // POPRZEDNI kurs (pokazujemy ZAWSZE — pod aktualnym, lub jako jedyny gdy brak aktualnego).
             // Gdy aktualny jest z historii (fallback), Poprzedni = drugi w kolejce historycznych.
             public string? PoprzedniKursTrasa { get; set; }
