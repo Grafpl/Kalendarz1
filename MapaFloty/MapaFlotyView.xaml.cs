@@ -583,6 +583,9 @@ namespace Kalendarz1.MapaFloty
                             }
                         }
                     }
+
+                    // FAZA 4 — WOLNY: auto w bazie bez dzisiejszego kursu = dostepne do przydzielenia
+                    v.Wolny = v.InGeofence && (string.IsNullOrEmpty(v.KursTrasa) || v.KursZHistorii);
                 }
 
                 UpdateSidePanel(vehicles);
@@ -612,8 +615,12 @@ namespace Kalendarz1.MapaFloty
                 StoppedCountText.Text = (vehicles.Count - moving).ToString();
                 VehicleCountText.Text = vehicles.Count.ToString();
                 UpdateProportionBar(moving, idle, inBase, Math.Max(0, off));
+                var wolne = vehicles.Count(v => v.Wolny);
+                var zagrozonych = vehicles.Count(v => v.AwizacjaStatus == "late" || v.AwizacjaStatus == "risk");
                 var unmapped = _mappings.Count > 0 ? allVehicles.Count - vehicles.Count : 0;
-                StatusText.Text = $"{vehicles.Count} pojazdów | {moving} jedzie | {DateTime.Now:HH:mm:ss}" +
+                StatusText.Text = $"{vehicles.Count} pojazdów | {moving} jedzie | {wolne} wolnych" +
+                    (zagrozonych > 0 ? $" | ⚠ {zagrozonych} zagrożonych" : "") +
+                    $" | {DateTime.Now:HH:mm:ss}" +
                     (unmapped > 0 ? $" | {unmapped} ukrytych" : "");
                 LastUpdateText.Text = DateTime.Now.ToString("HH:mm:ss");
             }
@@ -1340,6 +1347,15 @@ html,body,#map{width:100%;height:100%;background:#f0f0f0;font-family:'Segoe UI',
 .ub-label-tt{background:linear-gradient(135deg,#37474f,#1a2328);color:#fff;padding:5px 12px;border-radius:14px;font-weight:700;font-size:11.5px;white-space:nowrap;border:none;box-shadow:0 3px 10px rgba(0,0,0,.4)}
 .ub-label-tt:before{display:none}
 .ub-icon{background:linear-gradient(135deg,#37474f,#263238);width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;box-shadow:0 2px 6px rgba(0,0,0,.3);border:2px solid #fff}
+/* FAZA 4 — legenda stanow */
+.map-legend{background:rgba(255,255,255,.97);border-radius:8px;box-shadow:0 2px 12px rgba(0,0,0,.18);font-size:11px;color:#37474f;overflow:hidden;border:1px solid #e0e3ea}
+.map-legend .leg-head{padding:6px 12px;font-weight:700;cursor:pointer;background:#f5f7fa;border-bottom:1px solid #e0e3ea;user-select:none}
+.map-legend .leg-head:hover{background:#eceff1}
+.map-legend .leg-body{padding:8px 12px}
+.map-legend .leg-row{display:flex;align-items:center;gap:6px;padding:2px 0;white-space:nowrap}
+.map-legend .leg-dot{width:11px;height:11px;border-radius:50%;display:inline-block;flex-shrink:0}
+.map-legend .leg-badge{font-size:8.5px;font-weight:700;padding:1px 5px;border-radius:7px}
+.map-legend .leg-sep{height:1px;background:#e0e3ea;margin:5px 0}
 .leaflet-control-layers{border-radius:10px!important;box-shadow:0 2px 14px rgba(0,0,0,.15)!important;border:none!important}
 .leaflet-popup-content-wrapper{border-radius:10px!important;box-shadow:0 4px 20px rgba(0,0,0,.15)!important}
 /* Marker cluster — wrapper z permanent listą nad kółkiem */
@@ -1394,6 +1410,32 @@ var dark=L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.
 var sat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{attribution:'&copy; Esri',maxZoom:19});
 osm.addTo(map);
 L.control.layers({'Mapa':osm,'Ciemna':dark,'Satelita':sat},null,{position:'topright'}).addTo(map);
+
+// FAZA 4 — Legenda stanow (collapsible, prawy dolny rog)
+var LegendCtl = L.control({position:'bottomright'});
+LegendCtl.onAdd = function(){
+    var div = L.DomUtil.create('div','map-legend');
+    div.innerHTML =
+        '<div class=""leg-head"" onclick=""toggleLegend()"">&#9432; Legenda <span id=""legChevron"">&#9650;</span></div>'
+        +'<div class=""leg-body"" id=""legBody"">'
+        +'<div class=""leg-row""><span class=""leg-dot"" style=""background:#43a047""></span>W trasie (jedzie)</div>'
+        +'<div class=""leg-row""><span class=""leg-dot"" style=""background:#1976d2""></span>W bazie</div>'
+        +'<div class=""leg-row""><span class=""leg-dot"" style=""background:#f57c00""></span>Postoj (zaplon wl.)</div>'
+        +'<div class=""leg-row""><span class=""leg-dot"" style=""background:#607d8b""></span>Wylaczony</div>'
+        +'<div class=""leg-sep""></div>'
+        +'<div class=""leg-row""><span class=""leg-badge"" style=""background:#c8e6c9;color:#2e7d32"">WOLNY</span>w bazie, brak kursu dzis</div>'
+        +'<div class=""leg-row""><span style=""color:#c62828;font-weight:700"">&#128308;</span>&nbsp;po terminie awizacji</div>'
+        +'<div class=""leg-row""><span style=""color:#e65100;font-weight:700"">&#9888;</span>&nbsp;ryzyko spoznienia</div>'
+        +'</div>';
+    L.DomEvent.disableClickPropagation(div);
+    return div;
+};
+LegendCtl.addTo(map);
+function toggleLegend(){
+    var b=document.getElementById('legBody'), c=document.getElementById('legChevron');
+    if(b.style.display==='none'){ b.style.display='block'; c.innerHTML='&#9650;'; }
+    else { b.style.display='none'; c.innerHTML='&#9660;'; }
+}
 
 var markers={},trackGroup=L.layerGroup().addTo(map),followId=null;
 var ordersLayer=L.layerGroup(),orderMarkers={},ordersVisible=false;
@@ -1484,7 +1526,7 @@ function mkPopup(v){
         stateLabel='W TRASIE'; stateMeta=v.Speed+' km/h';
     } else if(v.InGeofence){
         stateCls='base'; stateEmoji='&#127968;'; // 🏠
-        stateLabel='W BAZIE'; stateMeta='Łyszkowice';
+        stateLabel='W BAZIE'; stateMeta = v.Wolny ? 'WOLNY · do przydzielenia' : 'Łyszkowice';
     } else if(v.Ignition){
         stateCls='idle'; stateEmoji='&#9208;'; // ⏸
         stateLabel='POSTÓJ'; stateMeta='Zapłon wł.';
@@ -1885,6 +1927,8 @@ function logToHost(m){try{post({Action:'log',Data:m})}catch(e){}}
             public string? AwizacjaInfo { get; set; }
             /// <summary>Minut do awizacji (ujemne = po terminie). Dla sortowania alertów.</summary>
             public int AwizacjaMinutyDo { get; set; }
+            /// <summary>FAZA 4 — auto w bazie bez kursu na dziś = dostępne do przydzielenia.</summary>
+            public bool Wolny { get; set; }
             // POPRZEDNI kurs (pokazujemy ZAWSZE — pod aktualnym, lub jako jedyny gdy brak aktualnego).
             // Gdy aktualny jest z historii (fallback), Poprzedni = drugi w kolejce historycznych.
             public string? PoprzedniKursTrasa { get; set; }
