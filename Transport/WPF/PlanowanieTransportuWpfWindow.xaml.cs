@@ -1,13 +1,15 @@
 // ════════════════════════════════════════════════════════════════════════════
 // Transport/WPF/PlanowanieTransportuWpfWindow.xaml.cs
 // ════════════════════════════════════════════════════════════════════════════
-// Okno planowania — sandbox WPF (lista kursów + podgląd ładunków). NIE dotyka
-// WinForms (TransportMainFormImproved) ani istniejącego WPF Huba. Otwiera własny
-// edytor WPF (EdytorKursuWpfWindow). Reuse: TransportRepozytorium / TransportWpfService.
+// Okno planowania — sandbox WPF. Wierne oryginałowi WinForms (kursy po lewej,
+// WOLNE ZAMÓWIENIA po prawej), tylko lepsze. NIE dotyka WinForms ani WPF Huba.
+// Reuse: TransportRepozytorium / TransportWpfService. Szybkie dodawanie zamówień
+// do zaznaczonego kursu (ładunek + spójny status, bez otwierania edytora).
 // ════════════════════════════════════════════════════════════════════════════
 
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
@@ -27,24 +29,36 @@ namespace Kalendarz1.Transport.WPF
         private readonly string _user = App.UserID ?? "system";
         private List<KursRow> _rows = new();
 
+        private List<WolneZamowienieWpf> _wolneAll = new();
+        private readonly ObservableCollection<WolneZamowienieWpf> _wolne = new();
+        private bool _ladowanie;
+
         public PlanowanieTransportuWpfWindow()
         {
             InitializeComponent();
             try { WindowIconHelper.SetIcon(this); } catch { }
+            WolneGrid.ItemsSource = _wolne;
+            WolneGrid.SelectionChanged += (_, _) => UpdateDodajButton();
             DataKursu.SelectedDate = DateTime.Today;
-            Loaded += async (_, _) => await LoadKursyAsync();
-            KeyDown += async (_, e) => { if (e.Key == Key.F5) { await LoadKursyAsync(); e.Handled = true; } };
+            Loaded += async (_, _) => await LoadWszystkoAsync();
+            KeyDown += async (_, e) => { if (e.Key == Key.F5) { await LoadWszystkoAsync(); e.Handled = true; } };
         }
 
         // ── nawigacja datą ──
         private void BtnPrev_Click(object s, RoutedEventArgs e) => DataKursu.SelectedDate = (DataKursu.SelectedDate ?? DateTime.Today).AddDays(-1);
         private void BtnNext_Click(object s, RoutedEventArgs e) => DataKursu.SelectedDate = (DataKursu.SelectedDate ?? DateTime.Today).AddDays(1);
         private void BtnDzis_Click(object s, RoutedEventArgs e) => DataKursu.SelectedDate = DateTime.Today;
-        private async void DataKursu_Changed(object s, SelectionChangedEventArgs e) => await LoadKursyAsync();
-        private async void BtnRefresh_Click(object s, RoutedEventArgs e) => await LoadKursyAsync();
+        private async void DataKursu_Changed(object s, SelectionChangedEventArgs e) { if (!_ladowanie) await LoadWszystkoAsync(); }
+        private async void BtnRefresh_Click(object s, RoutedEventArgs e) => await LoadWszystkoAsync();
+
+        private async Task LoadWszystkoAsync()
+        {
+            await LoadKursyAsync();
+            await OdswiezWolneAsync();
+        }
 
         // ════════════════════════════════════════════════════════════════════
-        // LOAD
+        // KURSY
         // ════════════════════════════════════════════════════════════════════
         private async Task LoadKursyAsync()
         {
@@ -55,8 +69,6 @@ namespace Kalendarz1.Transport.WPF
                 DayNameText.Text = data.ToString("dddd", new CultureInfo("pl-PL"));
 
                 var kursy = await _svc.Repo.PobierzKursyPoDacieAsync(data);
-
-                // liczba ładunków per kurs (jedno zapytanie)
                 var ladunki = await _svc.Repo.PobierzLadunkiDlaKursowAsync(kursy.Select(k => k.KursID));
 
                 _rows = kursy.Select(k => new KursRow(k,
@@ -66,7 +78,7 @@ namespace Kalendarz1.Transport.WPF
                 UpdateKpi();
                 StatusText.Text = $"Załadowano {_rows.Count} kursów na {data:dd.MM.yyyy}";
                 UpdateButtons();
-                PodgladNaglowek.Text = "Wybierz kurs z listy";
+                PodgladNaglowek.Text = "— wybierz kurs —";
                 PodgladGrid.ItemsSource = null;
             }
             catch (Exception ex)
@@ -86,13 +98,53 @@ namespace Kalendarz1.Transport.WPF
         }
 
         // ════════════════════════════════════════════════════════════════════
-        // SELEKCJA + podgląd ładunków
+        // WOLNE ZAMÓWIENIA
+        // ════════════════════════════════════════════════════════════════════
+        private async Task OdswiezWolneAsync()
+        {
+            try
+            {
+                var data = DataKursu.SelectedDate ?? DateTime.Today;
+                bool poUboju = RbUboj.IsChecked == true;
+                _wolneAll = await _svc.LoadWolneZamowieniaAsync(data, poUboju);
+                KpiWolne.Text = _wolneAll.Count.ToString();
+                FiltrujWolne();
+            }
+            catch (Exception ex)
+            {
+                StatusText.Text = $"Błąd wolnych zamówień: {ex.Message}";
+            }
+        }
+
+        private void FiltrujWolne()
+        {
+            var q = TxtSzukaj.Text?.Trim().ToLowerInvariant() ?? "";
+            _wolne.Clear();
+            IEnumerable<WolneZamowienieWpf> src = _wolneAll;
+            if (!string.IsNullOrEmpty(q))
+                src = src.Where(z => (z.KlientNazwa ?? "").ToLowerInvariant().Contains(q)
+                                  || (z.Handlowiec ?? "").ToLowerInvariant().Contains(q));
+            var lista = src.OrderBy(z => z.DataPrzyjazdu).ToList();
+            foreach (var z in lista) _wolne.Add(z);
+
+            WolneCountText.Text = _wolne.Count.ToString();
+            int sumaPoj = lista.Sum(z => z.Pojemniki);
+            WolneSuma.Text = $"Σ {lista.Count} zam.  ·  {sumaPoj} pojemników  ·  ~{(sumaPoj == 0 ? 0 : (int)Math.Ceiling(sumaPoj / 36.0))} palet";
+            UpdateDodajButton();
+        }
+
+        private void TxtSzukaj_TextChanged(object s, TextChangedEventArgs e) { if (!_ladowanie) FiltrujWolne(); }
+        private async void DataTyp_Changed(object s, RoutedEventArgs e) { if (!_ladowanie) await OdswiezWolneAsync(); }
+        private async void BtnOdswiezWolne_Click(object s, RoutedEventArgs e) => await OdswiezWolneAsync();
+
+        // ════════════════════════════════════════════════════════════════════
+        // SELEKCJA kursu + podgląd ładunków
         // ════════════════════════════════════════════════════════════════════
         private async void KursyGrid_SelectionChanged(object s, SelectionChangedEventArgs e)
         {
             UpdateButtons();
-            if (KursyGrid.SelectedItem is KursRow row)
-                await LoadPodgladAsync(row);
+            UpdateDodajButton();
+            if (KursyGrid.SelectedItem is KursRow row) await LoadPodgladAsync(row);
         }
 
         private void UpdateButtons()
@@ -100,6 +152,21 @@ namespace Kalendarz1.Transport.WPF
             bool sel = KursyGrid?.SelectedItem != null;
             if (BtnEdytuj != null) BtnEdytuj.IsEnabled = sel;
             if (BtnUsun != null) BtnUsun.IsEnabled = sel;
+        }
+
+        private void UpdateDodajButton()
+        {
+            bool kursSel = KursyGrid?.SelectedItem is KursRow;
+            bool wolneSel = WolneGrid?.SelectedItems != null && WolneGrid.SelectedItems.Count > 0;
+            if (BtnDodajDoKursu != null) BtnDodajDoKursu.IsEnabled = kursSel && wolneSel;
+            if (DodajHint != null)
+            {
+                DodajHint.Text = !kursSel
+                    ? "① Zaznacz kurs po lewej  →  ② zaznacz zamówienia  →  ③ Dodaj"
+                    : (KursyGrid.SelectedItem is KursRow r
+                        ? $"Dodasz do kursu #{r.KursID} ({r.Trasa ?? "—"})"
+                        : "");
+            }
         }
 
         private async Task LoadPodgladAsync(KursRow row)
@@ -131,17 +198,78 @@ namespace Kalendarz1.Transport.WPF
                         }
                 }
                 PodgladGrid.ItemsSource = rows;
-                PodgladNaglowek.Text = $"#{row.KursID} · {rows.Count} ładunków";
+                PodgladNaglowek.Text = $"#{row.KursID} · {rows.Count} ładunków · {rows.Sum(r => r.PojemnikiE2)} poj.";
             }
             catch (Exception ex)
             {
-                PodgladNaglowek.Text = $"Błąd podglądu: {ex.Message}";
+                PodgladNaglowek.Text = $"Błąd: {ex.Message}";
                 PodgladGrid.ItemsSource = null;
             }
         }
 
         // ════════════════════════════════════════════════════════════════════
-        // AKCJE
+        // SZYBKIE DODAWANIE wolnych → zaznaczony kurs
+        // ════════════════════════════════════════════════════════════════════
+        private void WolneGrid_DoubleClick(object s, MouseButtonEventArgs e)
+        {
+            if (WolneGrid.SelectedItem is WolneZamowienieWpf z) _ = DodajDoKursuAsync(new List<WolneZamowienieWpf> { z });
+        }
+
+        private void BtnDodajDoKursu_Click(object s, RoutedEventArgs e)
+        {
+            var wybrane = WolneGrid.SelectedItems.Cast<WolneZamowienieWpf>().ToList();
+            _ = DodajDoKursuAsync(wybrane);
+        }
+
+        private async Task DodajDoKursuAsync(List<WolneZamowienieWpf> zamowienia)
+        {
+            if (KursyGrid.SelectedItem is not KursRow row)
+            {
+                MessageBox.Show("Najpierw zaznacz kurs po lewej stronie.", "Brak kursu",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            if (zamowienia == null || zamowienia.Count == 0) return;
+
+            try
+            {
+                StatusText.Text = $"Dodawanie {zamowienia.Count} zam. do kursu #{row.KursID}...";
+                foreach (var z in zamowienia)
+                {
+                    await _svc.Repo.DodajLadunekAsync(new Ladunek
+                    {
+                        KursID = row.KursID,
+                        KodKlienta = z.KodKlienta,
+                        PojemnikiE2 = z.Pojemniki,
+                        TrybE2 = z.TrybE2
+                    });
+                }
+
+                // pełny zbiór zamówień w kursie → spójny status + auto-healing
+                var lad = await _svc.Repo.PobierzLadunkiAsync(row.KursID);
+                var zamIds = lad.Where(l => l.KodKlienta != null && l.KodKlienta.StartsWith("ZAM_")
+                                            && int.TryParse(l.KodKlienta.Substring(4), out _))
+                                .Select(l => int.Parse(l.KodKlienta!.Substring(4)))
+                                .ToHashSet();
+                await _svc.SyncStatusyKursuAsync(row.KursID, zamIds, _user);
+
+                long keepId = row.KursID;
+                await LoadKursyAsync();
+                await OdswiezWolneAsync();
+                var again = _rows.FirstOrDefault(r => r.KursID == keepId);
+                if (again != null) { KursyGrid.SelectedItem = again; KursyGrid.ScrollIntoView(again); }
+                StatusText.Text = $"Dodano {zamowienia.Count} zam. do kursu #{keepId}.";
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd dodawania do kursu:\n{ex.Message}", "Błąd",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+                StatusText.Text = "Błąd dodawania.";
+            }
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // EDYTOR / NOWY / USUŃ
         // ════════════════════════════════════════════════════════════════════
         private void KursyGrid_DoubleClick(object s, MouseButtonEventArgs e)
         {
@@ -162,8 +290,7 @@ namespace Kalendarz1.Transport.WPF
                     kursId = row.KursID;
                 }
                 var ed = new EdytorKursuWpfWindow(_svc, _user, data, kursId) { Owner = this };
-                if (ed.ShowDialog() == true)
-                    _ = LoadKursyAsync();
+                if (ed.ShowDialog() == true) _ = LoadWszystkoAsync();
             }
             catch (Exception ex)
             {
@@ -186,7 +313,7 @@ namespace Kalendarz1.Transport.WPF
             {
                 await _svc.Repo.UsunKursAsync(row.KursID);   // sam zwalnia statusy zamówień
                 StatusText.Text = $"Usunięto kurs #{row.KursID}";
-                await LoadKursyAsync();
+                await LoadWszystkoAsync();
             }
             catch (Exception ex)
             {

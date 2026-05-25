@@ -93,81 +93,162 @@
                         <TextBlock x:Name="KpiBezZasobow" Text="0" Foreground="#bf360c" FontWeight="Bold" FontSize="12"/>
                     </StackPanel>
                 </Border>
-                <Border Background="#fce4ec" CornerRadius="6" Padding="12,5">
+                <Border Background="#fce4ec" CornerRadius="6" Padding="12,5" Margin="0,0,8,0">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="Suma palet: " Foreground="#c2185b" FontSize="12"/>
                         <TextBlock x:Name="KpiPalety" Text="0" Foreground="#880e4f" FontWeight="Bold" FontSize="12"/>
                     </StackPanel>
                 </Border>
+                <Border Background="#f3e5f5" CornerRadius="6" Padding="12,5">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="⚠ Wolne (bez kursu): " Foreground="#7b1fa2" FontSize="12"/>
+                        <TextBlock x:Name="KpiWolne" Text="0" Foreground="#4a148c" FontWeight="Bold" FontSize="12"/>
+                    </StackPanel>
+                </Border>
             </StackPanel>
         </Border>
 
-        <!-- ═══ CONTENT: lista kursów + podgląd ładunków ═══ -->
+        <!-- ═══ CONTENT: (kursy + podgląd) | wolne zamówienia ═══ -->
         <Grid Grid.Row="2" Margin="12">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="2*"/>
                 <ColumnDefinition Width="12"/>
-                <ColumnDefinition Width="1*"/>
+                <ColumnDefinition Width="1.05*" MinWidth="380"/>
             </Grid.ColumnDefinitions>
 
-            <!-- lista kursów -->
-            <Border Grid.Column="0" Background="White" CornerRadius="8" BorderBrush="#e4e6ea" BorderThickness="1">
-                <DataGrid x:Name="KursyGrid" Margin="4"
-                          AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
-                          HeadersVisibility="Column" GridLinesVisibility="Horizontal"
-                          RowBackground="White" AlternatingRowBackground="#f6f8fa"
-                          BorderThickness="0" FontSize="12" IsReadOnly="True"
-                          SelectionMode="Single" SelectionUnit="FullRow"
-                          SelectionChanged="KursyGrid_SelectionChanged"
-                          MouseDoubleClick="KursyGrid_DoubleClick">
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="ID" Binding="{Binding KursID}" Width="55"/>
-                        <DataGridTextColumn Header="Godziny" Binding="{Binding GodzinyDisplay}" Width="120"/>
-                        <DataGridTextColumn Header="Trasa" Binding="{Binding Trasa}" Width="*"/>
-                        <DataGridTextColumn Header="Kierowca" Binding="{Binding KierowcaNazwa}" Width="150"/>
-                        <DataGridTextColumn Header="Pojazd" Binding="{Binding PojazdRejestracja}" Width="105"/>
-                        <DataGridTextColumn Header="Ład." Binding="{Binding LiczbaLadunkow}" Width="50"/>
-                        <DataGridTextColumn Header="Wypełnienie" Binding="{Binding WypelnienieDisplay}" Width="120"/>
-                        <DataGridTemplateColumn Header="Status" Width="115">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate>
-                                    <Border CornerRadius="10" Padding="8,3" Margin="4,3" HorizontalAlignment="Left"
-                                            Background="{Binding StatusBg}">
-                                        <TextBlock Text="{Binding Status}" Foreground="{Binding StatusFg}"
-                                                   FontSize="11" FontWeight="Bold"/>
-                                    </Border>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
-                    </DataGrid.Columns>
-                </DataGrid>
-            </Border>
+            <!-- ── LEWA: lista kursów + podgląd ładunków (master-detail) ── -->
+            <Grid Grid.Column="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="8"/>
+                    <RowDefinition Height="220"/>
+                </Grid.RowDefinitions>
 
-            <!-- podgląd ładunków -->
-            <Border Grid.Column="2" Background="White" CornerRadius="8" BorderBrush="#e4e6ea" BorderThickness="1">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-                    <Border Grid.Row="0" Background="#37474f" Padding="12,10" CornerRadius="8,8,0,0">
-                        <StackPanel>
-                            <TextBlock Text="📦 Ładunki kursu" Foreground="White" FontWeight="Bold"/>
-                            <TextBlock x:Name="PodgladNaglowek" Text="Wybierz kurs z listy" Foreground="#b0bec5" FontSize="11" Margin="0,2,0,0"/>
-                        </StackPanel>
-                    </Border>
-                    <DataGrid x:Name="PodgladGrid" Grid.Row="1" Margin="4"
+                <Border Grid.Row="0" Background="White" CornerRadius="8" BorderBrush="#e4e6ea" BorderThickness="1">
+                    <DataGrid x:Name="KursyGrid" Margin="4"
                               AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
                               HeadersVisibility="Column" GridLinesVisibility="Horizontal"
                               RowBackground="White" AlternatingRowBackground="#f6f8fa"
-                              BorderThickness="0" FontSize="12" IsReadOnly="True">
+                              BorderThickness="0" FontSize="12" IsReadOnly="True"
+                              SelectionMode="Single" SelectionUnit="FullRow"
+                              SelectionChanged="KursyGrid_SelectionChanged"
+                              MouseDoubleClick="KursyGrid_DoubleClick">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="#" Binding="{Binding Kolejnosc}" Width="36"/>
-                            <DataGridTextColumn Header="Klient" Binding="{Binding NazwaDisplay}" Width="*"/>
-                            <DataGridTextColumn Header="Awiz." Binding="{Binding AwizacjaDisplay}" Width="56"/>
-                            <DataGridTextColumn Header="Poj." Binding="{Binding PojemnikiE2}" Width="50"/>
+                            <DataGridTextColumn Header="ID" Binding="{Binding KursID}" Width="55"/>
+                            <DataGridTextColumn Header="Godziny" Binding="{Binding GodzinyDisplay}" Width="120"/>
+                            <DataGridTextColumn Header="Trasa" Binding="{Binding Trasa}" Width="*"/>
+                            <DataGridTextColumn Header="Kierowca" Binding="{Binding KierowcaNazwa}" Width="150"/>
+                            <DataGridTextColumn Header="Pojazd" Binding="{Binding PojazdRejestracja}" Width="105"/>
+                            <DataGridTextColumn Header="Ład." Binding="{Binding LiczbaLadunkow}" Width="50"/>
+                            <DataGridTextColumn Header="Wypełnienie" Binding="{Binding WypelnienieDisplay}" Width="120"/>
+                            <DataGridTemplateColumn Header="Status" Width="115">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Border CornerRadius="10" Padding="8,3" Margin="4,3" HorizontalAlignment="Left"
+                                                Background="{Binding StatusBg}">
+                                            <TextBlock Text="{Binding Status}" Foreground="{Binding StatusFg}"
+                                                       FontSize="11" FontWeight="Bold"/>
+                                        </Border>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
                         </DataGrid.Columns>
                     </DataGrid>
+                </Border>
+
+                <!-- podgląd ładunków wybranego kursu -->
+                <Border Grid.Row="2" Background="White" CornerRadius="8" BorderBrush="#e4e6ea" BorderThickness="1">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <Border Grid.Row="0" Background="#37474f" Padding="12,7" CornerRadius="8,8,0,0">
+                            <DockPanel>
+                                <TextBlock Text="📦 Ładunki kursu" Foreground="White" FontWeight="Bold" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="PodgladNaglowek" Text="— wybierz kurs —" Foreground="#b0bec5"
+                                           FontSize="11" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                            </DockPanel>
+                        </Border>
+                        <DataGrid x:Name="PodgladGrid" Grid.Row="1" Margin="4"
+                                  AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
+                                  HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                  RowBackground="White" AlternatingRowBackground="#f6f8fa"
+                                  BorderThickness="0" FontSize="12" IsReadOnly="True">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="#" Binding="{Binding Kolejnosc}" Width="36"/>
+                                <DataGridTextColumn Header="Klient" Binding="{Binding NazwaDisplay}" Width="*"/>
+                                <DataGridTextColumn Header="Awiz." Binding="{Binding AwizacjaDisplay}" Width="56"/>
+                                <DataGridTextColumn Header="Poj." Binding="{Binding PojemnikiE2}" Width="50"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- ── PRAWA: WOLNE ZAMÓWIENIA (wierne oryginałowi) ── -->
+            <Border Grid.Column="2" Background="White" CornerRadius="8" BorderBrush="#e4e6ea" BorderThickness="1">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>   <!-- header -->
+                        <RowDefinition Height="Auto"/>   <!-- toolbar -->
+                        <RowDefinition Height="*"/>      <!-- grid -->
+                        <RowDefinition Height="Auto"/>   <!-- akcja -->
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0" Background="#7b1fa2" Padding="14,10" CornerRadius="8,8,0,0">
+                        <DockPanel>
+                            <StackPanel>
+                                <TextBlock Text="🧾 WOLNE ZAMÓWIENIA" Foreground="White" FontWeight="Bold" FontSize="14"/>
+                                <TextBlock x:Name="WolneSubtitle" Text="zamówienia bez przypisanego kursu"
+                                           Foreground="#e1bee7" FontSize="10.5" Margin="0,2,0,0"/>
+                            </StackPanel>
+                            <Border DockPanel.Dock="Right" Background="#9c27b0" CornerRadius="12" Padding="10,3" VerticalAlignment="Center">
+                                <TextBlock x:Name="WolneCountText" Text="0" Foreground="White" FontWeight="Bold"/>
+                            </Border>
+                        </DockPanel>
+                    </Border>
+
+                    <Border Grid.Row="1" Background="#faf5fc" Padding="10,8" BorderBrush="#eee" BorderThickness="0,0,0,1">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBox x:Name="TxtSzukaj" Width="150" Height="28" VerticalContentAlignment="Center"
+                                         TextChanged="TxtSzukaj_TextChanged" ToolTip="Szukaj klient / handlowiec"/>
+                                <RadioButton x:Name="RbUboj" Content="Ubój" IsChecked="True" Margin="12,0,6,0"
+                                             VerticalAlignment="Center" GroupName="DataTyp" Checked="DataTyp_Changed"/>
+                                <RadioButton x:Name="RbOdbior" Content="Odbiór" VerticalAlignment="Center"
+                                             GroupName="DataTyp" Checked="DataTyp_Changed"/>
+                                <Button Content="🔄" Style="{StaticResource Btn}" Background="#eceff1" Foreground="#546e7a"
+                                        Margin="10,0,0,0" Click="BtnOdswiezWolne_Click" ToolTip="Odśwież wolne"/>
+                            </StackPanel>
+                            <TextBlock x:Name="WolneSuma" Text="" Foreground="#7b1fa2" FontSize="11" Margin="2,6,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <DataGrid x:Name="WolneGrid" Grid.Row="2" Margin="4"
+                              AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
+                              HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                              RowBackground="White" AlternatingRowBackground="#faf6fc"
+                              BorderThickness="0" FontSize="12" IsReadOnly="True"
+                              SelectionMode="Extended" SelectionUnit="FullRow"
+                              MouseDoubleClick="WolneGrid_DoubleClick">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Awiz." Binding="{Binding GodzAwizacji}" Width="56"/>
+                            <DataGridTextColumn Header="Klient" Binding="{Binding KlientNazwa}" Width="*"/>
+                            <DataGridTextColumn Header="Handlowiec" Binding="{Binding HandlowiecDisplay}" Width="100"/>
+                            <DataGridTextColumn Header="Poj." Binding="{Binding Pojemniki}" Width="50"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <Border Grid.Row="3" Background="#faf5fc" Padding="10,8" BorderBrush="#eee" BorderThickness="0,1,0,0">
+                        <DockPanel>
+                            <TextBlock x:Name="DodajHint" DockPanel.Dock="Top" Foreground="#9575cd" FontSize="10.5"
+                                       Text="Wybierz kurs po lewej, zaznacz zamówienia i kliknij Dodaj" Margin="0,0,0,6"/>
+                            <Button x:Name="BtnDodajDoKursu" Content="➕ Dodaj do zaznaczonego kursu"
+                                    Style="{StaticResource Btn}" Background="#2e7d32" Foreground="White"
+                                    Height="36" IsEnabled="False" Click="BtnDodajDoKursu_Click"/>
+                        </DockPanel>
+                    </Border>
                 </Grid>
             </Border>
         </Grid>
@@ -176,8 +257,8 @@
         <Border Grid.Row="3" Background="White" Padding="16,6" BorderBrush="#e4e6ea" BorderThickness="0,1,0,0">
             <DockPanel>
                 <TextBlock x:Name="StatusText" Foreground="#78909c" FontSize="11" VerticalAlignment="Center"/>
-                <TextBlock Text="💡 Dwuklik na kurs = edycja" Foreground="#b0bec5" FontSize="11"
-                           DockPanel.Dock="Right" HorizontalAlignment="Right"/>
+                <TextBlock Text="💡 Dwuklik na kurs = edycja · dwuklik na wolne = dodaj do wybranego kursu"
+                           Foreground="#b0bec5" FontSize="11" DockPanel.Dock="Right" HorizontalAlignment="Right"/>
             </DockPanel>
         </Border>
     </Grid>
