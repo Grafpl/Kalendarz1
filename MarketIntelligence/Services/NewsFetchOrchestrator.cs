@@ -111,6 +111,43 @@ namespace Kalendarz1.MarketIntelligence.Services
             await RunWithTimeoutAsync(stageName, async () => { await work(); return true; }, timeoutSec, false, ct);
         }
 
+        /// <summary>
+        /// Ranking tematyczny dla wyboru artykułów do głębokiej analizy AI (Sonnet).
+        /// Preferencje Sergiusza: drób/HPAI/ceny/konkurencja/klienci PRZED zbożami/suszą/dopłatami.
+        /// Wyższy = ważniejszy. Sortowane przed RelevanceScore.
+        /// </summary>
+        private static int PoultryTopicRank(RawArticle a)
+        {
+            var t = ((a.Title ?? "") + " " + (a.Summary ?? "") + " " + (a.SourceCategory ?? "")).ToLowerInvariant();
+
+            // HPAI / choroby drobiu — najwyżej
+            if (System.Text.RegularExpressions.Regex.IsMatch(t, @"hpai|grypa ptak|ptasia gryp|h5n|newcastle|rzekomy pomór|pomór drobiu"))
+                return 100;
+            // Drób bezpośrednio
+            if (System.Text.RegularExpressions.Regex.IsMatch(t, @"drób|drobi|kurczak|brojler|tuszka|filet|ubojni"))
+                return 90;
+            // Ceny / skup mięsa-żywca
+            if (System.Text.RegularExpressions.Regex.IsMatch(t, @"(cen|skup|notowani).*(drob|mięs|mies|żywiec|zywiec|kurcz)") ||
+                System.Text.RegularExpressions.Regex.IsMatch(t, @"(żywiec|zywiec).*cen"))
+                return 80;
+            // Konkurencja
+            if (System.Text.RegularExpressions.Regex.IsMatch(t, @"cedrob|drosed|superdrob|super drob|animex|indykpol|drobimex|adq"))
+                return 70;
+            // Klienci / sieci
+            if (System.Text.RegularExpressions.Regex.IsMatch(t, @"biedronk|lidl|dino|carrefour|makro|auchan|kaufland|selgros"))
+                return 60;
+            // Import / zagrożenia handlowe
+            if (System.Text.RegularExpressions.Regex.IsMatch(t, @"mercosur|brazyl|brf|jbs|seara|ukrain|mhp|import"))
+                return 50;
+            // Kategoria źródła drobiarska/mięsna
+            if (a.SourceCategory == "Drób" || a.SourceCategory == "HPAI" || a.SourceCategory == "Mięso")
+                return 40;
+            // Pasze (koszt hodowcy) — niżej, ale wyżej niż czysta polityka/zboża ogólne
+            if (System.Text.RegularExpressions.Regex.IsMatch(t, @"pasz|kukurydz|śrut|soj"))
+                return 20;
+            return 0;
+        }
+
         #region Main Fetch Pipeline
 
         /// <summary>
@@ -358,8 +395,11 @@ namespace Kalendarz1.MarketIntelligence.Services
                         Message = $"Analizuję top {options.MaxArticlesToAnalyze} artykułów z AI..."
                     });
 
+                    // 2026-05-25: najpierw ranking TEMATYCZNY (drób/HPAI/ceny/konkurencja/klienci),
+                    // potem RelevanceScore. Bez tego sloty analizy (Sonnet) zżerały zboża/susza/dopłaty/nawozy.
                     var topArticles = filteredArticles
-                        .OrderByDescending(a => a.RelevanceScore)
+                        .OrderByDescending(a => PoultryTopicRank(a))
+                        .ThenByDescending(a => a.RelevanceScore)
                         .Take(options.MaxArticlesToAnalyze)
                         .ToList();
 

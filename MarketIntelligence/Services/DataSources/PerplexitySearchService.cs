@@ -601,8 +601,11 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
                 .Select(q => q.Query)
                 .ToList();
 
-            // Doklej własne zapytania użytkownika z intel_UserQueries (Enabled = 1)
-            // Mapowanie Priority: 1-3 → Critical, 4-5 → Important, 6+ → Standard
+            // Własne zapytania użytkownika z intel_UserQueries (Enabled = 1).
+            // 2026-05-25: idą NA POCZĄTEK listy (przed 16 hardcoded), bo budżet Perplexity
+            // (30/dzień) padał zanim doszło do user queries — Mercosur/Newcastle nigdy nie startowały.
+            // Mapowanie Priority: 1-3 → Critical, 4-5 → Important, 6+ → Standard.
+            var userList = new List<string>();
             try
             {
                 var userQueriesService = new Kalendarz1.MarketIntelligence.Services.UserQueriesService();
@@ -614,8 +617,8 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
                                : SearchPriority.Standard;
                     if (mapped <= maxPriority)
                     {
-                        hardcoded.Add(uq.QueryText);
-                        Debug.WriteLine($"[Perplexity] + zapytanie użytkownika #{uq.Id}: {uq.QueryText.Substring(0, Math.Min(60, uq.QueryText.Length))}...");
+                        userList.Add(uq.QueryText);
+                        Debug.WriteLine($"[Perplexity] + zapytanie użytkownika #{uq.Id} (priorytet): {uq.QueryText.Substring(0, Math.Min(60, uq.QueryText.Length))}...");
                     }
                 }
             }
@@ -624,7 +627,8 @@ namespace Kalendarz1.MarketIntelligence.Services.DataSources
                 Debug.WriteLine($"[Perplexity] Błąd ładowania user queries (kontynuuję z hardcoded): {ex.Message}");
             }
 
-            return hardcoded;
+            // User queries pierwsze, potem hardcoded. Distinct chroni przed duplikatem.
+            return userList.Concat(hardcoded).Distinct().ToList();
         }
 
         /// <summary>

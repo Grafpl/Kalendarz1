@@ -76,8 +76,9 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
             _httpClient.DefaultRequestHeaders.Add("x-api-key", _apiKey ?? "");
             _httpClient.DefaultRequestHeaders.Add("anthropic-version", ApiVersion);
 
-            // SemaphoreSlim(3) — 3 concurrent calls. Tier 1 limit 50 RPM = ~1/1.2s; 3 paralelnie × 25s/call = ~4 RPM, hard pod limitem.
-            _rateLimiter = new SemaphoreSlim(3, 3);
+            // SemaphoreSlim(5) — 5 concurrent calls (2026-05-25: 3→5 by skrócić AI Analiza/Filter).
+            // Tier 1 limit 50 RPM; 5 paralelnie × ~30s/call = ~10 RPM, wciąż pod limitem.
+            _rateLimiter = new SemaphoreSlim(5, 5);
         }
 
         public bool IsConfigured => !string.IsNullOrEmpty(_apiKey);
@@ -104,28 +105,15 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
                 }).ToList();
             }
 
-            var filtered = new List<FilteredArticle>();
-            var batch = new List<RawArticle>();
+            // 2026-05-25: paczki przetwarzane RÓWNOLEGLE (było sekwencyjnie → 160 art. = 16×7s = 112s > timeout 90s).
+            // Rate limiting i tak chroni SemaphoreSlim w CallClaudeAsync, więc Task.WhenAll jest bezpieczne.
             const int batchSize = 10;
+            var batches = new List<List<RawArticle>>();
+            for (int i = 0; i < articles.Count; i += batchSize)
+                batches.Add(articles.GetRange(i, Math.Min(batchSize, articles.Count - i)));
 
-            foreach (var article in articles)
-            {
-                batch.Add(article);
-
-                if (batch.Count >= batchSize)
-                {
-                    var results = await FilterBatchAsync(batch, ct);
-                    filtered.AddRange(results);
-                    batch.Clear();
-                }
-            }
-
-            // Process remaining
-            if (batch.Any())
-            {
-                var results = await FilterBatchAsync(batch, ct);
-                filtered.AddRange(results);
-            }
+            var batchResults = await Task.WhenAll(batches.Select(b => FilterBatchAsync(b, ct)));
+            var filtered = batchResults.SelectMany(r => r).ToList();
 
             return filtered.Where(f => f.IsRelevant).OrderByDescending(f => f.Priority).ToList();
         }
