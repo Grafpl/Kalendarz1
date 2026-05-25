@@ -28,6 +28,7 @@ internal sealed class UpdateSplash : Form
     private readonly Label _subtitleLabel;
     private readonly PictureBox _memeBox;
     private readonly Panel _indicatorPanel;
+    private readonly Label _heroLabel;
     private readonly Label _warnLabel;
     private readonly Panel _progressBg;
     private readonly Panel _progressFg;
@@ -175,8 +176,22 @@ internal sealed class UpdateSplash : Form
         };
         Controls.Add(_indicatorPanel);
 
+        // ════════════════ HERO TEXT (wielki napis) ════════════════
+        var heroY = _indicatorPanel.Top + _indicatorPanel.Height + 14;
+        _heroLabel = new Label
+        {
+            Text = _theme.HeroText,
+            Font = new Font("Segoe UI", _theme.HeroFontSize, _theme.HeroBold ? FontStyle.Bold : FontStyle.Regular),
+            ForeColor = ParseColor(_theme.HeroColor, Color.Green),
+            Location = new Point(20, heroY),
+            Size = new Size(_theme.WindowWidth - 40, _theme.HeroFontSize + 18),
+            TextAlign = ContentAlignment.MiddleCenter,
+            AutoEllipsis = false
+        };
+        Controls.Add(_heroLabel);
+
         // ════════════════ WARNING ════════════════
-        var warnY = _indicatorPanel.Top + _indicatorPanel.Height + 16;
+        var warnY = heroY + _heroLabel.Height + 8;
         _warnLabel = new Label
         {
             Text = _theme.WarningText,
@@ -557,6 +572,8 @@ internal sealed class UpdateSplash : Form
             return;
         }
         _titleLabel.Text = "GOTOWE - uruchamiam ZPSP...";
+        _heroLabel.Text = "ARCYDZIELO ZAKTUALIZOWANE!";
+        _heroLabel.ForeColor = ParseColor(_theme.ProgressBarFgColor, Color.Green);
         _warnLabel.Text = "✓ Aktualizacja zakonczona pomyslnie";
         _warnLabel.ForeColor = ParseColor(_theme.ProgressBarFgColor, Color.Green);
         _currentFileLabel.Text = "";

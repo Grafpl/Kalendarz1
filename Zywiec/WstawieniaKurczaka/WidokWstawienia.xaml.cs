@@ -98,8 +98,21 @@ namespace Kalendarz1
         {
             try
             {
-                string logoPath = @"C:\Users\PC\source\repos\Grafpl\Kalendarz1\logo.png";
-                if (System.IO.File.Exists(logoPath))
+                // Szukaj logo obok .exe (dziala i z bin\ i z %LOCALAPPDATA%\ZPSP\).
+                // logo-2-green.png jest kopiowane przez .csproj (CopyToOutputDirectory).
+                string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                string logoPath = "";
+                foreach (var candidate in new[] { "logo-2-green.png", "logo.png", "Logo.png" })
+                {
+                    var p = System.IO.Path.Combine(baseDir, candidate);
+                    if (System.IO.File.Exists(p)) { logoPath = p; break; }
+                }
+                if (string.IsNullOrEmpty(logoPath))
+                {
+                    var dev = @"C:\Users\PC\source\repos\Grafpl\Kalendarz1\logo-2-green.png";
+                    if (System.IO.File.Exists(dev)) logoPath = dev;
+                }
+                if (!string.IsNullOrEmpty(logoPath) && System.IO.File.Exists(logoPath))
                 {
                     var bitmap = new System.Windows.Media.Imaging.BitmapImage();
                     bitmap.BeginInit();

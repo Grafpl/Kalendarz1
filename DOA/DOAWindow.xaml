@@ -45,7 +45,7 @@
         <Border Grid.Row="1" Background="#EFF6FF" BorderBrush="#BFDBFE" BorderThickness="1"
                 CornerRadius="8" Padding="14,8" Margin="0,0,0,12">
             <TextBlock FontSize="12" Foreground="#1E40AF" TextWrapping="Wrap"
-                       Text="ℹ Padłe wpisujesz w module „Specyfikacja Drobiu" (kolumna Padłe). To okno tylko analizuje te dane — ranking hodowców, trendy, alerty. Norma branżowa: cel &lt;0.2%, max 0.5%."/>
+                       Text="Padłe wpisujesz w module Specyfikacja Drobiu (kolumna Padłe). To okno tylko analizuje te dane: ranking hodowców, trendy, alerty. Norma branzowa: cel ponizej 0,2 proc, max 0,5 proc."/>
         </Border>
 
         <!-- KPI -->

@@ -61,47 +61,81 @@ namespace Kalendarz1
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            WczytajDostawcow();
-
-            if (Modyfikacja)
+            // Całość w try/catch — pojedynczy wyjątek (np. event handler odpalony przy
+            // ustawianiu pól) NIE może już przerwać ładowania i zostawić pustego okna.
+            try
             {
-                txtTrybFormularza.Text = "Modyfikacja";
-                txtTrybFormularza.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E67E22"));
-                WczytajDaneDoEdycji();
-                panelSeria.Visibility = Visibility.Collapsed;
-                chkSeria.IsEnabled = false;
-                WczytajNotatki();
-            }
-            else
-            {
-                txtTrybFormularza.Text = "Nowe";
-                dpDataWstawienia.SelectedDate = DateTime.Today;
+                WczytajDostawcow();
 
-                // ZMIANA: Sprawdź czy przekazano dane z innego okna
-                if (!string.IsNullOrEmpty(Dostawca))
+                if (Modyfikacja)
                 {
-                    cmbDostawca.SelectedItem = Dostawca;
-                }
-
-                if (SztWstawienia > 0)
-                {
-                    txtSztukiWstawienia.Text = SztWstawienia.ToString("0");
-                }
-
-                // ZMIANA: Jeśli przekazano dane ostatniego dostarczonego, skopiuj je
-                if (DaneOstatniegoDostarczonego != null && DaneOstatniegoDostarczonego.Dostawy != null && DaneOstatniegoDostarczonego.Dostawy.Count > 0)
-                {
-                    foreach (var dostawa in DaneOstatniegoDostarczonego.Dostawy)
-                    {
-                        DodajDostawe(dostawa.Doba, dostawa.Waga, dostawa.SztPoj, dostawa.Sztuki, dostawa.Auta);
-                    }
+                    txtTrybFormularza.Text = "Modyfikacja";
+                    txtTrybFormularza.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E67E22"));
+                    WczytajDaneDoEdycji();
+                    panelSeria.Visibility = Visibility.Collapsed;
+                    chkSeria.IsEnabled = false;
+                    WczytajNotatki();
                 }
                 else
                 {
-                    // Domyślne dostawy jeśli nie ma danych z ostatniego
-                    DodajDostawe(35, 2.1, 20);
-                    DodajDostawe(42, 2.8, 16);
+                    txtTrybFormularza.Text = "Nowe";
+
+                    // ZMIANA: Sprawdź czy przekazano dane z innego okna
+                    if (!string.IsNullOrEmpty(Dostawca))
+                    {
+                        cmbDostawca.SelectedItem = Dostawca;
+                    }
+
+                    if (SztWstawienia > 0)
+                    {
+                        txtSztukiWstawienia.Text = SztWstawienia.ToString("0");
+                    }
+
+                    // WAŻNE: dostawy dodajemy ZANIM ustawimy datę wstawienia.
+                    // Ustawienie daty odpala DpDataWstawienia_SelectedDateChanged, które
+                    // przelicza daty dostaw — musi mieć już wiersze do przeliczenia.
+                    if (DaneOstatniegoDostarczonego?.Dostawy?.Count > 0)
+                    {
+                        foreach (var dostawa in DaneOstatniegoDostarczonego.Dostawy)
+                        {
+                            DodajDostawe(dostawa.Doba, dostawa.Waga, dostawa.SztPoj, dostawa.Sztuki, dostawa.Auta);
+                        }
+                    }
+                    else
+                    {
+                        // Domyślne dostawy jeśli nie ma danych z ostatniego
+                        DodajDostawe(35, 2.1, 20);
+                        DodajDostawe(42, 2.8, 16);
+                    }
+
+                    // Data na końcu — teraz przeliczy daty już istniejących dostaw (Doba → Data)
+                    dpDataWstawienia.SelectedDate = DateTime.Today;
                 }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Wystąpił błąd podczas otwierania okna wstawienia:\n\n{ex.Message}",
+                    "Błąd ładowania", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            finally
+            {
+                // GWARANCJA: w trybie Nowe zawsze musi być min. 1 dostawa,
+                // inaczej panel "Szablon Dostaw" wygląda na pusty / zepsuty.
+                if (!Modyfikacja && dostawyRows.Count == 0)
+                {
+                    try
+                    {
+                        DodajDostawe(35, 2.1, 20);
+                        DodajDostawe(42, 2.8, 16);
+                        if (dpDataWstawienia.SelectedDate == null)
+                            dpDataWstawienia.SelectedDate = DateTime.Today;
+                    }
+                    catch { /* ostatnia linia obrony — nie blokujemy okna */ }
+                }
+
+                // GWARANCJA: panel dostaw widoczny (gdyby checkbox/visibility zostały rozsynchronizowane)
+                if (panelDostawy != null) panelDostawy.Visibility = Visibility.Visible;
+                if (chkDostawy != null && chkDostawy.IsChecked != true) chkDostawy.IsChecked = true;
             }
         }
 

@@ -12,7 +12,7 @@ internal sealed class SplashTheme
 {
     // === WINDOW ===
     public int WindowWidth { get; set; } = 900;
-    public int WindowHeight { get; set; } = 720;
+    public int WindowHeight { get; set; } = 800;
     public string BackgroundColor { get; set; } = "#FFFFFF";
     public string BorderColor { get; set; } = "#1F2937";
     public int BorderThickness { get; set; } = 2;
@@ -49,6 +49,12 @@ internal sealed class SplashTheme
     public int DotSpacing { get; set; } = 6;
     public string DotActiveColor { get; set; } = "#16A34A";
     public string DotInactiveColor { get; set; } = "#D1D5DB";
+
+    // === HERO TEXT (wielki napis pod memem) ===
+    public string HeroText { get; set; } = "ULEPSZAMY DLA CIEBIE ARCYDZIELO";
+    public int HeroFontSize { get; set; } = 22;
+    public string HeroColor { get; set; } = "#16A34A";
+    public bool HeroBold { get; set; } = true;
 
     // === WARNING LABEL ===
     public string WarningText { get; set; } = "PROSZE NIE KLIKAC NICZEGO - aplikacja pojawi sie sama!";

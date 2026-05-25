@@ -15,9 +15,8 @@ set QNAP_ROOT=\\192.168.0.170\Install\Kalendarz1L
 set QNAP_RELEASE=%QNAP_ROOT%\Release
 set QNAP_LAUNCHER=%QNAP_ROOT%\Launcher
 
-REM Stempel czasu YYYY-MM-DD_HHMM dla backupu (PowerShell - niezalezne od locale)
+REM Stempel czasu YYYY-MM-DD_HHMM (PowerShell - niezalezne od locale)
 for /f "usebackq tokens=*" %%i in (`powershell -NoProfile -Command "Get-Date -Format 'yyyy-MM-dd_HHmm'"`) do set TS=%%i
-set QNAP_BACKUP=%QNAP_ROOT%\Backup\%TS%
 
 echo ============================================================
 echo            ZPSP DEPLOY RELEASE - %TS%
@@ -25,7 +24,6 @@ echo ============================================================
 echo  Repo:     %REPO%
 echo  Release:  %RELEASE_DIR%
 echo  QNAP:     %QNAP_RELEASE%
-echo  Backup:   %QNAP_BACKUP%
 echo ============================================================
 echo.
 
@@ -40,19 +38,8 @@ if not exist "%QNAP_ROOT%" (
 echo   OK
 echo.
 
-REM === [2/6] Backup poprzedniej wersji ===
-echo [2/6] Backup poprzedniej wersji...
-if exist "%QNAP_RELEASE%\Kalendarz1.exe" (
-    mkdir "%QNAP_BACKUP%" 2>nul
-    robocopy "%QNAP_RELEASE%" "%QNAP_BACKUP%" /E /MT:8 /R:2 /W:5 /NP /NFL /NDL /NJH /NJS >nul
-    if errorlevel 8 (
-        echo OSTRZEZENIE: Backup nieudany - kontynuujemy mimo wszystko
-    ) else (
-        echo   OK: %QNAP_BACKUP%
-    )
-) else (
-    echo   Pierwszy deploy - brak poprzedniej wersji do backupu
-)
+REM === [2/6] Backup WYLACZONY (na zyczenie) ===
+echo [2/6] Backup pominiety (wylaczony)
 echo.
 
 REM === [3/6] Czyszczenie folderu Release lokalnie ===
@@ -63,22 +50,36 @@ echo   OK
 echo.
 
 REM === [4/6] Build Release ===
+REM WAZNE: uzywamy 'dotnet build' (NIE 'publish -r win-x64') zeby output byl
+REM IDENTYCZNY z tym co Visual Studio produkuje w bin\Release. publish -r tworzy
+REM inny layout (runtimes\, RID-specific deps.json) ktory psul DevExpress/GMap/LibVLC
+REM (Avilog, Wstawienia nie ladowaly danych). Teraz launcher dostaje 1:1 to co dziala w VS.
 echo [4/6] Build Release (to moze potrwac 2-3 min)...
 cd /D "%REPO%"
-dotnet publish Kalendarz1.csproj -c Release -r win-x64 --self-contained false -o "%RELEASE_DIR%" -nologo -v:q
+set BIN_RELEASE=%REPO%\bin\Release\net8.0-windows7.0
+dotnet build Kalendarz1.csproj -c Release -nologo -v:q
 if errorlevel 1 (
     echo BLAD BUILDU - przerywam.
+    pause
+    exit /b 1
+)
+if not exist "%BIN_RELEASE%\Kalendarz1.exe" (
+    echo BLAD: Nie znaleziono %BIN_RELEASE%\Kalendarz1.exe po buildzie.
     pause
     exit /b 1
 )
 echo   OK
 echo.
 
-REM === [5/6] Usuwanie wrazliwych plikow z wyjscia + dolaczenie launchera (self-update) ===
-echo [5/6] Czyszczenie wrazliwych plikow z Release...
+REM === [5/6] Kopiowanie bin\Release do RELEASE_DIR + czyszczenie + launcher ===
+echo [5/6] Kopiowanie bin\Release + czyszczenie...
+REM Kopiuj DOKLADNIE to co VS produkuje (cala zawartosc bin\Release)
+robocopy "%BIN_RELEASE%" "%RELEASE_DIR%" /E /MT:8 /R:2 /W:3 /NP /NFL /NDL /NJH /NJS >nul
+
+REM Usuwamy TYLKO debug symbole + git/dev artifacts. NIE ruszamy *.xml
+REM (DevExpress i inne biblioteki maja pliki .xml ktore moga byc potrzebne).
 del /Q "%RELEASE_DIR%\*.pdb" 2>nul
 del /Q "%RELEASE_DIR%\appsettings.Development.json" 2>nul
-del /Q "%RELEASE_DIR%\*.xml" 2>nul
 del /Q "%RELEASE_DIR%\.gitignore" 2>nul
 del /Q "%RELEASE_DIR%\.gitattributes" 2>nul
 if exist "%RELEASE_DIR%\BAZA_WIEDZY" rmdir /S /Q "%RELEASE_DIR%\BAZA_WIEDZY"
@@ -133,7 +134,6 @@ echo ============================================================
 for /f "tokens=3" %%a in ('dir /-c "%QNAP_RELEASE%" ^| findstr /C:"plik"') do set SIZE=%%a
 echo  Wgrana wersja: %TS%
 echo  Lokalizacja:   %QNAP_RELEASE%
-echo  Backup:        %QNAP_BACKUP%
 echo.
 echo  Userzy widza nowa wersje przy nastepnym uruchomieniu.
 echo ============================================================

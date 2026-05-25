@@ -29,7 +29,22 @@ namespace Kalendarz1
         {
             InitializeComponent();
             WindowIconHelper.SetIcon(this);
-            DisplayData();
+
+            // Błąd ładowania danych (np. brak dostaw na dziś, problem SQL) NIE może
+            // blokować otwarcia okna — wcześniej wyjątek tu wywalał całe "new WidokAvilogPlan()",
+            // przez co menu kontekstowe "Pokaż avilog" tylko pokazywało toast błędu i nic nie otwierało.
+            try
+            {
+                DisplayData();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    "Nie udało się załadować danych avilog (okno otwarte mimo to):\n\n" + ex.Message,
+                    "Avilog — błąd danych",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+            }
         }
         private void DisplayData()
         {
