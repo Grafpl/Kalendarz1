@@ -298,35 +298,48 @@
                         </StackPanel>
                     </Border>
 
-                    <DataGrid x:Name="WolneGrid" Grid.Row="2" Margin="4"
-                              AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
-                              HeadersVisibility="Column" GridLinesVisibility="Horizontal"
-                              RowBackground="White"
-                              BorderThickness="0" FontSize="12" IsReadOnly="True"
-                              SelectionMode="Extended" SelectionUnit="FullRow"
-                              MouseDoubleClick="WolneGrid_DoubleClick">
-                        <DataGrid.ContextMenu>
+                    <ListBox x:Name="WolneGrid" Grid.Row="2" Margin="4" BorderThickness="0"
+                             Background="Transparent" SelectionMode="Extended"
+                             HorizontalContentAlignment="Stretch"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             MouseDoubleClick="WolneGrid_DoubleClick">
+                        <ListBox.ContextMenu>
                             <ContextMenu>
                                 <MenuItem Header="➕ Dodaj do zaznaczonego kursu" Click="BtnDodajDoKursu_Click"/>
                                 <MenuItem Header="🚗 Odbiór własny (zdejmij z transportu)" Click="MiWlasnyOdbior_Click"/>
                                 <Separator/>
                                 <MenuItem Header="🔄 Odśwież" Click="BtnOdswiezWolne_Click"/>
                             </ContextMenu>
-                        </DataGrid.ContextMenu>
-                        <DataGrid.RowStyle>
-                            <Style TargetType="DataGridRow">
-                                <Setter Property="Height" Value="40"/>
-                                <Style.Triggers>
-                                    <Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="#f6eefb"/></Trigger>
-                                    <Trigger Property="IsSelected" Value="True"><Setter Property="Background" Value="#e1bee7"/></Trigger>
-                                </Style.Triggers>
+                        </ListBox.ContextMenu>
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ListBoxItem">
+                                            <Border x:Name="bd" Background="White" CornerRadius="6" Padding="8,6"
+                                                    Margin="2,2" BorderBrush="#eceef2" BorderThickness="1">
+                                                <ContentPresenter/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="bd" Property="Background" Value="#f7f1fb"/>
+                                                </Trigger>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter TargetName="bd" Property="Background" Value="#ede7f6"/>
+                                                    <Setter TargetName="bd" Property="BorderBrush" Value="#b39ddb"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
                             </Style>
-                        </DataGrid.RowStyle>
-                        <DataGrid.GroupStyle>
+                        </ListBox.ItemContainerStyle>
+                        <ListBox.GroupStyle>
                             <GroupStyle>
                                 <GroupStyle.HeaderTemplate>
                                     <DataTemplate>
-                                        <Border Background="#e8eaf6" Padding="10,6" Margin="0,4,0,1">
+                                        <Border Background="#e8eaf6" Padding="10,6" Margin="0,6,0,2" CornerRadius="4">
                                             <StackPanel Orientation="Horizontal">
                                                 <Border Width="3" Background="#3949ab" CornerRadius="2" Margin="0,0,8,0"/>
                                                 <TextBlock Text="📅" FontSize="11" VerticalAlignment="Center" Margin="0,0,5,0"/>
@@ -341,45 +354,39 @@
                                     </DataTemplate>
                                 </GroupStyle.HeaderTemplate>
                             </GroupStyle>
-                        </DataGrid.GroupStyle>
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Godz." Binding="{Binding GodzAwizacji}" Width="48">
-                                <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
-                                </DataGridTextColumn.ElementStyle>
-                            </DataGridTextColumn>
-                            <DataGridTextColumn Header="Klient" Binding="{Binding KlientNazwa}" Width="*">
-                                <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="ToolTip" Value="{Binding Tooltip}"/>
-                                        <Setter Property="FontWeight" Value="SemiBold"/>
-                                        <Setter Property="Foreground" Value="#2b3a47"/>
-                                        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
-                                    </Style>
-                                </DataGridTextColumn.ElementStyle>
-                            </DataGridTextColumn>
-                            <DataGridTemplateColumn Header="Handlowiec" Width="128">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" ToolTip="{Binding Tooltip}">
-                                            <ctrl:AvatarControl UserId="{Binding HandlowiecId}" DisplayName="{Binding Handlowiec}" Diameter="24" Margin="0,0,6,0"/>
-                                            <TextBlock Text="{Binding HandlowiecDisplay}" VerticalAlignment="Center" FontSize="11" Foreground="#546e7a" TextTrimming="CharacterEllipsis"/>
-                                        </StackPanel>
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
-                            <DataGridTextColumn Header="Pal" Binding="{Binding PaletyDisplay}" Width="40">
-                                <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/></Style>
-                                </DataGridTextColumn.ElementStyle>
-                            </DataGridTextColumn>
-                            <DataGridTextColumn Header="Poj." Binding="{Binding Pojemniki}" Width="44">
-                                <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
-                                </DataGridTextColumn.ElementStyle>
-                            </DataGridTextColumn>
-                        </DataGrid.Columns>
-                    </DataGrid>
+                        </ListBox.GroupStyle>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Grid ToolTip="{Binding Tooltip}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Background="#ede7f6" CornerRadius="4" Padding="7,3"
+                                            VerticalAlignment="Center" Margin="0,0,9,0">
+                                        <TextBlock Text="{Binding GodzAwizacji}" Foreground="#5e35b1" FontWeight="Bold" FontSize="11.5"/>
+                                    </Border>
+                                    <ctrl:AvatarControl Grid.Column="1" UserId="{Binding HandlowiecId}" DisplayName="{Binding Handlowiec}"
+                                                        Diameter="34" Margin="0,0,9,0" VerticalAlignment="Center"/>
+                                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding KlientNazwa}" FontWeight="SemiBold" Foreground="#26323c"
+                                                   FontSize="12.5" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Text="{Binding HandlowiecDisplay}" Foreground="#8893a0" FontSize="10.5" TextTrimming="CharacterEllipsis"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="3" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="8,0,0,0">
+                                        <TextBlock HorizontalAlignment="Right">
+                                            <Run Text="{Binding Pojemniki}" FontWeight="Bold" FontSize="13" Foreground="#37474f"/><Run Text=" poj." FontSize="10" Foreground="#90a4ae"/>
+                                        </TextBlock>
+                                        <TextBlock HorizontalAlignment="Right" FontSize="10.5" Foreground="#90a4ae">
+                                            <Run Text="{Binding PaletyDisplay}"/><Run Text=" pal."/>
+                                        </TextBlock>
+                                    </StackPanel>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
                     <TextBlock Grid.Row="2" x:Name="WolneEmpty" Visibility="Collapsed" IsHitTestVisible="False"
                                Text="✅  Brak wolnych zamówień.&#x0a;Wszystko przypisane do kursów."
                                Foreground="#9575cd" FontSize="13" TextAlignment="Center"
