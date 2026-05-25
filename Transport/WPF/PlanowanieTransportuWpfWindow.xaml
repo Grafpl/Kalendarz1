@@ -376,12 +376,8 @@
                                         <TextBlock Text="{Binding HandlowiecDisplay}" Foreground="#8893a0" FontSize="10.5" TextTrimming="CharacterEllipsis"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="3" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="8,0,0,0">
-                                        <TextBlock HorizontalAlignment="Right">
-                                            <Run Text="{Binding Pojemniki}" FontWeight="Bold" FontSize="13" Foreground="#37474f"/><Run Text=" poj." FontSize="10" Foreground="#90a4ae"/>
-                                        </TextBlock>
-                                        <TextBlock HorizontalAlignment="Right" FontSize="10.5" Foreground="#90a4ae">
-                                            <Run Text="{Binding PaletyDisplay}"/><Run Text=" pal."/>
-                                        </TextBlock>
+                                        <TextBlock HorizontalAlignment="Right" Text="{Binding PojemnikiDisplay}" FontWeight="Bold" FontSize="12.5" Foreground="#37474f"/>
+                                        <TextBlock HorizontalAlignment="Right" FontSize="10.5" Foreground="#90a4ae" Text="{Binding PaletyDisplay, StringFormat='{}{0} pal.'}"/>
                                     </StackPanel>
                                 </Grid>
                             </DataTemplate>
