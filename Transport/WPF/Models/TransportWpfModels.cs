@@ -45,6 +45,16 @@ namespace Kalendarz1.Transport.WPF.Models
         public string OdbiorDisplay => DataPrzyjazdu.ToString("dd.MM ddd", PL);
         public string PaletyDisplay => Palety.ToString("N1", PL);
 
+        /// <summary>Podtytuł karty wolnego: data uboju + handlowiec.</summary>
+        public string WolnePodtytul
+        {
+            get
+            {
+                var uboj = DataUboju.HasValue ? $"Ubój {DataUboju.Value.ToString("dd.MM ddd", PL)}" : "Ubój —";
+                return string.IsNullOrWhiteSpace(Handlowiec) ? uboj : $"{uboj}  ·  {Handlowiec}";
+            }
+        }
+
         public string Tooltip =>
             $"{KlientNazwa}\n" +
             $"Handlowiec: {(string.IsNullOrWhiteSpace(Handlowiec) ? "—" : Handlowiec)}\n" +
