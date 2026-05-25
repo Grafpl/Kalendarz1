@@ -3624,7 +3624,14 @@ Adres: {zamowienie.Adres}";
                         kursInfo, "Oczekuje na przypisanie", _uzytkownik);
                 }
 
-                // Aktualizuj WSZYSTKIE zamówienia powiązane z ładunkami w kursie (nie tylko nowo dodane)
+                // Aktualizuj status WYŁĄCZNIE dla zamówień ktore SA faktycznie ladunkami w kursie
+                // (te zostaly zapisane przez SaveAllLadunkiToDatabase). Status musi byc spojny z Ladunek.
+                //
+                // BUGFIX: wczesniej dodawano tu tez _zamowieniaDoDodania "na wypadek gdyby nie byly
+                // jeszcze w _ladunki". Powodowalo to ROZSYNCHRONIZACJE: jesli zamowienie bylo w
+                // _zamowieniaDoDodania ale ZNIKNELO z _ladunki (np. user usunal ladunek z listy),
+                // ustawiano TransportStatus='Przypisany' BEZ odpowiadajacego Ladunek → sierota
+                // (zamowienie "przypisane" ktorego nie ma w zadnym kursie). Teraz: tylko _ladunki.
                 var zamIdyWKursie = new HashSet<int>();
                 foreach (var ladunek in _ladunki)
                 {
@@ -3634,10 +3641,6 @@ Adres: {zamowienie.Adres}";
                         zamIdyWKursie.Add(zamId2);
                     }
                 }
-
-                // Dodaj też te z _zamowieniaDoDodania (na wypadek gdyby jeszcze nie były w _ladunki)
-                foreach (var zam in _zamowieniaDoDodania)
-                    zamIdyWKursie.Add(zam.ZamowienieId);
 
                 // Usuń te które są do usunięcia (już obsłużone wyżej)
                 foreach (var zamId in _zamowieniaDoUsuniecia)
