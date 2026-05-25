@@ -83,7 +83,14 @@
 
         <!-- ═══ KPI ═══ -->
         <Border Grid.Row="1" Background="White" Padding="16,8" BorderBrush="#e4e6ea" BorderThickness="0,0,0,1">
-            <StackPanel Orientation="Horizontal">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBox x:Name="TxtFiltrKursy" Width="170" Height="26" VerticalContentAlignment="Center"
+                             TextChanged="FiltrKursyTekst_Changed" ToolTip="Filtruj: trasa / kierowca / pojazd"/>
+                    <CheckBox x:Name="ChkWymaga" Content="⚠ tylko wymagające uwagi" Margin="12,0,0,0"
+                              VerticalAlignment="Center" Foreground="#e65100" Click="FiltrKursy_Changed"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal">
                 <Border Background="#e8eaf6" CornerRadius="6" Padding="12,5" Margin="0,0,8,0">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="Kursów: " Foreground="#3949ab" FontSize="12"/>
@@ -114,7 +121,8 @@
                         <TextBlock x:Name="KpiWolne" Text="0" Foreground="#4a148c" FontWeight="Bold" FontSize="12"/>
                     </StackPanel>
                 </Border>
-            </StackPanel>
+                </StackPanel>
+            </DockPanel>
         </Border>
 
         <!-- ═══ CONTENT: (kursy + podgląd) | wolne zamówienia ═══ -->
@@ -193,6 +201,10 @@
                         </DataGrid.Columns>
                     </DataGrid>
                 </Border>
+                <TextBlock Grid.Row="0" x:Name="KursyEmpty" Visibility="Collapsed" IsHitTestVisible="False"
+                           Text="📭  Brak kursów na ten dzień.&#x0a;Dodaj nowy kurs lub przeciągnij tu wolne zamówienie."
+                           Foreground="#90a4ae" FontSize="13.5" TextAlignment="Center"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
 
                 <!-- podgląd ładunków wybranego kursu -->
                 <Border Grid.Row="2" Background="White" CornerRadius="8" BorderBrush="#e4e6ea" BorderThickness="1">
@@ -280,11 +292,21 @@
                         </DataGrid.ContextMenu>
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Awiz." Binding="{Binding GodzAwizacji}" Width="56"/>
-                            <DataGridTextColumn Header="Klient" Binding="{Binding KlientNazwa}" Width="*"/>
+                            <DataGridTextColumn Header="Klient" Binding="{Binding KlientNazwa}" Width="*">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="ToolTip" Value="{Binding Tooltip}"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
                             <DataGridTextColumn Header="Handlowiec" Binding="{Binding HandlowiecDisplay}" Width="100"/>
                             <DataGridTextColumn Header="Poj." Binding="{Binding Pojemniki}" Width="50"/>
                         </DataGrid.Columns>
                     </DataGrid>
+                    <TextBlock Grid.Row="2" x:Name="WolneEmpty" Visibility="Collapsed" IsHitTestVisible="False"
+                               Text="✅  Brak wolnych zamówień.&#x0a;Wszystko przypisane do kursów."
+                               Foreground="#9575cd" FontSize="13" TextAlignment="Center"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
 
                     <Border Grid.Row="3" Background="#faf5fc" Padding="10,8" BorderBrush="#eee" BorderThickness="0,1,0,0">
                         <DockPanel>

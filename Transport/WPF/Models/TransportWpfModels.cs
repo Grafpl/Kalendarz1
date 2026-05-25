@@ -35,6 +35,12 @@ namespace Kalendarz1.Transport.WPF.Models
         public string KodKlienta => $"ZAM_{ZamowienieId}";
         public string PojemnikiDisplay => $"{Pojemniki} poj.";
         public string HandlowiecDisplay => string.IsNullOrWhiteSpace(Handlowiec) ? "—" : Handlowiec;
+
+        public string Tooltip =>
+            $"{KlientNazwa}\n" +
+            $"Handlowiec: {(string.IsNullOrWhiteSpace(Handlowiec) ? "—" : Handlowiec)}\n" +
+            $"Adres: {(string.IsNullOrWhiteSpace(Adres) ? "—" : Adres)}\n" +
+            $"Awizacja: {GodzAwizacji}  ·  {Pojemniki} poj.  ·  {ZamowienieId}";
     }
 
     /// <summary>

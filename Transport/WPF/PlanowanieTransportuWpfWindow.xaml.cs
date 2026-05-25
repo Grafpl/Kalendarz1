@@ -27,7 +27,8 @@ namespace Kalendarz1.Transport.WPF
     {
         private readonly TransportWpfService _svc = new();
         private readonly string _user = App.UserID ?? "system";
-        private List<KursRow> _rows = new();
+        private List<KursRow> _rows = new();      // widoczne (po filtrze)
+        private List<KursRow> _rowsAll = new();   // wszystkie z dnia
 
         private List<WolneZamowienieWpf> _wolneAll = new();
         private readonly ObservableCollection<WolneZamowienieWpf> _wolne = new();
@@ -55,7 +56,7 @@ namespace Kalendarz1.Transport.WPF
             KursyGrid.DragLeave += (_, _) => ResetHover();
             DataKursu.SelectedDate = DateTime.Today;
             Loaded += async (_, _) => await LoadWszystkoAsync();
-            KeyDown += async (_, e) => { if (e.Key == Key.F5) { await LoadWszystkoAsync(); e.Handled = true; } };
+            KeyDown += Skroty_KeyDown;
             Closed += (_, _) => _autoTimer?.Stop();
         }
 
@@ -94,12 +95,14 @@ namespace Kalendarz1.Transport.WPF
                 var kursy = await _svc.Repo.PobierzKursyPoDacieAsync(data);
                 var ladunki = await _svc.Repo.PobierzLadunkiDlaKursowAsync(kursy.Select(k => k.KursID));
 
-                _rows = kursy.Select(k => new KursRow(k,
+                _rowsAll = kursy.Select(k => new KursRow(k,
                     ladunki.TryGetValue(k.KursID, out var l) ? l.Count : 0)).ToList();
-                KursyGrid.ItemsSource = _rows;
 
                 UpdateKpi();
-                StatusText.Text = $"Załadowano {_rows.Count} kursów na {data:dd.MM.yyyy}";
+                FiltrujKursy();
+                StatusText.Text = _rowsAll.Count == 0
+                    ? $"Brak kursów na {data:dd.MM.yyyy}"
+                    : $"Załadowano {_rowsAll.Count} kursów na {data:dd.MM.yyyy}";
                 UpdateButtons();
                 PodgladNaglowek.Text = "— wybierz kurs —";
                 PodgladGrid.ItemsSource = null;
@@ -114,10 +117,40 @@ namespace Kalendarz1.Transport.WPF
 
         private void UpdateKpi()
         {
-            KpiKursy.Text = _rows.Count.ToString();
-            KpiZKierowca.Text = _rows.Count(r => !string.IsNullOrEmpty(r.KierowcaNazwa)).ToString();
-            KpiBezZasobow.Text = _rows.Count(r => string.IsNullOrEmpty(r.KierowcaNazwa) || string.IsNullOrEmpty(r.PojazdRejestracja)).ToString();
-            KpiPalety.Text = _rows.Sum(r => r.PaletyNominal).ToString();
+            KpiKursy.Text = _rowsAll.Count.ToString();
+            KpiZKierowca.Text = _rowsAll.Count(r => !string.IsNullOrEmpty(r.KierowcaNazwa)).ToString();
+            KpiBezZasobow.Text = _rowsAll.Count(r => string.IsNullOrEmpty(r.KierowcaNazwa) || string.IsNullOrEmpty(r.PojazdRejestracja)).ToString();
+            KpiPalety.Text = _rowsAll.Sum(r => r.PaletyNominal).ToString();
+        }
+
+        // filtr listy kursów: szukaj (trasa/kierowca/pojazd) + „tylko wymagające uwagi"
+        private void FiltrujKursy()
+        {
+            var q = TxtFiltrKursy.Text?.Trim().ToLowerInvariant() ?? "";
+            bool tylkoWymaga = ChkWymaga.IsChecked == true;
+
+            IEnumerable<KursRow> src = _rowsAll;
+            if (!string.IsNullOrEmpty(q))
+                src = src.Where(r => ((r.Trasa ?? "") + " " + (r.KierowcaNazwa ?? "") + " " + (r.PojazdRejestracja ?? ""))
+                    .ToLowerInvariant().Contains(q));
+            if (tylkoWymaga)
+                src = src.Where(r => r.LiczbaLadunkow == 0 || string.IsNullOrEmpty(r.KierowcaNazwa) || string.IsNullOrEmpty(r.PojazdRejestracja));
+
+            _rows = src.ToList();
+            KursyGrid.ItemsSource = _rows;
+            KursyEmpty.Visibility = _rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private void FiltrKursy_Changed(object s, RoutedEventArgs e) { if (!_ladowanie) FiltrujKursy(); }
+        private void FiltrKursyTekst_Changed(object s, TextChangedEventArgs e) { if (!_ladowanie) FiltrujKursy(); }
+
+        private async void Skroty_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.F5) { await LoadWszystkoAsync(); e.Handled = true; return; }
+            if (Keyboard.FocusedElement is TextBox) return;   // nie przejmuj skrótów podczas pisania
+            if (e.Key == Key.Insert) { OtworzEdytor(true); e.Handled = true; }
+            else if (e.Key == Key.Delete && KursyGrid.SelectedItem is KursRow) { BtnUsun_Click(this, new RoutedEventArgs()); e.Handled = true; }
+            else if (e.Key == Key.Enter && KursyGrid.SelectedItem is KursRow) { OtworzEdytor(false); e.Handled = true; }
         }
 
         // ════════════════════════════════════════════════════════════════════
@@ -153,6 +186,7 @@ namespace Kalendarz1.Transport.WPF
             WolneCountText.Text = _wolne.Count.ToString();
             int sumaPoj = lista.Sum(z => z.Pojemniki);
             WolneSuma.Text = $"Σ {lista.Count} zam.  ·  {sumaPoj} pojemników  ·  ~{(sumaPoj == 0 ? 0 : (int)Math.Ceiling(sumaPoj / 36.0))} palet";
+            WolneEmpty.Visibility = _wolne.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
             UpdateDodajButton();
         }
 

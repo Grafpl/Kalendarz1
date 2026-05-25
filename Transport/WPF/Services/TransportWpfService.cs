@@ -34,6 +34,9 @@ namespace Kalendarz1.Transport.WPF.Services
 
         public TransportRepozytorium Repo { get; }
 
+        // Cache nazw klientów (HANDEL = najdroższy, cross-DB). Pytamy raz na sesję per KlientId.
+        private readonly Dictionary<int, (string Nazwa, string Handlowiec, string Adres)> _nazwaCache = new();
+
         public TransportWpfService()
         {
             Repo = new TransportRepozytorium(ConnTransport, ConnLibra);
@@ -121,9 +124,18 @@ namespace Kalendarz1.Transport.WPF.Services
         private async Task<Dictionary<int, (string Nazwa, string Handlowiec, string Adres)>>
             PobierzNazwyKlientowAsync(IEnumerable<int> klientIds)
         {
-            var dict = new Dictionary<int, (string, string, string)>();
             var ids = klientIds.Distinct().Where(i => i > 0).ToList();
+            var dict = new Dictionary<int, (string, string, string)>();
             if (ids.Count == 0) return dict;
+
+            // z cache + lista brakujących do dociągnięcia z HANDEL
+            var missing = new List<int>();
+            foreach (var id in ids)
+            {
+                if (_nazwaCache.TryGetValue(id, out var c)) dict[id] = c;
+                else missing.Add(id);
+            }
+            if (missing.Count == 0) return dict;
 
             await using var cn = new SqlConnection(ConnHandel);
             await cn.OpenAsync();
@@ -138,14 +150,18 @@ namespace Kalendarz1.Transport.WPF.Services
                 LEFT JOIN SSCommon.ContractorClassification wym ON c.Id = wym.ElementId
                 LEFT JOIN SSCommon.STPostOfficeAddresses poa ON poa.ContactGuid = c.ContactGuid
                     AND poa.AddressName = N'adres domyślny'
-                WHERE c.Id IN ({string.Join(",", ids)})";
+                WHERE c.Id IN ({string.Join(",", missing)})";
 
             using var cmd = new SqlCommand(sql, cn);
             cmd.CommandTimeout = 60;
             using var r = await cmd.ExecuteReaderAsync();
             while (await r.ReadAsync())
-                dict[r.GetInt32(0)] = (r.GetString(1), r.GetString(2), r.GetString(3).Trim());
-
+            {
+                var t = (r.GetString(1), r.GetString(2), r.GetString(3).Trim());
+                int id = r.GetInt32(0);
+                _nazwaCache[id] = t;
+                dict[id] = t;
+            }
             return dict;
         }
 
