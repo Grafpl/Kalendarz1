@@ -7,6 +7,10 @@
         Background="#eef1f5" FontFamily="Segoe UI" FontSize="13">
 
     <Window.Resources>
+        <ResourceDictionary>
+        <ResourceDictionary.MergedDictionaries>
+            <ResourceDictionary Source="/Kalendarz1;component/Transport/WPF/Theme/TransportWpfStyles.xaml"/>
+        </ResourceDictionary.MergedDictionaries>
         <Style x:Key="Btn" TargetType="Button">
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Cursor" Value="Hand"/>
@@ -29,6 +33,7 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        </ResourceDictionary>
     </Window.Resources>
 
     <Grid>
@@ -68,6 +73,10 @@
                             Background="#c62828" Foreground="White" IsEnabled="False"/>
                     <Button Content="🔄" Click="BtnRefresh_Click" Style="{StaticResource Btn}"
                             Background="#eceff1" Foreground="#546e7a" FontSize="14" Padding="11,5" ToolTip="Odśwież (F5)"/>
+                    <ToggleButton x:Name="TglAuto" Content="⟳ Auto" Click="TglAuto_Click"
+                                  Margin="3,0" Padding="11,6" Cursor="Hand" BorderThickness="0"
+                                  Background="#eceff1" Foreground="#546e7a" FontWeight="SemiBold"
+                                  ToolTip="Auto-odświeżanie co 45 s"/>
                 </StackPanel>
             </DockPanel>
         </Border>
@@ -136,8 +145,11 @@
                         <DataGrid.RowStyle>
                             <Style TargetType="DataGridRow">
                                 <Setter Property="Background" Value="{Binding RowBg}"/>
-                                <Setter Property="Height" Value="32"/>
+                                <Setter Property="Height" Value="34"/>
                                 <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#eef3fb"/>
+                                    </Trigger>
                                     <Trigger Property="IsSelected" Value="True">
                                         <Setter Property="Background" Value="#d6e4ff"/>
                                     </Trigger>
@@ -159,7 +171,14 @@
                             <DataGridTextColumn Header="Kierowca" Binding="{Binding KierowcaNazwa}" Width="150"/>
                             <DataGridTextColumn Header="Pojazd" Binding="{Binding PojazdRejestracja}" Width="105"/>
                             <DataGridTextColumn Header="Ład." Binding="{Binding LiczbaLadunkow}" Width="50"/>
-                            <DataGridTextColumn Header="Wypełnienie" Binding="{Binding WypelnienieDisplay}" Width="120"/>
+                            <DataGridTextColumn Header="Wypełnienie" Binding="{Binding WypelnienieDisplay}" Width="120">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="{Binding WypelnienieFg}"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
                             <DataGridTemplateColumn Header="Status" Width="115">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
@@ -247,10 +266,18 @@
                     <DataGrid x:Name="WolneGrid" Grid.Row="2" Margin="4"
                               AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
                               HeadersVisibility="Column" GridLinesVisibility="Horizontal"
-                              RowBackground="White" AlternatingRowBackground="#faf6fc"
+                              RowBackground="White"
                               BorderThickness="0" FontSize="12" IsReadOnly="True"
                               SelectionMode="Extended" SelectionUnit="FullRow"
                               MouseDoubleClick="WolneGrid_DoubleClick">
+                        <DataGrid.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="➕ Dodaj do zaznaczonego kursu" Click="BtnDodajDoKursu_Click"/>
+                                <MenuItem Header="🚗 Odbiór własny (zdejmij z transportu)" Click="MiWlasnyOdbior_Click"/>
+                                <Separator/>
+                                <MenuItem Header="🔄 Odśwież" Click="BtnOdswiezWolne_Click"/>
+                            </ContextMenu>
+                        </DataGrid.ContextMenu>
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Awiz." Binding="{Binding GodzAwizacji}" Width="56"/>
                             <DataGridTextColumn Header="Klient" Binding="{Binding KlientNazwa}" Width="*"/>

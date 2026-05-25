@@ -1,0 +1,58 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- ════════════════════════════════════════════════════════════════════
+         Wspólny motyw siatek dla sandbox WPF transportu — czysty, nowoczesny look.
+         Implicit styles (bez x:Key) → stosują się do wszystkich DataGrid* w oknie,
+         które scali ten słownik. NIE dotyka WinForms ani innych modułów.
+         ════════════════════════════════════════════════════════════════════ -->
+
+    <!-- Nagłówek kolumny -->
+    <Style TargetType="{x:Type DataGridColumnHeader}">
+        <Setter Property="Background" Value="#f4f6f9"/>
+        <Setter Property="Foreground" Value="#5a6b7b"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="FontSize" Value="11.5"/>
+        <Setter Property="Height" Value="36"/>
+        <Setter Property="Padding" Value="9,0"/>
+        <Setter Property="BorderBrush" Value="#e4e6ea"/>
+        <Setter Property="BorderThickness" Value="0,0,1,1"/>
+        <Setter Property="HorizontalContentAlignment" Value="Left"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="SeparatorBrush" Value="#eceff1"/>
+    </Style>
+
+    <!-- Komórka — bez niebieskiej ramki focusu, selekcja przez tło wiersza -->
+    <Style TargetType="{x:Type DataGridCell}">
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="9,0"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type DataGridCell}">
+                    <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter VerticalAlignment="Center"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="IsSelected" Value="True">
+                <Setter Property="Background" Value="Transparent"/>
+                <Setter Property="Foreground" Value="#0d2b6b"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- Wiersz — hover + selekcja (tło widoczne przez przezroczyste komórki) -->
+    <Style TargetType="{x:Type DataGridRow}">
+        <Setter Property="Height" Value="32"/>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="#eef3fb"/>
+            </Trigger>
+            <Trigger Property="IsSelected" Value="True">
+                <Setter Property="Background" Value="#d6e4ff"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+</ResourceDictionary>

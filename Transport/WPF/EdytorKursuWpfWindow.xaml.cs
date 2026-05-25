@@ -44,6 +44,7 @@ namespace Kalendarz1.Transport.WPF
         private Point _dragStart;
         private const string FmtWolne = "ZPSP_wolne";
         private const string FmtLadunek = "ZPSP_ladunek";
+        private DataGridRow? _hoverRow;
 
         public EdytorKursuWpfWindow(TransportWpfService svc, string user, DateTime data, long? kursId = null)
         {
@@ -63,6 +64,7 @@ namespace Kalendarz1.Transport.WPF
             LadunkiGrid.PreviewMouseMove += LadunkiGrid_PreviewMouseMove;
             LadunkiGrid.DragOver += LadunkiGrid_DragOver;
             LadunkiGrid.Drop += LadunkiGrid_Drop;
+            LadunkiGrid.DragLeave += (_, _) => ResetHover();
 
             Loaded += async (_, _) => await LoadAsync();
         }
@@ -350,11 +352,28 @@ namespace Kalendarz1.Transport.WPF
             if (e.Data.GetDataPresent(FmtWolne)) e.Effects = DragDropEffects.Copy;
             else if (e.Data.GetDataPresent(FmtLadunek)) e.Effects = DragDropEffects.Move;
             else e.Effects = DragDropEffects.None;
+            Highlight(WpfDragHelper.GetRowAtPoint(LadunkiGrid, e.GetPosition(LadunkiGrid)));
             e.Handled = true;
+        }
+
+        private void Highlight(DataGridRow? row)
+        {
+            if (ReferenceEquals(row, _hoverRow)) return;
+            ResetHover();
+            if (row != null)
+            {
+                row.Background = new SolidColorBrush(Color.FromRgb(0xC8, 0xE6, 0xC9)); // zielony cel
+                _hoverRow = row;
+            }
+        }
+        private void ResetHover()
+        {
+            if (_hoverRow != null) { _hoverRow.ClearValue(Control.BackgroundProperty); _hoverRow = null; }
         }
 
         private void LadunkiGrid_Drop(object sender, DragEventArgs e)
         {
+            ResetHover();
             var target = WpfDragHelper.GetItemAtPoint(LadunkiGrid, e.GetPosition(LadunkiGrid)) as LadunekWierszWpf;
 
             if (e.Data.GetDataPresent(FmtWolne))
@@ -385,6 +404,24 @@ namespace Kalendarz1.Transport.WPF
         private void TxtSzukaj_TextChanged(object sender, TextChangedEventArgs e) { if (!_ladowanie) FiltrujWolne(); }
         private async void DataTyp_Changed(object sender, RoutedEventArgs e) { if (!_ladowanie) await OdswiezWolneAsync(); }
         private async void BtnOdswiezWolne_Click(object sender, RoutedEventArgs e) => await OdswiezWolneAsync();
+
+        private async void MiWlasnyOdbior_Click(object sender, RoutedEventArgs e)
+        {
+            var wybrane = WolneGrid.SelectedItems.Cast<WolneZamowienieWpf>().ToList();
+            if (wybrane.Count == 0) return;
+            if (MessageBox.Show($"Oznaczyć {wybrane.Count} zam. jako ODBIÓR WŁASNY?\nZnikną z puli transportu.",
+                "Odbiór własny", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+            try
+            {
+                foreach (var z in wybrane) await _svc.WlasnyOdbiorAsync(z.ZamowienieId, _user);
+                await OdswiezWolneAsync();
+                StatusText.Text = $"Oznaczono {wybrane.Count} jako odbiór własny.";
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
 
         private void BtnAutoTrasa_Click(object sender, RoutedEventArgs e)
         {

@@ -7,6 +7,10 @@
         Background="#eef1f5" FontFamily="Segoe UI" FontSize="13">
 
     <Window.Resources>
+        <ResourceDictionary>
+        <ResourceDictionary.MergedDictionaries>
+            <ResourceDictionary Source="/Kalendarz1;component/Transport/WPF/Theme/TransportWpfStyles.xaml"/>
+        </ResourceDictionary.MergedDictionaries>
         <Style x:Key="Btn" TargetType="Button">
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Cursor" Value="Hand"/>
@@ -42,6 +46,7 @@
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="RowHeight" Value="30"/>
         </Style>
+        </ResourceDictionary>
     </Window.Resources>
 
     <Grid>
@@ -224,6 +229,14 @@
                     </Border>
                     <DataGrid x:Name="WolneGrid" Grid.Row="2" SelectionMode="Extended"
                               MouseDoubleClick="WolneGrid_DoubleClick">
+                        <DataGrid.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="⮕ Dodaj do kursu" Click="BtnDodajWolne_Click"/>
+                                <MenuItem Header="🚗 Odbiór własny (zdejmij z transportu)" Click="MiWlasnyOdbior_Click"/>
+                                <Separator/>
+                                <MenuItem Header="🔄 Odśwież" Click="BtnOdswiezWolne_Click"/>
+                            </ContextMenu>
+                        </DataGrid.ContextMenu>
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Awiz." Binding="{Binding GodzAwizacji}" Width="60"/>
                             <DataGridTextColumn Header="Klient" Binding="{Binding KlientNazwa}" Width="*"/>

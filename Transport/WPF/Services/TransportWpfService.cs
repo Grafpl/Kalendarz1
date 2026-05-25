@@ -254,6 +254,22 @@ namespace Kalendarz1.Transport.WPF.Services
             }
         }
 
+        /// <summary>
+        /// Odbiór własny klienta: zamówienie znika z puli transportowej
+        /// (TransportStatus='Wlasny', TransportKursId=NULL). Jak ZmienNaWlasnyOdbior w WinForms.
+        /// </summary>
+        public async Task WlasnyOdbiorAsync(int zamId, string uzytkownik)
+        {
+            await using var cn = new SqlConnection(ConnLibra);
+            await cn.OpenAsync();
+            using var cmd = new SqlCommand(
+                @"UPDATE dbo.ZamowieniaMieso SET TransportStatus = 'Wlasny', TransportKursId = NULL
+                  WHERE Id = @Id", cn);
+            cmd.Parameters.AddWithValue("@Id", zamId);
+            await cmd.ExecuteNonQueryAsync();
+            await LogSafe(zamId, uzytkownik, "Transport WPF - odbiór własny", "Oczekuje", "Własny");
+        }
+
         private static async Task LogSafe(int zamId, string user, string operacja, string przed, string po)
         {
             try

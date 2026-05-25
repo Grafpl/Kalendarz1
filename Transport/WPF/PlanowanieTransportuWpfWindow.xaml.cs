@@ -39,6 +39,8 @@ namespace Kalendarz1.Transport.WPF
 
         private Point _dragStart;
         private const string FmtWolne = "ZPSP_wolne";
+        private DataGridRow? _hoverRow;
+        private System.Windows.Threading.DispatcherTimer? _autoTimer;
 
         public PlanowanieTransportuWpfWindow()
         {
@@ -50,9 +52,11 @@ namespace Kalendarz1.Transport.WPF
             WolneGrid.PreviewMouseMove += WolneGrid_PreviewMouseMove;
             KursyGrid.DragOver += KursyGrid_DragOver;
             KursyGrid.Drop += KursyGrid_Drop;
+            KursyGrid.DragLeave += (_, _) => ResetHover();
             DataKursu.SelectedDate = DateTime.Today;
             Loaded += async (_, _) => await LoadWszystkoAsync();
             KeyDown += async (_, e) => { if (e.Key == Key.F5) { await LoadWszystkoAsync(); e.Handled = true; } };
+            Closed += (_, _) => _autoTimer?.Stop();
         }
 
         private async Task EnsureSlownikiAsync()
@@ -253,12 +257,30 @@ namespace Kalendarz1.Transport.WPF
 
         private void KursyGrid_DragOver(object sender, DragEventArgs e)
         {
-            e.Effects = e.Data.GetDataPresent(FmtWolne) ? DragDropEffects.Copy : DragDropEffects.None;
+            bool ok = e.Data.GetDataPresent(FmtWolne);
+            e.Effects = ok ? DragDropEffects.Copy : DragDropEffects.None;
+            if (ok) Highlight(WpfDragHelper.GetRowAtPoint(KursyGrid, e.GetPosition(KursyGrid)));
             e.Handled = true;
+        }
+
+        private void Highlight(DataGridRow? row)
+        {
+            if (ReferenceEquals(row, _hoverRow)) return;
+            ResetHover();
+            if (row != null)
+            {
+                row.Background = new SolidColorBrush(Color.FromRgb(0xC8, 0xE6, 0xC9)); // zielony cel
+                _hoverRow = row;
+            }
+        }
+        private void ResetHover()
+        {
+            if (_hoverRow != null) { _hoverRow.ClearValue(Control.BackgroundProperty); _hoverRow = null; }
         }
 
         private void KursyGrid_Drop(object sender, DragEventArgs e)
         {
+            ResetHover();
             if (!e.Data.GetDataPresent(FmtWolne)) return;
             if (WpfDragHelper.GetItemAtPoint(KursyGrid, e.GetPosition(KursyGrid)) is not KursRow target)
             {
@@ -408,6 +430,59 @@ namespace Kalendarz1.Transport.WPF
         }
 
         // ════════════════════════════════════════════════════════════════════
+        // ODBIÓR WŁASNY + AUTO-ODŚWIEŻANIE
+        // ════════════════════════════════════════════════════════════════════
+        private async void MiWlasnyOdbior_Click(object sender, RoutedEventArgs e)
+        {
+            var wybrane = WolneGrid.SelectedItems.Cast<WolneZamowienieWpf>().ToList();
+            if (wybrane.Count == 0) return;
+            if (MessageBox.Show($"Oznaczyć {wybrane.Count} zam. jako ODBIÓR WŁASNY?\nZnikną z puli wolnych (transport po stronie klienta).",
+                "Odbiór własny", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+            try
+            {
+                foreach (var z in wybrane) await _svc.WlasnyOdbiorAsync(z.ZamowienieId, _user);
+                await OdswiezWolneAsync();
+                StatusText.Text = $"Oznaczono {wybrane.Count} jako odbiór własny.";
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void TglAuto_Click(object sender, RoutedEventArgs e)
+        {
+            if (TglAuto.IsChecked == true)
+            {
+                _autoTimer ??= new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(45) };
+                _autoTimer.Tick -= AutoTick;
+                _autoTimer.Tick += AutoTick;
+                _autoTimer.Start();
+                TglAuto.Background = new SolidColorBrush(Color.FromRgb(0xC8, 0xE6, 0xC9));
+                TglAuto.Foreground = new SolidColorBrush(Color.FromRgb(0x2E, 0x7D, 0x32));
+                StatusText.Text = "Auto-odświeżanie WŁ. (co 45 s)";
+            }
+            else
+            {
+                _autoTimer?.Stop();
+                TglAuto.ClearValue(BackgroundProperty);
+                TglAuto.ClearValue(ForegroundProperty);
+                StatusText.Text = "Auto-odświeżanie WYŁ.";
+            }
+        }
+
+        private async void AutoTick(object? sender, EventArgs e)
+        {
+            var keep = (KursyGrid.SelectedItem as KursRow)?.KursID;
+            await LoadWszystkoAsync();
+            if (keep.HasValue)
+            {
+                var again = _rows.FirstOrDefault(r => r.KursID == keep.Value);
+                if (again != null) KursyGrid.SelectedItem = again;
+            }
+        }
+
+        // ════════════════════════════════════════════════════════════════════
         // Row wrapper
         // ════════════════════════════════════════════════════════════════════
         public class KursRow
@@ -439,6 +514,19 @@ namespace Kalendarz1.Transport.WPF
                     if (string.IsNullOrEmpty(KierowcaNazwa) || string.IsNullOrEmpty(PojazdRejestracja))
                         return new SolidColorBrush(Color.FromRgb(0xFF, 0xF8, 0xE1));
                     return Brushes.White;
+                }
+            }
+
+            // kolor tekstu wypełnienia: zielony <75%, pomarańcz 75-100%, czerwony >100%
+            public Brush WypelnienieFg
+            {
+                get
+                {
+                    if (Source.PaletyPojazdu <= 0) return new SolidColorBrush(Color.FromRgb(0x90, 0xA4, 0xAE));
+                    var p = Source.ProcNominal;
+                    if (p > 100) return new SolidColorBrush(Color.FromRgb(0xC6, 0x28, 0x28));
+                    if (p >= 75) return new SolidColorBrush(Color.FromRgb(0xEF, 0x6C, 0x00));
+                    return new SolidColorBrush(Color.FromRgb(0x2E, 0x7D, 0x32));
                 }
             }
 

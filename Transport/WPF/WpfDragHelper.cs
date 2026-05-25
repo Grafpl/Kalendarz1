@@ -29,6 +29,13 @@ namespace Kalendarz1.Transport.WPF
             return row?.Item;
         }
 
+        /// <summary>DataGridRow (kontener) pod punktem — do podświetlania celu przy drag&drop.</summary>
+        public static DataGridRow? GetRowAtPoint(DataGrid grid, Point p)
+        {
+            if (grid.InputHitTest(p) is not DependencyObject el) return null;
+            return FindAncestor<DataGridRow>(el);
+        }
+
         public static bool ExceededThreshold(Point a, Point b) =>
             Math.Abs(a.X - b.X) >= SystemParameters.MinimumHorizontalDragDistance ||
             Math.Abs(a.Y - b.Y) >= SystemParameters.MinimumVerticalDragDistance;
