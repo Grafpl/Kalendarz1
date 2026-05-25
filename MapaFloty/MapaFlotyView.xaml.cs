@@ -1815,20 +1815,29 @@ function updateVehicles(vs){
 }
 // Polishing — tooltip wzbogacony o kurs lub fallback skad-dokad
 function mkTooltip(v){
-    var status = v.IsMoving ? (v.Speed+' km/h')
-        : (v.InGeofence ? 'w bazie'
+    // SPOJNY z popup — tooltip nie moze sugerowac jedzie-do-X gdy to kurs HISTORYCZNY.
+    // Linia 1: nazwa + stan ruchu. Linia 2: kontekst kursu zgodny z popup.
+    var status = v.IsMoving ? (v.Speed + ' km/h')
+        : (v.InGeofence ? (v.Wolny ? 'w bazie · WOLNY' : 'w bazie')
         : (v.Ignition ? 'postój' : 'wyłączony'));
-    var s = v.ObjectName + ' — ' + status;
-    if(v.KursTrasa){
-        s += '  ·  ' + v.KursTrasa;
-        if(v.KursZHistorii){
-            s += '  (' + (v.KursAgeStr || 'historia');
-            if(v.KursKierowca) s += ', ' + v.KursKierowca;
-            s += ')';
-        }
+    var head = '<b>' + esc(v.ObjectName) + '</b> — ' + status;
+
+    var line2 = '';
+    if(v.KursTrasa && !v.KursZHistorii){
+        // AKTUALNY kurs dzis — auto realizuje (lub zaraz)
+        var prefix = v.IsMoving ? '🚛 jedzie: ' : '📍 kurs dzis: ';
+        line2 = prefix + esc(v.KursTrasa);
+        if(v.AwizacjaStatus==='late') line2 += ' · 🔴 PO TERMINIE';
+        else if(v.AwizacjaStatus==='risk') line2 += ' · ⚠ ryzyko';
+    } else if(v.IsMoving){
+        // Jedzie ale BEZ kursu dzis — pokaz skad (pozycja), nie myl z trasa
+        line2 = '🚛 w trasie' + (v.Address ? ' · z ' + esc(v.Address.substring(0,32)) : '');
+    } else if(v.KursTrasa && v.KursZHistorii){
+        // Historyczny — wyraznie ze to OSTATNI kurs, nie aktualny
+        line2 = '📜 ost. kurs: ' + esc(v.KursTrasa) + ' (' + esc(v.KursAgeStr || 'historia') + ')';
     }
-    else if(v.IsMoving && v.Address) s += '  ·  z ' + v.Address.substring(0,40);
-    return s;
+
+    return line2 ? (head + '<br>' + line2) : head;
 }
 function animateMarker(m,f,t,dur){
     var s=performance.now();
