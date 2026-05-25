@@ -179,9 +179,10 @@ namespace Kalendarz1.Transport.WPF.Services
             {
                 await cn.OpenAsync();
                 var sql = $@"
-                    SELECT Id, KlientId, DataPrzyjazdu, ISNULL(LiczbaPojemnikow, 0)
-                    FROM dbo.ZamowieniaMieso
-                    WHERE Id IN ({string.Join(",", ids)})";
+                    SELECT zm.Id, zm.KlientId, zm.DataPrzyjazdu, ISNULL(zm.LiczbaPojemnikow, 0),
+                           (SELECT ISNULL(SUM(t.Ilosc), 0) FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = zm.Id) AS Kg
+                    FROM dbo.ZamowieniaMieso zm
+                    WHERE zm.Id IN ({string.Join(",", ids)})";
                 using var cmd = new SqlCommand(sql, cn);
                 cmd.CommandTimeout = 60;
                 using var r = await cmd.ExecuteReaderAsync();
@@ -193,7 +194,8 @@ namespace Kalendarz1.Transport.WPF.Services
                         ZamowienieId = zid,
                         KlientId = r.GetInt32(1),
                         Awizacja = r.IsDBNull(2) ? null : r.GetDateTime(2),
-                        Pojemniki = r.GetInt32(3)
+                        Pojemniki = r.GetInt32(3),
+                        IloscKg = r.IsDBNull(4) ? 0 : r.GetDecimal(4)
                     };
                 }
             }
@@ -209,6 +211,41 @@ namespace Kalendarz1.Transport.WPF.Services
                 }
                 else info.Nazwa = $"Klient {info.KlientId}";
             }
+            return result;
+        }
+
+        // Nazwy użytkowników (LibraNet.operators) — do podpisu „Utworzył" + avatar.
+        private readonly Dictionary<string, string> _userCache = new();
+        public async Task<Dictionary<string, string>> PobierzNazwyUzytkownikowAsync(IEnumerable<string> userIds)
+        {
+            var ids = userIds.Where(s => !string.IsNullOrEmpty(s)).Distinct().ToList();
+            var result = new Dictionary<string, string>();
+            var missing = new List<string>();
+            foreach (var id in ids)
+            {
+                if (_userCache.TryGetValue(id, out var n)) result[id] = n;
+                else missing.Add(id);
+            }
+            if (missing.Count == 0) return result;
+
+            try
+            {
+                await using var cn = new SqlConnection(ConnLibra);
+                await cn.OpenAsync();
+                var pars = missing.Select((id, i) => $"@u{i}").ToList();
+                var sql = $"SELECT ID, ISNULL(Name, ID) FROM operators WHERE ID IN ({string.Join(",", pars)})";
+                using var cmd = new SqlCommand(sql, cn);
+                for (int i = 0; i < missing.Count; i++) cmd.Parameters.AddWithValue($"@u{i}", missing[i]);
+                using var r = await cmd.ExecuteReaderAsync();
+                while (await r.ReadAsync())
+                {
+                    var id = r.GetString(0); var name = r.GetString(1);
+                    _userCache[id] = name; result[id] = name;
+                }
+            }
+            catch { /* fallback niżej */ }
+            foreach (var id in missing)
+                if (!result.ContainsKey(id)) { _userCache[id] = id; result[id] = id; }
             return result;
         }
 

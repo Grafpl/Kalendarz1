@@ -100,6 +100,7 @@ namespace Kalendarz1.Transport.WPF
                 _rowsAll = kursy.Select(k => new KursRow(k,
                     ladunki.TryGetValue(k.KursID, out var l) ? l.Count : 0)).ToList();
 
+                await UzupelnijAgregatyAsync(ladunki);
                 UpdateKpi();
                 FiltrujKursy();
                 StatusText.Text = _rowsAll.Count == 0
@@ -225,6 +226,51 @@ namespace Kalendarz1.Transport.WPF
                     : (KursyGrid.SelectedItem is KursRow r
                         ? $"Dodasz do kursu #{r.KursID} ({r.Trasa ?? "—"})"
                         : "");
+            }
+        }
+
+        // Dociąga per kurs: KG (suma zamówień), nazwiska handlowców, nazwę twórcy (do avatara).
+        private async Task UzupelnijAgregatyAsync(Dictionary<long, List<Ladunek>> ladunki)
+        {
+            try
+            {
+                var allZam = new List<int>();
+                foreach (var kv in ladunki)
+                    foreach (var l in kv.Value)
+                        if (l.KodKlienta != null && l.KodKlienta.StartsWith("ZAM_") && int.TryParse(l.KodKlienta.Substring(4), out var id))
+                            allZam.Add(id);
+
+                var info = allZam.Count > 0
+                    ? await _svc.ResolveNazwyAsync(allZam.Distinct())
+                    : new Dictionary<int, ZamowienieNazwaInfo>();
+                var userNames = await _svc.PobierzNazwyUzytkownikowAsync(_rowsAll.Select(r => r.UtworzylId));
+
+                foreach (var row in _rowsAll)
+                {
+                    decimal kg = 0;
+                    var handl = new List<string>();
+                    if (ladunki.TryGetValue(row.KursID, out var lad))
+                    {
+                        foreach (var l in lad)
+                        {
+                            if (l.KodKlienta != null && l.KodKlienta.StartsWith("ZAM_")
+                                && int.TryParse(l.KodKlienta.Substring(4), out var id)
+                                && info.TryGetValue(id, out var zi))
+                            {
+                                kg += zi.IloscKg;
+                                if (!string.IsNullOrWhiteSpace(zi.Handlowiec) && !handl.Contains(zi.Handlowiec))
+                                    handl.Add(zi.Handlowiec);
+                            }
+                        }
+                    }
+                    row.Kg = kg;
+                    row.UtworzylName = userNames.TryGetValue(row.UtworzylId, out var n) ? n : row.UtworzylId;
+                    row.UstawHandlowcow(handl);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[TransportWPF] agregaty: {ex.Message}");
             }
         }
 
@@ -521,6 +567,12 @@ namespace Kalendarz1.Transport.WPF
         // ════════════════════════════════════════════════════════════════════
         // Row wrapper
         // ════════════════════════════════════════════════════════════════════
+        public class HandlowiecAvatar
+        {
+            public string? Id { get; set; }
+            public string Name { get; set; } = "";
+        }
+
         public class KursRow
         {
             public Kurs Source { get; }
@@ -533,6 +585,48 @@ namespace Kalendarz1.Transport.WPF
             public string? PojazdRejestracja => Source.PojazdRejestracja;
             public string Status => Source.Status ?? "Planowany";
             public int PaletyNominal => Source.PaletyNominal;
+
+            // ── kolumny wierne oryginałowi ──
+            public string GodzWyjazduDisplay => Source.GodzWyjazdu?.ToString(@"hh\:mm") ?? "--:--";
+
+            public bool BrakKierowcy => string.IsNullOrEmpty(KierowcaNazwa);
+            public bool BrakPojazdu => string.IsNullOrEmpty(PojazdRejestracja);
+            public string KierowcaDisplay => BrakKierowcy ? "⚠ BRAK" : KierowcaNazwa!;
+            public string PojazdDisplay => BrakPojazdu ? "⚠ BRAK" : PojazdRejestracja!;
+            public Brush KierowcaFg => BrakKierowcy ? new SolidColorBrush(Color.FromRgb(0xE6, 0x7E, 0x22)) : new SolidColorBrush(Color.FromRgb(0x37, 0x47, 0x4F));
+            public Brush PojazdFg => BrakPojazdu ? new SolidColorBrush(Color.FromRgb(0xE6, 0x7E, 0x22)) : new SolidColorBrush(Color.FromRgb(0x37, 0x47, 0x4F));
+            public FontWeight KierowcaWaga => BrakKierowcy ? FontWeights.Bold : FontWeights.Normal;
+            public FontWeight PojazdWaga => BrakPojazdu ? FontWeights.Bold : FontWeights.Normal;
+
+            public int Pal => Source.PaletyNominal;
+            public int Poj => Source.SumaE2;
+            public decimal Kg { get; set; }
+            public string KgDisplay => Kg > 0 ? Kg.ToString("N0") : "—";
+            public string WypDisplay => Source.PaletyPojazdu <= 0 ? "—" : $"{Source.ProcNominal:F0}%";
+
+            public string UtworzylId => Source.Utworzyl ?? "";
+            public string UtworzylName { get; set; } = "";
+            public string UtworzylDataDisplay => string.IsNullOrEmpty(Source.Utworzyl) ? "" : Source.UtworzonoUTC.ToLocalTime().ToString("dd.MM HH:mm");
+
+            public List<HandlowiecAvatar> HandlowcyAvatars { get; private set; } = new();
+            public string HandlowcyText { get; private set; } = "";
+            public string HandlowcyTooltip { get; private set; } = "";
+
+            public void UstawHandlowcow(List<string> names)
+            {
+                HandlowcyAvatars = names.Take(3).Select(n => new HandlowiecAvatar { Name = n }).ToList();
+                HandlowcyText = names.Count == 0 ? ""
+                    : names.Count <= 2 ? string.Join(", ", names.Select(Skroc))
+                    : $"{Skroc(names[0])} +{names.Count - 1}";
+                HandlowcyTooltip = names.Count == 0 ? "" : "Handlowcy:\n" + string.Join("\n", names);
+            }
+
+            private static string Skroc(string s)
+            {
+                if (string.IsNullOrWhiteSpace(s)) return s;
+                var p = s.Split(' ');
+                return p.Length >= 2 && p[1].Length > 0 ? $"{p[0]} {p[1][0]}." : s;
+            }
 
             public string GodzinyDisplay =>
                 $"{Source.GodzWyjazdu?.ToString(@"hh\:mm") ?? "—"} → {Source.GodzPowrotu?.ToString(@"hh\:mm") ?? "—"}";

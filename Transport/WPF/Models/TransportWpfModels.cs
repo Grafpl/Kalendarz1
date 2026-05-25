@@ -106,5 +106,6 @@ namespace Kalendarz1.Transport.WPF.Models
         public string Adres { get; set; } = "";
         public DateTime? Awizacja { get; set; }
         public int Pojemniki { get; set; }
+        public decimal IloscKg { get; set; }
     }
 }
