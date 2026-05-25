@@ -125,14 +125,33 @@
                 </Grid.RowDefinitions>
 
                 <Border Grid.Row="0" Background="White" CornerRadius="8" BorderBrush="#e4e6ea" BorderThickness="1">
-                    <DataGrid x:Name="KursyGrid" Margin="4"
+                    <DataGrid x:Name="KursyGrid" Margin="4" AllowDrop="True"
                               AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
                               HeadersVisibility="Column" GridLinesVisibility="Horizontal"
-                              RowBackground="White" AlternatingRowBackground="#f6f8fa"
+                              RowBackground="White"
                               BorderThickness="0" FontSize="12" IsReadOnly="True"
                               SelectionMode="Single" SelectionUnit="FullRow"
                               SelectionChanged="KursyGrid_SelectionChanged"
                               MouseDoubleClick="KursyGrid_DoubleClick">
+                        <DataGrid.RowStyle>
+                            <Style TargetType="DataGridRow">
+                                <Setter Property="Background" Value="{Binding RowBg}"/>
+                                <Setter Property="Height" Value="32"/>
+                                <Style.Triggers>
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter Property="Background" Value="#d6e4ff"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGrid.RowStyle>
+                        <DataGrid.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="📝 Edytuj kurs" Click="BtnEdytuj_Click"/>
+                                <MenuItem Header="🧑‍✈ Szybki przydział kierowcy/pojazdu" Click="MiPrzydzial_Click"/>
+                                <Separator/>
+                                <MenuItem Header="🗑 Usuń kurs" Click="BtnUsun_Click"/>
+                            </ContextMenu>
+                        </DataGrid.ContextMenu>
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="ID" Binding="{Binding KursID}" Width="55"/>
                             <DataGridTextColumn Header="Godziny" Binding="{Binding GodzinyDisplay}" Width="120"/>

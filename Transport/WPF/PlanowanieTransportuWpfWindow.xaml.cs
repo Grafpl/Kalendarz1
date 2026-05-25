@@ -33,15 +33,34 @@ namespace Kalendarz1.Transport.WPF
         private readonly ObservableCollection<WolneZamowienieWpf> _wolne = new();
         private bool _ladowanie;
 
+        private List<Kierowca> _kierowcy = new();
+        private List<Pojazd> _pojazdy = new();
+        private bool _slownikiZaladowane;
+
+        private Point _dragStart;
+        private const string FmtWolne = "ZPSP_wolne";
+
         public PlanowanieTransportuWpfWindow()
         {
             InitializeComponent();
             try { WindowIconHelper.SetIcon(this); } catch { }
             WolneGrid.ItemsSource = _wolne;
             WolneGrid.SelectionChanged += (_, _) => UpdateDodajButton();
+            WolneGrid.PreviewMouseLeftButtonDown += (_, e) => _dragStart = e.GetPosition(null);
+            WolneGrid.PreviewMouseMove += WolneGrid_PreviewMouseMove;
+            KursyGrid.DragOver += KursyGrid_DragOver;
+            KursyGrid.Drop += KursyGrid_Drop;
             DataKursu.SelectedDate = DateTime.Today;
             Loaded += async (_, _) => await LoadWszystkoAsync();
             KeyDown += async (_, e) => { if (e.Key == Key.F5) { await LoadWszystkoAsync(); e.Handled = true; } };
+        }
+
+        private async Task EnsureSlownikiAsync()
+        {
+            if (_slownikiZaladowane) return;
+            _kierowcy = await _svc.Repo.PobierzKierowcowAsync(true);
+            _pojazdy = await _svc.Repo.PobierzPojazdyAsync(true);
+            _slownikiZaladowane = true;
         }
 
         // ── nawigacja datą ──
@@ -221,11 +240,46 @@ namespace Kalendarz1.Transport.WPF
             _ = DodajDoKursuAsync(wybrane);
         }
 
-        private async Task DodajDoKursuAsync(List<WolneZamowienieWpf> zamowienia)
+        // drag&drop: wolne zamówienie(a) → wiersz kursu
+        private void WolneGrid_PreviewMouseMove(object sender, MouseEventArgs e)
         {
-            if (KursyGrid.SelectedItem is not KursRow row)
+            if (e.LeftButton != MouseButtonState.Pressed) return;
+            if (!WpfDragHelper.ExceededThreshold(_dragStart, e.GetPosition(null))) return;
+            var items = WolneGrid.SelectedItems.Cast<WolneZamowienieWpf>().ToList();
+            if (items.Count == 0) return;
+            try { DragDrop.DoDragDrop(WolneGrid, new DataObject(FmtWolne, items), DragDropEffects.Copy); }
+            catch { }
+        }
+
+        private void KursyGrid_DragOver(object sender, DragEventArgs e)
+        {
+            e.Effects = e.Data.GetDataPresent(FmtWolne) ? DragDropEffects.Copy : DragDropEffects.None;
+            e.Handled = true;
+        }
+
+        private void KursyGrid_Drop(object sender, DragEventArgs e)
+        {
+            if (!e.Data.GetDataPresent(FmtWolne)) return;
+            if (WpfDragHelper.GetItemAtPoint(KursyGrid, e.GetPosition(KursyGrid)) is not KursRow target)
             {
-                MessageBox.Show("Najpierw zaznacz kurs po lewej stronie.", "Brak kursu",
+                MessageBox.Show("Upuść zamówienie na konkretny kurs.", "Brak kursu",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            if (e.Data.GetData(FmtWolne) is List<WolneZamowienieWpf> items)
+            {
+                KursyGrid.SelectedItem = target;
+                _ = DodajDoKursuAsync(items, target);
+            }
+            e.Handled = true;
+        }
+
+        private async Task DodajDoKursuAsync(List<WolneZamowienieWpf> zamowienia, KursRow? target = null)
+        {
+            var row = target ?? KursyGrid.SelectedItem as KursRow;
+            if (row == null)
+            {
+                MessageBox.Show("Najpierw zaznacz kurs po lewej stronie (lub przeciągnij na wiersz kursu).", "Brak kursu",
                     MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
@@ -323,6 +377,37 @@ namespace Kalendarz1.Transport.WPF
         }
 
         // ════════════════════════════════════════════════════════════════════
+        // SZYBKI PRZYDZIAŁ kierowcy/pojazdu
+        // ════════════════════════════════════════════════════════════════════
+        private async void MiPrzydzial_Click(object sender, RoutedEventArgs e)
+        {
+            if (KursyGrid.SelectedItem is not KursRow row) return;
+            try
+            {
+                await EnsureSlownikiAsync();
+                var dlg = new Dialogs.SzybkiPrzydzialDialog(_kierowcy, _pojazdy,
+                    row.Source.KierowcaID, row.Source.PojazdID, $"🧑‍✈ Przydział — kurs #{row.KursID}") { Owner = this };
+                if (dlg.ShowDialog() != true) return;
+
+                var k = row.Source;
+                k.KierowcaID = dlg.KierowcaID;
+                k.PojazdID = dlg.PojazdID;
+                await _svc.Repo.AktualizujNaglowekKursuAsync(k, _user);
+
+                long keep = row.KursID;
+                await LoadKursyAsync();
+                var again = _rows.FirstOrDefault(r => r.KursID == keep);
+                if (again != null) { KursyGrid.SelectedItem = again; KursyGrid.ScrollIntoView(again); }
+                StatusText.Text = $"Zaktualizowano przydział kursu #{keep}.";
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd przydziału:\n{ex.Message}", "Błąd",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        // ════════════════════════════════════════════════════════════════════
         // Row wrapper
         // ════════════════════════════════════════════════════════════════════
         public class KursRow
@@ -344,6 +429,18 @@ namespace Kalendarz1.Transport.WPF
             public string WypelnienieDisplay => Source.PaletyPojazdu <= 0
                 ? "—"
                 : $"{Source.PaletyNominal}/{Source.PaletyPojazdu}  ({Source.ProcNominal:F0}%)";
+
+            // kolor wiersza: pusty kurs = czerwonawy, brak kierowcy/pojazdu = żółty, OK = biały
+            public Brush RowBg
+            {
+                get
+                {
+                    if (LiczbaLadunkow == 0) return new SolidColorBrush(Color.FromRgb(0xFE, 0xE6, 0xE6));
+                    if (string.IsNullOrEmpty(KierowcaNazwa) || string.IsNullOrEmpty(PojazdRejestracja))
+                        return new SolidColorBrush(Color.FromRgb(0xFF, 0xF8, 0xE1));
+                    return Brushes.White;
+                }
+            }
 
             public Brush StatusBg => Status switch
             {

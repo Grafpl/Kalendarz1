@@ -1,9 +1,11 @@
 // ════════════════════════════════════════════════════════════════════════════
 // Transport/WPF/EdytorKursuWpfWindow.xaml.cs
 // ════════════════════════════════════════════════════════════════════════════
-// Edytor kursu — sandbox WPF (tworzenie + modyfikacja). NIE dotyka WinForms.
-// Reuse: TransportRepozytorium (przez TransportWpfService). Zapis gwarantuje
-// spójność TransportStatus ↔ Ladunek (SyncStatusyKursuAsync + auto-healing).
+// Edytor kursu — sandbox WPF (tworzenie + modyfikacja). Pełna funkcjonalność jak
+// w oryginale WinForms + lepszy UX: drag&drop (wolne→ładunki, reorder), menu
+// kontekstowe, edycja uwag, sortowanie, info bar (utworzył/zmienił), pasek
+// pakowania. Reuse: TransportRepozytorium (przez TransportWpfService). Zapis
+// gwarantuje spójność TransportStatus ↔ Ladunek (SyncStatusyKursuAsync + auto-healing).
 // ════════════════════════════════════════════════════════════════════════════
 
 using System;
@@ -13,6 +15,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using Kalendarz1.Transport;
 using Kalendarz1.Transport.WPF.Dialogs;
@@ -37,6 +40,11 @@ namespace Kalendarz1.Transport.WPF
         private List<Pojazd> _pojazdy = new();
         private bool _ladowanie;
 
+        // drag&drop
+        private Point _dragStart;
+        private const string FmtWolne = "ZPSP_wolne";
+        private const string FmtLadunek = "ZPSP_ladunek";
+
         public EdytorKursuWpfWindow(TransportWpfService svc, string user, DateTime data, long? kursId = null)
         {
             InitializeComponent();
@@ -47,6 +55,14 @@ namespace Kalendarz1.Transport.WPF
             LadunkiGrid.ItemsSource = _ladunki;
             WolneGrid.ItemsSource = _wolne;
             DataKursu.SelectedDate = data.Date;
+
+            // drag&drop
+            WolneGrid.PreviewMouseLeftButtonDown += (_, e) => _dragStart = e.GetPosition(null);
+            WolneGrid.PreviewMouseMove += WolneGrid_PreviewMouseMove;
+            LadunkiGrid.PreviewMouseLeftButtonDown += (_, e) => _dragStart = e.GetPosition(null);
+            LadunkiGrid.PreviewMouseMove += LadunkiGrid_PreviewMouseMove;
+            LadunkiGrid.DragOver += LadunkiGrid_DragOver;
+            LadunkiGrid.Drop += LadunkiGrid_Drop;
 
             Loaded += async (_, _) => await LoadAsync();
         }
@@ -78,12 +94,14 @@ namespace Kalendarz1.Transport.WPF
                         TxtWyjazd.Text = _kurs.GodzWyjazdu?.ToString(@"hh\:mm") ?? "";
                         TxtPowrot.Text = _kurs.GodzPowrotu?.ToString(@"hh\:mm") ?? "";
                         TxtTrasa.Text = _kurs.Trasa ?? "";
+                        UpdateInfoBar();
                     }
                     await LoadLadunkiAsync();
                 }
                 else
                 {
                     TytulText.Text = "🚚 Nowy kurs";
+                    InfoText.Text = "";
                 }
 
                 await OdswiezWolneAsync();
@@ -95,6 +113,17 @@ namespace Kalendarz1.Transport.WPF
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally { _ladowanie = false; }
+        }
+
+        private void UpdateInfoBar()
+        {
+            if (_kurs == null) { InfoText.Text = ""; return; }
+            var parts = new List<string>();
+            if (!string.IsNullOrEmpty(_kurs.Utworzyl))
+                parts.Add($"Utworzył: {_kurs.Utworzyl} · {_kurs.UtworzonoUTC.ToLocalTime():dd.MM HH:mm}");
+            if (!string.IsNullOrEmpty(_kurs.Zmienil) && _kurs.ZmienionoUTC.HasValue)
+                parts.Add($"Zmienił: {_kurs.Zmienil} · {_kurs.ZmienionoUTC.Value.ToLocalTime():dd.MM HH:mm}");
+            InfoText.Text = string.Join("      ", parts);
         }
 
         private async Task LoadLadunkiAsync()
@@ -114,7 +143,6 @@ namespace Kalendarz1.Transport.WPF
                 PlanE2NaPaleteOverride = l.PlanE2NaPaleteOverride
             }).ToList();
 
-            // rozwiąż nazwy dla ZAM_*
             var zamIds = rows.Where(r => r.ZamowienieId.HasValue).Select(r => r.ZamowienieId!.Value).ToList();
             if (zamIds.Count > 0)
             {
@@ -143,11 +171,9 @@ namespace Kalendarz1.Transport.WPF
                 bool poUboju = RbUboj.IsChecked == true;
                 _wolneAll = await _svc.LoadWolneZamowieniaAsync(data, poUboju);
 
-                // odfiltruj te już w kursie (po ZamowienieId)
                 var wKursie = _ladunki.Where(l => l.ZamowienieId.HasValue)
                                       .Select(l => l.ZamowienieId!.Value).ToHashSet();
                 _wolneAll = _wolneAll.Where(z => !wKursie.Contains(z.ZamowienieId)).ToList();
-
                 FiltrujWolne();
             }
             catch (Exception ex)
@@ -180,17 +206,15 @@ namespace Kalendarz1.Transport.WPF
             double proc = kapacita > 0 ? 100.0 * paletyNominal / kapacita : 0;
 
             PaskoText.Text = $"{proc:F0}%";
-            PaletyText.Text = $"{paletyNominal} / {kapacita} palet  ·  {sumaE2} poj.";
+            PaletyText.Text = $"{paletyNominal} / {kapacita} palet  ·  {sumaE2} poj.  ·  {_ladunki.Count} ład.";
 
-            // szerokość paska względem kontenera
             double maxW = ((FrameworkElement)PaskoFill.Parent).ActualWidth;
             if (maxW <= 0) maxW = 600;
             PaskoFill.Width = Math.Min(1.0, proc / 100.0) * maxW;
-
             PaskoFill.Background = new SolidColorBrush(
-                proc > 100 ? Color.FromRgb(0xC6, 0x28, 0x28) :   // czerwony — przeładowany
-                proc >= 75 ? Color.FromRgb(0xF5, 0x7C, 0x00) :   // pomarańcz
-                             Color.FromRgb(0x43, 0xA0, 0x47));    // zielony
+                proc > 100 ? Color.FromRgb(0xC6, 0x28, 0x28) :
+                proc >= 75 ? Color.FromRgb(0xF5, 0x7C, 0x00) :
+                             Color.FromRgb(0x43, 0xA0, 0x47));
         }
 
         private void CmbPojazd_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -198,16 +222,27 @@ namespace Kalendarz1.Transport.WPF
             if (!_ladowanie) PrzeliczPakowanie();
         }
 
-        // ════════════════════════════════════════════════════════════════════
-        // ŁADUNKI — dodaj / usuń / kolejność
-        // ════════════════════════════════════════════════════════════════════
-        private void BtnDodajWolne_Click(object sender, RoutedEventArgs e) => DodajZaznaczoneWolne();
-        private void WolneGrid_DoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e) => DodajZaznaczoneWolne();
-
-        private void DodajZaznaczoneWolne()
+        private async void DataKursu_Changed(object sender, SelectionChangedEventArgs e)
         {
-            if (WolneGrid.SelectedItem is not WolneZamowienieWpf z) return;
+            if (!_ladowanie) await OdswiezWolneAsync();
+        }
 
+        // ════════════════════════════════════════════════════════════════════
+        // DODAWANIE / USUWANIE / KOLEJNOŚĆ
+        // ════════════════════════════════════════════════════════════════════
+        private void BtnDodajWolne_Click(object sender, RoutedEventArgs e)
+        {
+            foreach (var z in WolneGrid.SelectedItems.Cast<WolneZamowienieWpf>().ToList())
+                DodajWolne(z);
+        }
+        private void WolneGrid_DoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (WolneGrid.SelectedItem is WolneZamowienieWpf z) DodajWolne(z);
+        }
+
+        private void DodajWolne(WolneZamowienieWpf z)
+        {
+            if (_ladunki.Any(l => l.ZamowienieId == z.ZamowienieId)) return;
             _ladunki.Add(new LadunekWierszWpf
             {
                 LadunekID = 0,
@@ -219,7 +254,6 @@ namespace Kalendarz1.Transport.WPF
                 Handlowiec = z.Handlowiec,
                 Kolejnosc = _ladunki.Count + 1
             });
-
             _wolneAll.RemoveAll(x => x.ZamowienieId == z.ZamowienieId);
             FiltrujWolne();
             PrzeliczPakowanie();
@@ -228,14 +262,11 @@ namespace Kalendarz1.Transport.WPF
         private void BtnUsunLadunek_Click(object sender, RoutedEventArgs e)
         {
             if (LadunkiGrid.SelectedItem is not LadunekWierszWpf lad) return;
-
             if (lad.LadunekID > 0) _ladunkiDoUsuniecia.Add(lad.LadunekID);
             _ladunki.Remove(lad);
             Renumeruj();
 
-            // wróć do puli wolnych jeśli to było zamówienie
-            if (lad.ZamowienieId.HasValue &&
-                !_wolneAll.Any(z => z.ZamowienieId == lad.ZamowienieId.Value))
+            if (lad.ZamowienieId.HasValue && !_wolneAll.Any(z => z.ZamowienieId == lad.ZamowienieId.Value))
             {
                 _wolneAll.Add(new WolneZamowienieWpf
                 {
@@ -265,22 +296,94 @@ namespace Kalendarz1.Transport.WPF
             LadunkiGrid.SelectedItem = lad;
         }
 
+        private void BtnSortuj_Click(object sender, RoutedEventArgs e)
+        {
+            var posort = _ladunki.OrderBy(l => l.Awizacja ?? DateTime.MaxValue).ThenBy(l => l.NazwaDisplay).ToList();
+            _ladunki.Clear();
+            foreach (var l in posort) _ladunki.Add(l);
+            Renumeruj();
+        }
+
         private void Renumeruj()
         {
             for (int i = 0; i < _ladunki.Count; i++) _ladunki[i].Kolejnosc = i + 1;
         }
 
-        // ════════════════════════════════════════════════════════════════════
-        // Filtry / odświeżanie wolnych
-        // ════════════════════════════════════════════════════════════════════
-        private void TxtSzukaj_TextChanged(object sender, TextChangedEventArgs e)
+        private void LadunkiGrid_DoubleClick(object sender, MouseButtonEventArgs e) => EdytujUwagi();
+        private void MiEdytujUwagi_Click(object sender, RoutedEventArgs e) => EdytujUwagi();
+
+        private void EdytujUwagi()
         {
-            if (!_ladowanie) FiltrujWolne();
+            if (LadunkiGrid.SelectedItem is not LadunekWierszWpf lad) return;
+            var dlg = new TekstPromptDialog("Uwagi do ładunku", $"Uwagi — {lad.NazwaDisplay}:", lad.Uwagi ?? "") { Owner = this };
+            if (dlg.ShowDialog() == true)
+            {
+                lad.Uwagi = string.IsNullOrWhiteSpace(dlg.Wartosc) ? null : dlg.Wartosc.Trim();
+                LadunkiGrid.Items.Refresh();
+            }
         }
-        private async void DataTyp_Changed(object sender, RoutedEventArgs e)
+
+        // ════════════════════════════════════════════════════════════════════
+        // DRAG & DROP
+        // ════════════════════════════════════════════════════════════════════
+        private void WolneGrid_PreviewMouseMove(object sender, MouseEventArgs e)
         {
-            if (!_ladowanie) await OdswiezWolneAsync();
+            if (e.LeftButton != MouseButtonState.Pressed) return;
+            if (!WpfDragHelper.ExceededThreshold(_dragStart, e.GetPosition(null))) return;
+            var items = WolneGrid.SelectedItems.Cast<WolneZamowienieWpf>().ToList();
+            if (items.Count == 0) return;
+            try { DragDrop.DoDragDrop(WolneGrid, new DataObject(FmtWolne, items), DragDropEffects.Copy); }
+            catch { /* drag anulowany */ }
         }
+
+        private void LadunkiGrid_PreviewMouseMove(object sender, MouseEventArgs e)
+        {
+            if (e.LeftButton != MouseButtonState.Pressed) return;
+            if (!WpfDragHelper.ExceededThreshold(_dragStart, e.GetPosition(null))) return;
+            if (LadunkiGrid.SelectedItem is not LadunekWierszWpf lad) return;
+            try { DragDrop.DoDragDrop(LadunkiGrid, new DataObject(FmtLadunek, lad), DragDropEffects.Move); }
+            catch { }
+        }
+
+        private void LadunkiGrid_DragOver(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent(FmtWolne)) e.Effects = DragDropEffects.Copy;
+            else if (e.Data.GetDataPresent(FmtLadunek)) e.Effects = DragDropEffects.Move;
+            else e.Effects = DragDropEffects.None;
+            e.Handled = true;
+        }
+
+        private void LadunkiGrid_Drop(object sender, DragEventArgs e)
+        {
+            var target = WpfDragHelper.GetItemAtPoint(LadunkiGrid, e.GetPosition(LadunkiGrid)) as LadunekWierszWpf;
+
+            if (e.Data.GetDataPresent(FmtWolne))
+            {
+                if (e.Data.GetData(FmtWolne) is List<WolneZamowienieWpf> items)
+                    foreach (var z in items) DodajWolne(z);
+            }
+            else if (e.Data.GetDataPresent(FmtLadunek))
+            {
+                if (e.Data.GetData(FmtLadunek) is LadunekWierszWpf src)
+                {
+                    int from = _ladunki.IndexOf(src);
+                    int to = target != null ? _ladunki.IndexOf(target) : _ladunki.Count - 1;
+                    if (from >= 0 && to >= 0 && from != to)
+                    {
+                        _ladunki.Move(from, to);
+                        Renumeruj();
+                        LadunkiGrid.SelectedItem = src;
+                    }
+                }
+            }
+            e.Handled = true;
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // Filtry / odświeżanie / trasa
+        // ════════════════════════════════════════════════════════════════════
+        private void TxtSzukaj_TextChanged(object sender, TextChangedEventArgs e) { if (!_ladowanie) FiltrujWolne(); }
+        private async void DataTyp_Changed(object sender, RoutedEventArgs e) { if (!_ladowanie) await OdswiezWolneAsync(); }
         private async void BtnOdswiezWolne_Click(object sender, RoutedEventArgs e) => await OdswiezWolneAsync();
 
         private void BtnAutoTrasa_Click(object sender, RoutedEventArgs e)
@@ -307,8 +410,7 @@ namespace Kalendarz1.Transport.WPF
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Błąd dodawania kierowcy:\n{ex.Message}", "Błąd",
-                        MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show($"Błąd dodawania kierowcy:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
         }
@@ -328,8 +430,7 @@ namespace Kalendarz1.Transport.WPF
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Błąd dodawania pojazdu:\n{ex.Message}", "Błąd",
-                        MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show($"Błąd dodawania pojazdu:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
         }
@@ -349,8 +450,7 @@ namespace Kalendarz1.Transport.WPF
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd zapisu:\n{ex.Message}", "Błąd",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Błąd zapisu:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
                 StatusText.Text = "Błąd zapisu.";
                 BtnZapisz.IsEnabled = true;
             }
@@ -359,9 +459,6 @@ namespace Kalendarz1.Transport.WPF
         private async Task<long> ZapiszAsync()
         {
             var data = (DataKursu.SelectedDate ?? DateTime.Today).Date;
-            TimeSpan? wyj = ParseGodz(TxtWyjazd.Text);
-            TimeSpan? pow = ParseGodz(TxtPowrot.Text);
-
             var kurs = new Kurs
             {
                 KursID = _kursId ?? 0,
@@ -369,8 +466,8 @@ namespace Kalendarz1.Transport.WPF
                 KierowcaID = (CmbKierowca.SelectedItem as Kierowca)?.KierowcaID,
                 PojazdID = (CmbPojazd.SelectedItem as Pojazd)?.PojazdID,
                 Trasa = string.IsNullOrWhiteSpace(TxtTrasa.Text) ? null : TxtTrasa.Text.Trim(),
-                GodzWyjazdu = wyj,
-                GodzPowrotu = pow,
+                GodzWyjazdu = ParseGodz(TxtWyjazd.Text),
+                GodzPowrotu = ParseGodz(TxtPowrot.Text),
                 Status = _kurs?.Status ?? "Planowany",
                 PlanE2NaPalete = 36
             };
@@ -388,12 +485,10 @@ namespace Kalendarz1.Transport.WPF
                 _kursId = kursId;
             }
 
-            // usunięte ładunki
             foreach (var id in _ladunkiDoUsuniecia)
                 await _svc.Repo.UsunLadunekAsync(id);
             _ladunkiDoUsuniecia.Clear();
 
-            // upsert w kolejności kolekcji (Kolejnosc = i+1)
             for (int i = 0; i < _ladunki.Count; i++)
             {
                 var w = _ladunki[i];
@@ -412,10 +507,9 @@ namespace Kalendarz1.Transport.WPF
                 if (w.LadunekID == 0)
                     w.LadunekID = await _svc.Repo.DodajLadunekAsync(l);
                 l.LadunekID = w.LadunekID;
-                await _svc.Repo.AktualizujLadunekAsync(l);   // gwarantuje poprawną Kolejnosc
+                await _svc.Repo.AktualizujLadunekAsync(l);
             }
 
-            // spójne statusy + auto-healing sierot
             var zamIdyWKursie = _ladunki.Where(x => x.ZamowienieId.HasValue)
                                         .Select(x => x.ZamowienieId!.Value)
                                         .ToHashSet();
