@@ -4,9 +4,9 @@
         xmlns:local="clr-namespace:Kalendarz1.MarketIntelligence.Views"
         xmlns:vm="clr-namespace:Kalendarz1.MarketIntelligence.ViewModels"
         xmlns:models="clr-namespace:Kalendarz1.MarketIntelligence.Models"
-        Title="Poranny Briefing - Piorkowscy"
+        Title="Centrum Wiadomości AI - Piorkowscy"
         Height="900" Width="1500"
-        MinHeight="750" MinWidth="1200"
+        MinHeight="700" MinWidth="1100"
         WindowStartupLocation="CenterScreen"
         WindowState="Maximized"
         Background="#0C0A07">
@@ -23,350 +23,158 @@
 
             <BooleanToVisibilityConverter x:Key="BoolToVis"/>
             <local:InverseBoolToVisibilityConverter x:Key="InverseBoolToVis"/>
-
-            <!-- Severity to Color Converter -->
             <local:SeverityToColorConverter x:Key="SeverityToColor"/>
             <local:SeverityToBgConverter x:Key="SeverityToBg"/>
-            <local:DirectionToColorConverter x:Key="DirectionToColor"/>
-
-            <!-- Role-based Analysis Converter -->
             <local:RoleBasedAnalysisConverter x:Key="RoleAnalysisConverter"/>
 
+            <!-- Toolbar button -->
+            <Style x:Key="ToolbarBtn" TargetType="Button">
+                <Setter Property="Background" Value="#2A2520"/>
+                <Setter Property="Foreground" Value="#C9A96E"/>
+                <Setter Property="BorderBrush" Value="#3F3830"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Padding" Value="12,6"/>
+                <Setter Property="FontSize" Value="11"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="Margin" Value="0,0,8,0"/>
+            </Style>
+            <Style x:Key="ToolbarBtnPrimary" TargetType="Button" BasedOn="{StaticResource ToolbarBtn}">
+                <Setter Property="Background" Value="#3D2F1F"/>
+                <Setter Property="Foreground" Value="#F5EDE0"/>
+                <Setter Property="BorderBrush" Value="#C9A96E"/>
+            </Style>
+            <!-- Chat quick-prompt button -->
+            <Style x:Key="ChatQuickBtn" TargetType="Button">
+                <Setter Property="Background" Value="#2A2520"/>
+                <Setter Property="Foreground" Value="#D5CCC0"/>
+                <Setter Property="BorderBrush" Value="#3F3830"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Padding" Value="9,5"/>
+                <Setter Property="FontSize" Value="11"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="Margin" Value="0,0,6,6"/>
+            </Style>
         </ResourceDictionary>
     </Window.Resources>
 
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="56"/>      <!-- Header -->
-            <RowDefinition Height="Auto"/>    <!-- Summary -->
-            <RowDefinition Height="Auto"/>    <!-- Indicators -->
-            <RowDefinition Height="Auto"/>    <!-- Tasks Panel (collapsible) -->
-            <RowDefinition Height="*"/>       <!-- Main Content -->
+            <RowDefinition Height="58"/>   <!-- Header + real counters + toolbar -->
+            <RowDefinition Height="*"/>    <!-- Articles | Chat -->
         </Grid.RowDefinitions>
 
         <!-- ═══════════════════════════════════════════════════════════════════════ -->
         <!-- ROW 0: HEADER                                                            -->
         <!-- ═══════════════════════════════════════════════════════════════════════ -->
         <Border Grid.Row="0" Background="#15120D" BorderBrush="#2A2520" BorderThickness="0,0,0,1">
-            <Grid Margin="24,0">
+            <Grid Margin="20,0">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>   <!-- Title -->
+                    <ColumnDefinition Width="Auto"/>   <!-- Real counters -->
+                    <ColumnDefinition Width="*"/>      <!-- spacer -->
+                    <ColumnDefinition Width="Auto"/>   <!-- toolbar -->
                 </Grid.ColumnDefinitions>
 
-                <!-- LEFT: Title -->
+                <!-- Title -->
                 <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                    <TextBlock Text="Poranny Briefing"
-                               FontFamily="Georgia" FontSize="22" FontWeight="Bold"
+                    <TextBlock Text="Centrum Wiadomości AI"
+                               FontFamily="Georgia" FontSize="19" FontWeight="Bold"
                                Foreground="#F5EDE0"/>
-                    <TextBlock Text="Piorkowscy  •  Ubojnia Drobiu  •  Brzeziny"
-                               FontFamily="Segoe UI" FontSize="10"
-                               Foreground="#7A6F63" Margin="0,2,0,0"/>
+                    <TextBlock Text="Piorkowscy  •  drobiarstwo + mięso"
+                               FontFamily="Segoe UI" FontSize="9"
+                               Foreground="#7A6F63" Margin="0,1,0,0"/>
                 </StackPanel>
 
-                <!-- CENTER: Role Switcher -->
-                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                    <RadioButton x:Name="rbCeo" GroupName="Role" IsChecked="True"
-                                 Style="{StaticResource RoleButton}"
-                                 Checked="RoleButton_Checked" Tag="CEO">
-                        <TextBlock Text="CEO / Strategia" FontSize="11" Foreground="#C9A96E"/>
-                    </RadioButton>
-                    <RadioButton x:Name="rbSales" GroupName="Role" Margin="8,0,0,0"
-                                 Style="{StaticResource RoleButton}"
-                                 Checked="RoleButton_Checked" Tag="Sales">
-                        <TextBlock Text="Handlowiec" FontSize="11" Foreground="#6DAF6D"/>
-                    </RadioButton>
-                    <RadioButton x:Name="rbBuyer" GroupName="Role" Margin="8,0,0,0"
-                                 Style="{StaticResource RoleButton}"
-                                 Checked="RoleButton_Checked" Tag="Buyer">
-                        <TextBlock Text="Zakupowiec" FontSize="11" Foreground="#5AB8B8"/>
-                    </RadioButton>
-                </StackPanel>
-
-                <!-- RIGHT: One-pager + Diagnostyka + Date -->
-                <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right">
-                    <Button x:Name="btnOnePager"
-                            Content="📋 One-pager"
-                            Click="btnOnePager_Click"
-                            Background="#3D2F1F" Foreground="#F5EDE0"
-                            BorderBrush="#C9A96E" BorderThickness="1"
-                            Padding="12,6" FontSize="11" Cursor="Hand"
-                            ToolTip="Esencja dnia: TOP 3 krytyczne + action items na 1 ekranie"
-                            Margin="0,0,8,0"/>
-                    <Button x:Name="btnSources"
-                            Content="🌐 Moje źródła"
-                            Click="btnSources_Click"
-                            Background="#2A2520" Foreground="#C9A96E"
-                            BorderBrush="#3F3830" BorderThickness="1"
-                            Padding="12,6" FontSize="11" Cursor="Hand"
-                            ToolTip="Dodawaj własne strony i RSS feedy. AI auto-detect + fetch + analiza."
-                            Margin="0,0,8,0"/>
-                    <Button x:Name="btnQueries"
-                            Content="🎯 Moje tematy"
-                            Click="btnQueries_Click"
-                            Background="#2A2520" Foreground="#C9A96E"
-                            BorderBrush="#3F3830" BorderThickness="1"
-                            Padding="12,6" FontSize="11" Cursor="Hand"
-                            ToolTip="Twoje zapytania do AI Perplexity. HPAI, ceny żywca, Cedrob, Biedronka, KSeF — co AI ma śledzić."
-                            Margin="0,0,8,0"/>
-                    <Button x:Name="btnHelp"
-                            Content="❓ Jak to działa?"
-                            Click="btnHelp_Click"
-                            Background="#1F1A14" Foreground="#C9A96E"
-                            BorderBrush="#C9A96E" BorderThickness="1"
-                            Padding="12,6" FontSize="11" Cursor="Hand"
-                            ToolTip="Pełny przewodnik — jak używać Briefingu AI w 3 krokach + triki + sugerowane rutyny"
-                            Margin="0,0,8,0"/>
-                    <Button x:Name="btnDiagnostics"
-                            Content="🛠 Diagnostyka"
-                            Click="btnDiagnostics_Click"
-                            Background="#2A2520" Foreground="#C9A96E"
-                            BorderBrush="#3F3830" BorderThickness="1"
-                            Padding="12,6" FontSize="11" Cursor="Hand"
-                            ToolTip="Status API, historia pobrań, live log, edytowalne zapytania Perplexity"
-                            Margin="0,0,16,0"/>
-                    <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="{Binding DateDisplay}"
-                                   FontFamily="Georgia" FontSize="12"
-                                   Foreground="#D5CCC0"/>
-                        <TextBlock Text="{Binding WeekDisplay}"
-                                   FontFamily="Segoe UI" FontSize="10"
-                                   Foreground="#7A6F63" Margin="0,2,0,0"
-                                   HorizontalAlignment="Right"/>
-                    </StackPanel>
-                </StackPanel>
-            </Grid>
-        </Border>
-
-        <!-- ═══════════════════════════════════════════════════════════════════════ -->
-        <!-- ROW 1: AI SUMMARY                                                        -->
-        <!-- ═══════════════════════════════════════════════════════════════════════ -->
-        <Border Grid.Row="1" Background="#0C0A07" Padding="24,16">
-            <StackPanel>
-                <TextBlock Text="STRESZCZENIE PORANNE"
-                           FontFamily="Segoe UI" FontSize="9" FontWeight="Bold"
-                           Foreground="#8B7355" Margin="0,0,0,10"/>
-                <TextBlock x:Name="txtSummary" TextWrapping="Wrap"
-                           FontFamily="Georgia" FontSize="13" LineHeight="22"
-                           Foreground="#F5EDE0"/>
-            </StackPanel>
-        </Border>
-
-        <!-- ═══════════════════════════════════════════════════════════════════════ -->
-        <!-- ROW 2: INDICATORS BAR                                                    -->
-        <!-- ═══════════════════════════════════════════════════════════════════════ -->
-        <Border Grid.Row="2" Background="#15120D" BorderBrush="#2A2520" BorderThickness="0,1">
-            <Grid Margin="24,10">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-
-                <!-- Indicators -->
-                <ItemsControl Grid.Column="0" ItemsSource="{Binding Indicators}">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <StackPanel Orientation="Horizontal"/>
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <StackPanel Orientation="Horizontal" Margin="0,0,20,0">
-                                <TextBlock Text="{Binding Name}"
-                                           FontSize="9" FontWeight="Bold"
-                                           Foreground="#7A6F63"
-                                           VerticalAlignment="Center"
-                                           Margin="0,0,6,0"/>
-                                <TextBlock Text="{Binding DisplayValue}"
-                                           FontFamily="Consolas" FontSize="13" FontWeight="Bold"
-                                           Foreground="#F5EDE0"
-                                           VerticalAlignment="Center"/>
-                                <TextBlock Text="{Binding Change}"
-                                           FontFamily="Consolas" FontSize="10"
-                                           Foreground="{Binding Direction, Converter={StaticResource DirectionToColor}}"
-                                           VerticalAlignment="Center"
-                                           Margin="6,0,0,0"/>
-                                <TextBlock Text="|" Foreground="#3A352E" Margin="16,0,0,0"
-                                           VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-
-                <!-- Right panel: Refresh + Tasks -->
-                <StackPanel Grid.Column="1" Orientation="Horizontal">
-                    <!-- Loading indicator -->
-                    <Border Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}"
-                            Margin="0,0,12,0" VerticalAlignment="Center">
+                <!-- 3 REAL counters (z faktycznie załadowanych artykułów) -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="28,0,0,0">
+                    <Border Background="#1A1512" CornerRadius="4" Padding="10,5" Margin="0,0,8,0">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="⟳" FontSize="14" Foreground="#C9A96E"
-                                       RenderTransformOrigin="0.5,0.5">
-                                <TextBlock.RenderTransform>
-                                    <RotateTransform x:Name="LoadingRotate"/>
-                                </TextBlock.RenderTransform>
-                                <TextBlock.Triggers>
-                                    <EventTrigger RoutedEvent="Loaded">
-                                        <BeginStoryboard>
-                                            <Storyboard RepeatBehavior="Forever">
-                                                <DoubleAnimation Storyboard.TargetName="LoadingRotate"
-                                                                 Storyboard.TargetProperty="Angle"
-                                                                 From="0" To="360" Duration="0:0:1"/>
-                                            </Storyboard>
-                                        </BeginStoryboard>
-                                    </EventTrigger>
-                                </TextBlock.Triggers>
-                            </TextBlock>
-                            <TextBlock Text="{Binding LoadingStatus}" FontSize="10"
-                                       Foreground="#7A6F63" Margin="6,0,0,0"
-                                       VerticalAlignment="Center" MaxWidth="200"/>
+                            <TextBlock Text="📰" FontSize="12" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding TotalArticles}" FontFamily="Consolas" FontSize="14"
+                                       FontWeight="Bold" Foreground="#F5EDE0" VerticalAlignment="Center"/>
+                            <TextBlock Text=" art." FontSize="9" Foreground="#7A6F63" VerticalAlignment="Center" Margin="3,0,0,0"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Background="#1A1512" CornerRadius="4" Padding="10,5" Margin="0,0,8,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="🔴" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding CriticalCount}" FontFamily="Consolas" FontSize="14"
+                                       FontWeight="Bold" Foreground="#E0726B" VerticalAlignment="Center"/>
+                            <TextBlock Text=" krytycz." FontSize="9" Foreground="#7A6F63" VerticalAlignment="Center" Margin="3,0,0,0"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Background="#1A1512" CornerRadius="4" Padding="10,5">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="🦠" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding HpaiCount}" FontFamily="Consolas" FontSize="14"
+                                       FontWeight="Bold" Foreground="#D4A035" VerticalAlignment="Center"/>
+                            <TextBlock Text=" HPAI" FontSize="9" Foreground="#7A6F63" VerticalAlignment="Center" Margin="3,0,0,0"/>
                         </StackPanel>
                     </Border>
 
-                    <!-- Last fetch time -->
-                    <TextBlock Text="{Binding LastFetchTime, StringFormat=Ostatnio: {0}}"
-                               FontSize="9" Foreground="#5A5248" Margin="0,0,12,0"
-                               VerticalAlignment="Center"
-                               Visibility="{Binding LastFetchTime, Converter={StaticResource BoolToVis}}"/>
+                    <!-- Loading spinner -->
+                    <StackPanel Orientation="Horizontal" Margin="12,0,0,0"
+                                Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}">
+                        <TextBlock Text="⟳" FontSize="14" Foreground="#C9A96E" RenderTransformOrigin="0.5,0.5" VerticalAlignment="Center">
+                            <TextBlock.RenderTransform>
+                                <RotateTransform x:Name="LoadingRotate"/>
+                            </TextBlock.RenderTransform>
+                            <TextBlock.Triggers>
+                                <EventTrigger RoutedEvent="Loaded">
+                                    <BeginStoryboard>
+                                        <Storyboard RepeatBehavior="Forever">
+                                            <DoubleAnimation Storyboard.TargetName="LoadingRotate"
+                                                             Storyboard.TargetProperty="Angle"
+                                                             From="0" To="360" Duration="0:0:1"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </EventTrigger>
+                            </TextBlock.Triggers>
+                        </TextBlock>
+                        <TextBlock Text="{Binding LoadingStatus}" FontSize="10" Foreground="#7A6F63"
+                                   Margin="6,0,0,0" VerticalAlignment="Center" MaxWidth="220" TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
+                </StackPanel>
 
-                    <!-- Refresh from Internet button -->
-                    <Button Command="{Binding RefreshFromInternetCommand}"
-                            ToolTip="Pobierz nowe artykuły z internetu"
-                            Margin="0,0,8,0"
-                            Padding="8,4" Background="#1A1512"
-                            BorderBrush="#3A352E" BorderThickness="1"
-                            Cursor="Hand">
-                        <Button.Style>
-                            <Style TargetType="Button">
-                                <Setter Property="Template">
-                                    <Setter.Value>
-                                        <ControlTemplate TargetType="Button">
-                                            <Border x:Name="border" Background="#1A1512"
-                                                    BorderBrush="#3A352E" BorderThickness="1"
-                                                    CornerRadius="3" Padding="10,5">
-                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                            </Border>
-                                            <ControlTemplate.Triggers>
-                                                <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter TargetName="border" Property="Background" Value="#2A2520"/>
-                                                    <Setter TargetName="border" Property="BorderBrush" Value="#C9A96E"/>
-                                                </Trigger>
-                                                <Trigger Property="IsEnabled" Value="False">
-                                                    <Setter TargetName="border" Property="Opacity" Value="0.5"/>
-                                                </Trigger>
-                                            </ControlTemplate.Triggers>
-                                        </ControlTemplate>
-                                    </Setter.Value>
-                                </Setter>
-                            </Style>
-                        </Button.Style>
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="🌐" FontSize="12" Margin="0,0,4,0"/>
-                            <TextBlock Text="Pobierz z internetu" FontSize="10" Foreground="#C9A96E"/>
-                        </StackPanel>
-                    </Button>
-
-                    <!-- Load from DB button -->
-                    <Button Command="{Binding LoadFromDatabaseCommand}"
-                            ToolTip="Załaduj zapisane artykuły z bazy"
-                            Margin="0,0,12,0"
-                            Padding="8,4" Background="#1A1512"
-                            BorderBrush="#3A352E" BorderThickness="1"
-                            Cursor="Hand">
-                        <Button.Style>
-                            <Style TargetType="Button">
-                                <Setter Property="Template">
-                                    <Setter.Value>
-                                        <ControlTemplate TargetType="Button">
-                                            <Border x:Name="border" Background="#1A1512"
-                                                    BorderBrush="#3A352E" BorderThickness="1"
-                                                    CornerRadius="3" Padding="10,5">
-                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                            </Border>
-                                            <ControlTemplate.Triggers>
-                                                <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter TargetName="border" Property="Background" Value="#2A2520"/>
-                                                    <Setter TargetName="border" Property="BorderBrush" Value="#5AB8B8"/>
-                                                </Trigger>
-                                                <Trigger Property="IsEnabled" Value="False">
-                                                    <Setter TargetName="border" Property="Opacity" Value="0.5"/>
-                                                </Trigger>
-                                            </ControlTemplate.Triggers>
-                                        </ControlTemplate>
-                                    </Setter.Value>
-                                </Setter>
-                            </Style>
-                        </Button.Style>
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="💾" FontSize="12" Margin="0,0,4,0"/>
-                            <TextBlock Text="Z bazy" FontSize="10" Foreground="#5AB8B8"/>
-                        </StackPanel>
-                    </Button>
-
-                    <!-- Tasks Button -->
-                    <Button Style="{StaticResource TasksButton}"
-                            Click="TasksButton_Click">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="⚡" FontSize="12" Margin="0,0,6,0"/>
-                            <TextBlock Text="{Binding UrgentTasksCount, StringFormat={}{0} pilnych zadan}"
-                                       FontSize="11" FontWeight="SemiBold"/>
-                        </StackPanel>
-                    </Button>
+                <!-- Toolbar -->
+                <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="btnRefresh" Style="{StaticResource ToolbarBtnPrimary}"
+                            Content="🔄 Pobierz" Command="{Binding RefreshFromInternetCommand}"
+                            ToolTip="Pobierz nowe artykuły z internetu (RSS + scraping + AI analiza)"/>
+                    <Button x:Name="btnLoadDb" Style="{StaticResource ToolbarBtn}"
+                            Content="💾 Z bazy" Command="{Binding LoadFromDatabaseCommand}"
+                            ToolTip="Załaduj zapisane artykuły z bazy (ostatnie 7 dni)"/>
+                    <Border Width="1" Background="#3F3830" Margin="4,8,12,8"/>
+                    <Button x:Name="btnOnePager" Style="{StaticResource ToolbarBtn}"
+                            Content="📋 One-pager" Click="btnOnePager_Click"
+                            ToolTip="Esencja dnia: TOP 3 krytyczne + action items + chat AI"/>
+                    <Button x:Name="btnSources" Style="{StaticResource ToolbarBtn}"
+                            Content="🌐 Źródła" Click="btnSources_Click"
+                            ToolTip="Dodawaj własne strony i RSS feedy"/>
+                    <Button x:Name="btnQueries" Style="{StaticResource ToolbarBtn}"
+                            Content="🎯 Tematy" Click="btnQueries_Click"
+                            ToolTip="Twoje zapytania do AI Perplexity (HPAI, ceny, Cedrob...)"/>
+                    <Button x:Name="btnDiagnostics" Style="{StaticResource ToolbarBtn}"
+                            Content="🛠 Diag" Click="btnDiagnostics_Click"
+                            ToolTip="Status API, historia pobrań, live log"/>
+                    <Button x:Name="btnHelp" Style="{StaticResource ToolbarBtn}"
+                            Content="❓ Pomoc" Click="btnHelp_Click"
+                            ToolTip="Przewodnik — jak używać Centrum Wiadomości AI"/>
                 </StackPanel>
             </Grid>
         </Border>
 
         <!-- ═══════════════════════════════════════════════════════════════════════ -->
-        <!-- ROW 3: TASKS PANEL (Collapsible)                                        -->
+        <!-- ROW 1: ARTICLES (left)  |  CHAT AI (right)                              -->
         <!-- ═══════════════════════════════════════════════════════════════════════ -->
-        <Border Grid.Row="3" Background="#1C1210" BorderBrush="#5A2525" BorderThickness="0,0,0,1"
-                Visibility="{Binding IsTasksPanelVisible, Converter={StaticResource BoolToVis}}"
-                Padding="24,12">
-            <ItemsControl ItemsSource="{Binding Tasks}">
-                <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <WrapPanel/>
-                    </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <Border Background="#15120D" CornerRadius="4" Padding="12,8"
-                                Margin="0,0,12,8" BorderThickness="3,0,0,0"
-                                BorderBrush="{Binding Severity, Converter={StaticResource SeverityToColor}}">
-                            <StackPanel>
-                                <TextBlock Text="{Binding Title}"
-                                           FontSize="11" FontWeight="SemiBold"
-                                           Foreground="#F5EDE0" TextWrapping="Wrap"
-                                           MaxWidth="280"/>
-                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                    <TextBlock Text="{Binding DeadlineDisplay}"
-                                               FontSize="9" Foreground="#C05050"/>
-                                    <TextBlock Text=" • " Foreground="#5A5248"/>
-                                    <TextBlock Text="{Binding AssignedTo}"
-                                               FontSize="9" Foreground="#7A6F63"/>
-                                </StackPanel>
-                            </StackPanel>
-                        </Border>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-        </Border>
-
-        <!-- ═══════════════════════════════════════════════════════════════════════ -->
-        <!-- ROW 4: MAIN CONTENT                                                     -->
-        <!-- ═══════════════════════════════════════════════════════════════════════ -->
-        <Grid Grid.Row="4" Margin="16,16,16,16">
+        <Grid Grid.Row="1" Margin="16,12,16,16">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" MinWidth="500"/>
-                <ColumnDefinition Width="16"/>
-                <ColumnDefinition Width="370"/>
+                <ColumnDefinition Width="*" MinWidth="480"/>
+                <ColumnDefinition Width="14"/>
+                <ColumnDefinition Width="440" MinWidth="360"/>
             </Grid.ColumnDefinitions>
 
-            <!-- ═══════════════════════════════════════════════════════════════════ -->
-            <!-- LEFT: ARTICLES LIST                                                  -->
-            <!-- ═══════════════════════════════════════════════════════════════════ -->
+            <!-- ═══ LEFT: ARTICLES ═══ -->
             <Grid Grid.Column="0">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -378,49 +186,22 @@
                         BorderBrush="#2A2520" BorderThickness="1,1,1,0" Padding="12,10">
                     <Grid>
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-
-                        <!-- Filter Buttons -->
                         <StackPanel Grid.Column="0" Orientation="Horizontal">
-                            <ToggleButton Content="Wszystkie" IsChecked="True"
-                                          Style="{StaticResource FilterButton}"
-                                          Click="FilterButton_Click" Tag="Wszystkie"/>
-                            <ToggleButton Content="HPAI" Margin="4,0,0,0"
-                                          Style="{StaticResource FilterButton}"
-                                          Click="FilterButton_Click" Tag="HPAI"/>
-                            <ToggleButton Content="Ceny" Margin="4,0,0,0"
-                                          Style="{StaticResource FilterButton}"
-                                          Click="FilterButton_Click" Tag="Ceny"/>
-                            <ToggleButton Content="Konkurencja" Margin="4,0,0,0"
-                                          Style="{StaticResource FilterButton}"
-                                          Click="FilterButton_Click" Tag="Konkurencja"/>
-                            <ToggleButton Content="Regulacje" Margin="4,0,0,0"
-                                          Style="{StaticResource FilterButton}"
-                                          Click="FilterButton_Click" Tag="Regulacje"/>
-                            <ToggleButton Content="Klienci" Margin="4,0,0,0"
-                                          Style="{StaticResource FilterButton}"
-                                          Click="FilterButton_Click" Tag="Klienci"/>
-                            <ToggleButton Content="Koszty" Margin="4,0,0,0"
-                                          Style="{StaticResource FilterButton}"
-                                          Click="FilterButton_Click" Tag="Koszty"/>
-                            <ToggleButton Content="Logistyka" Margin="4,0,0,0"
-                                          Style="{StaticResource FilterButton}"
-                                          Click="FilterButton_Click" Tag="Logistyka"/>
-                            <ToggleButton Content="Pogoda" Margin="4,0,0,0"
-                                          Style="{StaticResource FilterButton}"
-                                          Click="FilterButton_Click" Tag="Pogoda"/>
+                            <ToggleButton Content="Wszystkie" IsChecked="True" Style="{StaticResource FilterButton}" Click="FilterButton_Click" Tag="Wszystkie"/>
+                            <ToggleButton Content="HPAI" Margin="4,0,0,0" Style="{StaticResource FilterButton}" Click="FilterButton_Click" Tag="HPAI"/>
+                            <ToggleButton Content="Ceny" Margin="4,0,0,0" Style="{StaticResource FilterButton}" Click="FilterButton_Click" Tag="Ceny"/>
+                            <ToggleButton Content="Konkurencja" Margin="4,0,0,0" Style="{StaticResource FilterButton}" Click="FilterButton_Click" Tag="Konkurencja"/>
+                            <ToggleButton Content="Regulacje" Margin="4,0,0,0" Style="{StaticResource FilterButton}" Click="FilterButton_Click" Tag="Regulacje"/>
+                            <ToggleButton Content="Klienci" Margin="4,0,0,0" Style="{StaticResource FilterButton}" Click="FilterButton_Click" Tag="Klienci"/>
+                            <ToggleButton Content="Świat" Margin="4,0,0,0" Style="{StaticResource FilterButton}" Click="FilterButton_Click" Tag="Swiat"/>
                         </StackPanel>
-
-                        <!-- Search + Count -->
-                        <StackPanel Grid.Column="2" Orientation="Horizontal">
-                            <Grid Width="180">
-                                <TextBox x:Name="txtSearch" Style="{StaticResource SearchTextBox}"
-                                         TextChanged="SearchBox_TextChanged"/>
-                                <TextBlock Text="Szukaj..." IsHitTestVisible="False"
-                                           Foreground="#5A5248" FontSize="11"
+                        <StackPanel Grid.Column="1" Orientation="Horizontal">
+                            <Grid Width="170">
+                                <TextBox x:Name="txtSearch" Style="{StaticResource SearchTextBox}" TextChanged="SearchBox_TextChanged"/>
+                                <TextBlock Text="Szukaj..." IsHitTestVisible="False" Foreground="#5A5248" FontSize="11"
                                            Margin="12,0,0,0" VerticalAlignment="Center">
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock">
@@ -434,9 +215,8 @@
                                     </TextBlock.Style>
                                 </TextBlock>
                             </Grid>
-                            <TextBlock Text="{Binding ArticleCount, StringFormat={}{0} artykulow}"
-                                       Foreground="#7A6F63" FontSize="10"
-                                       VerticalAlignment="Center" Margin="12,0,0,0"/>
+                            <TextBlock Text="{Binding ArticleCount, StringFormat={}{0} art.}"
+                                       Foreground="#7A6F63" FontSize="10" VerticalAlignment="Center" Margin="12,0,0,0"/>
                         </StackPanel>
                     </Grid>
                 </Border>
@@ -444,1066 +224,206 @@
                 <!-- Articles ScrollViewer -->
                 <Border Grid.Row="1" Background="#15120D" CornerRadius="0,0,6,6"
                         BorderBrush="#2A2520" BorderThickness="1,0,1,1">
-                    <ScrollViewer Style="{StaticResource BriefingScrollViewer}"
-                                  VerticalScrollBarVisibility="Auto" Padding="12">
-                        <ItemsControl x:Name="icArticles" ItemsSource="{Binding FilteredArticles}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Border Style="{StaticResource ArticleCard}"
-                                            MouseLeftButtonUp="Article_Click">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="4"/>
-                                                <ColumnDefinition Width="*"/>
-                                            </Grid.ColumnDefinitions>
+                    <Grid>
+                        <!-- Empty state -->
+                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"
+                                    Visibility="{Binding TotalArticles, Converter={StaticResource InverseBoolToVis}}">
+                            <TextBlock Text="📭" FontSize="40" HorizontalAlignment="Center" Opacity="0.5"/>
+                            <TextBlock Text="Brak artykułów" FontSize="15" Foreground="#7A6F63" HorizontalAlignment="Center" Margin="0,8,0,4"/>
+                            <TextBlock Text="Kliknij 🔄 Pobierz (z internetu) lub 💾 Z bazy (zapisane)"
+                                       FontSize="11" Foreground="#5A5248" HorizontalAlignment="Center"/>
+                        </StackPanel>
 
-                                            <!-- Severity Bar -->
-                                            <Border Grid.Column="0" CornerRadius="2,0,0,2"
-                                                    Background="{Binding Severity, Converter={StaticResource SeverityToColor}}"/>
+                        <ScrollViewer Style="{StaticResource BriefingScrollViewer}"
+                                      VerticalScrollBarVisibility="Auto" Padding="12">
+                            <ItemsControl x:Name="icArticles" ItemsSource="{Binding FilteredArticles}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Style="{StaticResource ArticleCard}" MouseLeftButtonUp="Article_Click">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="4"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
 
-                                            <!-- Content -->
-                                            <StackPanel Grid.Column="1" Margin="14,12,12,12">
-                                                <!-- Collapsed View -->
-                                                <StackPanel Visibility="{Binding IsExpanded, Converter={StaticResource InverseBoolToVis}}">
-                                                    <!-- Meta Row -->
-                                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                                                        <Ellipse Width="6" Height="6"
-                                                                 Fill="{Binding Severity, Converter={StaticResource SeverityToColor}}"
-                                                                 VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                                        <TextBlock Text="{Binding Category}"
-                                                                   FontSize="10" FontWeight="SemiBold"
-                                                                   Foreground="#C9A96E"/>
-                                                        <TextBlock Text=" • " Foreground="#5A5248"/>
-                                                        <TextBlock Text="{Binding Source}"
-                                                                   FontSize="10" Foreground="#7A6F63"/>
-                                                        <TextBlock Text=" • " Foreground="#5A5248"/>
-                                                        <TextBlock Text="{Binding FormattedDate}"
-                                                                   FontSize="10" Foreground="#5A5248"/>
-                                                    </StackPanel>
-                                                    <!-- Title -->
-                                                    <TextBlock Text="{Binding Title}"
-                                                               Style="{StaticResource SerifArticleTitle}"
-                                                               Margin="0,0,0,4"/>
-                                                    <!-- Preview -->
-                                                    <TextBlock Text="{Binding ShortPreview}"
-                                                               Style="{StaticResource PreviewText}"/>
-                                                </StackPanel>
+                                                <Border Grid.Column="0" CornerRadius="2,0,0,2"
+                                                        Background="{Binding Severity, Converter={StaticResource SeverityToColor}}"/>
 
-                                                <!-- Expanded View -->
-                                                <StackPanel Visibility="{Binding IsExpanded, Converter={StaticResource BoolToVis}}">
-                                                    <!-- Severity Badge + Meta -->
-                                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                                                        <Border Background="{Binding Severity, Converter={StaticResource SeverityToBg}}"
-                                                                CornerRadius="3" Padding="8,3">
-                                                            <TextBlock Text="{Binding SeverityText}"
-                                                                       FontSize="9" FontWeight="Bold"
-                                                                       Foreground="{Binding Severity, Converter={StaticResource SeverityToColor}}"/>
-                                                        </Border>
-                                                        <TextBlock Text="{Binding Category}"
-                                                                   FontSize="10" FontWeight="SemiBold"
-                                                                   Foreground="#C9A96E" Margin="12,0,0,0"
-                                                                   VerticalAlignment="Center"/>
-                                                        <TextBlock Text=" • " Foreground="#5A5248" VerticalAlignment="Center"/>
-                                                        <TextBlock Text="{Binding Source}"
-                                                                   FontSize="10" Foreground="#7A6F63"
-                                                                   VerticalAlignment="Center"/>
-                                                        <TextBlock Text="{Binding FormattedDate}"
-                                                                   FontSize="10" Foreground="#5A5248"
-                                                                   HorizontalAlignment="Right" Margin="20,0,0,0"
-                                                                   VerticalAlignment="Center"/>
-                                                    </StackPanel>
-
-                                                    <!-- Title (Featured) -->
-                                                    <TextBlock Text="{Binding Title}"
-                                                               Style="{StaticResource SerifArticleTitleFeatured}"
-                                                               Margin="0,0,0,12"/>
-
-                                                    <!-- Full Content -->
-                                                    <TextBlock Text="{Binding FullContent}"
-                                                               Style="{StaticResource BodyText}"
-                                                               Margin="0,0,0,16"/>
-
-                                                    <!-- Educational Section -->
-                                                    <Border Background="#1E1A14" CornerRadius="6"
-                                                            Padding="14" Margin="0,0,0,16"
-                                                            BorderBrush="#2A2520" BorderThickness="1">
-                                                        <StackPanel>
-                                                            <TextBlock Text="KIM JEST / CO TO JEST"
-                                                                       FontSize="9" FontWeight="Bold"
-                                                                       Foreground="#8B7355" Margin="0,0,0,8"/>
-                                                            <TextBlock Text="{Binding EducationalSection}"
-                                                                       Style="{StaticResource BodyTextSmall}"
-                                                                       Foreground="#D5CCC0"/>
+                                                <StackPanel Grid.Column="1" Margin="14,12,12,12">
+                                                    <!-- Collapsed -->
+                                                    <StackPanel Visibility="{Binding IsExpanded, Converter={StaticResource InverseBoolToVis}}">
+                                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                                            <Ellipse Width="6" Height="6"
+                                                                     Fill="{Binding Severity, Converter={StaticResource SeverityToColor}}"
+                                                                     VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                            <TextBlock Text="{Binding Category}" FontSize="10" FontWeight="SemiBold" Foreground="#C9A96E"/>
+                                                            <TextBlock Text=" • " Foreground="#5A5248"/>
+                                                            <TextBlock Text="{Binding Source}" FontSize="10" Foreground="#7A6F63"/>
+                                                            <TextBlock Text=" • " Foreground="#5A5248"/>
+                                                            <TextBlock Text="{Binding FormattedDate}" FontSize="10" Foreground="#5A5248"/>
                                                         </StackPanel>
-                                                    </Border>
+                                                        <TextBlock Text="{Binding Title}" Style="{StaticResource SerifArticleTitle}" Margin="0,0,0,4"/>
+                                                        <TextBlock Text="{Binding ShortPreview}" Style="{StaticResource PreviewText}"/>
+                                                    </StackPanel>
 
-                                                    <!-- AI Analysis Section -->
-                                                    <Border Background="#1E1A14" CornerRadius="6"
-                                                            Padding="14" Margin="0,0,0,16"
-                                                            BorderBrush="#C9A96E" BorderThickness="0,0,0,2">
-                                                        <StackPanel>
-                                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                                                <TextBlock Text="CO TO ZNACZY DLA PIORKOWSCY"
-                                                                           FontSize="9" FontWeight="Bold"
-                                                                           Foreground="#C9A96E"/>
-                                                                <TextBlock FontSize="9" FontWeight="Bold" Foreground="#C9A96E">
+                                                    <!-- Expanded -->
+                                                    <StackPanel Visibility="{Binding IsExpanded, Converter={StaticResource BoolToVis}}">
+                                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                                            <Border Background="{Binding Severity, Converter={StaticResource SeverityToBg}}" CornerRadius="3" Padding="8,3">
+                                                                <TextBlock Text="{Binding SeverityText}" FontSize="9" FontWeight="Bold"
+                                                                           Foreground="{Binding Severity, Converter={StaticResource SeverityToColor}}"/>
+                                                            </Border>
+                                                            <TextBlock Text="{Binding Category}" FontSize="10" FontWeight="SemiBold" Foreground="#C9A96E" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                                                            <TextBlock Text=" • " Foreground="#5A5248" VerticalAlignment="Center"/>
+                                                            <TextBlock Text="{Binding Source}" FontSize="10" Foreground="#7A6F63" VerticalAlignment="Center"/>
+                                                            <TextBlock Text="{Binding FormattedDate}" FontSize="10" Foreground="#5A5248" HorizontalAlignment="Right" Margin="20,0,0,0" VerticalAlignment="Center"/>
+                                                        </StackPanel>
+
+                                                        <TextBlock Text="{Binding Title}" Style="{StaticResource SerifArticleTitleFeatured}" Margin="0,0,0,12"/>
+                                                        <TextBlock Text="{Binding FullContent}" Style="{StaticResource BodyText}" Margin="0,0,0,16"/>
+
+                                                        <!-- Educational -->
+                                                        <Border Background="#1E1A14" CornerRadius="6" Padding="14" Margin="0,0,0,16" BorderBrush="#2A2520" BorderThickness="1">
+                                                            <StackPanel>
+                                                                <TextBlock Text="KIM JEST / CO TO JEST" FontSize="9" FontWeight="Bold" Foreground="#8B7355" Margin="0,0,0,8"/>
+                                                                <TextBlock Text="{Binding EducationalSection}" Style="{StaticResource BodyTextSmall}" Foreground="#D5CCC0"/>
+                                                            </StackPanel>
+                                                        </Border>
+
+                                                        <!-- AI Analysis (CEO perspective) -->
+                                                        <Border Background="#1E1A14" CornerRadius="6" Padding="14" Margin="0,0,0,16" BorderBrush="#C9A96E" BorderThickness="0,0,0,2">
+                                                            <StackPanel>
+                                                                <TextBlock Text="CO TO ZNACZY DLA PIORKOWSCY" FontSize="9" FontWeight="Bold" Foreground="#C9A96E" Margin="0,0,0,8"/>
+                                                                <TextBlock Style="{StaticResource BodyTextSmall}" FontStyle="Italic" Foreground="#F5EDE0" TextWrapping="Wrap">
                                                                     <TextBlock.Text>
-                                                                        <MultiBinding Converter="{StaticResource RoleAnalysisConverter}" ConverterParameter="Label">
+                                                                        <MultiBinding Converter="{StaticResource RoleAnalysisConverter}" ConverterParameter="Analysis">
+                                                                            <Binding/>
+                                                                            <Binding Path="DataContext.CurrentRole" RelativeSource="{RelativeSource AncestorType=Window}"/>
+                                                                        </MultiBinding>
+                                                                    </TextBlock.Text>
+                                                                </TextBlock>
+                                                                <TextBlock Text="ZALECANE DZIALANIA:" FontSize="9" FontWeight="Bold" Foreground="#8B7355" Margin="0,12,0,6"/>
+                                                                <TextBlock Style="{StaticResource BodyTextSmall}" Foreground="#D5CCC0" TextWrapping="Wrap">
+                                                                    <TextBlock.Text>
+                                                                        <MultiBinding Converter="{StaticResource RoleAnalysisConverter}" ConverterParameter="Actions">
                                                                             <Binding/>
                                                                             <Binding Path="DataContext.CurrentRole" RelativeSource="{RelativeSource AncestorType=Window}"/>
                                                                         </MultiBinding>
                                                                     </TextBlock.Text>
                                                                 </TextBlock>
                                                             </StackPanel>
-                                                            <TextBlock Style="{StaticResource BodyTextSmall}"
-                                                                       FontStyle="Italic" Foreground="#F5EDE0"
-                                                                       TextWrapping="Wrap">
-                                                                <TextBlock.Text>
-                                                                    <MultiBinding Converter="{StaticResource RoleAnalysisConverter}" ConverterParameter="Analysis">
-                                                                        <Binding/>
-                                                                        <Binding Path="DataContext.CurrentRole" RelativeSource="{RelativeSource AncestorType=Window}"/>
-                                                                    </MultiBinding>
-                                                                </TextBlock.Text>
-                                                            </TextBlock>
-                                                            <TextBlock Text="ZALECANE DZIALANIA:"
-                                                                       FontSize="9" FontWeight="Bold"
-                                                                       Foreground="#8B7355" Margin="0,12,0,6"/>
-                                                            <TextBlock Style="{StaticResource BodyTextSmall}"
-                                                                       Foreground="#D5CCC0" TextWrapping="Wrap">
-                                                                <TextBlock.Text>
-                                                                    <MultiBinding Converter="{StaticResource RoleAnalysisConverter}" ConverterParameter="Actions">
-                                                                        <Binding/>
-                                                                        <Binding Path="DataContext.CurrentRole" RelativeSource="{RelativeSource AncestorType=Window}"/>
-                                                                    </MultiBinding>
-                                                                </TextBlock.Text>
+                                                        </Border>
+
+                                                        <!-- Source link -->
+                                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                                            <TextBlock Text="🔗 Zrodlo: " Foreground="#7A6F63" FontSize="11"/>
+                                                            <TextBlock>
+                                                                <Hyperlink Style="{StaticResource SourceLink}" NavigateUri="{Binding SourceUrl}" RequestNavigate="Hyperlink_RequestNavigate">
+                                                                    <Run Text="{Binding SourceUrl}"/>
+                                                                </Hyperlink>
                                                             </TextBlock>
                                                         </StackPanel>
-                                                    </Border>
 
-                                                    <!-- Source Link -->
-                                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                                                        <TextBlock Text="🔗 Zrodlo: " Foreground="#7A6F63" FontSize="11"/>
-                                                        <TextBlock>
-                                                            <Hyperlink Style="{StaticResource SourceLink}"
-                                                                       NavigateUri="{Binding SourceUrl}"
-                                                                       RequestNavigate="Hyperlink_RequestNavigate">
-                                                                <Run Text="{Binding SourceUrl}"/>
-                                                            </Hyperlink>
-                                                        </TextBlock>
+                                                        <!-- Tags -->
+                                                        <ItemsControl ItemsSource="{Binding Tags}">
+                                                            <ItemsControl.ItemsPanel>
+                                                                <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                                                            </ItemsControl.ItemsPanel>
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate>
+                                                                    <Border Style="{StaticResource TagPill}">
+                                                                        <TextBlock Text="{Binding}" FontSize="9" Foreground="#7A6F63"/>
+                                                                    </Border>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
                                                     </StackPanel>
-
-                                                    <!-- Tags -->
-                                                    <ItemsControl ItemsSource="{Binding Tags}">
-                                                        <ItemsControl.ItemsPanel>
-                                                            <ItemsPanelTemplate>
-                                                                <WrapPanel/>
-                                                            </ItemsPanelTemplate>
-                                                        </ItemsControl.ItemsPanel>
-                                                        <ItemsControl.ItemTemplate>
-                                                            <DataTemplate>
-                                                                <Border Style="{StaticResource TagPill}">
-                                                                    <TextBlock Text="{Binding}" FontSize="9"
-                                                                               Foreground="#7A6F63"/>
-                                                                </Border>
-                                                            </DataTemplate>
-                                                        </ItemsControl.ItemTemplate>
-                                                    </ItemsControl>
                                                 </StackPanel>
-                                            </StackPanel>
-                                        </Grid>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </ScrollViewer>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Grid>
                 </Border>
             </Grid>
 
-            <!-- ═══════════════════════════════════════════════════════════════════ -->
-            <!-- RIGHT: SIDE PANEL                                                   -->
-            <!-- ═══════════════════════════════════════════════════════════════════ -->
-            <Border Grid.Column="2" Background="#15120D" CornerRadius="6"
-                    BorderBrush="#2A2520" BorderThickness="1">
-                <TabControl x:Name="tcSidePanel" Style="{StaticResource BriefingTabControl}">
-                    <TabControl.Resources>
-                        <Style TargetType="TabItem" BasedOn="{StaticResource BriefingTabItem}"/>
-                    </TabControl.Resources>
+            <!-- ═══ RIGHT: CHAT AI ═══ -->
+            <Border Grid.Column="2" Background="#15120D" CornerRadius="6" BorderBrush="#2A2520" BorderThickness="1">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>   <!-- header -->
+                        <RowDefinition Height="Auto"/>   <!-- quick prompts -->
+                        <RowDefinition Height="*"/>      <!-- conversation -->
+                        <RowDefinition Height="Auto"/>   <!-- input -->
+                    </Grid.RowDefinitions>
 
-                    <!-- TAB: Dane (CEO) / Ceny (Sales) / Zakup (Buyer) -->
-                    <TabItem Header="Dane">
-                        <ScrollViewer Style="{StaticResource BriefingScrollViewer}" Padding="14">
-                            <StackPanel>
-                                <!-- Price Chart Placeholder -->
-                                <TextBlock Text="CENA SKUPU (30 DNI)"
-                                           FontSize="9" FontWeight="Bold"
-                                           Foreground="#8B7355" Margin="0,0,0,8"/>
-                                <Border Background="#1E1A14" Height="100" CornerRadius="4"
-                                        Margin="0,0,0,16">
-                                    <Canvas x:Name="canvasChart">
-                                        <!-- Chart will be drawn in code-behind -->
-                                    </Canvas>
-                                </Border>
+                    <!-- Chat header -->
+                    <Border Grid.Row="0" Background="#1F1A14" CornerRadius="6,6,0,0" Padding="14,10" BorderBrush="#2A2520" BorderThickness="0,0,0,1">
+                        <StackPanel>
+                            <TextBlock Text="💬 Zapytaj AI" FontSize="14" FontWeight="SemiBold" Foreground="#F5EDE0"/>
+                            <TextBlock Text="Zna profil firmy, 30 dni artykułów, briefingi i Twoje preferencje 👍/👎"
+                                       FontSize="10" Foreground="#7A6F63" Margin="0,2,0,0" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
 
-                                <!-- Element Prices -->
-                                <TextBlock Text="CENY ELEMENTOW"
-                                           FontSize="9" FontWeight="Bold"
-                                           Foreground="#8B7355" Margin="0,0,0,8"/>
-                                <ItemsControl ItemsSource="{Binding ElementPrices}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Border Style="{StaticResource SidePanelCard}">
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                        <ColumnDefinition Width="50"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock Grid.Column="0" Text="{Binding Name}"
-                                                               FontSize="11" Foreground="#D5CCC0"
-                                                               VerticalAlignment="Center"/>
-                                                    <TextBlock Grid.Column="1" Text="{Binding PriceDisplay}"
-                                                               FontFamily="Consolas" FontSize="12"
-                                                               FontWeight="Bold" Foreground="#F5EDE0"
-                                                               VerticalAlignment="Center"/>
-                                                    <TextBlock Grid.Column="2" Text="{Binding ChangeDisplay}"
-                                                               FontFamily="Consolas" FontSize="10"
-                                                               HorizontalAlignment="Right"
-                                                               VerticalAlignment="Center">
-                                                        <TextBlock.Style>
-                                                            <Style TargetType="TextBlock">
-                                                                <Setter Property="Foreground" Value="#C05050"/>
-                                                                <Style.Triggers>
-                                                                    <DataTrigger Binding="{Binding IsPositive}" Value="True">
-                                                                        <Setter Property="Foreground" Value="#6DAF6D"/>
-                                                                    </DataTrigger>
-                                                                </Style.Triggers>
-                                                            </Style>
-                                                        </TextBlock.Style>
-                                                    </TextBlock>
-                                                </Grid>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
+                    <!-- Quick prompts -->
+                    <Border Grid.Row="1" Padding="12,10,12,4">
+                        <WrapPanel>
+                            <Button Content="🦠 HPAI?" Style="{StaticResource ChatQuickBtn}" Click="BtnQuickPrompt_Click"
+                                    Tag="Czy HPAI mnie zagraża dziś? Spójrz na ostatnie 7 dni ognisk, szczególnie łódzkie i sąsiednie. Konkretnie TAK/NIE + 1 akcja."/>
+                            <Button Content="💰 Ceny żywca" Style="{StaticResource ChatQuickBtn}" Click="BtnQuickPrompt_Click"
+                                    Tag="Co dzieje się z cenami skupu żywca drobiowego? Liczby z ostatnich artykułów. Czy mam ruszać nasze 4.72 zł/kg?"/>
+                            <Button Content="🏢 Cedrob" Style="{StaticResource ChatQuickBtn}" Click="BtnQuickPrompt_Click"
+                                    Tag="Co dzieje się z Cedrob i przejęciem przez ADQ? Status, ryzyko dla nas, scenariusze."/>
+                            <Button Content="🛒 Biedronka" Style="{StaticResource ChatQuickBtn}" Click="BtnQuickPrompt_Click"
+                                    Tag="Co dzieje się u Biedronki ostatnio? Promocje, ceny, kontrakty drobiowe — jak nas dotyka?"/>
+                            <Button Content="📊 Esencja 3 zdania" Style="{StaticResource ChatQuickBtn}" Click="BtnQuickPrompt_Click"
+                                    Tag="Daj mi esencję ostatnich 7 dni w MAKSYMALNIE 3 zdaniach. Konkretne liczby, konkretne akcje."/>
+                        </WrapPanel>
+                    </Border>
 
-                                <!-- Feed Prices (MATIF) -->
-                                <TextBlock Text="PASZE MATIF"
-                                           FontSize="9" FontWeight="Bold"
-                                           Foreground="#8B7355" Margin="0,16,0,8"/>
-                                <ItemsControl ItemsSource="{Binding FeedPrices}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Border Style="{StaticResource SidePanelCard}">
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                        <ColumnDefinition Width="50"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <StackPanel Grid.Column="0">
-                                                        <TextBlock Text="{Binding Commodity}"
-                                                                   FontSize="11" Foreground="#D5CCC0"/>
-                                                        <TextBlock Text="{Binding Contract}"
-                                                                   FontSize="9" Foreground="#5A5248"/>
-                                                    </StackPanel>
-                                                    <TextBlock Grid.Column="1" Text="{Binding PriceDisplay}"
-                                                               FontFamily="Consolas" FontSize="12"
-                                                               FontWeight="Bold" Foreground="#F5EDE0"
-                                                               VerticalAlignment="Center"/>
-                                                    <TextBlock Grid.Column="2" Text="{Binding ChangeDisplay}"
-                                                               FontFamily="Consolas" FontSize="10"
-                                                               HorizontalAlignment="Right"
-                                                               VerticalAlignment="Center">
-                                                        <TextBlock.Style>
-                                                            <Style TargetType="TextBlock">
-                                                                <Setter Property="Foreground" Value="#C05050"/>
-                                                                <Style.Triggers>
-                                                                    <DataTrigger Binding="{Binding IsPositive}" Value="True">
-                                                                        <Setter Property="Foreground" Value="#6DAF6D"/>
-                                                                    </DataTrigger>
-                                                                </Style.Triggers>
-                                                            </Style>
-                                                        </TextBlock.Style>
-                                                    </TextBlock>
-                                                </Grid>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-
-                                <!-- Retail Prices (Clickable) -->
-                                <TextBlock Text="CENY DETALICZNE (kliknij aby otworzyc zrodlo)"
-                                           FontSize="9" FontWeight="Bold"
-                                           Foreground="#8B7355" Margin="0,16,0,8"/>
-                                <ItemsControl ItemsSource="{Binding RetailPrices}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Border Style="{StaticResource SidePanelCard}"
-                                                    Cursor="Hand"
-                                                    Tag="{Binding SourceUrl}"
-                                                    MouseLeftButtonUp="OpenUrl_Click">
-                                                <StackPanel>
-                                                    <Grid>
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="*"/>
-                                                            <ColumnDefinition Width="Auto"/>
-                                                        </Grid.ColumnDefinitions>
-                                                        <TextBlock Grid.Column="0" Text="{Binding ChainName}"
-                                                                   FontSize="11" FontWeight="SemiBold"
-                                                                   Foreground="#F5EDE0"/>
-                                                        <TextBlock Grid.Column="1" Text="🔗"
-                                                                   FontSize="10" Foreground="#C9A96E"
-                                                                   VerticalAlignment="Center"/>
-                                                    </Grid>
-                                                    <Grid Margin="0,6,0,0">
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="*"/>
-                                                            <ColumnDefinition Width="*"/>
-                                                            <ColumnDefinition Width="*"/>
-                                                        </Grid.ColumnDefinitions>
-                                                        <StackPanel Grid.Column="0">
-                                                            <TextBlock Text="Filet" FontSize="8" Foreground="#7A6F63"/>
-                                                            <TextBlock Text="{Binding FiletDisplay}"
-                                                                       FontFamily="Consolas" FontSize="10"
-                                                                       FontWeight="Bold" Foreground="#6DAF6D"/>
-                                                        </StackPanel>
-                                                        <StackPanel Grid.Column="1">
-                                                            <TextBlock Text="Tuszka" FontSize="8" Foreground="#7A6F63"/>
-                                                            <TextBlock Text="{Binding TuszkaDisplay}"
-                                                                       FontFamily="Consolas" FontSize="10"
-                                                                       FontWeight="Bold" Foreground="#D5CCC0"/>
-                                                        </StackPanel>
-                                                        <StackPanel Grid.Column="2">
-                                                            <TextBlock Text="Udko" FontSize="8" Foreground="#7A6F63"/>
-                                                            <TextBlock Text="{Binding UdkoDisplay}"
-                                                                       FontFamily="Consolas" FontSize="10"
-                                                                       FontWeight="Bold" Foreground="#D5CCC0"/>
-                                                        </StackPanel>
-                                                    </Grid>
-                                                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                                        <TextBlock Text="{Binding Source}" FontSize="8" Foreground="#5A5248"/>
-                                                        <TextBlock Text=" • " FontSize="8" Foreground="#5A5248"/>
-                                                        <TextBlock Text="{Binding CheckDateDisplay}" FontSize="8" Foreground="#5A5248"/>
-                                                    </StackPanel>
-                                                </StackPanel>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </StackPanel>
+                    <!-- Conversation -->
+                    <Border Grid.Row="2" Background="#0C0A07" CornerRadius="0" BorderBrush="#2A2520" BorderThickness="0,1,0,1" Margin="0,4,0,0">
+                        <ScrollViewer x:Name="chatScroll" VerticalScrollBarVisibility="Auto" Padding="10,8">
+                            <ItemsControl x:Name="lstChat">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="{Binding BgColor}" CornerRadius="4" Padding="10,8" Margin="0,0,0,6">
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Author}" Foreground="{Binding AuthorColor}" FontWeight="SemiBold" FontSize="11" Margin="0,0,0,3"/>
+                                                <TextBlock Text="{Binding Content}" Foreground="#F5EDE0" FontSize="12" TextWrapping="Wrap"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
                         </ScrollViewer>
-                    </TabItem>
+                    </Border>
 
-                    <!-- TAB: Konkurencja -->
-                    <TabItem Header="Konkurencja">
-                        <ScrollViewer Style="{StaticResource BriefingScrollViewer}" Padding="14">
-                            <StackPanel>
-                                <TextBlock Text="POZIOM ZAGROZENIA"
-                                           FontSize="9" FontWeight="Bold"
-                                           Foreground="#8B7355" Margin="0,0,0,12"/>
-                                <ItemsControl ItemsSource="{Binding Competitors}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Border Style="{StaticResource SidePanelCard}">
-                                                <StackPanel>
-                                                    <Grid>
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="24"/>
-                                                            <ColumnDefinition Width="*"/>
-                                                            <ColumnDefinition Width="Auto"/>
-                                                        </Grid.ColumnDefinitions>
-                                                        <TextBlock Grid.Column="0" Text="{Binding CountryFlag}"
-                                                                   FontSize="14" VerticalAlignment="Center"/>
-                                                        <StackPanel Grid.Column="1">
-                                                            <TextBlock Text="{Binding Name}"
-                                                                       FontSize="11" FontWeight="SemiBold"
-                                                                       Foreground="#F5EDE0"/>
-                                                            <TextBlock Text="{Binding Owner}"
-                                                                       FontSize="9" Foreground="#7A6F63"
-                                                                       TextTrimming="CharacterEllipsis"/>
-                                                        </StackPanel>
-                                                        <TextBlock Grid.Column="2" Text="{Binding ThreatDisplay}"
-                                                                   FontFamily="Consolas" FontSize="12"
-                                                                   FontWeight="Bold" Foreground="#C05050"
-                                                                   VerticalAlignment="Center"/>
-                                                    </Grid>
-                                                    <!-- Threat Bar -->
-                                                    <Grid Margin="0,8,0,0">
-                                                        <Border Background="#2A2520" Height="4" CornerRadius="2"/>
-                                                        <Border Height="4" CornerRadius="2"
-                                                                HorizontalAlignment="Left"
-                                                                Width="{Binding ThreatWidth}">
-                                                            <Border.Style>
-                                                                <Style TargetType="Border">
-                                                                    <Setter Property="Background" Value="{StaticResource ThreatLowGradient}"/>
-                                                                    <Style.Triggers>
-                                                                        <DataTrigger Binding="{Binding ThreatLevel}" Value="95">
-                                                                            <Setter Property="Background" Value="{StaticResource ThreatHighGradient}"/>
-                                                                        </DataTrigger>
-                                                                    </Style.Triggers>
-                                                                </Style>
-                                                            </Border.Style>
-                                                        </Border>
-                                                    </Grid>
-                                                    <!-- Latest News -->
-                                                    <TextBlock Text="{Binding LatestNews}"
-                                                               FontSize="9" FontStyle="Italic"
-                                                               Foreground="#7A6F63" Margin="0,6,0,0"
-                                                               TextWrapping="Wrap"/>
-                                                </StackPanel>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </StackPanel>
-                        </ScrollViewer>
-                    </TabItem>
-
-                    <!-- TAB: EU Benchmark -->
-                    <TabItem Header="EU">
-                        <ScrollViewer Style="{StaticResource BriefingScrollViewer}" Padding="14">
-                            <StackPanel>
-                                <TextBlock Text="BENCHMARK CENOWY UE (EUR/100kg)"
-                                           FontSize="9" FontWeight="Bold"
-                                           Foreground="#8B7355" Margin="0,0,0,12"/>
-                                <ItemsControl ItemsSource="{Binding EuBenchmarks}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Border Style="{StaticResource SidePanelCard}">
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="24"/>
-                                                        <ColumnDefinition Width="60"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="60"/>
-                                                        <ColumnDefinition Width="50"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock Grid.Column="0" Text="{Binding CountryFlag}"
-                                                               FontSize="14" VerticalAlignment="Center"/>
-                                                    <TextBlock Grid.Column="1" Text="{Binding Country}"
-                                                               FontSize="10" Foreground="#D5CCC0"
-                                                               VerticalAlignment="Center"/>
-                                                    <!-- Price Bar -->
-                                                    <Grid Grid.Column="2" Margin="4,0">
-                                                        <Border Background="#2A2520" Height="8" CornerRadius="2"/>
-                                                        <Border Height="8" CornerRadius="2"
-                                                                HorizontalAlignment="Left"
-                                                                Width="{Binding BarWidth}">
-                                                            <Border.Style>
-                                                                <Style TargetType="Border">
-                                                                    <Setter Property="Background" Value="{StaticResource GoldGradient}"/>
-                                                                    <Style.Triggers>
-                                                                        <DataTrigger Binding="{Binding IsPoland}" Value="True">
-                                                                            <Setter Property="Background" Value="#5AB8B8"/>
-                                                                        </DataTrigger>
-                                                                        <DataTrigger Binding="{Binding IsImporter}" Value="True">
-                                                                            <Setter Property="Background" Value="#C05050"/>
-                                                                        </DataTrigger>
-                                                                    </Style.Triggers>
-                                                                </Style>
-                                                            </Border.Style>
-                                                        </Border>
-                                                    </Grid>
-                                                    <TextBlock Grid.Column="3" Text="{Binding PriceDisplay}"
-                                                               FontFamily="Consolas" FontSize="10"
-                                                               FontWeight="Bold" Foreground="#F5EDE0"
-                                                               VerticalAlignment="Center"/>
-                                                    <TextBlock Grid.Column="4" Text="{Binding ChangeDisplay}"
-                                                               FontFamily="Consolas" FontSize="9"
-                                                               HorizontalAlignment="Right"
-                                                               VerticalAlignment="Center">
-                                                        <TextBlock.Style>
-                                                            <Style TargetType="TextBlock">
-                                                                <Setter Property="Foreground" Value="#C05050"/>
-                                                                <Style.Triggers>
-                                                                    <DataTrigger Binding="{Binding ChangePercent}" Value="0">
-                                                                        <Setter Property="Foreground" Value="#7A6F63"/>
-                                                                    </DataTrigger>
-                                                                </Style.Triggers>
-                                                            </Style>
-                                                        </TextBlock.Style>
-                                                    </TextBlock>
-                                                </Grid>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-
-                                <!-- Import Warning -->
-                                <Border Background="#1C1210" CornerRadius="6" Padding="12"
-                                        Margin="0,12,0,0" BorderBrush="#5A2525" BorderThickness="1">
-                                    <StackPanel>
-                                        <TextBlock Text="⚠ ZAGROZENIE IMPORTOWE"
-                                                   FontSize="9" FontWeight="Bold"
-                                                   Foreground="#C05050" Margin="0,0,0,6"/>
-                                        <TextBlock Text="Brazylijski filet mrozony: ~13 zl/kg vs nasz swiez y 15-17 zl/kg. Argument: swiezosc 24h, polskie, kontrolowane."
-                                                   FontSize="10" Foreground="#D5CCC0"
-                                                   TextWrapping="Wrap"/>
-                                    </StackPanel>
-                                </Border>
-                            </StackPanel>
-                        </ScrollViewer>
-                    </TabItem>
-
-                    <!-- TAB: Kalendarz -->
-                    <TabItem Header="Kalendarz">
-                        <ScrollViewer Style="{StaticResource BriefingScrollViewer}" Padding="14">
-                            <StackPanel>
-                                <TextBlock Text="NADCHODZACE WYDARZENIA"
-                                           FontSize="9" FontWeight="Bold"
-                                           Foreground="#8B7355" Margin="0,0,0,12"/>
-                                <ItemsControl ItemsSource="{Binding CalendarEvents}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Border Style="{StaticResource SidePanelCard}"
-                                                    BorderThickness="3,0,0,0"
-                                                    BorderBrush="{Binding Severity, Converter={StaticResource SeverityToColor}}">
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="50"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <StackPanel Grid.Column="0">
-                                                        <TextBlock Text="{Binding DateDisplay}"
-                                                                   FontFamily="Consolas" FontSize="12"
-                                                                   FontWeight="Bold" Foreground="#F5EDE0"/>
-                                                        <TextBlock Text="{Binding DaysUntilDisplay}"
-                                                                   FontSize="9"
-                                                                   Foreground="{Binding Severity, Converter={StaticResource SeverityToColor}}"/>
-                                                    </StackPanel>
-                                                    <StackPanel Grid.Column="1">
-                                                        <TextBlock Text="{Binding Title}"
-                                                                   FontSize="11" FontWeight="SemiBold"
-                                                                   Foreground="#F5EDE0"/>
-                                                        <TextBlock Text="{Binding Description}"
-                                                                   FontSize="9" Foreground="#7A6F63"
-                                                                   TextWrapping="Wrap"/>
-                                                    </StackPanel>
-                                                </Grid>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </StackPanel>
-                        </ScrollViewer>
-                    </TabItem>
-
-                    <!-- TAB: Wykresy (Charts) -->
-                    <TabItem Header="Wykresy">
-                        <ScrollViewer Style="{StaticResource BriefingScrollViewer}" Padding="14">
-                            <StackPanel>
-                                <TextBlock Text="WYKRESY CEN (30 DNI)"
-                                           FontSize="9" FontWeight="Bold"
-                                           Foreground="#8B7355" Margin="0,0,0,12"/>
-                                <ItemsControl ItemsSource="{Binding ChartSeries}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Border Style="{StaticResource SidePanelCard}" Margin="0,0,0,12">
-                                                <StackPanel>
-                                                    <Grid>
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="*"/>
-                                                            <ColumnDefinition Width="Auto"/>
-                                                        </Grid.ColumnDefinitions>
-                                                        <StackPanel Grid.Column="0">
-                                                            <TextBlock Text="{Binding Name}"
-                                                                       FontSize="11" FontWeight="SemiBold"
-                                                                       Foreground="#F5EDE0"/>
-                                                            <TextBlock Text="{Binding Unit}"
-                                                                       FontSize="9" Foreground="#7A6F63"/>
-                                                        </StackPanel>
-                                                        <StackPanel Grid.Column="1" HorizontalAlignment="Right">
-                                                            <TextBlock Text="{Binding CurrentValueDisplay}"
-                                                                       FontFamily="Consolas" FontSize="14"
-                                                                       FontWeight="Bold" Foreground="#C9A96E"
-                                                                       HorizontalAlignment="Right"/>
-                                                            <TextBlock Text="{Binding ChangeDisplay}"
-                                                                       FontFamily="Consolas" FontSize="10"
-                                                                       HorizontalAlignment="Right">
-                                                                <TextBlock.Style>
-                                                                    <Style TargetType="TextBlock">
-                                                                        <Setter Property="Foreground" Value="#C05050"/>
-                                                                        <Style.Triggers>
-                                                                            <DataTrigger Binding="{Binding IsPositive}" Value="True">
-                                                                                <Setter Property="Foreground" Value="#6DAF6D"/>
-                                                                            </DataTrigger>
-                                                                        </Style.Triggers>
-                                                                    </Style>
-                                                                </TextBlock.Style>
-                                                            </TextBlock>
-                                                        </StackPanel>
-                                                    </Grid>
-                                                    <!-- Mini Chart Placeholder -->
-                                                    <Border Background="#1E1A14" Height="60" CornerRadius="4"
-                                                            Margin="0,8,0,0" BorderBrush="#2A2520" BorderThickness="1">
-                                                        <Canvas x:Name="chartCanvas" Tag="{Binding}"/>
-                                                    </Border>
-                                                    <!-- Min/Max Values -->
-                                                    <Grid Margin="0,4,0,0">
-                                                        <TextBlock Text="{Binding MinValueDisplay}"
-                                                                   FontSize="8" Foreground="#5A5248"
-                                                                   HorizontalAlignment="Left"/>
-                                                        <TextBlock Text="{Binding MaxValueDisplay}"
-                                                                   FontSize="8" Foreground="#5A5248"
-                                                                   HorizontalAlignment="Right"/>
-                                                    </Grid>
-                                                </StackPanel>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </StackPanel>
-                        </ScrollViewer>
-                    </TabItem>
-
-                    <!-- TAB: Eksport/Import -->
-                    <TabItem Header="Handel">
-                        <ScrollViewer Style="{StaticResource BriefingScrollViewer}" Padding="14">
-                            <StackPanel>
-                                <!-- Export Section -->
-                                <TextBlock Text="EKSPORT POLSKI (2024)"
-                                           FontSize="9" FontWeight="Bold"
-                                           Foreground="#6DAF6D" Margin="0,0,0,8"/>
-                                <ItemsControl ItemsSource="{Binding ExportData}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Border Style="{StaticResource SidePanelCard}"
-                                                    BorderThickness="2,0,0,0" BorderBrush="#6DAF6D">
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="24"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                        <ColumnDefinition Width="50"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock Grid.Column="0" Text="{Binding CountryFlag}"
-                                                               FontSize="14" VerticalAlignment="Center"/>
-                                                    <StackPanel Grid.Column="1">
-                                                        <TextBlock Text="{Binding Country}"
-                                                                   FontSize="10" FontWeight="SemiBold"
-                                                                   Foreground="#F5EDE0"/>
-                                                        <TextBlock Text="{Binding ProductType}"
-                                                                   FontSize="8" Foreground="#7A6F63"/>
-                                                    </StackPanel>
-                                                    <TextBlock Grid.Column="2" Text="{Binding VolumeDisplay}"
-                                                               FontFamily="Consolas" FontSize="10"
-                                                               FontWeight="Bold" Foreground="#6DAF6D"
-                                                               VerticalAlignment="Center"/>
-                                                    <TextBlock Grid.Column="3" Text="{Binding ChangeDisplay}"
-                                                               FontFamily="Consolas" FontSize="9"
-                                                               HorizontalAlignment="Right"
-                                                               VerticalAlignment="Center">
-                                                        <TextBlock.Style>
-                                                            <Style TargetType="TextBlock">
-                                                                <Setter Property="Foreground" Value="#C05050"/>
-                                                                <Style.Triggers>
-                                                                    <DataTrigger Binding="{Binding IsPositive}" Value="True">
-                                                                        <Setter Property="Foreground" Value="#6DAF6D"/>
-                                                                    </DataTrigger>
-                                                                </Style.Triggers>
-                                                            </Style>
-                                                        </TextBlock.Style>
-                                                    </TextBlock>
-                                                </Grid>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-
-                                <!-- Import Section -->
-                                <TextBlock Text="IMPORT DO POLSKI (ZAGROZENIA)"
-                                           FontSize="9" FontWeight="Bold"
-                                           Foreground="#C05050" Margin="0,16,0,8"/>
-                                <ItemsControl ItemsSource="{Binding ImportData}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Border Style="{StaticResource SidePanelCard}"
-                                                    BorderThickness="2,0,0,0" BorderBrush="#C05050">
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="24"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                        <ColumnDefinition Width="50"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock Grid.Column="0" Text="{Binding CountryFlag}"
-                                                               FontSize="14" VerticalAlignment="Center"/>
-                                                    <StackPanel Grid.Column="1">
-                                                        <TextBlock Text="{Binding Country}"
-                                                                   FontSize="10" FontWeight="SemiBold"
-                                                                   Foreground="#F5EDE0"/>
-                                                        <TextBlock Text="{Binding ProductType}"
-                                                                   FontSize="8" Foreground="#7A6F63"/>
-                                                    </StackPanel>
-                                                    <TextBlock Grid.Column="2" Text="{Binding VolumeDisplay}"
-                                                               FontFamily="Consolas" FontSize="10"
-                                                               FontWeight="Bold" Foreground="#C05050"
-                                                               VerticalAlignment="Center"/>
-                                                    <TextBlock Grid.Column="3" Text="{Binding ChangeDisplay}"
-                                                               FontFamily="Consolas" FontSize="9"
-                                                               HorizontalAlignment="Right"
-                                                               VerticalAlignment="Center">
-                                                        <TextBlock.Style>
-                                                            <Style TargetType="TextBlock">
-                                                                <Setter Property="Foreground" Value="#C05050"/>
-                                                                <Style.Triggers>
-                                                                    <DataTrigger Binding="{Binding IsPositive}" Value="False">
-                                                                        <Setter Property="Foreground" Value="#6DAF6D"/>
-                                                                    </DataTrigger>
-                                                                </Style.Triggers>
-                                                            </Style>
-                                                        </TextBlock.Style>
-                                                    </TextBlock>
-                                                </Grid>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </StackPanel>
-                        </ScrollViewer>
-                    </TabItem>
-
-                    <!-- TAB: Dotacje -->
-                    <TabItem Header="Dotacje">
-                        <ScrollViewer Style="{StaticResource BriefingScrollViewer}" Padding="14">
-                            <StackPanel>
-                                <TextBlock Text="DOSTEPNE DOFINANSOWANIA"
-                                           FontSize="9" FontWeight="Bold"
-                                           Foreground="#C9A96E" Margin="0,0,0,12"/>
-                                <ItemsControl ItemsSource="{Binding Subsidies}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Border Style="{StaticResource SidePanelCard}"
-                                                    BorderThickness="3,0,0,0"
-                                                    BorderBrush="{Binding Priority, Converter={StaticResource SeverityToColor}}"
-                                                    Cursor="Hand"
-                                                    Tag="{Binding ApplicationUrl}"
-                                                    MouseLeftButtonUp="OpenUrl_Click">
-                                                <StackPanel>
-                                                    <Grid>
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="*"/>
-                                                            <ColumnDefinition Width="Auto"/>
-                                                        </Grid.ColumnDefinitions>
-                                                        <TextBlock Grid.Column="0" Text="{Binding Name}"
-                                                                   FontSize="10" FontWeight="SemiBold"
-                                                                   Foreground="#F5EDE0" TextWrapping="Wrap"/>
-                                                        <TextBlock Grid.Column="1" Text="🔗"
-                                                                   FontSize="10" Foreground="#C9A96E"
-                                                                   VerticalAlignment="Top" Margin="8,0,0,0"/>
-                                                    </Grid>
-                                                    <TextBlock Text="{Binding Provider}"
-                                                               FontSize="9" Foreground="#C9A96E"
-                                                               Margin="0,4,0,0"/>
-                                                    <TextBlock Text="{Binding Description}"
-                                                               FontSize="9" Foreground="#7A6F63"
-                                                               TextWrapping="Wrap" Margin="0,4,0,0"/>
-                                                    <Grid Margin="0,8,0,0">
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="*"/>
-                                                            <ColumnDefinition Width="*"/>
-                                                        </Grid.ColumnDefinitions>
-                                                        <StackPanel Grid.Column="0">
-                                                            <TextBlock Text="Maks. kwota"
-                                                                       FontSize="8" Foreground="#5A5248"/>
-                                                            <TextBlock Text="{Binding MaxAmountDisplay}"
-                                                                       FontFamily="Consolas" FontSize="11"
-                                                                       FontWeight="Bold" Foreground="#6DAF6D"/>
-                                                        </StackPanel>
-                                                        <StackPanel Grid.Column="1">
-                                                            <TextBlock Text="Dofinansowanie"
-                                                                       FontSize="8" Foreground="#5A5248"/>
-                                                            <TextBlock Text="{Binding CoFinancingDisplay}"
-                                                                       FontFamily="Consolas" FontSize="11"
-                                                                       FontWeight="Bold" Foreground="#C9A96E"/>
-                                                        </StackPanel>
-                                                    </Grid>
-                                                    <Border Background="#1E1A14" CornerRadius="4"
-                                                            Padding="8,4" Margin="0,8,0,0">
-                                                        <StackPanel Orientation="Horizontal">
-                                                            <TextBlock Text="⏰ Termin: "
-                                                                       FontSize="9" Foreground="#7A6F63"/>
-                                                            <TextBlock Text="{Binding DeadlineDisplay}"
-                                                                       FontSize="9" FontWeight="SemiBold"
-                                                                       Foreground="{Binding Priority, Converter={StaticResource SeverityToColor}}"/>
-                                                            <TextBlock Text="{Binding DaysLeftDisplay}"
-                                                                       FontSize="9" Foreground="#7A6F63"
-                                                                       Margin="8,0,0,0"/>
-                                                        </StackPanel>
-                                                    </Border>
-                                                </StackPanel>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </StackPanel>
-                        </ScrollViewer>
-                    </TabItem>
-
-                    <!-- TAB: Klienci Potencjalni -->
-                    <TabItem Header="Szanse">
-                        <ScrollViewer Style="{StaticResource BriefingScrollViewer}" Padding="14">
-                            <StackPanel>
-                                <TextBlock Text="POTENCJALNI KLIENCI"
-                                           FontSize="9" FontWeight="Bold"
-                                           Foreground="#5AB8B8" Margin="0,0,0,12"/>
-                                <ItemsControl ItemsSource="{Binding PotentialClients}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Border Style="{StaticResource SidePanelCard}"
-                                                    Cursor="Hand"
-                                                    Tag="{Binding NewsSourceUrl}"
-                                                    MouseLeftButtonUp="OpenUrl_Click">
-                                                <StackPanel>
-                                                    <Grid>
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="*"/>
-                                                            <ColumnDefinition Width="Auto"/>
-                                                        </Grid.ColumnDefinitions>
-                                                        <StackPanel Grid.Column="0">
-                                                            <TextBlock Text="{Binding CompanyName}"
-                                                                       FontSize="11" FontWeight="SemiBold"
-                                                                       Foreground="#F5EDE0"/>
-                                                            <TextBlock Text="{Binding Industry}"
-                                                                       FontSize="9" Foreground="#5AB8B8"/>
-                                                        </StackPanel>
-                                                        <!-- Opportunity Score -->
-                                                        <Border Grid.Column="1" Background="#1E1A14"
-                                                                CornerRadius="12" Padding="8,4">
-                                                            <TextBlock Text="{Binding OpportunityScoreDisplay}"
-                                                                       FontFamily="Consolas" FontSize="10"
-                                                                       FontWeight="Bold" Foreground="#C9A96E"/>
-                                                        </Border>
-                                                    </Grid>
-                                                    <TextBlock Text="{Binding Description}"
-                                                               FontSize="9" Foreground="#7A6F63"
-                                                               TextWrapping="Wrap" Margin="0,6,0,0"/>
-                                                    <Border Background="#1E1A14" CornerRadius="4"
-                                                            Padding="8" Margin="0,8,0,0">
-                                                        <StackPanel>
-                                                            <TextBlock Text="NAJNOWSZE INFO"
-                                                                       FontSize="8" FontWeight="Bold"
-                                                                       Foreground="#8B7355" Margin="0,0,0,4"/>
-                                                            <TextBlock Text="{Binding LatestNews}"
-                                                                       FontSize="9" FontStyle="Italic"
-                                                                       Foreground="#D5CCC0" TextWrapping="Wrap"/>
-                                                        </StackPanel>
-                                                    </Border>
-                                                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                                                        <TextBlock Text="📍 " FontSize="9"/>
-                                                        <TextBlock Text="{Binding Location}"
-                                                                   FontSize="9" Foreground="#7A6F63"/>
-                                                        <TextBlock Text=" • " FontSize="9" Foreground="#5A5248"/>
-                                                        <TextBlock Text="{Binding VolumeDisplay}"
-                                                                   FontSize="9" Foreground="#6DAF6D"/>
-                                                    </StackPanel>
-                                                    <Border Background="#1C1210" CornerRadius="4"
-                                                            Padding="8" Margin="0,8,0,0"
-                                                            BorderBrush="#C9A96E" BorderThickness="0,0,0,2">
-                                                        <StackPanel>
-                                                            <TextBlock Text="ZALECANE DZIALANIE:"
-                                                                       FontSize="8" FontWeight="Bold"
-                                                                       Foreground="#C9A96E" Margin="0,0,0,4"/>
-                                                            <TextBlock Text="{Binding RecommendedAction}"
-                                                                       FontSize="9" Foreground="#F5EDE0"
-                                                                       TextWrapping="Wrap"/>
-                                                        </StackPanel>
-                                                    </Border>
-                                                </StackPanel>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </StackPanel>
-                        </ScrollViewer>
-                    </TabItem>
-
-                    <!-- TAB: Miedzynarodowe -->
-                    <TabItem Header="Swiat">
-                        <ScrollViewer Style="{StaticResource BriefingScrollViewer}" Padding="14">
-                            <StackPanel>
-                                <TextBlock Text="NEWSY MIEDZYNARODOWE"
-                                           FontSize="9" FontWeight="Bold"
-                                           Foreground="#8B7355" Margin="0,0,0,12"/>
-                                <ItemsControl ItemsSource="{Binding InternationalNews}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Border Style="{StaticResource SidePanelCard}"
-                                                    BorderThickness="3,0,0,0"
-                                                    BorderBrush="{Binding ThreatLevel, Converter={StaticResource SeverityToColor}}"
-                                                    Cursor="Hand"
-                                                    Tag="{Binding SourceUrl}"
-                                                    MouseLeftButtonUp="OpenUrl_Click">
-                                                <StackPanel>
-                                                    <Grid>
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="24"/>
-                                                            <ColumnDefinition Width="*"/>
-                                                            <ColumnDefinition Width="Auto"/>
-                                                        </Grid.ColumnDefinitions>
-                                                        <TextBlock Grid.Column="0" Text="{Binding CountryFlag}"
-                                                                   FontSize="14" VerticalAlignment="Center"/>
-                                                        <StackPanel Grid.Column="1">
-                                                            <TextBlock Text="{Binding Country}"
-                                                                       FontSize="10" FontWeight="SemiBold"
-                                                                       Foreground="#F5EDE0"/>
-                                                            <TextBlock Text="{Binding Region}"
-                                                                       FontSize="8" Foreground="#7A6F63"/>
-                                                        </StackPanel>
-                                                        <Border Grid.Column="2"
-                                                                Background="{Binding ThreatLevel, Converter={StaticResource SeverityToBg}}"
-                                                                CornerRadius="3" Padding="6,2">
-                                                            <TextBlock Text="{Binding ThreatLevelText}"
-                                                                       FontSize="8" FontWeight="Bold"
-                                                                       Foreground="{Binding ThreatLevel, Converter={StaticResource SeverityToColor}}"/>
-                                                        </Border>
-                                                    </Grid>
-                                                    <TextBlock Text="{Binding Title}"
-                                                               FontSize="10" FontWeight="SemiBold"
-                                                               Foreground="#D5CCC0" TextWrapping="Wrap"
-                                                               Margin="0,8,0,0"/>
-                                                    <TextBlock Text="{Binding Summary}"
-                                                               FontSize="9" Foreground="#7A6F63"
-                                                               TextWrapping="Wrap" Margin="0,4,0,0"/>
-                                                    <Border Background="#1C1210" CornerRadius="4"
-                                                            Padding="8" Margin="0,8,0,0">
-                                                        <StackPanel>
-                                                            <TextBlock Text="WPLYW NA POLSKE:"
-                                                                       FontSize="8" FontWeight="Bold"
-                                                                       Foreground="#C05050" Margin="0,0,0,4"/>
-                                                            <TextBlock Text="{Binding ImpactOnPoland}"
-                                                                       FontSize="9" Foreground="#D5CCC0"
-                                                                       TextWrapping="Wrap"/>
-                                                        </StackPanel>
-                                                    </Border>
-                                                </StackPanel>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </StackPanel>
-                        </ScrollViewer>
-                    </TabItem>
-
-                    <!-- TAB: Mapa Konkurencji -->
-                    <TabItem Header="Mapa">
-                        <ScrollViewer Style="{StaticResource BriefingScrollViewer}" Padding="14">
-                            <StackPanel>
-                                <TextBlock Text="MAPA KONKURENCJI"
-                                           FontSize="9" FontWeight="Bold"
-                                           Foreground="#8B7355" Margin="0,0,0,8"/>
-
-                                <!-- Our Location -->
-                                <Border Background="#1C2A1C" CornerRadius="6" Padding="12" Margin="0,0,0,12"
-                                        BorderBrush="#6DAF6D" BorderThickness="1">
-                                    <StackPanel>
-                                        <TextBlock Text="📍 NASZA LOKALIZACJA"
-                                                   FontSize="9" FontWeight="Bold"
-                                                   Foreground="#6DAF6D" Margin="0,0,0,4"/>
-                                        <TextBlock Text="Piorkowscy - Brzeziny (lodzkie)"
-                                                   FontSize="11" FontWeight="SemiBold"
-                                                   Foreground="#F5EDE0"/>
-                                        <TextBlock Text="51.7944°N, 19.7569°E"
-                                                   FontSize="9" Foreground="#7A6F63"/>
-                                    </StackPanel>
-                                </Border>
-
-                                <TextBlock Text="KONKURENCI WG ODLEGLOSCI"
-                                           FontSize="9" FontWeight="Bold"
-                                           Foreground="#8B7355" Margin="0,0,0,8"/>
-                                <ItemsControl ItemsSource="{Binding ExtendedCompetitors}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Border Style="{StaticResource SidePanelCard}">
-                                                <StackPanel>
-                                                    <Grid>
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="*"/>
-                                                            <ColumnDefinition Width="Auto"/>
-                                                        </Grid.ColumnDefinitions>
-                                                        <StackPanel Grid.Column="0">
-                                                            <TextBlock Text="{Binding Name}"
-                                                                       FontSize="10" FontWeight="SemiBold"
-                                                                       Foreground="#F5EDE0"/>
-                                                            <StackPanel Orientation="Horizontal">
-                                                                <TextBlock Text="{Binding City}"
-                                                                           FontSize="9" Foreground="#7A6F63"/>
-                                                                <TextBlock Text=", " FontSize="9" Foreground="#5A5248"/>
-                                                                <TextBlock Text="{Binding Voivodeship}"
-                                                                           FontSize="9" Foreground="#7A6F63"/>
-                                                            </StackPanel>
-                                                        </StackPanel>
-                                                        <StackPanel Grid.Column="1" HorizontalAlignment="Right">
-                                                            <TextBlock Text="{Binding DistanceDisplay}"
-                                                                       FontFamily="Consolas" FontSize="11"
-                                                                       FontWeight="Bold" Foreground="#C9A96E"
-                                                                       HorizontalAlignment="Right"/>
-                                                            <TextBlock Text="{Binding TierDisplay}"
-                                                                       FontSize="8" Foreground="#7A6F63"
-                                                                       HorizontalAlignment="Right"/>
-                                                        </StackPanel>
-                                                    </Grid>
-
-                                                    <!-- Threat & Market Share -->
-                                                    <Grid Margin="0,8,0,0">
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="*"/>
-                                                            <ColumnDefinition Width="*"/>
-                                                            <ColumnDefinition Width="*"/>
-                                                        </Grid.ColumnDefinitions>
-                                                        <StackPanel Grid.Column="0">
-                                                            <TextBlock Text="Zagrozenie"
-                                                                       FontSize="8" Foreground="#5A5248"/>
-                                                            <TextBlock Text="{Binding ThreatDisplay}"
-                                                                       FontFamily="Consolas" FontSize="10"
-                                                                       FontWeight="Bold" Foreground="#C05050"/>
-                                                        </StackPanel>
-                                                        <StackPanel Grid.Column="1">
-                                                            <TextBlock Text="Rynek"
-                                                                       FontSize="8" Foreground="#5A5248"/>
-                                                            <TextBlock Text="{Binding MarketShareDisplay}"
-                                                                       FontFamily="Consolas" FontSize="10"
-                                                                       FontWeight="Bold" Foreground="#D5CCC0"/>
-                                                        </StackPanel>
-                                                        <StackPanel Grid.Column="2">
-                                                            <TextBlock Text="Przychod"
-                                                                       FontSize="8" Foreground="#5A5248"/>
-                                                            <TextBlock Text="{Binding RevenueDisplay}"
-                                                                       FontFamily="Consolas" FontSize="10"
-                                                                       FontWeight="Bold" Foreground="#D5CCC0"/>
-                                                        </StackPanel>
-                                                    </Grid>
-
-                                                    <!-- SWOT Summary (collapsed) -->
-                                                    <Expander Header="SWOT / Analiza" Margin="0,8,0,0"
-                                                              Foreground="#7A6F63" FontSize="9">
-                                                        <StackPanel Margin="0,8,0,0">
-                                                            <TextBlock Text="SILNE STRONY:" FontSize="8"
-                                                                       FontWeight="Bold" Foreground="#6DAF6D"/>
-                                                            <TextBlock Text="{Binding Strengths}" FontSize="9"
-                                                                       Foreground="#D5CCC0" TextWrapping="Wrap"
-                                                                       Margin="0,2,0,6"/>
-                                                            <TextBlock Text="SLABE STRONY:" FontSize="8"
-                                                                       FontWeight="Bold" Foreground="#C05050"/>
-                                                            <TextBlock Text="{Binding Weaknesses}" FontSize="9"
-                                                                       Foreground="#D5CCC0" TextWrapping="Wrap"
-                                                                       Margin="0,2,0,6"/>
-                                                            <TextBlock Text="SZANSE DLA NAS:" FontSize="8"
-                                                                       FontWeight="Bold" Foreground="#5AB8B8"/>
-                                                            <TextBlock Text="{Binding OpportunitiesForUs}" FontSize="9"
-                                                                       Foreground="#D5CCC0" TextWrapping="Wrap"
-                                                                       Margin="0,2,0,0"/>
-                                                        </StackPanel>
-                                                    </Expander>
-                                                </StackPanel>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </StackPanel>
-                        </ScrollViewer>
-                    </TabItem>
-                </TabControl>
+                    <!-- Input -->
+                    <Border Grid.Row="3" Padding="12,10" Background="#15120D" CornerRadius="0,0,6,6">
+                        <StackPanel>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="txtChatInput" Grid.Column="0"
+                                         Background="#0C0A07" Foreground="#F5EDE0"
+                                         BorderBrush="#3F3830" BorderThickness="1" Padding="10,8"
+                                         FontSize="12" CaretBrush="#F5EDE0" TextWrapping="Wrap" AcceptsReturn="False"
+                                         KeyDown="TxtChatInput_KeyDown"
+                                         ToolTip="Enter wysyła, Shift+Enter nowa linia"/>
+                                <Button x:Name="btnChatSend" Grid.Column="1" Content="Wyślij ➤" Click="BtnChatSend_Click"
+                                        Background="#3D2F1F" Foreground="#F5EDE0" BorderBrush="#C9A96E" BorderThickness="1"
+                                        Padding="14,8" FontSize="12" Cursor="Hand" Margin="8,0,0,0"/>
+                            </Grid>
+                            <TextBlock x:Name="txtChatStatus" Text="" FontSize="10" Foreground="#7A6F63" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
             </Border>
         </Grid>
     </Grid>

@@ -1,36 +1,45 @@
 using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Data;
-using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Navigation;
-using System.Windows.Shapes;
 using System.Windows.Threading;
 using Kalendarz1.MarketIntelligence.Models;
 using Kalendarz1.MarketIntelligence.ViewModels;
 
 namespace Kalendarz1.MarketIntelligence.Views
 {
+    /// <summary>
+    /// Centrum Wiadomości AI (dawniej Poranny Briefing) — CHAT-FIRST redesign (opcja A).
+    /// Lewo: lista artykułów (intel_Articles, realne). Prawo: stały chat AI.
+    /// Usunięto 10 mock-tabów + role switcher + tasks panel + summary/indicators bar z hardcoded danymi.
+    /// </summary>
     public partial class PorannyBriefingWindow : Window
     {
         private PorannyBriefingViewModel _viewModel;
 
-        // Debounce dla SearchTextBox — bez tego każdy znak triggował filter na 100+ artykułach (lag)
+        // Debounce dla SearchTextBox
         private readonly DispatcherTimer _searchDebounceTimer;
         private string _pendingSearchText;
 
-        // Auto-cron sprawdzający co minutę czy 06:00 i czy ostatni fetch >18h temu → auto-trigger.
-        // State per-day w %LOCALAPPDATA%\Kalendarz1\MarketIntelligence\autofetch-state.json
-        // żeby przeżywał restart apki i nie triggerował dwa razy w tym samym dniu.
+        // Auto-cron 06:00 daily fetch (state per-day w %LOCALAPPDATA%)
         private DispatcherTimer _autoFetchTimer;
         private static readonly string AutoFetchStatePath = System.IO.Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "Kalendarz1", "MarketIntelligence", "autofetch-state.json");
+
+        // ── Chat ──
+        private readonly ObservableCollection<ChatMessage> _chatHistory = new();
+        private Services.AI.ClaudeAnalysisService _claude;
+        private string _chatSystemPrompt;
 
         public PorannyBriefingWindow()
         {
@@ -39,17 +48,20 @@ namespace Kalendarz1.MarketIntelligence.Views
             Loaded += PorannyBriefingWindow_Loaded;
             Closed += PorannyBriefingWindow_Closed;
 
-            _searchDebounceTimer = new DispatcherTimer
-            {
-                Interval = TimeSpan.FromMilliseconds(250)
-            };
+            _searchDebounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
             _searchDebounceTimer.Tick += SearchDebounceTimer_Tick;
         }
 
         private void PorannyBriefingWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            BuildSummaryText();
-            DrawPriceChart();
+            // Chat: pokaż powitanie
+            lstChat.ItemsSource = _chatHistory;
+            AddSystemHello();
+
+            // Auto-load artykułów z bazy (realne dane) zaraz po otwarciu
+            if (_viewModel?.LoadFromDatabaseCommand?.CanExecute(null) == true)
+                _viewModel.LoadFromDatabaseCommand.Execute(null);
+
             StartAutoFetchTimer();
         }
 
@@ -58,10 +70,8 @@ namespace Kalendarz1.MarketIntelligence.Views
             _autoFetchTimer?.Stop();
         }
 
-        /// <summary>
-        /// Timer sprawdzający co 60s czy jest 06:00-06:15 i czy dziś jeszcze nie było auto-fetcha.
-        /// Per-day flag w pliku JSON żeby restart apki nie wywołał ponownie.
-        /// </summary>
+        #region Auto-fetch 06:00
+
         private void StartAutoFetchTimer()
         {
             _autoFetchTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(60) };
@@ -70,11 +80,10 @@ namespace Kalendarz1.MarketIntelligence.Views
                 try
                 {
                     var now = DateTime.Now;
-                    // Window: 06:00–06:15
                     if (now.Hour != 6 || now.Minute > 15) return;
 
                     var todayKey = now.ToString("yyyy-MM-dd");
-                    if (LastAutoFetchDay() == todayKey) return; // już dziś było
+                    if (LastAutoFetchDay() == todayKey) return;
 
                     Debug.WriteLine($"[AutoFetch] ⏰ 06:0X — triggering daily fetch ({todayKey})");
                     MarkAutoFetchDone(todayKey);
@@ -82,7 +91,6 @@ namespace Kalendarz1.MarketIntelligence.Views
                     if (_viewModel?.RefreshFromInternetCommand?.CanExecute(null) == true)
                     {
                         _viewModel.RefreshFromInternetCommand.Execute(null);
-                        // Po fetchu — auto-eksport one-pager do MD (delayed 8min żeby fetch zdążył)
                         var exportTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(8) };
                         exportTimer.Tick += (_, __) =>
                         {
@@ -121,26 +129,20 @@ namespace Kalendarz1.MarketIntelligence.Views
             catch { }
         }
 
-        /// <summary>
-        /// Auto-eksport One-pager do MD pliku po auto-fetchu o 6:00.
-        /// Otwiera niewidocznie BriefingOnePagerWindow w tle, czeka aż załaduje dane,
-        /// klika "Zapisz MD" przez ukrytą metodę, zamyka. Plik trafia do Documents/Briefing Piorkowscy/.
-        /// </summary>
+        /// <summary>Auto-eksport One-pager do MD po auto-fetchu o 6:00 (niewidoczne okno w tle).</summary>
         private void AutoExportOnePagerToMd()
         {
             try
             {
                 var win = new BriefingOnePagerWindow();
-                // Trick: pokaż window minimized + invisible, daj mu się zainicjalizować, zapisz, zamknij
                 win.WindowState = WindowState.Minimized;
                 win.ShowInTaskbar = false;
                 win.Opacity = 0;
                 win.Loaded += async (s, e) =>
                 {
-                    await System.Threading.Tasks.Task.Delay(2000); // wait for DB load
+                    await Task.Delay(2000);
                     try
                     {
-                        // wywołaj wewnętrzny export
                         win.GetType().GetMethod("BtnExportMd_Click", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
                             ?.Invoke(win, new object[] { null, null });
                     }
@@ -153,180 +155,21 @@ namespace Kalendarz1.MarketIntelligence.Views
             catch (Exception ex) { Debug.WriteLine($"[AutoFetch] auto-export setup error: {ex.Message}"); }
         }
 
-        #region Summary Builder
-
-        private void BuildSummaryText()
-        {
-            if (_viewModel == null || txtSummary == null) return;
-
-            txtSummary.Inlines.Clear();
-
-            foreach (var segment in _viewModel.SummarySegments)
-            {
-                var run = new Run(segment.Text);
-
-                if (segment.Color != "default")
-                {
-                    try
-                    {
-                        run.Foreground = new SolidColorBrush(
-                            (Color)ColorConverter.ConvertFromString(segment.Color));
-                    }
-                    catch
-                    {
-                        run.Foreground = new SolidColorBrush(Color.FromRgb(213, 204, 192));
-                    }
-                }
-                else
-                {
-                    run.Foreground = new SolidColorBrush(Color.FromRgb(213, 204, 192));
-                }
-
-                if (segment.IsBold)
-                {
-                    run.FontWeight = FontWeights.SemiBold;
-                }
-
-                txtSummary.Inlines.Add(run);
-            }
-        }
-
         #endregion
 
-        #region Chart Drawing
-
-        private void DrawPriceChart()
-        {
-            if (canvasChart == null || _viewModel == null) return;
-
-            canvasChart.Children.Clear();
-
-            var skupIndicator = _viewModel.Indicators.Count > 0 ? _viewModel.Indicators[0] : null;
-            if (skupIndicator?.SparkData == null || skupIndicator.SparkData.Length < 2) return;
-
-            var data = skupIndicator.SparkData;
-            double width = 320;
-            double height = 80;
-            double padding = 10;
-
-            double minVal = double.MaxValue;
-            double maxVal = double.MinValue;
-            foreach (var val in data)
-            {
-                if (val < minVal) minVal = val;
-                if (val > maxVal) maxVal = val;
-            }
-            double range = maxVal - minVal;
-            if (range < 0.01) range = 0.1;
-
-            minVal -= range * 0.1;
-            maxVal += range * 0.1;
-            range = maxVal - minVal;
-
-            var points = new PointCollection();
-            double stepX = (width - padding * 2) / (data.Length - 1);
-
-            for (int i = 0; i < data.Length; i++)
-            {
-                double x = padding + i * stepX;
-                double y = height - padding - ((data[i] - minVal) / range) * (height - padding * 2);
-                points.Add(new Point(x, y));
-            }
-
-            var fillPoints = new PointCollection(points);
-            fillPoints.Add(new Point(padding + (data.Length - 1) * stepX, height - padding));
-            fillPoints.Add(new Point(padding, height - padding));
-
-            var fillPolygon = new Polygon
-            {
-                Points = fillPoints,
-                Fill = new LinearGradientBrush
-                {
-                    StartPoint = new Point(0, 0),
-                    EndPoint = new Point(0, 1),
-                    GradientStops = new GradientStopCollection
-                    {
-                        new GradientStop(Color.FromArgb(60, 201, 169, 110), 0),
-                        new GradientStop(Color.FromArgb(0, 201, 169, 110), 1)
-                    }
-                }
-            };
-            canvasChart.Children.Add(fillPolygon);
-
-            var polyline = new Polyline
-            {
-                Points = points,
-                Stroke = new SolidColorBrush(Color.FromRgb(201, 169, 110)),
-                StrokeThickness = 2,
-                StrokeLineJoin = PenLineJoin.Round
-            };
-            canvasChart.Children.Add(polyline);
-
-            if (points.Count > 0)
-            {
-                var lastPoint = points[points.Count - 1];
-                var dot = new Ellipse
-                {
-                    Width = 8,
-                    Height = 8,
-                    Fill = new SolidColorBrush(Color.FromRgb(201, 169, 110)),
-                    Stroke = new SolidColorBrush(Color.FromRgb(21, 18, 13)),
-                    StrokeThickness = 2
-                };
-                Canvas.SetLeft(dot, lastPoint.X - 4);
-                Canvas.SetTop(dot, lastPoint.Y - 4);
-                canvasChart.Children.Add(dot);
-            }
-
-            var priceLabel = new TextBlock
-            {
-                Text = $"{data[data.Length - 1]:N2} zl",
-                FontFamily = new FontFamily("Consolas"),
-                FontSize = 18,
-                FontWeight = FontWeights.Bold,
-                Foreground = new SolidColorBrush(Color.FromRgb(245, 237, 224))
-            };
-            Canvas.SetRight(priceLabel, 10);
-            Canvas.SetTop(priceLabel, 10);
-            canvasChart.Children.Add(priceLabel);
-        }
-
-        #endregion
-
-        #region Event Handlers
-
-        private void RoleButton_Checked(object sender, RoutedEventArgs e)
-        {
-            if (sender is RadioButton rb && rb.Tag is string role)
-            {
-                _viewModel?.ChangeRoleCommand.Execute(role);
-                // Force refresh of articles to update AI analysis
-                icArticles?.Items.Refresh();
-            }
-        }
-
-        private void TasksButton_Click(object sender, RoutedEventArgs e)
-        {
-            _viewModel?.ToggleTasksPanelCommand.Execute(null);
-        }
+        #region Articles: filters / search / expand
 
         private void FilterButton_Click(object sender, RoutedEventArgs e)
         {
             if (sender is ToggleButton btn && btn.Tag is string category)
             {
-                var parent = btn.Parent as Panel;
-                if (parent != null)
+                if (btn.Parent is Panel parent)
                 {
                     foreach (var child in parent.Children)
-                    {
                         if (child is ToggleButton otherBtn && otherBtn != btn)
-                        {
                             otherBtn.IsChecked = false;
-                        }
-                    }
                 }
                 btn.IsChecked = true;
-
                 _viewModel?.FilterByCategoryCommand.Execute(category);
             }
         }
@@ -345,123 +188,173 @@ namespace Kalendarz1.MarketIntelligence.Views
         {
             _searchDebounceTimer.Stop();
             if (_viewModel != null)
-            {
                 _viewModel.SearchText = _pendingSearchText;
-            }
         }
 
         private void Article_Click(object sender, MouseButtonEventArgs e)
         {
             if (sender is FrameworkElement fe && fe.DataContext is BriefingArticle article)
-            {
                 _viewModel?.ToggleArticleCommand.Execute(article);
-            }
         }
 
         private void Hyperlink_RequestNavigate(object sender, RequestNavigateEventArgs e)
         {
             try
             {
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = e.Uri.AbsoluteUri,
-                    UseShellExecute = true
-                });
+                Process.Start(new ProcessStartInfo { FileName = e.Uri.AbsoluteUri, UseShellExecute = true });
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error opening link: {ex.Message}");
-            }
+            catch (Exception ex) { Debug.WriteLine($"Error opening link: {ex.Message}"); }
             e.Handled = true;
-        }
-
-        private void btnDiagnostics_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                var win = new BriefingDiagnosticsWindow { Owner = this };
-                win.Show();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Błąd otwierania diagnostyki: " + ex.Message, "Diagnostyka",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        private void btnOnePager_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                var win = new BriefingOnePagerWindow { Owner = this };
-                win.Show();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Błąd otwierania One-pager: " + ex.Message, "One-pager",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        private void btnSources_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                var win = new SourcesManagementWindow { Owner = this };
-                win.Show();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Błąd otwierania Moich źródeł: " + ex.Message, "Moje źródła",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        private void btnQueries_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                var win = new UserQueriesManagementWindow { Owner = this };
-                win.Show();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Błąd otwierania Moich tematów: " + ex.Message, "Moje tematy",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        private void btnHelp_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                var win = new BriefingHelpWindow { Owner = this };
-                win.ShowDialog();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Błąd otwierania pomocy: " + ex.Message, "Pomoc",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-            }
         }
 
         private void OpenUrl_Click(object sender, RoutedEventArgs e)
         {
             if (sender is FrameworkElement fe && fe.Tag is string url && !string.IsNullOrEmpty(url))
             {
-                try
-                {
-                    Process.Start(new ProcessStartInfo
-                    {
-                        FileName = url,
-                        UseShellExecute = true
-                    });
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Error opening URL: {ex.Message}");
-                }
+                try { Process.Start(new ProcessStartInfo { FileName = url, UseShellExecute = true }); }
+                catch (Exception ex) { Debug.WriteLine($"Error opening URL: {ex.Message}"); }
             }
+        }
+
+        #endregion
+
+        #region Toolbar buttons
+
+        private void btnOnePager_Click(object sender, RoutedEventArgs e)
+            => OpenChild(() => new BriefingOnePagerWindow(), "One-pager");
+
+        private void btnSources_Click(object sender, RoutedEventArgs e)
+            => OpenChild(() => new SourcesManagementWindow(), "Moje źródła");
+
+        private void btnQueries_Click(object sender, RoutedEventArgs e)
+            => OpenChild(() => new UserQueriesManagementWindow(), "Moje tematy");
+
+        private void btnDiagnostics_Click(object sender, RoutedEventArgs e)
+            => OpenChild(() => new BriefingDiagnosticsWindow(), "Diagnostyka");
+
+        private void btnHelp_Click(object sender, RoutedEventArgs e)
+        {
+            try { new BriefingHelpWindow { Owner = this }.ShowDialog(); }
+            catch (Exception ex) { MessageBox.Show("Błąd otwierania pomocy: " + ex.Message); }
+        }
+
+        private void OpenChild(Func<Window> factory, string name)
+        {
+            try
+            {
+                var win = factory();
+                win.Owner = this;
+                win.Show();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd otwierania '{name}': {ex.Message}", name,
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        #endregion
+
+        #region Chat AI
+
+        private void AddSystemHello()
+        {
+            _chatHistory.Add(new ChatMessage
+            {
+                Author = "🤖 Asystent AI",
+                AuthorColor = new SolidColorBrush(Color.FromRgb(201, 169, 110)),
+                BgColor = new SolidColorBrush(Color.FromRgb(31, 26, 20)),
+                Content = "Cześć Sergiusz. Znam profil firmy + ostatnie 30 dni z drobiarstwa. Pytaj swobodnie albo użyj szybkich pytań powyżej."
+            });
+        }
+
+        private async void BtnQuickPrompt_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is string prompt)
+            {
+                txtChatInput.Text = prompt;
+                await SendChatAsync();
+            }
+        }
+
+        private async void TxtChatInput_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter && (Keyboard.Modifiers & ModifierKeys.Shift) == 0)
+            {
+                e.Handled = true;
+                await SendChatAsync();
+            }
+        }
+
+        private async void BtnChatSend_Click(object sender, RoutedEventArgs e) => await SendChatAsync();
+
+        private async Task SendChatAsync()
+        {
+            var q = (txtChatInput.Text ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(q)) return;
+
+            txtChatInput.Text = "";
+            btnChatSend.IsEnabled = false;
+            txtChatStatus.Text = "⏳ AI myśli (Sonnet 4.6, ~5-15s)…";
+
+            _chatHistory.Add(new ChatMessage
+            {
+                Author = "👤 " + (App.UserFullName ?? "Sergiusz"),
+                AuthorColor = new SolidColorBrush(Color.FromRgb(245, 237, 224)),
+                BgColor = new SolidColorBrush(Color.FromRgb(42, 37, 32)),
+                Content = q
+            });
+            ScrollChatToEnd();
+
+            try
+            {
+                _claude ??= new Services.AI.ClaudeAnalysisService();
+                if (_chatSystemPrompt == null)
+                {
+                    var builder = new Services.BriefingChatContextBuilder();
+                    _chatSystemPrompt = await builder.BuildSystemPromptAsync(App.UserID ?? Environment.UserName);
+                }
+
+                var answer = await _claude.ChatAsync(_chatSystemPrompt, q);
+
+                _chatHistory.Add(new ChatMessage
+                {
+                    Author = "🤖 Asystent AI",
+                    AuthorColor = new SolidColorBrush(Color.FromRgb(201, 169, 110)),
+                    BgColor = new SolidColorBrush(Color.FromRgb(31, 26, 20)),
+                    Content = answer ?? "(brak odpowiedzi)"
+                });
+                ScrollChatToEnd();
+                txtChatStatus.Text = $"✅ Odpowiedź · {DateTime.Now:HH:mm:ss}";
+            }
+            catch (Exception ex)
+            {
+                _chatHistory.Add(new ChatMessage
+                {
+                    Author = "⚠ Błąd",
+                    AuthorColor = new SolidColorBrush(Color.FromRgb(232, 93, 93)),
+                    BgColor = new SolidColorBrush(Color.FromRgb(40, 24, 24)),
+                    Content = $"Nie udało się uzyskać odpowiedzi: {ex.Message}"
+                });
+                txtChatStatus.Text = "❌ Błąd — sprawdź klucz Claude API.";
+            }
+            finally
+            {
+                btnChatSend.IsEnabled = true;
+            }
+        }
+
+        private void ScrollChatToEnd()
+        {
+            Dispatcher.InvokeAsync(() => chatScroll?.ScrollToEnd(), DispatcherPriority.Background);
+        }
+
+        public class ChatMessage
+        {
+            public string Author { get; set; }
+            public string Content { get; set; }
+            public SolidColorBrush AuthorColor { get; set; }
+            public SolidColorBrush BgColor { get; set; }
         }
 
         #endregion
@@ -538,10 +431,9 @@ namespace Kalendarz1.MarketIntelligence.Views
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            if (value is bool b)
-            {
-                return b ? Visibility.Collapsed : Visibility.Visible;
-            }
+            // bool: false → Visible (np. IsExpanded). int: 0 → Visible (np. empty state TotalArticles).
+            if (value is bool b) return b ? Visibility.Collapsed : Visibility.Visible;
+            if (value is int i) return i == 0 ? Visibility.Visible : Visibility.Collapsed;
             return Visibility.Visible;
         }
 
@@ -550,9 +442,8 @@ namespace Kalendarz1.MarketIntelligence.Views
     }
 
     /// <summary>
-    /// Multi-value converter for role-based AI analysis.
-    /// Values[0] = BriefingArticle, Values[1] = UserRole
-    /// Parameter = "Analysis" or "Actions" or "Label"
+    /// Multi-value converter dla per-article AI analysis.
+    /// Values[0] = BriefingArticle, Values[1] = UserRole. Parameter = "Analysis"/"Actions"/"Label".
     /// </summary>
     public class RoleBasedAnalysisConverter : IMultiValueConverter
     {

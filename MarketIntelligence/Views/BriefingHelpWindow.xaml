@@ -147,10 +147,10 @@
                         </Border>
                         <StackPanel Grid.Column="1">
                             <TextBlock Style="{StaticResource H3}" Text="Uruchom pełne pobranie i czytaj One-pager (📋 One-pager)"/>
-                            <TextBlock Style="{StaticResource Bullet}" Text="• W głównym oknie wybierz '🔥 Pełne pobranie' lub poczekaj na auto-fetch o 06:00"/>
-                            <TextBlock Style="{StaticResource Bullet}" Text="• Otwórz '📋 One-pager' — masz: TOP 3 krytyczne + 5 action items + streszczenia CEO/Sales/Buyer"/>
-                            <TextBlock Style="{StaticResource Bullet}" Text="• Pod artykułami klikaj 👍/👎 — AI zapamięta co lubisz"/>
-                            <TextBlock Style="{StaticResource Bullet}" Text="• Pod streszczeniami jest CHAT — pytaj swobodnie, AI zna 30 dni historii + profil firmy"/>
+                            <TextBlock Style="{StaticResource Bullet}" Text="• W głównym oknie kliknij '🔄 Pobierz' (z internetu) lub '💾 Z bazy' (zapisane). Albo poczekaj na auto-fetch o 06:00."/>
+                            <TextBlock Style="{StaticResource Bullet}" Text="• Lewo: lista artykułów (klik = rozwiń analizę). Prawo: stały chat AI — pytaj od razu."/>
+                            <TextBlock Style="{StaticResource Bullet}" Text="• '📋 One-pager' — esencja: TOP 3 krytyczne + 5 action items + streszczenia CEO/Sales/Buyer + 👍/👎"/>
+                            <TextBlock Style="{StaticResource Bullet}" Text="• Chat zna profil firmy, 30 dni artykułów, briefingi i Twoje preferencje — drąż dowoli"/>
                         </StackPanel>
                     </Grid>
                 </Border>
