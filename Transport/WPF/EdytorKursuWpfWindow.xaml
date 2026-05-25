@@ -237,6 +237,31 @@
                                 <MenuItem Header="🔄 Odśwież" Click="BtnOdswiezWolne_Click"/>
                             </ContextMenu>
                         </DataGrid.ContextMenu>
+                        <DataGrid.GroupStyle>
+                            <GroupStyle>
+                                <GroupStyle.ContainerStyle>
+                                    <Style TargetType="{x:Type GroupItem}">
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="{x:Type GroupItem}">
+                                                    <Expander IsExpanded="True" BorderThickness="0" Background="Transparent" Margin="0,1,0,0">
+                                                        <Expander.Header>
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <TextBlock Text="{Binding Name}" FontWeight="Bold" Foreground="#5e35b1" FontSize="12.5" VerticalAlignment="Center"/>
+                                                                <Border Background="#d1c4e9" CornerRadius="8" Padding="6,1" Margin="8,0,0,0">
+                                                                    <TextBlock Text="{Binding ItemCount}" Foreground="#4527a0" FontSize="10.5" FontWeight="SemiBold"/>
+                                                                </Border>
+                                                            </StackPanel>
+                                                        </Expander.Header>
+                                                        <ItemsPresenter/>
+                                                    </Expander>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </GroupStyle.ContainerStyle>
+                            </GroupStyle>
+                        </DataGrid.GroupStyle>
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Awiz." Binding="{Binding GodzAwizacji}" Width="60"/>
                             <DataGridTextColumn Header="Klient" Binding="{Binding KlientNazwa}" Width="*"/>

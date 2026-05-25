@@ -48,6 +48,8 @@ namespace Kalendarz1.Transport.WPF
             InitializeComponent();
             try { WindowIconHelper.SetIcon(this); } catch { }
             WolneGrid.ItemsSource = _wolne;
+            WpfDragHelper.GrupujKolekcje(_wolne, nameof(WolneZamowienieWpf.KlientNazwa),
+                nameof(WolneZamowienieWpf.KlientNazwa), nameof(WolneZamowienieWpf.DataPrzyjazdu));
             WolneGrid.SelectionChanged += (_, _) => UpdateDodajButton();
             WolneGrid.PreviewMouseLeftButtonDown += (_, e) => _dragStart = e.GetPosition(null);
             WolneGrid.PreviewMouseMove += WolneGrid_PreviewMouseMove;

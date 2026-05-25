@@ -3,14 +3,28 @@
 // ════════════════════════════════════════════════════════════════════════════
 
 using System;
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Media;
 
 namespace Kalendarz1.Transport.WPF
 {
     internal static class WpfDragHelper
     {
+        /// <summary>Grupuje kolekcję po właściwości (nagłówki sekcji) + sortowanie. Dla WolneGrid → grupy per klient.</summary>
+        public static void GrupujKolekcje(object source, string groupProp, params string[] sortProps)
+        {
+            var view = CollectionViewSource.GetDefaultView(source);
+            if (view == null) return;
+            view.GroupDescriptions.Clear();
+            view.GroupDescriptions.Add(new PropertyGroupDescription(groupProp));
+            view.SortDescriptions.Clear();
+            foreach (var sp in sortProps)
+                view.SortDescriptions.Add(new SortDescription(sp, ListSortDirection.Ascending));
+        }
+
         public static T? FindAncestor<T>(DependencyObject? current) where T : DependencyObject
         {
             while (current != null)
