@@ -268,7 +268,7 @@ namespace Kalendarz1.MarketIntelligence.ViewModels
             try
             {
                 var loader = BriefingDataLoaderService.Instance;
-                var result = await loader.LoadFromDatabaseAsync(days: 7);
+                var result = await loader.LoadFromDatabaseAsync(days: 3);
 
                 if (result.Success && result.Articles.Any())
                 {
@@ -317,9 +317,9 @@ namespace Kalendarz1.MarketIntelligence.ViewModels
                     a.Tags?.Any(t => t.ToLower().Contains(search)) == true);
             }
 
+            // Sortowanie: najnowsze DODANE do bazy na górze (FetchedAt), potem data publikacji.
             filtered = filtered
-                .OrderByDescending(a => a.IsFeatured)
-                .ThenByDescending(a => a.Severity == SeverityLevel.Critical)
+                .OrderByDescending(a => a.FetchedAt)
                 .ThenByDescending(a => a.PublishDate);
 
             foreach (var article in filtered)

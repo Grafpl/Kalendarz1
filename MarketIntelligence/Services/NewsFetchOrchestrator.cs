@@ -1002,9 +1002,10 @@ WHEN NOT MATCHED THEN INSERT (
         public bool FetchHpaiAlerts { get; set; } = true;
         public bool FetchPrices { get; set; } = true;
         public bool SaveToDatabase { get; set; } = true;
-        // 2026-05-20: Default 20 → 5 — niespójność z Full/Economy powodowała AI Analysis timeout 360s
-        // gdy ktokolwiek wywołał FetchOptions.Default (np. auto-cron 6:00 przez RefreshFromInternetCommand).
-        public int MaxArticlesToAnalyze { get; set; } = 5;
+        // 2026-05-25: 5 → 15 — Sergiusz chce analizę AI dla "wszystkich newsów".
+        // 15 to praktyczny sweet-spot: 15/3 concurrent × ~25s = ~125s (pod watchdog 180s).
+        // Literalnie "wszystkie" (40-60) = 5-8 min fetch + ryzyko timeout, więc cap na 15.
+        public int MaxArticlesToAnalyze { get; set; } = 15;
 
         public static FetchOptions Default => new();
 
@@ -1019,7 +1020,7 @@ WHEN NOT MATCHED THEN INSERT (
             FetchHpaiAlerts = true,
             FetchPrices = true,
             SaveToDatabase = true,
-            MaxArticlesToAnalyze = 5 // TRYB OSZCZĘDNY: 5 × ~$0.10 = $0.50 zamiast $1.50 dla 15 art.
+            MaxArticlesToAnalyze = 15 // 2026-05-25: analiza AI dla większości newsów (sweet-spot pod watchdog)
         };
 
         public static FetchOptions Economy => new()

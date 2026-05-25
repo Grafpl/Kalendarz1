@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -62,7 +63,97 @@ namespace Kalendarz1.MarketIntelligence.Views
                 _viewModel.LoadFromDatabaseCommand.Execute(null);
 
             StartAutoFetchTimer();
+
+            // Jednorazowy seed preferencji Sergiusza (Farmer.pl + tematy) — w tle
+            _ = SeedUserDefaultsAsync();
         }
+
+        #region Seed domyślnych preferencji (jednorazowo)
+
+        private static readonly string SeedStatePath = System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Kalendarz1", "MarketIntelligence", "seed-defaults-v1.json");
+
+        /// <summary>
+        /// Jednorazowo dodaje preferencje wybrane przez Sergiusza: Farmer.pl jako źródło
+        /// + tematy Mercosur / rzekomy pomór drobiu (Newcastle) / hodowcy broiler.
+        /// Guard: plik flagi w LocalAppData. Jeśli user później usunie — NIE wraca.
+        /// </summary>
+        private async Task SeedUserDefaultsAsync()
+        {
+            try
+            {
+                if (System.IO.File.Exists(SeedStatePath)) return;
+
+                // 1. Farmer.pl jako źródło (auto-wykryj RSS, fallback WebScraping)
+                var sources = new Services.SourcesService();
+                var existing = await sources.GetAllAsync();
+                bool hasFarmer = existing.Any(s =>
+                    (s.Url ?? "").Contains("farmer.pl", StringComparison.OrdinalIgnoreCase) ||
+                    (s.Name ?? "").Contains("Farmer", StringComparison.OrdinalIgnoreCase));
+                if (!hasFarmer)
+                {
+                    string url = "https://www.farmer.pl/";
+                    string type = "WebScraping";
+                    try
+                    {
+                        using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(30));
+                        var det = await sources.DetectRssFeedAsync("https://www.farmer.pl/", cts.Token);
+                        if (det.Success && !string.IsNullOrEmpty(det.FeedUrl)) { url = det.FeedUrl; type = "RSS"; }
+                    }
+                    catch { /* zostaje WebScraping */ }
+
+                    await sources.InsertAsync(new Services.UserSource
+                    {
+                        Name = "Farmer.pl",
+                        Url = url,
+                        SourceType = type,
+                        Category = "Drób",
+                        Language = "pl",
+                        Priority = 1,
+                        IsActive = true,
+                        Topics = "drób, mięso, hodowcy, broiler, ceny"
+                    });
+                }
+
+                // 2. Tematy do Perplexity
+                var queries = new Services.UserQueriesService();
+                var existingQ = await queries.GetAllAsync();
+
+                async Task EnsureTopic(string keyword, string text, string cat, int pri, string notes)
+                {
+                    if (existingQ.Any(q => (q.QueryText ?? "").Contains(keyword, StringComparison.OrdinalIgnoreCase)))
+                        return;
+                    await queries.InsertAsync(new Services.UserQuery
+                    {
+                        QueryText = text, Category = cat, Priority = pri,
+                        Enabled = true, RecencyFilter = "week", Notes = notes
+                    });
+                }
+
+                await EnsureTopic("Mercosur",
+                    "Umowa UE-Mercosur a drób 2026 — status ratyfikacji, kontyngenty na drób z Brazylii/Argentyny, wpływ na ceny i konkurencyjność polskiego drobiu.",
+                    "Import", 1, "Zagrożenie: tańszy drób z Ameryki Płd. po wejściu umowy.");
+                await EnsureTopic("rzekomy pomór",
+                    "Rzekomy pomór drobiu (choroba Newcastle, ND) Polska 2026 — ogniska, szczepienia, ograniczenia, wpływ na hodowle i eksport.",
+                    "HPAI", 1, "Choroba Newcastle — obok HPAI kluczowe zagrożenie zdrowotne stada.");
+                await EnsureTopic("hodowcy broiler",
+                    "Hodowcy broilerów kurczaka Polska 2026 — sytuacja ferm, koszty, dobrostan, kontraktacja z ubojniami, problemy hodowców.",
+                    "Hodowcy", 5, "Nasi dostawcy żywca — kondycja ferm broiler wpływa na podaż.");
+
+                // 3. Flaga done
+                var dir = System.IO.Path.GetDirectoryName(SeedStatePath);
+                if (!string.IsNullOrEmpty(dir)) System.IO.Directory.CreateDirectory(dir);
+                System.IO.File.WriteAllText(SeedStatePath, $"{{\"seededAt\":\"{DateTime.Now:O}\"}}");
+                Debug.WriteLine("[Seed] ✓ Farmer.pl + tematy (Mercosur/Newcastle/broiler) dodane");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Seed] error: {ex.Message}");
+            }
+        }
+
+        #endregion
 
         private void PorannyBriefingWindow_Closed(object sender, EventArgs e)
         {
