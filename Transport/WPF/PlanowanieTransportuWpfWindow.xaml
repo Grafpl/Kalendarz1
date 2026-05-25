@@ -326,13 +326,16 @@
                             <GroupStyle>
                                 <GroupStyle.HeaderTemplate>
                                     <DataTemplate>
-                                        <Border Background="#f3e9fb" Padding="10,5" Margin="0,4,0,1">
+                                        <Border Background="#e8eaf6" Padding="10,6" Margin="0,4,0,1">
                                             <StackPanel Orientation="Horizontal">
-                                                <Border Width="3" Background="#7b1fa2" CornerRadius="2" Margin="0,0,8,0"/>
-                                                <TextBlock Text="{Binding Name}" FontWeight="Bold" Foreground="#5e35b1" FontSize="12" VerticalAlignment="Center"/>
-                                                <Border Background="#d1c4e9" CornerRadius="8" Padding="6,1" Margin="8,0,0,0" VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding ItemCount}" Foreground="#4527a0" FontSize="10" FontWeight="SemiBold"/>
+                                                <Border Width="3" Background="#3949ab" CornerRadius="2" Margin="0,0,8,0"/>
+                                                <TextBlock Text="📅" FontSize="11" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                                <TextBlock Text="{Binding Name, StringFormat='{}{0:dd.MM ddd}'}" Language="pl-PL"
+                                                           FontWeight="Bold" Foreground="#1a237e" FontSize="12.5" VerticalAlignment="Center"/>
+                                                <Border Background="#c5cae9" CornerRadius="8" Padding="7,1" Margin="9,0,0,0" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding ItemCount}" Foreground="#283593" FontSize="10.5" FontWeight="SemiBold"/>
                                                 </Border>
+                                                <TextBlock Text="zam." Foreground="#5c6bc0" FontSize="10.5" VerticalAlignment="Center" Margin="4,0,0,0"/>
                                             </StackPanel>
                                         </Border>
                                     </DataTemplate>
@@ -340,15 +343,31 @@
                             </GroupStyle>
                         </DataGrid.GroupStyle>
                         <DataGrid.Columns>
-                            <DataGridTemplateColumn Header="Godz." Width="60">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <Border Background="#ede7f6" CornerRadius="4" Padding="6,2" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding GodzAwizacji}" Foreground="#5e35b1" FontWeight="SemiBold" FontSize="11"/>
-                                        </Border>
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
+                            <DataGridTextColumn Header="Ubój" Binding="{Binding UbojDisplay}" Width="62">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock"><Setter Property="Foreground" Value="#78909c"/><Setter Property="FontSize" Value="11"/></Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Odbiór" Binding="{Binding OdbiorDisplay}" Width="62">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock"><Setter Property="Foreground" Value="#37474f"/><Setter Property="FontSize" Value="11"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Godz." Binding="{Binding GodzAwizacji}" Width="46">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Pal" Binding="{Binding PaletyDisplay}" Width="42">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/></Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Poj." Binding="{Binding Pojemniki}" Width="42">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
                             <DataGridTextColumn Header="Klient" Binding="{Binding KlientNazwa}" Width="*">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
@@ -359,21 +378,16 @@
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
-                            <DataGridTemplateColumn Header="Handlowiec" Width="142">
+                            <DataGridTemplateColumn Header="Handl." Width="100">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center" ToolTip="{Binding Tooltip}">
-                                            <ctrl:AvatarControl UserId="{Binding HandlowiecId}" DisplayName="{Binding Handlowiec}" Diameter="24" Margin="0,0,6,0"/>
-                                            <TextBlock Text="{Binding HandlowiecDisplay}" VerticalAlignment="Center" FontSize="11" Foreground="#37474f" TextTrimming="CharacterEllipsis"/>
+                                            <ctrl:AvatarControl UserId="{Binding HandlowiecId}" DisplayName="{Binding Handlowiec}" Diameter="24" Margin="0,0,5,0"/>
+                                            <TextBlock Text="{Binding HandlowiecDisplay}" VerticalAlignment="Center" FontSize="10.5" Foreground="#546e7a" TextTrimming="CharacterEllipsis"/>
                                         </StackPanel>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTextColumn Header="Poj." Binding="{Binding Pojemniki}" Width="52">
-                                <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
-                                </DataGridTextColumn.ElementStyle>
-                            </DataGridTextColumn>
                         </DataGrid.Columns>
                     </DataGrid>
                     <TextBlock Grid.Row="2" x:Name="WolneEmpty" Visibility="Collapsed" IsHitTestVisible="False"

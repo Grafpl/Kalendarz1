@@ -55,8 +55,8 @@ namespace Kalendarz1.Transport.WPF
 
             LadunkiGrid.ItemsSource = _ladunki;
             WolneGrid.ItemsSource = _wolne;
-            WpfDragHelper.GrupujKolekcje(_wolne, nameof(WolneZamowienieWpf.KlientNazwa),
-                nameof(WolneZamowienieWpf.KlientNazwa), nameof(WolneZamowienieWpf.DataPrzyjazdu));
+            WpfDragHelper.GrupujKolekcje(_wolne, nameof(WolneZamowienieWpf.DzienOdbioru),
+                nameof(WolneZamowienieWpf.DzienOdbioru), nameof(WolneZamowienieWpf.DataPrzyjazdu));
             DataKursu.SelectedDate = data.Date;
 
             // drag&drop

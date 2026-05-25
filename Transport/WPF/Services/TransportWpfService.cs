@@ -50,9 +50,10 @@ namespace Kalendarz1.Transport.WPF.Services
         // ════════════════════════════════════════════════════════════════════
 
         /// <summary>
-        /// Wolne zamówienia na dany dzień: TransportStatus 'Oczekuje'/NULL i bez
-        /// przypisanego kursu (TransportKursId IS NULL). Okno dat: [data, data+2].
-        /// poUboju=true ⇒ filtr po DataUboju, inaczej po DataZamowienia (jak WinForms).
+        /// Wolne zamówienia — DOKŁADNIE jak stary panel (LoadWolneZamowieniaAsync):
+        /// jeden dzień (po dacie uboju domyślnie), TransportStatus NOT IN ('Przypisany','Wlasny'),
+        /// TransportKursID IS NULL, bez 'Anulowane'. poUboju=true ⇒ filtr po DataUboju,
+        /// inaczej po DataPrzyjazdu (odbiór). Grupowanie po dniu odbioru robi UI.
         /// </summary>
         public async Task<List<WolneZamowienieWpf>> LoadWolneZamowieniaAsync(DateTime data, bool poUboju)
         {
@@ -62,7 +63,7 @@ namespace Kalendarz1.Transport.WPF.Services
             {
                 await cn.OpenAsync();
 
-                string kol = poUboju ? "zm.DataUboju" : "zm.DataZamowienia";
+                string kol = poUboju ? "zm.DataUboju" : "zm.DataPrzyjazdu";
                 var sql = $@"
                     SELECT
                         zm.Id, zm.KlientId, zm.DataPrzyjazdu, zm.Status,
@@ -72,15 +73,14 @@ namespace Kalendarz1.Transport.WPF.Services
                         ISNULL(zm.TransportStatus, 'Oczekuje') AS TransportStatus,
                         zm.DataUboju
                     FROM dbo.ZamowieniaMieso zm
-                    WHERE {kol} >= @DataOd AND {kol} <= @DataDo
+                    WHERE CAST({kol} AS DATE) = @Data
                       AND ISNULL(zm.Status, 'Nowe') NOT IN ('Anulowane')
-                      AND ISNULL(zm.TransportStatus, 'Oczekuje') = 'Oczekuje'
-                      AND zm.TransportKursId IS NULL
-                    ORDER BY {kol}, zm.DataPrzyjazdu";
+                      AND ISNULL(zm.TransportStatus, 'Oczekuje') NOT IN ('Przypisany', 'Wlasny')
+                      AND zm.TransportKursID IS NULL
+                    ORDER BY zm.DataPrzyjazdu";
 
                 using var cmd = new SqlCommand(sql, cn);
-                cmd.Parameters.AddWithValue("@DataOd", data.Date);
-                cmd.Parameters.AddWithValue("@DataDo", data.Date.AddDays(2));
+                cmd.Parameters.AddWithValue("@Data", data.Date);
                 cmd.CommandTimeout = 60;
 
                 using var r = await cmd.ExecuteReaderAsync();

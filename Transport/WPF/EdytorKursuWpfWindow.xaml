@@ -241,12 +241,14 @@
                             <GroupStyle>
                                 <GroupStyle.HeaderTemplate>
                                     <DataTemplate>
-                                        <Border Background="#f3e9fb" Padding="10,5" Margin="0,4,0,1">
+                                        <Border Background="#e8eaf6" Padding="10,6" Margin="0,4,0,1">
                                             <StackPanel Orientation="Horizontal">
-                                                <Border Width="3" Background="#7b1fa2" CornerRadius="2" Margin="0,0,8,0"/>
-                                                <TextBlock Text="{Binding Name}" FontWeight="Bold" Foreground="#5e35b1" FontSize="12" VerticalAlignment="Center"/>
-                                                <Border Background="#d1c4e9" CornerRadius="8" Padding="6,1" Margin="8,0,0,0" VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding ItemCount}" Foreground="#4527a0" FontSize="10" FontWeight="SemiBold"/>
+                                                <Border Width="3" Background="#3949ab" CornerRadius="2" Margin="0,0,8,0"/>
+                                                <TextBlock Text="📅" FontSize="11" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                                <TextBlock Text="{Binding Name, StringFormat='{}{0:dd.MM ddd}'}" Language="pl-PL"
+                                                           FontWeight="Bold" Foreground="#1a237e" FontSize="12.5" VerticalAlignment="Center"/>
+                                                <Border Background="#c5cae9" CornerRadius="8" Padding="7,1" Margin="9,0,0,0" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding ItemCount}" Foreground="#283593" FontSize="10.5" FontWeight="SemiBold"/>
                                                 </Border>
                                             </StackPanel>
                                         </Border>

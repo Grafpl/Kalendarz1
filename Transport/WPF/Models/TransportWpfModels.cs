@@ -8,6 +8,7 @@
 
 using System;
 using System.ComponentModel;
+using System.Globalization;
 
 namespace Kalendarz1.Transport.WPF.Models
 {
@@ -32,10 +33,17 @@ namespace Kalendarz1.Transport.WPF.Models
         public string TransportStatus { get; set; } = "Oczekuje";
 
         // ── pola wyświetlane w gridzie ──
+        private static readonly CultureInfo PL = new("pl-PL");
         public string GodzAwizacji => DataPrzyjazdu.ToString("HH:mm");
         public string KodKlienta => $"ZAM_{ZamowienieId}";
         public string PojemnikiDisplay => $"{Pojemniki} poj.";
         public string HandlowiecDisplay => string.IsNullOrWhiteSpace(Handlowiec) ? "—" : Handlowiec;
+
+        /// <summary>Klucz grupowania = dzień odbioru (awizacja), jak w starym panelu.</summary>
+        public DateTime DzienOdbioru => DataPrzyjazdu.Date;
+        public string UbojDisplay => DataUboju.HasValue ? DataUboju.Value.ToString("dd.MM ddd", PL) : "—";
+        public string OdbiorDisplay => DataPrzyjazdu.ToString("dd.MM ddd", PL);
+        public string PaletyDisplay => Palety.ToString("N1", PL);
 
         public string Tooltip =>
             $"{KlientNazwa}\n" +
