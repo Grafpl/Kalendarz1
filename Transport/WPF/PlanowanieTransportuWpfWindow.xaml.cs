@@ -107,8 +107,6 @@ namespace Kalendarz1.Transport.WPF
                     ? $"Brak kursów na {data:dd.MM.yyyy}"
                     : $"Załadowano {_rowsAll.Count} kursów na {data:dd.MM.yyyy}";
                 UpdateButtons();
-                PodgladNaglowek.Text = "— wybierz kurs —";
-                PodgladGrid.ItemsSource = null;
             }
             catch (Exception ex)
             {
@@ -200,11 +198,10 @@ namespace Kalendarz1.Transport.WPF
         // ════════════════════════════════════════════════════════════════════
         // SELEKCJA kursu + podgląd ładunków
         // ════════════════════════════════════════════════════════════════════
-        private async void KursyGrid_SelectionChanged(object s, SelectionChangedEventArgs e)
+        private void KursyGrid_SelectionChanged(object s, SelectionChangedEventArgs e)
         {
             UpdateButtons();
             UpdateDodajButton();
-            if (KursyGrid.SelectedItem is KursRow row) await LoadPodgladAsync(row);
         }
 
         private void UpdateButtons()
@@ -244,6 +241,7 @@ namespace Kalendarz1.Transport.WPF
                     ? await _svc.ResolveNazwyAsync(allZam.Distinct())
                     : new Dictionary<int, ZamowienieNazwaInfo>();
                 var userNames = await _svc.PobierzNazwyUzytkownikowAsync(_rowsAll.Select(r => r.UtworzylId));
+                await _svc.EnsureHandlowiecMapAsync();
 
                 foreach (var row in _rowsAll)
                 {
@@ -265,50 +263,12 @@ namespace Kalendarz1.Transport.WPF
                     }
                     row.Kg = kg;
                     row.UtworzylName = userNames.TryGetValue(row.UtworzylId, out var n) ? n : row.UtworzylId;
-                    row.UstawHandlowcow(handl);
+                    row.UstawHandlowcow(handl, _svc.HandlowiecUserId);
                 }
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[TransportWPF] agregaty: {ex.Message}");
-            }
-        }
-
-        private async Task LoadPodgladAsync(KursRow row)
-        {
-            try
-            {
-                PodgladNaglowek.Text = $"#{row.KursID} · {row.Trasa ?? "—"}";
-                var dbLad = await _svc.Repo.PobierzLadunkiAsync(row.KursID);
-
-                var rows = dbLad.OrderBy(l => l.Kolejnosc).Select(l => new LadunekWierszWpf
-                {
-                    LadunekID = l.LadunekID,
-                    Kolejnosc = l.Kolejnosc,
-                    KodKlienta = l.KodKlienta,
-                    PojemnikiE2 = l.PojemnikiE2,
-                    Uwagi = l.Uwagi,
-                    NazwaKlienta = l.KodKlienta ?? "—"
-                }).ToList();
-
-                var zamIds = rows.Where(r => r.ZamowienieId.HasValue).Select(r => r.ZamowienieId!.Value).ToList();
-                if (zamIds.Count > 0)
-                {
-                    var nazwy = await _svc.ResolveNazwyAsync(zamIds);
-                    foreach (var r in rows)
-                        if (r.ZamowienieId.HasValue && nazwy.TryGetValue(r.ZamowienieId.Value, out var info))
-                        {
-                            r.NazwaKlienta = info.Nazwa;
-                            r.Awizacja = info.Awizacja;
-                        }
-                }
-                PodgladGrid.ItemsSource = rows;
-                PodgladNaglowek.Text = $"#{row.KursID} · {rows.Count} ładunków · {rows.Sum(r => r.PojemnikiE2)} poj.";
-            }
-            catch (Exception ex)
-            {
-                PodgladNaglowek.Text = $"Błąd: {ex.Message}";
-                PodgladGrid.ItemsSource = null;
             }
         }
 
@@ -612,9 +572,9 @@ namespace Kalendarz1.Transport.WPF
             public string HandlowcyText { get; private set; } = "";
             public string HandlowcyTooltip { get; private set; } = "";
 
-            public void UstawHandlowcow(List<string> names)
+            public void UstawHandlowcow(List<string> names, Func<string, string?> resolveId)
             {
-                HandlowcyAvatars = names.Take(3).Select(n => new HandlowiecAvatar { Name = n }).ToList();
+                HandlowcyAvatars = names.Take(3).Select(n => new HandlowiecAvatar { Name = n, Id = resolveId(n) }).ToList();
                 HandlowcyText = names.Count == 0 ? ""
                     : names.Count <= 2 ? string.Join(", ", names.Select(Skroc))
                     : $"{Skroc(names[0])} +{names.Count - 1}";

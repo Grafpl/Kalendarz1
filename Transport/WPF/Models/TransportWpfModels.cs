@@ -21,6 +21,7 @@ namespace Kalendarz1.Transport.WPF.Models
         public int KlientId { get; set; }
         public string KlientNazwa { get; set; } = "";
         public string Handlowiec { get; set; } = "";
+        public string? HandlowiecId { get; set; }   // userId (login) → zdjęcie avatara
         public string Adres { get; set; } = "";
         public int Pojemniki { get; set; }
         public decimal Palety { get; set; }

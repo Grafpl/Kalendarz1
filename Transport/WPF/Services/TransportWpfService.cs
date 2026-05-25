@@ -37,6 +37,9 @@ namespace Kalendarz1.Transport.WPF.Services
         // Cache nazw klientów (HANDEL = najdroższy, cross-DB). Pytamy raz na sesję per KlientId.
         private readonly Dictionary<int, (string Nazwa, string Handlowiec, string Adres)> _nazwaCache = new();
 
+        // Mapowanie handlowiec (nazwa) → userId (login) z LibraNet.UserHandlowcy — do avatara ze zdjęciem.
+        private Dictionary<string, string>? _handlowiecMap;
+
         public TransportWpfService()
         {
             Repo = new TransportRepozytorium(ConnTransport, ConnLibra);
@@ -104,6 +107,7 @@ namespace Kalendarz1.Transport.WPF.Services
         private async Task UzupelnijNazwyKlientowAsync(List<WolneZamowienieWpf> zamowienia)
         {
             if (zamowienia.Count == 0) return;
+            await EnsureHandlowiecMapAsync();
             var nazwy = await PobierzNazwyKlientowAsync(zamowienia.Select(z => z.KlientId));
             foreach (var z in zamowienia)
             {
@@ -117,7 +121,34 @@ namespace Kalendarz1.Transport.WPF.Services
                 {
                     z.KlientNazwa = $"Klient {z.KlientId}";
                 }
+                z.HandlowiecId = HandlowiecUserId(z.Handlowiec);
             }
+        }
+
+        /// <summary>Ładuje raz mapowanie handlowiec→userId z LibraNet.UserHandlowcy (do avatarów handlowców).</summary>
+        public async Task EnsureHandlowiecMapAsync()
+        {
+            if (_handlowiecMap != null) return;
+            var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                await using var cn = new SqlConnection(ConnLibra);
+                await cn.OpenAsync();
+                using var cmd = new SqlCommand("SELECT HandlowiecName, UserID FROM UserHandlowcy", cn);
+                using var r = await cmd.ExecuteReaderAsync();
+                while (await r.ReadAsync())
+                    if (!r.IsDBNull(0) && !r.IsDBNull(1))
+                        map[r.GetString(0)] = r.GetString(1);
+            }
+            catch { /* brak mapowania → inicjały */ }
+            _handlowiecMap = map;
+        }
+
+        /// <summary>userId handlowca po nazwie (null gdy brak mapowania → avatar pokaże inicjały).</summary>
+        public string? HandlowiecUserId(string? handlowiecName)
+        {
+            if (string.IsNullOrWhiteSpace(handlowiecName) || _handlowiecMap == null) return null;
+            return _handlowiecMap.TryGetValue(handlowiecName, out var uid) ? uid : null;
         }
 
         /// <summary>HANDEL: KlientId → (nazwa skrócona, handlowiec, adres). Łączone w .NET.</summary>
