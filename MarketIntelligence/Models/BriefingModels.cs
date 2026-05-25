@@ -79,6 +79,7 @@ namespace Kalendarz1.MarketIntelligence.Models
         public string Source { get; set; }
         public string SourceUrl { get; set; }
         public DateTime PublishDate { get; set; }
+        public DateTime FetchedAt { get; set; }   // kiedy news trafił do bazy (intel_Articles.FetchedAt)
         public SeverityLevel Severity { get; set; }
         public List<string> Tags { get; set; } = new List<string>();
         public bool IsFeatured { get; set; }
@@ -92,6 +93,28 @@ namespace Kalendarz1.MarketIntelligence.Models
 
         // Computed properties
         public string FormattedDate => PublishDate.ToString("dd.MM.yyyy");
+
+        /// <summary>Kiedy news został dodany do bazy — przyjazny, relatywny opis.</summary>
+        public string AddedToDbDisplay
+        {
+            get
+            {
+                if (FetchedAt == default) return "";
+                var delta = DateTime.Now - FetchedAt;
+                if (delta.TotalMinutes < 1) return "dodano: przed chwilą";
+                if (delta.TotalMinutes < 60) return $"dodano: {(int)delta.TotalMinutes} min temu";
+                if (delta.TotalHours < 24 && FetchedAt.Date == DateTime.Today) return $"dodano: dziś {FetchedAt:HH:mm}";
+                if (FetchedAt.Date == DateTime.Today.AddDays(-1)) return $"dodano: wczoraj {FetchedAt:HH:mm}";
+                if (delta.TotalDays < 7) return $"dodano: {(int)delta.TotalDays} dni temu";
+                return $"dodano: {FetchedAt:dd.MM.yyyy}";
+            }
+        }
+
+        /// <summary>True jeśli artykuł ma analizę AI (nie każdy news jest analizowany — tylko ważne).</summary>
+        public bool HasAiAnalysis => !string.IsNullOrWhiteSpace(AiAnalysisCeo);
+        public bool HasEducational => !string.IsNullOrWhiteSpace(EducationalSection);
+        public bool HasActions => !string.IsNullOrWhiteSpace(RecommendedActionsCeo);
+
         public string SeverityText => Severity switch
         {
             SeverityLevel.Critical => "KRYTYCZNE",

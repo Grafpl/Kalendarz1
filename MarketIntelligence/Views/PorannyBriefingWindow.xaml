@@ -5,8 +5,8 @@
         xmlns:vm="clr-namespace:Kalendarz1.MarketIntelligence.ViewModels"
         xmlns:models="clr-namespace:Kalendarz1.MarketIntelligence.Models"
         Title="Centrum Wiadomości AI - Piorkowscy"
-        Height="900" Width="1500"
-        MinHeight="700" MinWidth="1100"
+        Height="900" Width="1400"
+        MinHeight="650" MinWidth="900"
         WindowStartupLocation="CenterScreen"
         WindowState="Maximized"
         Background="#0C0A07">
@@ -27,14 +27,13 @@
             <local:SeverityToBgConverter x:Key="SeverityToBg"/>
             <local:RoleBasedAnalysisConverter x:Key="RoleAnalysisConverter"/>
 
-            <!-- Toolbar button -->
             <Style x:Key="ToolbarBtn" TargetType="Button">
                 <Setter Property="Background" Value="#2A2520"/>
-                <Setter Property="Foreground" Value="#C9A96E"/>
+                <Setter Property="Foreground" Value="#D5CCC0"/>
                 <Setter Property="BorderBrush" Value="#3F3830"/>
                 <Setter Property="BorderThickness" Value="1"/>
-                <Setter Property="Padding" Value="12,6"/>
-                <Setter Property="FontSize" Value="11"/>
+                <Setter Property="Padding" Value="14,7"/>
+                <Setter Property="FontSize" Value="12"/>
                 <Setter Property="Cursor" Value="Hand"/>
                 <Setter Property="Margin" Value="0,0,8,0"/>
             </Style>
@@ -42,8 +41,8 @@
                 <Setter Property="Background" Value="#3D2F1F"/>
                 <Setter Property="Foreground" Value="#F5EDE0"/>
                 <Setter Property="BorderBrush" Value="#C9A96E"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
             </Style>
-            <!-- Chat quick-prompt button -->
             <Style x:Key="ChatQuickBtn" TargetType="Button">
                 <Setter Property="Background" Value="#2A2520"/>
                 <Setter Property="Foreground" Value="#D5CCC0"/>
@@ -59,131 +58,78 @@
 
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="58"/>   <!-- Header + real counters + toolbar -->
-            <RowDefinition Height="*"/>    <!-- Articles | Chat -->
+            <RowDefinition Height="60"/>
+            <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- ═══════════════════════════════════════════════════════════════════════ -->
-        <!-- ROW 0: HEADER                                                            -->
-        <!-- ═══════════════════════════════════════════════════════════════════════ -->
+        <!-- ═══ HEADER ═══ -->
         <Border Grid.Row="0" Background="#15120D" BorderBrush="#2A2520" BorderThickness="0,0,0,1">
-            <Grid Margin="20,0">
+            <Grid Margin="22,0">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>   <!-- Title -->
-                    <ColumnDefinition Width="Auto"/>   <!-- Real counters -->
-                    <ColumnDefinition Width="*"/>      <!-- spacer -->
-                    <ColumnDefinition Width="Auto"/>   <!-- toolbar -->
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
                 <!-- Title -->
                 <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                    <TextBlock Text="Centrum Wiadomości AI"
-                               FontFamily="Georgia" FontSize="19" FontWeight="Bold"
-                               Foreground="#F5EDE0"/>
-                    <TextBlock Text="Piorkowscy  •  drobiarstwo + mięso"
-                               FontFamily="Segoe UI" FontSize="9"
-                               Foreground="#7A6F63" Margin="0,1,0,0"/>
-                </StackPanel>
-
-                <!-- 3 REAL counters (z faktycznie załadowanych artykułów) -->
-                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="28,0,0,0">
-                    <Border Background="#1A1512" CornerRadius="4" Padding="10,5" Margin="0,0,8,0">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="📰" FontSize="12" Margin="0,0,5,0" VerticalAlignment="Center"/>
-                            <TextBlock Text="{Binding TotalArticles}" FontFamily="Consolas" FontSize="14"
-                                       FontWeight="Bold" Foreground="#F5EDE0" VerticalAlignment="Center"/>
-                            <TextBlock Text=" art." FontSize="9" Foreground="#7A6F63" VerticalAlignment="Center" Margin="3,0,0,0"/>
-                        </StackPanel>
-                    </Border>
-                    <Border Background="#1A1512" CornerRadius="4" Padding="10,5" Margin="0,0,8,0">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="🔴" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center"/>
-                            <TextBlock Text="{Binding CriticalCount}" FontFamily="Consolas" FontSize="14"
-                                       FontWeight="Bold" Foreground="#E0726B" VerticalAlignment="Center"/>
-                            <TextBlock Text=" krytycz." FontSize="9" Foreground="#7A6F63" VerticalAlignment="Center" Margin="3,0,0,0"/>
-                        </StackPanel>
-                    </Border>
-                    <Border Background="#1A1512" CornerRadius="4" Padding="10,5">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="🦠" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center"/>
-                            <TextBlock Text="{Binding HpaiCount}" FontFamily="Consolas" FontSize="14"
-                                       FontWeight="Bold" Foreground="#D4A035" VerticalAlignment="Center"/>
-                            <TextBlock Text=" HPAI" FontSize="9" Foreground="#7A6F63" VerticalAlignment="Center" Margin="3,0,0,0"/>
-                        </StackPanel>
-                    </Border>
-
-                    <!-- Loading spinner -->
-                    <StackPanel Orientation="Horizontal" Margin="12,0,0,0"
-                                Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}">
-                        <TextBlock Text="⟳" FontSize="14" Foreground="#C9A96E" RenderTransformOrigin="0.5,0.5" VerticalAlignment="Center">
-                            <TextBlock.RenderTransform>
-                                <RotateTransform x:Name="LoadingRotate"/>
-                            </TextBlock.RenderTransform>
-                            <TextBlock.Triggers>
-                                <EventTrigger RoutedEvent="Loaded">
-                                    <BeginStoryboard>
-                                        <Storyboard RepeatBehavior="Forever">
-                                            <DoubleAnimation Storyboard.TargetName="LoadingRotate"
-                                                             Storyboard.TargetProperty="Angle"
-                                                             From="0" To="360" Duration="0:0:1"/>
-                                        </Storyboard>
-                                    </BeginStoryboard>
-                                </EventTrigger>
-                            </TextBlock.Triggers>
-                        </TextBlock>
-                        <TextBlock Text="{Binding LoadingStatus}" FontSize="10" Foreground="#7A6F63"
-                                   Margin="6,0,0,0" VerticalAlignment="Center" MaxWidth="220" TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Text="📰 Wiadomości z branży" FontFamily="Georgia" FontSize="19" FontWeight="Bold" Foreground="#F5EDE0"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                        <TextBlock Text="{Binding TotalArticles, StringFormat={}{0} newsów}" FontSize="10" Foreground="#7A6F63"/>
+                        <TextBlock Text="  ·  " FontSize="10" Foreground="#5A5248"/>
+                        <TextBlock Text="{Binding CriticalCount, StringFormat=🔴 {0} ważnych}" FontSize="10" Foreground="#A8726B"/>
+                        <!-- Loading -->
+                        <TextBlock Text="{Binding LoadingStatus}" FontSize="10" Foreground="#C9A96E" Margin="14,0,0,0"
+                                   Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}"
+                                   MaxWidth="280" TextTrimming="CharacterEllipsis"/>
                     </StackPanel>
                 </StackPanel>
 
-                <!-- Toolbar -->
-                <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                <!-- Toolbar: minimal -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                     <Button x:Name="btnRefresh" Style="{StaticResource ToolbarBtnPrimary}"
-                            Content="🔄 Pobierz" Command="{Binding RefreshFromInternetCommand}"
-                            ToolTip="Pobierz nowe artykuły z internetu (RSS + scraping + AI analiza)"/>
-                    <Button x:Name="btnLoadDb" Style="{StaticResource ToolbarBtn}"
-                            Content="💾 Z bazy" Command="{Binding LoadFromDatabaseCommand}"
-                            ToolTip="Załaduj zapisane artykuły z bazy (ostatnie 7 dni)"/>
-                    <Border Width="1" Background="#3F3830" Margin="4,8,12,8"/>
+                            Content="🔄 Pobierz nowe" Command="{Binding RefreshFromInternetCommand}"
+                            ToolTip="Pobierz najnowsze wiadomości z internetu (~3-5 min)"/>
                     <Button x:Name="btnOnePager" Style="{StaticResource ToolbarBtn}"
-                            Content="📋 One-pager" Click="btnOnePager_Click"
-                            ToolTip="Esencja dnia: TOP 3 krytyczne + action items + chat AI"/>
-                    <Button x:Name="btnSources" Style="{StaticResource ToolbarBtn}"
-                            Content="🌐 Źródła" Click="btnSources_Click"
-                            ToolTip="Dodawaj własne strony i RSS feedy"/>
-                    <Button x:Name="btnQueries" Style="{StaticResource ToolbarBtn}"
-                            Content="🎯 Tematy" Click="btnQueries_Click"
-                            ToolTip="Twoje zapytania do AI Perplexity (HPAI, ceny, Cedrob...)"/>
-                    <Button x:Name="btnDiagnostics" Style="{StaticResource ToolbarBtn}"
-                            Content="🛠 Diag" Click="btnDiagnostics_Click"
-                            ToolTip="Status API, historia pobrań, live log"/>
-                    <Button x:Name="btnHelp" Style="{StaticResource ToolbarBtn}"
-                            Content="❓ Pomoc" Click="btnHelp_Click"
-                            ToolTip="Przewodnik — jak używać Centrum Wiadomości AI"/>
+                            Content="📋 Podsumowanie" Click="btnOnePager_Click"
+                            ToolTip="Esencja dnia: TOP 3 ważne + co robić + chat AI"/>
+                    <Button x:Name="btnChatToggle" Style="{StaticResource ToolbarBtn}"
+                            Content="💬 Zapytaj AI" Click="BtnChatToggle_Click"
+                            ToolTip="Otwórz/schowaj asystenta AI (zna wszystkie newsy i firmę)"/>
+                    <Button x:Name="btnMore" Style="{StaticResource ToolbarBtn}"
+                            Content="⚙ Więcej ▾" Click="BtnMore_Click"
+                            ToolTip="Źródła, tematy, diagnostyka, pomoc">
+                        <Button.ContextMenu>
+                            <ContextMenu x:Name="moreMenu">
+                                <MenuItem Header="🌐 Moje źródła" Click="btnSources_Click"/>
+                                <MenuItem Header="🎯 Moje tematy" Click="btnQueries_Click"/>
+                                <Separator/>
+                                <MenuItem Header="🛠 Diagnostyka" Click="btnDiagnostics_Click"/>
+                                <MenuItem Header="❓ Jak to działa?" Click="btnHelp_Click"/>
+                            </ContextMenu>
+                        </Button.ContextMenu>
+                    </Button>
                 </StackPanel>
             </Grid>
         </Border>
 
-        <!-- ═══════════════════════════════════════════════════════════════════════ -->
-        <!-- ROW 1: ARTICLES (left)  |  CHAT AI (right)                              -->
-        <!-- ═══════════════════════════════════════════════════════════════════════ -->
-        <Grid Grid.Row="1" Margin="16,12,16,16">
+        <!-- ═══ BODY: News (left) | Chat (right, chowany) ═══ -->
+        <Grid Grid.Row="1" Margin="16,14,16,16">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" MinWidth="480"/>
-                <ColumnDefinition Width="14"/>
-                <ColumnDefinition Width="440" MinWidth="360"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition x:Name="chatGap" Width="0"/>
+                <ColumnDefinition x:Name="chatCol" Width="0"/>
             </Grid.ColumnDefinitions>
 
-            <!-- ═══ LEFT: ARTICLES ═══ -->
+            <!-- ═══ NEWS ═══ -->
             <Grid Grid.Column="0">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <!-- Filters Toolbar -->
-                <Border Grid.Row="0" Background="#15120D" CornerRadius="6,6,0,0"
-                        BorderBrush="#2A2520" BorderThickness="1,1,1,0" Padding="12,10">
+                <!-- Filtry (prostsze: 5 kategorii + szukaj) -->
+                <Border Grid.Row="0" Background="#15120D" CornerRadius="6,6,0,0" BorderBrush="#2A2520" BorderThickness="1,1,1,0" Padding="12,10">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
@@ -194,15 +140,12 @@
                             <ToggleButton Content="HPAI" Margin="4,0,0,0" Style="{StaticResource FilterButton}" Click="FilterButton_Click" Tag="HPAI"/>
                             <ToggleButton Content="Ceny" Margin="4,0,0,0" Style="{StaticResource FilterButton}" Click="FilterButton_Click" Tag="Ceny"/>
                             <ToggleButton Content="Konkurencja" Margin="4,0,0,0" Style="{StaticResource FilterButton}" Click="FilterButton_Click" Tag="Konkurencja"/>
-                            <ToggleButton Content="Regulacje" Margin="4,0,0,0" Style="{StaticResource FilterButton}" Click="FilterButton_Click" Tag="Regulacje"/>
                             <ToggleButton Content="Klienci" Margin="4,0,0,0" Style="{StaticResource FilterButton}" Click="FilterButton_Click" Tag="Klienci"/>
-                            <ToggleButton Content="Świat" Margin="4,0,0,0" Style="{StaticResource FilterButton}" Click="FilterButton_Click" Tag="Swiat"/>
                         </StackPanel>
                         <StackPanel Grid.Column="1" Orientation="Horizontal">
                             <Grid Width="170">
                                 <TextBox x:Name="txtSearch" Style="{StaticResource SearchTextBox}" TextChanged="SearchBox_TextChanged"/>
-                                <TextBlock Text="Szukaj..." IsHitTestVisible="False" Foreground="#5A5248" FontSize="11"
-                                           Margin="12,0,0,0" VerticalAlignment="Center">
+                                <TextBlock Text="Szukaj..." IsHitTestVisible="False" Foreground="#5A5248" FontSize="11" Margin="12,0,0,0" VerticalAlignment="Center">
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="Visibility" Value="Collapsed"/>
@@ -215,27 +158,22 @@
                                     </TextBlock.Style>
                                 </TextBlock>
                             </Grid>
-                            <TextBlock Text="{Binding ArticleCount, StringFormat={}{0} art.}"
-                                       Foreground="#7A6F63" FontSize="10" VerticalAlignment="Center" Margin="12,0,0,0"/>
                         </StackPanel>
                     </Grid>
                 </Border>
 
-                <!-- Articles ScrollViewer -->
-                <Border Grid.Row="1" Background="#15120D" CornerRadius="0,0,6,6"
-                        BorderBrush="#2A2520" BorderThickness="1,0,1,1">
+                <!-- Lista newsów -->
+                <Border Grid.Row="1" Background="#15120D" CornerRadius="0,0,6,6" BorderBrush="#2A2520" BorderThickness="1,0,1,1">
                     <Grid>
                         <!-- Empty state -->
                         <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"
                                     Visibility="{Binding TotalArticles, Converter={StaticResource InverseBoolToVis}}">
-                            <TextBlock Text="📭" FontSize="40" HorizontalAlignment="Center" Opacity="0.5"/>
-                            <TextBlock Text="Brak artykułów" FontSize="15" Foreground="#7A6F63" HorizontalAlignment="Center" Margin="0,8,0,4"/>
-                            <TextBlock Text="Kliknij 🔄 Pobierz (z internetu) lub 💾 Z bazy (zapisane)"
-                                       FontSize="11" Foreground="#5A5248" HorizontalAlignment="Center"/>
+                            <TextBlock Text="📭" FontSize="42" HorizontalAlignment="Center" Opacity="0.5"/>
+                            <TextBlock Text="Brak newsów" FontSize="16" Foreground="#7A6F63" HorizontalAlignment="Center" Margin="0,10,0,4"/>
+                            <TextBlock Text="Kliknij 🔄 Pobierz nowe u góry" FontSize="12" Foreground="#5A5248" HorizontalAlignment="Center"/>
                         </StackPanel>
 
-                        <ScrollViewer Style="{StaticResource BriefingScrollViewer}"
-                                      VerticalScrollBarVisibility="Auto" Padding="12">
+                        <ScrollViewer Style="{StaticResource BriefingScrollViewer}" VerticalScrollBarVisibility="Auto" Padding="12">
                             <ItemsControl x:Name="icArticles" ItemsSource="{Binding FilteredArticles}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
@@ -245,55 +183,63 @@
                                                     <ColumnDefinition Width="4"/>
                                                     <ColumnDefinition Width="*"/>
                                                 </Grid.ColumnDefinitions>
-
-                                                <Border Grid.Column="0" CornerRadius="2,0,0,2"
-                                                        Background="{Binding Severity, Converter={StaticResource SeverityToColor}}"/>
+                                                <Border Grid.Column="0" CornerRadius="2,0,0,2" Background="{Binding Severity, Converter={StaticResource SeverityToColor}}"/>
 
                                                 <StackPanel Grid.Column="1" Margin="14,12,12,12">
-                                                    <!-- Collapsed -->
+                                                    <!-- ═ Collapsed ═ -->
                                                     <StackPanel Visibility="{Binding IsExpanded, Converter={StaticResource InverseBoolToVis}}">
                                                         <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                                                            <Ellipse Width="6" Height="6"
-                                                                     Fill="{Binding Severity, Converter={StaticResource SeverityToColor}}"
-                                                                     VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                            <Ellipse Width="6" Height="6" Fill="{Binding Severity, Converter={StaticResource SeverityToColor}}" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                                             <TextBlock Text="{Binding Category}" FontSize="10" FontWeight="SemiBold" Foreground="#C9A96E"/>
-                                                            <TextBlock Text=" • " Foreground="#5A5248"/>
+                                                            <TextBlock Text=" · " Foreground="#5A5248"/>
                                                             <TextBlock Text="{Binding Source}" FontSize="10" Foreground="#7A6F63"/>
-                                                            <TextBlock Text=" • " Foreground="#5A5248"/>
-                                                            <TextBlock Text="{Binding FormattedDate}" FontSize="10" Foreground="#5A5248"/>
+                                                            <!-- 🤖 badge tylko gdy ma analizę AI -->
+                                                            <Border Background="#1E1A14" CornerRadius="3" Padding="5,1" Margin="8,0,0,0"
+                                                                    Visibility="{Binding HasAiAnalysis, Converter={StaticResource BoolToVis}}">
+                                                                <TextBlock Text="🤖 AI" FontSize="8" Foreground="#C9A96E"/>
+                                                            </Border>
                                                         </StackPanel>
                                                         <TextBlock Text="{Binding Title}" Style="{StaticResource SerifArticleTitle}" Margin="0,0,0,4"/>
                                                         <TextBlock Text="{Binding ShortPreview}" Style="{StaticResource PreviewText}"/>
+                                                        <!-- data dodania do bazy -->
+                                                        <TextBlock Text="{Binding AddedToDbDisplay}" FontSize="9" Foreground="#5A5248" Margin="0,6,0,0"/>
                                                     </StackPanel>
 
-                                                    <!-- Expanded -->
+                                                    <!-- ═ Expanded ═ -->
                                                     <StackPanel Visibility="{Binding IsExpanded, Converter={StaticResource BoolToVis}}">
                                                         <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
                                                             <Border Background="{Binding Severity, Converter={StaticResource SeverityToBg}}" CornerRadius="3" Padding="8,3">
-                                                                <TextBlock Text="{Binding SeverityText}" FontSize="9" FontWeight="Bold"
-                                                                           Foreground="{Binding Severity, Converter={StaticResource SeverityToColor}}"/>
+                                                                <TextBlock Text="{Binding SeverityText}" FontSize="9" FontWeight="Bold" Foreground="{Binding Severity, Converter={StaticResource SeverityToColor}}"/>
                                                             </Border>
                                                             <TextBlock Text="{Binding Category}" FontSize="10" FontWeight="SemiBold" Foreground="#C9A96E" Margin="12,0,0,0" VerticalAlignment="Center"/>
-                                                            <TextBlock Text=" • " Foreground="#5A5248" VerticalAlignment="Center"/>
+                                                            <TextBlock Text=" · " Foreground="#5A5248" VerticalAlignment="Center"/>
                                                             <TextBlock Text="{Binding Source}" FontSize="10" Foreground="#7A6F63" VerticalAlignment="Center"/>
-                                                            <TextBlock Text="{Binding FormattedDate}" FontSize="10" Foreground="#5A5248" HorizontalAlignment="Right" Margin="20,0,0,0" VerticalAlignment="Center"/>
                                                         </StackPanel>
 
-                                                        <TextBlock Text="{Binding Title}" Style="{StaticResource SerifArticleTitleFeatured}" Margin="0,0,0,12"/>
+                                                        <TextBlock Text="{Binding Title}" Style="{StaticResource SerifArticleTitleFeatured}" Margin="0,0,0,4"/>
+                                                        <!-- daty: publikacji + dodania do bazy -->
+                                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                                                            <TextBlock Text="{Binding FormattedDate, StringFormat=📅 publikacja {0}}" FontSize="9" Foreground="#5A5248"/>
+                                                            <TextBlock Text="   ·   " FontSize="9" Foreground="#5A5248"/>
+                                                            <TextBlock Text="{Binding AddedToDbDisplay}" FontSize="9" Foreground="#5A5248"/>
+                                                        </StackPanel>
+
                                                         <TextBlock Text="{Binding FullContent}" Style="{StaticResource BodyText}" Margin="0,0,0,16"/>
 
-                                                        <!-- Educational -->
-                                                        <Border Background="#1E1A14" CornerRadius="6" Padding="14" Margin="0,0,0,16" BorderBrush="#2A2520" BorderThickness="1">
+                                                        <!-- Educational — tylko gdy jest -->
+                                                        <Border Background="#1E1A14" CornerRadius="6" Padding="14" Margin="0,0,0,16" BorderBrush="#2A2520" BorderThickness="1"
+                                                                Visibility="{Binding HasEducational, Converter={StaticResource BoolToVis}}">
                                                             <StackPanel>
-                                                                <TextBlock Text="KIM JEST / CO TO JEST" FontSize="9" FontWeight="Bold" Foreground="#8B7355" Margin="0,0,0,8"/>
+                                                                <TextBlock Text="ℹ KIM JEST / CO TO JEST" FontSize="9" FontWeight="Bold" Foreground="#8B7355" Margin="0,0,0,8"/>
                                                                 <TextBlock Text="{Binding EducationalSection}" Style="{StaticResource BodyTextSmall}" Foreground="#D5CCC0"/>
                                                             </StackPanel>
                                                         </Border>
 
-                                                        <!-- AI Analysis (CEO perspective) -->
-                                                        <Border Background="#1E1A14" CornerRadius="6" Padding="14" Margin="0,0,0,16" BorderBrush="#C9A96E" BorderThickness="0,0,0,2">
+                                                        <!-- Analiza AI — tylko gdy jest -->
+                                                        <Border Background="#1E1A14" CornerRadius="6" Padding="14" Margin="0,0,0,16" BorderBrush="#C9A96E" BorderThickness="0,0,0,2"
+                                                                Visibility="{Binding HasAiAnalysis, Converter={StaticResource BoolToVis}}">
                                                             <StackPanel>
-                                                                <TextBlock Text="CO TO ZNACZY DLA PIORKOWSCY" FontSize="9" FontWeight="Bold" Foreground="#C9A96E" Margin="0,0,0,8"/>
+                                                                <TextBlock Text="🤖 ANALIZA AI — CO TO ZNACZY DLA PIORKOWSCY" FontSize="9" FontWeight="Bold" Foreground="#C9A96E" Margin="0,0,0,8"/>
                                                                 <TextBlock Style="{StaticResource BodyTextSmall}" FontStyle="Italic" Foreground="#F5EDE0" TextWrapping="Wrap">
                                                                     <TextBlock.Text>
                                                                         <MultiBinding Converter="{StaticResource RoleAnalysisConverter}" ConverterParameter="Analysis">
@@ -302,41 +248,29 @@
                                                                         </MultiBinding>
                                                                     </TextBlock.Text>
                                                                 </TextBlock>
-                                                                <TextBlock Text="ZALECANE DZIALANIA:" FontSize="9" FontWeight="Bold" Foreground="#8B7355" Margin="0,12,0,6"/>
-                                                                <TextBlock Style="{StaticResource BodyTextSmall}" Foreground="#D5CCC0" TextWrapping="Wrap">
-                                                                    <TextBlock.Text>
-                                                                        <MultiBinding Converter="{StaticResource RoleAnalysisConverter}" ConverterParameter="Actions">
-                                                                            <Binding/>
-                                                                            <Binding Path="DataContext.CurrentRole" RelativeSource="{RelativeSource AncestorType=Window}"/>
-                                                                        </MultiBinding>
-                                                                    </TextBlock.Text>
-                                                                </TextBlock>
+                                                                <StackPanel Visibility="{Binding HasActions, Converter={StaticResource BoolToVis}}">
+                                                                    <TextBlock Text="ZALECANE DZIALANIA:" FontSize="9" FontWeight="Bold" Foreground="#8B7355" Margin="0,12,0,6"/>
+                                                                    <TextBlock Style="{StaticResource BodyTextSmall}" Foreground="#D5CCC0" TextWrapping="Wrap">
+                                                                        <TextBlock.Text>
+                                                                            <MultiBinding Converter="{StaticResource RoleAnalysisConverter}" ConverterParameter="Actions">
+                                                                                <Binding/>
+                                                                                <Binding Path="DataContext.CurrentRole" RelativeSource="{RelativeSource AncestorType=Window}"/>
+                                                                            </MultiBinding>
+                                                                        </TextBlock.Text>
+                                                                    </TextBlock>
+                                                                </StackPanel>
                                                             </StackPanel>
                                                         </Border>
 
                                                         <!-- Source link -->
                                                         <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                                                            <TextBlock Text="🔗 Zrodlo: " Foreground="#7A6F63" FontSize="11"/>
+                                                            <TextBlock Text="🔗 Źródło: " Foreground="#7A6F63" FontSize="11"/>
                                                             <TextBlock>
                                                                 <Hyperlink Style="{StaticResource SourceLink}" NavigateUri="{Binding SourceUrl}" RequestNavigate="Hyperlink_RequestNavigate">
                                                                     <Run Text="{Binding SourceUrl}"/>
                                                                 </Hyperlink>
                                                             </TextBlock>
                                                         </StackPanel>
-
-                                                        <!-- Tags -->
-                                                        <ItemsControl ItemsSource="{Binding Tags}">
-                                                            <ItemsControl.ItemsPanel>
-                                                                <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
-                                                            </ItemsControl.ItemsPanel>
-                                                            <ItemsControl.ItemTemplate>
-                                                                <DataTemplate>
-                                                                    <Border Style="{StaticResource TagPill}">
-                                                                        <TextBlock Text="{Binding}" FontSize="9" Foreground="#7A6F63"/>
-                                                                    </Border>
-                                                                </DataTemplate>
-                                                            </ItemsControl.ItemTemplate>
-                                                        </ItemsControl>
                                                     </StackPanel>
                                                 </StackPanel>
                                             </Grid>
@@ -349,26 +283,31 @@
                 </Border>
             </Grid>
 
-            <!-- ═══ RIGHT: CHAT AI ═══ -->
-            <Border Grid.Column="2" Background="#15120D" CornerRadius="6" BorderBrush="#2A2520" BorderThickness="1">
+            <!-- ═══ CHAT (chowany — domyślnie width 0) ═══ -->
+            <Border Grid.Column="2" x:Name="chatPanel" Background="#15120D" CornerRadius="6" BorderBrush="#2A2520" BorderThickness="1" Visibility="Collapsed">
                 <Grid>
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>   <!-- header -->
-                        <RowDefinition Height="Auto"/>   <!-- quick prompts -->
-                        <RowDefinition Height="*"/>      <!-- conversation -->
-                        <RowDefinition Height="Auto"/>   <!-- input -->
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
-                    <!-- Chat header -->
                     <Border Grid.Row="0" Background="#1F1A14" CornerRadius="6,6,0,0" Padding="14,10" BorderBrush="#2A2520" BorderThickness="0,0,0,1">
-                        <StackPanel>
-                            <TextBlock Text="💬 Zapytaj AI" FontSize="14" FontWeight="SemiBold" Foreground="#F5EDE0"/>
-                            <TextBlock Text="Zna profil firmy, 30 dni artykułów, briefingi i Twoje preferencje 👍/👎"
-                                       FontSize="10" Foreground="#7A6F63" Margin="0,2,0,0" TextWrapping="Wrap"/>
-                        </StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="💬 Asystent AI" FontSize="14" FontWeight="SemiBold" Foreground="#F5EDE0"/>
+                                <TextBlock Text="Zna newsy, firmę i historię" FontSize="10" Foreground="#7A6F63" Margin="0,2,0,0"/>
+                            </StackPanel>
+                            <Button Grid.Column="1" Content="✕" Click="BtnChatToggle_Click" Background="Transparent" Foreground="#7A6F63"
+                                    BorderThickness="0" FontSize="14" Cursor="Hand" Padding="6,0" ToolTip="Schowaj chat"/>
+                        </Grid>
                     </Border>
 
-                    <!-- Quick prompts -->
                     <Border Grid.Row="1" Padding="12,10,12,4">
                         <WrapPanel>
                             <Button Content="🦠 HPAI?" Style="{StaticResource ChatQuickBtn}" Click="BtnQuickPrompt_Click"
@@ -377,15 +316,12 @@
                                     Tag="Co dzieje się z cenami skupu żywca drobiowego? Liczby z ostatnich artykułów. Czy mam ruszać nasze 4.72 zł/kg?"/>
                             <Button Content="🏢 Cedrob" Style="{StaticResource ChatQuickBtn}" Click="BtnQuickPrompt_Click"
                                     Tag="Co dzieje się z Cedrob i przejęciem przez ADQ? Status, ryzyko dla nas, scenariusze."/>
-                            <Button Content="🛒 Biedronka" Style="{StaticResource ChatQuickBtn}" Click="BtnQuickPrompt_Click"
-                                    Tag="Co dzieje się u Biedronki ostatnio? Promocje, ceny, kontrakty drobiowe — jak nas dotyka?"/>
-                            <Button Content="📊 Esencja 3 zdania" Style="{StaticResource ChatQuickBtn}" Click="BtnQuickPrompt_Click"
+                            <Button Content="📊 Esencja" Style="{StaticResource ChatQuickBtn}" Click="BtnQuickPrompt_Click"
                                     Tag="Daj mi esencję ostatnich 7 dni w MAKSYMALNIE 3 zdaniach. Konkretne liczby, konkretne akcje."/>
                         </WrapPanel>
                     </Border>
 
-                    <!-- Conversation -->
-                    <Border Grid.Row="2" Background="#0C0A07" CornerRadius="0" BorderBrush="#2A2520" BorderThickness="0,1,0,1" Margin="0,4,0,0">
+                    <Border Grid.Row="2" Background="#0C0A07" BorderBrush="#2A2520" BorderThickness="0,1,0,1" Margin="0,4,0,0">
                         <ScrollViewer x:Name="chatScroll" VerticalScrollBarVisibility="Auto" Padding="10,8">
                             <ItemsControl x:Name="lstChat">
                                 <ItemsControl.ItemTemplate>
@@ -402,7 +338,6 @@
                         </ScrollViewer>
                     </Border>
 
-                    <!-- Input -->
                     <Border Grid.Row="3" Padding="12,10" Background="#15120D" CornerRadius="0,0,6,6">
                         <StackPanel>
                             <Grid>
@@ -410,15 +345,13 @@
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBox x:Name="txtChatInput" Grid.Column="0"
-                                         Background="#0C0A07" Foreground="#F5EDE0"
-                                         BorderBrush="#3F3830" BorderThickness="1" Padding="10,8"
-                                         FontSize="12" CaretBrush="#F5EDE0" TextWrapping="Wrap" AcceptsReturn="False"
-                                         KeyDown="TxtChatInput_KeyDown"
-                                         ToolTip="Enter wysyła, Shift+Enter nowa linia"/>
-                                <Button x:Name="btnChatSend" Grid.Column="1" Content="Wyślij ➤" Click="BtnChatSend_Click"
+                                <TextBox x:Name="txtChatInput" Grid.Column="0" Background="#0C0A07" Foreground="#F5EDE0"
+                                         BorderBrush="#3F3830" BorderThickness="1" Padding="10,8" FontSize="12" CaretBrush="#F5EDE0"
+                                         TextWrapping="Wrap" AcceptsReturn="False" KeyDown="TxtChatInput_KeyDown"
+                                         ToolTip="Enter wysyła"/>
+                                <Button x:Name="btnChatSend" Grid.Column="1" Content="➤" Click="BtnChatSend_Click"
                                         Background="#3D2F1F" Foreground="#F5EDE0" BorderBrush="#C9A96E" BorderThickness="1"
-                                        Padding="14,8" FontSize="12" Cursor="Hand" Margin="8,0,0,0"/>
+                                        Padding="12,8" FontSize="12" Cursor="Hand" Margin="8,0,0,0"/>
                             </Grid>
                             <TextBlock x:Name="txtChatStatus" Text="" FontSize="10" Foreground="#7A6F63" Margin="0,4,0,0"/>
                         </StackPanel>

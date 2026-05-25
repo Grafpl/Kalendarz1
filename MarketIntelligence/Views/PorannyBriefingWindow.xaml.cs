@@ -54,9 +54,8 @@ namespace Kalendarz1.MarketIntelligence.Views
 
         private void PorannyBriefingWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            // Chat: pokaż powitanie
+            // Chat schowany domyślnie — powitanie dodaje się przy pierwszym otwarciu (BtnChatToggle_Click)
             lstChat.ItemsSource = _chatHistory;
-            AddSystemHello();
 
             // Auto-load artykułów z bazy (realne dane) zaraz po otwarciu
             if (_viewModel?.LoadFromDatabaseCommand?.CanExecute(null) == true)
@@ -236,6 +235,29 @@ namespace Kalendarz1.MarketIntelligence.Views
         {
             try { new BriefingHelpWindow { Owner = this }.ShowDialog(); }
             catch (Exception ex) { MessageBox.Show("Błąd otwierania pomocy: " + ex.Message); }
+        }
+
+        private void BtnMore_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button b && b.ContextMenu != null)
+            {
+                b.ContextMenu.PlacementTarget = b;
+                b.ContextMenu.IsOpen = true;
+            }
+        }
+
+        /// <summary>Pokazuje/chowa boczny panel chatu (domyślnie schowany — czyste czytanie newsów).</summary>
+        private void BtnChatToggle_Click(object sender, RoutedEventArgs e)
+        {
+            bool show = chatPanel.Visibility != Visibility.Visible;
+            chatPanel.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+            chatCol.Width = show ? new GridLength(420) : new GridLength(0);
+            chatGap.Width = show ? new GridLength(14) : new GridLength(0);
+            if (show)
+            {
+                if (_chatHistory.Count == 0) AddSystemHello();
+                txtChatInput.Focus();
+            }
         }
 
         private void OpenChild(Func<Window> factory, string name)

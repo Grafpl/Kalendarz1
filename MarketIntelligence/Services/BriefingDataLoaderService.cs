@@ -230,6 +230,7 @@ namespace Kalendarz1.MarketIntelligence.Services
                     Source = analysis.Article.SourceName,
                     SourceUrl = analysis.Article.Url,
                     PublishDate = analysis.Article.PublishDate,
+                    FetchedAt = DateTime.Now,
                     Severity = MapSeverity(analysis.Severity),
                     IsFeatured = analysis.Importance >= 8,
                     Tags = analysis.RelatedTopics ?? new List<string>()
@@ -252,6 +253,7 @@ namespace Kalendarz1.MarketIntelligence.Services
                     Source = raw.SourceName,
                     SourceUrl = raw.Url,
                     PublishDate = raw.PublishDate,
+                    FetchedAt = DateTime.Now,
                     Severity = raw.RelevanceScore >= 15 ? SeverityLevel.Warning : SeverityLevel.Info,
                     Tags = raw.MatchedKeywords?.ToList() ?? new List<string>()
                 });
@@ -280,6 +282,7 @@ namespace Kalendarz1.MarketIntelligence.Services
                 Source = stored.SourceName,
                 SourceUrl = stored.Url,
                 PublishDate = stored.PublishDate,
+                FetchedAt = stored.FetchedAt,
                 Severity = MapSeverity(stored.Severity),
                 IsFeatured = stored.RelevanceScore >= 20,
                 Tags = stored.MatchedKeywords?.Split(',').ToList() ?? new List<string>()
