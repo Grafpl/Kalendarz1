@@ -3676,6 +3676,44 @@ Adres: {zamowienie.Adres}";
                     }
                 }
 
+                // AUTO-HEALING: zwolnij sieroty. Jesli w LibraNet jakies zamowienie
+                // wskazuje na TEN kurs (TransportKursId = _kursId) ale NIE ma juz ladunku
+                // (zniknelo z _ladunki dowolna droga, nie tylko przez _zamowieniaDoUsuniecia),
+                // zresetuj je na 'Oczekuje'. Dzieki temu TransportStatus jest zawsze spojny
+                // z faktyczna zawartoscia kursu — bug z sierotami (Cezar 6203) nie wroci.
+                if (_kursId.HasValue)
+                {
+                    var sieroty = new List<int>();
+                    using (var cmdFind = new SqlCommand(
+                        @"SELECT Id FROM dbo.ZamowieniaMieso WHERE TransportKursId = @KursId", cn))
+                    {
+                        cmdFind.Parameters.AddWithValue("@KursId", _kursId.Value);
+                        using var rdr = await cmdFind.ExecuteReaderAsync();
+                        while (await rdr.ReadAsync())
+                        {
+                            int id = rdr.GetInt32(0);
+                            if (!zamIdyWKursie.Contains(id))
+                                sieroty.Add(id);
+                        }
+                    }
+
+                    foreach (var zamId in sieroty)
+                    {
+                        using var cmdReset = new SqlCommand(
+                            @"UPDATE dbo.ZamowieniaMieso
+                              SET TransportStatus = 'Oczekuje', TransportKursId = NULL
+                              WHERE Id = @ZamowienieId", cn);
+                        cmdReset.Parameters.AddWithValue("@ZamowienieId", zamId);
+                        await cmdReset.ExecuteNonQueryAsync();
+
+                        await HistoriaZmianService.LogujEdycje(zamId, _uzytkownik, App.UserFullName,
+                            "Transport - auto-zwolnienie sieroty",
+                            kursInfo,
+                            "Oczekuje na przypisanie",
+                            "Zamowienie wskazywalo na kurs bez ladunku — auto-zwolnione");
+                    }
+                }
+
                 _zamowieniaDoDodania.Clear();
                 _zamowieniaDoUsuniecia.Clear();
             }
