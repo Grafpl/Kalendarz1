@@ -1,0 +1,184 @@
+<Window x:Class="Kalendarz1.Transport.WPF.PlanowanieTransportuWpfWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Planowanie Transportu (WPF) — ZPSP" Height="860" Width="1480"
+        MinHeight="640" MinWidth="1080"
+        WindowStartupLocation="CenterScreen" WindowState="Maximized"
+        Background="#eef1f5" FontFamily="Segoe UI" FontSize="13">
+
+    <Window.Resources>
+        <Style x:Key="Btn" TargetType="Button">
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="13,7"/>
+            <Setter Property="Margin" Value="3,0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="5"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="bd" Property="Opacity" Value="0.85"/></Trigger>
+                            <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.4"/></Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>   <!-- toolbar -->
+            <RowDefinition Height="Auto"/>   <!-- kpi -->
+            <RowDefinition Height="*"/>      <!-- content -->
+            <RowDefinition Height="Auto"/>   <!-- status bar -->
+        </Grid.RowDefinitions>
+
+        <!-- ═══ TOOLBAR ═══ -->
+        <Border Grid.Row="0" Background="White" Padding="16,10" BorderBrush="#e4e6ea" BorderThickness="0,0,0,1">
+            <DockPanel>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="🚚 Planowanie Transportu" FontSize="18" FontWeight="Bold"
+                               Foreground="#1a237e" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                    <Border Background="#e8eaf6" CornerRadius="4" Padding="6,2" Margin="0,0,18,0">
+                        <TextBlock Text="WPF · nowy" FontSize="10" FontWeight="Bold" Foreground="#3949ab"/>
+                    </Border>
+                    <Button Content="◀" Click="BtnPrev_Click" Style="{StaticResource Btn}"
+                            Background="#eceff1" Foreground="#546e7a" FontSize="14" Padding="11,5"/>
+                    <DatePicker x:Name="DataKursu" Width="140" FontSize="12" VerticalAlignment="Center"
+                                SelectedDateChanged="DataKursu_Changed" Margin="4,0"/>
+                    <Button Content="Dziś" Click="BtnDzis_Click" Style="{StaticResource Btn}"
+                            Background="#e8eaf6" Foreground="#3949ab"/>
+                    <Button Content="▶" Click="BtnNext_Click" Style="{StaticResource Btn}"
+                            Background="#eceff1" Foreground="#546e7a" FontSize="14" Padding="11,5"/>
+                    <TextBlock x:Name="DayNameText" Foreground="#90a4ae" FontSize="12"
+                               VerticalAlignment="Center" Margin="14,0,0,0"/>
+                </StackPanel>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <Button Content="🚚 Nowy kurs" Click="BtnNowy_Click" Style="{StaticResource Btn}"
+                            Background="#2e7d32" Foreground="White"/>
+                    <Button x:Name="BtnEdytuj" Content="📝 Edytuj" Click="BtnEdytuj_Click" Style="{StaticResource Btn}"
+                            Background="#1565c0" Foreground="White" IsEnabled="False"/>
+                    <Button x:Name="BtnUsun" Content="🗑 Usuń" Click="BtnUsun_Click" Style="{StaticResource Btn}"
+                            Background="#c62828" Foreground="White" IsEnabled="False"/>
+                    <Button Content="🔄" Click="BtnRefresh_Click" Style="{StaticResource Btn}"
+                            Background="#eceff1" Foreground="#546e7a" FontSize="14" Padding="11,5" ToolTip="Odśwież (F5)"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- ═══ KPI ═══ -->
+        <Border Grid.Row="1" Background="White" Padding="16,8" BorderBrush="#e4e6ea" BorderThickness="0,0,0,1">
+            <StackPanel Orientation="Horizontal">
+                <Border Background="#e8eaf6" CornerRadius="6" Padding="12,5" Margin="0,0,8,0">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Kursów: " Foreground="#3949ab" FontSize="12"/>
+                        <TextBlock x:Name="KpiKursy" Text="0" Foreground="#1a237e" FontWeight="Bold" FontSize="12"/>
+                    </StackPanel>
+                </Border>
+                <Border Background="#e8f5e9" CornerRadius="6" Padding="12,5" Margin="0,0,8,0">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Z kierowcą: " Foreground="#388e3c" FontSize="12"/>
+                        <TextBlock x:Name="KpiZKierowca" Text="0" Foreground="#1b5e20" FontWeight="Bold" FontSize="12"/>
+                    </StackPanel>
+                </Border>
+                <Border Background="#fff3e0" CornerRadius="6" Padding="12,5" Margin="0,0,8,0">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Wymaga przydziału: " Foreground="#e65100" FontSize="12"/>
+                        <TextBlock x:Name="KpiBezZasobow" Text="0" Foreground="#bf360c" FontWeight="Bold" FontSize="12"/>
+                    </StackPanel>
+                </Border>
+                <Border Background="#fce4ec" CornerRadius="6" Padding="12,5">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Suma palet: " Foreground="#c2185b" FontSize="12"/>
+                        <TextBlock x:Name="KpiPalety" Text="0" Foreground="#880e4f" FontWeight="Bold" FontSize="12"/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Border>
+
+        <!-- ═══ CONTENT: lista kursów + podgląd ładunków ═══ -->
+        <Grid Grid.Row="2" Margin="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*"/>
+                <ColumnDefinition Width="12"/>
+                <ColumnDefinition Width="1*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- lista kursów -->
+            <Border Grid.Column="0" Background="White" CornerRadius="8" BorderBrush="#e4e6ea" BorderThickness="1">
+                <DataGrid x:Name="KursyGrid" Margin="4"
+                          AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
+                          HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                          RowBackground="White" AlternatingRowBackground="#f6f8fa"
+                          BorderThickness="0" FontSize="12" IsReadOnly="True"
+                          SelectionMode="Single" SelectionUnit="FullRow"
+                          SelectionChanged="KursyGrid_SelectionChanged"
+                          MouseDoubleClick="KursyGrid_DoubleClick">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="ID" Binding="{Binding KursID}" Width="55"/>
+                        <DataGridTextColumn Header="Godziny" Binding="{Binding GodzinyDisplay}" Width="120"/>
+                        <DataGridTextColumn Header="Trasa" Binding="{Binding Trasa}" Width="*"/>
+                        <DataGridTextColumn Header="Kierowca" Binding="{Binding KierowcaNazwa}" Width="150"/>
+                        <DataGridTextColumn Header="Pojazd" Binding="{Binding PojazdRejestracja}" Width="105"/>
+                        <DataGridTextColumn Header="Ład." Binding="{Binding LiczbaLadunkow}" Width="50"/>
+                        <DataGridTextColumn Header="Wypełnienie" Binding="{Binding WypelnienieDisplay}" Width="120"/>
+                        <DataGridTemplateColumn Header="Status" Width="115">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Border CornerRadius="10" Padding="8,3" Margin="4,3" HorizontalAlignment="Left"
+                                            Background="{Binding StatusBg}">
+                                        <TextBlock Text="{Binding Status}" Foreground="{Binding StatusFg}"
+                                                   FontSize="11" FontWeight="Bold"/>
+                                    </Border>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Border>
+
+            <!-- podgląd ładunków -->
+            <Border Grid.Column="2" Background="White" CornerRadius="8" BorderBrush="#e4e6ea" BorderThickness="1">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Border Grid.Row="0" Background="#37474f" Padding="12,10" CornerRadius="8,8,0,0">
+                        <StackPanel>
+                            <TextBlock Text="📦 Ładunki kursu" Foreground="White" FontWeight="Bold"/>
+                            <TextBlock x:Name="PodgladNaglowek" Text="Wybierz kurs z listy" Foreground="#b0bec5" FontSize="11" Margin="0,2,0,0"/>
+                        </StackPanel>
+                    </Border>
+                    <DataGrid x:Name="PodgladGrid" Grid.Row="1" Margin="4"
+                              AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
+                              HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                              RowBackground="White" AlternatingRowBackground="#f6f8fa"
+                              BorderThickness="0" FontSize="12" IsReadOnly="True">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="#" Binding="{Binding Kolejnosc}" Width="36"/>
+                            <DataGridTextColumn Header="Klient" Binding="{Binding NazwaDisplay}" Width="*"/>
+                            <DataGridTextColumn Header="Awiz." Binding="{Binding AwizacjaDisplay}" Width="56"/>
+                            <DataGridTextColumn Header="Poj." Binding="{Binding PojemnikiE2}" Width="50"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- ═══ STATUS BAR ═══ -->
+        <Border Grid.Row="3" Background="White" Padding="16,6" BorderBrush="#e4e6ea" BorderThickness="0,1,0,0">
+            <DockPanel>
+                <TextBlock x:Name="StatusText" Foreground="#78909c" FontSize="11" VerticalAlignment="Center"/>
+                <TextBlock Text="💡 Dwuklik na kurs = edycja" Foreground="#b0bec5" FontSize="11"
+                           DockPanel.Dock="Right" HorizontalAlignment="Right"/>
+            </DockPanel>
+        </Border>
+    </Grid>
+</Window>

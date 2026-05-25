@@ -1376,6 +1376,7 @@ namespace Kalendarz1
             /* 74 */ "DOA",
             /* 75 */ "ColdChain",
             /* 76 */ "Traceability",
+            /* 77 */ "TransportWPF",
         };
 
         private void ParseAccessString(string accessString)
@@ -1892,6 +1893,13 @@ namespace Kalendarz1
                         "Hub: Planowanie + Zmiany do akceptacji + Mapa Floty LIVE w jednym oknie",
                         Color.FromArgb(38, 116, 122),
                         () => new Kalendarz1.Transport.TransportHubWindow(), "🎛️", "Hub"),
+
+                    // SANDBOX — nowa wersja planowania transportu w czystym WPF (lista + edytor).
+                    // Izolowana od WinForms (TransportMainFormImproved) i WPF Huba; docelowo zastąpi WinForms.
+                    new MenuItemConfig("TransportWPF", "Planowanie Transportu (WPF)",
+                        "NOWA wersja WPF: lista kursów + edytor (tworzenie/modyfikacja) z wolnymi zamówieniami i pakowaniem palet. Szablon — docelowo oficjalna wersja.",
+                        Color.FromArgb(57, 73, 171), // Indygo #3949AB
+                        () => new Kalendarz1.Transport.WPF.PlanowanieTransportuWpfWindow(), "🆕", "Transport WPF"),
 
                     new MenuItemConfig("Flota", "Flota Pojazdów",
                         "Zarządzanie kierowcami, pojazdami, przypisaniami i serwisem - dokumenty, alerty, historia",
