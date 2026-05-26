@@ -366,6 +366,8 @@ namespace Kalendarz1.Kartoteka.Views
 
         private void GenerateCards(List<OdbiorcaHandlowca> odbiorcy)
         {
+            _displayedOdbiorcy = odbiorcy ?? new List<OdbiorcaHandlowca>();
+
             // Remember expanded state
             var expandedId = _selectedOdbiorca?.IdSymfonia;
 
@@ -1022,7 +1024,11 @@ namespace Kalendarz1.Kartoteka.Views
             card.ContextMenu.Items.Add(infoHeader);
             card.ContextMenu.Items.Add(new Separator());
 
-            var expandItem = new MenuItem { Header = "🔍 Rozwiń szczegóły" };
+            var karta360Item = new MenuItem { Header = "👤 Otwórz Kartę 360°", InputGestureText = "DblClick", FontWeight = FontWeights.Bold };
+            karta360Item.Click += (s, ev) => OtworzKarte360(odbiorca);
+            card.ContextMenu.Items.Add(karta360Item);
+
+            var expandItem = new MenuItem { Header = "🔍 Rozwiń szczegóły (podgląd)" };
             expandItem.Click += async (s, ev) =>
             {
                 ExpandCard(card, odbiorca);
@@ -1031,7 +1037,7 @@ namespace Kalendarz1.Kartoteka.Views
             };
             card.ContextMenu.Items.Add(expandItem);
 
-            var editItem = new MenuItem { Header = "📝 Edytuj dane", InputGestureText = "DblClick" };
+            var editItem = new MenuItem { Header = "📝 Edytuj dane" };
             editItem.Click += (s, ev) => { _selectedOdbiorca = odbiorca; OtworzEdycje(); };
             var callItem = new MenuItem { Header = "📞 Zadzwoń" };
             callItem.Click += (s, ev) =>
@@ -1098,11 +1104,10 @@ namespace Kalendarz1.Kartoteka.Views
             var odbiorca = card.Tag as OdbiorcaHandlowca;
             if (odbiorca == null) return;
 
-            // Double-click = edit
+            // Double-click = otwórz pełną Kartę Klienta 360 (scalony Customer360)
             if (e.ClickCount == 2)
             {
-                _selectedOdbiorca = odbiorca;
-                OtworzEdycje();
+                OtworzKarte360(odbiorca);
                 return;
             }
 
@@ -1115,6 +1120,23 @@ namespace Kalendarz1.Kartoteka.Views
 
             ExpandCard(card, odbiorca);
             await LoadSzczegoly(odbiorca);
+        }
+
+        /// <summary>Otwiera pełną Kartę Klienta 360 (dashboard + zamówienia + faktury + weryfikacja).</summary>
+        private void OtworzKarte360(OdbiorcaHandlowca odbiorca)
+        {
+            try
+            {
+                // Przekaż listę w kolejności wyświetlania → nawigacja ◀▶ w karcie
+                var nawigacja = (_displayedOdbiorcy ?? _allOdbiorcy)?.Select(o => o.IdSymfonia).ToList();
+                var karta = new Kalendarz1.Customer360.Customer360Window(odbiorca.IdSymfonia, nawigacja) { Owner = this };
+                karta.Show();
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show(this, "Nie udało się otworzyć karty klienta: " + ex.Message,
+                    "Błąd", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+            }
         }
 
         private void ExpandCard(Border card, OdbiorcaHandlowca odbiorca)
@@ -2937,6 +2959,20 @@ namespace Kalendarz1.Kartoteka.Views
         {
             var dashboard = new HandlowiecDashboardWindow();
             dashboard.Show();
+        }
+
+        private void ButtonPulpitPortfela_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var pulpit = new Kalendarz1.Customer360.PulpitPortfelaWindow { Owner = this };
+                pulpit.Show();
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show(this, "Nie udało się otworzyć pulpitu: " + ex.Message,
+                    "Błąd", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+            }
         }
 
         // ═══════════════════════════════════════════

@@ -92,34 +92,52 @@ namespace Kalendarz1.Kartoteka.Features.Mapa
 
         public async Task ZapiszWspolrzedneAsync(int idSymfonia, double lat, double lng, string status)
         {
+            // UPSERT — klient może NIE mieć jeszcze wiersza w KartotekaOdbiorcyDane (nigdy nieedytowany).
+            // Bez tego auto-geokodowanie nie zapisałoby współrzędnych dla większości klientów.
             const string sql = @"
-                UPDATE dbo.KartotekaOdbiorcyDane
-                SET Latitude = @Lat, Longitude = @Lng, GeokodowanieData = GETDATE(), GeokodowanieStatus = @Status
-                WHERE IdSymfonia = @Id";
+                IF EXISTS (SELECT 1 FROM dbo.KartotekaOdbiorcyDane WHERE IdSymfonia = @Id)
+                    UPDATE dbo.KartotekaOdbiorcyDane
+                    SET Latitude = @Lat, Longitude = @Lng, GeokodowanieData = GETDATE(), GeokodowanieStatus = @Status
+                    WHERE IdSymfonia = @Id;
+                ELSE
+                    INSERT INTO dbo.KartotekaOdbiorcyDane (IdSymfonia, Latitude, Longitude, GeokodowanieData, GeokodowanieStatus)
+                    VALUES (@Id, @Lat, @Lng, GETDATE(), @Status);";
 
-            await using var cn = new SqlConnection(_connLibra);
-            await cn.OpenAsync();
-            await using var cmd = new SqlCommand(sql, cn);
-            cmd.Parameters.AddWithValue("@Id", idSymfonia);
-            cmd.Parameters.AddWithValue("@Lat", lat);
-            cmd.Parameters.AddWithValue("@Lng", lng);
-            cmd.Parameters.AddWithValue("@Status", status);
-            await cmd.ExecuteNonQueryAsync();
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+                await using var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@Id", idSymfonia);
+                cmd.Parameters.AddWithValue("@Lat", lat);
+                cmd.Parameters.AddWithValue("@Lng", lng);
+                cmd.Parameters.AddWithValue("@Status", status);
+                await cmd.ExecuteNonQueryAsync();
+            }
+            catch (Exception ex) { Debug.WriteLine($"[Geokodowanie.Zapisz id={idSymfonia}] {ex.Message}"); }
         }
 
         public async Task ZapiszBladGeokodowaniaAsync(int idSymfonia, string status)
         {
             const string sql = @"
-                UPDATE dbo.KartotekaOdbiorcyDane
-                SET GeokodowanieData = GETDATE(), GeokodowanieStatus = @Status
-                WHERE IdSymfonia = @Id";
+                IF EXISTS (SELECT 1 FROM dbo.KartotekaOdbiorcyDane WHERE IdSymfonia = @Id)
+                    UPDATE dbo.KartotekaOdbiorcyDane
+                    SET GeokodowanieData = GETDATE(), GeokodowanieStatus = @Status
+                    WHERE IdSymfonia = @Id;
+                ELSE
+                    INSERT INTO dbo.KartotekaOdbiorcyDane (IdSymfonia, GeokodowanieData, GeokodowanieStatus)
+                    VALUES (@Id, GETDATE(), @Status);";
 
-            await using var cn = new SqlConnection(_connLibra);
-            await cn.OpenAsync();
-            await using var cmd = new SqlCommand(sql, cn);
-            cmd.Parameters.AddWithValue("@Id", idSymfonia);
-            cmd.Parameters.AddWithValue("@Status", status);
-            await cmd.ExecuteNonQueryAsync();
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+                await using var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@Id", idSymfonia);
+                cmd.Parameters.AddWithValue("@Status", status);
+                await cmd.ExecuteNonQueryAsync();
+            }
+            catch (Exception ex) { Debug.WriteLine($"[Geokodowanie.Blad id={idSymfonia}] {ex.Message}"); }
         }
 
         public async Task<Dictionary<int, (double Lat, double Lng)>> PobierzWspolrzedneAsync()

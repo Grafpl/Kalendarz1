@@ -36,10 +36,9 @@ namespace Kalendarz1.Customer360.Models
     /// <summary>Główne KPI klienta (na cards nagłówka).</summary>
     public class KlientKpi
     {
-        public decimal Obrot12M { get; set; }             // Suma wartości netto ostatnich 12 mies
+        public decimal Obrot12M { get; set; }             // Obrót brutto z faktur, ostatnie 12 mies
         public decimal Obrot12MPrev { get; set; }         // 12-24 mies temu (porównanie YoY)
-        public decimal Marza12M { get; set; }             // Łączna marża (cena - koszt) ostatnich 12 mies
-        public decimal SredniaMarzaKg { get; set; }       // zł/kg
+        public int LiczbaFaktur12M { get; set; }          // liczba faktur sprzedaży w 12 mies (do śr. wartości faktury)
         public int LiczbaZamowien12M { get; set; }
         public decimal SumaKg12M { get; set; }
         public DateTime? OstatnieZamowienie { get; set; }
@@ -64,6 +63,9 @@ namespace Kalendarz1.Customer360.Models
         public decimal WartoscReklamacji12M { get; set; }
         public decimal RelativeReklamacjeProc => Obrot12M > 0
             ? WartoscReklamacji12M / Obrot12M * 100m : 0m;
+
+        // Scoring 4-składnikowy (liczony w GetKpiAsync z configu)
+        public Kalendarz1.Customer360.Services.Customer360Score? Score { get; set; }
     }
 
     /// <summary>Wiersz historii zamówień (tabela).</summary>
@@ -170,6 +172,17 @@ namespace Kalendarz1.Customer360.Models
             : Math.Abs(RoznicaKg) < 0.5m ? "✅ Zgodne"
             : RoznicaKg < 0 ? "✂ Ucięte"
             : "➕ Więcej";
+    }
+
+    /// <summary>Porównanie miesięczne: zamówione kg vs zafakturowane kg (niedotrzymanie).</summary>
+    public class PorownanieMiesiac
+    {
+        public int Year { get; set; }
+        public int Month { get; set; }
+        public decimal ZamowioneKg { get; set; }
+        public decimal ZafakturowaneKg { get; set; }
+        public decimal RoznicaKg => ZafakturowaneKg - ZamowioneKg;           // < 0 = niedotrzymane (ucięte)
+        public decimal RealizacjaProc => ZamowioneKg > 0 ? ZafakturowaneKg / ZamowioneKg * 100m : 0m;
     }
 
     /// <summary>Sumarum weryfikacji — KPI cards.</summary>

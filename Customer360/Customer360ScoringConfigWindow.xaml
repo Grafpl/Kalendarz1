@@ -1,0 +1,145 @@
+<Window x:Class="Kalendarz1.Customer360.Customer360ScoringConfigWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="⚙ Ustawienia scoringu klienta" Width="640" Height="720"
+        WindowStartupLocation="CenterOwner" Background="#F5F7FA" FontFamily="Segoe UI" FontSize="12">
+    <Window.Resources>
+        <SolidColorBrush x:Key="Border" Color="#E2E8F0"/>
+        <Style x:Key="Lbl" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/><Setter Property="Foreground" Value="#475569"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="Sub" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="10"/><Setter Property="Foreground" Value="#94A3B8"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Padding" Value="6,5"/><Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="HorizontalContentAlignment" Value="Right"/>
+        </Style>
+        <Style x:Key="Card" TargetType="Border">
+            <Setter Property="Background" Value="White"/><Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="BorderBrush" Value="{StaticResource Border}"/><Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="16,12"/><Setter Property="Margin" Value="0,0,0,12"/>
+        </Style>
+    </Window.Resources>
+    <Grid Margin="16">
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="0,0,0,12">
+            <TextBlock Text="⚙ Ustawienia scoringu klienta" FontSize="20" FontWeight="Bold" Foreground="#0F172A"/>
+            <TextBlock Text="Parametry wspólne dla wszystkich użytkowników. Zmiany wpływają na ocenę każdego klienta." Style="{StaticResource Sub}" Margin="0,2,0,0"/>
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <!-- Wagi -->
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock Text="Wagi składników (suma musi = 100%)" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,10"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="80"/></Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition Height="8"/><RowDefinition/></Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Obrót 12M" Style="{StaticResource Lbl}" Margin="0,0,0,6"/>
+                            <TextBox Grid.Row="0" Grid.Column="1" x:Name="TbWagaObrot" Margin="0,0,0,6" TextChanged="Waga_Changed"/>
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Częstotliwość zamówień" Style="{StaticResource Lbl}" Margin="0,0,0,6"/>
+                            <TextBox Grid.Row="1" Grid.Column="1" x:Name="TbWagaCzest" Margin="0,0,0,6" TextChanged="Waga_Changed"/>
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Terminowość płatności" Style="{StaticResource Lbl}" Margin="0,0,0,6"/>
+                            <TextBox Grid.Row="2" Grid.Column="1" x:Name="TbWagaTermin" Margin="0,0,0,6" TextChanged="Waga_Changed"/>
+                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Długość relacji" Style="{StaticResource Lbl}" Margin="0,0,0,6"/>
+                            <TextBox Grid.Row="3" Grid.Column="1" x:Name="TbWagaDlugosc" Margin="0,0,0,6" TextChanged="Waga_Changed"/>
+                            <TextBlock Grid.Row="5" Grid.Column="0" Text="Suma wag:" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Row="5" Grid.Column="1" x:Name="LblSumaWag" Text="100%" FontWeight="Bold" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Obrót -->
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock Text="Obrót" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,10"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="140"/></Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Kwota obrotu 12M dająca 100 pkt (zł)" Style="{StaticResource Lbl}"/>
+                                <TextBlock Text="np. 2 000 000 → klient z obrotem 2 mln dostaje pełne 100 pkt, 1 mln = 50 pkt" Style="{StaticResource Sub}"/>
+                            </StackPanel>
+                            <TextBox Grid.Column="1" x:Name="TbObrotMax" VerticalAlignment="Top"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Częstotliwość -->
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock Text="Częstotliwość zamówień" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,10"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="100"/></Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Odstęp dni dający pełne 100 pkt" Style="{StaticResource Lbl}" Margin="0,0,0,6"/>
+                            <TextBox Grid.Row="0" Grid.Column="1" x:Name="TbCzestBaza" Margin="0,0,0,6"/>
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Spadek pkt za każdy dzień powyżej" Style="{StaticResource Lbl}"/>
+                            <TextBox Grid.Row="1" Grid.Column="1" x:Name="TbCzestSpadek"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Terminowość -->
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock Text="Terminowość płatności" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,10"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="100"/></Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Punkty gdy brak otwartego salda (neutralnie)" Style="{StaticResource Lbl}"/>
+                                <TextBlock Text="0-100. Stosowane gdy klient nie ma żadnych nierozliczonych faktur." Style="{StaticResource Sub}"/>
+                            </StackPanel>
+                            <TextBox Grid.Column="1" x:Name="TbTerminBrak" VerticalAlignment="Top"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Długość -->
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock Text="Długość relacji" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,10"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="100"/></Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Lata współpracy dające 100 pkt" Style="{StaticResource Lbl}" Margin="0,0,0,6"/>
+                            <TextBox Grid.Row="0" Grid.Column="1" x:Name="TbDlugoscLata" Margin="0,0,0,6"/>
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Minimalna liczba punktów (nowy klient)" Style="{StaticResource Lbl}"/>
+                            <TextBox Grid.Row="1" Grid.Column="1" x:Name="TbDlugoscMin"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Progi liter -->
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock Text="Progi ocen (Total ≥ próg)" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,10"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="80"/></Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="A — Doskonały" Style="{StaticResource Lbl}" Margin="0,0,0,6"/>
+                            <TextBox Grid.Row="0" Grid.Column="1" x:Name="TbProgA" Margin="0,0,0,6"/>
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="B — Dobry" Style="{StaticResource Lbl}" Margin="0,0,0,6"/>
+                            <TextBox Grid.Row="1" Grid.Column="1" x:Name="TbProgB" Margin="0,0,0,6"/>
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="C — Średni" Style="{StaticResource Lbl}" Margin="0,0,0,6"/>
+                            <TextBox Grid.Row="2" Grid.Column="1" x:Name="TbProgC" Margin="0,0,0,6"/>
+                            <TextBlock Grid.Row="3" Grid.Column="0" Text="D — Słaby (poniżej = F Krytyczny)" Style="{StaticResource Lbl}"/>
+                            <TextBox Grid.Row="3" Grid.Column="1" x:Name="TbProgD"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+            <TextBlock x:Name="LblStatus" Text="" Foreground="#DC2626" VerticalAlignment="Center" Margin="0,0,12,0"/>
+            <Button Content="↺ Domyślne" Click="BtnDomyslne_Click" Padding="12,8" Margin="0,0,8,0" Cursor="Hand" Background="#F1F5F9" BorderThickness="0"/>
+            <Button Content="Anuluj" Click="BtnAnuluj_Click" Padding="12,8" Margin="0,0,8,0" Cursor="Hand" Background="#F1F5F9" BorderThickness="0"/>
+            <Button x:Name="BtnZapisz" Content="💾 Zapisz" Click="BtnZapisz_Click" Padding="18,8" Cursor="Hand" FontWeight="Bold" Background="#2563EB" Foreground="White" BorderThickness="0"/>
+        </StackPanel>
+    </Grid>
+</Window>

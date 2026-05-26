@@ -1,0 +1,50 @@
+<Window x:Class="Kalendarz1.Customer360.PorownanieKlientowWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="⚖ Porównanie klientów" Width="900" Height="760"
+        WindowStartupLocation="CenterOwner" Background="#F5F7FA" FontFamily="Segoe UI" FontSize="12">
+    <Window.Resources>
+        <SolidColorBrush x:Key="Border" Color="#E2E8F0"/>
+    </Window.Resources>
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="⚖ Porównanie klientów" FontSize="20" FontWeight="Bold" Foreground="#0F172A" Margin="0,0,0,12"/>
+
+        <!-- Nagłówki kolumn -->
+        <Grid Grid.Row="1" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="220"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Border Grid.Column="1" Background="#EFF6FF" BorderBrush="#BFDBFE" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,4,0">
+                <StackPanel>
+                    <TextBlock Text="KLIENT A" FontSize="10" FontWeight="SemiBold" Foreground="#1E40AF"/>
+                    <TextBlock x:Name="LblA" Text="—" FontSize="14" FontWeight="Bold" Foreground="#1E40AF" TextTrimming="CharacterEllipsis"/>
+                </StackPanel>
+            </Border>
+            <Border Grid.Column="2" Background="#F0FDF4" BorderBrush="#BBF7D0" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="4,0,0,0">
+                <Grid>
+                    <StackPanel>
+                        <TextBlock Text="KLIENT B" FontSize="10" FontWeight="SemiBold" Foreground="#15803D"/>
+                        <TextBlock x:Name="LblB" Text="(wybierz)" FontSize="14" FontWeight="Bold" Foreground="#15803D" TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
+                    <Button x:Name="BtnWybierzB" Content="🔍 Wybierz" Click="BtnWybierzB_Click" HorizontalAlignment="Right" VerticalAlignment="Center"
+                            Padding="10,5" Cursor="Hand" Background="White" BorderBrush="#BBF7D0" BorderThickness="1"/>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- Tabela porównania -->
+        <Border Grid.Row="2" Background="White" CornerRadius="10" BorderBrush="{StaticResource Border}" BorderThickness="1" Padding="8">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <Grid x:Name="GridPorownanie"/>
+            </ScrollViewer>
+        </Border>
+    </Grid>
+</Window>

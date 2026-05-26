@@ -136,6 +136,11 @@
                                        VerticalAlignment="Center" FontWeight="Bold"/>
                         </StackPanel>
                     </Button>
+                    <Button Content="📊 Pulpit Portfela" Background="#7C3AED" Foreground="White" FontSize="11"
+                            Padding="8,4" Margin="0,0,8,0" Cursor="Hand"
+                            BorderThickness="0" FontWeight="SemiBold"
+                            Click="ButtonPulpitPortfela_Click"
+                            ToolTip="Globalny pulpit portfela — alerty kredytowe, churn, ranking top klientów, mapa"/>
                     <Button Content="📊 Dashboard" Background="#2979FF" Foreground="White" FontSize="11"
                             Padding="8,4" Margin="0,0,8,0" Cursor="Hand"
                             BorderThickness="0" FontWeight="SemiBold"

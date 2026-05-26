@@ -109,20 +109,56 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <TextBlock Grid.Column="0" Text="👤 Karta Klienta 360°" FontSize="20" FontWeight="Bold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center" Margin="0,0,24,0"/>
-                <Button Grid.Column="1" x:Name="BtnPickKlient" Click="BtnPickKlient_Click" Cursor="Hand" MinHeight="40" Background="#EFF6FF" BorderBrush="#BFDBFE" BorderThickness="1" Foreground="#1E40AF">
-                    <Button.Template>
-                        <ControlTemplate TargetType="Button">
-                            <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="14,8">
-                                <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center"/>
-                            </Border>
-                        </ControlTemplate>
-                    </Button.Template>
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="🔍" FontSize="14" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                        <TextBlock x:Name="LblPickKlient" Text="Wybierz klienta..." FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                    </StackPanel>
-                </Button>
-                <Button Grid.Column="2" Style="{StaticResource GhostButton}" Content="🔄 Odśwież" Click="BtnRefresh_Click" Margin="12,0,0,0"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button x:Name="BtnPickKlient" Click="BtnPickKlient_Click" Cursor="Hand" MinHeight="40" Background="#EFF6FF" BorderBrush="#BFDBFE" BorderThickness="1" Foreground="#1E40AF">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="14,8">
+                                    <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="🔍" FontSize="14" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <TextBlock x:Name="LblPickKlient" Text="Wybierz klienta..." FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <!-- Filtr aktywnej tabeli -->
+                    <Border Background="White" BorderBrush="{StaticResource Border}" BorderThickness="1" CornerRadius="8" Padding="8,0" Margin="12,0,0,0" VerticalAlignment="Center" Height="40">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="🔎" FontSize="13" VerticalAlignment="Center" Margin="2,0,6,0"/>
+                            <TextBox x:Name="TxtSzukajGrid" Width="200" BorderThickness="0" VerticalAlignment="Center"
+                                     VerticalContentAlignment="Center" Background="Transparent" FontSize="12"
+                                     TextChanged="TxtSzukajGrid_TextChanged"
+                                     ToolTip="Filtruj wiersze aktywnej zakładki (faktury, asortyment, zamówienia…)"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <!-- Nawigacja między klientami -->
+                    <Button x:Name="BtnPrev" Style="{StaticResource GhostButton}" Content="◀" Click="BtnPrev_Click"
+                            ToolTip="Poprzedni klient (Ctrl+←)" Margin="0,0,2,0" IsEnabled="False"/>
+                    <TextBlock x:Name="LblNawPozycja" Text="" FontSize="11" Foreground="{StaticResource TextSecondary}"
+                               VerticalAlignment="Center" MinWidth="46" TextAlignment="Center"/>
+                    <Button x:Name="BtnNext" Style="{StaticResource GhostButton}" Content="▶" Click="BtnNext_Click"
+                            ToolTip="Następny klient (Ctrl+→)" Margin="2,0,0,0" IsEnabled="False"/>
+                    <ComboBox x:Name="CmbOkres" Width="120" Height="34" Margin="12,0,0,0" VerticalContentAlignment="Center"
+                              SelectionChanged="CmbOkres_SelectionChanged" ToolTip="Okres analizy dla list i wykresów">
+                        <ComboBoxItem Content="Cała historia" IsSelected="True"/>
+                        <ComboBoxItem Content="Ostatnie 12M"/>
+                        <ComboBoxItem Content="Ostatnie 6M"/>
+                        <ComboBoxItem Content="Ostatnie 3M"/>
+                    </ComboBox>
+                    <Button x:Name="BtnPorownaj" Style="{StaticResource GhostButton}" Content="⚖ Porównaj" Click="BtnPorownaj_Click" Margin="8,0,0,0"
+                            ToolTip="Porównaj tego klienta z innym (KPI obok siebie)"/>
+                    <Button x:Name="BtnOstatni" Style="{StaticResource GhostButton}" Content="🕘 Ostatni" Click="BtnOstatni_Click" Margin="8,0,0,0"
+                            ToolTip="Ostatnio otwierani klienci"/>
+                    <Button x:Name="BtnEksport" Style="{StaticResource GhostButton}" Content="📥 Eksport" Click="BtnEksport_Click" Margin="8,0,0,0"
+                            ToolTip="Eksportuj dane aktywnej zakładki do CSV/Excel"/>
+                    <Button Style="{StaticResource GhostButton}" Content="🐛 Debug" Click="BtnDebug_Click" Margin="8,0,0,0"
+                            Background="#FEF2F2" Foreground="#B91C1C"/>
+                    <Button Style="{StaticResource GhostButton}" Content="🔄 Odśwież" Click="BtnRefresh_Click" Margin="8,0,0,0"/>
+                </StackPanel>
             </Grid>
         </Border>
 
@@ -153,6 +189,9 @@
                                     <TextBlock x:Name="LblChurnLevel" Text="OK" FontSize="11" FontWeight="Bold"/>
                                 </StackPanel>
                             </Border>
+                            <Border x:Name="ChipScoring" CornerRadius="6" Padding="8,3" Margin="8,8,0,0" VerticalAlignment="Center" Background="#6B7280" Visibility="Collapsed">
+                                <TextBlock x:Name="LblScoringChip" Text="⭐ —" FontSize="11" FontWeight="Bold" Foreground="White"/>
+                            </Border>
                         </StackPanel>
                         <Grid Margin="0,6,0,0">
                             <Grid.ColumnDefinitions>
@@ -180,24 +219,111 @@
                             </TextBlock>
                         </Grid>
                     </StackPanel>
-                    <Border Grid.Column="1" Background="#EFF6FF" BorderBrush="#BFDBFE" BorderThickness="1" CornerRadius="10" Padding="14,8" VerticalAlignment="Center">
-                        <StackPanel>
-                            <TextBlock Text="Handlowiec" FontSize="10" Foreground="#1E40AF" FontWeight="SemiBold"/>
-                            <TextBlock x:Name="LblHandlowiec" Text="—" FontSize="14" FontWeight="Bold" Foreground="#1E40AF"/>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <!-- Szybkie akcje -->
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
+                            <Button x:Name="BtnKopiujNip" Click="BtnKopiujNip_Click" ToolTip="Kopiuj NIP do schowka"
+                                    Content="📋 NIP" Padding="9,6" Margin="0,0,6,0" Cursor="Hand"
+                                    Background="#F1F5F9" Foreground="#475569" BorderThickness="0" FontSize="11"/>
+                            <Button x:Name="BtnZadzwon" Click="BtnZadzwon_Click" ToolTip="Zadzwoń"
+                                    Content="📞" Padding="9,6" Margin="0,0,6,0" Cursor="Hand"
+                                    Background="#F1F5F9" Foreground="#475569" BorderThickness="0" FontSize="11"/>
+                            <Button x:Name="BtnEmail" Click="BtnEmail_Click" ToolTip="Wyślij email"
+                                    Content="✉" Padding="9,6" Cursor="Hand"
+                                    Background="#F1F5F9" Foreground="#475569" BorderThickness="0" FontSize="11"/>
                         </StackPanel>
-                    </Border>
+                        <Border Background="#EFF6FF" BorderBrush="#BFDBFE" BorderThickness="1" CornerRadius="10" Padding="14,8" VerticalAlignment="Center">
+                            <StackPanel>
+                                <TextBlock Text="Handlowiec" FontSize="10" Foreground="#1E40AF" FontWeight="SemiBold"/>
+                                <TextBlock x:Name="LblHandlowiec" Text="—" FontSize="14" FontWeight="Bold" Foreground="#1E40AF"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
                 </Grid>
             </StackPanel>
         </Border>
 
         <!-- BODY: Tabs -->
-        <TabControl Grid.Row="2" x:Name="MainTabs" Margin="0" Background="Transparent" BorderThickness="0">
+        <TabControl Grid.Row="2" x:Name="MainTabs" Margin="0" Background="Transparent" BorderThickness="0" SelectionChanged="MainTabs_SelectionChanged">
 
-            <!-- Tab 1: PRZEGLĄD (KPI + wykres) -->
+            <!-- Tab 1: PRZEGLĄD (dashboard) -->
             <TabItem Header="📊 Przegląd">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20,16">
                     <StackPanel>
-                        <!-- KPI Cards row 1: Obrót, Marża, Zamówienia, Średni odstęp -->
+                        <!-- ════ HERO: Scoring + składniki + churn + rekomendacja ════ -->
+                        <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Kółko scoringu -->
+                                <Border Grid.Column="0" x:Name="ScoringBadge" Width="116" Height="116" CornerRadius="58"
+                                        Background="#6B7280" VerticalAlignment="Center">
+                                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                        <TextBlock x:Name="ScoringLitera" Text="?" FontSize="42" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,-4"/>
+                                        <TextBlock x:Name="ScoringPunkty" Text="—/100" FontSize="13" Foreground="White" Opacity="0.92" HorizontalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Składniki scoringu (5 pasków) -->
+                                <StackPanel Grid.Column="1" Margin="24,0,24,0" VerticalAlignment="Center">
+                                    <TextBlock x:Name="ScoringKategoria" Text="Ocena klienta" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,8"/>
+                                    <StackPanel x:Name="ScoringBary"/>
+                                </StackPanel>
+
+                                <!-- Churn + rekomendacja -->
+                                <StackPanel Grid.Column="2" VerticalAlignment="Center" MinWidth="240" MaxWidth="280">
+                                    <TextBlock Text="RYZYKO ODEJŚCIA (CHURN)" Style="{StaticResource KpiLabel}"/>
+                                    <Border x:Name="ChurnBadge" CornerRadius="6" Padding="10,5" Margin="0,5,0,8" HorizontalAlignment="Left" Background="#6B7280">
+                                        <TextBlock x:Name="ChurnText" Text="—" Foreground="White" FontWeight="Bold" FontSize="13"/>
+                                    </Border>
+                                    <TextBlock x:Name="ChurnReason" Text="" FontSize="11" Foreground="{StaticResource TextSecondary}" TextWrapping="Wrap"/>
+                                    <Border Background="#EFF6FF" CornerRadius="6" Padding="10,7" Margin="0,8,0,0">
+                                        <StackPanel>
+                                            <TextBlock Text="💡 REKOMENDOWANY LIMIT" FontSize="9" FontWeight="SemiBold" Foreground="{StaticResource Primary}"/>
+                                            <TextBlock x:Name="ScoringRekomendacja" Text="—" FontSize="13" FontWeight="Bold" Foreground="{StaticResource Primary}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!-- ════ CHIPY RYZYKA ════ -->
+                        <UniformGrid Columns="4" Rows="1" Margin="0,0,0,12">
+                            <Border x:Name="ChipLimit" Style="{StaticResource KpiCard}" Margin="0,0,8,0">
+                                <StackPanel>
+                                    <TextBlock Text="WYKORZYSTANIE LIMITU" Style="{StaticResource KpiLabel}"/>
+                                    <TextBlock x:Name="ChipLimitVal" Text="—" Style="{StaticResource KpiValue}" Margin="0,4,0,0"/>
+                                    <ProgressBar x:Name="ChipLimitBar" Height="6" Minimum="0" Maximum="100" Value="0" Margin="0,6,0,0" Foreground="{StaticResource Success}" Background="#E2E8F0" BorderThickness="0"/>
+                                </StackPanel>
+                            </Border>
+                            <Border x:Name="ChipPrzeterm" Style="{StaticResource KpiCard}" Margin="4,0">
+                                <StackPanel>
+                                    <TextBlock Text="PRZETERMINOWANE" Style="{StaticResource KpiLabel}"/>
+                                    <TextBlock x:Name="ChipPrzetermVal" Text="—" Style="{StaticResource KpiValue}" Foreground="{StaticResource Danger}" Margin="0,4,0,0"/>
+                                    <TextBlock x:Name="ChipPrzetermSub" Text="—" Style="{StaticResource KpiSubvalue}" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Border>
+                            <Border x:Name="ChipOstatnie" Style="{StaticResource KpiCard}" Margin="4,0">
+                                <StackPanel>
+                                    <TextBlock Text="OD OSTATNIEGO ZAMÓWIENIA" Style="{StaticResource KpiLabel}"/>
+                                    <TextBlock x:Name="ChipOstatnieVal" Text="—" Style="{StaticResource KpiValue}" Margin="0,4,0,0"/>
+                                    <TextBlock x:Name="ChipOstatnieSub" Text="—" Style="{StaticResource KpiSubvalue}" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Border>
+                            <Border x:Name="ChipReklamacje" Style="{StaticResource KpiCard}" Margin="8,0,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="REKLAMACJE 12 MIES" Style="{StaticResource KpiLabel}"/>
+                                    <TextBlock x:Name="KpiReklamacje" Text="—" Style="{StaticResource KpiValue}" Margin="0,4,0,0"/>
+                                    <TextBlock x:Name="KpiReklamacjeProc" Text="—" Style="{StaticResource KpiSubvalue}" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Border>
+                        </UniformGrid>
+
+                        <!-- ════ KPI FINANSOWE ════ -->
                         <UniformGrid Columns="4" Rows="1" Margin="0,0,0,12">
                             <Border Style="{StaticResource KpiCard}" Margin="0,0,8,0">
                                 <StackPanel>
@@ -208,9 +334,9 @@
                             </Border>
                             <Border Style="{StaticResource KpiCard}" Margin="4,0">
                                 <StackPanel>
-                                    <TextBlock Text="MARŻA 12 MIES" Style="{StaticResource KpiLabel}"/>
-                                    <TextBlock x:Name="KpiMarza" Text="—" Style="{StaticResource KpiValue}" Foreground="{StaticResource Success}" Margin="0,4,0,0"/>
-                                    <TextBlock x:Name="KpiMarzaKg" Text="—" Style="{StaticResource KpiSubvalue}" Margin="0,2,0,0"/>
+                                    <TextBlock Text="ŚR. WARTOŚĆ FAKTURY" Style="{StaticResource KpiLabel}"/>
+                                    <TextBlock x:Name="KpiSrFaktura" Text="—" Style="{StaticResource KpiValue}" Foreground="{StaticResource Success}" Margin="0,4,0,0"/>
+                                    <TextBlock x:Name="KpiSrFakturaSub" Text="—" Style="{StaticResource KpiSubvalue}" Margin="0,2,0,0"/>
                                 </StackPanel>
                             </Border>
                             <Border Style="{StaticResource KpiCard}" Margin="4,0">
@@ -222,93 +348,83 @@
                             </Border>
                             <Border Style="{StaticResource KpiCard}" Margin="8,0,0,0">
                                 <StackPanel>
-                                    <TextBlock Text="OSTATNIE ZAMÓWIENIE" Style="{StaticResource KpiLabel}"/>
-                                    <TextBlock x:Name="KpiOstatnie" Text="—" Style="{StaticResource KpiValue}" Margin="0,4,0,0"/>
-                                    <TextBlock x:Name="KpiSredniOdstep" Text="—" Style="{StaticResource KpiSubvalue}" Margin="0,2,0,0"/>
-                                </StackPanel>
-                            </Border>
-                        </UniformGrid>
-
-                        <!-- KPI Cards row 2: Limit, Do zapłaty, Przeterminowane, Reklamacje -->
-                        <UniformGrid Columns="4" Rows="1" Margin="0,0,0,12">
-                            <Border Style="{StaticResource KpiCard}" Margin="0,0,8,0">
-                                <StackPanel>
-                                    <TextBlock Text="LIMIT KREDYTOWY" Style="{StaticResource KpiLabel}"/>
+                                    <TextBlock Text="LIMIT / DO ZAPŁATY" Style="{StaticResource KpiLabel}"/>
                                     <TextBlock x:Name="KpiLimit" Text="—" Style="{StaticResource KpiValue}" Margin="0,4,0,0"/>
-                                    <TextBlock x:Name="KpiLimitWyk" Text="—" Style="{StaticResource KpiSubvalue}" Margin="0,2,0,0"/>
-                                </StackPanel>
-                            </Border>
-                            <Border Style="{StaticResource KpiCard}" Margin="4,0">
-                                <StackPanel>
-                                    <TextBlock Text="DO ZAPŁATY" Style="{StaticResource KpiLabel}"/>
-                                    <TextBlock x:Name="KpiDoZap" Text="—" Style="{StaticResource KpiValue}" Margin="0,4,0,0"/>
-                                    <TextBlock x:Name="KpiFaktur" Text="—" Style="{StaticResource KpiSubvalue}" Margin="0,2,0,0"/>
-                                </StackPanel>
-                            </Border>
-                            <Border Style="{StaticResource KpiCard}" Margin="4,0">
-                                <StackPanel>
-                                    <TextBlock Text="PRZETERMINOWANE" Style="{StaticResource KpiLabel}"/>
-                                    <TextBlock x:Name="KpiPrzeterm" Text="—" Style="{StaticResource KpiValue}" Foreground="{StaticResource Danger}" Margin="0,4,0,0"/>
-                                    <TextBlock x:Name="KpiMaxDni" Text="—" Style="{StaticResource KpiSubvalue}" Margin="0,2,0,0"/>
-                                </StackPanel>
-                            </Border>
-                            <Border Style="{StaticResource KpiCard}" Margin="8,0,0,0">
-                                <StackPanel>
-                                    <TextBlock Text="REKLAMACJE 12 MIES" Style="{StaticResource KpiLabel}"/>
-                                    <TextBlock x:Name="KpiReklamacje" Text="—" Style="{StaticResource KpiValue}" Margin="0,4,0,0"/>
-                                    <TextBlock x:Name="KpiReklamacjeProc" Text="—" Style="{StaticResource KpiSubvalue}" Margin="0,2,0,0"/>
+                                    <TextBlock x:Name="KpiDoZap" Text="—" Style="{StaticResource KpiSubvalue}" Margin="0,2,0,0"/>
                                 </StackPanel>
                             </Border>
                         </UniformGrid>
 
-                        <!-- Wykres miesięczny (placeholder dla bar chart) -->
-                        <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12" MinHeight="280">
+                        <!-- ════ WYKRES TRENDU ════ -->
+                        <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12" MinHeight="300">
                             <StackPanel>
-                                <TextBlock Text="📈 Obrót miesięczny — ostatnie 12 mies" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,12"/>
-                                <Grid x:Name="ChartMonthly" Height="220"/>
+                                <Grid Margin="0,0,0,12">
+                                    <TextBlock Text="📈 Obrót miesięczny (faktury, brutto)" FontWeight="SemiBold" FontSize="13" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="TrendKierunek" Text="" FontWeight="Bold" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                </Grid>
+                                <Grid x:Name="ChartMonthly" Height="240"/>
                             </StackPanel>
                         </Border>
 
-                        <!-- Top 5 towarów -->
-                        <Border Style="{StaticResource CardStyle}">
-                            <StackPanel>
-                                <TextBlock Text="🏆 Top 5 najczęściej kupowanych towarów" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,10"/>
-                                <DataGrid x:Name="GridTopTowary" AutoGenerateColumns="False" IsReadOnly="True"
-                                          CanUserAddRows="False" CanUserDeleteRows="False"
-                                          GridLinesVisibility="Horizontal" RowHeight="56" ColumnHeaderHeight="32"
-                                          BorderThickness="0" Background="Transparent">
-                                    <DataGrid.Columns>
-                                        <DataGridTextColumn Header="#" Binding="{Binding Pozycja}" Width="40"/>
-                                        <DataGridTemplateColumn Header="Towar" Width="*">
-                                            <DataGridTemplateColumn.CellTemplate>
-                                                <DataTemplate>
-                                                    <Grid>
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="56"/>
-                                                            <ColumnDefinition Width="*"/>
-                                                        </Grid.ColumnDefinitions>
-                                                        <Border Width="48" Height="48" CornerRadius="6" ClipToBounds="True" Background="#F1F5F9" VerticalAlignment="Center" Margin="0,0,10,0">
-                                                            <Grid>
-                                                                <Image Source="{Binding Image}" Stretch="UniformToFill" Visibility="{Binding HasImageVisibility}"/>
-                                                                <TextBlock Text="🍗" FontSize="22" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="{Binding PlaceholderVisibility}"/>
-                                                            </Grid>
-                                                        </Border>
-                                                        <TextBlock Grid.Column="1" Text="{Binding Nazwa}" FontSize="12" FontWeight="SemiBold" Foreground="#0F172A" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-                                                    </Grid>
-                                                </DataTemplate>
-                                            </DataGridTemplateColumn.CellTemplate>
-                                        </DataGridTemplateColumn>
-                                        <DataGridTextColumn Header="Suma kg" Binding="{Binding SumaKg, StringFormat=N0}" Width="100"/>
-                                        <DataGridTextColumn Header="Wartość zł" Binding="{Binding Wartosc, StringFormat=N0}" Width="120"/>
-                                        <DataGridTextColumn Header="Średnia cena" Binding="{Binding SredniaCena, StringFormat={}{0:N2} zł}" Width="110"/>
-                                        <DataGridTextColumn Header="Liczba zam." Binding="{Binding LiczbaZamowien}" Width="90"/>
-                                    </DataGrid.Columns>
-                                </DataGrid>
-                            </StackPanel>
-                        </Border>
+                        <!-- ════ DWIE KOLUMNY: Top towary | Alerty ════ -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="3*"/>
+                                <ColumnDefinition Width="2*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Top towary -->
+                            <Border Grid.Column="0" Style="{StaticResource CardStyle}" Margin="0,0,6,0">
+                                <StackPanel>
+                                    <TextBlock Text="🏆 Top 5 kupowanych towarów" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,10"/>
+                                    <DataGrid x:Name="GridTopTowary" AutoGenerateColumns="False" IsReadOnly="True"
+                                              CanUserAddRows="False" CanUserDeleteRows="False"
+                                              GridLinesVisibility="Horizontal" RowHeight="56" ColumnHeaderHeight="32"
+                                              BorderThickness="0" Background="Transparent">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="#" Binding="{Binding Pozycja}" Width="32"/>
+                                            <DataGridTemplateColumn Header="Towar" Width="*">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="56"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <Border Width="48" Height="48" CornerRadius="6" ClipToBounds="True" Background="#F1F5F9" VerticalAlignment="Center" Margin="0,0,10,0">
+                                                                <Grid>
+                                                                    <Image Source="{Binding Image}" Stretch="UniformToFill" Visibility="{Binding HasImageVisibility}"/>
+                                                                    <TextBlock Text="🍗" FontSize="22" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="{Binding PlaceholderVisibility}"/>
+                                                                </Grid>
+                                                            </Border>
+                                                            <TextBlock Grid.Column="1" Text="{Binding Nazwa}" FontSize="12" FontWeight="SemiBold" Foreground="#0F172A" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                            <DataGridTextColumn Header="Suma kg" Binding="{Binding SumaKg, StringFormat=N0}" Width="90"/>
+                                            <DataGridTextColumn Header="Wartość" Binding="{Binding Wartosc, StringFormat=N0}" Width="100"/>
+                                            <DataGridTextColumn Header="Śr. cena" Binding="{Binding SredniaCena, StringFormat={}{0:N2}}" Width="80"/>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Alerty operacyjne -->
+                            <Border Grid.Column="1" Style="{StaticResource CardStyle}" Margin="6,0,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="🔔 Alerty i sygnały" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,10"/>
+                                    <StackPanel x:Name="AlertyPanel"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
+
+            <!-- ═══ GRUPA: SPRZEDAŻ ═══ -->
+            <TabItem Header="💰 Sprzedaż">
+              <TabControl Background="Transparent" BorderThickness="0" Padding="0">
 
             <!-- Tab 2: ZAMÓWIENIA -->
             <TabItem Header="🛒 Zamówienia">
@@ -381,87 +497,76 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- KPI row 1: Sumy -->
-                        <UniformGrid Columns="4" Rows="1" Margin="0,0,0,12">
-                            <Border Style="{StaticResource KpiCard}" Margin="0,0,8,0">
-                                <StackPanel>
-                                    <TextBlock Text="ZAMÓWIONE KG" Style="{StaticResource KpiLabel}"/>
-                                    <TextBlock x:Name="VerKpiZamKg" Text="—" Style="{StaticResource KpiValue}" Foreground="#1E40AF" Margin="0,4,0,0"/>
-                                    <TextBlock x:Name="VerKpiZamLZ" Text="—" Style="{StaticResource KpiSubvalue}" Margin="0,2,0,0"/>
+                        <!-- ═══ WERDYKT: realizacja zamówień fakturami ═══ -->
+                        <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <!-- Kółko realizacji % -->
+                                <Border Grid.Column="0" x:Name="VerKolo" Width="116" Height="116" CornerRadius="58" Background="#6B7280" VerticalAlignment="Center" Margin="0,0,20,0">
+                                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                        <TextBlock x:Name="VerProc" Text="—" FontSize="30" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+                                        <TextBlock Text="realizacji" FontSize="11" Foreground="White" Opacity="0.9" HorizontalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                                <!-- Werdykt + pasek zam→fak -->
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <TextBlock x:Name="VerVerdict" Text="—" FontSize="17" FontWeight="Bold" Foreground="{StaticResource TextPrimary}" TextWrapping="Wrap"/>
+                                    <TextBlock x:Name="VerVerdictSub" Text="" FontSize="12" Foreground="{StaticResource TextSecondary}" Margin="0,3,0,10" TextWrapping="Wrap"/>
+                                    <!-- Pasek: zamówione (tło) z wypełnieniem zafakturowane -->
+                                    <Grid>
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="110"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="Zamówione" FontSize="11" Foreground="#1E40AF" VerticalAlignment="Center"/>
+                                        <Border Grid.Column="1" Height="22" CornerRadius="5" Background="#DBEAFE">
+                                            <TextBlock x:Name="VerZamLbl" Text="" FontSize="11" FontWeight="SemiBold" Foreground="#1E40AF" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                        </Border>
+                                    </Grid>
+                                    <Grid Margin="0,5,0,0">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="110"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="Zafakturowane" FontSize="11" Foreground="#15803D" VerticalAlignment="Center"/>
+                                        <Border Grid.Column="1" Height="22" CornerRadius="5" Background="#EEF2F7">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition x:Name="VerFakFill" Width="*"/>
+                                                    <ColumnDefinition x:Name="VerFakRest" Width="0*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Border Grid.Column="0" x:Name="VerFakBar" CornerRadius="5" Background="#16A34A">
+                                                    <TextBlock x:Name="VerFakLbl" Text="" FontSize="11" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                                </Border>
+                                            </Grid>
+                                        </Border>
+                                    </Grid>
                                 </StackPanel>
-                            </Border>
-                            <Border Style="{StaticResource KpiCard}" Margin="4,0">
-                                <StackPanel>
-                                    <TextBlock Text="ZAFAKTUROWANE KG" Style="{StaticResource KpiLabel}"/>
-                                    <TextBlock x:Name="VerKpiFakKg" Text="—" Style="{StaticResource KpiValue}" Foreground="#15803D" Margin="0,4,0,0"/>
-                                    <TextBlock x:Name="VerKpiFakLF" Text="—" Style="{StaticResource KpiSubvalue}" Margin="0,2,0,0"/>
-                                </StackPanel>
-                            </Border>
-                            <Border Style="{StaticResource KpiCard}" Margin="4,0">
-                                <StackPanel>
-                                    <TextBlock Text="RÓŻNICA KG" Style="{StaticResource KpiLabel}"/>
-                                    <TextBlock x:Name="VerKpiRoznicaKg" Text="—" Style="{StaticResource KpiValue}" Margin="0,4,0,0"/>
-                                    <TextBlock x:Name="VerKpiZgodnoscProc" Text="—" Style="{StaticResource KpiSubvalue}" Margin="0,2,0,0"/>
-                                </StackPanel>
-                            </Border>
-                            <Border Style="{StaticResource KpiCard}" Margin="8,0,0,0">
-                                <StackPanel>
-                                    <TextBlock Text="RÓŻNICA WARTOŚCI" Style="{StaticResource KpiLabel}"/>
-                                    <TextBlock x:Name="VerKpiRoznicaWart" Text="—" Style="{StaticResource KpiValue}" Margin="0,4,0,0"/>
-                                    <TextBlock x:Name="VerKpiSumaWart" Text="—" Style="{StaticResource KpiSubvalue}" Margin="0,2,0,0"/>
-                                </StackPanel>
-                            </Border>
-                        </UniformGrid>
+                            </Grid>
+                        </Border>
 
-                        <!-- KPI row 2: Liczniki problematycznych pozycji -->
-                        <UniformGrid Columns="4" Rows="1" Margin="0,0,0,12">
-                            <Border Style="{StaticResource KpiCard}" Background="#F0FDF4" Margin="0,0,8,0">
-                                <StackPanel>
-                                    <TextBlock Text="✅ ZGODNE" Style="{StaticResource KpiLabel}" Foreground="#15803D"/>
-                                    <TextBlock x:Name="VerKpiZgodne" Text="0" Style="{StaticResource KpiValue}" Foreground="#15803D" Margin="0,4,0,0"/>
-                                </StackPanel>
-                            </Border>
-                            <Border Style="{StaticResource KpiCard}" Background="#FEF3C7" Margin="4,0">
-                                <StackPanel>
-                                    <TextBlock Text="✂ UCIĘTE" Style="{StaticResource KpiLabel}" Foreground="#92400E"/>
-                                    <TextBlock x:Name="VerKpiUciete" Text="0" Style="{StaticResource KpiValue}" Foreground="#92400E" Margin="0,4,0,0"/>
-                                </StackPanel>
-                            </Border>
-                            <Border Style="{StaticResource KpiCard}" Background="#DBEAFE" Margin="4,0">
-                                <StackPanel>
-                                    <TextBlock Text="➕ DODANE" Style="{StaticResource KpiLabel}" Foreground="#1E40AF"/>
-                                    <TextBlock x:Name="VerKpiDodane" Text="0" Style="{StaticResource KpiValue}" Foreground="#1E40AF" Margin="0,4,0,0"/>
-                                </StackPanel>
-                            </Border>
-                            <Border Style="{StaticResource KpiCard}" Background="#FEE2E2" Margin="8,0,0,0">
-                                <StackPanel>
-                                    <TextBlock Text="⚠ BRAK FAKTURY" Style="{StaticResource KpiLabel}" Foreground="#991B1B"/>
-                                    <TextBlock x:Name="VerKpiBrakFak" Text="0" Style="{StaticResource KpiValue}" Foreground="#991B1B" Margin="0,4,0,0"/>
-                                </StackPanel>
-                            </Border>
-                        </UniformGrid>
+                        <!-- Filtr-chipy (klik = filtruj listę) -->
+                        <StackPanel x:Name="VerChips" Orientation="Horizontal" Margin="0,0,0,12"/>
 
-                        <!-- Tabela porównawcza per towar -->
+                        <!-- Wykres niedotrzymania: zamówione vs zafakturowane kg miesięcznie -->
+                        <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12" MinHeight="300">
+                            <StackPanel>
+                                <Grid Margin="0,0,0,4">
+                                    <TextBlock Text="📊 Niedotrzymanie: zamówione vs zafakturowane kg / miesiąc" FontWeight="SemiBold" FontSize="13" VerticalAlignment="Center"/>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                        <Border Width="11" Height="11" CornerRadius="2" Background="#3B82F6" VerticalAlignment="Center"/>
+                                        <TextBlock Text="zamówione" FontSize="10" Foreground="#64748B" Margin="4,0,12,0" VerticalAlignment="Center"/>
+                                        <Border Width="11" Height="11" CornerRadius="2" Background="#16A34A" VerticalAlignment="Center"/>
+                                        <TextBlock Text="zafakturowane" FontSize="10" Foreground="#64748B" Margin="4,0,0,0" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Grid>
+                                <TextBlock x:Name="PorownanieInfo" Text="" FontSize="11" Foreground="#64748B" Margin="0,0,0,8"/>
+                                <Grid x:Name="ChartPorownanie" Height="240"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Lista pozycji — wizualne porównanie zam vs fak per towar -->
                         <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
                             <StackPanel>
-                                <TextBlock Text="📋 Porównanie per towar (zamówienia LibraNet × faktury HANDEL)" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,10"/>
-                                <DataGrid x:Name="GridWeryfikacja" AutoGenerateColumns="False" IsReadOnly="True"
-                                          CanUserAddRows="False" CanUserDeleteRows="False"
-                                          GridLinesVisibility="Horizontal" Background="White"
-                                          RowHeight="32" ColumnHeaderHeight="34"
-                                          AlternatingRowBackground="#FAFBFC" BorderThickness="0">
-                                    <DataGrid.Columns>
-                                        <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="130"/>
-                                        <DataGridTextColumn Header="Towar" Binding="{Binding Nazwa}" Width="*"/>
-                                        <DataGridTextColumn Header="Zamówione kg" Binding="{Binding ZamowioneKg, StringFormat=N0}" Width="120"/>
-                                        <DataGridTextColumn Header="Zafakturowane kg" Binding="{Binding ZafakturowaneKg, StringFormat=N0}" Width="140"/>
-                                        <DataGridTextColumn Header="Różnica kg" Binding="{Binding RoznicaKg, StringFormat={}{0:+#,##0;-#,##0;0}}" Width="100"/>
-                                        <DataGridTextColumn Header="Zgodność" Binding="{Binding ZgodnoscProc, StringFormat={}{0:N1}%}" Width="90"/>
-                                        <DataGridTextColumn Header="Zamówiona wartość" Binding="{Binding ZamowionaWartosc, StringFormat={}{0:N0} zł}" Width="140"/>
-                                        <DataGridTextColumn Header="Zafakturowana wartość" Binding="{Binding ZafakturowanaWartosc, StringFormat={}{0:N0} zł}" Width="160"/>
-                                        <DataGridTextColumn Header="Różnica zł" Binding="{Binding RoznicaWartosci, StringFormat={}{0:+#,##0;-#,##0;0} zł}" Width="120"/>
-                                    </DataGrid.Columns>
-                                </DataGrid>
+                                <TextBlock x:Name="VerListaTytul" Text="📋 Pozycje — kliknij chip aby filtrować (BEZ korekt)" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,10"/>
+                                <StackPanel x:Name="WeryfikacjaLista"/>
                             </StackPanel>
                         </Border>
 
@@ -500,6 +605,231 @@
                 </Border>
             </TabItem>
 
+              </TabControl>
+            </TabItem>
+            <!-- ═══ GRUPA: KLIENT ═══ -->
+            <TabItem Header="👤 Klient">
+              <TabControl Background="Transparent" BorderThickness="0" Padding="0">
+
+            <!-- Tab 6: DANE / EDYCJA -->
+            <TabItem Header="✏️ Dane">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20,16">
+                    <StackPanel MaxWidth="900" HorizontalAlignment="Left">
+                        <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="📇 Dane podstawowe (z HANDEL — tylko podgląd)" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,10"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="160"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions><RowDefinition/><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Nazwa:" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,6"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="1" x:Name="EdNazwa" Text="—" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="NIP:" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,6"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="1" x:Name="EdNip" Text="—" Margin="0,0,0,6"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Adres:" Foreground="{StaticResource TextSecondary}"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="1" x:Name="EdAdres" Text="—"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource CardStyle}">
+                            <StackPanel>
+                                <Grid Margin="0,0,0,12">
+                                    <TextBlock Text="✏️ Dane handlowca (edytowalne — zapis do LibraNet)" FontWeight="SemiBold" FontSize="13" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="EdStatus" Text="" FontSize="11" Foreground="{StaticResource Success}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                </Grid>
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="16"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="Osoba kontaktowa" Style="{StaticResource KpiLabel}" Margin="0,0,0,3"/>
+                                        <TextBox x:Name="EdOsoba" Padding="6,5" Margin="0,0,0,10"/>
+                                        <TextBlock Text="Telefon" Style="{StaticResource KpiLabel}" Margin="0,0,0,3"/>
+                                        <TextBox x:Name="EdTelefon" Padding="6,5" Margin="0,0,0,10"/>
+                                        <TextBlock Text="Email" Style="{StaticResource KpiLabel}" Margin="0,0,0,3"/>
+                                        <TextBox x:Name="EdEmail" Padding="6,5" Margin="0,0,0,10"/>
+                                        <TextBlock Text="Kategoria handlowa" Style="{StaticResource KpiLabel}" Margin="0,0,0,3"/>
+                                        <ComboBox x:Name="EdKategoria" Padding="6,5" Margin="0,0,0,10">
+                                            <ComboBoxItem Content="A — kluczowy"/>
+                                            <ComboBoxItem Content="B — ważny"/>
+                                            <ComboBoxItem Content="C — standard"/>
+                                            <ComboBoxItem Content="D — okazjonalny"/>
+                                        </ComboBox>
+                                        <TextBlock Text="Trasa logistyczna" Style="{StaticResource KpiLabel}" Margin="0,0,0,3"/>
+                                        <TextBox x:Name="EdTrasa" Padding="6,5" Margin="0,0,0,10"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="Preferowany dzień dostawy" Style="{StaticResource KpiLabel}" Margin="0,0,0,3"/>
+                                        <TextBox x:Name="EdDzien" Padding="6,5" Margin="0,0,0,10"/>
+                                        <TextBlock Text="Preferowana godzina dostawy" Style="{StaticResource KpiLabel}" Margin="0,0,0,3"/>
+                                        <TextBox x:Name="EdGodzina" Padding="6,5" Margin="0,0,0,10"/>
+                                        <TextBlock Text="Adres dostawy (inny niż domyślny)" Style="{StaticResource KpiLabel}" Margin="0,0,0,3"/>
+                                        <TextBox x:Name="EdAdresDostawy" Padding="6,5" Margin="0,0,0,10"/>
+                                        <TextBlock Text="Preferencje pakowania" Style="{StaticResource KpiLabel}" Margin="0,0,0,3"/>
+                                        <TextBox x:Name="EdPrefPakowanie" Padding="6,5" Margin="0,0,0,10"/>
+                                        <TextBlock Text="Preferencje jakości" Style="{StaticResource KpiLabel}" Margin="0,0,0,3"/>
+                                        <TextBox x:Name="EdPrefJakosc" Padding="6,5" Margin="0,0,0,10"/>
+                                    </StackPanel>
+                                </Grid>
+                                <TextBlock Text="Notatki" Style="{StaticResource KpiLabel}" Margin="0,4,0,3"/>
+                                <TextBox x:Name="EdNotatki" Padding="6,5" Height="70" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"/>
+                                <Button x:Name="BtnZapiszDane" Content="💾 Zapisz dane" Click="BtnZapiszDane_Click"
+                                        Style="{StaticResource PrimaryButton}" HorizontalAlignment="Left" Margin="0,12,0,0" Padding="20,8"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- Tab 7: KONTAKTY -->
+            <TabItem Header="👥 Kontakty">
+                <Border Padding="20,16">
+                    <Grid>
+                        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
+                            <Button x:Name="BtnDodajKontakt" Content="➕ Dodaj kontakt" Click="BtnDodajKontakt_Click" Style="{StaticResource PrimaryButton}" Margin="0,0,8,0"/>
+                            <Button x:Name="BtnEdytujKontakt" Content="✏️ Edytuj" Click="BtnEdytujKontakt_Click" Style="{StaticResource GhostButton}" Margin="0,0,8,0"/>
+                            <Button x:Name="BtnUsunKontakt" Content="🗑 Usuń" Click="BtnUsunKontakt_Click" Style="{StaticResource GhostButton}"/>
+                        </StackPanel>
+                        <DataGrid Grid.Row="1" x:Name="GridKontakty" AutoGenerateColumns="False" IsReadOnly="True"
+                                  CanUserAddRows="False" CanUserDeleteRows="False" SelectionMode="Single"
+                                  GridLinesVisibility="Horizontal" Background="White" RowHeight="34" ColumnHeaderHeight="36"
+                                  AlternatingRowBackground="#FAFBFC" BorderBrush="{StaticResource Border}" BorderThickness="1">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Typ" Binding="{Binding TypKontaktu}" Width="130"/>
+                                <DataGridTextColumn Header="Imię" Binding="{Binding Imie}" Width="120"/>
+                                <DataGridTextColumn Header="Nazwisko" Binding="{Binding Nazwisko}" Width="140"/>
+                                <DataGridTextColumn Header="Stanowisko" Binding="{Binding Stanowisko}" Width="150"/>
+                                <DataGridTextColumn Header="Telefon" Binding="{Binding Telefon}" Width="120"/>
+                                <DataGridTextColumn Header="Email" Binding="{Binding Email}" Width="180"/>
+                                <DataGridTextColumn Header="Notatka" Binding="{Binding Notatka}" Width="*"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                        <TextBlock Grid.Row="1" x:Name="EmptyKontakty" Visibility="Collapsed"
+                                   Text="👥 Brak zapisanych kontaktów. Kliknij ➕ Dodaj kontakt, aby dodać osoby (księgowość, magazyn, właściciel…)."
+                                   Foreground="#94A3B8" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="420" TextAlignment="Center"/>
+                    </Grid>
+                </Border>
+            </TabItem>
+
+              </TabControl>
+            </TabItem>
+            <!-- ═══ GRUPA: ANALIZA ═══ -->
+            <TabItem Header="📈 Analiza">
+              <TabControl Background="Transparent" BorderThickness="0" Padding="0">
+
+            <!-- Tab 8: SCORING -->
+            <TabItem Header="⭐ Scoring">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20,16">
+                    <StackPanel x:Name="ScoringDetalPanel"/>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- Tab 9: HISTORIA ZMIAN -->
+            <TabItem Header="📜 Historia">
+                <Border Padding="20,16">
+                    <Grid>
+                        <DataGrid x:Name="GridHistoria" AutoGenerateColumns="False" IsReadOnly="True"
+                                  CanUserAddRows="False" CanUserDeleteRows="False"
+                                  GridLinesVisibility="Horizontal" Background="White" RowHeight="32" ColumnHeaderHeight="36"
+                                  AlternatingRowBackground="#FAFBFC" BorderBrush="{StaticResource Border}" BorderThickness="1">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Data" Binding="{Binding DataZmiany, StringFormat=dd.MM.yyyy HH:mm}" Width="140"/>
+                                <DataGridTextColumn Header="Operacja" Binding="{Binding TypOperacji}" Width="90"/>
+                                <DataGridTextColumn Header="Pole" Binding="{Binding PoleNazwa}" Width="160"/>
+                                <DataGridTextColumn Header="Stara wartość" Binding="{Binding StaraWartosc}" Width="*"/>
+                                <DataGridTextColumn Header="Nowa wartość" Binding="{Binding NowaWartosc}" Width="*"/>
+                                <DataGridTextColumn Header="Użytkownik" Binding="{Binding UzytkownikNazwa}" Width="130"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                        <TextBlock x:Name="EmptyHistoria" Visibility="Collapsed"
+                                   Text="📜 Brak historii zmian. Każda edycja danych w zakładce ✏️ Dane zostanie tu zapisana (kto, co, kiedy)."
+                                   Foreground="#94A3B8" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="440" TextAlignment="Center"/>
+                    </Grid>
+                </Border>
+            </TabItem>
+
+            <!-- Tab 10: TRANSPORT -->
+            <TabItem Header="🚚 Transport">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20,16">
+                    <StackPanel>
+                        <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                            <TextBlock x:Name="TransportHeader" Text="🚚 Analiza transportu" FontWeight="SemiBold" FontSize="13"/>
+                        </Border>
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <Border Grid.Column="0" Style="{StaticResource CardStyle}" Margin="0,0,6,0">
+                                <StackPanel>
+                                    <TextBlock Text="👷 Top kierowcy" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                                    <StackPanel x:Name="TransportKierowcy"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Grid.Column="1" Style="{StaticResource CardStyle}" Margin="3,0">
+                                <StackPanel>
+                                    <TextBlock Text="🚛 Top pojazdy" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                                    <StackPanel x:Name="TransportPojazdy"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Grid.Column="2" Style="{StaticResource CardStyle}" Margin="6,0,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="🗺 Top trasy" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                                    <StackPanel x:Name="TransportTrasy"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- Tab 11: ASORTYMENT -->
+            <TabItem Header="📦 Asortyment">
+                <Border Padding="20,16">
+                  <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Border Grid.Row="0" Style="{StaticResource CardStyle}" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="🥧 Struktura asortymentu — udział w obrocie (top 8)" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,10"/>
+                            <StackPanel x:Name="AsortymentUdzial"/>
+                        </StackPanel>
+                    </Border>
+                    <Grid Grid.Row="1">
+                    <DataGrid x:Name="GridAsortyment" AutoGenerateColumns="False" IsReadOnly="True"
+                              CanUserAddRows="False" CanUserDeleteRows="False"
+                              GridLinesVisibility="Horizontal" Background="White" RowHeight="32" ColumnHeaderHeight="36"
+                              AlternatingRowBackground="#FAFBFC" BorderBrush="{StaticResource Border}" BorderThickness="1">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Kod" Binding="{Binding ProduktKod}" Width="80"/>
+                            <DataGridTextColumn Header="Towar" Binding="{Binding ProduktNazwa}" Width="*"/>
+                            <DataGridTextColumn Header="Suma kg" Binding="{Binding SumaKg, StringFormat=N0}" Width="110"/>
+                            <DataGridTextColumn Header="Wartość" Binding="{Binding SumaWartosc, StringFormat={}{0:N0} zł}" Width="130"/>
+                            <DataGridTextColumn Header="Śr. cena" Binding="{Binding SredniaCena, StringFormat={}{0:N2} zł}" Width="100"/>
+                            <DataGridTextColumn Header="Faktur" Binding="{Binding LiczbaFaktur}" Width="80"/>
+                            <DataGridTextColumn Header="Ostatnia sprzedaż" Binding="{Binding OstatniaSprzedaz, StringFormat=dd.MM.yyyy}" Width="140"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <TextBlock x:Name="EmptyAsortyment" Visibility="Collapsed"
+                               Text="📦 Brak danych o asortymencie. Klient nie ma pozycji na fakturach w analizowanym okresie."
+                               Foreground="#94A3B8" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="420" TextAlignment="Center"/>
+                    </Grid>
+                  </Grid>
+                </Border>
+            </TabItem>
+              </TabControl>
+            </TabItem>
+
         </TabControl>
+
+        <!-- Overlay ładowania — przykrywa całe okno -->
+        <Border x:Name="LoadingOverlay" Grid.RowSpan="3" Background="#B0FFFFFF" Visibility="Collapsed">
+            <Border Background="White" CornerRadius="12" Padding="28,22" HorizontalAlignment="Center" VerticalAlignment="Center"
+                    BorderBrush="{StaticResource Border}" BorderThickness="1" Effect="{StaticResource CardShadow}">
+                <StackPanel>
+                    <TextBlock Text="⏳" FontSize="32" HorizontalAlignment="Center"/>
+                    <TextBlock x:Name="LoadingText" Text="Ładuję dane klienta…" FontSize="13" FontWeight="SemiBold"
+                               Foreground="{StaticResource TextPrimary}" HorizontalAlignment="Center" Margin="0,8,0,0"/>
+                </StackPanel>
+            </Border>
+        </Border>
     </Grid>
 </Window>

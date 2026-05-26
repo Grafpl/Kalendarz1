@@ -47,6 +47,7 @@ namespace Kalendarz1
         private Label _reklamacjeBadgeLabel;
         private Label _reklamacjeOczekBadgeLabel;
         private Label _wstawieniaBadgeLabel;
+        private Label _kontraktyBadge;
         private System.Windows.Forms.Timer _clockTimer;
         // Per-badge timery i busy guardy są w polu _badgePollers (lista BadgePoller).
 
@@ -76,6 +77,7 @@ namespace Kalendarz1
             RegisterBadge(RefreshReklamacjeBadgeAsync, initialDelayMs: 3000);
             RegisterBadge(RefreshWstawieniaBadgeAsync, initialDelayMs: 4000);
             RegisterBadge(RefreshZamowieniaUnreadBadgeAsync, initialDelayMs: 5000);
+            RegisterBadge(RefreshKontraktyBadgeAsync, initialDelayMs: 6000);
 
             // Po przywróceniu z minimalizacji odśwież badge od razu, nie czekaj 30s.
             this.SizeChanged += MENU_SizeChanged;
@@ -422,6 +424,14 @@ namespace Kalendarz1
             var count = await RunWithTimeoutAsync(
                 () => Hodowcy.AdminChangeRequestsWindow.GetPendingCount(connectionString), 0);
             if (!IsDisposed) SetSimpleBadge(_crBadgeLabel, count);
+        }
+
+        private async Task RefreshKontraktyBadgeAsync()
+        {
+            if (_kontraktyBadge == null) return;
+            int count = await RunWithTimeoutAsync(
+                () => Kontrakty.Services.KontraktyService.CountWygasajaceSync(90), 0);
+            if (!IsDisposed) SetSimpleBadge(_kontraktyBadge, count, n => $"{n} ⏰");
         }
 
         private async Task RefreshTransportBadgeAsync()
@@ -1377,6 +1387,7 @@ namespace Kalendarz1
             /* 75 */ "ColdChain",
             /* 76 */ "Traceability",
             /* 77 */ "TransportWPF",
+            /* 78 */ "KontraktyHodowcow",
         };
 
         private void ParseAccessString(string accessString)
@@ -1487,6 +1498,11 @@ namespace Kalendarz1
                         "Kompletna kartoteka wszystkich dostawców żywca kurczaków z danymi kontaktowymi i historią współpracy",
                         Color.FromArgb(165, 214, 167), // Jasny zielony #A5D6A7
                         () => new WidokKontrahenci(), "🧑‍🌾", "Hodowcy"),
+
+                    new MenuItemConfig("KontraktyHodowcow", "Kontrakty Hodowców",
+                        "Rejestr umów z hodowcami: pełna karta kontraktu + wersjonowanie warunków, dashboard compliance ARiMR (≥50% surowca pod 3-letnim) i alerty wygasania. Zastępuje 3 checkboxy umów.",
+                        Color.FromArgb(92, 138, 58), // ciemny zielony #5C8A3A
+                        () => new Kalendarz1.Kontrakty.Views.KontraktyListaWindow(), "📜", "Kontrakty"),
 
                     new MenuItemConfig("WstawieniaHodowcy", "Cykle Wstawień",
                         "Rejestracja i monitorowanie cykli hodowlanych piskląt u hodowców wraz z terminami odbioru",
@@ -1717,10 +1733,9 @@ namespace Kalendarz1
                         Color.FromArgb(33, 150, 243), // Niebieski #2196F3
                         () => new HandlowiecDashboardWindow(), "📊", "Dashboard"),
 
-                    new MenuItemConfig("Customer360", "Karta Klienta 360°",
-                        "Pełny widok klienta w jednym oknie - historia zamówień, marża, limit kredytowy, reklamacje, top towary, churn risk",
-                        Color.FromArgb(25, 118, 210), // Niebieski #1976D2
-                        () => new Kalendarz1.Customer360.Customer360Window(), "👤", "Klient 360"),
+                    // Customer360 scalony z Kartoteką Odbiorców (2026-05-25) — karta otwiera się
+                    // dwuklikiem z listy w KartotekaOdbiorcowWindow. Kafelek usunięty by nie dublować.
+                    // accessMap[73]="Customer360" zostaje (nie ruszamy indeksów permissions).
 
                     new MenuItemConfig("PanelPaniJola", "Panel Pani Jola",
                         "Uproszczony widok zamówień i produktów - duże kafelki, łatwa nawigacja",
@@ -2155,6 +2170,15 @@ namespace Kalendarz1
                         location: new Point(tile.Width - 38, 8),
                         shape: BadgeShape.Ellipse,
                         font: new Font("Segoe UI", 9, FontStyle.Bold));
+                    break;
+
+                case "KontraktyHodowcow":
+                    _kontraktyBadge = AttachTileBadge(tile, "0",
+                        background: Color.FromArgb(245, 158, 11), // Amber — kontrakty wygasające
+                        size: new Size(64, 18),
+                        location: new Point(tile.Width - 72, 6),
+                        shape: BadgeShape.Rounded,
+                        font: new Font("Segoe UI", 7.5f, FontStyle.Bold));
                     break;
 
                 case "UstalanieTranportu":

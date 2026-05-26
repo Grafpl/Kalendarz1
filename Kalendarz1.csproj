@@ -26,6 +26,11 @@
     <None Remove="ZPSP.Launcher\**" />
     <Page Remove="ZPSP.Launcher\**" />
     <EmbeddedResource Remove="ZPSP.Launcher\**" />
+    <!-- ZPSP.Tools.AddBookmark to osobny CLI (jednorazowy, wstawia BMK_HARMONOGRAM) — wykluczamy z głównego -->
+    <Compile Remove="ZPSP.Tools.AddBookmark\**" />
+    <None Remove="ZPSP.Tools.AddBookmark\**" />
+    <Page Remove="ZPSP.Tools.AddBookmark\**" />
+    <EmbeddedResource Remove="ZPSP.Tools.AddBookmark\**" />
     <!-- DEPLOY scripts excluded -->
     <None Remove="DEPLOY\**" />
     <!-- BAZA_WIEDZY to folder dokumentacji/audytów/instrukcji (md, sql, txt, kod startowy referencyjny). NIE kompilować. -->
