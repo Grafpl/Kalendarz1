@@ -37,111 +37,108 @@
         </ResourceDictionary>
     </Window.Resources>
 
-    <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>   <!-- toolbar -->
-            <RowDefinition Height="Auto"/>   <!-- kpi -->
-            <RowDefinition Height="*"/>      <!-- content -->
-            <RowDefinition Height="Auto"/>   <!-- status bar -->
-        </Grid.RowDefinitions>
+    <Grid Margin="10">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="10"/>
+            <ColumnDefinition Width="440"/>
+        </Grid.ColumnDefinitions>
 
-        <!-- ═══ TOOLBAR ═══ -->
-        <Border Grid.Row="0" Background="{StaticResource Surface}" Padding="16,9" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1">
-            <DockPanel>
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button Style="{StaticResource BtnIcon}" Tag="&#xE76B;" Click="BtnPrev_Click" ToolTip="Poprzedni dzień (Ctrl+←)"/>
-                    <DatePicker x:Name="DataKursu" Width="132" FontSize="13" VerticalAlignment="Center"
-                                SelectedDateChanged="DataKursu_Changed" Margin="2,0"/>
-                    <Button Style="{StaticResource BtnIcon}" Tag="&#xE76C;" Click="BtnNext_Click" ToolTip="Następny dzień (Ctrl+→)"/>
-                    <Button Content="Dziś" Click="BtnDzis_Click" Style="{StaticResource BtnGhost}" Margin="4,0,0,0"/>
-                    <TextBlock x:Name="DayNameText" Style="{StaticResource T.Data}" Foreground="{StaticResource Accent}"
-                               VerticalAlignment="Center" Margin="16,0,0,0"/>
-                </StackPanel>
-                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                    <Button Style="{StaticResource BtnPrimary}" Click="BtnNowy_Click">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Style="{StaticResource Icon}" Text="&#xE710;" Foreground="White" FontSize="15" Margin="0,0,7,0"/>
-                            <TextBlock Text="Nowy kurs" VerticalAlignment="Center"/>
+        <!-- ═══════════════ LEWA: top + lista kursów ═══════════════ -->
+        <Grid Grid.Column="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>   <!-- top card -->
+                <RowDefinition Height="10"/>
+                <RowDefinition Height="*"/>      <!-- kursy -->
+                <RowDefinition Height="Auto"/>   <!-- status -->
+            </Grid.RowDefinitions>
+
+            <!-- ── TOP CARD: nawigacja + akcje + statystyki (skrócone) ── -->
+            <Border Grid.Row="0" Style="{StaticResource Card}">
+                <StackPanel>
+                    <DockPanel Margin="12,7">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Style="{StaticResource BtnIcon}" Tag="&#xE76B;" Click="BtnPrev_Click" ToolTip="Poprzedni dzień"/>
+                            <DatePicker x:Name="DataKursu" Width="132" FontSize="13" VerticalAlignment="Center"
+                                        SelectedDateChanged="DataKursu_Changed" Margin="2,0"/>
+                            <Button Style="{StaticResource BtnIcon}" Tag="&#xE76C;" Click="BtnNext_Click" ToolTip="Następny dzień"/>
+                            <Button Content="Dziś" Click="BtnDzis_Click" Style="{StaticResource BtnGhost}" Margin="4,0,0,0"/>
+                            <TextBlock x:Name="DayNameText" Style="{StaticResource T.Data}" Foreground="{StaticResource Accent}"
+                                       VerticalAlignment="Center" Margin="16,0,0,0"/>
                         </StackPanel>
-                    </Button>
-                    <Button x:Name="BtnEdytuj" Style="{StaticResource BtnIcon}" Tag="&#xE70F;" Click="BtnEdytuj_Click"
-                            IsEnabled="False" Margin="8,0,0,0" ToolTip="Edytuj kurs (Enter)"/>
-                    <Button x:Name="BtnUsun" Style="{StaticResource BtnIconDanger}" Tag="&#xE74D;" Click="BtnUsun_Click"
-                            IsEnabled="False" ToolTip="Usuń kurs (Delete)"/>
-                    <Border Width="1" Background="{StaticResource Line}" Margin="8,4"/>
-                    <Button Style="{StaticResource BtnIcon}" Tag="&#xE72C;" Click="BtnRefresh_Click" ToolTip="Odśwież (F5)"/>
-                    <ToggleButton x:Name="TglAuto" Click="TglAuto_Click" Cursor="Hand" Background="Transparent"
-                                  Foreground="{StaticResource InkSecondary}" VerticalAlignment="Center"
-                                  ToolTip="Auto-odświeżanie co 45 s">
-                        <ToggleButton.Template>
-                            <ControlTemplate TargetType="ToggleButton">
-                                <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="6" Padding="10,6">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Style="{StaticResource Icon}" Text="&#xE72C;" FontSize="14" Foreground="{TemplateBinding Foreground}" Margin="0,0,5,0"/>
-                                        <TextBlock Text="Auto" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="12.5" Foreground="{TemplateBinding Foreground}"/>
-                                    </StackPanel>
-                                </Border>
-                                <ControlTemplate.Triggers>
-                                    <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="bd" Property="Background" Value="{StaticResource HoverBg}"/></Trigger>
-                                </ControlTemplate.Triggers>
-                            </ControlTemplate>
-                        </ToggleButton.Template>
-                    </ToggleButton>
-                </StackPanel>
-            </DockPanel>
-        </Border>
-
-        <!-- ═══ PASEK STANU DNIA ═══ -->
-        <Border Grid.Row="1" Background="{StaticResource Surface}" Padding="18,8" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1">
-            <DockPanel>
-                <!-- filtr po prawej -->
-                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Border Background="{StaticResource SurfaceAlt}" CornerRadius="6" BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="8,0">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Style="{StaticResource Icon}" Text="&#xE721;" FontSize="13" Foreground="{StaticResource InkMuted}" Margin="0,0,5,0"/>
-                            <TextBox x:Name="TxtFiltrKursy" Width="150" Height="26" BorderThickness="0" Background="Transparent"
-                                     VerticalContentAlignment="Center" TextChanged="FiltrKursyTekst_Changed" ToolTip="Filtruj: trasa / kierowca / pojazd"/>
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                            <Button Style="{StaticResource BtnPrimary}" Click="BtnNowy_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Style="{StaticResource Icon}" Text="&#xE710;" Foreground="White" FontSize="15" Margin="0,0,7,0"/>
+                                    <TextBlock Text="Nowy kurs" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                            <Button x:Name="BtnEdytuj" Style="{StaticResource BtnIcon}" Tag="&#xE70F;" Click="BtnEdytuj_Click"
+                                    IsEnabled="False" Margin="8,0,0,0" ToolTip="Edytuj kurs (Enter)"/>
+                            <Button x:Name="BtnUsun" Style="{StaticResource BtnIconDanger}" Tag="&#xE74D;" Click="BtnUsun_Click"
+                                    IsEnabled="False" ToolTip="Usuń kurs (Delete)"/>
+                            <Border Width="1" Background="{StaticResource Line}" Margin="8,4"/>
+                            <Button Style="{StaticResource BtnIcon}" Tag="&#xE72C;" Click="BtnRefresh_Click" ToolTip="Odśwież (F5)"/>
+                            <ToggleButton x:Name="TglAuto" Click="TglAuto_Click" Cursor="Hand" Background="Transparent"
+                                          Foreground="{StaticResource InkSecondary}" VerticalAlignment="Center"
+                                          ToolTip="Auto-odświeżanie co 45 s">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="6" Padding="10,6">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Style="{StaticResource Icon}" Text="&#xE72C;" FontSize="14" Foreground="{TemplateBinding Foreground}" Margin="0,0,5,0"/>
+                                                <TextBlock Text="Auto" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="12.5" Foreground="{TemplateBinding Foreground}"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="bd" Property="Background" Value="{StaticResource HoverBg}"/></Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
                         </StackPanel>
-                    </Border>
-                    <CheckBox x:Name="ChkWymaga" Content="tylko wymagające uwagi" Margin="12,0,0,0"
-                              VerticalAlignment="Center" Foreground="{StaticResource WarnFg}" Click="FiltrKursy_Changed"/>
+                    </DockPanel>
+                    <Border Height="1" Background="{StaticResource Line}"/>
+                    <DockPanel Margin="14,6">
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Border Background="{StaticResource SurfaceAlt}" CornerRadius="6" BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="8,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Style="{StaticResource Icon}" Text="&#xE721;" FontSize="13" Foreground="{StaticResource InkMuted}" Margin="0,0,5,0"/>
+                                    <TextBox x:Name="TxtFiltrKursy" Width="150" Height="26" BorderThickness="0" Background="Transparent"
+                                             VerticalContentAlignment="Center" TextChanged="FiltrKursyTekst_Changed" ToolTip="Filtruj: trasa / kierowca / pojazd"/>
+                                </StackPanel>
+                            </Border>
+                            <CheckBox x:Name="ChkWymaga" Content="tylko wymagające uwagi" Margin="12,0,0,0"
+                                      VerticalAlignment="Center" Foreground="{StaticResource WarnFg}" Click="FiltrKursy_Changed"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <StackPanel Margin="0,0,22,0">
+                                <TextBlock x:Name="KpiKursy" Text="0" FontSize="16" FontWeight="Bold" Foreground="{StaticResource InkPrimary}"/>
+                                <TextBlock Text="KURSÓW" Style="{StaticResource T.Section}"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,22,0">
+                                <TextBlock x:Name="KpiZKierowca" Text="0" FontSize="16" FontWeight="Bold" Foreground="{StaticResource OkFg}"/>
+                                <TextBlock Text="Z KIEROWCĄ" Style="{StaticResource T.Section}"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,22,0">
+                                <TextBlock x:Name="KpiBezZasobow" Text="0" FontSize="16" FontWeight="Bold" Foreground="{StaticResource WarnFg}"/>
+                                <TextBlock Text="BEZ PRZYDZIAŁU" Style="{StaticResource T.Section}"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,22,0">
+                                <TextBlock x:Name="KpiPalety" Text="0" FontSize="16" FontWeight="Bold" Foreground="{StaticResource InkPrimary}"/>
+                                <TextBlock Text="PALET" Style="{StaticResource T.Section}"/>
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock x:Name="KpiWolne" Text="0" FontSize="16" FontWeight="Bold" Foreground="{StaticResource Accent}"/>
+                                <TextBlock Text="WOLNYCH" Style="{StaticResource T.Section}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </DockPanel>
                 </StackPanel>
-                <!-- statystyki dnia -->
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <StackPanel Margin="0,0,24,0">
-                        <TextBlock x:Name="KpiKursy" Text="0" FontSize="17" FontWeight="Bold" Foreground="{StaticResource InkPrimary}"/>
-                        <TextBlock Text="KURSÓW" Style="{StaticResource T.Section}"/>
-                    </StackPanel>
-                    <StackPanel Margin="0,0,24,0">
-                        <TextBlock x:Name="KpiZKierowca" Text="0" FontSize="17" FontWeight="Bold" Foreground="{StaticResource OkFg}"/>
-                        <TextBlock Text="Z KIEROWCĄ" Style="{StaticResource T.Section}"/>
-                    </StackPanel>
-                    <StackPanel Margin="0,0,24,0">
-                        <TextBlock x:Name="KpiBezZasobow" Text="0" FontSize="17" FontWeight="Bold" Foreground="{StaticResource WarnFg}"/>
-                        <TextBlock Text="BEZ PRZYDZIAŁU" Style="{StaticResource T.Section}"/>
-                    </StackPanel>
-                    <StackPanel Margin="0,0,24,0">
-                        <TextBlock x:Name="KpiPalety" Text="0" FontSize="17" FontWeight="Bold" Foreground="{StaticResource InkPrimary}"/>
-                        <TextBlock Text="PALET" Style="{StaticResource T.Section}"/>
-                    </StackPanel>
-                    <StackPanel>
-                        <TextBlock x:Name="KpiWolne" Text="0" FontSize="17" FontWeight="Bold" Foreground="{StaticResource Accent}"/>
-                        <TextBlock Text="WOLNYCH" Style="{StaticResource T.Section}"/>
-                    </StackPanel>
-                </StackPanel>
-            </DockPanel>
-        </Border>
+            </Border>
 
-        <!-- ═══ CONTENT: (kursy + podgląd) | wolne zamówienia ═══ -->
-        <Grid Grid.Row="2" Margin="12">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="1.9*"/>
-                <ColumnDefinition Width="12"/>
-                <ColumnDefinition Width="1.15*" MinWidth="430"/>
-            </Grid.ColumnDefinitions>
-
-            <!-- ── LEWA: lista kursów ── -->
-            <Grid Grid.Column="0">
+            <!-- ── KURSY ── -->
+            <Grid Grid.Row="2">
                 <Border Style="{StaticResource Card}">
                     <DataGrid x:Name="KursyGrid" Margin="2,4,4,4" AllowDrop="True"
                               AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
@@ -275,8 +272,16 @@
                 </Border>
             </Grid>
 
-            <!-- ── PRAWA: WOLNE ZAMÓWIENIA ── -->
-            <Border Grid.Column="2" Style="{StaticResource Card}">
+            <!-- ── STATUS ── -->
+            <DockPanel Grid.Row="3" Margin="6,7,6,0">
+                <TextBlock x:Name="StatusText" Foreground="{StaticResource InkMuted}" FontSize="11" VerticalAlignment="Center"/>
+                <TextBlock Text="Dwuklik na kurs = edycja · przeciągnij wolne zamówienie na kurs"
+                           Foreground="#B0BEC5" FontSize="11" DockPanel.Dock="Right" HorizontalAlignment="Right"/>
+            </DockPanel>
+        </Grid>
+
+        <!-- ═══════════════ PRAWA: WOLNE ZAMÓWIENIA (cała wysokość) ═══════════════ -->
+        <Border Grid.Column="2" Style="{StaticResource Card}">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>   <!-- header -->
@@ -419,7 +424,7 @@
                                Foreground="#9575cd" FontSize="13" TextAlignment="Center"
                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
 
-                    <Border Grid.Row="3" Background="{StaticResource SurfaceAlt}" Padding="10,8" BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0">
+                    <Border Grid.Row="3" Background="{StaticResource SurfaceAlt}" Padding="10,8" BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0" CornerRadius="0,0,10,10">
                         <DockPanel>
                             <TextBlock x:Name="DodajHint" DockPanel.Dock="Top" Foreground="{StaticResource InkMuted}" FontSize="10.5"
                                        Text="Wybierz kurs po lewej, zaznacz zamówienia i kliknij Dodaj" Margin="0,0,0,6"/>
@@ -435,14 +440,4 @@
                 </Grid>
             </Border>
         </Grid>
-
-        <!-- ═══ STATUS BAR ═══ -->
-        <Border Grid.Row="3" Background="White" Padding="16,6" BorderBrush="#e4e6ea" BorderThickness="0,1,0,0">
-            <DockPanel>
-                <TextBlock x:Name="StatusText" Foreground="#78909c" FontSize="11" VerticalAlignment="Center"/>
-                <TextBlock Text="💡 Dwuklik na kurs = edycja · dwuklik na wolne = dodaj do wybranego kursu"
-                           Foreground="#b0bec5" FontSize="11" DockPanel.Dock="Right" HorizontalAlignment="Right"/>
-            </DockPanel>
-        </Border>
-    </Grid>
-</Window>
+    </Window>
