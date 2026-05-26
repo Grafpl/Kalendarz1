@@ -1,5 +1,8 @@
 using Kalendarz1.Customer360.Models;
 using Kalendarz1.Customer360.Services;
+using LiveChartsCore;
+using LiveChartsCore.SkiaSharpView;
+using LiveChartsCore.SkiaSharpView.Painting;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -37,6 +40,8 @@ namespace Kalendarz1.Customer360
         private int _okres = 0;  // miesięcy wstecz dla list/wykresów (0 = cała historia)
         private List<Models.WeryfikacjaTowar> _werTowary = new();
         private string _werFiltr = "ALL";  // ALL / UCIETE / WIECEJ / BRAK / ZGODNE
+        private List<MonthlyStats> _monthlyData = new();   // do drill-downu z wykresu obrotu (LiveCharts)
+        private bool _chartMonthlyWired;
 
         private static readonly string[] MiesSkrot = { "sty", "lut", "mar", "kwi", "maj", "cze", "lip", "sie", "wrz", "paź", "lis", "gru" };
         private static readonly string[] MiesPelny = { "Styczeń", "Luty", "Marzec", "Kwiecień", "Maj", "Czerwiec", "Lipiec", "Sierpień", "Wrzesień", "Październik", "Listopad", "Grudzień" };
@@ -902,55 +907,45 @@ namespace Kalendarz1.Customer360
         // ── Struktura asortymentu: poziome paski udziału w obrocie (top 8) ──
         private void RenderAsortymentUdzial(List<Kalendarz1.Kartoteka.Models.AsortymentPozycja> asort)
         {
-            AsortymentUdzial.Children.Clear();
-            var bc = new BrushConverter();
-            Brush B(string hex) { try { return (Brush)bc.ConvertFromString(hex)!; } catch { return Brushes.Gray; } }
-
             if (asort == null || asort.Count == 0)
             {
-                AsortymentUdzial.Children.Add(new TextBlock { Text = "Brak danych", FontSize = 11, Foreground = B("#94A3B8") });
+                ChartAsortyment.Series = System.Array.Empty<ISeries>();
                 return;
             }
 
             decimal suma = asort.Sum(a => a.SumaWartosc);
             if (suma <= 0) suma = 1;
             var top = asort.OrderByDescending(a => a.SumaWartosc).Take(8).ToList();
-            string[] kolory = { "#2563EB", "#16A34A", "#F59E0B", "#7C3AED", "#EC4899", "#0891B2", "#DC2626", "#64748B" };
-            decimal sumaTop = top.Sum(a => a.SumaWartosc);
-            decimal inne = suma - sumaTop;
+            decimal inne = suma - top.Sum(a => a.SumaWartosc);
 
-            void Pasek(string nazwa, decimal wartosc, string kolor)
+            var serie = new List<ISeries>();
+
+            PieSeries<double> Kawalek(string nazwa, decimal wartosc, int kolorIdx)
             {
                 decimal proc = wartosc / suma * 100m;
-                var g = new Grid { Margin = new Thickness(0, 0, 0, 6) };
-                g.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(220) });
-                g.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                g.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(150) });
-
-                var lbl = new TextBlock { Text = nazwa, FontSize = 11, Foreground = B("#475569"), VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
-                Grid.SetColumn(lbl, 0); g.Children.Add(lbl);
-
-                var track = new Border { Height = 16, CornerRadius = new CornerRadius(4), Background = B("#EEF2F7"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 8, 0) };
-                var fg = new Grid();
-                fg.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength((double)proc, GridUnitType.Star) });
-                fg.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(Math.Max(0.01, 100 - (double)proc), GridUnitType.Star) });
-                var fill = new Border { CornerRadius = new CornerRadius(4), Background = B(kolor) };
-                Grid.SetColumn(fill, 0); fg.Children.Add(fill);
-                track.Child = fg; track.ToolTip = $"{nazwa}\n{wartosc:N0} zł · {proc:N1}% obrotu";
-                Grid.SetColumn(track, 1); g.Children.Add(track);
-
-                var val = new TextBlock { Text = $"{proc:N1}%  ·  {wartosc:N0} zł", FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = B("#0F172A"), VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right };
-                Grid.SetColumn(val, 2); g.Children.Add(val);
-                AsortymentUdzial.Children.Add(g);
+                string nazwaSkr = nazwa.Length > 28 ? nazwa.Substring(0, 27) + "…" : nazwa;
+                return new PieSeries<double>
+                {
+                    Values = new[] { (double)wartosc },
+                    Name = $"{nazwaSkr} ({proc:N0}%)",
+                    Fill = new SolidColorPaint(Customer360Palette.Color(kolorIdx)),
+                    DataLabelsPaint = new SolidColorPaint(SkiaSharp.SKColors.White),
+                    DataLabelsSize = 12,
+                    DataLabelsPosition = LiveChartsCore.Measure.PolarLabelsPosition.Middle,
+                    DataLabelsFormatter = _ => proc >= 4 ? $"{proc:N0}%" : "",   // ukryj etykietę dla bardzo małych kawałków
+                    ToolTipLabelFormatter = _ => $"{nazwa}: {wartosc:N0} zł ({proc:N1}%)"
+                };
             }
 
             for (int i = 0; i < top.Count; i++)
             {
                 var a = top[i];
                 string nazwa = string.IsNullOrWhiteSpace(a.ProduktNazwa) ? a.ProduktKod : a.ProduktNazwa;
-                Pasek(nazwa, a.SumaWartosc, kolory[i % kolory.Length]);
+                serie.Add(Kawalek(nazwa, a.SumaWartosc, i));
             }
-            if (inne > 0.01m) Pasek("Pozostałe", inne, "#CBD5E1");
+            if (inne > 0.01m) serie.Add(Kawalek("Pozostałe", inne, 7));
+
+            ChartAsortyment.Series = serie;
         }
 
         private void RenderTransport(Kalendarz1.Kartoteka.Models.TransportAnaliza t)
@@ -1380,30 +1375,17 @@ namespace Kalendarz1.Customer360
         // ── Wykres miesięczny (proste bars w canvas) ──
         private void RenderMonthlyChart(List<MonthlyStats> data)
         {
-            ChartMonthly.Children.Clear();
-            ChartMonthly.ColumnDefinitions.Clear();
+            _monthlyData = data ?? new List<MonthlyStats>();
+            string Fmt(decimal v) => v >= 1_000_000m ? $"{v / 1_000_000m:N1}M" : v >= 1000m ? $"{v / 1000m:N0}k" : $"{v:N0}";
 
-            if (data == null || data.Count == 0)
-            {
-                if (TrendKierunek != null) TrendKierunek.Text = "";
-                ChartMonthly.Children.Add(new TextBlock
-                {
-                    Text = "Brak danych do wyświetlenia",
-                    Foreground = (Brush)new BrushConverter().ConvertFromString("#94A3B8")!,
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    VerticalAlignment = VerticalAlignment.Center
-                });
-                return;
-            }
-
-            // Wskaźnik kierunku trendu — średnia pierwszej połowy vs drugiej
+            // Wskaźnik kierunku trendu (zostaje — średnia pierwszej połowy vs drugiej)
             try
             {
-                if (TrendKierunek != null && data.Count >= 4)
+                if (TrendKierunek != null && _monthlyData.Count >= 4)
                 {
-                    int polowa = data.Count / 2;
-                    decimal pierwsza = data.Take(polowa).Average(d => d.Wartosc);
-                    decimal druga = data.Skip(data.Count - polowa).Average(d => d.Wartosc);
+                    int polowa = _monthlyData.Count / 2;
+                    decimal pierwsza = _monthlyData.Take(polowa).Average(d => d.Wartosc);
+                    decimal druga = _monthlyData.Skip(_monthlyData.Count - polowa).Average(d => d.Wartosc);
                     if (pierwsza > 0)
                     {
                         decimal zmiana = (druga - pierwsza) / pierwsza * 100m;
@@ -1418,105 +1400,70 @@ namespace Kalendarz1.Customer360
             }
             catch { }
 
-            var bc = new BrushConverter();
-            Brush B(string hex) { try { return (Brush)bc.ConvertFromString(hex)!; } catch { return Brushes.Gray; } }
-            string Fmt(decimal v) => v >= 1_000_000m ? $"{v / 1_000_000m:N1}M" : v >= 1000m ? $"{v / 1000m:N0}k" : $"{v:N0}";
-
-            decimal max = data.Max(d => d.Wartosc);
-            if (max == 0) max = 1;
-            decimal avg = data.Average(d => d.Wartosc);
-            int idxMax = data.IndexOf(data.OrderByDescending(d => d.Wartosc).First());
-            const double PLOT_H = 180;
-
-            // Struktura: ChartMonthly = 1 komórka → wrap (Row0 plot, Row1 etykiety)
-            var wrap = new Grid();
-            wrap.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-            wrap.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-
-            var plot = new Grid { VerticalAlignment = VerticalAlignment.Stretch };
-            for (int i = 0; i < data.Count; i++) plot.ColumnDefinitions.Add(new ColumnDefinition());
-
-            var brushNorm = B("#3B82F6");
-            var brushMax = B("#1E40AF");
-            var brushAccent = B("#16A34A");
-
-            for (int i = 0; i < data.Count; i++)
+            if (_monthlyData.Count == 0)
             {
-                var d = data[i];
-                double h = (double)(d.Wartosc / max) * PLOT_H;
-                if (h < 3) h = 3;
-
-                var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Bottom, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(3, 0, 3, 0) };
-
-                stack.Children.Add(new TextBlock
-                {
-                    Text = Fmt(d.Wartosc),
-                    FontSize = 9, FontWeight = FontWeights.Bold,
-                    Foreground = i == idxMax ? brushMax : B("#475569"),
-                    HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 2)
-                });
-
-                string nazwaMies = (d.Month >= 1 && d.Month <= 12) ? MiesPelny[d.Month - 1] : d.Month.ToString();
-                int rok = d.Year, mc = d.Month;
-                var bar = new Border
-                {
-                    Width = 42, Height = h,
-                    CornerRadius = new CornerRadius(4, 4, 0, 0),
-                    Background = i == idxMax ? brushMax : brushNorm,
-                    ToolTip = $"{nazwaMies} {d.Year}\nObrót: {d.Wartosc:N0} zł\nFaktur: {d.LiczbaZamowien}" + (i == idxMax ? "\n🏆 najlepszy miesiąc" : "") + "\n\n🖱 kliknij = szczegóły",
-                    Cursor = System.Windows.Input.Cursors.Hand
-                };
-                bar.MouseLeftButtonDown += (s, ev) => PokazSzczegolyMiesiaca(rok, mc);
-                stack.Children.Add(bar);
-
-                Grid.SetColumn(stack, i);
-                plot.Children.Add(stack);
+                ChartMonthly.Series = System.Array.Empty<ISeries>();
+                ChartMonthly.XAxes = new[] { new Axis() };
+                ChartMonthly.YAxes = new[] { new Axis() };
+                return;
             }
 
-            // Linia średniej (przerywana) na wierzchu
-            double avgY = (double)(avg / max) * PLOT_H;
-            var avgLine = new System.Windows.Shapes.Rectangle
-            {
-                Height = 1.5, Fill = brushAccent, Opacity = 0.7, VerticalAlignment = VerticalAlignment.Bottom,
-                Margin = new Thickness(0, 0, 0, avgY)
-            };
-            Grid.SetColumnSpan(avgLine, Math.Max(1, data.Count));
-            plot.Children.Add(avgLine);
-            var avgLbl = new Border
-            {
-                Background = brushAccent, CornerRadius = new CornerRadius(3), Padding = new Thickness(4, 1, 4, 1),
-                HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Bottom,
-                Margin = new Thickness(0, 0, 2, avgY + 1)
-            };
-            avgLbl.Child = new TextBlock { Text = $"śr {Fmt(avg)}", FontSize = 8, Foreground = Brushes.White, FontWeight = FontWeights.SemiBold };
-            Grid.SetColumnSpan(avgLbl, Math.Max(1, data.Count));
-            plot.Children.Add(avgLbl);
+            var wartosci = _monthlyData.Select(d => (double)d.Wartosc).ToArray();
+            var etykiety = _monthlyData.Select(d => (d.Month >= 1 && d.Month <= 12 ? MiesSkrot[d.Month - 1] : d.Month.ToString()) + $" {d.Year % 100:00}").ToArray();
+            double srednia = wartosci.Length > 0 ? wartosci.Average() : 0;
 
-            Grid.SetRow(plot, 0);
-            wrap.Children.Add(plot);
-
-            // Etykiety miesięcy (rok pokazany przy styczniu lub pierwszym słupku)
-            var labels = new Grid();
-            for (int i = 0; i < data.Count; i++) labels.ColumnDefinitions.Add(new ColumnDefinition());
-            for (int i = 0; i < data.Count; i++)
+            var kolumny = new ColumnSeries<double>
             {
-                var d = data[i];
-                bool nowyRok = i == 0 || data[i - 1].Year != d.Year;
-                string skrot = (d.Month >= 1 && d.Month <= 12) ? MiesSkrot[d.Month - 1] : d.Month.ToString();
-                var tb = new TextBlock
+                Values = wartosci,
+                Name = "Obrót",
+                Fill = new SolidColorPaint(Customer360Palette.Niebieski),
+                Stroke = null,
+                MaxBarWidth = 46,
+                Rx = 4, Ry = 4
+            };
+
+            var liniaSr = new LineSeries<double>
+            {
+                Values = Enumerable.Repeat(srednia, _monthlyData.Count).ToArray(),
+                Name = $"Średnia ({Fmt((decimal)srednia)})",
+                Fill = null,
+                GeometrySize = 0,
+                Stroke = new SolidColorPaint(Customer360Palette.Zielony) { StrokeThickness = 2 }
+            };
+
+            ChartMonthly.Series = new ISeries[] { kolumny, liniaSr };
+            ChartMonthly.XAxes = new[]
+            {
+                new Axis { Labels = etykiety, TextSize = 11, LabelsPaint = new SolidColorPaint(Customer360Palette.SzaryTekst) }
+            };
+            ChartMonthly.YAxes = new[]
+            {
+                new Axis
                 {
-                    Text = nowyRok ? $"{skrot}\n{d.Year}" : skrot,
-                    FontSize = 9, Foreground = B(nowyRok ? "#1E40AF" : "#94A3B8"),
-                    FontWeight = nowyRok ? FontWeights.Bold : FontWeights.Normal,
-                    HorizontalAlignment = HorizontalAlignment.Center, TextAlignment = TextAlignment.Center, Margin = new Thickness(0, 4, 0, 0)
-                };
-                Grid.SetColumn(tb, i);
-                labels.Children.Add(tb);
-            }
-            Grid.SetRow(labels, 1);
-            wrap.Children.Add(labels);
+                    MinLimit = 0,
+                    Labeler = v => Fmt((decimal)v),
+                    TextSize = 11,
+                    LabelsPaint = new SolidColorPaint(Customer360Palette.SzaryTekst),
+                    SeparatorsPaint = new SolidColorPaint(Customer360Palette.SiatkaSlaba) { StrokeThickness = 1 }
+                }
+            };
 
-            ChartMonthly.Children.Add(wrap);
+            // Klik słupka → szczegóły miesiąca (podpinamy raz)
+            if (!_chartMonthlyWired)
+            {
+                ChartMonthly.DataPointerDown += (chart, points) =>
+                {
+                    var p = points?.FirstOrDefault();
+                    if (p == null) return;
+                    int idx = p.Index;
+                    if (idx >= 0 && idx < _monthlyData.Count)
+                    {
+                        var d = _monthlyData[idx];
+                        PokazSzczegolyMiesiaca(d.Year, d.Month);
+                    }
+                };
+                _chartMonthlyWired = true;
+            }
         }
     }
 }
