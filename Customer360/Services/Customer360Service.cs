@@ -568,6 +568,7 @@ namespace Kalendarz1.Customer360.Services
                     LEFT JOIN dbo.ZamowieniaMiesoTowar zt ON zt.ZamowienieId = z.Id
                     WHERE z.KlientId = @kid
                       AND (@months <= 0 OR z.DataPrzyjazdu >= DATEADD(MONTH, -@months, GETDATE()))
+                      AND ISNULL(z.Status,'') NOT IN ('Anulowane','Anulowano')   -- bez anulowanych (są w zakładce Anulowane)
                     GROUP BY z.Id, z.DataZamowienia, z.DataPrzyjazdu, z.DataUboju, z.DataWydania, z.Status, z.IdUser
                     ORDER BY z.DataPrzyjazdu DESC, z.Id DESC";
                 await using var cmd = new SqlCommand(sql, cn) { CommandTimeout = 10 };
