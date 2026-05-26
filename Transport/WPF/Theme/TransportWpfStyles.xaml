@@ -1,12 +1,153 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <!-- ════════════════════════════════════════════════════════════════════
-         Wspólny motyw siatek dla sandbox WPF transportu — czysty, nowoczesny look.
-         Implicit styles (bez x:Key) → stosują się do wszystkich DataGrid* w oknie,
-         które scali ten słownik. NIE dotyka WinForms ani innych modułów.
+         JĘZYK WIZUALNY modułu Transport WPF (v2 — dispatch-friendly).
+         Akcent: turkus #00838F. Statusy = znaczenie. Ikony: Segoe Fluent/MDL2.
+         Hierarchia przez typografię i odstępy, nie przez ramki.
          ════════════════════════════════════════════════════════════════════ -->
 
-    <!-- Nagłówek kolumny -->
+    <!-- ── PALETA ── -->
+    <SolidColorBrush x:Key="Bg"          Color="#F4F6F8"/>
+    <SolidColorBrush x:Key="Surface"     Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="SurfaceAlt"  Color="#F8FAFB"/>
+    <SolidColorBrush x:Key="Line"        Color="#EAEDF0"/>
+    <SolidColorBrush x:Key="LineStrong"  Color="#DCE1E6"/>
+    <SolidColorBrush x:Key="InkPrimary"  Color="#1F2733"/>
+    <SolidColorBrush x:Key="InkSecondary" Color="#5B6776"/>
+    <SolidColorBrush x:Key="InkMuted"    Color="#8A95A3"/>
+
+    <SolidColorBrush x:Key="Accent"      Color="#00838F"/>
+    <SolidColorBrush x:Key="AccentDark"  Color="#00695C"/>
+    <SolidColorBrush x:Key="AccentSoft"  Color="#E0F2F1"/>
+    <SolidColorBrush x:Key="Selection"   Color="#D2EEF0"/>
+    <SolidColorBrush x:Key="HoverBg"     Color="#F0F4F5"/>
+
+    <!-- statusy: kolor = znaczenie -->
+    <SolidColorBrush x:Key="OkFg"      Color="#2E7D32"/>
+    <SolidColorBrush x:Key="OkBg"      Color="#E7F4E8"/>
+    <SolidColorBrush x:Key="WarnFg"    Color="#B26A00"/>
+    <SolidColorBrush x:Key="WarnBg"    Color="#FFF3DC"/>
+    <SolidColorBrush x:Key="CritFg"    Color="#C62828"/>
+    <SolidColorBrush x:Key="CritBg"    Color="#FDECEC"/>
+    <SolidColorBrush x:Key="NeutralFg" Color="#546E7A"/>
+    <SolidColorBrush x:Key="NeutralBg" Color="#ECEFF1"/>
+
+    <!-- ── CIEŃ kart (zamiast ramek) ── -->
+    <DropShadowEffect x:Key="CardShadow" BlurRadius="14" ShadowDepth="1" Direction="270" Color="#000000" Opacity="0.10"/>
+
+    <!-- ── TYPOGRAFIA (klucze T.*) ── -->
+    <Style x:Key="T.Title" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="19"/><Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="{StaticResource InkPrimary}"/>
+    </Style>
+    <Style x:Key="T.Section" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="10.5"/><Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="{StaticResource InkMuted}"/>
+    </Style>
+    <Style x:Key="T.Data" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="14"/><Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="{StaticResource InkPrimary}"/>
+    </Style>
+    <Style x:Key="T.Body" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="13"/><Setter Property="Foreground" Value="{StaticResource InkPrimary}"/>
+    </Style>
+    <Style x:Key="T.Muted" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="11"/><Setter Property="Foreground" Value="{StaticResource InkMuted}"/>
+    </Style>
+
+    <!-- ── IKONA (Segoe Fluent/MDL2); glif podaj w Text="&#xE710;" ── -->
+    <Style x:Key="Icon" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets"/>
+        <Setter Property="FontSize" Value="16"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="TextOptions.TextFormattingMode" Value="Ideal"/>
+    </Style>
+
+    <!-- ── PRZYCISK: PRIMARY (akcent) ── -->
+    <Style x:Key="BtnPrimary" TargetType="Button">
+        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="Background" Value="{StaticResource Accent}"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Padding" Value="14,8"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="bd" Property="Background" Value="{StaticResource AccentDark}"/></Trigger>
+                        <Trigger Property="IsEnabled" Value="False"><Setter TargetName="bd" Property="Opacity" Value="0.4"/></Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ── PRZYCISK: GHOST (subtelny) ── -->
+    <Style x:Key="BtnGhost" TargetType="Button">
+        <Setter Property="Foreground" Value="{StaticResource InkSecondary}"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="FontSize" Value="12.5"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Padding" Value="12,7"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="bd" Property="Background" Value="{StaticResource HoverBg}"/></Trigger>
+                        <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.4"/></Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ── PRZYCISK: IKONOWY (glif w Tag="&#xE70F;") ── -->
+    <Style x:Key="BtnIcon" TargetType="Button">
+        <Setter Property="Foreground" Value="{StaticResource InkSecondary}"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Width" Value="36"/>
+        <Setter Property="Height" Value="34"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="6">
+                        <TextBlock Text="{TemplateBinding Tag}" Foreground="{TemplateBinding Foreground}"
+                                   FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="16"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="bd" Property="Background" Value="{StaticResource HoverBg}"/></Trigger>
+                        <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.35"/></Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ── PRZYCISK: DANGER (ikonowy, czerwony hover) ── -->
+    <Style x:Key="BtnIconDanger" TargetType="Button" BasedOn="{StaticResource BtnIcon}">
+        <Setter Property="Foreground" Value="{StaticResource CritFg}"/>
+    </Style>
+
+    <!-- ── KARTA (biel na szarym + cień) ── -->
+    <Style x:Key="Card" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource Surface}"/>
+        <Setter Property="CornerRadius" Value="10"/>
+        <Setter Property="Effect" Value="{StaticResource CardShadow}"/>
+    </Style>
+
+    <!-- ════════════════════════════════════════════════════════════════════
+         Implicit styles siatek (zachowane — dopracujemy listę kursów osobno)
+         ════════════════════════════════════════════════════════════════════ -->
     <Style TargetType="{x:Type DataGridColumnHeader}">
         <Setter Property="Background" Value="#f4f6f9"/>
         <Setter Property="Foreground" Value="#5a6b7b"/>
@@ -21,7 +162,6 @@
         <Setter Property="SeparatorBrush" Value="#eceff1"/>
     </Style>
 
-    <!-- Komórka — bez niebieskiej ramki focusu, selekcja przez tło wiersza -->
     <Style TargetType="{x:Type DataGridCell}">
         <Setter Property="BorderThickness" Value="0"/>
         <Setter Property="Padding" Value="9,0"/>
@@ -43,7 +183,6 @@
         </Style.Triggers>
     </Style>
 
-    <!-- Wiersz — hover + selekcja (tło widoczne przez przezroczyste komórki) -->
     <Style TargetType="{x:Type DataGridRow}">
         <Setter Property="Height" Value="32"/>
         <Style.Triggers>
