@@ -5,48 +5,28 @@
         Title="Edytor kursu (WPF)" Height="840" Width="1300"
         MinHeight="650" MinWidth="1060"
         WindowStartupLocation="CenterOwner"
-        Background="#eef1f5" FontFamily="Segoe UI" FontSize="13">
+        Background="#F4F6F8" FontFamily="Segoe UI" FontSize="13">
 
     <Window.Resources>
         <ResourceDictionary>
-        <ResourceDictionary.MergedDictionaries>
-            <ResourceDictionary Source="/Kalendarz1;component/Transport/WPF/Theme/TransportWpfStyles.xaml"/>
-        </ResourceDictionary.MergedDictionaries>
-        <Style x:Key="Btn" TargetType="Button">
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Padding" Value="12,6"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="5"
-                                Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="bd" Property="Opacity" Value="0.85"/></Trigger>
-                            <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.4"/></Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-        <Style TargetType="DataGrid">
-            <Setter Property="AutoGenerateColumns" Value="False"/>
-            <Setter Property="CanUserAddRows" Value="False"/>
-            <Setter Property="CanUserDeleteRows" Value="False"/>
-            <Setter Property="IsReadOnly" Value="True"/>
-            <Setter Property="HeadersVisibility" Value="Column"/>
-            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
-            <Setter Property="RowBackground" Value="White"/>
-            <Setter Property="AlternatingRowBackground" Value="#f6f8fa"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="SelectionMode" Value="Single"/>
-            <Setter Property="SelectionUnit" Value="FullRow"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="RowHeight" Value="30"/>
-        </Style>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/Kalendarz1;component/Transport/WPF/Theme/TransportWpfStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            <Style TargetType="DataGrid">
+                <Setter Property="AutoGenerateColumns" Value="False"/>
+                <Setter Property="CanUserAddRows" Value="False"/>
+                <Setter Property="CanUserDeleteRows" Value="False"/>
+                <Setter Property="IsReadOnly" Value="True"/>
+                <Setter Property="HeadersVisibility" Value="Column"/>
+                <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+                <Setter Property="HorizontalGridLinesBrush" Value="#F0F2F4"/>
+                <Setter Property="RowBackground" Value="White"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="SelectionMode" Value="Single"/>
+                <Setter Property="SelectionUnit" Value="FullRow"/>
+                <Setter Property="FontSize" Value="12"/>
+                <Setter Property="RowHeight" Value="32"/>
+            </Style>
         </ResourceDictionary>
     </Window.Resources>
 
@@ -58,8 +38,8 @@
             <RowDefinition Height="Auto"/>   <!-- przyciski -->
         </Grid.RowDefinitions>
 
-        <!-- ═══ HEADER ═══ -->
-        <Border Grid.Row="0" Background="#2b2d42" Padding="18,12">
+        <!-- ═══ HEADER (jasny, akcent turkus) ═══ -->
+        <Border Grid.Row="0" Background="{StaticResource Surface}" Padding="18,14" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -68,34 +48,36 @@
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <DockPanel Grid.ColumnSpan="2" Margin="0,0,0,10">
-                    <TextBlock x:Name="TytulText" Text="🚚 Nowy kurs" Foreground="White" FontSize="17" FontWeight="Bold"/>
+                <DockPanel Grid.ColumnSpan="2" Margin="0,0,0,12">
+                    <StackPanel Orientation="Horizontal">
+                        <Border Width="3" Background="{StaticResource Accent}" CornerRadius="2" Margin="0,2,10,2"/>
+                        <TextBlock x:Name="TytulText" Text="Nowy kurs" Style="{StaticResource T.Title}"/>
+                    </StackPanel>
                     <TextBlock x:Name="InfoText" DockPanel.Dock="Right" HorizontalAlignment="Right"
-                               Foreground="#9aa0b8" FontSize="11" VerticalAlignment="Center" TextAlignment="Right"/>
+                               Foreground="{StaticResource InkMuted}" FontSize="11" VerticalAlignment="Center" TextAlignment="Right"/>
                 </DockPanel>
 
                 <!-- Kierowca + Pojazd -->
                 <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal" Margin="0,0,16,0">
-                    <StackPanel Margin="0,0,10,0">
-                        <TextBlock Text="KIEROWCA" Foreground="#9aa0b8" FontSize="10.5" FontWeight="SemiBold" Margin="0,0,0,3"/>
+                    <StackPanel Margin="0,0,12,0">
+                        <TextBlock Text="KIEROWCA" Style="{StaticResource T.Section}" Margin="0,0,0,3"/>
                         <StackPanel Orientation="Horizontal">
                             <ComboBox x:Name="CmbKierowca" Width="210" Height="30" DisplayMemberPath="PelneNazwisko"
                                       IsEditable="True" IsTextSearchEnabled="True"/>
-                            <Button Content="＋" Style="{StaticResource Btn}" Background="#2e7d32" Foreground="White"
-                                    Width="32" Height="30" Margin="6,0,0,0" Click="BtnNowyKierowca_Click" ToolTip="Nowy kierowca"/>
+                            <Button Style="{StaticResource BtnIcon}" Tag="&#xE710;" Foreground="{StaticResource Accent}"
+                                    Width="32" Height="30" Margin="5,0,0,0" Click="BtnNowyKierowca_Click" ToolTip="Nowy kierowca"/>
                         </StackPanel>
                     </StackPanel>
                     <StackPanel>
-                        <TextBlock Text="POJAZD" Foreground="#9aa0b8" FontSize="10.5" FontWeight="SemiBold" Margin="0,0,0,3"/>
+                        <TextBlock Text="POJAZD" Style="{StaticResource T.Section}" Margin="0,0,0,3"/>
                         <StackPanel Orientation="Horizontal">
                             <ComboBox x:Name="CmbPojazd" Width="180" Height="30" DisplayMemberPath="Opis"
                                       IsEditable="True" IsTextSearchEnabled="True"
                                       SelectionChanged="CmbPojazd_SelectionChanged"/>
-                            <Button Content="＋" Style="{StaticResource Btn}" Background="#00838f" Foreground="White"
-                                    Width="32" Height="30" Margin="6,0,0,0" Click="BtnNowyPojazd_Click" ToolTip="Nowy pojazd"/>
+                            <Button Style="{StaticResource BtnIcon}" Tag="&#xE710;" Foreground="{StaticResource Accent}"
+                                    Width="32" Height="30" Margin="5,0,0,0" Click="BtnNowyPojazd_Click" ToolTip="Nowy pojazd"/>
                         </StackPanel>
                     </StackPanel>
                 </StackPanel>
@@ -103,46 +85,46 @@
                 <!-- Data + godziny + trasa -->
                 <StackPanel Grid.Row="1" Grid.Column="1">
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                        <StackPanel Margin="0,0,10,0">
-                            <TextBlock Text="DATA" Foreground="#9aa0b8" FontSize="10.5" FontWeight="SemiBold" Margin="0,0,0,3"/>
+                        <StackPanel Margin="0,0,12,0">
+                            <TextBlock Text="DATA" Style="{StaticResource T.Section}" Margin="0,0,0,3"/>
                             <DatePicker x:Name="DataKursu" Width="120" Height="30" SelectedDateChanged="DataKursu_Changed"/>
                         </StackPanel>
                         <StackPanel Margin="0,0,6,0">
-                            <TextBlock Text="WYJAZD" Foreground="#9aa0b8" FontSize="10.5" FontWeight="SemiBold" Margin="0,0,0,3"/>
+                            <TextBlock Text="WYJAZD" Style="{StaticResource T.Section}" Margin="0,0,0,3"/>
                             <TextBox x:Name="TxtWyjazd" Width="60" Height="30" Text="06:00" VerticalContentAlignment="Center" TextAlignment="Center"/>
                         </StackPanel>
-                        <TextBlock Text="→" Foreground="#9aa0b8" VerticalAlignment="Bottom" Margin="0,0,6,6" FontSize="15"/>
+                        <TextBlock Text="→" Foreground="{StaticResource InkMuted}" VerticalAlignment="Bottom" Margin="0,0,6,5" FontSize="15"/>
                         <StackPanel>
-                            <TextBlock Text="POWRÓT" Foreground="#9aa0b8" FontSize="10.5" FontWeight="SemiBold" Margin="0,0,0,3"/>
+                            <TextBlock Text="POWRÓT" Style="{StaticResource T.Section}" Margin="0,0,0,3"/>
                             <TextBox x:Name="TxtPowrot" Width="60" Height="30" Text="18:00" VerticalContentAlignment="Center" TextAlignment="Center"/>
                         </StackPanel>
                     </StackPanel>
-                    <TextBlock Text="TRASA" Foreground="#9aa0b8" FontSize="10.5" FontWeight="SemiBold" Margin="0,0,0,3"/>
+                    <TextBlock Text="TRASA" Style="{StaticResource T.Section}" Margin="0,0,0,3"/>
                     <StackPanel Orientation="Horizontal">
                         <TextBox x:Name="TxtTrasa" Width="270" Height="30" VerticalContentAlignment="Center"/>
-                        <Button Content="auto" Style="{StaticResource Btn}" Background="#455a64" Foreground="White"
-                                Height="30" Margin="6,0,0,0" Click="BtnAutoTrasa_Click" ToolTip="Złóż trasę z nazw klientów"/>
+                        <Button Content="auto" Style="{StaticResource BtnGhost}" Height="30" Margin="6,0,0,0"
+                                Click="BtnAutoTrasa_Click" ToolTip="Złóż trasę z nazw klientów"/>
                     </StackPanel>
                 </StackPanel>
             </Grid>
         </Border>
 
         <!-- ═══ PASEK PAKOWANIA ═══ -->
-        <Border Grid.Row="1" Background="White" Padding="18,10" BorderBrush="#e4e6ea" BorderThickness="0,0,0,1">
+        <Border Grid.Row="1" Background="{StaticResource Surface}" Padding="18,10" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <Grid Grid.Column="0" VerticalAlignment="Center">
-                    <Border Height="26" Background="#e0e0e0" CornerRadius="13"/>
-                    <Border x:Name="PaskoFill" Height="26" Background="#43a047" CornerRadius="13"
+                    <Border Height="24" Background="#EAEDF0" CornerRadius="12"/>
+                    <Border x:Name="PaskoFill" Height="24" Background="#43a047" CornerRadius="12"
                             HorizontalAlignment="Left" Width="0"/>
                     <TextBlock x:Name="PaskoText" Text="0%" HorizontalAlignment="Center" VerticalAlignment="Center"
-                               FontWeight="Bold" Foreground="#37474f"/>
+                               FontWeight="Bold" Foreground="#1F2733"/>
                 </Grid>
                 <TextBlock x:Name="PaletyText" Grid.Column="1" Text="0 / 33 palet" VerticalAlignment="Center"
-                           Margin="16,0,0,0" FontWeight="SemiBold" Foreground="#546e7a"/>
+                           Margin="16,0,0,0" FontWeight="SemiBold" Foreground="{StaticResource InkSecondary}"/>
             </Grid>
         </Border>
 
@@ -155,77 +137,121 @@
             </Grid.ColumnDefinitions>
 
             <!-- ŁADUNKI -->
-            <Border Grid.Column="0" Background="White" CornerRadius="8" BorderBrush="#e4e6ea" BorderThickness="1">
+            <Border Grid.Column="0" Style="{StaticResource Card}">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
-                    <Border Grid.Row="0" Background="#eceff1" Padding="12,8" CornerRadius="8,8,0,0">
+                    <Border Grid.Row="0" Background="{StaticResource Surface}" Padding="12,9" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" CornerRadius="10,10,0,0">
                         <DockPanel>
-                            <TextBlock Text="📦 Ładunki w kursie" FontWeight="Bold" Foreground="#37474f" VerticalAlignment="Center"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Border Width="3" Background="{StaticResource Accent}" CornerRadius="2" Margin="0,1,8,1"/>
+                                <TextBlock Text="ŁADUNKI W KURSIE" FontWeight="Bold" Foreground="{StaticResource InkPrimary}" FontSize="12.5" VerticalAlignment="Center"/>
+                            </StackPanel>
                             <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right">
-                                <Button Content="⇅ Sortuj" Style="{StaticResource Btn}" Background="#cfd8dc" Foreground="#37474f"
-                                        Margin="2,0" Click="BtnSortuj_Click" ToolTip="Sortuj po godzinie awizacji"/>
-                                <Button Content="▲" Style="{StaticResource Btn}" Background="#cfd8dc" Foreground="#37474f"
-                                        Width="34" Margin="2,0" Click="BtnGora_Click" ToolTip="W górę"/>
-                                <Button Content="▼" Style="{StaticResource Btn}" Background="#cfd8dc" Foreground="#37474f"
-                                        Width="34" Margin="2,0" Click="BtnDol_Click" ToolTip="W dół"/>
-                                <Button Content="✖ Usuń" Style="{StaticResource Btn}" Background="#c62828" Foreground="White"
-                                        Margin="6,0,0,0" Click="BtnUsunLadunek_Click"/>
+                                <Button Content="Sortuj" Style="{StaticResource BtnGhost}" Click="BtnSortuj_Click" ToolTip="Sortuj po godzinie awizacji"/>
+                                <Button Style="{StaticResource BtnIcon}" Tag="&#xE70E;" Width="32" Click="BtnGora_Click" ToolTip="W górę"/>
+                                <Button Style="{StaticResource BtnIcon}" Tag="&#xE70D;" Width="32" Click="BtnDol_Click" ToolTip="W dół"/>
+                                <Button Style="{StaticResource BtnIconDanger}" Tag="&#xE74D;" Width="32" Click="BtnUsunLadunek_Click" ToolTip="Usuń z kursu"/>
                             </StackPanel>
                         </DockPanel>
                     </Border>
-                    <DataGrid x:Name="LadunkiGrid" Grid.Row="1" AllowDrop="True"
-                              MouseDoubleClick="LadunkiGrid_DoubleClick">
-                        <DataGrid.ContextMenu>
-                            <ContextMenu>
-                                <MenuItem Header="✏ Edytuj uwagi" Click="MiEdytujUwagi_Click"/>
-                                <Separator/>
-                                <MenuItem Header="▲ W górę" Click="BtnGora_Click"/>
-                                <MenuItem Header="▼ W dół" Click="BtnDol_Click"/>
-                                <Separator/>
-                                <MenuItem Header="✖ Usuń z kursu" Click="BtnUsunLadunek_Click"/>
-                            </ContextMenu>
-                        </DataGrid.ContextMenu>
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="#" Binding="{Binding Kolejnosc}" Width="40"/>
-                            <DataGridTextColumn Header="Klient" Binding="{Binding NazwaDisplay}" Width="*"/>
-                            <DataGridTextColumn Header="Awiz." Binding="{Binding AwizacjaDisplay}" Width="60"/>
-                            <DataGridTextColumn Header="Pojemniki" Binding="{Binding PojemnikiDisplay}" Width="90"/>
-                            <DataGridTextColumn Header="Uwagi" Binding="{Binding Uwagi}" Width="130"/>
-                        </DataGrid.Columns>
-                    </DataGrid>
+                    <Grid Grid.Row="1">
+                        <DataGrid x:Name="LadunkiGrid" Margin="4" AllowDrop="True" MouseDoubleClick="LadunkiGrid_DoubleClick">
+                            <DataGrid.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="Edytuj uwagi" Click="MiEdytujUwagi_Click"/>
+                                    <Separator/>
+                                    <MenuItem Header="W górę" Click="BtnGora_Click"/>
+                                    <MenuItem Header="W dół" Click="BtnDol_Click"/>
+                                    <Separator/>
+                                    <MenuItem Header="Usuń z kursu" Click="BtnUsunLadunek_Click"/>
+                                </ContextMenu>
+                            </DataGrid.ContextMenu>
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="#" Binding="{Binding Kolejnosc}" Width="38">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/><Setter Property="Foreground" Value="#8A95A3"/></Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Klient" Binding="{Binding NazwaDisplay}" Width="*">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock"><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Foreground" Value="#26323C"/><Setter Property="TextTrimming" Value="CharacterEllipsis"/></Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Awiz." Binding="{Binding AwizacjaDisplay}" Width="60">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/><Setter Property="Foreground" Value="{StaticResource Accent}"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Pojemniki" Binding="{Binding PojemnikiDisplay}" Width="86">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Uwagi" Binding="{Binding Uwagi}" Width="130">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock"><Setter Property="Foreground" Value="#8A95A3"/><Setter Property="TextTrimming" Value="CharacterEllipsis"/></Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                        <!-- strefa upuszczania ładunków -->
+                        <Border x:Name="DropHintLad" Visibility="Collapsed" IsHitTestVisible="False"
+                                Background="#1400838F" BorderBrush="{StaticResource Accent}" BorderThickness="2" CornerRadius="8" Margin="2">
+                            <Border Background="{StaticResource Accent}" CornerRadius="6" Padding="14,8"
+                                    VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,10,0,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Style="{StaticResource Icon}" Text="&#xE70D;" Foreground="White" FontSize="14" Margin="0,0,7,0"/>
+                                    <TextBlock Text="Upuść tutaj, aby dodać do kursu" Foreground="White" FontWeight="SemiBold" FontSize="13"/>
+                                </StackPanel>
+                            </Border>
+                        </Border>
+                    </Grid>
                 </Grid>
             </Border>
 
             <!-- WOLNE ZAMÓWIENIA -->
-            <Border Grid.Column="2" Background="White" CornerRadius="8" BorderBrush="#e4e6ea" BorderThickness="1">
+            <Border Grid.Column="2" Style="{StaticResource Card}">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
-                    <Border Grid.Row="0" Background="#7b1fa2" Padding="12,8" CornerRadius="8,8,0,0">
+                    <Border Grid.Row="0" Background="{StaticResource Surface}" Padding="14,11" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" CornerRadius="10,10,0,0">
                         <DockPanel>
-                            <TextBlock Text="🧾 Wolne zamówienia" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
-                            <TextBlock x:Name="WolneCountText" Text="0" DockPanel.Dock="Right" HorizontalAlignment="Right"
-                                       Foreground="#e1bee7" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Border Width="3" Background="{StaticResource Accent}" CornerRadius="2" Margin="0,1,8,1"/>
+                                <TextBlock Text="WOLNE ZAMÓWIENIA" FontWeight="Bold" Foreground="{StaticResource InkPrimary}" FontSize="13" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <Border DockPanel.Dock="Right" Background="{StaticResource AccentSoft}" CornerRadius="11" Padding="10,2" VerticalAlignment="Center">
+                                <TextBlock x:Name="WolneCountText" Text="0" Foreground="{StaticResource AccentDark}" FontWeight="Bold"/>
+                            </Border>
                         </DockPanel>
                     </Border>
-                    <Border Grid.Row="1" Background="#faf5fc" Padding="10,8" BorderBrush="#eee" BorderThickness="0,0,0,1">
+                    <Border Grid.Row="1" Background="{StaticResource SurfaceAlt}" Padding="10,8" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1">
                         <StackPanel Orientation="Horizontal">
-                            <TextBox x:Name="TxtSzukaj" Width="160" Height="28" VerticalContentAlignment="Center"
-                                     TextChanged="TxtSzukaj_TextChanged"/>
-                            <RadioButton x:Name="RbUboj" Content="Ubój" IsChecked="True" Margin="12,0,6,0"
+                            <Border Background="{StaticResource Surface}" CornerRadius="6" BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="8,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Style="{StaticResource Icon}" Text="&#xE721;" FontSize="13" Foreground="{StaticResource InkMuted}" Margin="0,0,5,0"/>
+                                    <TextBox x:Name="TxtSzukaj" Width="120" Height="26" BorderThickness="0" Background="Transparent"
+                                             VerticalContentAlignment="Center" TextChanged="TxtSzukaj_TextChanged"/>
+                                </StackPanel>
+                            </Border>
+                            <RadioButton x:Name="RbUboj" Content="Ubój" IsChecked="True" Margin="10,0,8,0"
                                          VerticalAlignment="Center" GroupName="DataTyp" Checked="DataTyp_Changed"/>
                             <RadioButton x:Name="RbOdbior" Content="Odbiór" VerticalAlignment="Center"
                                          GroupName="DataTyp" Checked="DataTyp_Changed"/>
-                            <Button Content="🔄" Style="{StaticResource Btn}" Background="#eceff1" Foreground="#546e7a"
-                                    Margin="10,0,0,0" Click="BtnOdswiezWolne_Click" ToolTip="Odśwież"/>
-                            <Button Content="⮕ Dodaj" Style="{StaticResource Btn}" Background="#2e7d32" Foreground="White"
-                                    Margin="6,0,0,0" Click="BtnDodajWolne_Click"/>
+                            <Button Style="{StaticResource BtnIcon}" Tag="&#xE72C;" Width="30" Height="28"
+                                    Margin="8,0,0,0" Click="BtnOdswiezWolne_Click" ToolTip="Odśwież"/>
+                            <Button Style="{StaticResource BtnPrimary}" Padding="10,5" Margin="6,0,0,0" Click="BtnDodajWolne_Click" ToolTip="Dodaj zaznaczone do kursu">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Style="{StaticResource Icon}" Text="&#xE710;" Foreground="White" FontSize="13" Margin="0,0,5,0"/>
+                                    <TextBlock Text="Dodaj" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
                         </StackPanel>
                     </Border>
                     <ListBox x:Name="WolneGrid" Grid.Row="2" Margin="4" BorderThickness="0"
@@ -235,10 +261,10 @@
                              MouseDoubleClick="WolneGrid_DoubleClick">
                         <ListBox.ContextMenu>
                             <ContextMenu>
-                                <MenuItem Header="⮕ Dodaj do kursu" Click="BtnDodajWolne_Click"/>
-                                <MenuItem Header="🚗 Odbiór własny (zdejmij z transportu)" Click="MiWlasnyOdbior_Click"/>
+                                <MenuItem Header="Dodaj do kursu" Click="BtnDodajWolne_Click"/>
+                                <MenuItem Header="Odbiór własny (zdejmij z transportu)" Click="MiWlasnyOdbior_Click"/>
                                 <Separator/>
-                                <MenuItem Header="🔄 Odśwież" Click="BtnOdswiezWolne_Click"/>
+                                <MenuItem Header="Odśwież" Click="BtnOdswiezWolne_Click"/>
                             </ContextMenu>
                         </ListBox.ContextMenu>
                         <ListBox.ItemContainerStyle>
@@ -253,11 +279,11 @@
                                             </Border>
                                             <ControlTemplate.Triggers>
                                                 <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter TargetName="bd" Property="Background" Value="#f7f1fb"/>
+                                                    <Setter TargetName="bd" Property="Background" Value="#F0F8F8"/>
                                                 </Trigger>
                                                 <Trigger Property="IsSelected" Value="True">
-                                                    <Setter TargetName="bd" Property="Background" Value="#ede7f6"/>
-                                                    <Setter TargetName="bd" Property="BorderBrush" Value="#b39ddb"/>
+                                                    <Setter TargetName="bd" Property="Background" Value="#E0F2F1"/>
+                                                    <Setter TargetName="bd" Property="BorderBrush" Value="#80CBC4"/>
                                                 </Trigger>
                                             </ControlTemplate.Triggers>
                                         </ControlTemplate>
@@ -269,15 +295,16 @@
                             <GroupStyle>
                                 <GroupStyle.HeaderTemplate>
                                     <DataTemplate>
-                                        <Border Background="#e8eaf6" Padding="10,6" Margin="0,6,0,2" CornerRadius="4">
+                                        <Border Background="#EEF1F4" Padding="10,6" Margin="0,6,0,2" CornerRadius="4">
                                             <StackPanel Orientation="Horizontal">
-                                                <Border Width="3" Background="#3949ab" CornerRadius="2" Margin="0,0,8,0"/>
-                                                <TextBlock Text="📅" FontSize="11" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                                <Border Width="3" Background="{StaticResource Accent}" CornerRadius="2" Margin="0,0,8,0"/>
+                                                <TextBlock Style="{StaticResource Icon}" Text="&#xE787;" FontSize="12" Foreground="{StaticResource Accent}" Margin="0,0,6,0"/>
                                                 <TextBlock Text="{Binding Name, StringFormat='{}{0:dd.MM ddd}'}" Language="pl-PL"
-                                                           FontWeight="Bold" Foreground="#1a237e" FontSize="12.5" VerticalAlignment="Center"/>
-                                                <Border Background="#c5cae9" CornerRadius="8" Padding="7,1" Margin="9,0,0,0" VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding ItemCount}" Foreground="#283593" FontSize="10.5" FontWeight="SemiBold"/>
+                                                           FontWeight="Bold" Foreground="{StaticResource InkPrimary}" FontSize="12.5" VerticalAlignment="Center"/>
+                                                <Border Background="{StaticResource AccentSoft}" CornerRadius="8" Padding="7,1" Margin="9,0,0,0" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding ItemCount}" Foreground="{StaticResource AccentDark}" FontSize="10.5" FontWeight="SemiBold"/>
                                                 </Border>
+                                                <TextBlock Text="zam." Foreground="{StaticResource InkMuted}" FontSize="10.5" VerticalAlignment="Center" Margin="4,0,0,0"/>
                                             </StackPanel>
                                         </Border>
                                     </DataTemplate>
@@ -303,16 +330,15 @@
                                     <Border Grid.Column="2" Width="1" Background="#eceef2" Margin="9,4"/>
                                     <StackPanel Grid.Column="3" VerticalAlignment="Center" Margin="9,0,0,0">
                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                            <TextBlock Text="🕐" FontSize="10" Margin="0,0,3,0" VerticalAlignment="Center"/>
-                                            <TextBlock Text="{Binding GodzAwizacji}" FontWeight="Bold" FontSize="12.5" Foreground="#7b1fa2" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{Binding GodzAwizacji}" FontWeight="Bold" FontSize="13" Foreground="{StaticResource Accent}" VerticalAlignment="Center"/>
                                             <TextBlock Text="{Binding OdbiorDisplay}" Foreground="#9aa0b0" FontSize="9.5" Margin="6,0,0,0" VerticalAlignment="Center"/>
                                         </StackPanel>
                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,3,0,0">
-                                            <Border Background="#e8f0fe" CornerRadius="3" Padding="5,1" Margin="0,0,4,0">
-                                                <TextBlock Text="{Binding PojemnikiDisplay}" FontSize="10" Foreground="#1967d2" FontWeight="SemiBold"/>
+                                            <Border Background="#ECEFF1" CornerRadius="3" Padding="5,1" Margin="0,0,4,0">
+                                                <TextBlock Text="{Binding PojemnikiDisplay}" FontSize="10" Foreground="#546E7A" FontWeight="SemiBold"/>
                                             </Border>
-                                            <Border Background="#fef3e0" CornerRadius="3" Padding="5,1">
-                                                <TextBlock Text="{Binding PaletyDisplay, StringFormat='{}{0} pal'}" FontSize="10" Foreground="#b06000" FontWeight="SemiBold"/>
+                                            <Border Background="#ECEFF1" CornerRadius="3" Padding="5,1">
+                                                <TextBlock Text="{Binding PaletyDisplay, StringFormat='{}{0} pal'}" FontSize="10" Foreground="#546E7A" FontWeight="SemiBold"/>
                                             </Border>
                                         </StackPanel>
                                     </StackPanel>
@@ -325,15 +351,17 @@
         </Grid>
 
         <!-- ═══ PRZYCISKI ═══ -->
-        <Border Grid.Row="3" Background="White" Padding="16,12" BorderBrush="#e4e6ea" BorderThickness="0,1,0,0">
+        <Border Grid.Row="3" Background="{StaticResource Surface}" Padding="16,12" BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0">
             <DockPanel>
-                <TextBlock x:Name="StatusText" Foreground="#90a4ae" FontSize="11.5" VerticalAlignment="Center"/>
+                <TextBlock x:Name="StatusText" Foreground="{StaticResource InkMuted}" FontSize="11.5" VerticalAlignment="Center"/>
                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right">
-                    <Button Content="Anuluj" Style="{StaticResource Btn}" Background="#eceff1" Foreground="#546e7a"
-                            Width="110" Height="40" Margin="0,0,10,0" Click="BtnAnuluj_Click"/>
-                    <Button x:Name="BtnZapisz" Content="✔ ZAPISZ KURS" Style="{StaticResource Btn}"
-                            Background="#2e7d32" Foreground="White" Width="180" Height="40" FontSize="14"
-                            Click="BtnZapisz_Click"/>
+                    <Button Content="Anuluj" Style="{StaticResource BtnGhost}" Width="110" Height="40" Margin="0,0,10,0" Click="BtnAnuluj_Click"/>
+                    <Button x:Name="BtnZapisz" Style="{StaticResource BtnPrimary}" Width="190" Height="40" FontSize="14" Click="BtnZapisz_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource Icon}" Text="&#xE8FB;" Foreground="White" FontSize="15" Margin="0,0,8,0"/>
+                            <TextBlock Text="ZAPISZ KURS" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
                 </StackPanel>
             </DockPanel>
         </Border>

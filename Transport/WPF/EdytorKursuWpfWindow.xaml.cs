@@ -45,6 +45,8 @@ namespace Kalendarz1.Transport.WPF
         private const string FmtWolne = "ZPSP_wolne";
         private const string FmtLadunek = "ZPSP_ladunek";
         private DataGridRow? _hoverRow;
+        private DragGhostAdorner? _ghost;
+        private System.Windows.Documents.AdornerLayer? _ghostLayer;
 
         public EdytorKursuWpfWindow(TransportWpfService svc, string user, DateTime data, long? kursId = null)
         {
@@ -336,8 +338,38 @@ namespace Kalendarz1.Transport.WPF
             if (!WpfDragHelper.ExceededThreshold(_dragStart, e.GetPosition(null))) return;
             var items = WolneGrid.SelectedItems.Cast<WolneZamowienieWpf>().ToList();
             if (items.Count == 0) return;
+
+            StartGhost(items.Count == 1
+                ? $"📦 {items[0].KlientNazwa} — przeciągnij do kursu"
+                : $"📦 {items.Count} zam. — przeciągnij do kursu");
+            if (DropHintLad != null) DropHintLad.Visibility = Visibility.Visible;
             try { DragDrop.DoDragDrop(WolneGrid, new DataObject(FmtWolne, items), DragDropEffects.Copy); }
             catch { /* drag anulowany */ }
+            finally
+            {
+                EndGhost();
+                if (DropHintLad != null) DropHintLad.Visibility = Visibility.Collapsed;
+                ResetHover();
+            }
+        }
+
+        private void StartGhost(string text)
+        {
+            try
+            {
+                if (Content is not UIElement host) return;
+                _ghostLayer = System.Windows.Documents.AdornerLayer.GetAdornerLayer(host);
+                if (_ghostLayer == null) return;
+                _ghost = new DragGhostAdorner(host, text);
+                _ghostLayer.Add(_ghost);
+            }
+            catch { }
+        }
+
+        private void EndGhost()
+        {
+            try { if (_ghostLayer != null && _ghost != null) _ghostLayer.Remove(_ghost); } catch { }
+            _ghost = null; _ghostLayer = null;
         }
 
         private void LadunkiGrid_PreviewMouseMove(object sender, MouseEventArgs e)
@@ -355,6 +387,7 @@ namespace Kalendarz1.Transport.WPF
             else if (e.Data.GetDataPresent(FmtLadunek)) e.Effects = DragDropEffects.Move;
             else e.Effects = DragDropEffects.None;
             Highlight(WpfDragHelper.GetRowAtPoint(LadunkiGrid, e.GetPosition(LadunkiGrid)));
+            if (_ghost != null && Content is IInputElement root) _ghost.SetPosition(e.GetPosition(root));
             e.Handled = true;
         }
 
