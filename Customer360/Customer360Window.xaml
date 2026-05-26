@@ -154,8 +154,10 @@
                             ToolTip="Porównaj tego klienta z innym (KPI obok siebie)"/>
                     <Button x:Name="BtnOstatni" Style="{StaticResource GhostButton}" Content="🕘 Ostatni" Click="BtnOstatni_Click" Margin="8,0,0,0"
                             ToolTip="Ostatnio otwierani klienci"/>
-                    <Button x:Name="BtnEksport" Style="{StaticResource GhostButton}" Content="📥 Eksport" Click="BtnEksport_Click" Margin="8,0,0,0"
+                    <Button x:Name="BtnEksport" Style="{StaticResource GhostButton}" Content="📥 CSV" Click="BtnEksport_Click" Margin="8,0,0,0"
                             ToolTip="Eksportuj dane aktywnej zakładki do CSV/Excel"/>
+                    <Button x:Name="BtnEksportPdf" Style="{StaticResource GhostButton}" Content="📄 PDF" Click="BtnEksportPdf_Click" Margin="8,0,0,0"
+                            ToolTip="Eksportuj całą kartę klienta do PDF"/>
                     <Button Style="{StaticResource GhostButton}" Content="🐛 Debug" Click="BtnDebug_Click" Margin="8,0,0,0"
                             Background="#FEF2F2" Foreground="#B91C1C"/>
                     <Button Style="{StaticResource GhostButton}" Content="🔄 Odśwież" Click="BtnRefresh_Click" Margin="8,0,0,0"/>

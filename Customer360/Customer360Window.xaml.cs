@@ -42,6 +42,7 @@ namespace Kalendarz1.Customer360
         private string _werFiltr = "ALL";  // ALL / UCIETE / WIECEJ / BRAK / ZGODNE
         private List<MonthlyStats> _monthlyData = new();   // do drill-downu z wykresu obrotu (LiveCharts)
         private bool _chartMonthlyWired;
+        private Services.Customer360Snapshot? _snapshot;   // migawka do eksportu PDF
 
         private static readonly string[] MiesSkrot = { "sty", "lut", "mar", "kwi", "maj", "cze", "lip", "sie", "wrz", "paź", "lis", "gru" };
         private static readonly string[] MiesPelny = { "Styczeń", "Luty", "Marzec", "Kwiecień", "Maj", "Czerwiec", "Lipiec", "Sierpień", "Wrzesień", "Październik", "Listopad", "Grudzień" };
@@ -200,6 +201,53 @@ namespace Kalendarz1.Customer360
         }
 
         // ── Eksport aktywnej zakładki do CSV (Excel-friendly, separator ;) ──
+        // Lista alertów (te same warunki co panel alertów) — do snapshotu/PDF
+        private List<string> BudujListeAlertow(KlientKpi kpi, Models.WeryfikacjaSumarum wer)
+        {
+            var l = new List<string>();
+            if (kpi.Przeterminowane > 0.01m) l.Add($"Przeterminowane {kpi.Przeterminowane:N0} zł (max {kpi.MaxDniOpoznienia} dni po terminie)");
+            if (kpi.LimitKredytowy > 0 && kpi.WykorzystanieLimitProc >= 80) l.Add($"Limit kredytowy wykorzystany w {kpi.WykorzystanieLimitProc:N0}%");
+            if (kpi.ChurnRiskLevel == "CRITICAL" || kpi.ChurnRiskLevel == "WARNING") l.Add($"Ryzyko odejścia: {kpi.ChurnRiskReason}");
+            if (kpi.OstatnieZamowienie.HasValue && kpi.SredniCzasMiedzyZamowieniami > 0 && kpi.DniOdOstatniegoZamowienia > kpi.SredniCzasMiedzyZamowieniami * 2)
+                l.Add($"{kpi.DniOdOstatniegoZamowienia} dni bez zamówienia (norma co {kpi.SredniCzasMiedzyZamowieniami:N0} dni)");
+            if (wer.LiczbaTowarowUcietych > 0) l.Add($"{wer.LiczbaTowarowUcietych} towarów uciętych (zamówiono więcej niż zafakturowano)");
+            if (kpi.LiczbaReklamacji12M > 0) l.Add($"{kpi.LiczbaReklamacji12M} reklamacji w 12 mies ({kpi.RelativeReklamacjeProc:N1}% obrotu)");
+            return l;
+        }
+
+        // Eksport całej karty do PDF
+        private void BtnEksportPdf_Click(object sender, RoutedEventArgs e)
+        {
+            if (_snapshot == null || !_selectedKlientId.HasValue)
+            {
+                MessageBox.Show(this, "Najpierw otwórz klienta.", "Eksport PDF", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            try
+            {
+                string nazwa = (_snapshot.Nazwa ?? "klient");
+                foreach (var c in System.IO.Path.GetInvalidFileNameChars()) nazwa = nazwa.Replace(c, '_');
+                var dlg = new Microsoft.Win32.SaveFileDialog
+                {
+                    Title = "Zapisz kartę klienta jako PDF",
+                    Filter = "PDF (*.pdf)|*.pdf",
+                    FileName = $"Karta360_{nazwa}_{DateTime.Now:yyyyMMdd}.pdf",
+                    InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.Desktop)
+                };
+                if (dlg.ShowDialog(this) != true) return;
+
+                Cursor = System.Windows.Input.Cursors.Wait;
+                byte[] pdf = new Services.Customer360PdfExporter().Generate(_snapshot);
+                System.IO.File.WriteAllBytes(dlg.FileName, pdf);
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(dlg.FileName) { UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, "Nie udało się wygenerować PDF: " + ex.Message, "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally { Cursor = System.Windows.Input.Cursors.Arrow; }
+        }
+
         private void BtnEksport_Click(object sender, RoutedEventArgs e)
         {
             DataGrid? grid = AktywnyGrid();
@@ -432,6 +480,21 @@ namespace Kalendarz1.Customer360
                 _hdr = hdr;
                 _fakturyDet = fakturyDet;
                 _history = history;
+
+                // Migawka do eksportu PDF
+                _snapshot = new Services.Customer360Snapshot
+                {
+                    KlientId = klientId,
+                    Nazwa = hdr.Nazwa,
+                    NIP = hdr.NIP,
+                    Adres = hdr.AdresPelny,
+                    Handlowiec = hdr.Handlowiec,
+                    Kpi = kpi,
+                    Score = kpi.Score,
+                    Obrot = monthly,
+                    TopTowary = topT,
+                    Alerty = BudujListeAlertow(kpi, werSumma)
+                };
 
                 // ── KROK 1: NAJPIERW bind gridów + baner (to czego user potrzebuje) ──
                 // Robimy to PRZED renderami, żeby ewentualny wyjątek w wykresie/KPI
