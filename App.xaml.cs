@@ -161,6 +161,9 @@ namespace Kalendarz1
         {
             base.OnStartup(e);
 
+            // Licencja QuestPDF (darmowa Community) — wymagana przed generowaniem PDF (m.in. Customer360 eksport)
+            QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+
             // Whitelist maszyn — anti-theft check
             if (WhitelistEnabled)
             {
