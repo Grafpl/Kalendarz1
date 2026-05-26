@@ -157,10 +157,11 @@
                     <Button x:Name="BtnEksport" Style="{StaticResource GhostButton}" Content="📥 CSV" Click="BtnEksport_Click" Margin="8,0,0,0"
                             ToolTip="Eksportuj dane aktywnej zakładki do CSV/Excel"/>
                     <Button x:Name="BtnEksportPdf" Style="{StaticResource GhostButton}" Content="📄 PDF" Click="BtnEksportPdf_Click" Margin="8,0,0,0"
-                            ToolTip="Eksportuj całą kartę klienta do PDF"/>
+                            ToolTip="Eksportuj całą kartę klienta do PDF (Ctrl+E)"/>
                     <Button Style="{StaticResource GhostButton}" Content="🐛 Debug" Click="BtnDebug_Click" Margin="8,0,0,0"
                             Background="#FEF2F2" Foreground="#B91C1C"/>
-                    <Button Style="{StaticResource GhostButton}" Content="🔄 Odśwież" Click="BtnRefresh_Click" Margin="8,0,0,0"/>
+                    <Button Style="{StaticResource GhostButton}" Content="🔄 Odśwież" Click="BtnRefresh_Click" Margin="8,0,0,0"
+                            ToolTip="Odśwież dane / przelicz scoring (F5 lub Ctrl+R)"/>
                 </StackPanel>
             </Grid>
         </Border>
@@ -828,10 +829,12 @@
         <Border x:Name="LoadingOverlay" Grid.RowSpan="3" Background="#B0FFFFFF" Visibility="Collapsed">
             <Border Background="White" CornerRadius="12" Padding="28,22" HorizontalAlignment="Center" VerticalAlignment="Center"
                     BorderBrush="{StaticResource Border}" BorderThickness="1" Effect="{StaticResource CardShadow}">
-                <StackPanel>
+                <StackPanel MinWidth="220">
                     <TextBlock Text="⏳" FontSize="32" HorizontalAlignment="Center"/>
                     <TextBlock x:Name="LoadingText" Text="Ładuję dane klienta…" FontSize="13" FontWeight="SemiBold"
                                Foreground="{StaticResource TextPrimary}" HorizontalAlignment="Center" Margin="0,8,0,0"/>
+                    <ProgressBar IsIndeterminate="True" Height="4" Width="180" Margin="0,12,0,0"
+                                 Foreground="{StaticResource Primary}" Background="#E2E8F0" BorderThickness="0"/>
                 </StackPanel>
             </Border>
         </Border>

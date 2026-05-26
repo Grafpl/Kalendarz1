@@ -351,6 +351,16 @@ namespace Kalendarz1.Customer360
                 e.Handled = true;
                 await NawigujAsync(+1);
             }
+            else if (ctrl && e.Key == System.Windows.Input.Key.E)
+            {
+                e.Handled = true;
+                BtnEksportPdf_Click(this, new RoutedEventArgs());
+            }
+            else if (ctrl && e.Key == System.Windows.Input.Key.R && _selectedKlientId.HasValue)
+            {
+                e.Handled = true;
+                await LoadKlientAsync(_selectedKlientId.Value);  // przelicza scoring (na razie = pełne odświeżenie)
+            }
         }
 
         // ── Szybkie akcje nagłówka ──
