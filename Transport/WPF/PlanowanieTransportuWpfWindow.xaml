@@ -5,7 +5,7 @@
         Title="Planowanie Transportu (WPF) — ZPSP" Height="860" Width="1480"
         MinHeight="640" MinWidth="1080"
         WindowStartupLocation="CenterScreen" WindowState="Maximized"
-        Background="#eef1f5" FontFamily="Segoe UI" FontSize="13">
+        Background="#F4F6F8" FontFamily="Segoe UI" FontSize="13">
 
     <Window.Resources>
         <ResourceDictionary>
@@ -142,7 +142,7 @@
 
             <!-- ── LEWA: lista kursów ── -->
             <Grid Grid.Column="0">
-                <Border Background="White" CornerRadius="8" BorderBrush="#e4e6ea" BorderThickness="1">
+                <Border Style="{StaticResource Card}">
                     <DataGrid x:Name="KursyGrid" Margin="2,4,4,4" AllowDrop="True"
                               AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
                               HeadersVisibility="Column" GridLinesVisibility="Horizontal"
@@ -259,13 +259,24 @@
                     </DataGrid>
                 </Border>
                 <TextBlock x:Name="KursyEmpty" Visibility="Collapsed" IsHitTestVisible="False"
-                           Text="📭  Brak kursów na ten dzień.&#x0a;Dodaj nowy kurs lub przeciągnij tu wolne zamówienie."
+                           Text="Brak kursów na ten dzień.&#x0a;Dodaj nowy kurs lub przeciągnij tu wolne zamówienie."
                            Foreground="#90a4ae" FontSize="13.5" TextAlignment="Center"
                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <!-- strefa upuszczania (widoczna podczas przeciągania wolnego zamówienia) -->
+                <Border x:Name="DropHint" Visibility="Collapsed" IsHitTestVisible="False"
+                        Background="#1400838F" BorderBrush="{StaticResource Accent}" BorderThickness="2" CornerRadius="10">
+                    <Border Background="{StaticResource Accent}" CornerRadius="6" Padding="16,9"
+                            VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,12,0,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource Icon}" Text="&#xE70D;" Foreground="White" FontSize="14" Margin="0,0,7,0"/>
+                            <TextBlock Text="Upuść na kurs, aby przypisać" Foreground="White" FontWeight="SemiBold" FontSize="13"/>
+                        </StackPanel>
+                    </Border>
+                </Border>
             </Grid>
 
-            <!-- ── PRAWA: WOLNE ZAMÓWIENIA (wierne oryginałowi) ── -->
-            <Border Grid.Column="2" Background="White" CornerRadius="8" BorderBrush="#e4e6ea" BorderThickness="1">
+            <!-- ── PRAWA: WOLNE ZAMÓWIENIA ── -->
+            <Border Grid.Column="2" Style="{StaticResource Card}">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>   <!-- header -->
@@ -274,32 +285,40 @@
                         <RowDefinition Height="Auto"/>   <!-- akcja -->
                     </Grid.RowDefinitions>
 
-                    <Border Grid.Row="0" Background="#7b1fa2" Padding="14,10" CornerRadius="8,8,0,0">
+                    <Border Grid.Row="0" Background="{StaticResource Surface}" Padding="14,12" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" CornerRadius="10,10,0,0">
                         <DockPanel>
                             <StackPanel>
-                                <TextBlock Text="🧾 WOLNE ZAMÓWIENIA" Foreground="White" FontWeight="Bold" FontSize="14"/>
-                                <TextBlock x:Name="WolneSubtitle" Text="zamówienia bez przypisanego kursu"
-                                           Foreground="#e1bee7" FontSize="10.5" Margin="0,2,0,0"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <Border Width="3" Background="{StaticResource Accent}" CornerRadius="2" Margin="0,1,8,1"/>
+                                    <TextBlock Text="WOLNE ZAMÓWIENIA" Foreground="{StaticResource InkPrimary}" FontWeight="Bold" FontSize="13.5"/>
+                                </StackPanel>
+                                <TextBlock x:Name="WolneSubtitle" Text="bez przypisanego kursu — przeciągnij na kurs"
+                                           Foreground="{StaticResource InkMuted}" FontSize="10.5" Margin="11,2,0,0"/>
                             </StackPanel>
-                            <Border DockPanel.Dock="Right" Background="#9c27b0" CornerRadius="12" Padding="10,3" VerticalAlignment="Center">
-                                <TextBlock x:Name="WolneCountText" Text="0" Foreground="White" FontWeight="Bold"/>
+                            <Border DockPanel.Dock="Right" Background="{StaticResource AccentSoft}" CornerRadius="11" Padding="11,3" VerticalAlignment="Center">
+                                <TextBlock x:Name="WolneCountText" Text="0" Foreground="{StaticResource AccentDark}" FontWeight="Bold" FontSize="13"/>
                             </Border>
                         </DockPanel>
                     </Border>
 
-                    <Border Grid.Row="1" Background="#faf5fc" Padding="10,8" BorderBrush="#eee" BorderThickness="0,0,0,1">
+                    <Border Grid.Row="1" Background="{StaticResource SurfaceAlt}" Padding="10,8" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1">
                         <StackPanel>
                             <StackPanel Orientation="Horizontal">
-                                <TextBox x:Name="TxtSzukaj" Width="150" Height="28" VerticalContentAlignment="Center"
-                                         TextChanged="TxtSzukaj_TextChanged" ToolTip="Szukaj klient / handlowiec"/>
-                                <RadioButton x:Name="RbUboj" Content="Ubój" IsChecked="True" Margin="12,0,6,0"
+                                <Border Background="{StaticResource Surface}" CornerRadius="6" BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="8,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Style="{StaticResource Icon}" Text="&#xE721;" FontSize="13" Foreground="{StaticResource InkMuted}" Margin="0,0,5,0"/>
+                                        <TextBox x:Name="TxtSzukaj" Width="138" Height="26" BorderThickness="0" Background="Transparent"
+                                                 VerticalContentAlignment="Center" TextChanged="TxtSzukaj_TextChanged" ToolTip="Szukaj klient / handlowiec"/>
+                                    </StackPanel>
+                                </Border>
+                                <RadioButton x:Name="RbUboj" Content="Ubój" IsChecked="True" Margin="12,0,8,0"
                                              VerticalAlignment="Center" GroupName="DataTyp" Checked="DataTyp_Changed"/>
                                 <RadioButton x:Name="RbOdbior" Content="Odbiór" VerticalAlignment="Center"
                                              GroupName="DataTyp" Checked="DataTyp_Changed"/>
-                                <Button Content="🔄" Style="{StaticResource Btn}" Background="#eceff1" Foreground="#546e7a"
-                                        Margin="10,0,0,0" Click="BtnOdswiezWolne_Click" ToolTip="Odśwież wolne"/>
+                                <Button Style="{StaticResource BtnIcon}" Tag="&#xE72C;" Width="30" Height="28"
+                                        Margin="8,0,0,0" Click="BtnOdswiezWolne_Click" ToolTip="Odśwież wolne"/>
                             </StackPanel>
-                            <TextBlock x:Name="WolneSuma" Text="" Foreground="#7b1fa2" FontSize="11" Margin="2,6,0,0"/>
+                            <TextBlock x:Name="WolneSuma" Text="" Foreground="{StaticResource InkMuted}" FontSize="11" Margin="2,6,0,0"/>
                         </StackPanel>
                     </Border>
 
@@ -344,16 +363,16 @@
                             <GroupStyle>
                                 <GroupStyle.HeaderTemplate>
                                     <DataTemplate>
-                                        <Border Background="#e8eaf6" Padding="10,6" Margin="0,6,0,2" CornerRadius="4">
+                                        <Border Background="#EEF1F4" Padding="10,6" Margin="0,6,0,2" CornerRadius="4">
                                             <StackPanel Orientation="Horizontal">
-                                                <Border Width="3" Background="#3949ab" CornerRadius="2" Margin="0,0,8,0"/>
-                                                <TextBlock Text="📅" FontSize="11" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                                <Border Width="3" Background="{StaticResource Accent}" CornerRadius="2" Margin="0,0,8,0"/>
+                                                <TextBlock Style="{StaticResource Icon}" Text="&#xE787;" FontSize="12" Foreground="{StaticResource Accent}" Margin="0,0,6,0"/>
                                                 <TextBlock Text="{Binding Name, StringFormat='{}{0:dd.MM ddd}'}" Language="pl-PL"
-                                                           FontWeight="Bold" Foreground="#1a237e" FontSize="12.5" VerticalAlignment="Center"/>
-                                                <Border Background="#c5cae9" CornerRadius="8" Padding="7,1" Margin="9,0,0,0" VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding ItemCount}" Foreground="#283593" FontSize="10.5" FontWeight="SemiBold"/>
+                                                           FontWeight="Bold" Foreground="{StaticResource InkPrimary}" FontSize="12.5" VerticalAlignment="Center"/>
+                                                <Border Background="{StaticResource AccentSoft}" CornerRadius="8" Padding="7,1" Margin="9,0,0,0" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding ItemCount}" Foreground="{StaticResource AccentDark}" FontSize="10.5" FontWeight="SemiBold"/>
                                                 </Border>
-                                                <TextBlock Text="zam." Foreground="#5c6bc0" FontSize="10.5" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                                                <TextBlock Text="zam." Foreground="{StaticResource InkMuted}" FontSize="10.5" VerticalAlignment="Center" Margin="4,0,0,0"/>
                                             </StackPanel>
                                         </Border>
                                     </DataTemplate>
@@ -379,16 +398,15 @@
                                     <Border Grid.Column="2" Width="1" Background="#eceef2" Margin="9,4"/>
                                     <StackPanel Grid.Column="3" VerticalAlignment="Center" Margin="9,0,0,0">
                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                            <TextBlock Text="🕐" FontSize="10" Margin="0,0,3,0" VerticalAlignment="Center"/>
-                                            <TextBlock Text="{Binding GodzAwizacji}" FontWeight="Bold" FontSize="12.5" Foreground="#7b1fa2" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{Binding GodzAwizacji}" FontWeight="Bold" FontSize="13" Foreground="{StaticResource Accent}" VerticalAlignment="Center"/>
                                             <TextBlock Text="{Binding OdbiorDisplay}" Foreground="#9aa0b0" FontSize="9.5" Margin="6,0,0,0" VerticalAlignment="Center"/>
                                         </StackPanel>
                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,3,0,0">
-                                            <Border Background="#e8f0fe" CornerRadius="3" Padding="5,1" Margin="0,0,4,0">
-                                                <TextBlock Text="{Binding PojemnikiDisplay}" FontSize="10" Foreground="#1967d2" FontWeight="SemiBold"/>
+                                            <Border Background="#ECEFF1" CornerRadius="3" Padding="5,1" Margin="0,0,4,0">
+                                                <TextBlock Text="{Binding PojemnikiDisplay}" FontSize="10" Foreground="#546E7A" FontWeight="SemiBold"/>
                                             </Border>
-                                            <Border Background="#fef3e0" CornerRadius="3" Padding="5,1">
-                                                <TextBlock Text="{Binding PaletyDisplay, StringFormat='{}{0} pal'}" FontSize="10" Foreground="#b06000" FontWeight="SemiBold"/>
+                                            <Border Background="#ECEFF1" CornerRadius="3" Padding="5,1">
+                                                <TextBlock Text="{Binding PaletyDisplay, StringFormat='{}{0} pal'}" FontSize="10" Foreground="#546E7A" FontWeight="SemiBold"/>
                                             </Border>
                                         </StackPanel>
                                     </StackPanel>
@@ -401,13 +419,17 @@
                                Foreground="#9575cd" FontSize="13" TextAlignment="Center"
                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
 
-                    <Border Grid.Row="3" Background="#faf5fc" Padding="10,8" BorderBrush="#eee" BorderThickness="0,1,0,0">
+                    <Border Grid.Row="3" Background="{StaticResource SurfaceAlt}" Padding="10,8" BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0">
                         <DockPanel>
-                            <TextBlock x:Name="DodajHint" DockPanel.Dock="Top" Foreground="#9575cd" FontSize="10.5"
+                            <TextBlock x:Name="DodajHint" DockPanel.Dock="Top" Foreground="{StaticResource InkMuted}" FontSize="10.5"
                                        Text="Wybierz kurs po lewej, zaznacz zamówienia i kliknij Dodaj" Margin="0,0,0,6"/>
-                            <Button x:Name="BtnDodajDoKursu" Content="➕ Dodaj do zaznaczonego kursu"
-                                    Style="{StaticResource Btn}" Background="#2e7d32" Foreground="White"
-                                    Height="36" IsEnabled="False" Click="BtnDodajDoKursu_Click"/>
+                            <Button x:Name="BtnDodajDoKursu" Style="{StaticResource BtnPrimary}" Height="38"
+                                    IsEnabled="False" Click="BtnDodajDoKursu_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Style="{StaticResource Icon}" Text="&#xE710;" Foreground="White" FontSize="14" Margin="0,0,7,0"/>
+                                    <TextBlock Text="Dodaj do zaznaczonego kursu" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
                         </DockPanel>
                     </Border>
                 </Grid>

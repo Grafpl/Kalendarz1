@@ -42,6 +42,8 @@ namespace Kalendarz1.Transport.WPF
         private const string FmtWolne = "ZPSP_wolne";
         private DataGridRow? _hoverRow;
         private System.Windows.Threading.DispatcherTimer? _autoTimer;
+        private DragGhostAdorner? _ghost;
+        private System.Windows.Documents.AdornerLayer? _ghostLayer;
 
         public PlanowanieTransportuWpfWindow()
         {
@@ -293,15 +295,49 @@ namespace Kalendarz1.Transport.WPF
             if (!WpfDragHelper.ExceededThreshold(_dragStart, e.GetPosition(null))) return;
             var items = WolneGrid.SelectedItems.Cast<WolneZamowienieWpf>().ToList();
             if (items.Count == 0) return;
+
+            StartGhost(items.Count == 1
+                ? $"📦 {items[0].KlientNazwa} — przeciągnij na kurs"
+                : $"📦 {items.Count} zam. — przeciągnij na kurs");
+            if (DropHint != null) DropHint.Visibility = Visibility.Visible;
             try { DragDrop.DoDragDrop(WolneGrid, new DataObject(FmtWolne, items), DragDropEffects.Copy); }
             catch { }
+            finally
+            {
+                EndGhost();
+                if (DropHint != null) DropHint.Visibility = Visibility.Collapsed;
+                ResetHover();
+            }
+        }
+
+        private void StartGhost(string text)
+        {
+            try
+            {
+                if (Content is not UIElement host) return;
+                _ghostLayer = System.Windows.Documents.AdornerLayer.GetAdornerLayer(host);
+                if (_ghostLayer == null) return;
+                _ghost = new DragGhostAdorner(host, text);
+                _ghostLayer.Add(_ghost);
+            }
+            catch { }
+        }
+
+        private void EndGhost()
+        {
+            try { if (_ghostLayer != null && _ghost != null) _ghostLayer.Remove(_ghost); } catch { }
+            _ghost = null; _ghostLayer = null;
         }
 
         private void KursyGrid_DragOver(object sender, DragEventArgs e)
         {
             bool ok = e.Data.GetDataPresent(FmtWolne);
             e.Effects = ok ? DragDropEffects.Copy : DragDropEffects.None;
-            if (ok) Highlight(WpfDragHelper.GetRowAtPoint(KursyGrid, e.GetPosition(KursyGrid)));
+            if (ok)
+            {
+                Highlight(WpfDragHelper.GetRowAtPoint(KursyGrid, e.GetPosition(KursyGrid)));
+                if (_ghost != null && Content is IInputElement root) _ghost.SetPosition(e.GetPosition(root));
+            }
             e.Handled = true;
         }
 
