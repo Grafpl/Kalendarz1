@@ -620,6 +620,32 @@ namespace Kalendarz1.Transport.WPF
                 }
             }
 
+            // lewy pasek statusu „bez czytania": pusty=czerwony, brak przydziału=amber, przeładowany=czerwony, OK=zielony
+            public Brush StatusAccent
+            {
+                get
+                {
+                    if (LiczbaLadunkow == 0) return new SolidColorBrush(Color.FromRgb(0xC6, 0x28, 0x28));
+                    if (BrakKierowcy || BrakPojazdu) return new SolidColorBrush(Color.FromRgb(0xB2, 0x6A, 0x00));
+                    if (Source.PaletyPojazdu > 0 && Source.ProcNominal > 100) return new SolidColorBrush(Color.FromRgb(0xC6, 0x28, 0x28));
+                    return new SolidColorBrush(Color.FromRgb(0x2E, 0x7D, 0x32));
+                }
+            }
+
+            // zgrupowane metryki + mini-pasek wypełnienia + tooltip wiersza (audyt: kto utworzył)
+            public string LadunekLinia1 => $"{Pal} pal · {Poj} poj";
+            public string KgDisplay2 => Kg > 0 ? $"{Kg:N0} kg" : "—";
+            public double WypBarWidth => Source.PaletyPojazdu <= 0 ? 0 : Math.Min(100.0, (double)Source.ProcNominal) / 100.0 * 78.0;
+            public string? WierszTooltip
+            {
+                get
+                {
+                    var t = string.IsNullOrEmpty(UtworzylName) ? "" : $"Utworzył: {UtworzylName}";
+                    if (!string.IsNullOrEmpty(UtworzylDataDisplay)) t += (t.Length > 0 ? " · " : "") + UtworzylDataDisplay;
+                    return string.IsNullOrEmpty(t) ? null : t;
+                }
+            }
+
             public Brush StatusBg => Status switch
             {
                 "WTrasie" or "W trasie" => new SolidColorBrush(Color.FromRgb(232, 245, 233)),

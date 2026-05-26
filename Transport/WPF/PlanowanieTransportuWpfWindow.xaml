@@ -143,10 +143,10 @@
             <!-- ── LEWA: lista kursów ── -->
             <Grid Grid.Column="0">
                 <Border Background="White" CornerRadius="8" BorderBrush="#e4e6ea" BorderThickness="1">
-                    <DataGrid x:Name="KursyGrid" Margin="4" AllowDrop="True"
+                    <DataGrid x:Name="KursyGrid" Margin="2,4,4,4" AllowDrop="True"
                               AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
                               HeadersVisibility="Column" GridLinesVisibility="Horizontal"
-                              RowBackground="White"
+                              HorizontalGridLinesBrush="#F0F2F4" RowBackground="White"
                               BorderThickness="0" FontSize="12" IsReadOnly="True"
                               SelectionMode="Single" SelectionUnit="FullRow"
                               SelectionChanged="KursyGrid_SelectionChanged"
@@ -154,80 +154,89 @@
                         <DataGrid.RowStyle>
                             <Style TargetType="DataGridRow">
                                 <Setter Property="Background" Value="{Binding RowBg}"/>
-                                <Setter Property="Height" Value="46"/>
-                                <Style.Triggers>
-                                    <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter Property="Background" Value="#eef3fb"/>
-                                    </Trigger>
-                                    <Trigger Property="IsSelected" Value="True">
-                                        <Setter Property="Background" Value="#d6e4ff"/>
-                                    </Trigger>
-                                </Style.Triggers>
+                                <Setter Property="Height" Value="48"/>
+                                <Setter Property="ToolTip" Value="{Binding WierszTooltip}"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="{x:Type DataGridRow}">
+                                            <Border x:Name="rb" Background="{TemplateBinding Background}" SnapsToDevicePixels="True">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="4"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <Rectangle Grid.Column="0" Fill="{Binding StatusAccent}"/>
+                                                    <DataGridCellsPresenter Grid.Column="1"
+                                                        SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                                                </Grid>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="rb" Property="Background" Value="#F0F4F5"/></Trigger>
+                                                <Trigger Property="IsSelected" Value="True"><Setter TargetName="rb" Property="Background" Value="#D2EEF0"/></Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
                             </Style>
                         </DataGrid.RowStyle>
                         <DataGrid.ContextMenu>
                             <ContextMenu>
-                                <MenuItem Header="📝 Edytuj kurs" Click="BtnEdytuj_Click"/>
-                                <MenuItem Header="🧑‍✈ Szybki przydział kierowcy/pojazdu" Click="MiPrzydzial_Click"/>
+                                <MenuItem Header="Edytuj kurs" Click="BtnEdytuj_Click"/>
+                                <MenuItem Header="Szybki przydział kierowcy/pojazdu" Click="MiPrzydzial_Click"/>
                                 <Separator/>
-                                <MenuItem Header="🗑 Usuń kurs" Click="BtnUsun_Click"/>
+                                <MenuItem Header="Usuń kurs" Click="BtnUsun_Click"/>
                             </ContextMenu>
                         </DataGrid.ContextMenu>
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Wyj." Binding="{Binding GodzWyjazduDisplay}" Width="54">
+                            <DataGridTextColumn Header="Wyj." Binding="{Binding GodzWyjazduDisplay}" Width="56">
                                 <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
+                                    <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="FontSize" Value="13"/><Setter Property="Foreground" Value="#1F2733"/></Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
-                            <DataGridTextColumn Header="Kierowca" Binding="{Binding KierowcaDisplay}" Width="120">
-                                <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock"><Setter Property="Foreground" Value="{Binding KierowcaFg}"/><Setter Property="FontWeight" Value="{Binding KierowcaWaga}"/></Style>
-                                </DataGridTextColumn.ElementStyle>
-                            </DataGridTextColumn>
-                            <DataGridTextColumn Header="Pojazd" Binding="{Binding PojazdDisplay}" Width="90">
-                                <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock"><Setter Property="Foreground" Value="{Binding PojazdFg}"/><Setter Property="FontWeight" Value="{Binding PojazdWaga}"/></Style>
-                                </DataGridTextColumn.ElementStyle>
-                            </DataGridTextColumn>
-                            <DataGridTextColumn Header="Trasa" Binding="{Binding Trasa}" Width="*">
-                                <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock"><Setter Property="TextTrimming" Value="CharacterEllipsis"/></Style>
-                                </DataGridTextColumn.ElementStyle>
-                            </DataGridTextColumn>
-                            <DataGridTextColumn Header="Pal" Binding="{Binding Pal}" Width="42">
-                                <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
-                                </DataGridTextColumn.ElementStyle>
-                            </DataGridTextColumn>
-                            <DataGridTextColumn Header="Poj" Binding="{Binding Poj}" Width="50">
-                                <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
-                                </DataGridTextColumn.ElementStyle>
-                            </DataGridTextColumn>
-                            <DataGridTextColumn Header="KG" Binding="{Binding KgDisplay}" Width="66">
-                                <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Foreground" Value="#37474f"/></Style>
-                                </DataGridTextColumn.ElementStyle>
-                            </DataGridTextColumn>
-                            <DataGridTextColumn Header="Wyp.%" Binding="{Binding WypDisplay}" Width="56">
-                                <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/><Setter Property="FontWeight" Value="Bold"/><Setter Property="Foreground" Value="{Binding WypelnienieFg}"/></Style>
-                                </DataGridTextColumn.ElementStyle>
-                            </DataGridTextColumn>
-                            <DataGridTemplateColumn Header="Utworzył" Width="166">
+                            <DataGridTemplateColumn Header="Kierowca / pojazd" Width="158">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                            <ctrl:AvatarControl UserId="{Binding UtworzylId}" DisplayName="{Binding UtworzylName}" Diameter="30" Margin="0,0,7,0"/>
-                                            <StackPanel VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding UtworzylName}" FontWeight="SemiBold" Foreground="#28323f" FontSize="11.5" TextTrimming="CharacterEllipsis"/>
-                                                <TextBlock Text="{Binding UtworzylDataDisplay}" Foreground="#8e9aa6" FontSize="10"/>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Style="{StaticResource Icon}" Text="&#xE77B;" FontSize="11.5" Foreground="{Binding KierowcaFg}" Margin="0,0,5,0"/>
+                                                <TextBlock Text="{Binding KierowcaDisplay}" Foreground="{Binding KierowcaFg}" FontWeight="{Binding KierowcaWaga}" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                                <TextBlock Style="{StaticResource Icon}" Text="&#xE804;" FontSize="11.5" Foreground="{Binding PojazdFg}" Margin="0,0,5,0"/>
+                                                <TextBlock Text="{Binding PojazdDisplay}" Foreground="{Binding PojazdFg}" FontWeight="{Binding PojazdWaga}" FontSize="11.5" TextTrimming="CharacterEllipsis"/>
                                             </StackPanel>
                                         </StackPanel>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTemplateColumn Header="Handl." Width="138">
+                            <DataGridTextColumn Header="Trasa" Binding="{Binding Trasa}" Width="*">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock"><Setter Property="TextTrimming" Value="CharacterEllipsis"/><Setter Property="FontSize" Value="12.5"/><Setter Property="Foreground" Value="#1F2733"/></Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTemplateColumn Header="Ładunek" Width="150">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding LadunekLinia1}" FontSize="12.5" FontWeight="SemiBold" Foreground="#37474F"/>
+                                            <TextBlock Text="{Binding KgDisplay2}" FontSize="11" Foreground="#8A95A3"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Wypełnienie" Width="100">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding WypDisplay}" FontWeight="Bold" FontSize="13" Foreground="{Binding WypelnienieFg}"/>
+                                            <Border Width="78" Height="5" Background="#EAEDF0" CornerRadius="2.5" Margin="0,3,0,0" HorizontalAlignment="Left">
+                                                <Border Background="{Binding WypelnienieFg}" CornerRadius="2.5" HorizontalAlignment="Left" Width="{Binding WypBarWidth}"/>
+                                            </Border>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Handl." Width="120">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center" ToolTip="{Binding HandlowcyTooltip}">
@@ -241,7 +250,7 @@
                                                     </DataTemplate>
                                                 </ItemsControl.ItemTemplate>
                                             </ItemsControl>
-                                            <TextBlock Text="{Binding HandlowcyText}" VerticalAlignment="Center" Margin="11,0,0,0" FontSize="11" Foreground="#37474f" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding HandlowcyText}" VerticalAlignment="Center" Margin="11,0,0,0" FontSize="10.5" Foreground="#546e7a" TextTrimming="CharacterEllipsis"/>
                                         </StackPanel>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
