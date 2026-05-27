@@ -17,6 +17,8 @@ namespace Kalendarz1.Customer360
 {
     public partial class Customer360Window : Window
     {
+        #region Pola, stałe, konstruktor
+
         private readonly Customer360Service _service = new();
         private int? _selectedKlientId;
         private static readonly CultureInfo Pl = new("pl-PL");
@@ -62,6 +64,10 @@ namespace Kalendarz1.Customer360
         }
 
         // Nawigacja klientów (◀ ▶ oraz Ctrl+←/→)
+        #endregion
+
+        #region Pasek narzędzi, nawigacja, eventy UI
+
         private async Task NawigujAsync(int kierunek)
         {
             if (_nawigacja == null || _nawigacja.Count == 0 || !_selectedKlientId.HasValue) return;
@@ -464,6 +470,10 @@ namespace Kalendarz1.Customer360
         }
 
         // ── Główne ładowanie ──
+        #endregion
+
+        #region Ładowanie i orkiestracja
+
         private async Task LoadKlientAsync(int klientId, bool forceScore = false)
         {
             try
@@ -587,6 +597,10 @@ namespace Kalendarz1.Customer360
                 ZapiszOstatnioOtwarty();
             }
         }
+
+        #endregion
+
+        #region Render — Przegląd (nagłówek, KPI, porównanie, scoring, alerty)
 
         private void RenderHeader(KlientHeader hdr, KlientKpi kpi)
         {
@@ -938,6 +952,10 @@ namespace Kalendarz1.Customer360
         //   Analiza = Historia + Transport + Asortyment → LoadAnalizaTabAsync
         // ════════════════════════════════════════════════════════════════════
 
+        #endregion
+
+        #region Zakładki Klient / Analiza (dane, kontakty, transport, asortyment)
+
         private async Task LoadKlientTabAsync(int klientId, KlientHeader hdr)
         {
             // Dane podstawowe (read-only) z headera
@@ -1263,6 +1281,10 @@ namespace Kalendarz1.Customer360
             catch { }
         }
 
+        #endregion
+
+        #region Weryfikacja faktur
+
         private void RenderWeryfikacja(Kalendarz1.Customer360.Models.WeryfikacjaSumarum s, List<Models.WeryfikacjaTowar> towary)
         {
             _werSummaCache = s;
@@ -1456,6 +1478,10 @@ namespace Kalendarz1.Customer360
             return track;
         }
 
+        #endregion
+
+        #region Anulowane + wykres obrotu miesięcznego
+
         private void RenderAnulowaneHeader(System.Collections.Generic.List<Kalendarz1.Customer360.Models.AnulowaneZam> anul)
         {
             int liczba = anul.Count;
@@ -1567,5 +1593,7 @@ namespace Kalendarz1.Customer360
                 _chartMonthlyWired = true;
             }
         }
+
+        #endregion
     }
 }

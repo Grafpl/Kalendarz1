@@ -327,7 +327,7 @@ namespace Kalendarz1.Customer360.Services
                 kpi.LiczbaFaktur12M = faktur12;
 
                 // Churn risk
-                var (level, reason) = CalculateChurnRisk(kpi);
+                var (level, reason) = Customer360KpiCalculator.ObliczChurn(kpi);
                 kpi.ChurnRiskLevel = level;
                 kpi.ChurnRiskReason = reason;
 
@@ -523,35 +523,7 @@ namespace Kalendarz1.Customer360.Services
             return (0, 0m);
         }
 
-        private (string level, string reason) CalculateChurnRisk(KlientKpi kpi)
-        {
-            // Jeśli brak danych
-            if (kpi.LiczbaZamowien12M == 0) return ("UNKNOWN", "Brak zamówień w ostatnich 12 mies");
-            if (!kpi.OstatnieZamowienie.HasValue) return ("UNKNOWN", "Brak daty ostatniego zamówienia");
-
-            int dniOd = kpi.DniOdOstatniegoZamowienia;
-            decimal sredniOdstep = kpi.SredniCzasMiedzyZamowieniami;
-
-            if (sredniOdstep == 0) sredniOdstep = 30; // fallback
-            double ratio = (double)dniOd / (double)sredniOdstep;
-
-            // Sygnały dodatkowe
-            decimal yoyChange = kpi.Obrot12MPrev > 0 ? (kpi.Obrot12M - kpi.Obrot12MPrev) / kpi.Obrot12MPrev : 0m;
-            bool yoyMocnoSpadl = yoyChange < -0.3m;  // -30% YoY
-            bool ratioPrzekroczony = ratio > 2.5;
-            bool ratioMocnoPrzekroczony = ratio > 4.0;
-
-            if (ratioMocnoPrzekroczony && yoyMocnoSpadl)
-                return ("CRITICAL", $"Brak zamówienia {dniOd} dni (norma {sredniOdstep:N0}) + obrót YoY {yoyChange:P0}");
-            if (ratioMocnoPrzekroczony)
-                return ("WARNING", $"Brak zamówienia {dniOd} dni (norma {sredniOdstep:N0})");
-            if (ratioPrzekroczony)
-                return ("WATCH", $"Opóźnione zamówienie ({dniOd} dni vs norma {sredniOdstep:N0})");
-            if (yoyMocnoSpadl)
-                return ("WATCH", $"Obrót YoY {yoyChange:P0}");
-
-            return ("OK", $"Aktywny ({dniOd} dni od ostatniego, norma {sredniOdstep:N0})");
-        }
+        // Churn przeniesiony do Customer360KpiCalculator.ObliczChurn (Faza 7).
 
         // ── Historia zamówień ──
         public async Task<List<OrderHistoryItem>> GetOrderHistoryAsync(int klientId, int monthsBack = 12)
