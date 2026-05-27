@@ -69,9 +69,11 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
             if (articles == null || !articles.Any())
                 return articles ?? new List<RawArticle>();
 
-            // Znajdź artykuły wymagające wzbogacenia
+            // Znajdź artykuły wymagające wzbogacenia.
+            // 2026-05-25 (Faza A): tylko whitelista domen — reszta skip (zapobiega wciąganiu
+            // binarnego śmiecia / nieparsowalnych stron, które marnowały tokeny Sonneta).
             var toEnrich = articles
-                .Where(a => NeedsEnrichment(a))
+                .Where(a => NeedsEnrichment(a) && IsWhitelistedDomain(a.Url))
                 .OrderByDescending(a => a.RelevanceScore) // Najpierw najważniejsze
                 .Take(maxToEnrich)
                 .ToList();
@@ -94,6 +96,16 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
                 try
                 {
                     var fullContent = await FetchFullContentAsync(article.Url, ct);
+
+                    // Walidacja: odrzuć binarny śmieć (>5% znaków non-printable) — zdarzało się
+                    // że Farmer.pl zwracał nieczytelne bajty, które potem "analizował" Sonnet.
+                    if (!string.IsNullOrEmpty(fullContent) && LooksLikeBinaryGarbage(fullContent))
+                    {
+                        failedCount++;
+                        Debug.WriteLine($"[ContentEnricher] ⚠ {GetDomain(article.Url)} - odrzucono (binarny śmieć)");
+                        await Task.Delay(200, ct);
+                        continue;
+                    }
 
                     if (!string.IsNullOrEmpty(fullContent) && fullContent.Length > MinContentLength)
                     {
@@ -124,6 +136,40 @@ namespace Kalendarz1.MarketIntelligence.Services.AI
             Debug.WriteLine($"[ContentEnricher] Completed: {enrichedCount} enriched, {failedCount} failed");
 
             return articles;
+        }
+
+        /// <summary>
+        /// Czy domena artykułu jest na whiteliście enrichmentu (Faza A).
+        /// </summary>
+        private static bool IsWhitelistedDomain(string url)
+        {
+            if (string.IsNullOrEmpty(url)) return false;
+            try
+            {
+                var host = new System.Uri(url).Host.Replace("www.", "").ToLowerInvariant();
+                foreach (var allowed in BriefingFeatureFlags.EnrichmentDomainWhitelist)
+                    if (host == allowed || host.EndsWith("." + allowed))
+                        return true;
+                return false;
+            }
+            catch { return false; }
+        }
+
+        /// <summary>
+        /// Heurystyka binarnego śmiecia: >5% znaków spoza drukowalnego zakresu (poza zwykłymi
+        /// białymi znakami) → traktuj jako nieczytelne (np. PDF/gzip/błędne kodowanie).
+        /// </summary>
+        private static bool LooksLikeBinaryGarbage(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return false;
+            var sample = text.Length > 2000 ? text.Substring(0, 2000) : text;
+            int nonPrintable = 0;
+            foreach (var c in sample)
+            {
+                if (c == '\n' || c == '\r' || c == '\t') continue;
+                if (char.IsControl(c) || c == '�') nonPrintable++;
+            }
+            return (double)nonPrintable / sample.Length > 0.05;
         }
 
         /// <summary>

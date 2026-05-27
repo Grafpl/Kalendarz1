@@ -1033,14 +1033,15 @@ WHEN NOT MATCHED THEN INSERT (
 
     public class FetchOptions
     {
-        public bool IncludeScrapingSources { get; set; } = true;
+        // 2026-05-25 (Faza A): martwe etapy bramkowane przez BriefingFeatureFlags (domyślnie OFF).
+        public bool IncludeScrapingSources { get; set; } = BriefingFeatureFlags.EnableScrapingSources;
         public bool UsePerplexitySearch { get; set; } = true;  // Przeszukiwanie całego internetu przez Perplexity AI
-        public bool UseContentEnrichment { get; set; } = true;  // Wzbogacanie artykułów o pełną treść (web scraping)
+        public bool UseContentEnrichment { get; set; } = BriefingFeatureFlags.EnableContentEnrichment;
         public bool UseAiFiltering { get; set; } = true;
         public bool UseAiAnalysis { get; set; } = true;
         public bool GenerateSummary { get; set; } = true;
-        public bool FetchHpaiAlerts { get; set; } = true;
-        public bool FetchPrices { get; set; } = true;
+        public bool FetchHpaiAlerts { get; set; } = BriefingFeatureFlags.EnableHpaiScraper;
+        public bool FetchPrices { get; set; } = BriefingFeatureFlags.EnablePriceScrapers;
         public bool SaveToDatabase { get; set; } = true;
         // 2026-05-25: 5 → 15 — Sergiusz chce analizę AI dla "wszystkich newsów".
         // 15 to praktyczny sweet-spot: 15/3 concurrent × ~25s = ~125s (pod watchdog 180s).
@@ -1051,14 +1052,15 @@ WHEN NOT MATCHED THEN INSERT (
 
         public static FetchOptions Full => new()
         {
-            IncludeScrapingSources = true,
+            // Faza A: scraping/HPAI/prices bramkowane flagami (domyślnie OFF — martwe etapy).
+            IncludeScrapingSources = BriefingFeatureFlags.EnableScrapingSources,
             UsePerplexitySearch = true,
-            UseContentEnrichment = true,
+            UseContentEnrichment = BriefingFeatureFlags.EnableContentEnrichment,
             UseAiFiltering = true,
             UseAiAnalysis = true,
             GenerateSummary = true,
-            FetchHpaiAlerts = true,
-            FetchPrices = true,
+            FetchHpaiAlerts = BriefingFeatureFlags.EnableHpaiScraper,
+            FetchPrices = BriefingFeatureFlags.EnablePriceScrapers,
             SaveToDatabase = true,
             MaxArticlesToAnalyze = 15 // 2026-05-25: analiza AI dla większości newsów (sweet-spot pod watchdog)
         };
