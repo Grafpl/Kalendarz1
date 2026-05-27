@@ -48,18 +48,16 @@
                 </Grid.RowDefinitions>
 
                 <!-- ── HEADER (skrócony) ── -->
-                <Border Grid.Row="0" Background="{StaticResource Surface}" Padding="16,11" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" CornerRadius="10,10,0,0">
+                <Border Grid.Row="0" Background="{StaticResource Surface}" Padding="18,13" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" CornerRadius="10,10,0,0">
                     <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
                         <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>   <!-- tytuł -->
+                            <RowDefinition Height="Auto"/>   <!-- pola -->
+                            <RowDefinition Height="Auto"/>   <!-- trasa -->
                         </Grid.RowDefinitions>
 
-                        <DockPanel Grid.ColumnSpan="2" Margin="0,0,0,10">
+                        <!-- tytuł -->
+                        <DockPanel Grid.Row="0" Margin="0,0,0,14">
                             <StackPanel Orientation="Horizontal">
                                 <Border Width="3" Background="{StaticResource Accent}" CornerRadius="2" Margin="0,2,10,2"/>
                                 <TextBlock x:Name="TytulText" Text="Nowy kurs" Style="{StaticResource T.Title}"/>
@@ -68,50 +66,53 @@
                                        Foreground="{StaticResource InkMuted}" FontSize="11" VerticalAlignment="Center" TextAlignment="Right"/>
                         </DockPanel>
 
-                        <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal" Margin="0,0,16,0">
-                            <StackPanel Margin="0,0,12,0">
-                                <TextBlock Text="KIEROWCA" Style="{StaticResource T.Section}" Margin="0,0,0,3"/>
+                        <!-- pola w jednym rzędzie (zawijane) -->
+                        <WrapPanel Grid.Row="1">
+                            <StackPanel Margin="0,0,26,12">
+                                <TextBlock Text="KIEROWCA" Style="{StaticResource T.Section}" Margin="0,0,0,4"/>
                                 <StackPanel Orientation="Horizontal">
-                                    <ComboBox x:Name="CmbKierowca" Width="200" Height="30" DisplayMemberPath="PelneNazwisko"
+                                    <ComboBox x:Name="CmbKierowca" Width="210" Height="32" DisplayMemberPath="PelneNazwisko"
                                               IsEditable="True" IsTextSearchEnabled="True"/>
                                     <Button Style="{StaticResource BtnIcon}" Tag="&#xE710;" Foreground="{StaticResource Accent}"
-                                            Width="32" Height="30" Margin="5,0,0,0" Click="BtnNowyKierowca_Click" ToolTip="Nowy kierowca"/>
+                                            Width="32" Height="32" Margin="6,0,0,0" Click="BtnNowyKierowca_Click" ToolTip="Nowy kierowca"/>
                                 </StackPanel>
                             </StackPanel>
-                            <StackPanel>
-                                <TextBlock Text="POJAZD" Style="{StaticResource T.Section}" Margin="0,0,0,3"/>
+                            <StackPanel Margin="0,0,26,12">
+                                <TextBlock Text="POJAZD" Style="{StaticResource T.Section}" Margin="0,0,0,4"/>
                                 <StackPanel Orientation="Horizontal">
-                                    <ComboBox x:Name="CmbPojazd" Width="170" Height="30" DisplayMemberPath="Opis"
+                                    <ComboBox x:Name="CmbPojazd" Width="180" Height="32" DisplayMemberPath="Opis"
                                               IsEditable="True" IsTextSearchEnabled="True"
                                               SelectionChanged="CmbPojazd_SelectionChanged"/>
                                     <Button Style="{StaticResource BtnIcon}" Tag="&#xE710;" Foreground="{StaticResource Accent}"
-                                            Width="32" Height="30" Margin="5,0,0,0" Click="BtnNowyPojazd_Click" ToolTip="Nowy pojazd"/>
+                                            Width="32" Height="32" Margin="6,0,0,0" Click="BtnNowyPojazd_Click" ToolTip="Nowy pojazd"/>
                                 </StackPanel>
                             </StackPanel>
-                        </StackPanel>
+                            <StackPanel Margin="0,0,26,12">
+                                <TextBlock Text="DATA" Style="{StaticResource T.Section}" Margin="0,0,0,4"/>
+                                <DatePicker x:Name="DataKursu" Width="132" Height="32" SelectedDateChanged="DataKursu_Changed"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,0,12">
+                                <TextBlock Text="GODZINY  (wyjazd → powrót)" Style="{StaticResource T.Section}" Margin="0,0,0,4"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBox x:Name="TxtWyjazd" Style="{StaticResource Input}" Width="66" Text="06:00" TextAlignment="Center"/>
+                                    <TextBlock Text="→" Foreground="{StaticResource InkMuted}" VerticalAlignment="Center" Margin="8,0,8,0" FontSize="15"/>
+                                    <TextBox x:Name="TxtPowrot" Style="{StaticResource Input}" Width="66" Text="18:00" TextAlignment="Center"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </WrapPanel>
 
-                        <StackPanel Grid.Row="1" Grid.Column="1">
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                                <StackPanel Margin="0,0,12,0">
-                                    <TextBlock Text="DATA" Style="{StaticResource T.Section}" Margin="0,0,0,3"/>
-                                    <DatePicker x:Name="DataKursu" Width="120" Height="30" SelectedDateChanged="DataKursu_Changed"/>
-                                </StackPanel>
-                                <StackPanel Margin="0,0,6,0">
-                                    <TextBlock Text="WYJAZD" Style="{StaticResource T.Section}" Margin="0,0,0,3"/>
-                                    <TextBox x:Name="TxtWyjazd" Width="60" Height="30" Text="06:00" VerticalContentAlignment="Center" TextAlignment="Center"/>
-                                </StackPanel>
-                                <TextBlock Text="→" Foreground="{StaticResource InkMuted}" VerticalAlignment="Bottom" Margin="0,0,6,5" FontSize="15"/>
-                                <StackPanel>
-                                    <TextBlock Text="POWRÓT" Style="{StaticResource T.Section}" Margin="0,0,0,3"/>
-                                    <TextBox x:Name="TxtPowrot" Width="60" Height="30" Text="18:00" VerticalContentAlignment="Center" TextAlignment="Center"/>
-                                </StackPanel>
-                            </StackPanel>
-                            <TextBlock Text="TRASA" Style="{StaticResource T.Section}" Margin="0,0,0,3"/>
-                            <StackPanel Orientation="Horizontal">
-                                <TextBox x:Name="TxtTrasa" Width="270" Height="30" VerticalContentAlignment="Center"/>
-                                <Button Content="auto" Style="{StaticResource BtnGhost}" Height="30" Margin="6,0,0,0"
+                        <!-- trasa (pełna szerokość) -->
+                        <StackPanel Grid.Row="2">
+                            <TextBlock Text="TRASA" Style="{StaticResource T.Section}" Margin="0,0,0,4"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="TxtTrasa" Grid.Column="0" Style="{StaticResource Input}"/>
+                                <Button Grid.Column="1" Content="auto" Style="{StaticResource BtnGhost}" Height="32" Margin="8,0,0,0"
                                         Click="BtnAutoTrasa_Click" ToolTip="Złóż trasę z nazw klientów"/>
-                            </StackPanel>
+                            </Grid>
                         </StackPanel>
                     </Grid>
                 </Border>
