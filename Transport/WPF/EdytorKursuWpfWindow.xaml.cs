@@ -18,9 +18,11 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using Kalendarz1.Transport;
+using Kalendarz1.Transport.Services;
 using Kalendarz1.Transport.WPF.Dialogs;
 using Kalendarz1.Transport.WPF.Models;
 using Kalendarz1.Transport.WPF.Services;
+using Kalendarz1.MapaFloty;
 
 namespace Kalendarz1.Transport.WPF
 {
@@ -463,6 +465,73 @@ namespace Kalendarz1.Transport.WPF
             var nazwy = _ladunki.Select(l => l.NazwaDisplay).Where(n => n != "—").Distinct().Take(3).ToList();
             if (nazwy.Count == 0) { StatusText.Text = "Brak ładunków do złożenia trasy."; return; }
             TxtTrasa.Text = string.Join(" → ", nazwy) + (_ladunki.Count > 3 ? " → …" : "");
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // SZACOWANIE GODZINY POWROTU
+        // Model geometryczny (EtaService): baza → +załadunek → Σ(jazda Haversine×1.3 /
+        // 60 km/h + rozładunek 30 min) → powrót do bazy. Współrzędne przystanków z
+        // WebfleetOrderService.PobierzAdresySzybkoAsync (cache KlientAdres, bez Nominatim;
+        // brak GPS → płaskie 30 min/przystanek). Planista może nadpisać ręcznie.
+        // ════════════════════════════════════════════════════════════════════
+        private async void BtnSzacujPowrot_Click(object sender, RoutedEventArgs e)
+        {
+            if (_ladunki.Count == 0)
+            {
+                SzacunekHint.Text = "";
+                StatusText.Text = "Brak przystanków — dodaj ładunki, aby oszacować powrót.";
+                return;
+            }
+
+            var wyjazd = ParseGodz(TxtWyjazd.Text) ?? new TimeSpan(6, 0, 0);
+            BtnSzacujPowrot.IsEnabled = false;
+            var poprzedniHint = SzacunekHint.Text;
+            SzacunekHint.Text = "Liczę trasę…";
+            try
+            {
+                // współrzędne przystanków (szybko, bez Nominatim; ZAM_{id} obsłużone)
+                var kody = _ladunki.Select(l => l.KodKlienta ?? "").Where(k => k.Length > 0).Distinct().ToList();
+                Dictionary<string, WebfleetOrderService.KlientAdresInfo> adresy;
+                try { adresy = await new WebfleetOrderService().PobierzAdresySzybkoAsync(kody); }
+                catch { adresy = new Dictionary<string, WebfleetOrderService.KlientAdresInfo>(); } // brak bazy adresów → szacunek płaski
+
+                var stops = _ladunki.OrderBy(l => l.Kolejnosc).Select((l, i) =>
+                {
+                    adresy.TryGetValue(l.KodKlienta ?? "", out var a);
+                    return new EtaService.StopInput
+                    {
+                        Kolejnosc = l.Kolejnosc > 0 ? l.Kolejnosc : i + 1,
+                        NazwaKlienta = l.NazwaDisplay,
+                        Latitude = a?.Lat ?? 0,
+                        Longitude = a?.Lon ?? 0
+                    };
+                }).ToList();
+
+                var wynik = new EtaService().Calculate(wyjazd, stops);
+                var powrot = ZaokraglijDo5(wynik.EstimatedReturnTime);
+                TxtPowrot.Text = powrot.ToString(@"hh\:mm");
+
+                int bezGps = stops.Count(s => s.Latitude == 0 || s.Longitude == 0);
+                double km = wynik.TotalDistanceKm + wynik.ReturnDistanceKm;
+                var dur = wynik.TotalDuration;
+                SzacunekHint.Text =
+                    $"🔮 Szac. powrót ~{powrot:hh\\:mm}  ·  {stops.Count} przyst.  ·  ~{km:F0} km  ·  czas ~{(int)dur.TotalHours}h {dur.Minutes:00}min"
+                    + (bezGps > 0 ? $"  ·  ⚠ {bezGps} bez GPS (przyjęto 30 min/szt.)" : "");
+                StatusText.Text = "Oszacowano powrót — w razie potrzeby nadpisz ręcznie.";
+            }
+            catch (Exception ex)
+            {
+                SzacunekHint.Text = poprzedniHint;
+                StatusText.Text = $"Błąd szacowania: {ex.Message}";
+            }
+            finally { BtnSzacujPowrot.IsEnabled = true; }
+        }
+
+        private static TimeSpan ZaokraglijDo5(TimeSpan t)
+        {
+            int m = (int)Math.Round(t.TotalMinutes / 5.0) * 5;
+            m = Math.Max(0, Math.Min(24 * 60 - 5, m));
+            return TimeSpan.FromMinutes(m);
         }
 
         // ════════════════════════════════════════════════════════════════════

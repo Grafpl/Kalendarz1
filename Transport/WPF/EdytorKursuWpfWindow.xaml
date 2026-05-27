@@ -97,7 +97,12 @@
                                     <TextBox x:Name="TxtWyjazd" Style="{StaticResource Input}" Width="66" Text="06:00" TextAlignment="Center"/>
                                     <TextBlock Text="→" Foreground="{StaticResource InkMuted}" VerticalAlignment="Center" Margin="8,0,8,0" FontSize="15"/>
                                     <TextBox x:Name="TxtPowrot" Style="{StaticResource Input}" Width="66" Text="18:00" TextAlignment="Center"/>
+                                    <Button x:Name="BtnSzacujPowrot" Content="🔮 Szacuj" Style="{StaticResource BtnGhost}" Height="32" Margin="8,0,0,0"
+                                            Click="BtnSzacujPowrot_Click"
+                                            ToolTip="Oszacuj godzinę powrotu z adresów przystanków (Haversine + czas rozładunku). Możesz nadpisać ręcznie."/>
                                 </StackPanel>
+                                <TextBlock x:Name="SzacunekHint" Foreground="{StaticResource InkMuted}" FontSize="10.5"
+                                           Margin="0,4,0,0" TextWrapping="Wrap" MaxWidth="360"/>
                             </StackPanel>
                         </WrapPanel>
 
