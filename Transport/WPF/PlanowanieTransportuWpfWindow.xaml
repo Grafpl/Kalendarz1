@@ -64,7 +64,13 @@
                             <Button Style="{StaticResource BtnIcon}" Tag="&#xE76C;" Click="BtnNext_Click" ToolTip="Następny dzień"/>
                             <Button Content="Dziś" Click="BtnDzis_Click" Style="{StaticResource BtnGhost}" Margin="4,0,0,0"/>
                             <TextBlock x:Name="DayNameText" Style="{StaticResource T.Data}" Foreground="{StaticResource Accent}"
-                                       VerticalAlignment="Center" Margin="16,0,0,0"/>
+                                       VerticalAlignment="Center" Margin="16,0,18,0"/>
+                            <Border Background="{StaticResource SurfaceAlt}" CornerRadius="6" BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="2" VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal">
+                                    <ToggleButton x:Name="TglWidokLista" Content="Lista" IsChecked="True" Click="WidokLista_Click" Style="{StaticResource SegToggle}"/>
+                                    <ToggleButton x:Name="TglWidokTimeline" Content="Timeline" Click="WidokTimeline_Click" Style="{StaticResource SegToggle}"/>
+                                </StackPanel>
+                            </Border>
                         </StackPanel>
                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                             <Button Style="{StaticResource BtnPrimary}" Click="BtnNowy_Click">
@@ -137,8 +143,9 @@
                 </StackPanel>
             </Border>
 
-            <!-- ── KURSY ── -->
+            <!-- ── KURSY (Lista) / TIMELINE ── -->
             <Grid Grid.Row="2">
+                <Grid x:Name="PanelLista">
                 <Border Style="{StaticResource Card}">
                     <DataGrid x:Name="KursyGrid" Margin="2,4,4,4" AllowDrop="True"
                               AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
@@ -270,6 +277,8 @@
                         </StackPanel>
                     </Border>
                 </Border>
+                </Grid>
+                <ContentControl x:Name="PanelTimeline" Visibility="Collapsed"/>
             </Grid>
 
             <!-- ── STATUS ── -->

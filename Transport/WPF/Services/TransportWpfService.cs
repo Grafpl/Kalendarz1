@@ -354,6 +354,174 @@ namespace Kalendarz1.Transport.WPF.Services
             await LogSafe(zamId, uzytkownik, "Transport WPF - odbiór własny", "Oczekuje", "Własny");
         }
 
+        // ════════════════════════════════════════════════════════════════════
+        // TIMELINE (Faza T)
+        // ════════════════════════════════════════════════════════════════════
+
+        /// <summary>Kierowcy aktywni + ich kursy dnia, pogrupowane, z detekcją konfliktów. Pseudo-wiersz „brak kierowcy" na górze.</summary>
+        public async Task<List<KierowcaWierszTimeline>> LoadKierowcyZKursamiAsync(DateTime data, bool ukryjWolnych = false)
+        {
+            var kierowcy = await Repo.PobierzKierowcowAsync(true);
+            var kursy = await Repo.PobierzKursyPoDacieAsync(data);
+            var ladunki = await Repo.PobierzLadunkiDlaKursowAsync(kursy.Select(k => k.KursID));
+
+            var bary = new List<KursBar>();
+            foreach (var k in kursy)
+            {
+                var wyj = k.GodzWyjazdu ?? new TimeSpan(6, 0, 0);
+                var pow = k.GodzPowrotu ?? wyj.Add(TimeSpan.FromHours(8));
+                if (pow <= wyj) pow = wyj.Add(TimeSpan.FromHours(1));
+                bary.Add(new KursBar
+                {
+                    KursID = k.KursID,
+                    Trasa = k.Trasa ?? "—",
+                    Wyjazd = wyj,
+                    Powrot = pow,
+                    KierowcaID = k.KierowcaID,
+                    PojazdID = k.PojazdID,
+                    KierowcaNazwa = k.KierowcaNazwa ?? "",
+                    PojazdRej = k.PojazdRejestracja ?? "",
+                    LiczbaLadunkow = ladunki.TryGetValue(k.KursID, out var l) ? l.Count : 0,
+                    Proc = k.ProcNominal,
+                    Pal = k.PaletyNominal,
+                    Poj = k.SumaE2,
+                    UtworzylName = k.Utworzyl ?? "",
+                    UtworzylData = k.UtworzonoUTC.ToLocalTime().ToString("dd.MM HH:mm"),
+                    BrakGodzin = !k.GodzWyjazdu.HasValue
+                });
+            }
+
+            var wiersze = new Dictionary<int, KierowcaWierszTimeline>();
+            foreach (var ki in kierowcy)
+                wiersze[ki.KierowcaID] = new KierowcaWierszTimeline { KierowcaID = ki.KierowcaID, Imie = ki.Imie, Nazwisko = ki.Nazwisko };
+
+            var pseudo = new KierowcaWierszTimeline { KierowcaID = 0, BrakKierowcy = true };
+
+            foreach (var b in bary)
+            {
+                if (!b.KierowcaID.HasValue || b.KierowcaID.Value == 0)
+                {
+                    pseudo.Kursy.Add(b);
+                }
+                else
+                {
+                    if (!wiersze.TryGetValue(b.KierowcaID.Value, out var w))
+                    {
+                        var parts = (b.KierowcaNazwa ?? "").Split(new[] { ' ' }, 2);
+                        w = new KierowcaWierszTimeline
+                        {
+                            KierowcaID = b.KierowcaID.Value,
+                            Imie = parts.Length > 0 ? parts[0] : "",
+                            Nazwisko = parts.Length > 1 ? parts[1] : ""
+                        };
+                        wiersze[b.KierowcaID.Value] = w;
+                    }
+                    w.Kursy.Add(b);
+                }
+            }
+
+            foreach (var w in wiersze.Values)
+            {
+                var p = w.Kursy.FirstOrDefault(x => !string.IsNullOrEmpty(x.PojazdRej));
+                if (p != null) w.PojazdRej = p.PojazdRej;
+                WykryjKonflikty(w);
+            }
+            WykryjKonflikty(pseudo);
+
+            IEnumerable<KierowcaWierszTimeline> lista = wiersze.Values;
+            if (ukryjWolnych) lista = lista.Where(w => w.Kursy.Count > 0);
+
+            var posort = lista
+                .OrderByDescending(w => w.Kursy.Count > 0)
+                .ThenBy(w => w.Kursy.Count > 0 ? w.Kursy.Min(k => k.Wyjazd) : TimeSpan.MaxValue)
+                .ThenBy(w => w.Nazwisko)
+                .ToList();
+
+            var wynik = new List<KierowcaWierszTimeline>();
+            if (pseudo.Kursy.Count > 0) wynik.Add(pseudo);
+            wynik.AddRange(posort);
+            return wynik;
+        }
+
+        private static void WykryjKonflikty(KierowcaWierszTimeline w)
+        {
+            var ks = w.Kursy;
+            for (int i = 0; i < ks.Count; i++)
+                for (int j = i + 1; j < ks.Count; j++)
+                    if (ks[i].Wyjazd < ks[j].Powrot && ks[j].Wyjazd < ks[i].Powrot)
+                    {
+                        ks[i].Konflikt = true;
+                        ks[j].Konflikt = true;
+                    }
+        }
+
+        /// <summary>Przeniesienie kursu (zmiana kierowcy i/lub godzin) — COALESCE, tylko podane pola.</summary>
+        public async Task<bool> ZapiszKursPrzeniesionyAsync(long kursId, int? nowyKierowcaId, TimeSpan? wyj, TimeSpan? pow, string user)
+        {
+            try
+            {
+                await using var cn = new SqlConnection(ConnTransport);
+                await cn.OpenAsync();
+                using var cmd = new SqlCommand(
+                    @"UPDATE dbo.Kurs SET
+                        KierowcaID = COALESCE(@Kier, KierowcaID),
+                        GodzWyjazdu = COALESCE(@Wyj, GodzWyjazdu),
+                        GodzPowrotu = COALESCE(@Pow, GodzPowrotu),
+                        ZmienionoUTC = SYSUTCDATETIME(), Zmienil = @User
+                      WHERE KursID = @Id", cn) { CommandTimeout = 15 };
+                cmd.Parameters.AddWithValue("@Id", kursId);
+                cmd.Parameters.AddWithValue("@Kier", (object?)nowyKierowcaId ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@Wyj", (object?)wyj ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@Pow", (object?)pow ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@User", user ?? "system");
+                await cmd.ExecuteNonQueryAsync();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[TransportWPF] ZapiszKursPrzeniesiony: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>Centralne przypisanie wolnych zamówień do kursu (ładunki + spójny status). Reuse z timeline i listy.</summary>
+        public async Task DodajWolneDoKursuAsync(long kursId, IEnumerable<WolneZamowienieWpf> zamowienia, string user)
+        {
+            foreach (var z in zamowienia)
+                await Repo.DodajLadunekAsync(new Ladunek
+                {
+                    KursID = kursId,
+                    KodKlienta = z.KodKlienta,
+                    PojemnikiE2 = z.Pojemniki,
+                    TrybE2 = z.TrybE2
+                });
+
+            var lad = await Repo.PobierzLadunkiAsync(kursId);
+            var zamIds = lad.Where(l => l.KodKlienta != null && l.KodKlienta.StartsWith("ZAM_")
+                                        && int.TryParse(l.KodKlienta.Substring(4), out _))
+                            .Select(l => int.Parse(l.KodKlienta!.Substring(4)))
+                            .ToHashSet();
+            await SyncStatusyKursuAsync(kursId, zamIds, user);
+        }
+
+        /// <summary>Tworzy nowy kurs (preselekcja kierowcy + sugerowana godzina) i dokłada zamówienia. Zwraca KursID.</summary>
+        public async Task<long> UtworzKursIDodajAsync(DateTime data, int? kierowcaId, TimeSpan wyjazd,
+            IEnumerable<WolneZamowienieWpf> zamowienia, string user)
+        {
+            var kurs = new Kurs
+            {
+                DataKursu = data.Date,
+                KierowcaID = kierowcaId,
+                GodzWyjazdu = wyjazd,
+                GodzPowrotu = wyjazd.Add(TimeSpan.FromHours(8)),
+                Status = "Planowany",
+                PlanE2NaPalete = 36
+            };
+            var kursId = await Repo.DodajKursAsync(kurs, user);
+            await DodajWolneDoKursuAsync(kursId, zamowienia, user);
+            return kursId;
+        }
+
         private static async Task LogSafe(int zamId, string user, string operacja, string przed, string po)
         {
             try

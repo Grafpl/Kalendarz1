@@ -20,6 +20,7 @@ using System.Windows.Media;
 using Kalendarz1.Transport;
 using Kalendarz1.Transport.WPF.Models;
 using Kalendarz1.Transport.WPF.Services;
+using Kalendarz1.Transport.WPF.Views;
 
 namespace Kalendarz1.Transport.WPF
 {
@@ -44,6 +45,7 @@ namespace Kalendarz1.Transport.WPF
         private System.Windows.Threading.DispatcherTimer? _autoTimer;
         private DragGhostAdorner? _ghost;
         private System.Windows.Documents.AdornerLayer? _ghostLayer;
+        private TimelineDniaView? _timeline;   // lazy-init przy 1. przełączeniu na Timeline
 
         public PlanowanieTransportuWpfWindow()
         {
@@ -83,6 +85,58 @@ namespace Kalendarz1.Transport.WPF
         {
             await LoadKursyAsync();
             await OdswiezWolneAsync();
+            if (_timeline != null && PanelTimeline.Visibility == Visibility.Visible)
+            {
+                _timeline.UstawDate(DataKursu.SelectedDate ?? DateTime.Today);
+                await _timeline.RenderAsync();
+            }
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // PRZEŁĄCZNIK WIDOKU: Lista ↔ Timeline (Gantt)
+        // ════════════════════════════════════════════════════════════════════
+        private void WidokLista_Click(object s, RoutedEventArgs e)
+        {
+            TglWidokLista.IsChecked = true;
+            TglWidokTimeline.IsChecked = false;
+            PanelLista.Visibility = Visibility.Visible;
+            PanelTimeline.Visibility = Visibility.Collapsed;
+        }
+
+        private async void WidokTimeline_Click(object s, RoutedEventArgs e)
+        {
+            TglWidokLista.IsChecked = false;
+            TglWidokTimeline.IsChecked = true;
+            PanelLista.Visibility = Visibility.Collapsed;
+            PanelTimeline.Visibility = Visibility.Visible;
+
+            if (_timeline == null)   // lazy-init: nie wczytuj timeline'a przy starcie okna
+            {
+                _timeline = new TimelineDniaView { Svc = _svc, Uzytkownik = _user };
+                _timeline.KursOtwarty += OtworzEdytorKursu;
+                // po drop/utworzeniu kursu w timeline — odśwież listę kursów i pulę wolnych
+                // (sam timeline renderuje się u siebie, więc tu tylko dane listy)
+                _timeline.Zmieniono += async () => { await LoadKursyAsync(); await OdswiezWolneAsync(); };
+                PanelTimeline.Content = _timeline;
+            }
+            _timeline.UstawDate(DataKursu.SelectedDate ?? DateTime.Today);
+            await _timeline.RenderAsync();
+        }
+
+        // klik na pasek kursu w timeline → edytor (po OK pełne odświeżenie)
+        private void OtworzEdytorKursu(long kursId)
+        {
+            try
+            {
+                var data = DataKursu.SelectedDate ?? DateTime.Today;
+                var ed = new EdytorKursuWpfWindow(_svc, _user, data, kursId) { Owner = this };
+                if (ed.ShowDialog() == true) _ = LoadWszystkoAsync();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd otwierania edytora:\n{ex.Message}", "Błąd",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         // ════════════════════════════════════════════════════════════════════

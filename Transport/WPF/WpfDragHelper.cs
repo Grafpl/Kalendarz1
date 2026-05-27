@@ -47,6 +47,9 @@ namespace Kalendarz1.Transport.WPF
 
     internal static class WpfDragHelper
     {
+        /// <summary>Wspólny format DataObject dla przeciąganych wolnych zamówień (List&lt;WolneZamowienieWpf&gt;).</summary>
+        public const string FmtWolne = "ZPSP_wolne";
+
         /// <summary>Grupuje kolekcję po właściwości (nagłówki sekcji) + sortowanie. Dla WolneGrid → grupy per klient.</summary>
         public static void GrupujKolekcje(object source, string groupProp, params string[] sortProps)
         {
