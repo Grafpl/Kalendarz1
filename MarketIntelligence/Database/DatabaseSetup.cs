@@ -45,6 +45,12 @@ namespace Kalendarz1.MarketIntelligence.Database
                 // Create intel_DailySummary table
                 await ExecuteNonQueryAsync(conn, CreateDailySummaryTableSql);
 
+                // ── Faza A: Story Clustering + Entity Tracking ──
+                await ExecuteNonQueryAsync(conn, CreateStoriesTableSql);
+                await ExecuteNonQueryAsync(conn, CreateStoryArticlesTableSql);
+                await ExecuteNonQueryAsync(conn, CreateEntitiesTableSql);
+                await ExecuteNonQueryAsync(conn, CreateEntityMentionsTableSql);
+
                 // MIGRACJA: stare instalacje miały intel_Articles + intel_Prices z innym schematem
                 // (bez FetchedAt, PriceDate itd.). Dodaj brakujące kolumny zanim spróbujemy
                 // utworzyć indeksy na nich.
@@ -512,6 +518,79 @@ WHERE TABLE_NAME = @t AND COLUMN_NAME = @c", conn);
                 );
             END";
 
+        // ════════════════════════════════════════════════════════════════════════
+        // FAZA A — Story Clustering + Entity Tracking (2026-05-25)
+        // ════════════════════════════════════════════════════════════════════════
+
+        private const string CreateStoriesTableSql = @"
+            IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'intel_Stories')
+            BEGIN
+                CREATE TABLE intel_Stories (
+                    Id INT IDENTITY(1,1) PRIMARY KEY,
+                    Title NVARCHAR(500) NOT NULL,
+                    StoryType VARCHAR(50) NOT NULL,        -- hpai_outbreak|price_movement|competitor_action|regulation|export_event|customer_event|other
+                    FirstSeenAt DATETIME2 NOT NULL,
+                    LastUpdatedAt DATETIME2 NOT NULL,
+                    Status VARCHAR(20) NOT NULL,           -- developing|stable|closed
+                    Severity INT NOT NULL,                 -- 1-5
+                    PoultryRelevance INT NOT NULL,         -- 1-5
+                    BusinessImpact NVARCHAR(2000) NULL,
+                    EntitiesJson NVARCHAR(MAX) NULL,
+                    LastDigest NVARCHAR(4000) NULL,
+                    LastDigestAt DATETIME2 NULL,
+                    ArticleCount INT NOT NULL DEFAULT 0,
+                    INDEX IX_Stories_LastUpdated (LastUpdatedAt DESC),
+                    INDEX IX_Stories_Status (Status, Severity DESC)
+                );
+            END";
+
+        private const string CreateStoryArticlesTableSql = @"
+            IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'intel_StoryArticles')
+            BEGIN
+                CREATE TABLE intel_StoryArticles (
+                    StoryId INT NOT NULL,
+                    ArticleId INT NOT NULL,                -- BEZ FK do intel_Articles (retencja 30 dni je kasuje)
+                    AddedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+                    PRIMARY KEY (StoryId, ArticleId),
+                    FOREIGN KEY (StoryId) REFERENCES intel_Stories(Id) ON DELETE CASCADE
+                );
+            END";
+
+        private const string CreateEntitiesTableSql = @"
+            IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'intel_Entities')
+            BEGIN
+                CREATE TABLE intel_Entities (
+                    Id INT IDENTITY(1,1) PRIMARY KEY,
+                    Name NVARCHAR(200) NOT NULL,
+                    EntityType VARCHAR(50) NOT NULL,       -- competitor|customer|supplier|regulator|region|commodity|person|other
+                    Aliases NVARCHAR(500) NULL,            -- 'Cedrob;Cedrob S.A.;Grupa Cedrob'
+                    IsTracked BIT NOT NULL DEFAULT 1,
+                    CustomerCode NVARCHAR(50) NULL,        -- kod kontrahenta z HANDEL SSCommon.STContractors (jeśli klient)
+                    Notes NVARCHAR(2000) NULL,
+                    CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+                    INDEX IX_Entities_Type (EntityType, IsTracked),
+                    INDEX IX_Entities_Name (Name)
+                );
+            END";
+
+        private const string CreateEntityMentionsTableSql = @"
+            IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'intel_EntityMentions')
+            BEGIN
+                CREATE TABLE intel_EntityMentions (
+                    Id INT IDENTITY(1,1) PRIMARY KEY,
+                    EntityId INT NOT NULL,
+                    ArticleId INT NOT NULL,                -- BEZ FK do intel_Articles (retencja)
+                    StoryId INT NULL,
+                    Sentiment INT NOT NULL,                -- -5..+5
+                    Context NVARCHAR(1000) NULL,
+                    MentionedAt DATETIME2 NOT NULL,        -- = PublishDate artykułu
+                    CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+                    FOREIGN KEY (EntityId) REFERENCES intel_Entities(Id) ON DELETE CASCADE,
+                    INDEX IX_Mentions_EntityDate (EntityId, MentionedAt DESC),
+                    INDEX IX_Mentions_Article (ArticleId)
+                );
+            END";
+
         private const string CreateIndexesSql = @"
             -- Articles indexes
             IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_intel_Articles_FetchedAt')
@@ -602,10 +681,35 @@ WHERE TABLE_NAME = @t AND COLUMN_NAME = @c", conn);
 
                 using var cmd3 = new SqlCommand(sql, conn);
                 await cmd3.ExecuteNonQueryAsync();
+
+                // Faza A: sprzątanie sierot — StoryArticles/EntityMentions wskazujące na artykuły
+                // już usunięte przez retencję (brak FK do intel_Articles by uniknąć kaskady).
+                // Tabele mogą jeszcze nie istnieć na starych instalacjach → try/catch per zapytanie.
+                await TryExecAsync(conn,
+                    "DELETE sa FROM intel_StoryArticles sa WHERE NOT EXISTS (SELECT 1 FROM intel_Articles a WHERE a.Id = sa.ArticleId)");
+                await TryExecAsync(conn,
+                    "DELETE m FROM intel_EntityMentions m WHERE NOT EXISTS (SELECT 1 FROM intel_Articles a WHERE a.Id = m.ArticleId)");
+                // Wątki bez żadnego artykułu (po sprzątnięciu) → zamknij.
+                await TryExecAsync(conn,
+                    "UPDATE intel_Stories SET Status='closed' WHERE Status<>'closed' AND Id NOT IN (SELECT DISTINCT StoryId FROM intel_StoryArticles)");
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"[DatabaseSetup] Cleanup error: {ex.Message}");
+            }
+        }
+
+        /// <summary>Wykonaj zapytanie, ignorując błąd (np. tabela jeszcze nie istnieje).</summary>
+        private static async Task TryExecAsync(SqlConnection conn, string sql)
+        {
+            try
+            {
+                using var cmd = new SqlCommand(sql, conn) { CommandTimeout = 30 };
+                await cmd.ExecuteNonQueryAsync();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[DatabaseSetup] TryExec skipped: {ex.Message.Substring(0, System.Math.Min(80, ex.Message.Length))}");
             }
         }
 

@@ -61,6 +61,8 @@ namespace Kalendarz1.MarketIntelligence.Services
         public async Task InitializeDatabaseAsync()
         {
             await _databaseSetup.EnsureTablesExistAsync();
+            // Faza A: seed encji (tylko jeśli intel_Entities puste) — idempotentne.
+            await new SeedService(_connectionString).SeedEntitiesIfEmptyAsync();
         }
 
         /// <summary>
