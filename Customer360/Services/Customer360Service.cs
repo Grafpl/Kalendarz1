@@ -290,7 +290,7 @@ namespace Kalendarz1.Customer360.Services
         }
 
         // ── KPI klienta — agregat za ostatnie 12 miesięcy ──
-        public async Task<KlientKpi> GetKpiAsync(int klientId)
+        public async Task<KlientKpi> GetKpiAsync(int klientId, bool forceScoreRefresh = false)
         {
             var kpi = new KlientKpi();
             try
@@ -331,10 +331,13 @@ namespace Kalendarz1.Customer360.Services
                 kpi.ChurnRiskLevel = level;
                 kpi.ChurnRiskReason = reason;
 
-                // Scoring 4-składnikowy (parametry z configu, liczony z już-pobranego KPI + daty pierwszej faktury)
-                var cfg = await Customer360ScoringConfigStore.WczytajAsync();
-                var pierwszaFak = await PobierzPierwszaFakturaAsync(klientId);
-                kpi.Score = Customer360Scorer.BudujScore(kpi, pierwszaFak, cfg);
+                // Scoring 4-składnikowy — z cache (pamięć→DB, TTL 7 dni); liczenie tylko na cache-miss / force
+                kpi.Score = await Customer360ScoringService.PobierzLubObliczAsync(klientId, forceScoreRefresh, async () =>
+                {
+                    var cfg = await Customer360ScoringConfigStore.WczytajAsync();
+                    var pierwszaFak = await PobierzPierwszaFakturaAsync(klientId);
+                    return Customer360Scorer.BudujScore(kpi, pierwszaFak, cfg);
+                });
             }
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[C360 KPI] {ex.Message}"); }
             return kpi;

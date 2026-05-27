@@ -359,7 +359,8 @@ namespace Kalendarz1.Customer360
             else if (ctrl && e.Key == System.Windows.Input.Key.R && _selectedKlientId.HasValue)
             {
                 e.Handled = true;
-                await LoadKlientAsync(_selectedKlientId.Value);  // przelicza scoring (na razie = pełne odświeżenie)
+                Services.Customer360ScoringService.InvalidateScore(_selectedKlientId.Value);
+                await LoadKlientAsync(_selectedKlientId.Value, forceScore: true);  // wymuś przeliczenie scoringu
             }
         }
 
@@ -447,7 +448,7 @@ namespace Kalendarz1.Customer360
         }
 
         // ── Główne ładowanie ──
-        private async Task LoadKlientAsync(int klientId)
+        private async Task LoadKlientAsync(int klientId, bool forceScore = false)
         {
             try
             {
@@ -459,7 +460,7 @@ namespace Kalendarz1.Customer360
                 // Okres wg selektora (_okres): 0 = cała historia, inaczej N miesięcy wstecz
                 int OKRES = _okres;
                 var tHdr = _service.GetKlientHeaderAsync(klientId);
-                var tKpi = _service.GetKpiAsync(klientId);
+                var tKpi = _service.GetKpiAsync(klientId, forceScore);
                 var tHist = _service.GetOrderHistoryAsync(klientId, OKRES);
                 // Wykres obrotu miesięcznego = FAKTURY (pełna historia). Zamówienia mają pozycje dopiero od ~10/2025.
                 var tMonthly = _service.GetMonthlyObrotFakturyAsync(klientId, OKRES);
@@ -1124,7 +1125,8 @@ namespace Kalendarz1.Customer360
             if (dlg.ShowDialog() == true && _selectedKlientId.HasValue)
             {
                 Services.Customer360ScoringConfigStore.InvalidateCache();
-                await LoadKlientAsync(_selectedKlientId.Value);
+                await Services.Customer360ScoringService.WygasCalyCacheAsync();   // zmiana parametrów → wszystkie cache nieaktualne (pamięć+DB)
+                await LoadKlientAsync(_selectedKlientId.Value, forceScore: true);
             }
         }
 
