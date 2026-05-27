@@ -121,15 +121,26 @@
                 <ColumnDefinition x:Name="chatCol" Width="0"/>
             </Grid.ColumnDefinitions>
 
-            <!-- ═══ NEWS ═══ -->
+            <!-- ═══ NEWS / WĄTKI ═══ -->
             <Grid Grid.Column="0">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>   <!-- przełącznik Wątki/Newsy -->
+                    <RowDefinition Height="Auto"/>   <!-- filtry -->
+                    <RowDefinition Height="*"/>      <!-- lista -->
                 </Grid.RowDefinitions>
 
+                <!-- Przełącznik widoku -->
+                <Border Grid.Row="0" Background="#1F1A14" CornerRadius="6,6,0,0" BorderBrush="#2A2520" BorderThickness="1,1,1,0" Padding="12,8">
+                    <StackPanel Orientation="Horizontal">
+                        <ToggleButton x:Name="tglStories" Content="🧵 Wątki" IsChecked="True" Style="{StaticResource FilterButton}" Click="ViewMode_Click" Tag="stories"/>
+                        <ToggleButton x:Name="tglNews" Content="📰 Newsy" Margin="6,0,0,0" Style="{StaticResource FilterButton}" Click="ViewMode_Click" Tag="news"/>
+                        <TextBlock Text="{Binding StoryCount, StringFormat=🧵 {0} wątków}" FontSize="10" Foreground="#7A6F63" VerticalAlignment="Center" Margin="14,0,0,0"/>
+                        <TextBlock Text="{Binding TotalArticles, StringFormat=📰 {0} newsów}" FontSize="10" Foreground="#5A5248" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                    </StackPanel>
+                </Border>
+
                 <!-- Filtry (prostsze: 5 kategorii + szukaj) -->
-                <Border Grid.Row="0" Background="#15120D" CornerRadius="6,6,0,0" BorderBrush="#2A2520" BorderThickness="1,1,1,0" Padding="12,10">
+                <Border Grid.Row="1" Background="#15120D" BorderBrush="#2A2520" BorderThickness="1,1,1,0" Padding="12,10">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
@@ -162,8 +173,70 @@
                     </Grid>
                 </Border>
 
-                <!-- Lista newsów -->
-                <Border Grid.Row="1" Background="#15120D" CornerRadius="0,0,6,6" BorderBrush="#2A2520" BorderThickness="1,0,1,1">
+                <!-- ═══ PANEL WĄTKÓW (domyślny) ═══ -->
+                <Border x:Name="storiesPanel" Grid.Row="2" Background="#15120D" CornerRadius="0,0,6,6" BorderBrush="#2A2520" BorderThickness="1,0,1,1">
+                    <Grid>
+                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"
+                                    Visibility="{Binding StoryCount, Converter={StaticResource InverseBoolToVis}}">
+                            <TextBlock Text="🧵" FontSize="42" HorizontalAlignment="Center" Opacity="0.5"/>
+                            <TextBlock Text="Brak wątków" FontSize="16" Foreground="#7A6F63" HorizontalAlignment="Center" Margin="0,10,0,4"/>
+                            <TextBlock Text="Kliknij 🔄 Pobierz nowe — AI pogrupuje newsy w wątki" FontSize="12" Foreground="#5A5248" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                        <ScrollViewer Style="{StaticResource BriefingScrollViewer}" VerticalScrollBarVisibility="Auto" Padding="12">
+                            <ItemsControl x:Name="icStories" ItemsSource="{Binding Stories}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#1A1611" CornerRadius="5" BorderBrush="#2A2520" BorderThickness="1" Padding="0" Margin="0,0,0,10"
+                                                Tag="{Binding Id}" MouseLeftButtonUp="Story_Click" Cursor="Hand">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="4"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Border Grid.Column="0" CornerRadius="2,0,0,2">
+                                                    <Border.Style>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="Background" Value="#6DAF6D"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Severity}" Value="4"><Setter Property="Background" Value="#E0726B"/></DataTrigger>
+                                                                <DataTrigger Binding="{Binding Severity}" Value="5"><Setter Property="Background" Value="#E0726B"/></DataTrigger>
+                                                                <DataTrigger Binding="{Binding Severity}" Value="3"><Setter Property="Background" Value="#D4A035"/></DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Border.Style>
+                                                </Border>
+                                                <StackPanel Grid.Column="1" Margin="14,12,12,12">
+                                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                                                        <TextBlock Text="{Binding TypeEmoji}" FontSize="13" Margin="0,0,6,0"/>
+                                                        <TextBlock Text="{Binding SeverityIcon}" FontSize="11" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                                        <TextBlock Text="{Binding AgeDisplay}" FontSize="10" Foreground="#7A6F63" VerticalAlignment="Center"/>
+                                                        <TextBlock Text=" · " FontSize="10" Foreground="#5A5248" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="{Binding ArticleCount, StringFormat=📎 {0} art.}" FontSize="10" Foreground="#7A6F63" VerticalAlignment="Center"/>
+                                                        <TextBlock Text=" · " FontSize="10" Foreground="#5A5248" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="{Binding LastUpdatedDisplay}" FontSize="10" Foreground="#5A5248" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                    <TextBlock Text="{Binding Title}" Foreground="#F5EDE0" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,0,5"/>
+                                                    <TextBlock Text="{Binding DigestPreview}" Foreground="#D5CCC0" FontSize="12" TextWrapping="Wrap"/>
+                                                    <!-- Business impact -->
+                                                    <Border Background="#1C2017" CornerRadius="4" Padding="10,7" Margin="0,8,0,0" BorderBrush="#3A4A30" BorderThickness="0,0,0,2"
+                                                            Visibility="{Binding HasBusinessImpact, Converter={StaticResource BoolToVis}}">
+                                                        <StackPanel>
+                                                            <TextBlock Text="💼 CO TO ZNACZY DLA NAS" FontSize="9" FontWeight="Bold" Foreground="#8FB87A" Margin="0,0,0,4"/>
+                                                            <TextBlock Text="{Binding BusinessImpact}" Foreground="#E8F0E0" FontSize="11" TextWrapping="Wrap"/>
+                                                        </StackPanel>
+                                                    </Border>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+
+                <!-- ═══ PANEL NEWSÓW (przełączany) ═══ -->
+                <Border x:Name="newsPanel" Grid.Row="2" Background="#15120D" CornerRadius="0,0,6,6" BorderBrush="#2A2520" BorderThickness="1,0,1,1" Visibility="Collapsed">
                     <Grid>
                         <!-- Empty state -->
                         <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"

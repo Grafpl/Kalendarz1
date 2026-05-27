@@ -62,6 +62,9 @@ namespace Kalendarz1.MarketIntelligence.Views
             if (_viewModel?.LoadFromDatabaseCommand?.CanExecute(null) == true)
                 _viewModel.LoadFromDatabaseCommand.Execute(null);
 
+            // Faza A: załaduj wątki (intel_Stories)
+            if (_viewModel != null) _ = _viewModel.LoadStoriesAsync();
+
             StartAutoFetchTimer();
 
             // Jednorazowy seed preferencji Sergiusza (Farmer.pl + tematy) — w tle
@@ -285,6 +288,27 @@ namespace Kalendarz1.MarketIntelligence.Views
         {
             if (sender is FrameworkElement fe && fe.DataContext is BriefingArticle article)
                 _viewModel?.ToggleArticleCommand.Execute(article);
+        }
+
+        /// <summary>Przełącznik widoku Wątki ↔ Newsy.</summary>
+        private void ViewMode_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not ToggleButton btn || btn.Tag is not string mode) return;
+            bool stories = mode == "stories";
+            storiesPanel.Visibility = stories ? Visibility.Visible : Visibility.Collapsed;
+            newsPanel.Visibility = stories ? Visibility.Collapsed : Visibility.Visible;
+            tglStories.IsChecked = stories;
+            tglNews.IsChecked = !stories;
+        }
+
+        /// <summary>Klik w kartę wątku → okno szczegółów (digest + artykuły źródłowe).</summary>
+        private void Story_Click(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is FrameworkElement fe && fe.DataContext is Models.IntelStory story)
+            {
+                try { new StoryDetailWindow(story) { Owner = this }.Show(); }
+                catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[Story_Click] {ex.Message}"); }
+            }
         }
 
         private void Hyperlink_RequestNavigate(object sender, RequestNavigateEventArgs e)

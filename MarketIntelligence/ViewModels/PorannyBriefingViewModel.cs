@@ -44,6 +44,7 @@ namespace Kalendarz1.MarketIntelligence.ViewModels
         {
             AllArticles = new ObservableCollection<BriefingArticle>();
             FilteredArticles = new ObservableCollection<BriefingArticle>();
+            Stories = new ObservableCollection<Models.IntelStory>();
 
             ToggleArticleCommand = new RelayCommand<BriefingArticle>(ToggleArticle);
             OpenUrlCommand = new RelayCommand<string>(OpenUrl);
@@ -66,6 +67,30 @@ namespace Kalendarz1.MarketIntelligence.ViewModels
 
         public ObservableCollection<BriefingArticle> AllArticles { get; }
         public ObservableCollection<BriefingArticle> FilteredArticles { get; }
+        public ObservableCollection<Models.IntelStory> Stories { get; }
+
+        public int StoryCount => Stories.Count;
+
+        #endregion
+
+        #region Stories (Faza A)
+
+        /// <summary>Ładuje wątki z intel_Stories (ostatnie 7 dni, wg ważności).</summary>
+        public async System.Threading.Tasks.Task LoadStoriesAsync()
+        {
+            try
+            {
+                var svc = new Services.StoriesService();
+                var stories = await svc.GetStoriesAsync(daysBack: 7);
+                Stories.Clear();
+                foreach (var s in stories) Stories.Add(s);
+                OnPropertyChanged(nameof(StoryCount));
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[ViewModel] LoadStories error: {ex.Message}");
+            }
+        }
 
         #endregion
 
