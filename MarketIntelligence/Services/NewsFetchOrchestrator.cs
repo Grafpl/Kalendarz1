@@ -526,6 +526,28 @@ namespace Kalendarz1.MarketIntelligence.Services
                         () => LogFetchAsync(stats, ct),
                         timeoutSec: 15,
                         ct);
+
+                    // ── Faza A: Story Clustering + Entity Extraction (PO zapisie — artykuły mają już Id) ──
+                    if (options.UseAiAnalysis && _claudeAnalysisService.IsConfigured)
+                    {
+                        progress?.Report(new FetchProgress { Stage = "Wątki", Percent = 97, Message = "Konsoliduję artykuły w wątki..." });
+                        await RunWithTimeoutAsync(
+                            "Story Clustering (Haiku)",
+                            stageCt => new StoryClusteringService(_connectionString, _claudeAnalysisService)
+                                        .ClusterRecentArticlesAsync(result.StartTime, stageCt),
+                            timeoutSec: 90,
+                            fallback: (0, 0),
+                            ct);
+
+                        progress?.Report(new FetchProgress { Stage = "Encje", Percent = 98, Message = "Wykrywam wzmianki o podmiotach..." });
+                        await RunWithTimeoutAsync(
+                            "Entity Extraction (Haiku)",
+                            stageCt => new EntityExtractionService(_connectionString, _claudeAnalysisService)
+                                        .ExtractRecentMentionsAsync(result.StartTime, stageCt),
+                            timeoutSec: 120,
+                            fallback: 0,
+                            ct);
+                    }
                 }
 
                 // Track w UsageTracker — koszty dnia w Diagnostyce

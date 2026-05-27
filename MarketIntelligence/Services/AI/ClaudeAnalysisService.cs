@@ -801,6 +801,35 @@ Odpowiedz w formacie JSON:
             }
         }
 
+        /// <summary>
+        /// Generyczne wywołanie completion (Faza A — clustering / entity extraction).
+        /// useHaiku=true → tani Haiku 4.5; false → Sonnet 4.6. Zwraca surowy tekst odpowiedzi
+        /// (zwykle JSON) albo null przy błędzie/braku konfiguracji. Caching system promptu opcjonalny.
+        /// Retry/backoff + early-abort credit obsłużone wewnątrz CallClaudeAsync.
+        /// </summary>
+        public async Task<string> CompleteAsync(
+            string systemPrompt, string userPrompt, bool useHaiku, int maxTokens,
+            CancellationToken ct = default, bool cacheSystem = true)
+        {
+            if (!IsConfigured) return null;
+            try
+            {
+                return await CallClaudeAsync(
+                    systemPrompt: systemPrompt,
+                    userPrompt: userPrompt,
+                    model: useHaiku ? HaikuModel : SonnetModel,
+                    maxTokens: maxTokens,
+                    ct: ct,
+                    cacheSystem: cacheSystem,
+                    temperature: 0.1);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Claude] CompleteAsync error: {ex.Message}");
+                return null;
+            }
+        }
+
         #endregion
 
         #region API Call
