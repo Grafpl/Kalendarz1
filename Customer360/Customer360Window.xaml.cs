@@ -43,6 +43,7 @@ namespace Kalendarz1.Customer360
         private List<MonthlyStats> _monthlyData = new();   // do drill-downu z wykresu obrotu (LiveCharts)
         private bool _chartMonthlyWired;
         private Services.Customer360Snapshot? _snapshot;   // migawka do eksportu PDF
+        private bool _analizaTabLoaded;                    // lazy-load grupy Analiza (historia/transport/asortyment)
 
         private static readonly string[] MiesSkrot = { "sty", "lut", "mar", "kwi", "maj", "cze", "lip", "sie", "wrz", "paź", "lis", "gru" };
         private static readonly string[] MiesPelny = { "Styczeń", "Luty", "Marzec", "Kwiecień", "Maj", "Czerwiec", "Lipiec", "Sierpień", "Wrzesień", "Październik", "Listopad", "Grudzień" };
@@ -155,9 +156,24 @@ namespace Kalendarz1.Customer360
             return null;
         }
 
-        private void MainTabs_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private async void MainTabs_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (e.Source is TabControl) FiltrujAktywnyGrid();
+            // Lazy-load grupy po zmianie GŁÓWNEJ zakładki (nie wewnętrznej)
+            if (ReferenceEquals(e.Source, MainTabs))
+                await ZaladujGrupeAsync(MainTabs.SelectedIndex);
+        }
+
+        // Lazy-load danych grupy (na razie tylko Analiza = index 3)
+        private async Task ZaladujGrupeAsync(int topIndex)
+        {
+            if (!_selectedKlientId.HasValue) return;
+            if (topIndex == 3 && !_analizaTabLoaded)
+            {
+                _analizaTabLoaded = true;
+                try { await LoadAnalizaTabAsync(_selectedKlientId.Value); }
+                catch (Exception ex) { _analizaTabLoaded = false; System.Diagnostics.Debug.WriteLine("[C360 AnalizaTab] " + ex.Message); }
+            }
         }
 
         private void TxtSzukajGrid_TextChanged(object sender, TextChangedEventArgs e) => FiltrujAktywnyGrid();
@@ -540,8 +556,13 @@ namespace Kalendarz1.Customer360
                 try { RenderAlerty(kpi, werSumma, scoring); } catch (Exception ex) { System.Diagnostics.Debug.WriteLine("[C360 RenderAlerty] " + ex.Message); }
                 try { RenderScoringDetal(scoring); } catch (Exception ex) { System.Diagnostics.Debug.WriteLine("[C360 RenderScoringDetal] " + ex.Message); }
 
-                // Zakładki z Kartoteki (edycja, kontakty, historia, transport, asortyment) — po dashboardzie
-                try { await LoadKartotekaTabsAsync(klientId, hdr); } catch (Exception ex) { System.Diagnostics.Debug.WriteLine("[C360 KartotekaTabs] " + ex.Message); }
+                // Klient (Dane+Kontakty) — eager (lekkie, potrzebne do szybkich akcji telefon/email)
+                try { await LoadKlientTabAsync(klientId, hdr); } catch (Exception ex) { System.Diagnostics.Debug.WriteLine("[C360 KlientTab] " + ex.Message); }
+
+                // Analiza (Historia+Transport+Asortyment) — LAZY, ładowana przy wejściu w zakładkę Analiza
+                _analizaTabLoaded = false;
+                if (MainTabs.SelectedIndex == 3)   // jeśli nawigujemy będąc na Analizie — załaduj od razu
+                    await ZaladujGrupeAsync(3);
 
                 // Zdjęcia towarów — best-effort, na końcu
                 try
@@ -912,9 +933,12 @@ namespace Kalendarz1.Customer360
         }
 
         // ════════════════════════════════════════════════════════════════════
-        // ZAKŁADKI Z KARTOTEKI: Dane/edycja, Kontakty, Historia, Transport, Asortyment
+        // ZAKŁADKI Z KARTOTEKI (lazy-load):
+        //   Klient  = Dane/edycja + Kontakty   → LoadKlientTabAsync
+        //   Analiza = Historia + Transport + Asortyment → LoadAnalizaTabAsync
         // ════════════════════════════════════════════════════════════════════
-        private async Task LoadKartotekaTabsAsync(int klientId, KlientHeader hdr)
+
+        private async Task LoadKlientTabAsync(int klientId, KlientHeader hdr)
         {
             // Dane podstawowe (read-only) z headera
             try
@@ -953,7 +977,10 @@ namespace Kalendarz1.Customer360
                 EmptyKontakty.Visibility = kontakty.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
             }
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine("[C360 kontakty] " + ex.Message); }
+        }
 
+        private async Task LoadAnalizaTabAsync(int klientId)
+        {
             // Historia zmian
             try
             {
