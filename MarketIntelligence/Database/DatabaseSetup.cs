@@ -51,6 +51,9 @@ namespace Kalendarz1.MarketIntelligence.Database
                 await ExecuteNonQueryAsync(conn, CreateEntitiesTableSql);
                 await ExecuteNonQueryAsync(conn, CreateEntityMentionsTableSql);
 
+                // ── Faza B: Trendy w czasie ──
+                await ExecuteNonQueryAsync(conn, CreateTrendDataPointsTableSql);
+
                 // MIGRACJA: stare instalacje miały intel_Articles + intel_Prices z innym schematem
                 // (bez FetchedAt, PriceDate itd.). Dodaj brakujące kolumny zanim spróbujemy
                 // utworzyć indeksy na nich.
@@ -588,6 +591,29 @@ WHERE TABLE_NAME = @t AND COLUMN_NAME = @c", conn);
                     FOREIGN KEY (EntityId) REFERENCES intel_Entities(Id) ON DELETE CASCADE,
                     INDEX IX_Mentions_EntityDate (EntityId, MentionedAt DESC),
                     INDEX IX_Mentions_Article (ArticleId)
+                );
+            END";
+
+        // ════════════════════════════════════════════════════════════════════════
+        // FAZA B — Trendy w czasie (2026-05-31)
+        // ════════════════════════════════════════════════════════════════════════
+
+        private const string CreateTrendDataPointsTableSql = @"
+            IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'intel_TrendDataPoints')
+            BEGIN
+                CREATE TABLE intel_TrendDataPoints (
+                    Id INT IDENTITY(1,1) PRIMARY KEY,
+                    MetricKey VARCHAR(100) NOT NULL,       -- price.zywiec_brojler_kg | hpai.poland.outbreaks_week | mentions.cedrob.week | fx.eur_pln
+                    Value DECIMAL(18,4) NOT NULL,
+                    Unit NVARCHAR(20) NULL,                -- PLN/kg | count | ratio
+                    SnapshotDate DATE NOT NULL,
+                    SourceArticleId INT NULL,              -- gdy AIExtracted=1
+                    SourceUrl NVARCHAR(1000) NULL,
+                    AIExtracted BIT NOT NULL,              -- 1=AI z artykułu, 0=kalkulowane lokalnie
+                    Confidence INT NOT NULL DEFAULT 3,     -- 1-5
+                    Notes NVARCHAR(500) NULL,
+                    CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+                    INDEX IX_Trend_MetricDate (MetricKey, SnapshotDate DESC)
                 );
             END";
 

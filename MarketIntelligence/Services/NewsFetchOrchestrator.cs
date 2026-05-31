@@ -557,6 +557,16 @@ namespace Kalendarz1.MarketIntelligence.Services
                             timeoutSec: 300,
                             fallback: 0,
                             ct);
+
+                        // Faza B: trendy kalkulowane (bez AI) — mentions/week, hpai/week → intel_TrendDataPoints
+                        progress?.Report(new FetchProgress { Stage = "Trendy", Percent = 100, Message = "Liczę trendy..." });
+                        await RunWithTimeoutAsync(
+                            "Trend Analysis (SQL)",
+                            stageCt => new TrendAnalysisService(_connectionString)
+                                        .ComputeDailyTrendsAsync(DateTime.Today, stageCt),
+                            timeoutSec: 30,
+                            fallback: 0,
+                            ct);
                     }
                 }
 
