@@ -439,8 +439,14 @@
                                 <ctrl:AvatarControl Grid.Column="0" UserId="{Binding HandlowiecId}" DisplayName="{Binding Handlowiec}"
                                                     Diameter="30" Margin="0,0,9,0" VerticalAlignment="Center"/>
                                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding KlientNazwa}" FontWeight="SemiBold" Foreground="#26323c"
-                                               FontSize="12.5" TextTrimming="CharacterEllipsis"/>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{Binding KlientNazwa}" FontWeight="SemiBold" Foreground="#26323c"
+                                                   FontSize="12.5" TextTrimming="CharacterEllipsis" MaxWidth="180"/>
+                                        <Border Background="#E0F2F1" BorderBrush="#00838F" BorderThickness="1" CornerRadius="8" Padding="5,0" Margin="6,0,0,0"
+                                                Visibility="{Binding CzestaParaVis}" ToolTip="Klient często jeździ razem z odbiorcami w tym kursie (90 dni)" VerticalAlignment="Center">
+                                            <TextBlock Text="🤝 razem" FontSize="9" Foreground="#00695C" FontWeight="SemiBold"/>
+                                        </Border>
+                                    </StackPanel>
                                     <TextBlock Text="{Binding WolnePodtytul}" Foreground="#8893a0" FontSize="10.5" TextTrimming="CharacterEllipsis"/>
                                 </StackPanel>
                                 <Border Grid.Column="2" Width="1" Background="#eceef2" Margin="9,4"/>
@@ -450,6 +456,9 @@
                                         <TextBlock Text="{Binding OdbiorDisplay}" Foreground="#9aa0b0" FontSize="9.5" Margin="6,0,0,0" VerticalAlignment="Center"/>
                                     </StackPanel>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,3,0,0">
+                                        <Border Background="#E0F2F1" CornerRadius="3" Padding="5,1" Margin="0,0,4,0">
+                                            <TextBlock Text="{Binding KgDisplay}" FontSize="10.5" Foreground="#00695C" FontWeight="Bold"/>
+                                        </Border>
                                         <Border Background="#ECEFF1" CornerRadius="3" Padding="5,1" Margin="0,0,4,0">
                                             <TextBlock Text="{Binding PojemnikiDisplay}" FontSize="10" Foreground="#546E7A" FontWeight="SemiBold"/>
                                         </Border>

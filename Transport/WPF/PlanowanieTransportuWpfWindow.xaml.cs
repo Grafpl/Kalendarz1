@@ -359,6 +359,20 @@ namespace Kalendarz1.Transport.WPF
 
         private void BtnDetalEdytor_Click(object sender, RoutedEventArgs e) => OtworzEdytor(false);
 
+        private void BtnDetalHistoria_Click(object sender, RoutedEventArgs e)
+        {
+            if (KursyGrid?.SelectedItem is not KursRow row) return;
+            try
+            {
+                var win = new Windows.HistoriaZmianKursuWindow(_svc, row.KursID, row.Trasa ?? "") { Owner = this };
+                win.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
         private void AktualizujDetalNaglowek(KursRow row)
         {
             if (_detalZmiany.Count == 0)
@@ -457,7 +471,18 @@ namespace Kalendarz1.Transport.WPF
         // ════════════════════════════════════════════════════════════════════
         private void WolneGrid_DoubleClick(object s, MouseButtonEventArgs e)
         {
-            if (WolneGrid.SelectedItem is WolneZamowienieWpf z) _ = DodajDoKursuAsync(new List<WolneZamowienieWpf> { z });
+            // Dwuklik w wolne → NOWY KURS z tym odbiorcą gotowy do uzupełnienia kierowcy/pojazdu/godzin.
+            if (WolneGrid.SelectedItem is not WolneZamowienieWpf z) return;
+            try
+            {
+                var data = DataKursu.SelectedDate ?? DateTime.Today;
+                var ed = new EdytorKursuWpfWindow(_svc, _user, data, kursId: null, preselect: new[] { z }) { Owner = this };
+                if (ed.ShowDialog() == true) _ = LoadWszystkoAsync();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void BtnDodajDoKursu_Click(object s, RoutedEventArgs e)
@@ -776,6 +801,9 @@ namespace Kalendarz1.Transport.WPF
             public bool BrakPojazdu => string.IsNullOrEmpty(PojazdRejestracja);
             public string KierowcaDisplay => BrakKierowcy ? "⚠ BRAK" : KierowcaNazwa!;
             public string PojazdDisplay => BrakPojazdu ? "⚠ BRAK" : PojazdRejestracja!;
+            // indywidualny kolor kierowcy/pojazdu (niezależnie) — z ID przez Knuth-hash
+            public Brush KolorKierowcy => BrakKierowcy ? Brushes.Transparent : Helpers.KolorZId.BrushDlaInt(Source.KierowcaID);
+            public Brush KolorPojazdu => BrakPojazdu ? Brushes.Transparent : Helpers.KolorZId.BrushDlaInt(Source.PojazdID);
             public Brush KierowcaFg => BrakKierowcy ? new SolidColorBrush(Color.FromRgb(0xE6, 0x7E, 0x22)) : new SolidColorBrush(Color.FromRgb(0x37, 0x47, 0x4F));
             public Brush PojazdFg => BrakPojazdu ? new SolidColorBrush(Color.FromRgb(0xE6, 0x7E, 0x22)) : new SolidColorBrush(Color.FromRgb(0x37, 0x47, 0x4F));
             public FontWeight KierowcaWaga => BrakKierowcy ? FontWeights.Bold : FontWeights.Normal;
@@ -883,6 +911,10 @@ namespace Kalendarz1.Transport.WPF
 
             // zgrupowane metryki + mini-pasek wypełnienia + tooltip wiersza (audyt: kto utworzył)
             public string LadunekLinia1 => $"{Pal} pal · {Poj} poj";
+            // metryki + ładowność pojazdu w kontekście — żeby od razu widzieć ile zostało miejsca
+            public string LadunekIPojazdLinia => Source.PaletyPojazdu > 0
+                ? $"{Pal}/{Source.PaletyPojazdu} pal · {Poj} poj"
+                : $"{Pal} pal · {Poj} poj";
             public string KgDisplay2 => Kg > 0 ? $"{Kg:N0} kg" : "—";
             public double WypBarWidth => Source.PaletyPojazdu <= 0 ? 0 : Math.Min(100.0, (double)Source.ProcNominal) / 100.0 * 78.0;
             public string? WierszTooltip

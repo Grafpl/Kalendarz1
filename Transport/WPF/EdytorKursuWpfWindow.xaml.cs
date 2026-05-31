@@ -32,6 +32,7 @@ namespace Kalendarz1.Transport.WPF
         private readonly string _user;
         private long? _kursId;            // null = nowy
         private Kurs? _kurs;
+        private readonly List<WolneZamowienieWpf>? _preselect;   // przy "nowy kurs z odbiorcą"
 
         private readonly ObservableCollection<LadunekWierszWpf> _ladunki = new();
         private readonly ObservableCollection<WolneZamowienieWpf> _wolne = new();
@@ -51,12 +52,14 @@ namespace Kalendarz1.Transport.WPF
         private DragGhostAdorner? _ghost;
         private System.Windows.Documents.AdornerLayer? _ghostLayer;
 
-        public EdytorKursuWpfWindow(TransportWpfService svc, string user, DateTime data, long? kursId = null)
+        public EdytorKursuWpfWindow(TransportWpfService svc, string user, DateTime data, long? kursId = null,
+            IEnumerable<WolneZamowienieWpf>? preselect = null)
         {
             InitializeComponent();
             _svc = svc;
             _user = user ?? "system";
             _kursId = kursId;
+            _preselect = preselect?.ToList();
 
             LadunkiGrid.ItemsSource = _ladunki;
             WolneGrid.ItemsSource = _wolne;
@@ -118,6 +121,11 @@ namespace Kalendarz1.Transport.WPF
                 }
 
                 await OdswiezWolneAsync();
+                // preselect z głównego okna (np. dwuklik na wolne → nowy kurs z tym odbiorcą)
+                if (_preselect != null && !_kursId.HasValue)
+                {
+                    foreach (var z in _preselect) DodajWolne(z);
+                }
                 PrzeliczPakowanie();
                 await OdswiezZmianyAsync();
             }
@@ -299,12 +307,35 @@ namespace Kalendarz1.Transport.WPF
                 var wKursie = _ladunki.Where(l => l.ZamowienieId.HasValue)
                                       .Select(l => l.ZamowienieId!.Value).ToHashSet();
                 _wolneAll = _wolneAll.Where(z => !wKursie.Contains(z.ZamowienieId)).ToList();
+                await OdswiezPodpowiedziParAsync();
                 FiltrujWolne();
             }
             catch (Exception ex)
             {
                 StatusText.Text = $"Błąd wolnych zamówień: {ex.Message}";
             }
+        }
+
+        /// <summary>Wyznacza zbiór KlientId, którzy w ostatnich 90 dniach jeździli razem z klientami aktualnego kursu.
+        /// Każdemu wolnemu zamówieniu należącemu do takiego klienta ustawia CzestaPara=true.</summary>
+        private async Task OdswiezPodpowiedziParAsync()
+        {
+            try
+            {
+                var zamIds = _ladunki.Where(l => l.ZamowienieId.HasValue)
+                                     .Select(l => l.ZamowienieId!.Value).Distinct().ToList();
+                if (zamIds.Count == 0)
+                {
+                    foreach (var w in _wolneAll) w.CzestaPara = false;
+                    return;
+                }
+                var nazwy = await _svc.ResolveNazwyAsync(zamIds);
+                var aktualne = nazwy.Values.Select(z => z.KlientId).Where(i => i > 0).Distinct().ToList();
+                if (aktualne.Count == 0) { foreach (var w in _wolneAll) w.CzestaPara = false; return; }
+                var partnerzy = await _svc.PobierzKlientowParaAsync(aktualne);
+                foreach (var w in _wolneAll) w.CzestaPara = partnerzy.Contains(w.KlientId);
+            }
+            catch { /* podpowiedzi to nice-to-have, nie blokuj UI */ }
         }
 
         private void FiltrujWolne()

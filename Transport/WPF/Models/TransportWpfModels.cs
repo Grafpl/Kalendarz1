@@ -37,7 +37,13 @@ namespace Kalendarz1.Transport.WPF.Models
         public string GodzAwizacji => DataPrzyjazdu.ToString("HH:mm");
         public string KodKlienta => $"ZAM_{ZamowienieId}";
         public string PojemnikiDisplay => $"{Pojemniki} poj.";
+        public string KgDisplay => IloscKg > 0 ? $"{IloscKg:N0} kg" : "—";
         public string HandlowiecDisplay => string.IsNullOrWhiteSpace(Handlowiec) ? "—" : Handlowiec;
+
+        // Highlight „klient jeździ razem z aktualnym kursem" — ustawiane przez edytor
+        public bool CzestaPara { get; set; }
+        public System.Windows.Visibility CzestaParaVis => CzestaPara
+            ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
 
         /// <summary>Klucz grupowania = dzień odbioru (awizacja), jak w starym panelu.</summary>
         public DateTime DzienOdbioru => DataPrzyjazdu.Date;

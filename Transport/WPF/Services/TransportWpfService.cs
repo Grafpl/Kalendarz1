@@ -71,7 +71,8 @@ namespace Kalendarz1.Transport.WPF.Services
                         ISNULL(zm.LiczbaPojemnikow, 0) AS LiczbaPojemnikow,
                         ISNULL(zm.TrybE2, 0)           AS TrybE2,
                         ISNULL(zm.TransportStatus, 'Oczekuje') AS TransportStatus,
-                        zm.DataUboju
+                        zm.DataUboju,
+                        ISNULL((SELECT SUM(t.Ilosc) FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = zm.Id), 0) AS IloscKg
                     FROM dbo.ZamowieniaMieso zm
                     WHERE CAST({kol} AS DATE) = @Data
                       AND ISNULL(zm.Status, 'Nowe') NOT IN ('Anulowane')
@@ -95,7 +96,8 @@ namespace Kalendarz1.Transport.WPF.Services
                         Pojemniki = r.GetInt32(5),
                         TrybE2 = r.GetBoolean(6),
                         TransportStatus = r.GetString(7),
-                        DataUboju = r.IsDBNull(8) ? null : r.GetDateTime(8)
+                        DataUboju = r.IsDBNull(8) ? null : r.GetDateTime(8),
+                        IloscKg = r.GetDecimal(9)
                     });
                 }
             }
@@ -280,6 +282,49 @@ namespace Kalendarz1.Transport.WPF.Services
         {
             _pendingMap = null;
             _pendingCacheUtc = DateTime.MinValue;
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // PODPOWIEDZI „klienci jeżdżący razem" (co-occurrence)
+        // Dla każdego klienta w bieżącym kursie znajdź innych klientów którzy
+        // pojawiali się z nim w tych samych kursach w ostatnich 90 dniach.
+        // TransportPL i LibraNet są na tym samym instansie (.109) → cross-DB
+        // JOIN działa bezpośrednio.
+        // ════════════════════════════════════════════════════════════════════
+        public async Task<HashSet<int>> PobierzKlientowParaAsync(IEnumerable<int> klientIdy, int dni = 90)
+        {
+            var input = klientIdy.Where(i => i > 0).Distinct().ToList();
+            if (input.Count == 0) return new HashSet<int>();
+            try
+            {
+                await using var cn = new SqlConnection(ConnTransport);
+                await cn.OpenAsync();
+                var lista = string.Join(",", input);
+                using var cmd = new SqlCommand($@"
+                    WITH KursyBazowe AS (
+                        SELECT DISTINCT k.KursID
+                        FROM dbo.Kurs k
+                        JOIN dbo.Ladunek l ON l.KursID = k.KursID
+                        JOIN LibraNet.dbo.ZamowieniaMieso zm ON zm.Id = TRY_CAST(SUBSTRING(l.KodKlienta, 5, 20) AS INT)
+                        WHERE k.DataKursu >= DATEADD(DAY, -@D, CAST(GETDATE() AS DATE))
+                          AND l.KodKlienta LIKE 'ZAM[_]%'
+                          AND zm.KlientId IN ({lista})
+                    )
+                    SELECT DISTINCT zm.KlientId
+                    FROM KursyBazowe kb
+                    JOIN dbo.Ladunek l ON l.KursID = kb.KursID
+                    JOIN LibraNet.dbo.ZamowieniaMieso zm ON zm.Id = TRY_CAST(SUBSTRING(l.KodKlienta, 5, 20) AS INT)
+                    WHERE l.KodKlienta LIKE 'ZAM[_]%'
+                      AND zm.KlientId NOT IN ({lista})", cn);
+                cmd.Parameters.AddWithValue("@D", dni);
+                cmd.CommandTimeout = 30;
+                var wynik = new HashSet<int>();
+                using var r = await cmd.ExecuteReaderAsync();
+                while (await r.ReadAsync())
+                    if (!r.IsDBNull(0)) wynik.Add(r.GetInt32(0));
+                return wynik;
+            }
+            catch { return new HashSet<int>(); }
         }
 
         /// <summary>Pełna lista oczekujących zmian dla konkretnego kursu (przez Ladunek.KodKlienta='ZAM_xxx').</summary>
