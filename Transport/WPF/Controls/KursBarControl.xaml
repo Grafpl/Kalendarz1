@@ -18,6 +18,7 @@
                     <TextBlock x:Name="TtMetryki" Foreground="#5B6776"/>
                     <TextBlock x:Name="TtKonflikt" Foreground="#C62828" FontWeight="SemiBold" Visibility="Collapsed"/>
                     <TextBlock x:Name="TtUtw" Foreground="#8A95A3" FontSize="11" Margin="0,3,0,0"/>
+                    <TextBlock x:Name="TtZmieniony" Foreground="#8A95A3" FontSize="11" Visibility="Collapsed"/>
                 </StackPanel>
             </ToolTip>
         </Border.ToolTip>

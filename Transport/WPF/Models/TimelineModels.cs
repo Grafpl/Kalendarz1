@@ -26,6 +26,9 @@ namespace Kalendarz1.Transport.WPF.Models
         public int Poj { get; set; }
         public string UtworzylName { get; set; } = "";
         public string UtworzylData { get; set; } = "";
+        public string ZmienilName { get; set; } = "";
+        public string ZmienilData { get; set; } = "";
+        public bool BylZmieniany => !string.IsNullOrEmpty(ZmienilName) && !string.IsNullOrEmpty(ZmienilData);
         public bool Konflikt { get; set; }       // ustawiane przy detekcji nakładania
         public bool BrakGodzin { get; set; }     // godziny były null → fallback
 

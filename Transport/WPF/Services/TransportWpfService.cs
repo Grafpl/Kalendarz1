@@ -387,6 +387,8 @@ namespace Kalendarz1.Transport.WPF.Services
                     Poj = k.SumaE2,
                     UtworzylName = k.Utworzyl ?? "",
                     UtworzylData = k.UtworzonoUTC.ToLocalTime().ToString("dd.MM HH:mm"),
+                    ZmienilName = k.Zmienil ?? "",
+                    ZmienilData = k.ZmienionoUTC.HasValue ? k.ZmienionoUTC.Value.ToLocalTime().ToString("dd.MM HH:mm") : "",
                     BrakGodzin = !k.GodzWyjazdu.HasValue
                 });
             }

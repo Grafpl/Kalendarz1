@@ -27,6 +27,15 @@ namespace Kalendarz1.Transport.WPF.Controls
                         $"{(string.IsNullOrEmpty(k.PojazdRej) ? "— brak pojazdu" : k.PojazdRej)}";
             TtMetryki.Text = $"{k.LiczbaLadunkow} ład. · {k.Poj} poj · {k.WypProc}% wypełnienia";
             TtUtw.Text = string.IsNullOrEmpty(k.UtworzylName) ? "" : $"Utworzył: {k.UtworzylName} · {k.UtworzylData}";
+            if (k.BylZmieniany)
+            {
+                TtZmieniony.Text = $"✎ Zmienił: {k.ZmienilName} · {k.ZmienilData}";
+                TtZmieniony.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                TtZmieniony.Visibility = Visibility.Collapsed;
+            }
 
             var (bg, fg, accent) = Kolory(k.Stan);
             Pasek.Background = new SolidColorBrush(bg);

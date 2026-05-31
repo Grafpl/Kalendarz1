@@ -259,6 +259,23 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Aktywność" Width="170" CanUserSort="False">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" ToolTip="{Binding WierszTooltip}">
+                                            <ctrl:AvatarControl UserId="{Binding UtworzylId}" DisplayName="{Binding UtworzylName}"
+                                                                Diameter="26" Margin="0,0,7,0" VerticalAlignment="Center"/>
+                                            <StackPanel VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding UtworzylDisplay}" FontSize="11" Foreground="#37474F"
+                                                           TextTrimming="CharacterEllipsis" MaxWidth="126"/>
+                                                <TextBlock Text="{Binding ZmienilDisplay}" Visibility="{Binding ZmienilVis}"
+                                                           FontSize="10" Foreground="{StaticResource InkMuted}"
+                                                           TextTrimming="CharacterEllipsis" MaxWidth="126" Margin="0,1,0,0"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
                         </DataGrid.Columns>
                     </DataGrid>
                 </Border>

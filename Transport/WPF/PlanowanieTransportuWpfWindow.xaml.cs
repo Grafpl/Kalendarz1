@@ -296,7 +296,10 @@ namespace Kalendarz1.Transport.WPF
                 var info = allZam.Count > 0
                     ? await _svc.ResolveNazwyAsync(allZam.Distinct())
                     : new Dictionary<int, ZamowienieNazwaInfo>();
-                var userNames = await _svc.PobierzNazwyUzytkownikowAsync(_rowsAll.Select(r => r.UtworzylId));
+                var allUserIds = _rowsAll.Select(r => r.UtworzylId)
+                    .Concat(_rowsAll.Where(r => !string.IsNullOrEmpty(r.ZmienilId)).Select(r => r.ZmienilId))
+                    .Where(s => !string.IsNullOrEmpty(s));
+                var userNames = await _svc.PobierzNazwyUzytkownikowAsync(allUserIds);
                 await _svc.EnsureHandlowiecMapAsync();
 
                 foreach (var row in _rowsAll)
@@ -319,6 +322,8 @@ namespace Kalendarz1.Transport.WPF
                     }
                     row.Kg = kg;
                     row.UtworzylName = userNames.TryGetValue(row.UtworzylId, out var n) ? n : row.UtworzylId;
+                    row.ZmienilName = !string.IsNullOrEmpty(row.ZmienilId) && userNames.TryGetValue(row.ZmienilId, out var nz)
+                        ? nz : row.ZmienilId;
                     row.UstawHandlowcow(handl, _svc.HandlowiecUserId);
                 }
             }
@@ -657,6 +662,32 @@ namespace Kalendarz1.Transport.WPF
             public string UtworzylId => Source.Utworzyl ?? "";
             public string UtworzylName { get; set; } = "";
             public string UtworzylDataDisplay => string.IsNullOrEmpty(Source.Utworzyl) ? "" : Source.UtworzonoUTC.ToLocalTime().ToString("dd.MM HH:mm");
+            public string UtworzylDisplay
+            {
+                get
+                {
+                    var nm = string.IsNullOrEmpty(UtworzylName) ? UtworzylId : UtworzylName;
+                    if (string.IsNullOrEmpty(nm) && string.IsNullOrEmpty(UtworzylDataDisplay)) return "—";
+                    return string.IsNullOrEmpty(UtworzylDataDisplay) ? nm : $"{nm} · {UtworzylDataDisplay}";
+                }
+            }
+
+            // ── ZMIENIŁ (ostatnia modyfikacja) ──
+            public string ZmienilId => Source.Zmienil ?? "";
+            public string ZmienilName { get; set; } = "";
+            public string ZmienilDataDisplay => Source.ZmienionoUTC.HasValue
+                ? Source.ZmienionoUTC.Value.ToLocalTime().ToString("dd.MM HH:mm") : "";
+            public bool BylZmieniany => !string.IsNullOrEmpty(Source.Zmienil) && Source.ZmienionoUTC.HasValue;
+            public Visibility ZmienilVis => BylZmieniany ? Visibility.Visible : Visibility.Collapsed;
+            public string ZmienilDisplay
+            {
+                get
+                {
+                    if (!BylZmieniany) return "";
+                    var nm = string.IsNullOrEmpty(ZmienilName) ? ZmienilId : ZmienilName;
+                    return $"✎ {nm} · {ZmienilDataDisplay}";
+                }
+            }
 
             public List<HandlowiecAvatar> HandlowcyAvatars { get; private set; } = new();
             public string HandlowcyText { get; private set; } = "";
@@ -730,9 +761,20 @@ namespace Kalendarz1.Transport.WPF
             {
                 get
                 {
-                    var t = string.IsNullOrEmpty(UtworzylName) ? "" : $"Utworzył: {UtworzylName}";
-                    if (!string.IsNullOrEmpty(UtworzylDataDisplay)) t += (t.Length > 0 ? " · " : "") + UtworzylDataDisplay;
-                    return string.IsNullOrEmpty(t) ? null : t;
+                    var lines = new List<string>();
+                    var twNm = string.IsNullOrEmpty(UtworzylName) ? UtworzylId : UtworzylName;
+                    if (!string.IsNullOrEmpty(twNm) || !string.IsNullOrEmpty(UtworzylDataDisplay))
+                    {
+                        var t = string.IsNullOrEmpty(twNm) ? "" : $"Utworzył: {twNm}";
+                        if (!string.IsNullOrEmpty(UtworzylDataDisplay)) t += (t.Length > 0 ? " · " : "") + UtworzylDataDisplay;
+                        if (!string.IsNullOrEmpty(t)) lines.Add(t);
+                    }
+                    if (BylZmieniany)
+                    {
+                        var zmNm = string.IsNullOrEmpty(ZmienilName) ? ZmienilId : ZmienilName;
+                        lines.Add($"Zmienił: {zmNm} · {ZmienilDataDisplay}");
+                    }
+                    return lines.Count == 0 ? null : string.Join("\n", lines);
                 }
             }
 
