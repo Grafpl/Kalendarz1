@@ -45,6 +45,7 @@ namespace Kalendarz1.MarketIntelligence.ViewModels
             AllArticles = new ObservableCollection<BriefingArticle>();
             FilteredArticles = new ObservableCollection<BriefingArticle>();
             Stories = new ObservableCollection<Models.IntelStory>();
+            Sparklines = new ObservableCollection<Models.TrendSeries>();
 
             ToggleArticleCommand = new RelayCommand<BriefingArticle>(ToggleArticle);
             OpenUrlCommand = new RelayCommand<string>(OpenUrl);
@@ -68,12 +69,38 @@ namespace Kalendarz1.MarketIntelligence.ViewModels
         public ObservableCollection<BriefingArticle> AllArticles { get; }
         public ObservableCollection<BriefingArticle> FilteredArticles { get; }
         public ObservableCollection<Models.IntelStory> Stories { get; }
+        public ObservableCollection<Models.TrendSeries> Sparklines { get; }
 
         public int StoryCount => Stories.Count;
 
         #endregion
 
         #region Stories (Faza A)
+
+        /// <summary>Faza B: ładuje 4 główne sparkline'y do nagłówka (ostatnie 30 dni).</summary>
+        public async System.Threading.Tasks.Task LoadSparklinesAsync()
+        {
+            try
+            {
+                var svc = new Services.TrendsService();
+                // Stała kolejność (do nagłówka): cena żywca, HPAI/tydz, wzmianki Cedrob, EUR/PLN.
+                var seriesSpecs = new[]
+                {
+                    ("price.zywiec_brojler_kg", "Cena żywca", "zł/kg"),
+                    ("hpai.poland.outbreaks_week", "HPAI / tydzień", ""),
+                    ("mentions.cedrob.week", "Wzmianki Cedrob", ""),
+                    ("fx.eur_pln", "EUR/PLN", "")
+                };
+                Sparklines.Clear();
+                foreach (var (key, label, unit) in seriesSpecs)
+                {
+                    var s = await svc.GetSeriesAsync(key, label, unit, daysBack: 30);
+                    // Pokaż wszystkie 4 (nawet puste — empty state na karcie)
+                    Sparklines.Add(s);
+                }
+            }
+            catch (Exception ex) { Debug.WriteLine($"[ViewModel] LoadSparklines error: {ex.Message}"); }
+        }
 
         /// <summary>Ładuje wątki z intel_Stories (ostatnie 7 dni, wg ważności).</summary>
         public async System.Threading.Tasks.Task LoadStoriesAsync()

@@ -85,6 +85,59 @@
                     </StackPanel>
                 </StackPanel>
 
+                <!-- Faza B: sparkline'y trendów (4 karty: cena żywca, HPAI/tydz, wzmianki Cedrob, EUR/PLN) -->
+                <ItemsControl Grid.Column="1" ItemsSource="{Binding Sparklines}" VerticalAlignment="Center" Margin="20,0">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Width="135" Height="52" Margin="0,4,8,4" Background="#1A1611" CornerRadius="4"
+                                    BorderBrush="#2A2520" BorderThickness="1" Padding="7,3" ToolTip="{Binding Label}">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    <Grid Grid.Row="0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="{Binding Label}" FontSize="9" Foreground="#7A6F63" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding DeltaDisplay}" FontSize="9" FontWeight="SemiBold">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Foreground" Value="#7A6F63"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsUp}" Value="True"><Setter Property="Foreground" Value="#6DAF6D"/></DataTrigger>
+                                                        <DataTrigger Binding="{Binding IsDown}" Value="True"><Setter Property="Foreground" Value="#E0726B"/></DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </Grid>
+                                    <StackPanel Grid.Row="1" Orientation="Horizontal">
+                                        <TextBlock Text="{Binding LatestDisplay}" FontFamily="Consolas" FontSize="14" FontWeight="Bold" Foreground="#F5EDE0"/>
+                                        <TextBlock Text="{Binding Unit}" FontSize="9" Foreground="#7A6F63" Margin="3,0,0,0" VerticalAlignment="Bottom"/>
+                                    </StackPanel>
+                                    <Grid Grid.Row="2">
+                                        <!-- Pusta seria: kreska -->
+                                        <TextBlock Text="—" FontSize="9" Foreground="#3F3830" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                   Visibility="{Binding HasData, Converter={StaticResource InverseBoolToVis}}"/>
+                                        <Canvas Width="100" Height="20" Visibility="{Binding HasData, Converter={StaticResource BoolToVis}}">
+                                            <Polyline Points="{Binding PolylinePoints}" Stroke="#C9A96E" StrokeThickness="1.3" StrokeLineJoin="Round"/>
+                                        </Canvas>
+                                    </Grid>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
                 <!-- Toolbar: minimal -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                     <Button x:Name="btnRefresh" Style="{StaticResource ToolbarBtnPrimary}"

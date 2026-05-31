@@ -65,6 +65,9 @@ namespace Kalendarz1.MarketIntelligence.Views
             // Faza A: załaduj wątki (intel_Stories)
             if (_viewModel != null) _ = _viewModel.LoadStoriesAsync();
 
+            // Faza B: załaduj sparkline'y trendów (intel_TrendDataPoints)
+            if (_viewModel != null) _ = _viewModel.LoadSparklinesAsync();
+
             StartAutoFetchTimer();
 
             // Jednorazowy seed preferencji Sergiusza (Farmer.pl + tematy) — w tle
