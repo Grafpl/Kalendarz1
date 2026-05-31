@@ -29,8 +29,10 @@ namespace Kalendarz1.Customer360.Services
                 await cn.OpenAsync();
 
                 // Jedno zbiorcze zapytanie: agregacja per khid.
-                // Skanujemy DK z ostatnich 24 mies (ograniczenie kosztu), sprzedaż = FVS/FVR/FVZ.
-                // Saldo = walbrutto - rozliczona (z PN), termin = ISNULL(PN.Termin, plattermin).
+                // LEFT JOIN HM.DK + okno 60M: zlapac rowniez klientow uspionych (z dlugiem ze starszych faktur).
+                // HAVING COUNT(DK.id) > 0: bez zadnej faktury w 60M klient nie pojawia sie w pulpicie.
+                // PN.Termin = MIN: najwczesniejszy termin rat — MAX chowal pierwotne przeterminowanie po reschedule.
+                // OUTER APPLY MAX: deterministyczny handlowiec (TOP 1 bez ORDER BY zwracal losowy wiersz przy >1 wpisach).
                 const string sql = @"
                     SELECT C.Id,
                            ISNULL(NULLIF(LTRIM(RTRIM(C.Shortcut)),''), ISNULL(C.Name,'')) AS Nazwa,
@@ -44,20 +46,21 @@ namespace Kalendarz1.Customer360.Services
                                            THEN DATEDIFF(DAY, ISNULL(PN.Termin, DK.plattermin), GETDATE()) ELSE 0 END), 0) AS MaxDni,
                            MAX(DK.data) AS OstatniaFaktura
                     FROM [HANDEL].[SSCommon].[STContractors] C
-                    INNER JOIN [HANDEL].[HM].[DK] DK ON DK.khid = C.Id
+                    LEFT JOIN [HANDEL].[HM].[DK] DK ON DK.khid = C.Id
                          AND DK.anulowany = 0
                          AND DK.typ_dk IN ('FVS','FVR','FVZ')
-                         AND DK.data >= DATEADD(MONTH, -24, GETDATE())
+                         AND DK.data >= DATEADD(MONTH, -60, GETDATE())
                     LEFT JOIN (
-                        SELECT dkid, SUM(ISNULL(kwotarozl,0)) AS Rozl, MAX(Termin) AS Termin
+                        SELECT dkid, SUM(ISNULL(kwotarozl,0)) AS Rozl, MIN(Termin) AS Termin
                         FROM [HANDEL].[HM].[PN] GROUP BY dkid
                     ) PN ON PN.dkid = DK.id
                     OUTER APPLY (
-                        SELECT TOP 1 ISNULL(CDim_Handlowiec_Val,'') AS Handlowiec
+                        SELECT MAX(ISNULL(CDim_Handlowiec_Val,'')) AS Handlowiec
                         FROM [HANDEL].[SSCommon].[ContractorClassification]
                         WHERE ElementId = C.Id
                     ) WYM
-                    GROUP BY C.Id, C.Shortcut, C.Name, C.LimitAmount, WYM.Handlowiec";
+                    GROUP BY C.Id, C.Shortcut, C.Name, C.LimitAmount, WYM.Handlowiec
+                    HAVING COUNT(DK.id) > 0";
                 await using var cmd = new SqlCommand(sql, cn) { CommandTimeout = 120 };
                 await using var rd = await cmd.ExecuteReaderAsync();
                 while (await rd.ReadAsync())
