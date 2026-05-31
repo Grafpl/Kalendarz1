@@ -267,8 +267,9 @@ namespace Kalendarz1.Transport.WPF.Services
             try
             {
                 var lista = await TransportZmianyService.GetPendingAsync();
+                // Wspólny filtr z ZmianaCard.TypyDoUkrycia — żeby licznik 🔔 zgadzał się z liczbą widocznych kart.
                 var mapa = lista
-                    .Where(z => z.TypZmiany != "ZmianaStatusu")
+                    .Where(z => !Models.ZmianaCard.TypyDoUkrycia.Contains(z.TypZmiany))
                     .GroupBy(z => z.ZamowienieId)
                     .ToDictionary(g => g.Key, g => g.Select(z => z.TypZmiany).ToHashSet());
                 _pendingMap = mapa;

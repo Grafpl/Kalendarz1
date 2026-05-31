@@ -41,10 +41,12 @@ namespace Kalendarz1.Transport.WPF.Models
             _najstarszaData = lista[0].DataZgloszenia;
         }
 
-        /// <summary>Typy zmian filtrowane (szum):
+        /// <summary>Typy zmian filtrowane (szum) — JEDNO źródło prawdy dla licznika 🔔 i listy kart:
         /// — "ZmianaStatusu" (wewnętrzny — przy przypisywaniu kursów),
-        /// — "ZmianaUwag" (zmiana notatek — niska wartość dla logistyka).</summary>
-        private static readonly HashSet<string> TypyDoUkrycia = new() { "ZmianaStatusu", "ZmianaUwag" };
+        /// — "ZmianaUwag" (zmiana notatek — niska wartość dla logistyka).
+        /// PUBLIC — żeby serwis (mapa pendingów) i UI (karty) używały tego samego filtra.
+        /// Inaczej: badge mówi "1", panel pokazuje pustkę → click bez efektu.</summary>
+        public static readonly HashSet<string> TypyDoUkrycia = new() { "ZmianaStatusu", "ZmianaUwag" };
 
         /// <summary>Grupuje surowe zmiany po (ZamowienieId, TypZmiany) → karty z deltą najstarsza→najnowsza.</summary>
         public static List<ZmianaCard> ScalListe(IEnumerable<TransportZmiana> raw)

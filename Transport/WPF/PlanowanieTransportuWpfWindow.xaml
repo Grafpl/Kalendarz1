@@ -335,7 +335,7 @@
                                     <GroupStyle>
                                         <GroupStyle.Panel>
                                             <ItemsPanelTemplate>
-                                                <UniformGrid Columns="3"/>
+                                                <UniformGrid Columns="2"/>
                                             </ItemsPanelTemplate>
                                         </GroupStyle.Panel>
                                         <GroupStyle.HeaderTemplate>
@@ -375,7 +375,7 @@
                                                     </Grid.RowDefinitions>
                                                     <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
                                                         <TextBlock Text="{Binding TypLabel}" Foreground="{Binding AkcentBrush}"
-                                                                   FontWeight="SemiBold" FontSize="11.5" TextTrimming="CharacterEllipsis" MaxWidth="135"/>
+                                                                   FontWeight="SemiBold" FontSize="11.5" TextTrimming="CharacterEllipsis" MaxWidth="220"/>
                                                         <Border Background="{Binding AkcentSoft}" CornerRadius="8" Padding="5,0" Margin="5,0,0,0"
                                                                 Visibility="{Binding ScaloneVis}" ToolTip="{Binding ScaloneTooltip}" VerticalAlignment="Center">
                                                             <TextBlock Text="{Binding ScaloneText}" Foreground="{Binding AkcentBrush}" FontSize="9.5" FontWeight="Bold"/>
@@ -383,11 +383,11 @@
                                                     </StackPanel>
                                                     <StackPanel Grid.Row="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,3,0,0">
                                                         <Border Background="#F4F6F8" CornerRadius="3" Padding="4,0">
-                                                            <TextBlock Text="{Binding Stare}" Foreground="#5b6776" FontSize="10" FontFamily="Consolas" TextTrimming="CharacterEllipsis" MaxWidth="58"/>
+                                                            <TextBlock Text="{Binding Stare}" Foreground="#5b6776" FontSize="10" FontFamily="Consolas" TextTrimming="CharacterEllipsis" MaxWidth="100"/>
                                                         </Border>
                                                         <TextBlock Text="→" Foreground="#9aa0b0" Margin="3,0" VerticalAlignment="Center" FontSize="10.5"/>
                                                         <Border Background="#E0F2F1" CornerRadius="3" Padding="4,0">
-                                                            <TextBlock Text="{Binding Nowa}" Foreground="#00695C" FontSize="10" FontFamily="Consolas" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxWidth="58"/>
+                                                            <TextBlock Text="{Binding Nowa}" Foreground="#00695C" FontSize="10" FontFamily="Consolas" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxWidth="100"/>
                                                         </Border>
                                                         <TextBlock Text="{Binding DeltaText}" Foreground="{Binding DeltaBrush}"
                                                                    FontWeight="Bold" FontSize="10.5" Margin="5,0,0,0" VerticalAlignment="Center"/>
