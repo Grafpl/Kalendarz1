@@ -46,12 +46,14 @@ namespace Kalendarz1.Transport.WPF
         private DragGhostAdorner? _ghost;
         private System.Windows.Documents.AdornerLayer? _ghostLayer;
         private TimelineDniaView? _timeline;   // lazy-init przy 1. przełączeniu na Timeline
+        private readonly ObservableCollection<ZmianaCard> _detalZmiany = new();
 
         public PlanowanieTransportuWpfWindow()
         {
             InitializeComponent();
             try { WindowIconHelper.SetIcon(this); } catch { }
             WolneGrid.ItemsSource = _wolne;
+            DetalListaZmian.ItemsSource = _detalZmiany;
             WpfDragHelper.GrupujKolekcje(_wolne, nameof(WolneZamowienieWpf.DzienOdbioru),
                 nameof(WolneZamowienieWpf.DzienOdbioru), nameof(WolneZamowienieWpf.DataPrzyjazdu));
             WolneGrid.SelectionChanged += (_, _) => UpdateDodajButton();
@@ -254,10 +256,113 @@ namespace Kalendarz1.Transport.WPF
         // ════════════════════════════════════════════════════════════════════
         // SELEKCJA kursu + podgląd ładunków
         // ════════════════════════════════════════════════════════════════════
-        private void KursyGrid_SelectionChanged(object s, SelectionChangedEventArgs e)
+        private async void KursyGrid_SelectionChanged(object s, SelectionChangedEventArgs e)
         {
             UpdateButtons();
             UpdateDodajButton();
+            await OdswiezDetalZmianAsync();
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // PANEL DETALI ZMIAN dla zaznaczonego kursu (auto-show)
+        // ════════════════════════════════════════════════════════════════════
+        private async Task OdswiezDetalZmianAsync()
+        {
+            _detalZmiany.Clear();
+            if (KursyGrid?.SelectedItem is not KursRow row || !row.MaZmiany)
+            {
+                PanelZmianyDlaKursu.Visibility = Visibility.Collapsed;
+                return;
+            }
+            try
+            {
+                var lista = await _svc.PobierzZmianyDlaKursuAsync(row.KursID);
+                foreach (var z in lista) _detalZmiany.Add(new ZmianaCard(z));
+
+                if (_detalZmiany.Count == 0)
+                {
+                    PanelZmianyDlaKursu.Visibility = Visibility.Collapsed;
+                    return;
+                }
+                var trasa = string.IsNullOrEmpty(row.Trasa) ? "—" : row.Trasa;
+                DetalNaglowek.Text = $"{_detalZmiany.Count} {(_detalZmiany.Count == 1 ? "zmiana" : "zmian")} dla kursu #{row.KursID} ({trasa}) — Co było → co jest";
+                BtnDetalAkceptujText.Text = $"Akceptuj wszystkie ({_detalZmiany.Count})";
+                PanelZmianyDlaKursu.Visibility = Visibility.Visible;
+            }
+            catch { PanelZmianyDlaKursu.Visibility = Visibility.Collapsed; }
+        }
+
+        private async void BtnDetalAkceptujJedno_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not Button b || b.Tag is not ZmianaCard card) return;
+            if (KursyGrid?.SelectedItem is not KursRow row) return;
+            b.IsEnabled = false;
+            try
+            {
+                await _svc.AkceptujZmianeIPrzeliczAsync(card.Id, row.KursID, card.ZamowienieId, card.Source.TypZmiany, _user);
+                _detalZmiany.Remove(card);
+                row.LiczbaZmianOczekujacych = Math.Max(0, row.LiczbaZmianOczekujacych - 1);
+                KursyGrid.Items.Refresh();
+                AktualizujDetalNaglowek(row);
+                StatusText.Text = $"✓ Zaakceptowano: {card.KlientNazwa} · {card.TypLabel}";
+            }
+            catch (Exception ex) { MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error); b.IsEnabled = true; }
+        }
+
+        private async void BtnDetalOdrzucJedno_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not Button b || b.Tag is not ZmianaCard card) return;
+            if (KursyGrid?.SelectedItem is not KursRow row) return;
+            var kontekst = $"{card.TypLabel} · {card.KlientNazwa}   {card.Stare} → {card.Nowa}";
+            var dlg = new Dialogs.OdrzucPowodDialog(kontekst) { Owner = this };
+            if (dlg.ShowDialog() != true) return;
+            b.IsEnabled = false;
+            try
+            {
+                await _svc.OdrzucZmianeAsync(card.Id, _user, dlg.Powod);
+                _detalZmiany.Remove(card);
+                row.LiczbaZmianOczekujacych = Math.Max(0, row.LiczbaZmianOczekujacych - 1);
+                KursyGrid.Items.Refresh();
+                AktualizujDetalNaglowek(row);
+                StatusText.Text = $"✗ Odrzucono: {card.KlientNazwa} · {card.TypLabel}";
+            }
+            catch (Exception ex) { MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error); b.IsEnabled = true; }
+        }
+
+        private async void BtnDetalAkceptujWszystkie_Click(object sender, RoutedEventArgs e)
+        {
+            if (KursyGrid?.SelectedItem is not KursRow row || _detalZmiany.Count == 0) return;
+            if (MessageBox.Show(
+                $"Zaakceptować wszystkie {_detalZmiany.Count} zmian dla kursu #{row.KursID}?\nPojemniki ładunków zostaną zsynchronizowane z aktualnymi wartościami zamówień.",
+                "Potwierdź akceptację", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+            BtnDetalAkceptujWszystkie.IsEnabled = false;
+            try
+            {
+                await _svc.AkceptujWszystkieDlaKursuAsync(row.KursID, _user);
+                _detalZmiany.Clear();
+                row.LiczbaZmianOczekujacych = 0;
+                long keep = row.KursID;
+                await LoadKursyAsync();      // przelicz wypełnienie/ładunki po sync PojemnikiE2
+                var again = _rows.FirstOrDefault(r => r.KursID == keep);
+                if (again != null) { KursyGrid.SelectedItem = again; KursyGrid.ScrollIntoView(again); }
+                StatusText.Text = $"Zaakceptowano wszystkie zmiany dla kursu #{keep}.";
+            }
+            catch (Exception ex) { MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error); }
+            finally { BtnDetalAkceptujWszystkie.IsEnabled = true; }
+        }
+
+        private void BtnDetalEdytor_Click(object sender, RoutedEventArgs e) => OtworzEdytor(false);
+
+        private void AktualizujDetalNaglowek(KursRow row)
+        {
+            if (_detalZmiany.Count == 0)
+            {
+                PanelZmianyDlaKursu.Visibility = Visibility.Collapsed;
+                return;
+            }
+            var trasa = string.IsNullOrEmpty(row.Trasa) ? "—" : row.Trasa;
+            DetalNaglowek.Text = $"{_detalZmiany.Count} {(_detalZmiany.Count == 1 ? "zmiana" : "zmian")} dla kursu #{row.KursID} ({trasa}) — Co było → co jest";
+            BtnDetalAkceptujText.Text = $"Akceptuj wszystkie ({_detalZmiany.Count})";
         }
 
         private void UpdateButtons()
