@@ -302,25 +302,33 @@ namespace Kalendarz1.Transport.WPF
                 var userNames = await _svc.PobierzNazwyUzytkownikowAsync(allUserIds);
                 await _svc.EnsureHandlowiecMapAsync();
 
+                // pending zmiany (TransportZmiany) — jedno query globalne, lokalne mapowanie
+                var pendingZamIds = await _svc.PobierzOczekujaceZamIdAsync();
+
                 foreach (var row in _rowsAll)
                 {
                     decimal kg = 0;
                     var handl = new List<string>();
+                    int pending = 0;
                     if (ladunki.TryGetValue(row.KursID, out var lad))
                     {
                         foreach (var l in lad)
                         {
                             if (l.KodKlienta != null && l.KodKlienta.StartsWith("ZAM_")
-                                && int.TryParse(l.KodKlienta.Substring(4), out var id)
-                                && info.TryGetValue(id, out var zi))
+                                && int.TryParse(l.KodKlienta.Substring(4), out var id))
                             {
-                                kg += zi.IloscKg;
-                                if (!string.IsNullOrWhiteSpace(zi.Handlowiec) && !handl.Contains(zi.Handlowiec))
-                                    handl.Add(zi.Handlowiec);
+                                if (info.TryGetValue(id, out var zi))
+                                {
+                                    kg += zi.IloscKg;
+                                    if (!string.IsNullOrWhiteSpace(zi.Handlowiec) && !handl.Contains(zi.Handlowiec))
+                                        handl.Add(zi.Handlowiec);
+                                }
+                                if (pendingZamIds.Contains(id)) pending++;
                             }
                         }
                     }
                     row.Kg = kg;
+                    row.LiczbaZmianOczekujacych = pending;
                     row.UtworzylName = userNames.TryGetValue(row.UtworzylId, out var n) ? n : row.UtworzylId;
                     row.ZmienilName = !string.IsNullOrEmpty(row.ZmienilId) && userNames.TryGetValue(row.ZmienilId, out var nz)
                         ? nz : row.ZmienilId;
@@ -633,6 +641,15 @@ namespace Kalendarz1.Transport.WPF
             public Kurs Source { get; }
             public int LiczbaLadunkow { get; }
             public KursRow(Kurs k, int liczbaLadunkow) { Source = k; LiczbaLadunkow = liczbaLadunkow; }
+
+            // ── ZMIANY OCZEKUJĄCE (TransportZmiany) ──
+            public int LiczbaZmianOczekujacych { get; set; }
+            public bool MaZmiany => LiczbaZmianOczekujacych > 0;
+            public Visibility ZmianyVis => MaZmiany ? Visibility.Visible : Visibility.Collapsed;
+            public string ZmianyText => MaZmiany ? LiczbaZmianOczekujacych.ToString() : "";
+            public string? ZmianyTooltip => MaZmiany
+                ? $"🔔 {LiczbaZmianOczekujacych} {(LiczbaZmianOczekujacych == 1 ? "zmiana" : "zmian")} do akceptacji — otwórz kurs"
+                : null;
 
             public long KursID => Source.KursID;
             public string? Trasa => Source.Trasa;

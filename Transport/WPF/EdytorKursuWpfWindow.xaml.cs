@@ -37,6 +37,7 @@ namespace Kalendarz1.Transport.WPF
         private readonly ObservableCollection<WolneZamowienieWpf> _wolne = new();
         private List<WolneZamowienieWpf> _wolneAll = new();
         private readonly HashSet<long> _ladunkiDoUsuniecia = new();
+        private readonly ObservableCollection<ZmianaCard> _zmiany = new();
 
         private List<Kierowca> _kierowcy = new();
         private List<Pojazd> _pojazdy = new();
@@ -59,6 +60,7 @@ namespace Kalendarz1.Transport.WPF
 
             LadunkiGrid.ItemsSource = _ladunki;
             WolneGrid.ItemsSource = _wolne;
+            ListaZmian.ItemsSource = _zmiany;
             WpfDragHelper.GrupujKolekcje(_wolne, nameof(WolneZamowienieWpf.DzienOdbioru),
                 nameof(WolneZamowienieWpf.DzienOdbioru), nameof(WolneZamowienieWpf.DataPrzyjazdu));
             DataKursu.SelectedDate = data.Date;
@@ -114,6 +116,7 @@ namespace Kalendarz1.Transport.WPF
 
                 await OdswiezWolneAsync();
                 PrzeliczPakowanie();
+                await OdswiezZmianyAsync();
             }
             catch (Exception ex)
             {
@@ -121,6 +124,109 @@ namespace Kalendarz1.Transport.WPF
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally { _ladowanie = false; }
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // ZMIANY ZAMÓWIEŃ (TransportZmiany) — pasek alertu + delta-cards
+        // ════════════════════════════════════════════════════════════════════
+        private async Task OdswiezZmianyAsync()
+        {
+            _zmiany.Clear();
+            if (!_kursId.HasValue) { AlertZmianyBar.Visibility = Visibility.Collapsed; PanelZmiany.Visibility = Visibility.Collapsed; return; }
+            try
+            {
+                var lista = await _svc.PobierzZmianyDlaKursuAsync(_kursId.Value);
+                foreach (var z in lista) _zmiany.Add(new ZmianaCard(z));
+
+                if (_zmiany.Count == 0)
+                {
+                    AlertZmianyBar.Visibility = Visibility.Collapsed;
+                    PanelZmiany.Visibility = Visibility.Collapsed;
+                }
+                else
+                {
+                    AlertText.Text = $"{_zmiany.Count} {(_zmiany.Count == 1 ? "zmiana zamówień czeka" : "zmian zamówień czeka")} na akceptację";
+                    BtnAkceptujWszystkieText.Text = $"Akceptuj wszystkie ({_zmiany.Count})";
+                    AlertZmianyBar.Visibility = Visibility.Visible;
+                }
+            }
+            catch (Exception ex)
+            {
+                StatusText.Text = $"Błąd ładowania zmian: {ex.Message}";
+            }
+        }
+
+        private void BtnPokazZmiany_Click(object sender, RoutedEventArgs e)
+        {
+            bool widoczny = PanelZmiany.Visibility == Visibility.Visible;
+            PanelZmiany.Visibility = widoczny ? Visibility.Collapsed : Visibility.Visible;
+            BtnPokazZmiany.Content = widoczny ? "Pokaż ▼" : "Ukryj ▲";
+        }
+
+        private async void BtnAkceptujJedno_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not Button b || b.Tag is not int id) return;
+            b.IsEnabled = false;
+            try
+            {
+                await _svc.AkceptujZmianeAsync(id, _user);
+                var kart = _zmiany.FirstOrDefault(c => c.Id == id);
+                if (kart != null) _zmiany.Remove(kart);
+                AktualizujLicznikZmian();
+                StatusText.Text = $"Zaakceptowano zmianę #{id}";
+            }
+            catch (Exception ex) { MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error); b.IsEnabled = true; }
+        }
+
+        private async void BtnOdrzucJedno_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not Button b || b.Tag is not int id) return;
+            var dlg = new TekstPromptDialog("Odrzucenie zmiany", "Powód odrzucenia (opcjonalnie):", "") { Owner = this };
+            if (dlg.ShowDialog() != true) return;
+            b.IsEnabled = false;
+            try
+            {
+                await _svc.OdrzucZmianeAsync(id, _user, string.IsNullOrWhiteSpace(dlg.Wartosc) ? null : dlg.Wartosc.Trim());
+                var kart = _zmiany.FirstOrDefault(c => c.Id == id);
+                if (kart != null) _zmiany.Remove(kart);
+                AktualizujLicznikZmian();
+                StatusText.Text = $"Odrzucono zmianę #{id}";
+            }
+            catch (Exception ex) { MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error); b.IsEnabled = true; }
+        }
+
+        private async void BtnAkceptujWszystkie_Click(object sender, RoutedEventArgs e)
+        {
+            if (!_kursId.HasValue || _zmiany.Count == 0) return;
+            if (MessageBox.Show($"Zaakceptować wszystkie {_zmiany.Count} zmian dla tego kursu?\nPojemniki ładunków zostaną zsynchronizowane z aktualnymi wartościami zamówień.",
+                "Potwierdź akceptację", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+            BtnAkceptujWszystkie.IsEnabled = false;
+            try
+            {
+                await _svc.AkceptujWszystkieDlaKursuAsync(_kursId.Value, _user);
+                _zmiany.Clear();
+                AlertZmianyBar.Visibility = Visibility.Collapsed;
+                PanelZmiany.Visibility = Visibility.Collapsed;
+                await LoadLadunkiAsync();      // sync PojemnikiE2 mógł zmienić wiersze
+                PrzeliczPakowanie();
+                StatusText.Text = "Zaakceptowano wszystkie zmiany dla kursu.";
+            }
+            catch (Exception ex) { MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error); }
+            finally { BtnAkceptujWszystkie.IsEnabled = true; }
+        }
+
+        private void AktualizujLicznikZmian()
+        {
+            if (_zmiany.Count == 0)
+            {
+                AlertZmianyBar.Visibility = Visibility.Collapsed;
+                PanelZmiany.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                AlertText.Text = $"{_zmiany.Count} {(_zmiany.Count == 1 ? "zmiana zamówień czeka" : "zmian zamówień czeka")} na akceptację";
+                BtnAkceptujWszystkieText.Text = $"Akceptuj wszystkie ({_zmiany.Count})";
+            }
         }
 
         private void UpdateInfoBar()

@@ -7,6 +7,10 @@
             <Border x:Name="BadgeWypelnienie" DockPanel.Dock="Right" CornerRadius="8" Padding="5,1" Margin="6,0,0,0" VerticalAlignment="Center">
                 <TextBlock x:Name="TxtBadge" FontSize="10" FontWeight="SemiBold" Foreground="White"/>
             </Border>
+            <Border x:Name="BadgeZmiany" DockPanel.Dock="Left" Background="#F59E0B" CornerRadius="9" Padding="5,1" Margin="0,0,5,0"
+                    VerticalAlignment="Center" Visibility="Collapsed" MinWidth="22">
+                <TextBlock x:Name="TxtBadgeZmiany" FontSize="10" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+            </Border>
             <TextBlock x:Name="TxtTrasa" FontSize="11" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
         </DockPanel>
         <Border.ToolTip>

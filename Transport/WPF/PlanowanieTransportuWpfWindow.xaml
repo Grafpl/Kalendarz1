@@ -192,6 +192,17 @@
                             </ContextMenu>
                         </DataGrid.ContextMenu>
                         <DataGrid.Columns>
+                            <DataGridTemplateColumn Header="🔔" Width="44" CanUserSort="False">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Border Visibility="{Binding ZmianyVis}" Background="#F59E0B" CornerRadius="9" Padding="6,1"
+                                                HorizontalAlignment="Center" VerticalAlignment="Center" MinWidth="26" ToolTip="{Binding ZmianyTooltip}">
+                                            <TextBlock Text="{Binding ZmianyText}" Foreground="White" FontWeight="Bold" FontSize="11"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
                             <DataGridTextColumn Header="Wyj." Binding="{Binding GodzWyjazduDisplay}" Width="56">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="FontSize" Value="13"/><Setter Property="Foreground" Value="#1F2733"/></Style>

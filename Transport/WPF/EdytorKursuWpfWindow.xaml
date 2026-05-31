@@ -41,14 +41,96 @@
         <Border Grid.Column="0" Style="{StaticResource Card}">
             <Grid>
                 <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>   <!-- alert zmiany -->
+                    <RowDefinition Height="Auto"/>   <!-- panel zmiany (collapsed) -->
                     <RowDefinition Height="Auto"/>   <!-- header -->
                     <RowDefinition Height="Auto"/>   <!-- packing -->
                     <RowDefinition Height="*"/>      <!-- ladunki -->
                     <RowDefinition Height="Auto"/>   <!-- przyciski -->
                 </Grid.RowDefinitions>
 
+                <!-- ── ALERT: zmiany zamówień do akceptacji ── -->
+                <Border x:Name="AlertZmianyBar" Grid.Row="0" Visibility="Collapsed"
+                        Background="#FFF7E0" BorderBrush="#F59E0B" BorderThickness="0,0,0,2" Padding="14,9"
+                        CornerRadius="10,10,0,0">
+                    <DockPanel>
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="🔔" FontSize="16" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="AlertText" FontWeight="SemiBold" Foreground="#8A4A00" VerticalAlignment="Center" FontSize="13"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right">
+                            <Button x:Name="BtnPokazZmiany" Content="Pokaż ▼" Style="{StaticResource BtnGhost}" Height="30" Margin="0,0,8,0"
+                                    Click="BtnPokazZmiany_Click"/>
+                            <Button x:Name="BtnAkceptujWszystkie" Style="{StaticResource BtnPrimary}" Height="30" Padding="12,4" Click="BtnAkceptujWszystkie_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="✓" Foreground="White" FontWeight="Bold" Margin="0,0,6,0"/>
+                                    <TextBlock x:Name="BtnAkceptujWszystkieText" Text="Akceptuj wszystkie" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+
+                <!-- ── PANEL ZMIAN (inline, rozwijany) ── -->
+                <Border x:Name="PanelZmiany" Grid.Row="1" Visibility="Collapsed"
+                        Background="#FFFCF2" BorderBrush="#F0E0B0" BorderThickness="0,0,0,1" Padding="10,10">
+                    <ItemsControl x:Name="ListaZmian">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="White" BorderBrush="{Binding AkcentBrush}" BorderThickness="4,1,1,1"
+                                        CornerRadius="6" Margin="0,0,0,7" Padding="11,9">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- ikona typu -->
+                                        <Border Grid.Column="0" Background="{Binding AkcentSoft}" CornerRadius="6" Width="40" Height="40" Margin="0,0,11,0">
+                                            <TextBlock Text="{Binding TypEmoji}" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+
+                                        <!-- treść -->
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="{Binding TypLabel}" FontWeight="SemiBold" Foreground="{Binding AkcentBrush}" FontSize="11.5"/>
+                                                <TextBlock Text=" · " Foreground="#9aa0b0" FontSize="11.5"/>
+                                                <TextBlock Text="{Binding KlientNazwa}" FontWeight="SemiBold" Foreground="#26323c" FontSize="11.5" TextTrimming="CharacterEllipsis" MaxWidth="220"/>
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                                                <Border Background="#F4F6F8" CornerRadius="3" Padding="6,1">
+                                                    <TextBlock Text="{Binding Stare}" Foreground="#5b6776" FontSize="11" FontFamily="Consolas"/>
+                                                </Border>
+                                                <TextBlock Text="→" Foreground="#9aa0b0" Margin="6,0" VerticalAlignment="Center" FontSize="13"/>
+                                                <Border Background="#E0F2F1" CornerRadius="3" Padding="6,1">
+                                                    <TextBlock Text="{Binding Nowa}" Foreground="#00695C" FontSize="11" FontFamily="Consolas" FontWeight="SemiBold"/>
+                                                </Border>
+                                                <TextBlock Text="{Binding DeltaText}" Foreground="{Binding DeltaBrush}"
+                                                           FontWeight="Bold" FontSize="11.5" Margin="9,0,0,0" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                            <TextBlock Text="{Binding ZglosilDisplay}" Foreground="#8893a0" FontSize="10.5" Margin="0,4,0,0"/>
+                                        </StackPanel>
+
+                                        <!-- akcje -->
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Button Content="✓ Akceptuj" Tag="{Binding Id}" Click="BtnAkceptujJedno_Click"
+                                                    Background="#E7F4E8" Foreground="#2E7D32" BorderBrush="#2E7D32" BorderThickness="1"
+                                                    Padding="10,5" Margin="0,0,5,0" FontWeight="SemiBold" FontSize="11" Cursor="Hand"/>
+                                            <Button Content="✗ Odrzuć" Tag="{Binding Id}" Click="BtnOdrzucJedno_Click"
+                                                    Background="#FDECEC" Foreground="#C62828" BorderBrush="#C62828" BorderThickness="1"
+                                                    Padding="10,5" FontWeight="SemiBold" FontSize="11" Cursor="Hand"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Border>
+
+
                 <!-- ── HEADER (skrócony) ── -->
-                <Border Grid.Row="0" Background="{StaticResource Surface}" Padding="18,13" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" CornerRadius="10,10,0,0">
+                <Border Grid.Row="2" Background="{StaticResource Surface}" Padding="18,13" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" CornerRadius="10,10,0,0">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>   <!-- tytuł -->
@@ -123,7 +205,7 @@
                 </Border>
 
                 <!-- ── PASEK PAKOWANIA (skrócony) ── -->
-                <Border Grid.Row="1" Background="{StaticResource Surface}" Padding="16,8" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1">
+                <Border Grid.Row="3" Background="{StaticResource Surface}" Padding="16,8" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
@@ -142,7 +224,7 @@
                 </Border>
 
                 <!-- ── ŁADUNKI ── -->
-                <Grid Grid.Row="2">
+                <Grid Grid.Row="4">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
@@ -215,7 +297,7 @@
                 </Grid>
 
                 <!-- ── PRZYCISKI ── -->
-                <Border Grid.Row="3" Background="{StaticResource Surface}" Padding="16,12" BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0" CornerRadius="0,0,10,10">
+                <Border Grid.Row="5" Background="{StaticResource Surface}" Padding="16,12" BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0" CornerRadius="0,0,10,10">
                     <DockPanel>
                         <TextBlock x:Name="StatusText" Foreground="{StaticResource InkMuted}" FontSize="11.5" VerticalAlignment="Center"/>
                         <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right">

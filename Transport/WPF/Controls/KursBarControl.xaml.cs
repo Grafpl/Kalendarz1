@@ -36,6 +36,16 @@ namespace Kalendarz1.Transport.WPF.Controls
             {
                 TtZmieniony.Visibility = Visibility.Collapsed;
             }
+            if (k.MaZmiany)
+            {
+                TxtBadgeZmiany.Text = $"🔔 {k.LiczbaZmianOczekujacych}";
+                BadgeZmiany.ToolTip = $"{k.LiczbaZmianOczekujacych} zmian zamówień do akceptacji";
+                BadgeZmiany.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                BadgeZmiany.Visibility = Visibility.Collapsed;
+            }
 
             var (bg, fg, accent) = Kolory(k.Stan);
             Pasek.Background = new SolidColorBrush(bg);

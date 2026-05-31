@@ -31,6 +31,8 @@ namespace Kalendarz1.Transport.WPF.Models
         public bool BylZmieniany => !string.IsNullOrEmpty(ZmienilName) && !string.IsNullOrEmpty(ZmienilData);
         public bool Konflikt { get; set; }       // ustawiane przy detekcji nakładania
         public bool BrakGodzin { get; set; }     // godziny były null → fallback
+        public int LiczbaZmianOczekujacych { get; set; }  // TransportZmiany: pending dla zamówień w kursie
+        public bool MaZmiany => LiczbaZmianOczekujacych > 0;
 
         public int WypProc => (int)Math.Round(Proc);
 

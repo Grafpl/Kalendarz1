@@ -245,6 +245,39 @@ namespace Kalendarz1.Transport.WPF.Services
             return result;
         }
 
+        // ════════════════════════════════════════════════════════════════════
+        // SYSTEM AKCEPTACJI ZMIAN — proxy do TransportZmianyService (static).
+        // Reuse całej detekcji/zapisu starego systemu, tylko nowe UI w WPF.
+        // ════════════════════════════════════════════════════════════════════
+
+        /// <summary>Wszystkie oczekujące zmiany (zbiorczo) → zbiór ZamowienieId. Tańsze niż N×per-kurs.</summary>
+        public async Task<HashSet<int>> PobierzOczekujaceZamIdAsync()
+        {
+            try
+            {
+                var lista = await TransportZmianyService.GetPendingAsync();
+                return lista.Select(z => z.ZamowienieId).ToHashSet();
+            }
+            catch { return new HashSet<int>(); }
+        }
+
+        /// <summary>Pełna lista oczekujących zmian dla konkretnego kursu (przez Ladunek.KodKlienta='ZAM_xxx').</summary>
+        public async Task<List<TransportZmiana>> PobierzZmianyDlaKursuAsync(long kursId)
+        {
+            try { return await TransportZmianyService.GetPendingForKursAsync(kursId); }
+            catch { return new List<TransportZmiana>(); }
+        }
+
+        public async Task AkceptujZmianeAsync(int id, string user, string? komentarz = null)
+            => await TransportZmianyService.AcceptAsync(id, user, komentarz);
+
+        public async Task OdrzucZmianeAsync(int id, string user, string? komentarz = null)
+            => await TransportZmianyService.RejectAsync(id, user, komentarz);
+
+        /// <summary>Hurtowo: akceptuje wszystkie zmiany dla kursu + synchronizuje Ladunek.PojemnikiE2.</summary>
+        public async Task AkceptujWszystkieDlaKursuAsync(long kursId, string user)
+            => await TransportZmianyService.AcceptChangesForKursAsync(kursId, user);
+
         // Nazwy użytkowników (LibraNet.operators) — do podpisu „Utworzył" + avatar.
         private readonly Dictionary<string, string> _userCache = new();
         public async Task<Dictionary<string, string>> PobierzNazwyUzytkownikowAsync(IEnumerable<string> userIds)
@@ -364,6 +397,7 @@ namespace Kalendarz1.Transport.WPF.Services
             var kierowcy = await Repo.PobierzKierowcowAsync(true);
             var kursy = await Repo.PobierzKursyPoDacieAsync(data);
             var ladunki = await Repo.PobierzLadunkiDlaKursowAsync(kursy.Select(k => k.KursID));
+            var pendingZamIds = await PobierzOczekujaceZamIdAsync();   // TransportZmiany: jedno query, mapowanie offline
 
             var bary = new List<KursBar>();
             foreach (var k in kursy)
@@ -389,7 +423,11 @@ namespace Kalendarz1.Transport.WPF.Services
                     UtworzylData = k.UtworzonoUTC.ToLocalTime().ToString("dd.MM HH:mm"),
                     ZmienilName = k.Zmienil ?? "",
                     ZmienilData = k.ZmienionoUTC.HasValue ? k.ZmienionoUTC.Value.ToLocalTime().ToString("dd.MM HH:mm") : "",
-                    BrakGodzin = !k.GodzWyjazdu.HasValue
+                    BrakGodzin = !k.GodzWyjazdu.HasValue,
+                    LiczbaZmianOczekujacych = ladunki.TryGetValue(k.KursID, out var lk) ? lk.Count(x =>
+                        x.KodKlienta != null && x.KodKlienta.StartsWith("ZAM_")
+                        && int.TryParse(x.KodKlienta.Substring(4), out var zid)
+                        && pendingZamIds.Contains(zid)) : 0
                 });
             }
 
