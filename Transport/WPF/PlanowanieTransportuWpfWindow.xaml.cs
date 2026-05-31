@@ -341,23 +341,8 @@ namespace Kalendarz1.Transport.WPF
         {
             if (KursyGrid?.SelectedItem is not KursRow row || _detalZmiany.Count == 0) return;
 
-            // Snapshot do podsumowania PRZED akceptacją (po niej _detalZmiany jest czyszczone).
             int liczbaKart = _detalZmiany.Count;
             int liczbaIds = _detalZmiany.Sum(c => c.IloscScalonych);
-            int liczbaKlientow = _detalZmiany.Select(c => c.KlientNazwa).Distinct().Count();
-            int liczbaQty = _detalZmiany.Count(c => c.Source.TypZmiany == "ZmianaPojemnikow");
-            var trasa = string.IsNullOrEmpty(row.Trasa) ? "—" : row.Trasa;
-
-            var pytanie = $"Zaakceptować {liczbaKart} zmian ({liczbaIds} wpisów) dla kursu #{row.KursID} — {trasa}?\n\n"
-                        + $"• Klientów objętych: {liczbaKlientow}\n"
-                        + (liczbaQty > 0 ? $"• Z synchronizacją Ladunek.PojemnikiE2: {liczbaQty} pozycji\n" : "")
-                        + "\nKontynuować?";
-
-            // Owner=this żeby okno nie chowało się za parentem (PrzytwierdzenieAkceptacji bywało niewidoczne).
-            var dlg = MessageBox.Show(this, pytanie, "Potwierdź akceptację",
-                MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.Yes);
-            if (dlg != MessageBoxResult.Yes) return;
-
             BtnDetalAkceptujWszystkie.IsEnabled = false;
             try
             {
@@ -368,18 +353,9 @@ namespace Kalendarz1.Transport.WPF
                 await LoadKursyAsync();      // przelicz wypełnienie/ładunki po sync PojemnikiE2
                 var again = _rows.FirstOrDefault(r => r.KursID == keep);
                 if (again != null) { KursyGrid.SelectedItem = again; KursyGrid.ScrollIntoView(again); }
-
                 StatusText.Text = $"✓ Zaakceptowano {liczbaKart} zmian ({liczbaIds} wpisów) dla kursu #{keep}.";
-
-                // Podsumowanie sukcesu — żeby logistyk widział co się stało.
-                var podsumowanie = $"✓ Zaakceptowano {liczbaKart} zmian dla kursu #{keep}.\n\n"
-                                 + $"• Wpisów w bazie: {liczbaIds}\n"
-                                 + $"• Klientów: {liczbaKlientow}\n"
-                                 + (liczbaQty > 0 ? $"• Zsynchronizowano pojemniki: {liczbaQty} ładunków" : "• Brak synchronizacji ładunków (zmiany nie dotyczyły pojemników)");
-                MessageBox.Show(this, podsumowanie, "Akceptacja zakończona",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
             }
-            catch (Exception ex) { MessageBox.Show(this, $"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error); }
+            catch (Exception ex) { StatusText.Text = $"Błąd akceptacji: {ex.Message}"; }
             finally { BtnDetalAkceptujWszystkie.IsEnabled = true; }
         }
 

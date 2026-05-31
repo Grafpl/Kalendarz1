@@ -120,7 +120,8 @@ namespace Kalendarz1.Transport.WPF.Models
             get { var c = Source.TypColor; return new SolidColorBrush(Color.FromArgb(0x20, c.R, c.G, c.B)); }
         }
 
-        // Delta liczbowa — tylko gdy obie końcówki są liczbami (oldest → newest)
+        // Delta liczbowa z jednostką — żeby od razu było widać "ile dodano/odjęto"
+        // (np. "+5 kg", "-3 poj.", "+2 pal."). Tylko dla typów ilościowych.
         public string DeltaText
         {
             get
@@ -130,7 +131,17 @@ namespace Kalendarz1.Transport.WPF.Models
                 {
                     var d = nw - st;
                     if (d == 0) return "";
-                    return d > 0 ? $"+{d.ToString("0.##", CultureInfo.InvariantCulture)}" : d.ToString("0.##", CultureInfo.InvariantCulture);
+                    var liczba = d > 0
+                        ? $"+{d.ToString("0.##", CultureInfo.InvariantCulture)}"
+                        : d.ToString("0.##", CultureInfo.InvariantCulture);
+                    var jednostka = Source.TypZmiany switch
+                    {
+                        "ZmianaKg" => " kg",
+                        "ZmianaPojemnikow" => " poj.",
+                        "ZmianaIlosci" => " pal.",
+                        _ => ""
+                    };
+                    return liczba + jednostka;
                 }
                 return "";
             }
