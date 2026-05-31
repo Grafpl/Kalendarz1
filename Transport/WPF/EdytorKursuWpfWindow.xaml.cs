@@ -217,8 +217,20 @@ namespace Kalendarz1.Transport.WPF
         private async void BtnAkceptujWszystkie_Click(object sender, RoutedEventArgs e)
         {
             if (!_kursId.HasValue || _zmiany.Count == 0) return;
-            if (MessageBox.Show($"Zaakceptować wszystkie {_zmiany.Count} zmian dla tego kursu?\nPojemniki ładunków zostaną zsynchronizowane z aktualnymi wartościami zamówień.",
-                "Potwierdź akceptację", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+
+            int liczbaKart = _zmiany.Count;
+            int liczbaIds = _zmiany.Sum(c => c.IloscScalonych);
+            int liczbaKlientow = _zmiany.Select(c => c.KlientNazwa).Distinct().Count();
+            int liczbaQty = _zmiany.Count(c => c.Source.TypZmiany == "ZmianaPojemnikow");
+
+            var pytanie = $"Zaakceptować {liczbaKart} zmian ({liczbaIds} wpisów) dla tego kursu?\n\n"
+                        + $"• Klientów objętych: {liczbaKlientow}\n"
+                        + (liczbaQty > 0 ? $"• Z synchronizacją Ladunek.PojemnikiE2: {liczbaQty} pozycji\n" : "")
+                        + "\nKontynuować?";
+
+            if (MessageBox.Show(this, pytanie, "Potwierdź akceptację",
+                MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.Yes) != MessageBoxResult.Yes) return;
+
             BtnAkceptujWszystkie.IsEnabled = false;
             try
             {
@@ -226,11 +238,18 @@ namespace Kalendarz1.Transport.WPF
                 _zmiany.Clear();
                 AlertZmianyBar.Visibility = Visibility.Collapsed;
                 PanelZmiany.Visibility = Visibility.Collapsed;
-                await LoadLadunkiAsync();      // sync PojemnikiE2 mógł zmienić wiersze
+                await LoadLadunkiAsync();
                 PrzeliczPakowanie();
-                StatusText.Text = "Zaakceptowano wszystkie zmiany dla kursu.";
+                StatusText.Text = $"✓ Zaakceptowano {liczbaKart} zmian ({liczbaIds} wpisów).";
+
+                var podsumowanie = $"✓ Zaakceptowano {liczbaKart} zmian dla kursu.\n\n"
+                                 + $"• Wpisów w bazie: {liczbaIds}\n"
+                                 + $"• Klientów: {liczbaKlientow}\n"
+                                 + (liczbaQty > 0 ? $"• Zsynchronizowano pojemniki: {liczbaQty} ładunków" : "• Brak synchronizacji ładunków (zmiany nie dotyczyły pojemników)");
+                MessageBox.Show(this, podsumowanie, "Akceptacja zakończona",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
             }
-            catch (Exception ex) { MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error); }
+            catch (Exception ex) { MessageBox.Show(this, $"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error); }
             finally { BtnAkceptujWszystkie.IsEnabled = true; }
         }
 

@@ -71,6 +71,16 @@
                                     <ToggleButton x:Name="TglWidokTimeline" Content="Timeline" Click="WidokTimeline_Click" Style="{StaticResource SegToggle}"/>
                                 </StackPanel>
                             </Border>
+                            <!-- Szukaj kursów (filtruje: trasa / kierowca / pojazd) -->
+                            <Border Background="{StaticResource SurfaceAlt}" CornerRadius="6" BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="8,0" Margin="16,0,0,0" VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Style="{StaticResource Icon}" Text="&#xE721;" FontSize="13" Foreground="{StaticResource InkMuted}" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                    <TextBox x:Name="TxtFiltrKursy" Width="150" Height="26" BorderThickness="0" Background="Transparent"
+                                             VerticalContentAlignment="Center" TextChanged="FiltrKursyTekst_Changed" ToolTip="Filtruj: trasa / kierowca / pojazd"/>
+                                </StackPanel>
+                            </Border>
+                            <CheckBox x:Name="ChkWymaga" Content="tylko wymagające uwagi" Margin="12,0,0,0"
+                                      VerticalAlignment="Center" Foreground="{StaticResource WarnFg}" Click="FiltrKursy_Changed"/>
                         </StackPanel>
                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                             <Button Style="{StaticResource BtnPrimary}" Click="BtnNowy_Click">
@@ -102,42 +112,6 @@
                                     </ControlTemplate>
                                 </ToggleButton.Template>
                             </ToggleButton>
-                        </StackPanel>
-                    </DockPanel>
-                    <Border Height="1" Background="{StaticResource Line}"/>
-                    <DockPanel Margin="14,6">
-                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                            <Border Background="{StaticResource SurfaceAlt}" CornerRadius="6" BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="8,0">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Style="{StaticResource Icon}" Text="&#xE721;" FontSize="13" Foreground="{StaticResource InkMuted}" Margin="0,0,5,0"/>
-                                    <TextBox x:Name="TxtFiltrKursy" Width="150" Height="26" BorderThickness="0" Background="Transparent"
-                                             VerticalContentAlignment="Center" TextChanged="FiltrKursyTekst_Changed" ToolTip="Filtruj: trasa / kierowca / pojazd"/>
-                                </StackPanel>
-                            </Border>
-                            <CheckBox x:Name="ChkWymaga" Content="tylko wymagające uwagi" Margin="12,0,0,0"
-                                      VerticalAlignment="Center" Foreground="{StaticResource WarnFg}" Click="FiltrKursy_Changed"/>
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <StackPanel Margin="0,0,22,0">
-                                <TextBlock x:Name="KpiKursy" Text="0" FontSize="16" FontWeight="Bold" Foreground="{StaticResource InkPrimary}"/>
-                                <TextBlock Text="KURSÓW" Style="{StaticResource T.Section}"/>
-                            </StackPanel>
-                            <StackPanel Margin="0,0,22,0">
-                                <TextBlock x:Name="KpiZKierowca" Text="0" FontSize="16" FontWeight="Bold" Foreground="{StaticResource OkFg}"/>
-                                <TextBlock Text="Z KIEROWCĄ" Style="{StaticResource T.Section}"/>
-                            </StackPanel>
-                            <StackPanel Margin="0,0,22,0">
-                                <TextBlock x:Name="KpiBezZasobow" Text="0" FontSize="16" FontWeight="Bold" Foreground="{StaticResource WarnFg}"/>
-                                <TextBlock Text="BEZ PRZYDZIAŁU" Style="{StaticResource T.Section}"/>
-                            </StackPanel>
-                            <StackPanel Margin="0,0,22,0">
-                                <TextBlock x:Name="KpiPalety" Text="0" FontSize="16" FontWeight="Bold" Foreground="{StaticResource InkPrimary}"/>
-                                <TextBlock Text="PALET" Style="{StaticResource T.Section}"/>
-                            </StackPanel>
-                            <StackPanel>
-                                <TextBlock x:Name="KpiWolne" Text="0" FontSize="16" FontWeight="Bold" Foreground="{StaticResource Accent}"/>
-                                <TextBlock Text="WOLNYCH" Style="{StaticResource T.Section}"/>
-                            </StackPanel>
                         </StackPanel>
                     </DockPanel>
                 </StackPanel>
