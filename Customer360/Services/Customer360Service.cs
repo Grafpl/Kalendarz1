@@ -817,6 +817,7 @@ namespace Kalendarz1.Customer360.Services
                     SELECT COUNT(DISTINCT z.Id) FROM dbo.ZamowieniaMieso z
                     WHERE z.KlientId = @kid
                       AND (@months <= 0 OR z.DataPrzyjazdu >= DATEADD(MONTH, -@months, GETDATE()))
+                      AND CAST(z.DataPrzyjazdu AS DATE) <= CAST(GETDATE() AS DATE)   -- bez przyszlosci: zam. ktore jeszcze nie wyjechaly nie mogly byc zafakturowane
                       AND ISNULL(z.Status,'') NOT IN ('Anulowane','Anulowano')", cn) { CommandTimeout = 8 })
                 {
                     cmdLZ.Parameters.AddWithValue("@kid", klientId);
@@ -833,6 +834,7 @@ namespace Kalendarz1.Customer360.Services
                     INNER JOIN dbo.ZamowieniaMiesoTowar zt ON zt.ZamowienieId = z.Id
                     WHERE z.KlientId = @kid
                       AND (@months <= 0 OR z.DataPrzyjazdu >= DATEADD(MONTH, -@months, GETDATE()))
+                      AND CAST(z.DataPrzyjazdu AS DATE) <= CAST(GETDATE() AS DATE)   -- bez przyszlosci: zam. ktore jeszcze nie wyjechaly nie mogly byc zafakturowane
                       AND ISNULL(z.Status,'') NOT IN ('Anulowane','Anulowano')
                     GROUP BY zt.KodTowaru";
                 await using var cmd = new SqlCommand(sqlZ, cn) { CommandTimeout = 10 };
