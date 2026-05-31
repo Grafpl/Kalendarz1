@@ -169,7 +169,15 @@ namespace Kalendarz1.HDI.Models
         // towarów w tabeli partii. Mapowanie po nazwie asortymentu jest trudne, więc
         // przechowujemy ID towaru z HM.TW (gdy auto-fill zna źródło).
         public int? Idtw { get; set; }
-        public System.Windows.Media.ImageSource? Image { get; set; }
+
+        // Image MUSI być INPC — ustawiany asynchronicznie PO zbindowaniu (ładowanie edycji,
+        // picker towaru). Bez OnPropertyChanged DataGrid nie odświeży miniatury.
+        private System.Windows.Media.ImageSource? _image;
+        public System.Windows.Media.ImageSource? Image
+        {
+            get => _image;
+            set { _image = value; OnPropertyChanged(nameof(Image)); }
+        }
 
         public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
         protected void OnPropertyChanged(string name) =>

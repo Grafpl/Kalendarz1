@@ -3,6 +3,7 @@
 **Kiedy tego używasz:** za każdym razem gdy zaczynasz współpracę z **nowym hodowcą** albo gdy odnawiasz umowę istniejącemu (typowo raz w roku, niedługo: raz na 3 lata pod ARiMR).
 **Ile czasu zajmuje:** 15-20 minut (pierwsza umowa z Asią — 30 min, żeby zrozumieć).
 **Wideo:** [link — Ser dorzuci nagranie]
+**📘 Jak działa obecne okno umów (AS-IS):** [`../INSTRUKCJE_OBSLUGI/07_Umowy_i_Dokumenty.md`](../INSTRUKCJE_OBSLUGI/07_Umowy_i_Dokumenty.md) — opis dzisiejszego okna „Dokumenty i Umowy" (Sprawdzalka + statusy). **Ta instrukcja** = proces tworzenia umowy + ściąga % ubytku. **Docelowo** zastąpi je moduł Kontrakty Hodowców → [`../AUDYT_ZAKUPY_2026_05_23/04_MODUL_KONTRAKTY_SPEC.md`](../AUDYT_ZAKUPY_2026_05_23/04_MODUL_KONTRAKTY_SPEC.md).
 
 > Magda — **TO NAJWAŻNIEJSZA INSTRUKCJA Z PUNKTU WIDZENIA SERA**. Umowy to teraz najsłabsza strona działu zakupu. **Pierwsze 3 umowy rób z Asią** (ona przejmuje strażnika kontraktów). Nigdy sama, dopóki nie poczujesz że ogarniasz % ubytku, rozliczaną wagę i termin płatności.
 

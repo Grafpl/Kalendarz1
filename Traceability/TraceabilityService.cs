@@ -22,6 +22,142 @@ namespace Kalendarz1.Traceability
             _conn = AnalitykaConfig.ConnLibraNet;
         }
 
+        // ════════════════════════════════════════════════════════════════
+        // REVERSE TRACE NA ISTNIEJĄCYCH DANYCH (bez ręcznej rejestracji palet)
+        // Źródła: PartiaDostawca (hodowca), In0E (przyjęcie surowca),
+        //         Haccp (przepływy między działami), Out1A (krojenie/wyjście).
+        // ════════════════════════════════════════════════════════════════
+        public async Task<TraceExistingResult> ReverseTraceExistingAsync(string partia)
+        {
+            var res = new TraceExistingResult { Partia = partia };
+            using var cn = new SqlConnection(_conn);
+            await cn.OpenAsync();
+
+            // 1) Hodowca z PartiaDostawca
+            try
+            {
+                using var cmd = new SqlCommand(
+                    "SELECT TOP 1 CustomerID, CustomerName FROM dbo.PartiaDostawca WHERE Partia = @P", cn)
+                { CommandTimeout = 30 };
+                cmd.Parameters.AddWithValue("@P", partia);
+                using var r = await cmd.ExecuteReaderAsync();
+                if (await r.ReadAsync())
+                {
+                    res.CustomerID = r["CustomerID"]?.ToString()?.Trim();
+                    res.Hodowca = r["CustomerName"]?.ToString()?.Trim();
+                }
+            }
+            catch { /* PartiaDostawca zawsze jest, ale defensywnie */ }
+
+            // 2) Przyjęcie surowca z In0E (per towar)
+            try
+            {
+                const string sql = @"
+SELECT ArticleName, MAX(JM) AS JM,
+       SUM(ISNULL(ActWeight,0)) AS Kg, SUM(ISNULL(Quantity,0)) AS Szt,
+       MIN(Data) AS DataMin
+FROM dbo.In0E WHERE P1 = @P
+GROUP BY ArticleName
+ORDER BY SUM(ISNULL(ActWeight,0)) DESC;";
+                using var cmd = new SqlCommand(sql, cn) { CommandTimeout = 60 };
+                cmd.Parameters.AddWithValue("@P", partia);
+                using var r = await cmd.ExecuteReaderAsync();
+                while (await r.ReadAsync())
+                    res.Przyjecia.Add(new TracePrzyjecie
+                    {
+                        Towar = r["ArticleName"]?.ToString()?.Trim() ?? "",
+                        Jm = r["JM"]?.ToString()?.Trim(),
+                        Kg = ToDec(r["Kg"]),
+                        Szt = ToDec(r["Szt"]),
+                        Data = FmtData(r["DataMin"])
+                    });
+            }
+            catch { }
+
+            // 3) Przepływy między działami z Haccp
+            try
+            {
+                const string sql = @"
+SELECT Dir_ID1, Dir_ID2, SumaKg, Kind, minDate
+FROM dbo.Haccp WHERE P1 = @P OR P2 = @P
+ORDER BY minDate;";
+                using var cmd = new SqlCommand(sql, cn) { CommandTimeout = 60 };
+                cmd.Parameters.AddWithValue("@P", partia);
+                using var r = await cmd.ExecuteReaderAsync();
+                while (await r.ReadAsync())
+                    res.Przeplywy.Add(new TracePrzeplyw
+                    {
+                        DzialZ = r["Dir_ID1"]?.ToString()?.Trim(),
+                        DzialDo = r["Dir_ID2"]?.ToString()?.Trim(),
+                        SumaKg = ToDec(r["SumaKg"]),
+                        Kind = r["Kind"]?.ToString()?.Trim(),
+                        Data = FmtData(r["minDate"])
+                    });
+            }
+            catch { /* tabela Haccp może nie istnieć w niektórych środowiskach */ }
+
+            // 4) Wyjście / krojenie z Out1A (per towar)
+            try
+            {
+                const string sql = @"
+SELECT ArticleName, MAX(JM) AS JM,
+       SUM(ISNULL(ActWeight,0)) AS Kg, MAX(DocNo) AS DocNo, MIN(Data) AS DataMin
+FROM dbo.Out1A WHERE P1 = @P
+GROUP BY ArticleName
+ORDER BY SUM(ISNULL(ActWeight,0)) DESC;";
+                using var cmd = new SqlCommand(sql, cn) { CommandTimeout = 60 };
+                cmd.Parameters.AddWithValue("@P", partia);
+                using var r = await cmd.ExecuteReaderAsync();
+                while (await r.ReadAsync())
+                    res.Wyjscia.Add(new TraceWyjscie
+                    {
+                        Towar = r["ArticleName"]?.ToString()?.Trim() ?? "",
+                        Jm = r["JM"]?.ToString()?.Trim(),
+                        Kg = ToDec(r["Kg"]),
+                        DocNo = r["DocNo"]?.ToString()?.Trim(),
+                        Data = FmtData(r["DataMin"])
+                    });
+            }
+            catch { }
+
+            if (!res.Znaleziono && res.Blad == null)
+                res.Blad = "Nie znaleziono danych dla tej partii (sprawdź numer partii).";
+            return res;
+        }
+
+        /// <summary>Lista partii do wyboru w reverse trace (z In0E, ostatnie dni).</summary>
+        public async Task<List<string>> GetPartieReverseAsync(int dniWstecz = 90)
+        {
+            var lista = new List<string>();
+            const string sql = @"
+SELECT DISTINCT TOP 500 P1
+FROM dbo.In0E
+WHERE P1 IS NOT NULL AND Data >= @Od
+ORDER BY P1 DESC;";
+            using var cn = new SqlConnection(_conn);
+            await cn.OpenAsync();
+            using var cmd = new SqlCommand(sql, cn) { CommandTimeout = 60 };
+            cmd.Parameters.AddWithValue("@Od", DateTime.Today.AddDays(-dniWstecz).ToString("yyyy-MM-dd"));
+            using var r = await cmd.ExecuteReaderAsync();
+            while (await r.ReadAsync())
+            {
+                var p = r["P1"]?.ToString()?.Trim();
+                if (!string.IsNullOrEmpty(p)) lista.Add(p!);
+            }
+            return lista;
+        }
+
+        private static decimal ToDec(object? o)
+            => o == null || o == DBNull.Value ? 0m : Convert.ToDecimal(o);
+
+        private static string FmtData(object? o)
+        {
+            if (o == null || o == DBNull.Value) return "";
+            if (o is DateTime dt) return dt.ToString("dd.MM.yyyy");
+            var s = o.ToString() ?? "";
+            return DateTime.TryParse(s, out var d) ? d.ToString("dd.MM.yyyy") : s;
+        }
+
         /// <summary>Generuje kolejny lot number na dziś: PIO-RRRR-MM-DD-NNN.</summary>
         public async Task<string> GenerujLotNumberAsync(DateTime data)
         {

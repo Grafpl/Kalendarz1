@@ -34,6 +34,31 @@ Cześć Magda! To Twój zestaw instrukcji do ZPSP — krok po kroku, po polsku, 
 
 ---
 
+## 📘 Dwa rodzaje instrukcji — kiedy którą czytać
+
+W `BAZA_WIEDZY/` są **dwa foldery** instrukcji. Nie dubluj się — używaj wg potrzeby:
+
+| Folder | Co to | Kiedy |
+|---|---|---|
+| **`INSTRUKCJE_MAGDA/`** (ten) | „Co robisz krok po kroku" — pod Twoje codzienne zadania, krótkie, pod stres nowej osoby | Gdy masz **wykonać zadanie** |
+| **`INSTRUKCJE_OBSLUGI/`** | „Jak działa całe okno" — pełny opis wszystkich funkcji, formuł, trybów (referencja) | Gdy chcesz **zrozumieć okno głębiej** |
+
+**Mapa: Twoja instrukcja ↔ pełny opis okna**
+
+| Twoje zadanie (MAGDA) | Pełny opis okna (OBSLUGI) |
+|---|---|
+| `02_nowe_wstawienie.md` | [`../INSTRUKCJE_OBSLUGI/01_Wstawienia_Kurczakow.md`](../INSTRUKCJE_OBSLUGI/01_Wstawienia_Kurczakow.md) |
+| (lista wstawień) | [`../INSTRUKCJE_OBSLUGI/02_Lista_Wstawien.md`](../INSTRUKCJE_OBSLUGI/02_Lista_Wstawien.md) |
+| (kalendarz dostaw — kontekst) | [`../INSTRUKCJE_OBSLUGI/05_Kalendarz_Dostaw_Zywca.md`](../INSTRUKCJE_OBSLUGI/05_Kalendarz_Dostaw_Zywca.md) |
+| (baza hodowców — kontekst) | [`../INSTRUKCJE_OBSLUGI/06_Baza_Hodowcow.md`](../INSTRUKCJE_OBSLUGI/06_Baza_Hodowcow.md) |
+| `06_umowa_zakupu.md` | [`../INSTRUKCJE_OBSLUGI/07_Umowy_i_Dokumenty.md`](../INSTRUKCJE_OBSLUGI/07_Umowy_i_Dokumenty.md) |
+| (reklamacje — jeśli dotkniesz) | [`../INSTRUKCJE_OBSLUGI/04_Reklamacje.md`](../INSTRUKCJE_OBSLUGI/04_Reklamacje.md) |
+| (lista partii — kontekst) | [`../INSTRUKCJE_OBSLUGI/03_Lista_Partii.md`](../INSTRUKCJE_OBSLUGI/03_Lista_Partii.md) |
+
+> **Uwaga:** instrukcje w `INSTRUKCJE_OBSLUGI/` pisała druga sesja zanim ustalono zmiany kadrowe — używają przykładowo imienia „Maja" jako zaopatrzeniowca. **W zakupie to Ty (Magda) + Asia + (do odejścia) Tereska.** Treść techniczna okien jest poprawna, tylko imiona przykładowe inne.
+
+---
+
 ## Co Magda powinna umieć po którym tygodniu
 
 ### ✅ Koniec **tygodnia 1** (do 31.05.2026)

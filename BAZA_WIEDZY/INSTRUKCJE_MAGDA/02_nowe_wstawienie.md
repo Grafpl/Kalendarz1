@@ -3,6 +3,7 @@
 **Kiedy tego używasz:** za każdym razem gdy hodowca dzwoni "wstawiliśmy pisklęta dziś / wczoraj / pojutrze".
 **Ile czasu zajmuje:** 1-2 minuty na hodowcę.
 **Wideo:** [link — Ser dorzuci nagranie]
+**📘 Pełny opis okna (wszystkie funkcje, seria, kalendarz, formuły):** [`../INSTRUKCJE_OBSLUGI/01_Wstawienia_Kurczakow.md`](../INSTRUKCJE_OBSLUGI/01_Wstawienia_Kurczakow.md) — czytaj gdy chcesz zrozumieć **całe** okno, nie tylko swój krok. Ta instrukcja = „co klikasz krok po kroku", tamta = „jak działa cała maszyna".
 
 > Magda — to jeden z **dwóch najczęstszych Twoich kroków** (drugi to potwierdzenie, instrukcja #3). Dopóki nie wpiszesz wstawienia, kalendarz dostaw nie wie kiedy odbierzemy żywiec. **Nikt nie stoi za Tobą — pytaj zawsze gdy masz wątpliwość.**
 

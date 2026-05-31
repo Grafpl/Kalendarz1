@@ -77,6 +77,18 @@ namespace Kalendarz1
 
         public event PropertyChangedEventHandler PropertyChanged;
 
+        // InfoMessage handler — zbiera STATISTICS IO/TIME do bieżącego query w audycie.
+        // Wspólny dla wszystkich Load* funkcji.
+        private void AudytInfoMessageHandler(object sender, SqlInfoMessageEventArgs e)
+        {
+            if (_audyt?.CurrentQuery == null) return;
+            foreach (SqlError err in e.Errors)
+            {
+                if (!string.IsNullOrWhiteSpace(err.Message))
+                    _audyt.CurrentQuery.InfoMessages.Add(err.Message);
+            }
+        }
+
         public WidokWstawienia()
         {
             InitializeComponent();
@@ -134,6 +146,8 @@ namespace Kalendarz1
 
         private void InitializeData()
         {
+            // Auto-audyt wyłączony — pełna diagnostyka dostępna tylko po kliknięciu
+            // przycisku 🔍 Audyt w nagłówku okna. Zerowy overhead przy normalnym ładowaniu.
             PreloadDeliveryCache();
             LoadWstawienia();
             LoadPrzypomnienia();
@@ -147,16 +161,23 @@ namespace Kalendarz1
             if (!forceReload && _deliveryCacheLoaded
                 && (DateTime.Now - _deliveryCacheTimestamp).TotalSeconds < DELIVERY_CACHE_TTL_SECONDS)
             {
+                _audyt?.Note($"Cache pominięty (świeży, TTL {DELIVERY_CACHE_TTL_SECONDS}s)");
                 return;
             }
 
+            int rowCount = 0;
             try
             {
                 _deliveryCache.Clear();
                 using (var connection = new SqlConnection(connectionString))
                 {
+                    var swConn = System.Diagnostics.Stopwatch.StartNew();
                     connection.Open();
-                    string query = @"
+                    if (_audyt != null) connection.StatisticsEnabled = true;
+                    connection.InfoMessage += AudytInfoMessageHandler;
+                    _audyt?.Sub("Connection.Open()", swConn.ElapsedMilliseconds);
+
+                    string query = @"SET STATISTICS IO ON; SET STATISTICS TIME ON;
                         SELECT
                             HD.LpW,
                             HD.DataOdbioru,
@@ -171,11 +192,17 @@ namespace Kalendarz1
                         LEFT JOIN dbo.WstawieniaKurczakow WK ON HD.LpW = WK.Lp
                         ORDER BY HD.LpW, HD.DataOdbioru";
 
+                    var preloadQueryLog = _audyt?.BeginQuery("PreloadDeliveryCache / FULL HarmonogramDostaw JOIN WstawieniaKurczakow", query);
                     using (var cmd = new SqlCommand(query, connection))
-                    using (var reader = cmd.ExecuteReader())
                     {
-                        while (reader.Read())
+                        var swExec = System.Diagnostics.Stopwatch.StartNew();
+                        using (var reader = cmd.ExecuteReader())
                         {
+                            _audyt?.Sub("SQL exec (do 1. wiersza)", swExec.ElapsedMilliseconds);
+                            var swRead = System.Diagnostics.Stopwatch.StartNew();
+                            while (reader.Read())
+                            {
+                                rowCount++;
                             // LpW może być int lub string - konwertuj do int
                             var lpWValue = reader[0];
                             if (lpWValue == DBNull.Value) continue;
@@ -205,14 +232,24 @@ namespace Kalendarz1
                                 Bufor = reader[7] != DBNull.Value ? reader[7].ToString() : "",
                                 RoznicaDni = roznicaDni
                             });
+                            }
+                            _audyt?.Sub("Reader.iterate (while reader.Read)", swRead.ElapsedMilliseconds);
                         }
                     }
+                    ZbierzConnStats(connection, "PreloadDeliveryCache");
                 }
                 _deliveryCacheLoaded = true;
                 _deliveryCacheTimestamp = DateTime.Now;
+
+                _audyt?.EndQuery(rowCount);
+                _audyt?.RowCount(rowCount);
+                _audyt?.Note($"Cache zawiera {_deliveryCache.Count:N0} unikalnych wstawień (LpW)");
+                if (rowCount > 50_000)
+                    _audyt?.Note("Zapytanie BEZ filtra daty — ładuje pełną historię HarmonogramDostaw");
             }
             catch (Exception ex)
             {
+                _audyt?.Note($"WYJĄTEK: {ex.Message}");
                 Console.WriteLine($"Błąd ładowania cache dostaw: {ex.Message}");
             }
         }
@@ -666,12 +703,22 @@ namespace Kalendarz1
                 LEFT JOIN dbo.operators OC ON W.KtoConf = OC.ID
                 ORDER BY W.LP DESC, W.DataWstawienia DESC";
 
+            string queryWithStats = "SET STATISTICS IO ON; SET STATISTICS TIME ON;\n" + query;
             using (var connection = new SqlConnection(connectionString))
-            using (var adapter = new SqlDataAdapter(query, connection))
+            using (var adapter = new SqlDataAdapter(queryWithStats, connection))
             {
+                if (_audyt != null) { connection.Open(); connection.StatisticsEnabled = true; }
+                connection.InfoMessage += AudytInfoMessageHandler;
+                var queryLog = _audyt?.BeginQuery("LoadWstawienia / SELECT TOP " + (_wstawieniaShowAll ? "ALL" : WSTAWIENIA_DEFAULT_LIMIT.ToString()), queryWithStats);
                 var table = new DataTable();
+                var swFill = System.Diagnostics.Stopwatch.StartNew();
                 adapter.Fill(table);
+                _audyt?.Sub("SqlDataAdapter.Fill (open+exec+read)", swFill.ElapsedMilliseconds);
+                _audyt?.EndQuery(table.Rows.Count);
+                ZbierzConnStats(connection, "LoadWstawienia");
+                connection.InfoMessage -= AudytInfoMessageHandler;
 
+                var swForeach = System.Diagnostics.Stopwatch.StartNew();
                 foreach (DataRow row in table.Rows)
                 {
                     if (row["KtoStwo"] != DBNull.Value && row["KtoStwo"].ToString() != "-")
@@ -683,12 +730,21 @@ namespace Kalendarz1
                         row["KtoConfName"] = SkrocNazwisko(row["KtoConfName"].ToString());
                     }
                 }
+                _audyt?.Sub("Foreach SkrocNazwisko", swForeach.ElapsedMilliseconds);
+                _audyt?.RowCount(table.Rows.Count);
 
+                var swSetup = System.Diagnostics.Stopwatch.StartNew();
                 dataGridWstawienia.ItemsSource = table.DefaultView;
                 SetupWstawieniaColumns();
                 ApplySupplierGroupingColors();
+                _audyt?.Sub("ItemsSource + SetupColumns + ApplyGrouping", swSetup.ElapsedMilliseconds);
+
+                _audyt?.Note($"SELECT TOP {(_wstawieniaShowAll ? "ALL" : WSTAWIENIA_DEFAULT_LIMIT.ToString())}");
+                _audyt?.Note("Subselect MAX(ContactHistory.CreatedAt) per wiersz — sprawdź indeks na ContactHistory.LpWstawienia");
             }
+            var swFilters = System.Diagnostics.Stopwatch.StartNew();
             ApplyFilters();
+            _audyt?.Sub("ApplyFilters", swFilters.ElapsedMilliseconds);
         }
 
         private void SetupWstawieniaColumns()
@@ -697,42 +753,18 @@ namespace Kalendarz1
             if (dataGridWstawienia.Columns.Count > 0) return;
             dataGridWstawienia.Columns.Clear();
 
-            // Kolumna kropki świeżości kontaktu
-            var kontaktColumn = new DataGridTemplateColumn
-            {
-                Header = "📞",
-                Width = 24
-            };
-            var kontaktTemplate = new DataTemplate();
-            var kontaktEllipse = new FrameworkElementFactory(typeof(Ellipse));
-            kontaktEllipse.SetValue(Ellipse.WidthProperty, 8.0);
-            kontaktEllipse.SetValue(Ellipse.HeightProperty, 8.0);
-            kontaktEllipse.SetValue(Ellipse.HorizontalAlignmentProperty, HorizontalAlignment.Center);
-            kontaktEllipse.SetValue(Ellipse.VerticalAlignmentProperty, VerticalAlignment.Center);
-            kontaktEllipse.SetBinding(Ellipse.FillProperty, new Binding("OstatniKontakt")
-            {
-                Converter = new KontaktFreshnessConverter()
-            });
-            kontaktEllipse.SetBinding(Ellipse.ToolTipProperty, new Binding("OstatniKontakt")
-            {
-                Converter = new KontaktFreshnessTooltipConverter()
-            });
-            kontaktTemplate.VisualTree = kontaktEllipse;
-            kontaktColumn.CellTemplate = kontaktTemplate;
-            dataGridWstawienia.Columns.Add(kontaktColumn);
-
             dataGridWstawienia.Columns.Add(new DataGridTextColumn
             {
                 Header = "LP",
                 Binding = new System.Windows.Data.Binding("LP"),
-                Width = 48
+                Width = 45
             });
 
             dataGridWstawienia.Columns.Add(new DataGridTextColumn
             {
                 Header = "Hodowca",
                 Binding = new System.Windows.Data.Binding("Dostawca"),
-                Width = 110
+                Width = 175
             });
 
             dataGridWstawienia.Columns.Add(new DataGridTextColumn
@@ -742,7 +774,7 @@ namespace Kalendarz1
                 {
                     StringFormat = "yyyy-MM-dd ddd"
                 },
-                Width = 100
+                Width = 90
             });
 
             dataGridWstawienia.Columns.Add(new DataGridTextColumn
@@ -752,21 +784,24 @@ namespace Kalendarz1
                 {
                     StringFormat = "# ##0"
                 },
-                Width = 65
+                Width = 60
             });
 
             dataGridWstawienia.Columns.Add(new DataGridTextColumn
             {
                 Header = "Typ",
-                Binding = new System.Windows.Data.Binding("TypUmowy"),
-                Width = 70
+                Binding = new System.Windows.Data.Binding("TypUmowy")
+                {
+                    Converter = new Pierwsze5Converter()
+                },
+                Width = 60
             });
 
             // Kolumna Typ Ceny z kolorowaniem
             var typCenyColumn = new DataGridTemplateColumn
             {
                 Header = "Cena",
-                Width = 85
+                Width = 65
             };
 
             var cellTemplate = new DataTemplate();
@@ -780,7 +815,10 @@ namespace Kalendarz1
             factory.SetValue(Border.MarginProperty, new Thickness(1));
 
             var textFactory = new FrameworkElementFactory(typeof(TextBlock));
-            textFactory.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("TypCeny"));
+            textFactory.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("TypCeny")
+            {
+                Converter = new Pierwsze5Converter()
+            });
             textFactory.SetBinding(TextBlock.ForegroundProperty, new System.Windows.Data.Binding("TypCeny")
             {
                 Converter = new TypCenyToForegroundConverter()
@@ -795,11 +833,11 @@ namespace Kalendarz1
             typCenyColumn.CellTemplate = cellTemplate;
             dataGridWstawienia.Columns.Add(typCenyColumn);
 
-            // Kolumna "Kto" z avatarem
+            // Kolumna "Kto" z avatarem + nazwisko + data utworzenia (scalone)
             var ktoColumn = new DataGridTemplateColumn
             {
-                Header = "Kto",
-                Width = 90
+                Header = "Kto / Utworzono",
+                Width = 150
             };
 
             var ktoCellTemplate = new DataTemplate();
@@ -812,6 +850,7 @@ namespace Kalendarz1
             gridFactory.SetValue(Grid.WidthProperty, 20.0);
             gridFactory.SetValue(Grid.HeightProperty, 20.0);
             gridFactory.SetValue(Grid.MarginProperty, new Thickness(0, 0, 4, 0));
+            gridFactory.SetValue(Grid.VerticalAlignmentProperty, VerticalAlignment.Center);
 
             // Border z inicjałami (fallback)
             var borderFactory = new FrameworkElementFactory(typeof(Border));
@@ -841,31 +880,36 @@ namespace Kalendarz1
 
             stackFactory.AppendChild(gridFactory);
 
-            // TextBlock z nazwiskiem
+            // Vertical StackPanel — nazwisko (linia 1) + data utworzenia (linia 2, drobne szare)
+            var ktoTextStackFactory = new FrameworkElementFactory(typeof(StackPanel));
+            ktoTextStackFactory.SetValue(StackPanel.OrientationProperty, Orientation.Vertical);
+            ktoTextStackFactory.SetValue(StackPanel.VerticalAlignmentProperty, VerticalAlignment.Center);
+
             var nameFactory = new FrameworkElementFactory(typeof(TextBlock));
             nameFactory.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("KtoStwo"));
             nameFactory.SetValue(TextBlock.FontSizeProperty, 9.0);
-            nameFactory.SetValue(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(100, 116, 139))); // #64748B
-            nameFactory.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
-            stackFactory.AppendChild(nameFactory);
+            nameFactory.SetValue(TextBlock.FontWeightProperty, FontWeights.SemiBold);
+            nameFactory.SetValue(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(55, 71, 79))); // #37474F
+            ktoTextStackFactory.AppendChild(nameFactory);
+
+            var dataUtwFactory = new FrameworkElementFactory(typeof(TextBlock));
+            dataUtwFactory.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("DataUtw"));
+            dataUtwFactory.SetValue(TextBlock.FontSizeProperty, 7.5);
+            dataUtwFactory.SetValue(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(127, 140, 141))); // #7F8C8D
+            ktoTextStackFactory.AppendChild(dataUtwFactory);
+
+            stackFactory.AppendChild(ktoTextStackFactory);
 
             ktoCellTemplate.VisualTree = stackFactory;
             ktoColumn.CellTemplate = ktoCellTemplate;
             dataGridWstawienia.Columns.Add(ktoColumn);
 
-            // Kolumna Data i Godzina Utworzenia
-            dataGridWstawienia.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Utworzono",
-                Binding = new System.Windows.Data.Binding("DataUtw"),
-                Width = new DataGridLength(1, DataGridLengthUnitType.Star)
-            });
-
-            // Kolumna avatar potwierdzającego
+            // Kolumna "Potw. kto / Potwierdzono" — identyczna struktura jak Kto / Utworzono:
+            // avatar (20×20) + Vertical StackPanel (nazwisko + DataConf małym szarym)
             var confAvatarColumn = new DataGridTemplateColumn
             {
-                Header = "Potw. kto",
-                Width = 90
+                Header = "Potw. / Potwierdzono",
+                Width = 150
             };
             var confAvatarTemplate = new DataTemplate();
 
@@ -877,6 +921,7 @@ namespace Kalendarz1
             confGridFactory.SetValue(Grid.WidthProperty, 20.0);
             confGridFactory.SetValue(Grid.HeightProperty, 20.0);
             confGridFactory.SetValue(Grid.MarginProperty, new Thickness(0, 0, 4, 0));
+            confGridFactory.SetValue(Grid.VerticalAlignmentProperty, VerticalAlignment.Center);
 
             // Border z inicjałami potwierdzającego (fallback)
             var confBorderFactory = new FrameworkElementFactory(typeof(Border));
@@ -885,7 +930,9 @@ namespace Kalendarz1
             confBorderFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(10));
             confBorderFactory.SetValue(Border.BackgroundProperty, new SolidColorBrush(Color.FromRgb(39, 174, 96))); // #27AE60
             confBorderFactory.SetValue(FrameworkElement.NameProperty, "avatarBorderConf");
-            confBorderFactory.SetBinding(UIElement.VisibilityProperty, new Binding("KtoConfID")
+            // Pokazuj fallback inicjały kiedykolwiek mamy nazwisko (KtoConfName),
+            // nawet gdy brakuje KtoConfID — wcześniej fallback był ukryty w takich przypadkach.
+            confBorderFactory.SetBinding(UIElement.VisibilityProperty, new Binding("KtoConfName")
             {
                 Converter = new NonEmptyToVisibilityConverter()
             });
@@ -909,13 +956,25 @@ namespace Kalendarz1
 
             confStackFactory.AppendChild(confGridFactory);
 
+            // Vertical StackPanel — nazwisko (linia 1) + data potwierdzenia (linia 2, drobne szare)
+            var confTextStackFactory = new FrameworkElementFactory(typeof(StackPanel));
+            confTextStackFactory.SetValue(StackPanel.OrientationProperty, Orientation.Vertical);
+            confTextStackFactory.SetValue(StackPanel.VerticalAlignmentProperty, VerticalAlignment.Center);
+
             var confNameFactory = new FrameworkElementFactory(typeof(TextBlock));
             confNameFactory.SetBinding(TextBlock.TextProperty, new Binding("KtoConfName"));
             confNameFactory.SetValue(TextBlock.FontSizeProperty, 9.0);
-            confNameFactory.SetValue(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(100, 116, 139)));
-            confNameFactory.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
-            confNameFactory.SetBinding(FrameworkElement.ToolTipProperty, new Binding("DataConf"));
-            confStackFactory.AppendChild(confNameFactory);
+            confNameFactory.SetValue(TextBlock.FontWeightProperty, FontWeights.SemiBold);
+            confNameFactory.SetValue(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(55, 71, 79))); // #37474F
+            confTextStackFactory.AppendChild(confNameFactory);
+
+            var confDataFactory = new FrameworkElementFactory(typeof(TextBlock));
+            confDataFactory.SetBinding(TextBlock.TextProperty, new Binding("DataConf"));
+            confDataFactory.SetValue(TextBlock.FontSizeProperty, 7.5);
+            confDataFactory.SetValue(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(127, 140, 141))); // #7F8C8D
+            confTextStackFactory.AppendChild(confDataFactory);
+
+            confStackFactory.AppendChild(confTextStackFactory);
 
             confAvatarTemplate.VisualTree = confStackFactory;
             confAvatarColumn.CellTemplate = confAvatarTemplate;
@@ -1492,129 +1551,165 @@ namespace Kalendarz1
             using (var connection = new SqlConnection(connectionString))
             {
                 connection.Open();
+                if (_audyt != null) connection.StatisticsEnabled = true;
 
-                // Aktywne przypomnienia (DISTINCT by LP — widok może zwrócić duplikaty)
-                // Counts (IleProb, IleNieOdebral) policzone agregatem zamiast sub-selectów per wiersz.
-                // Ostatnia notatka pobrana w jednym przebiegu przez ROW_NUMBER().
-                string queryAktywne = @"
-                    WITH V AS (
-                        SELECT DISTINCT v.LP, v.DataWstawienia, v.Dostawca, v.IloscWstawienia
-                        FROM dbo.v_WstawieniaDoKontaktu v
-                    ),
-                    CH_Agg AS (
-                        SELECT v.LP,
-                               SUM(CASE WHEN ch.CreatedAt >= v.DataWstawienia THEN 1 ELSE 0 END) AS IleProb,
-                               SUM(CASE WHEN ch.CreatedAt >= v.DataWstawienia AND ch.Reason = 'Brak kontaktu' THEN 1 ELSE 0 END) AS IleNieOdebral
-                        FROM V v
-                        LEFT JOIN dbo.ContactHistory ch ON ch.LpWstawienia = v.LP
-                        GROUP BY v.LP
-                    ),
-                    CH_Last AS (
-                        SELECT LpWstawienia, Reason,
-                               ROW_NUMBER() OVER (PARTITION BY LpWstawienia ORDER BY ContactID DESC) AS rn
-                        FROM dbo.ContactHistory
-                    )
-                    SELECT v.LP,
-                           CAST(v.DataWstawienia AS date) AS Data,
-                           v.Dostawca,
-                           v.IloscWstawienia AS Ilosc,
+                // Podpinamy InfoMessage handler — zbiera STATISTICS IO/TIME do audytu
+                connection.InfoMessage += AudytInfoMessageHandler;
+
+                // OPTYMALIZACJA v3 — jeden batch, 1 round-trip:
+                //  • Materializujemy v_WstawieniaDoKontaktu do #wdk (CLUSTERED INDEX na LP)
+                //    → widok wykonuje się TYLKO RAZ, potem 2 zapytania używają temp table
+                //  • Aktywne i Oczekujące w jednym ExecuteReader (NextResult)
+                //  • NOT EXISTS na widok zamieniony na LEFT JOIN #wdk WHERE LP IS NULL
+                string batchSql = @"
+                    SET STATISTICS IO ON; SET STATISTICS TIME ON;
+                    SET NOCOUNT ON;
+
+                    IF OBJECT_ID('tempdb..#wdk') IS NOT NULL DROP TABLE #wdk;
+
+                    SELECT DISTINCT v.LP, v.DataWstawienia, v.Dostawca, v.IloscWstawienia
+                    INTO #wdk
+                    FROM dbo.v_WstawieniaDoKontaktu v;
+
+                    CREATE CLUSTERED INDEX IX_wdk_LP ON #wdk(LP);
+
+                    -- ===== RESULT SET 1: AKTYWNE =====
+                    SELECT wdk.LP,
+                           CAST(wdk.DataWstawienia AS date) AS Data,
+                           wdk.Dostawca,
+                           wdk.IloscWstawienia AS Ilosc,
                            d.Phone1 AS Telefon,
-                           ISNULL(a.IleProb, 0) AS IleProb,
-                           cl.Reason AS OstatNotatka,
-                           ISNULL(a.IleNieOdebral, 0) AS IleNieOdebral
-                    FROM V v
-                    LEFT JOIN CH_Agg a ON a.LP = v.LP
-                    LEFT JOIN CH_Last cl ON cl.LpWstawienia = v.LP AND cl.rn = 1
-                    LEFT JOIN [LibraNet].[dbo].[Dostawcy] d ON d.ShortName = v.Dostawca
-                    ORDER BY Data DESC, v.Dostawca";
+                           ISNULL(agg.IleProb, 0) AS IleProb,
+                           last.Reason AS OstatNotatka,
+                           ISNULL(agg.IleNieOdebral, 0) AS IleNieOdebral
+                    FROM #wdk wdk
+                    OUTER APPLY (
+                        SELECT COUNT(*) AS IleProb,
+                               SUM(CASE WHEN ch.Reason = 'Brak kontaktu' THEN 1 ELSE 0 END) AS IleNieOdebral
+                        FROM dbo.ContactHistory ch
+                        WHERE ch.LpWstawienia = wdk.LP
+                          AND ch.CreatedAt >= wdk.DataWstawienia
+                    ) agg
+                    OUTER APPLY (
+                        SELECT TOP 1 c.Reason
+                        FROM dbo.ContactHistory c
+                        WHERE c.LpWstawienia = wdk.LP
+                        ORDER BY c.ContactID DESC
+                    ) last
+                    LEFT JOIN [LibraNet].[dbo].[Dostawcy] d ON d.ShortName = wdk.Dostawca
+                    ORDER BY Data DESC, wdk.Dostawca;
 
-                using (var cmd = new SqlCommand(queryAktywne, connection))
-                using (var reader = cmd.ExecuteReader())
+                    -- ===== RESULT SET 2: OCZEKUJĄCE =====
+                    ;WITH SnoozedCandidates AS (
+                        SELECT ch.LpWstawienia, ch.Reason, ch.SnoozedUntil, ch.ContactID
+                        FROM dbo.ContactHistory ch
+                        WHERE ch.SnoozedUntil > CAST(GETDATE() AS date)
+                    ),
+                    StillSnoozed AS (
+                        SELECT sc.LpWstawienia, sc.Reason, sc.SnoozedUntil
+                        FROM SnoozedCandidates sc
+                        WHERE NOT EXISTS (
+                            SELECT 1 FROM dbo.ContactHistory laterCh
+                            WHERE laterCh.LpWstawienia = sc.LpWstawienia
+                              AND laterCh.ContactID > sc.ContactID
+                        )
+                    )
+                    SELECT w.LP,
+                           CAST(w.DataWstawienia AS date) AS Data,
+                           w.Dostawca,
+                           w.IloscWstawienia AS Ilosc,
+                           d.Phone1 AS Telefon,
+                           DATEDIFF(day, CAST(GETDATE() AS date), ss.SnoozedUntil) AS ZaDni,
+                           ISNULL(agg.IleProb, 0) AS IleProb,
+                           ss.Reason AS OstatNotatka,
+                           ISNULL(agg.IleNieOdebral, 0) AS IleNieOdebral
+                    FROM StillSnoozed ss
+                    INNER JOIN dbo.WstawieniaKurczakow w ON w.LP = ss.LpWstawienia
+                    LEFT JOIN #wdk excl ON excl.LP = w.LP
+                    OUTER APPLY (
+                        SELECT COUNT(*) AS IleProb,
+                               SUM(CASE WHEN ch.Reason = 'Brak kontaktu' THEN 1 ELSE 0 END) AS IleNieOdebral
+                        FROM dbo.ContactHistory ch
+                        WHERE ch.LpWstawienia = w.LP
+                          AND ch.CreatedAt >= w.DataWstawienia
+                    ) agg
+                    LEFT JOIN [LibraNet].[dbo].[Dostawcy] d ON d.ShortName = w.Dostawca
+                    WHERE excl.LP IS NULL
+                    ORDER BY ZaDni ASC, w.Dostawca;
+
+                    DROP TABLE #wdk;";
+
+                int rowsAktywne = 0;
+                int rowsOczek = 0;
+                var queryLog = _audyt?.BeginQuery("LoadPrzypomnienia / batch (aktywne + oczekujące + materializacja #wdk)", batchSql);
+                using (var cmd = new SqlCommand(batchSql, connection) { CommandTimeout = 60 })
                 {
-                    while (reader.Read())
+                    var swExec = System.Diagnostics.Stopwatch.StartNew();
+                    using (var reader = cmd.ExecuteReader())
                     {
-                        int lp = Convert.ToInt32(reader["LP"]);
-                        if (!seenLp.Add(lp)) continue; // pomiń duplikaty LP
-                        var row = table.NewRow();
-                        row["LP"] = lp;
-                        row["Data"] = reader["Data"];
-                        row["Dostawca"] = reader["Dostawca"];
-                        row["Ilosc"] = reader["Ilosc"] != DBNull.Value ? reader["Ilosc"] : DBNull.Value;
-                        row["Telefon"] = reader["Telefon"] != DBNull.Value ? reader["Telefon"] : DBNull.Value;
-                        row["Oczekuje"] = 0;
-                        row["ZaDni"] = DBNull.Value;
-                        row["IleProb"] = reader["IleProb"];
-                        row["OstatNotatka"] = reader["OstatNotatka"] != DBNull.Value ? reader["OstatNotatka"] : DBNull.Value;
-                        row["IleNieOdebral"] = reader["IleNieOdebral"];
-                        table.Rows.Add(row);
+                        _audyt?.Sub("SQL batch - exec (do 1. wiersza)", swExec.ElapsedMilliseconds);
+
+                        // ===== Result Set 1: Aktywne =====
+                        var swReadA = System.Diagnostics.Stopwatch.StartNew();
+                        while (reader.Read())
+                        {
+                            rowsAktywne++;
+                            int lp = Convert.ToInt32(reader["LP"]);
+                            if (!seenLp.Add(lp)) continue;
+                            var row = table.NewRow();
+                            row["LP"] = lp;
+                            row["Data"] = reader["Data"];
+                            row["Dostawca"] = reader["Dostawca"];
+                            row["Ilosc"] = reader["Ilosc"] != DBNull.Value ? reader["Ilosc"] : DBNull.Value;
+                            row["Telefon"] = reader["Telefon"] != DBNull.Value ? reader["Telefon"] : DBNull.Value;
+                            row["Oczekuje"] = 0;
+                            row["ZaDni"] = DBNull.Value;
+                            row["IleProb"] = reader["IleProb"];
+                            row["OstatNotatka"] = reader["OstatNotatka"] != DBNull.Value ? reader["OstatNotatka"] : DBNull.Value;
+                            row["IleNieOdebral"] = reader["IleNieOdebral"];
+                            table.Rows.Add(row);
+                        }
+                        _audyt?.Sub($"Aktywne - iter ({rowsAktywne} w.)", swReadA.ElapsedMilliseconds);
+
+                        // ===== Result Set 2: Oczekujące =====
+                        var swNext = System.Diagnostics.Stopwatch.StartNew();
+                        reader.NextResult();
+                        _audyt?.Sub("NextResult (do 1. wiersza oczekujących)", swNext.ElapsedMilliseconds);
+
+                        var swReadO = System.Diagnostics.Stopwatch.StartNew();
+                        while (reader.Read())
+                        {
+                            rowsOczek++;
+                            int lp = Convert.ToInt32(reader["LP"]);
+                            if (!seenLp.Add(lp)) continue;
+                            var row = table.NewRow();
+                            row["LP"] = lp;
+                            row["Data"] = reader["Data"];
+                            row["Dostawca"] = reader["Dostawca"];
+                            row["Ilosc"] = reader["Ilosc"] != DBNull.Value ? reader["Ilosc"] : DBNull.Value;
+                            row["Telefon"] = reader["Telefon"] != DBNull.Value ? reader["Telefon"] : DBNull.Value;
+                            row["Oczekuje"] = 1;
+                            row["ZaDni"] = reader["ZaDni"];
+                            row["IleProb"] = reader["IleProb"];
+                            row["OstatNotatka"] = reader["OstatNotatka"] != DBNull.Value ? reader["OstatNotatka"] : DBNull.Value;
+                            row["IleNieOdebral"] = reader["IleNieOdebral"];
+                            table.Rows.Add(row);
+                        }
+                        _audyt?.Sub($"Oczekujące - iter ({rowsOczek} w.)", swReadO.ElapsedMilliseconds);
                     }
                 }
-
-                // Oczekujące (snoozed) — posortowane od najkrótszego czasu
-                // Counts liczone agregatem; ostatni wpis (ten z SnoozedUntil) wybrany przez ROW_NUMBER.
-                string queryOczekujace = @"
-                    WITH CH_Last AS (
-                        SELECT LpWstawienia, Reason, SnoozedUntil, ContactID,
-                               ROW_NUMBER() OVER (PARTITION BY LpWstawienia ORDER BY ContactID DESC) AS rn
-                        FROM dbo.ContactHistory
-                    ),
-                    Snoozed AS (
-                        SELECT w.LP, w.DataWstawienia, w.Dostawca, w.IloscWstawienia,
-                               cl.Reason, cl.SnoozedUntil
-                        FROM CH_Last cl
-                        INNER JOIN dbo.WstawieniaKurczakow w ON w.LP = cl.LpWstawienia
-                        WHERE cl.rn = 1
-                          AND cl.SnoozedUntil > CAST(GETDATE() AS date)
-                          AND NOT EXISTS (SELECT 1 FROM dbo.v_WstawieniaDoKontaktu v2 WHERE v2.LP = w.LP)
-                    ),
-                    CH_Agg AS (
-                        SELECT s.LP,
-                               SUM(CASE WHEN ch.CreatedAt >= s.DataWstawienia THEN 1 ELSE 0 END) AS IleProb,
-                               SUM(CASE WHEN ch.CreatedAt >= s.DataWstawienia AND ch.Reason = 'Brak kontaktu' THEN 1 ELSE 0 END) AS IleNieOdebral
-                        FROM Snoozed s
-                        LEFT JOIN dbo.ContactHistory ch ON ch.LpWstawienia = s.LP
-                        GROUP BY s.LP
-                    )
-                    SELECT s.LP,
-                           CAST(s.DataWstawienia AS date) AS Data,
-                           s.Dostawca,
-                           s.IloscWstawienia AS Ilosc,
-                           d.Phone1 AS Telefon,
-                           DATEDIFF(day, CAST(GETDATE() AS date), s.SnoozedUntil) AS ZaDni,
-                           ISNULL(a.IleProb, 0) AS IleProb,
-                           s.Reason AS OstatNotatka,
-                           ISNULL(a.IleNieOdebral, 0) AS IleNieOdebral
-                    FROM Snoozed s
-                    LEFT JOIN CH_Agg a ON a.LP = s.LP
-                    LEFT JOIN [LibraNet].[dbo].[Dostawcy] d ON d.ShortName = s.Dostawca
-                    ORDER BY ZaDni ASC, s.Dostawca";
-
-                using (var cmd = new SqlCommand(queryOczekujace, connection))
-                using (var reader = cmd.ExecuteReader())
-                {
-                    while (reader.Read())
-                    {
-                        int lp = Convert.ToInt32(reader["LP"]);
-                        if (!seenLp.Add(lp)) continue; // pomiń duplikaty LP
-                        var row = table.NewRow();
-                        row["LP"] = lp;
-                        row["Data"] = reader["Data"];
-                        row["Dostawca"] = reader["Dostawca"];
-                        row["Ilosc"] = reader["Ilosc"] != DBNull.Value ? reader["Ilosc"] : DBNull.Value;
-                        row["Telefon"] = reader["Telefon"] != DBNull.Value ? reader["Telefon"] : DBNull.Value;
-                        row["Oczekuje"] = 1;
-                        row["ZaDni"] = reader["ZaDni"];
-                        row["IleProb"] = reader["IleProb"];
-                        row["OstatNotatka"] = reader["OstatNotatka"] != DBNull.Value ? reader["OstatNotatka"] : DBNull.Value;
-                        row["IleNieOdebral"] = reader["IleNieOdebral"];
-                        table.Rows.Add(row);
-                    }
-                }
+                _audyt?.EndQuery(table.Rows.Count);
+                _audyt?.RowCount(table.Rows.Count);
+                _audyt?.Note("Optymalizacja v3: #wdk materializowany raz + 1 round-trip + LEFT JOIN/IS NULL");
+                ZbierzConnStats(connection, "LoadPrzypomnienia");
+                connection.InfoMessage -= AudytInfoMessageHandler;
             }
 
+            var swSetupP = System.Diagnostics.Stopwatch.StartNew();
             dataGridPrzypomnienia.ItemsSource = table.DefaultView;
             SetupPrzypomieniaColumns();
             ApplyFilters();
+            _audyt?.Sub("ItemsSource + SetupColumns + ApplyFilters", swSetupP.ElapsedMilliseconds);
         }
 
         private void SetupPrzypomieniaColumns()
@@ -1829,13 +1924,25 @@ namespace Kalendarz1
                     ch.CreatedAt DESC,
                     ch.ContactID DESC";
 
+            string queryWithStatsH = "SET STATISTICS IO ON; SET STATISTICS TIME ON;\n" + query;
             using (var connection = new SqlConnection(connectionString))
-            using (var adapter = new SqlDataAdapter(query, connection))
+            using (var adapter = new SqlDataAdapter(queryWithStatsH, connection))
             {
+                if (_audyt != null) { connection.Open(); connection.StatisticsEnabled = true; }
+                connection.InfoMessage += AudytInfoMessageHandler;
                 adapter.SelectCommand.Parameters.AddWithValue("@CutoffDate", _historiaCutoffDate.Value);
+                var queryLogH = _audyt?.BeginQuery("LoadHistoria / SELECT TOP 500 ContactHistory", queryWithStatsH);
+                if (queryLogH != null) queryLogH.Parameters["@CutoffDate"] = _historiaCutoffDate.Value;
                 var table = new DataTable();
+                var swFillH = System.Diagnostics.Stopwatch.StartNew();
                 adapter.Fill(table);
+                _audyt?.Sub("SqlDataAdapter.Fill", swFillH.ElapsedMilliseconds);
+                _audyt?.EndQuery(table.Rows.Count);
+                ZbierzConnStats(connection, "LoadHistoria");
+                connection.InfoMessage -= AudytInfoMessageHandler;
+                _audyt?.RowCount(table.Rows.Count);
 
+                var swForeachH = System.Diagnostics.Stopwatch.StartNew();
                 foreach (DataRow row in table.Rows)
                 {
                     if (row["UserName"] != DBNull.Value)
@@ -1843,11 +1950,16 @@ namespace Kalendarz1
                         row["UserName"] = SkrocNazwisko(row["UserName"].ToString());
                     }
                 }
+                _audyt?.Sub("Foreach SkrocNazwisko", swForeachH.ElapsedMilliseconds);
 
+                var swSetupH = System.Diagnostics.Stopwatch.StartNew();
                 dataGridHistoria.ItemsSource = table.DefaultView;
                 SetupHistoriaColumns();
+                _audyt?.Sub("ItemsSource + SetupColumns", swSetupH.ElapsedMilliseconds);
             }
+            var swFiltersH = System.Diagnostics.Stopwatch.StartNew();
             ApplyFilters();
+            _audyt?.Sub("ApplyFilters", swFiltersH.ElapsedMilliseconds);
         }
 
         private void SetupHistoriaColumns()
@@ -2282,6 +2394,59 @@ namespace Kalendarz1
         {
             var statystykiWindow = new StatystykiPracownikow();
             statystykiWindow.ShowDialog();
+        }
+
+        private void BtnOstatnieWstawienia_Click(object sender, RoutedEventArgs e)
+        {
+            var okno = new OstatnieWstawieniaHodowcyWindow { Owner = this };
+            okno.ShowDialog();
+            // Po zamknięciu odśwież listę wstawień - mogły zostać zmienione dane przez edycję
+            LoadWstawienia();
+        }
+
+        // Wymusza ponowny pomiar: invaliduje cache, odpala InitializeData z nowym audytem,
+        // pokazuje raport (nawet jeśli _audytPokazany już true).
+        private void BtnAudyt_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                _deliveryCacheLoaded = false; // wymuś re-execute SQL preload
+                _audyt = new LoadingAudit { DeepMode = true };  // PEŁNA DIAGNOSTYKA
+                _audyt.SystemBefore = ZbierzSystemSnapshot();
+                _audyt.Server = ZbierzServerSnapshot(connectionString);
+
+                using (_audyt.Begin("PreloadDeliveryCache")) PreloadDeliveryCache(forceReload: true);
+                using (_audyt.Begin("LoadWstawienia")) LoadWstawienia();
+                using (_audyt.Begin("LoadPrzypomnienia")) LoadPrzypomnienia();
+                using (_audyt.Begin("LoadHistoria")) LoadHistoria();
+                using (_audyt.Begin("UpdateStatistics")) UpdateStatistics();
+
+                using (_audyt.Begin("Diagnostyka SQL (indeksy/tabele/widok)"))
+                {
+                    try
+                    {
+                        var tables = new[]
+                        {
+                            "dbo.WstawieniaKurczakow",
+                            "dbo.HarmonogramDostaw",
+                            "dbo.ContactHistory",
+                            "dbo.operators",
+                            "dbo.Dostawcy"
+                        };
+                        ZbierzDiagnostykeDb(connectionString, tables, "dbo.v_WstawieniaDoKontaktu", _audyt);
+                        _audyt.Cache = ZbierzCacheStats();
+                    }
+                    catch (Exception ex2) { _audyt.DiagError = ex2.Message; }
+                }
+                _audyt.SystemAfter = ZbierzSystemSnapshot();
+
+                PokazAudytJesliPotrzeba(forceShow: true);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Błąd audytu: " + ex.Message, "Audyt",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
         private void ApplyFilters()
         {
@@ -4115,6 +4280,22 @@ namespace Kalendarz1
         {
             throw new NotImplementedException();
         }
+    }
+
+    // Ucina string do pierwszych N znaków (domyślnie 5, ConverterParameter dla innej liczby)
+    public class Pierwsze5Converter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value == null || value == DBNull.Value) return "";
+            string s = value.ToString() ?? "";
+            int n = 5;
+            if (parameter != null && int.TryParse(parameter.ToString(), out int p)) n = p;
+            return s.Length > n ? s.Substring(0, n) : s;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            => throw new NotImplementedException();
     }
 
     // ====== OKNO DIALOGOWE DLA KOPIOWANIA DANYCH ======

@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Data.SqlClient;
 using Kalendarz1.DashboardPrzychodu.Models;
@@ -10,31 +12,342 @@ using Kalendarz1.DashboardPrzychodu.Models;
 namespace Kalendarz1.DashboardPrzychodu.Services
 {
     /// <summary>
-    /// Serwis pobierania danych przychodu żywca z bazy LibraNet
+    /// Wynik skonsolidowanego pobrania danych dashboardu w jednym round-tripie.
+    /// </summary>
+    public sealed class PrzychodLiveSnapshot
+    {
+        public List<DostawaItem> Dostawy { get; init; } = new();
+        public PodsumowanieDnia Podsumowanie { get; init; } = new();
+        public PrognozaDnia Prognoza { get; init; } = new();
+        public List<PostepHarmonogramu> Postepy { get; init; } = new();
+    }
+
+    /// <summary>
+    /// Serwis pobierania danych przychodu żywca z bazy LibraNet.
+    /// Wszystkie 4 zapytania w jednym round-tripie (PrzychodLiveAll.sql, multi-result-set).
     /// </summary>
     public class PrzychodService
     {
         private readonly string _connectionString;
+        private readonly string _handelConnectionString;
         private DateTime _lastFetch = DateTime.MinValue;
         private readonly TimeSpan _minRefreshInterval = TimeSpan.FromSeconds(5);
 
-        // Przechowuje ostatni błąd diagnostyczny
+        // Lazy-loadowane treści SQL z plików w DashboardPrzychodu/SQL/
+        private static readonly Lazy<string> _sqlAll = new(() => LoadSql("PrzychodLiveAll.sql"));
+        private static readonly Lazy<string> _sqlFaktyczny = new(() => LoadSql("FaktycznyPrzychodSymfonia.sql"));
+        private static readonly Lazy<string> _sqlHistoria = new(() => LoadSql("HistoriaZmianDeklaracji.sql"));
+
         public string LastDiagnosticError { get; private set; }
 
-        public PrzychodService(string connectionString = null)
+        public PrzychodService(string connectionString = null, string handelConnectionString = null)
         {
             _connectionString = connectionString ??
                 "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True;Pooling=true;Min Pool Size=2;Max Pool Size=10;";
+            _handelConnectionString = handelConnectionString ??
+                "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True;Connection Timeout=10;";
         }
 
         /// <summary>
-        /// Sprawdza czy można wykonać odświeżenie (minimalny interwał 5 sekund)
+        /// Minimalny interwał odświeżania = 5s (chroni przed double-fetch przy klikaniu).
         /// </summary>
         public bool CanRefresh => DateTime.Now - _lastFetch >= _minRefreshInterval;
 
+        private static string LoadSql(string fileName)
+        {
+            var path = Path.Combine(AppContext.BaseDirectory, "DashboardPrzychodu", "SQL", fileName);
+            if (!File.Exists(path))
+                throw new FileNotFoundException($"SQL file not found: {path}");
+            return File.ReadAllText(path);
+        }
+
         /// <summary>
-        /// DIAGNOSTYKA - testuje każdą kolumnę osobno żeby znaleźć problematyczną
+        /// Skonsolidowany fetch: 1 zapytanie z 4 result-setami → komplet danych dashboardu.
+        /// Zastępuje 4 osobne GetDostawy/Podsumowanie/Prognoza/Postepy (każda skanowała FarmerCalc).
         /// </summary>
+        public async Task<PrzychodLiveSnapshot> GetAllAsync(DateTime data, CancellationToken ct = default)
+        {
+            var snapshot = new PrzychodLiveSnapshot();
+
+            try
+            {
+                using var conn = new SqlConnection(_connectionString);
+                await conn.OpenAsync(ct);
+
+                using var cmd = new SqlCommand(_sqlAll.Value, conn);
+                cmd.Parameters.AddWithValue("@Data", data.Date);
+                cmd.CommandTimeout = 60;
+
+                using var reader = await cmd.ExecuteReaderAsync(ct);
+
+                // === RESULT SET 1: Dostawy ===
+                while (await reader.ReadAsync(ct))
+                    snapshot.Dostawy.Add(MapDostawa(reader));
+
+                // === RESULT SET 2: Podsumowanie ===
+                if (await reader.NextResultAsync(ct) && await reader.ReadAsync(ct))
+                    MapPodsumowanie(reader, snapshot.Podsumowanie);
+
+                // === RESULT SET 3: Prognoza ===
+                if (await reader.NextResultAsync(ct) && await reader.ReadAsync(ct))
+                    MapPrognoza(reader, snapshot.Prognoza);
+
+                // === RESULT SET 4: Postepy ===
+                if (await reader.NextResultAsync(ct))
+                {
+                    while (await reader.ReadAsync(ct))
+                        snapshot.Postepy.Add(MapPostep(reader));
+                }
+
+                _lastFetch = DateTime.Now;
+                Debug.WriteLine($"[PrzychodService] GetAllAsync OK: dostaw={snapshot.Dostawy.Count}, postepow={snapshot.Postepy.Count}, plan={snapshot.Podsumowanie.KgPlanSuma:N0} kg, zwazone={snapshot.Podsumowanie.KgZwazoneSuma:N0} kg");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[PrzychodService] Blad GetAllAsync: {ex.Message}");
+                LastDiagnosticError = $"Blad GetAllAsync: {ex.Message}\n\nStack:\n{ex.StackTrace}";
+                throw;
+            }
+
+            return snapshot;
+        }
+
+        // ===================================================================
+        // BACKWARD-COMPATIBLE WRAPPERS (utrzymywane na potrzeby diagnostyki
+        // i ewentualnego zewnetrznego uzycia - przekierowuja do GetAllAsync).
+        // ===================================================================
+
+        public async Task<List<DostawaItem>> GetDostawyAsync(DateTime data)
+            => (await GetAllAsync(data)).Dostawy;
+
+        public async Task<PodsumowanieDnia> GetPodsumowanieAsync(DateTime data)
+            => (await GetAllAsync(data)).Podsumowanie;
+
+        public async Task<PrognozaDnia> GetPrognozaDniaAsync(DateTime data)
+            => (await GetAllAsync(data)).Prognoza;
+
+        public async Task<List<PostepHarmonogramu>> GetPostepyHarmonogramowAsync(DateTime data)
+            => (await GetAllAsync(data)).Postepy;
+
+        // ===================================================================
+        // MAPPERY
+        // ===================================================================
+
+        private static DostawaItem MapDostawa(SqlDataReader r)
+        {
+            int O(string name) => r.GetOrdinal(name);
+            decimal? Dec(int i) => r.IsDBNull(i) ? null : Convert.ToDecimal(r.GetValue(i));
+            int Int(int i, int def = 0) => r.IsDBNull(i) ? def : Convert.ToInt32(r.GetValue(i));
+
+            return new DostawaItem
+            {
+                ID = r.GetInt32(O("ID")),
+                NrKursu = Int(O("NrKursu")),
+                Data = r.GetDateTime(O("Data")),
+                LpDostawy = r.IsDBNull(O("LpDostawy")) ? null : r.GetInt32(O("LpDostawy")),
+                Hodowca = r.GetString(O("Hodowca")),
+                HodowcaSkrot = r.GetString(O("HodowcaSkrot")),
+
+                PlanSztukiLacznie = Int(O("PlanSztukiLacznie")),
+                PlanKgLacznie = Dec(O("PlanKgLacznie")) ?? 0,
+                AutaPlanowane = Int(O("AutaPlanowane"), 1),
+
+                AutaZwazone = Int(O("AutaZwazone")),
+                AutaOgolem = Int(O("AutaOgolem")),
+                SztukiZwazoneSuma = Dec(O("SztukiZwazoneSuma")) ?? 0,
+                KgZwazoneSuma = Dec(O("KgZwazoneSuma")) ?? 0,
+                SztukiPozostalo = Dec(O("SztukiPozostalo")) ?? 0,
+                KgPozostalo = Dec(O("KgPozostalo")) ?? 0,
+                RealizacjaProc = Dec(O("RealizacjaProc")) ?? 0,
+                TrendProc = Dec(O("TrendProc")) ?? 100,
+
+                SztukiPlan = Int(O("SztukiPlan")),
+                KgPlan = r.GetDecimal(O("KgPlan")),
+                SredniaWagaPlan = Dec(O("SredniaWagaPlan")),
+                WagaDeklHarmonogram = Dec(O("WagaDeklHarmonogram")),
+                SztPojPlan = Dec(O("SztPojPlan")),
+
+                Brutto = r.GetDecimal(O("Brutto")),
+                Tara = r.GetDecimal(O("Tara")),
+                KgRzeczywiste = r.GetDecimal(O("KgRzeczywiste")),
+                SztukiRzeczywiste = r.GetInt32(O("SztukiRzeczywiste")),
+                SredniaWagaRzeczywista = Dec(O("SredniaWagaRzeczywista")),
+                SztPojRzecz = Dec(O("SztPojRzecz")),
+
+                // NOWE (#2): rozdzielone odchylenia - dwie semantyki w osobnych polach
+                OdchylenieVsPlanAutoKg = Dec(O("OdchylenieVsPlanAutoKg")),
+                OdchylenieVsPlanAutoProc = Dec(O("OdchylenieVsPlanAutoProc")),
+                OdchylenieVsDeklHodowcaKg = Dec(O("OdchylenieVsDeklHodowcaKg")),
+                OdchylenieVsDeklHodowcaProc = Dec(O("OdchylenieVsDeklHodowcaProc")),
+
+                OdchylenieWagi = Dec(O("OdchylenieWagi")),
+
+                StatusId = r.GetInt32(O("StatusId")),
+                Padle = r.GetInt32(O("Padle")),
+                Konfiskaty = r.GetInt32(O("Konfiskaty")),
+                Przyjazd = r.IsDBNull(O("Przyjazd")) ? null : r.GetDateTime(O("Przyjazd")),
+                GodzinaWazenia = r.IsDBNull(O("GodzinaWazenia")) ? null : r.GetDateTime(O("GodzinaWazenia")),
+                KtoWazyl = r.IsDBNull(O("KtoWazyl")) ? null : r.GetString(O("KtoWazyl")),
+
+                SztukiExcel = Int(O("SztukiExcel"))
+            };
+        }
+
+        private static void MapPodsumowanie(SqlDataReader r, PodsumowanieDnia p)
+        {
+            int O(string name) => r.GetOrdinal(name);
+            decimal? Dec(int i) => r.IsDBNull(i) ? null : Convert.ToDecimal(r.GetValue(i));
+            int Int(int i) => r.IsDBNull(i) ? 0 : Convert.ToInt32(r.GetValue(i));
+
+            p.SztukiPlanSuma = Int(O("SztukiPlanSuma"));
+            p.KgPlanSuma = Dec(O("KgPlanSuma")) ?? 0;
+            p.SrWagaPlanSrednia = Dec(O("SrWagaPlanSrednia"));
+
+            p.SztukiZwazoneSuma = Int(O("SztukiZwazoneSuma"));
+            p.KgZwazoneSuma = Dec(O("KgZwazoneSuma")) ?? 0;
+            p.SrWagaRzeczSrednia = Dec(O("SrWagaRzeczSrednia"));
+
+            p.OdchylenieKgSuma = Dec(O("OdchylenieKgSuma")) ?? 0;
+            p.KgPlanDoZwazonych = Dec(O("KgPlanDoZwazonych")) ?? 0;
+
+            p.LiczbaDostawOgolem = Int(O("LiczbaDostawOgolem"));
+            p.LiczbaZwazonych = Int(O("LiczbaZwazonych"));
+            p.LiczbaCzekaNaTare = Int(O("LiczbaCzekaNaTare"));
+            p.LiczbaOczekujacych = Int(O("LiczbaOczekujacych"));
+
+            // Tempo: pierwsze/ostatnie wazenie dnia (do liczenia ETA, pace)
+            p.PierwszeWazenie = r.IsDBNull(O("PierwszeWazenie")) ? null : r.GetDateTime(O("PierwszeWazenie"));
+            p.OstatnieWazenie = r.IsDBNull(O("OstatnieWazenie")) ? null : r.GetDateTime(O("OstatnieWazenie"));
+        }
+
+        private static void MapPrognoza(SqlDataReader r, PrognozaDnia p)
+        {
+            int O(string name) => r.GetOrdinal(name);
+            decimal Dec(int i) => r.IsDBNull(i) ? 0 : Convert.ToDecimal(r.GetValue(i));
+            int Int(int i) => r.IsDBNull(i) ? 0 : Convert.ToInt32(r.GetValue(i));
+
+            p.KgPlanLacznie = Dec(O("KgPlanLacznie"));
+            p.KgZwazone = Dec(O("KgZwazone"));
+            p.AutaZwazone = Int(O("AutaZwazone"));
+            p.AutaOgolem = Int(O("AutaOgolem"));
+        }
+
+        private static PostepHarmonogramu MapPostep(SqlDataReader r)
+        {
+            int O(string name) => r.GetOrdinal(name);
+            decimal? Dec(int i) => r.IsDBNull(i) ? null : Convert.ToDecimal(r.GetValue(i));
+            int Int(int i, int def = 0) => r.IsDBNull(i) ? def : Convert.ToInt32(r.GetValue(i));
+
+            return new PostepHarmonogramu
+            {
+                LpDostawy = r.GetInt32(O("LpDostawy")),
+                Hodowca = r.GetString(O("Hodowca")),
+                AutaZwazone = Int(O("AutaZwazone")),
+                AutaOgolem = Int(O("AutaOgolem")),
+                AutaPlanowane = Int(O("AutaPlanowane"), 1),
+                PlanSztukiLacznie = Dec(O("PlanSztukiLacznie")) ?? 0,
+                PlanKgLacznie = Dec(O("PlanKgLacznie")) ?? 0,
+                SztukiZwazoneSuma = Dec(O("SztukiZwazoneSuma")) ?? 0,
+                KgZwazoneSuma = Dec(O("KgZwazoneSuma")) ?? 0,
+                SredniaWagaPlan = Dec(O("SredniaWagaPlan")),
+                SredniaWagaRzecz = Dec(O("SredniaWagaRzecz"))
+            };
+        }
+
+        /// <summary>
+        /// Faktyczny przychod produkcji (PWU) z Symfonii (HANDEL).
+        /// Osobny round-trip - inna baza danych, opcjonalne dane.
+        /// </summary>
+        public async Task<(decimal KlasaA, decimal KlasaB)> GetFaktycznyPrzychodAsync(DateTime data, CancellationToken ct = default)
+        {
+            decimal faktA = 0, faktB = 0;
+
+            try
+            {
+                using var conn = new SqlConnection(_handelConnectionString);
+                await conn.OpenAsync(ct);
+                using var cmd = new SqlCommand(_sqlFaktyczny.Value, conn);
+                cmd.Parameters.AddWithValue("@Data", data.Date);
+                cmd.CommandTimeout = 15;
+
+                using var reader = await cmd.ExecuteReaderAsync(ct);
+                while (await reader.ReadAsync(ct))
+                {
+                    string klasa = reader.IsDBNull(0) ? "X" : reader.GetString(0);
+                    decimal ilosc = reader.IsDBNull(1) ? 0 : Convert.ToDecimal(reader.GetValue(1));
+                    if (klasa == "A") faktA = ilosc;
+                    else if (klasa == "B") faktB = ilosc;
+                }
+
+                Debug.WriteLine($"[PrzychodService] Faktyczny przychod sPWU: A={faktA:N0} kg, B={faktB:N0} kg");
+            }
+            catch (Exception ex)
+            {
+                // Symfonia dane opcjonalne - zwracamy zera, UI pokaze "-"
+                Debug.WriteLine($"[PrzychodService] Blad GetFaktycznyPrzychodAsync (Handel): {ex.Message}");
+            }
+
+            return (faktA, faktB);
+        }
+
+        /// <summary>
+        /// Historia zmian wag i sztuk DEKLAROWANYCH dla danej daty (FarmerCalcChangeLog).
+        /// TOP 100 najnowszych, filtruje 3 pola: Szt.Dek, Waga Brutto Hodowca, Waga Tara Hodowca.
+        /// Osobny round-trip — wczytywane parallel z GetAllAsync.
+        /// </summary>
+        public async Task<List<HistoriaZmianItem>> GetHistoriaZmianAsync(DateTime data, CancellationToken ct = default)
+        {
+            var historia = new List<HistoriaZmianItem>();
+            try
+            {
+                using var conn = new SqlConnection(_connectionString);
+                await conn.OpenAsync(ct);
+                using var cmd = new SqlCommand(_sqlHistoria.Value, conn);
+                cmd.Parameters.AddWithValue("@Data", data.Date);
+                cmd.CommandTimeout = 15;
+
+                using var reader = await cmd.ExecuteReaderAsync(ct);
+                while (await reader.ReadAsync(ct))
+                {
+                    historia.Add(new HistoriaZmianItem
+                    {
+                        ChangedAt = reader.GetDateTime(0),
+                        Hodowca = reader.GetString(1),
+                        FieldName = reader.GetString(2),
+                        OldValue = reader.GetString(3),
+                        NewValue = reader.GetString(4),
+                        UserName = reader.GetString(5)
+                    });
+                }
+                Debug.WriteLine($"[PrzychodService] Historia zmian: {historia.Count} wpisow dla {data:yyyy-MM-dd}");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[PrzychodService] Blad GetHistoriaZmianAsync: {ex.Message}");
+                // Historia opcjonalna - sidebar pokaze pusta liste
+            }
+            return historia;
+        }
+
+        public async Task<bool> TestConnectionAsync()
+        {
+            try
+            {
+                using var conn = new SqlConnection(_connectionString);
+                await conn.OpenAsync();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[PrzychodService] Test polaczenia nieudany: {ex.Message}");
+                return false;
+            }
+        }
+
+        // ===================================================================
+        // DIAGNOSTYKA - per-kolumna test, used by BtnDiagnose w UI
+        // ===================================================================
+
         public async Task<string> DiagnoseQueryAsync(DateTime data)
         {
             var sb = new StringBuilder();
@@ -42,7 +355,6 @@ namespace Kalendarz1.DashboardPrzychodu.Services
             sb.AppendLine($"Data: {data:yyyy-MM-dd}");
             sb.AppendLine();
 
-            // Lista kolumn do przetestowania
             var columns = new[]
             {
                 ("fc.ID", "ID"),
@@ -68,123 +380,64 @@ namespace Kalendarz1.DashboardPrzychodu.Services
 
             try
             {
-                using (var conn = new SqlConnection(_connectionString))
+                using var conn = new SqlConnection(_connectionString);
+                await conn.OpenAsync();
+                sb.AppendLine("[OK] Polaczenie z baza: SUKCES");
+                sb.AppendLine();
+
+                // Test 1: liczba rekordow
+                sb.AppendLine("--- TEST 1: Liczba rekordow w FarmerCalc ---");
+                using (var cmd = new SqlCommand(
+                    "SELECT COUNT(*) FROM dbo.FarmerCalc WHERE CalcDate = @Data AND ISNULL(Deleted, 0) = 0", conn))
                 {
-                    await conn.OpenAsync();
-                    sb.AppendLine("[OK] Połączenie z bazą: SUKCES");
-                    sb.AppendLine();
+                    cmd.Parameters.AddWithValue("@Data", data.Date);
+                    var count = (int)await cmd.ExecuteScalarAsync();
+                    sb.AppendLine($"[OK] Znaleziono {count} rekordow na date {data:yyyy-MM-dd}");
+                }
+                sb.AppendLine();
 
-                    // Test 1: Sprawdź czy tabela FarmerCalc istnieje i ma dane
-                    sb.AppendLine("--- TEST 1: Liczba rekordów w FarmerCalc ---");
-                    using (var cmd = new SqlCommand(
-                        "SELECT COUNT(*) FROM dbo.FarmerCalc WHERE CalcDate = @Data AND ISNULL(Deleted, 0) = 0", conn))
+                // Test 2: per-kolumna
+                sb.AppendLine("--- TEST 2: Testowanie kolumn ---");
+                foreach (var (colExpr, colName) in columns)
+                {
+                    try
                     {
+                        string testQuery = $@"
+                            SELECT TOP 1 {colExpr} AS TestCol
+                            FROM dbo.FarmerCalc fc
+                            LEFT JOIN dbo.Dostawcy d ON LTRIM(RTRIM(d.ID)) = LTRIM(RTRIM(fc.CustomerGID))
+                            WHERE fc.CalcDate = @Data AND ISNULL(fc.Deleted, 0) = 0";
+
+                        using var cmd = new SqlCommand(testQuery, conn);
                         cmd.Parameters.AddWithValue("@Data", data.Date);
-                        var count = (int)await cmd.ExecuteScalarAsync();
-                        sb.AppendLine($"[OK] Znaleziono {count} rekordów na datę {data:yyyy-MM-dd}");
+                        var result = await cmd.ExecuteScalarAsync();
+                        string v = result == null || result == DBNull.Value ? "NULL" : result.ToString();
+                        if (v.Length > 50) v = v.Substring(0, 50) + "...";
+                        sb.AppendLine($"[OK] {colName,-25} = {v}");
                     }
-                    sb.AppendLine();
-
-                    // Test 2: Sprawdź każdą kolumnę osobno
-                    sb.AppendLine("--- TEST 2: Testowanie kolumn ---");
-                    foreach (var (colExpr, colName) in columns)
+                    catch (Exception ex)
                     {
-                        try
-                        {
-                            string testQuery = $@"
-                                SELECT TOP 1 {colExpr} AS TestCol
-                                FROM dbo.FarmerCalc fc
-                                LEFT JOIN dbo.Dostawcy d ON LTRIM(RTRIM(d.ID)) = LTRIM(RTRIM(fc.CustomerGID))
-                                WHERE fc.CalcDate = @Data AND ISNULL(fc.Deleted, 0) = 0";
-
-                            using (var cmd = new SqlCommand(testQuery, conn))
-                            {
-                                cmd.Parameters.AddWithValue("@Data", data.Date);
-                                var result = await cmd.ExecuteScalarAsync();
-                                string valueStr = result == null || result == DBNull.Value ? "NULL" : result.ToString();
-                                if (valueStr.Length > 50) valueStr = valueStr.Substring(0, 50) + "...";
-                                sb.AppendLine($"[OK] {colName,-25} = {valueStr}");
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            sb.AppendLine($"[BŁĄD] {colName,-25} = {ex.Message}");
-                        }
+                        sb.AppendLine($"[BLAD] {colName,-25} = {ex.Message}");
                     }
-                    sb.AppendLine();
+                }
+                sb.AppendLine();
 
-                    // Test 3: Testuj obliczenia CASE
-                    sb.AppendLine("--- TEST 3: Testowanie obliczeń CASE ---");
-
-                    var caseExpressions = new[]
-                    {
-                        ("SredniaWagaPlan", @"CASE WHEN ISNULL(fc.DeclI1, 0) > 0 AND COALESCE(fc.NettoFarmWeight, fc.WagaDek, 0) > 0
-                            THEN CAST(COALESCE(fc.NettoFarmWeight, fc.WagaDek, 0) / NULLIF(fc.DeclI1, 0) AS DECIMAL(10,3)) ELSE NULL END"),
-
-                        ("SredniaWagaRzecz", @"CASE WHEN ISNULL(fc.LumQnt, 0) > 0 AND ISNULL(fc.NettoWeight, 0) > 0
-                            THEN CAST(fc.NettoWeight / NULLIF(fc.LumQnt, 0) AS DECIMAL(10,3)) ELSE NULL END"),
-
-                        ("OdchylenieKg", @"CASE WHEN ISNULL(fc.NettoWeight, 0) > 0 AND COALESCE(fc.NettoFarmWeight, fc.WagaDek, 0) > 0
-                            THEN fc.NettoWeight - COALESCE(fc.NettoFarmWeight, fc.WagaDek, 0) ELSE NULL END"),
-
-                        ("OdchylenieProc", @"CASE WHEN ISNULL(fc.NettoWeight, 0) > 0 AND COALESCE(fc.NettoFarmWeight, fc.WagaDek, 0) > 0
-                            THEN CAST((fc.NettoWeight - COALESCE(fc.NettoFarmWeight, fc.WagaDek, 0)) / NULLIF(COALESCE(fc.NettoFarmWeight, fc.WagaDek, 0), 0) * 100 AS DECIMAL(10,2)) ELSE NULL END"),
-                    };
-
-                    foreach (var (name, expr) in caseExpressions)
-                    {
-                        try
-                        {
-                            string testQuery = $@"
-                                SELECT TOP 1 {expr} AS TestCol
-                                FROM dbo.FarmerCalc fc
-                                LEFT JOIN dbo.Dostawcy d ON LTRIM(RTRIM(d.ID)) = LTRIM(RTRIM(fc.CustomerGID))
-                                WHERE fc.CalcDate = @Data AND ISNULL(fc.Deleted, 0) = 0";
-
-                            using (var cmd = new SqlCommand(testQuery, conn))
-                            {
-                                cmd.Parameters.AddWithValue("@Data", data.Date);
-                                var result = await cmd.ExecuteScalarAsync();
-                                string valueStr = result == null || result == DBNull.Value ? "NULL" : result.ToString();
-                                sb.AppendLine($"[OK] {name,-20} = {valueStr}");
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            sb.AppendLine($"[BŁĄD] {name,-20} = {ex.Message}");
-                        }
-                    }
-                    sb.AppendLine();
-
-                    // Test 4: Pokaż przykładowy rekord surowy
-                    sb.AppendLine("--- TEST 4: Przykładowy rekord (surowe dane) ---");
-                    using (var cmd = new SqlCommand(@"
-                        SELECT TOP 1
-                            fc.ID, fc.CarLp, fc.CustomerGID,
-                            fc.DeclI1, fc.NettoFarmWeight, fc.WagaDek,
-                            fc.FullWeight, fc.EmptyWeight, fc.NettoWeight, fc.LumQnt
-                        FROM dbo.FarmerCalc fc
-                        WHERE fc.CalcDate = @Data AND ISNULL(fc.Deleted, 0) = 0", conn))
-                    {
-                        cmd.Parameters.AddWithValue("@Data", data.Date);
-                        using (var reader = await cmd.ExecuteReaderAsync())
-                        {
-                            if (await reader.ReadAsync())
-                            {
-                                for (int i = 0; i < reader.FieldCount; i++)
-                                {
-                                    var val = reader.IsDBNull(i) ? "NULL" : reader.GetValue(i).ToString();
-                                    var type = reader.GetFieldType(i).Name;
-                                    sb.AppendLine($"  {reader.GetName(i),-20} [{type,-10}] = {val}");
-                                }
-                            }
-                        }
-                    }
+                // Test 3: pelne GetAllAsync
+                sb.AppendLine("--- TEST 3: Pelne GetAllAsync ---");
+                try
+                {
+                    var snap = await GetAllAsync(data);
+                    sb.AppendLine($"[OK] GetAllAsync OK: dostaw={snap.Dostawy.Count}, postepow={snap.Postepy.Count}");
+                    sb.AppendLine($"     Plan: {snap.Podsumowanie.KgPlanSuma:N0} kg, Zwazone: {snap.Podsumowanie.KgZwazoneSuma:N0} kg");
+                }
+                catch (Exception ex)
+                {
+                    sb.AppendLine($"[BLAD] GetAllAsync: {ex.Message}");
                 }
             }
             catch (Exception ex)
             {
-                sb.AppendLine($"[BŁĄD KRYTYCZNY] {ex.GetType().Name}: {ex.Message}");
+                sb.AppendLine($"[BLAD KRYTYCZNY] {ex.GetType().Name}: {ex.Message}");
                 sb.AppendLine();
                 sb.AppendLine("Stack trace:");
                 sb.AppendLine(ex.StackTrace);
@@ -192,863 +445,6 @@ namespace Kalendarz1.DashboardPrzychodu.Services
 
             LastDiagnosticError = sb.ToString();
             return LastDiagnosticError;
-        }
-
-        /// <summary>
-        /// Pobiera liste dostaw zywca na dany dzien z DYNAMICZNYM PLANEM.
-        /// PLAN z HarmonogramDostaw, RZECZYWISTE z FarmerCalc.
-        /// Ostatnie auto = RESZTA z harmonogramu (nie sztywny plan 1/n)
-        /// </summary>
-        public async Task<List<DostawaItem>> GetDostawyAsync(DateTime data)
-        {
-            var dostawy = new List<DostawaItem>();
-
-            // Zapytanie z CTE: dynamiczny plan gdzie ostatnie auto = RESZTA z harmonogramu
-            const string query = @"
-                WITH DaneDostawy AS (
-                    -- Pobranie wszystkich rekordów na dany dzień (jeden skan FarmerCalc)
-                    SELECT fc.*, RTRIM(fc.CustomerGID) AS CustGID
-                    FROM dbo.FarmerCalc fc
-                    WHERE fc.CalcDate = @Data AND ISNULL(fc.Deleted, 0) = 0
-                ),
-                DostawcyMap AS (
-                    -- Pre-trim Dostawcy raz (zamiast LTRIM/RTRIM per wiersz w JOIN)
-                    SELECT LTRIM(RTRIM(d.ID)) AS TrimID, d.Name, d.ShortName
-                    FROM dbo.Dostawcy d
-                    WHERE LTRIM(RTRIM(d.ID)) IN (SELECT DISTINCT CustGID FROM DaneDostawy)
-                ),
-                SumaZwazonychPerHarmonogram AS (
-                    -- Suma juz zwazonych dla kazdego harmonogramu
-                    SELECT
-                        fc.LpDostawy,
-                        COUNT(*) AS AutaZwazone,
-                        SUM(ISNULL(fc.LumQnt, 0)) AS SztukiZwazoneSuma,
-                        SUM(ISNULL(fc.NettoWeight, 0)) AS KgZwazoneSuma
-                    FROM DaneDostawy fc
-                    WHERE ISNULL(fc.FullWeight, 0) > 0
-                      AND ISNULL(fc.EmptyWeight, 0) > 0  -- tylko zwazone (brutto + tara)
-                    GROUP BY fc.LpDostawy
-                ),
-                SumaWszystkichPerHarmonogram AS (
-                    -- Wszystkie auta (zwazone + oczekujace) dla kazdego harmonogramu
-                    SELECT
-                        fc.LpDostawy,
-                        COUNT(*) AS AutaOgolem
-                    FROM DaneDostawy fc
-                    GROUP BY fc.LpDostawy
-                ),
-                PozostaloPerHarmonogram AS (
-                    -- Obliczenie pozostalej ilosci dla kazdego harmonogramu
-                    SELECT
-                        fc.LpDostawy,
-                        hd.Lp AS HarmonogramLp,
-                        hd.Dostawca AS HodowcaHarmonogram,
-                        ISNULL(TRY_CAST(hd.SztukiDek AS INT), 0) AS PlanSztukiLacznie,
-                        CAST(ISNULL(TRY_CAST(hd.SztukiDek AS INT), 0) * ISNULL(TRY_CAST(hd.WagaDek AS DECIMAL(10,3)), 0) AS DECIMAL(12,0)) AS PlanKgLacznie,
-                        ISNULL(TRY_CAST(hd.WagaDek AS DECIMAL(10,3)), 0) AS WagaDekl,
-                        TRY_CAST(hd.SztSzuflada AS DECIMAL(10,2)) AS SztPojPlan,
-                        ISNULL(TRY_CAST(hd.Auta AS INT), 1) AS AutaPlanowane,
-                        ISNULL(sz.AutaZwazone, 0) AS AutaZwazone,
-                        ISNULL(sw.AutaOgolem, 0) AS AutaOgolem,
-                        ISNULL(sz.SztukiZwazoneSuma, 0) AS SztukiZwazoneSuma,
-                        ISNULL(sz.KgZwazoneSuma, 0) AS KgZwazoneSuma,
-                        -- POZOSTALO
-                        ISNULL(TRY_CAST(hd.SztukiDek AS INT), 0) - ISNULL(sz.SztukiZwazoneSuma, 0) AS SztukiPozostalo,
-                        CAST(ISNULL(TRY_CAST(hd.SztukiDek AS INT), 0) * ISNULL(TRY_CAST(hd.WagaDek AS DECIMAL(10,3)), 0) AS DECIMAL(12,0)) - ISNULL(sz.KgZwazoneSuma, 0) AS KgPozostalo,
-                        -- Ile aut jeszcze czeka
-                        ISNULL(sw.AutaOgolem, 0) - ISNULL(sz.AutaZwazone, 0) AS AutaCzekajacych,
-                        -- Procent realizacji
-                        CASE WHEN CAST(ISNULL(TRY_CAST(hd.SztukiDek AS INT), 0) * ISNULL(TRY_CAST(hd.WagaDek AS DECIMAL(10,3)), 0) AS DECIMAL(12,0)) > 0
-                             THEN CAST(ISNULL(sz.KgZwazoneSuma, 0) * 100.0 / (ISNULL(TRY_CAST(hd.SztukiDek AS INT), 0) * ISNULL(TRY_CAST(hd.WagaDek AS DECIMAL(10,3)), 0)) AS DECIMAL(5,1))
-                             ELSE 0 END AS RealizacjaProc,
-                        -- Trend (srednia na zwazone auto vs plan na auto)
-                        CASE WHEN ISNULL(sz.AutaZwazone, 0) > 0 AND ISNULL(TRY_CAST(hd.Auta AS INT), 1) > 0
-                             THEN CAST((ISNULL(sz.KgZwazoneSuma, 0) / sz.AutaZwazone)
-                                  / NULLIF((CAST(ISNULL(TRY_CAST(hd.SztukiDek AS INT), 0) * ISNULL(TRY_CAST(hd.WagaDek AS DECIMAL(10,3)), 0) AS DECIMAL(12,0)) / ISNULL(TRY_CAST(hd.Auta AS INT), 1)), 0) * 100 AS DECIMAL(5,1))
-                             ELSE 100 END AS TrendProc
-                    FROM (SELECT DISTINCT LpDostawy FROM DaneDostawy) fc
-                    LEFT JOIN dbo.HarmonogramDostaw hd ON TRY_CAST(fc.LpDostawy AS INT) = hd.Lp
-                    LEFT JOIN SumaZwazonychPerHarmonogram sz ON fc.LpDostawy = sz.LpDostawy
-                    LEFT JOIN SumaWszystkichPerHarmonogram sw ON fc.LpDostawy = sw.LpDostawy
-                )
-                SELECT
-                    fc.ID,
-                    ISNULL(TRY_CAST(fc.CarLp AS INT), 0) AS NrKursu,
-                    fc.CalcDate AS Data,
-                    fc.LpDostawy,
-
-                    -- Hodowca
-                    ISNULL(d.Name, ISNULL(ph.HodowcaHarmonogram, 'Nieznany')) AS Hodowca,
-                    ISNULL(d.ShortName, '') AS HodowcaSkrot,
-
-                    -- ========== PLAN LACZNY Z HARMONOGRAMU ==========
-                    ISNULL(ph.PlanSztukiLacznie, 0) AS PlanSztukiLacznie,
-                    ISNULL(ph.PlanKgLacznie, 0) AS PlanKgLacznie,
-                    ISNULL(ph.WagaDekl, 0) AS WagaDeklHarmonogram,
-                    ph.SztPojPlan,
-                    ISNULL(ph.AutaPlanowane, 1) AS AutaPlanowane,
-
-                    -- ========== POSTEP HARMONOGRAMU ==========
-                    ISNULL(ph.AutaZwazone, 0) AS AutaZwazone,
-                    ISNULL(ph.AutaOgolem, 0) AS AutaOgolem,
-                    ISNULL(ph.AutaCzekajacych, 0) AS AutaCzekajacych,
-                    ISNULL(ph.SztukiZwazoneSuma, 0) AS SztukiZwazoneSuma,
-                    ISNULL(ph.KgZwazoneSuma, 0) AS KgZwazoneSuma,
-                    ISNULL(ph.SztukiPozostalo, 0) AS SztukiPozostalo,
-                    ISNULL(ph.KgPozostalo, 0) AS KgPozostalo,
-                    ISNULL(ph.RealizacjaProc, 0) AS RealizacjaProc,
-                    ISNULL(ph.TrendProc, 100) AS TrendProc,
-
-                    -- ========== PLAN NA POJEDYNCZE AUTO (proporcjonalny) ==========
-                    CASE WHEN ISNULL(ph.AutaPlanowane, 0) > 0
-                         THEN CAST(ISNULL(ph.PlanSztukiLacznie, 0) / ph.AutaPlanowane AS INT)
-                         ELSE ISNULL(fc.DeclI1, 0) END AS SztukiPlan,
-                    CASE WHEN ISNULL(ph.AutaPlanowane, 0) > 0
-                         THEN CAST(ISNULL(ph.PlanKgLacznie, 0) / ph.AutaPlanowane AS DECIMAL(12,0))
-                         ELSE CAST(ISNULL(fc.DeclI1, 0) * COALESCE(ph.WagaDekl, fc.WagaDek, 0) AS DECIMAL(12,0)) END AS KgPlan,
-
-                    -- Srednia waga deklarowana
-                    CAST(ISNULL(ph.WagaDekl, COALESCE(fc.WagaDek, 0)) AS DECIMAL(10,3)) AS SredniaWagaPlan,
-
-                    -- ========== RZECZYWISTE (z FarmerCalc - portier) ==========
-                    CAST(ISNULL(fc.FullWeight, 0) AS DECIMAL(18,2)) AS Brutto,
-                    CAST(ISNULL(fc.EmptyWeight, 0) AS DECIMAL(18,2)) AS Tara,
-                    CAST(ISNULL(fc.NettoWeight, 0) AS DECIMAL(18,2)) AS KgRzeczywiste,
-                    ISNULL(fc.LumQnt, 0) AS SztukiRzeczywiste,
-
-                    -- Srednia waga rzeczywista [kg/szt]
-                    CASE WHEN ISNULL(fc.LumQnt, 0) > 0 AND ISNULL(fc.NettoWeight, 0) > 0
-                         THEN CAST(fc.NettoWeight / fc.LumQnt AS DECIMAL(10,3))
-                         ELSE NULL END AS SredniaWagaRzeczywista,
-
-                    -- Rzeczywiste szt/pojemnik
-                    TRY_CAST(fc.SztPoj AS DECIMAL(10,2)) AS SztPojRzecz,
-
-                    -- ========== ODCHYLENIE KG (wzgledem planu na auto) ==========
-                    CASE WHEN ISNULL(ph.AutaPlanowane, 0) > 0 AND ISNULL(fc.NettoWeight, 0) > 0
-                         THEN CAST(fc.NettoWeight - (ISNULL(ph.PlanKgLacznie, 0) / ph.AutaPlanowane) AS DECIMAL(12,0))
-                         WHEN ISNULL(fc.NettoWeight, 0) > 0 AND COALESCE(fc.NettoFarmWeight, fc.WagaDek, 0) > 0
-                         THEN CAST(fc.NettoWeight - COALESCE(fc.NettoFarmWeight, fc.WagaDek, 0) AS DECIMAL(18,2))
-                         ELSE NULL END AS OdchylenieKg,
-
-                    -- Odchylenie %
-                    CASE WHEN ISNULL(ph.AutaPlanowane, 0) > 0
-                              AND ISNULL(fc.NettoWeight, 0) > 0
-                              AND (ISNULL(ph.PlanKgLacznie, 0) / ph.AutaPlanowane) > 0
-                         THEN CAST(
-                              (fc.NettoWeight - (ISNULL(ph.PlanKgLacznie, 0) / ph.AutaPlanowane))
-                              / (ISNULL(ph.PlanKgLacznie, 0) / ph.AutaPlanowane) * 100
-                              AS DECIMAL(5,2))
-                         WHEN ISNULL(fc.NettoWeight, 0) > 0 AND COALESCE(fc.NettoFarmWeight, fc.WagaDek, 0) > 0
-                         THEN CAST((fc.NettoWeight - COALESCE(fc.NettoFarmWeight, fc.WagaDek, 0))
-                              / NULLIF(COALESCE(fc.NettoFarmWeight, fc.WagaDek, 0), 0) * 100 AS DECIMAL(10,2))
-                         ELSE NULL END AS OdchylenieProc,
-
-                    -- ========== ODCHYLENIE SREDNIEJ WAGI ==========
-                    CASE WHEN ISNULL(fc.LumQnt, 0) > 0
-                              AND ISNULL(fc.NettoWeight, 0) > 0
-                              AND ISNULL(ph.WagaDekl, COALESCE(fc.WagaDek, 0)) > 0
-                         THEN CAST((fc.NettoWeight / fc.LumQnt) - ISNULL(ph.WagaDekl, COALESCE(fc.WagaDek, 0)) AS DECIMAL(10,3))
-                         ELSE NULL END AS OdchylenieWagi,
-
-                    -- ========== STATUS ==========
-                    CASE
-                        WHEN ISNULL(fc.FullWeight, 0) > 0 AND ISNULL(fc.EmptyWeight, 0) > 0 THEN 2
-                        WHEN ISNULL(fc.FullWeight, 0) > 0 THEN 1
-                        ELSE 0
-                    END AS StatusId,
-
-                    -- KONFISKATY
-                    ISNULL(fc.DeclI2, 0) AS Padle,
-                    ISNULL(TRY_CAST(fc.DeclI3 AS INT), 0) + ISNULL(TRY_CAST(fc.DeclI4 AS INT), 0) + ISNULL(TRY_CAST(fc.DeclI5 AS INT), 0) AS Konfiskaty,
-
-                    -- TIMESTAMPY
-                    fc.Przyjazd,
-                    fc.SlaughterWeightDate AS GodzinaWazenia,
-                    fc.SlaughterWeightUser AS KtoWazyl,
-
-                    -- SZTUKI Z EXCEL (do trybu Nowe)
-                    ISNULL(fc.SztukiExcel, 0) AS SztukiExcel
-
-                FROM DaneDostawy fc
-                LEFT JOIN PozostaloPerHarmonogram ph ON fc.LpDostawy = ph.LpDostawy
-                LEFT JOIN DostawcyMap d ON d.TrimID = fc.CustGID
-                ORDER BY TRY_CAST(fc.CarLp AS INT)";
-
-            try
-            {
-                using (var conn = new SqlConnection(_connectionString))
-                {
-                    await conn.OpenAsync();
-                    using (var cmd = new SqlCommand(query, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@Data", data.Date);
-                        cmd.CommandTimeout = 30;
-
-                        using (var reader = await cmd.ExecuteReaderAsync())
-                        {
-                            while (await reader.ReadAsync())
-                            {
-                                var item = new DostawaItem
-                                {
-                                    ID = reader.GetInt32(reader.GetOrdinal("ID")),
-                                    NrKursu = reader.IsDBNull(reader.GetOrdinal("NrKursu")) ? 0 : reader.GetInt32(reader.GetOrdinal("NrKursu")),
-                                    Data = reader.GetDateTime(reader.GetOrdinal("Data")),
-                                    LpDostawy = reader.IsDBNull(reader.GetOrdinal("LpDostawy")) ? null : reader.GetInt32(reader.GetOrdinal("LpDostawy")),
-                                    Hodowca = reader.GetString(reader.GetOrdinal("Hodowca")),
-                                    HodowcaSkrot = reader.GetString(reader.GetOrdinal("HodowcaSkrot")),
-
-                                    // Plan laczny z harmonogramu
-                                    PlanSztukiLacznie = reader.IsDBNull(reader.GetOrdinal("PlanSztukiLacznie")) ? 0 : Convert.ToInt32(reader.GetValue(reader.GetOrdinal("PlanSztukiLacznie"))),
-                                    PlanKgLacznie = reader.IsDBNull(reader.GetOrdinal("PlanKgLacznie")) ? 0 : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("PlanKgLacznie"))),
-                                    AutaPlanowane = reader.IsDBNull(reader.GetOrdinal("AutaPlanowane")) ? 1 : reader.GetInt32(reader.GetOrdinal("AutaPlanowane")),
-
-                                    // Postep harmonogramu
-                                    AutaZwazone = reader.IsDBNull(reader.GetOrdinal("AutaZwazone")) ? 0 : reader.GetInt32(reader.GetOrdinal("AutaZwazone")),
-                                    AutaOgolem = reader.IsDBNull(reader.GetOrdinal("AutaOgolem")) ? 0 : reader.GetInt32(reader.GetOrdinal("AutaOgolem")),
-                                    SztukiZwazoneSuma = reader.IsDBNull(reader.GetOrdinal("SztukiZwazoneSuma")) ? 0 : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("SztukiZwazoneSuma"))),
-                                    KgZwazoneSuma = reader.IsDBNull(reader.GetOrdinal("KgZwazoneSuma")) ? 0 : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("KgZwazoneSuma"))),
-                                    SztukiPozostalo = reader.IsDBNull(reader.GetOrdinal("SztukiPozostalo")) ? 0 : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("SztukiPozostalo"))),
-                                    KgPozostalo = reader.IsDBNull(reader.GetOrdinal("KgPozostalo")) ? 0 : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("KgPozostalo"))),
-                                    RealizacjaProc = reader.IsDBNull(reader.GetOrdinal("RealizacjaProc")) ? 0 : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("RealizacjaProc"))),
-                                    TrendProc = reader.IsDBNull(reader.GetOrdinal("TrendProc")) ? 100 : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("TrendProc"))),
-
-                                    // Plan na pojedyncze auto
-                                    SztukiPlan = reader.IsDBNull(reader.GetOrdinal("SztukiPlan")) ? 0 : reader.GetInt32(reader.GetOrdinal("SztukiPlan")),
-                                    KgPlan = reader.IsDBNull(reader.GetOrdinal("KgPlan")) ? 0 : reader.GetDecimal(reader.GetOrdinal("KgPlan")),
-                                    SredniaWagaPlan = reader.IsDBNull(reader.GetOrdinal("SredniaWagaPlan")) ? null : reader.GetDecimal(reader.GetOrdinal("SredniaWagaPlan")),
-                                    WagaDeklHarmonogram = reader.IsDBNull(reader.GetOrdinal("WagaDeklHarmonogram")) ? null : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("WagaDeklHarmonogram"))),
-                                    SztPojPlan = reader.IsDBNull(reader.GetOrdinal("SztPojPlan")) ? null : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("SztPojPlan"))),
-
-                                    // Rzeczywiste
-                                    Brutto = reader.GetDecimal(reader.GetOrdinal("Brutto")),
-                                    Tara = reader.GetDecimal(reader.GetOrdinal("Tara")),
-                                    KgRzeczywiste = reader.GetDecimal(reader.GetOrdinal("KgRzeczywiste")),
-                                    SztukiRzeczywiste = reader.GetInt32(reader.GetOrdinal("SztukiRzeczywiste")),
-                                    SredniaWagaRzeczywista = reader.IsDBNull(reader.GetOrdinal("SredniaWagaRzeczywista")) ? null : reader.GetDecimal(reader.GetOrdinal("SredniaWagaRzeczywista")),
-                                    SztPojRzecz = reader.IsDBNull(reader.GetOrdinal("SztPojRzecz")) ? null : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("SztPojRzecz"))),
-
-                                    // Odchylenia
-                                    OdchylenieKg = reader.IsDBNull(reader.GetOrdinal("OdchylenieKg")) ? null : reader.GetDecimal(reader.GetOrdinal("OdchylenieKg")),
-                                    OdchylenieProc = reader.IsDBNull(reader.GetOrdinal("OdchylenieProc")) ? null : reader.GetDecimal(reader.GetOrdinal("OdchylenieProc")),
-                                    OdchylenieWagi = reader.IsDBNull(reader.GetOrdinal("OdchylenieWagi")) ? null : reader.GetDecimal(reader.GetOrdinal("OdchylenieWagi")),
-
-                                    StatusId = reader.GetInt32(reader.GetOrdinal("StatusId")),
-                                    Padle = reader.GetInt32(reader.GetOrdinal("Padle")),
-                                    Konfiskaty = reader.GetInt32(reader.GetOrdinal("Konfiskaty")),
-                                    Przyjazd = reader.IsDBNull(reader.GetOrdinal("Przyjazd")) ? null : reader.GetDateTime(reader.GetOrdinal("Przyjazd")),
-                                    GodzinaWazenia = reader.IsDBNull(reader.GetOrdinal("GodzinaWazenia")) ? null : reader.GetDateTime(reader.GetOrdinal("GodzinaWazenia")),
-                                    KtoWazyl = reader.IsDBNull(reader.GetOrdinal("KtoWazyl")) ? null : reader.GetString(reader.GetOrdinal("KtoWazyl")),
-
-                                    SztukiExcel = reader.IsDBNull(reader.GetOrdinal("SztukiExcel")) ? 0 : reader.GetInt32(reader.GetOrdinal("SztukiExcel"))
-                                };
-                                dostawy.Add(item);
-                            }
-                        }
-                    }
-                }
-
-                _lastFetch = DateTime.Now;
-                Debug.WriteLine($"[PrzychodService] Pobrano {dostawy.Count} dostaw na {data:yyyy-MM-dd}");
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[PrzychodService] Błąd GetDostawyAsync: {ex.Message}");
-
-                // Diagnostyka: szukaj źródła '0-1'
-                var diag = new System.Text.StringBuilder();
-                diag.AppendLine($"BŁĄD: {ex.Message}");
-                diag.AppendLine();
-                try
-                {
-                    using (var conn2 = new SqlConnection(_connectionString))
-                    {
-                        await conn2.OpenAsync();
-
-                        // 0. Czy FarmerCalc to tabela czy widok?
-                        try
-                        {
-                            using (var cmdType = new SqlCommand(@"
-                                SELECT TABLE_TYPE FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'FarmerCalc'
-                                UNION ALL
-                                SELECT 'VIEW DEF: ' + LEFT(VIEW_DEFINITION, 200) FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_NAME = 'FarmerCalc'", conn2))
-                            {
-                                cmdType.CommandTimeout = 10;
-                                using (var r = await cmdType.ExecuteReaderAsync())
-                                {
-                                    while (await r.ReadAsync())
-                                        diag.AppendLine($"FarmerCalc typ: {r.GetString(0)}");
-                                }
-                            }
-                        }
-                        catch (Exception e) { diag.AppendLine($"Typ check error: {e.Message}"); }
-
-                        // 1. Szukaj '0-1' we WSZYSTKICH kolumnach FarmerCalc
-                        try
-                        {
-                            using (var cmdAll = new SqlCommand(@"
-                                SELECT c.COLUMN_NAME, c.DATA_TYPE
-                                FROM INFORMATION_SCHEMA.COLUMNS c
-                                WHERE c.TABLE_NAME = 'FarmerCalc'
-                                ORDER BY c.ORDINAL_POSITION", conn2))
-                            {
-                                cmdAll.CommandTimeout = 10;
-                                var allCols = new System.Collections.Generic.List<(string name, string type)>();
-                                using (var r = await cmdAll.ExecuteReaderAsync())
-                                {
-                                    while (await r.ReadAsync())
-                                        allCols.Add((r.GetString(0), r.GetString(1)));
-                                }
-                                diag.AppendLine($"FarmerCalc: {allCols.Count} kolumn");
-
-                                // Szukaj varchar/nvarchar kolumn z wartością '0-1'
-                                var varcharCols = allCols.Where(c => c.type.Contains("char") || c.type.Contains("text")).ToList();
-                                diag.AppendLine($"Varchar kolumny: {string.Join(", ", varcharCols.Select(c => c.name))}");
-
-                                foreach (var (colName, colType) in varcharCols)
-                                {
-                                    try
-                                    {
-                                        using (var cmdSearch = new SqlCommand($@"
-                                            SELECT TOP 1 [{colName}] FROM dbo.FarmerCalc
-                                            WHERE CalcDate = @Data AND [{colName}] LIKE '%0-1%'", conn2))
-                                        {
-                                            cmdSearch.Parameters.AddWithValue("@Data", data.Date);
-                                            cmdSearch.CommandTimeout = 10;
-                                            using (var r2 = await cmdSearch.ExecuteReaderAsync())
-                                            {
-                                                if (await r2.ReadAsync())
-                                                    diag.AppendLine($"  ZNALEZIONO '0-1' w {colName}: {r2.GetValue(0)}");
-                                            }
-                                        }
-                                    }
-                                    catch { }
-                                }
-                            }
-                        }
-                        catch (Exception e) { diag.AppendLine($"Cols check error: {e.Message}"); }
-
-                        // 2. Progresywne dodawanie CTEs
-                        var cteTests = new (string Name, string Sql)[]
-                        {
-                            ("Bez CTEs", @"SELECT TOP 1 fc.ID FROM dbo.FarmerCalc fc WHERE fc.CalcDate = @Data AND ISNULL(fc.Deleted, 0) = 0"),
-
-                            ("CTE1 SumaZwazonych", @"
-                                WITH CTE1 AS (
-                                    SELECT fc.LpDostawy, COUNT(*) AS AutaZwazone
-                                    FROM dbo.FarmerCalc fc
-                                    WHERE fc.CalcDate = @Data AND ISNULL(fc.Deleted, 0) = 0
-                                      AND ISNULL(fc.FullWeight, 0) > 0 AND ISNULL(fc.EmptyWeight, 0) > 0
-                                    GROUP BY fc.LpDostawy
-                                )
-                                SELECT TOP 1 fc.ID FROM dbo.FarmerCalc fc
-                                LEFT JOIN CTE1 c ON fc.LpDostawy = c.LpDostawy
-                                WHERE fc.CalcDate = @Data AND ISNULL(fc.Deleted, 0) = 0"),
-
-                            ("CTE1+2", @"
-                                WITH CTE1 AS (
-                                    SELECT fc.LpDostawy, COUNT(*) AS AutaZwazone
-                                    FROM dbo.FarmerCalc fc
-                                    WHERE fc.CalcDate = @Data AND ISNULL(fc.Deleted, 0) = 0
-                                      AND ISNULL(fc.FullWeight, 0) > 0 AND ISNULL(fc.EmptyWeight, 0) > 0
-                                    GROUP BY fc.LpDostawy
-                                ),
-                                CTE2 AS (
-                                    SELECT fc.LpDostawy, COUNT(*) AS AutaOgolem
-                                    FROM dbo.FarmerCalc fc
-                                    WHERE fc.CalcDate = @Data AND ISNULL(fc.Deleted, 0) = 0
-                                    GROUP BY fc.LpDostawy
-                                )
-                                SELECT TOP 1 fc.ID FROM dbo.FarmerCalc fc
-                                LEFT JOIN CTE1 c1 ON fc.LpDostawy = c1.LpDostawy
-                                LEFT JOIN CTE2 c2 ON fc.LpDostawy = c2.LpDostawy
-                                WHERE fc.CalcDate = @Data AND ISNULL(fc.Deleted, 0) = 0"),
-
-                            ("CTE1+2+3 (full)", @"
-                                WITH CTE1 AS (
-                                    SELECT fc.LpDostawy, COUNT(*) AS AutaZwazone
-                                    FROM dbo.FarmerCalc fc
-                                    WHERE fc.CalcDate = @Data AND ISNULL(fc.Deleted, 0) = 0
-                                      AND ISNULL(fc.FullWeight, 0) > 0 AND ISNULL(fc.EmptyWeight, 0) > 0
-                                    GROUP BY fc.LpDostawy
-                                ),
-                                CTE2 AS (
-                                    SELECT fc.LpDostawy, COUNT(*) AS AutaOgolem
-                                    FROM dbo.FarmerCalc fc
-                                    WHERE fc.CalcDate = @Data AND ISNULL(fc.Deleted, 0) = 0
-                                    GROUP BY fc.LpDostawy
-                                ),
-                                CTE3 AS (
-                                    SELECT fc.LpDostawy,
-                                        ISNULL(TRY_CAST(hd.SztukiDek AS INT), 0) AS PlanSzt
-                                    FROM (SELECT DISTINCT LpDostawy FROM dbo.FarmerCalc WHERE CalcDate = @Data AND ISNULL(Deleted, 0) = 0) fc
-                                    LEFT JOIN dbo.HarmonogramDostaw hd ON fc.LpDostawy = hd.Lp
-                                    LEFT JOIN CTE1 c1 ON fc.LpDostawy = c1.LpDostawy
-                                    LEFT JOIN CTE2 c2 ON fc.LpDostawy = c2.LpDostawy
-                                )
-                                SELECT TOP 1 fc.ID FROM dbo.FarmerCalc fc
-                                LEFT JOIN CTE3 c3 ON fc.LpDostawy = c3.LpDostawy
-                                WHERE fc.CalcDate = @Data AND ISNULL(fc.Deleted, 0) = 0"),
-
-                            ("FarmerCalc + Dostawcy only", @"
-                                SELECT TOP 1 fc.ID FROM dbo.FarmerCalc fc
-                                LEFT JOIN dbo.Dostawcy d ON LTRIM(RTRIM(d.ID)) = LTRIM(RTRIM(fc.CustomerGID))
-                                WHERE fc.CalcDate = @Data AND ISNULL(fc.Deleted, 0) = 0"),
-
-                            ("FarmerCalc + HarmonogramDostaw direct", @"
-                                SELECT TOP 1 fc.ID FROM dbo.FarmerCalc fc
-                                LEFT JOIN dbo.HarmonogramDostaw hd ON fc.LpDostawy = hd.Lp
-                                WHERE fc.CalcDate = @Data AND ISNULL(fc.Deleted, 0) = 0"),
-                        };
-
-                        foreach (var (name, sql) in cteTests)
-                        {
-                            try
-                            {
-                                using (var cmd2 = new SqlCommand(sql, conn2))
-                                {
-                                    cmd2.Parameters.AddWithValue("@Data", data.Date);
-                                    cmd2.CommandTimeout = 10;
-                                    var result = await cmd2.ExecuteScalarAsync();
-                                    diag.AppendLine($"[OK] {name} → {result}");
-                                }
-                            }
-                            catch (Exception qex) { diag.AppendLine($"[BŁĄD] {name}: {qex.Message}"); }
-                        }
-
-                        // (stare per-column testy usunięte - wyżej są CTE testy)
-                    }
-                }
-                catch (Exception diagEx)
-                {
-                    diag.AppendLine($"Błąd diagnostyki: {diagEx.Message}");
-                }
-
-                LastDiagnosticError = diag.ToString();
-                throw new Exception(diag.ToString());
-            }
-
-            return dostawy;
-        }
-
-        /// <summary>
-        /// Pobiera podsumowanie dzienne
-        /// PLAN z HarmonogramDostaw (unikalne LpDostawy), RZECZYWISTE z FarmerCalc
-        /// </summary>
-        public async Task<PodsumowanieDnia> GetPodsumowanieAsync(DateTime data)
-        {
-            var podsumowanie = new PodsumowanieDnia();
-
-            // Nowe zapytanie z CTE: Plan z unikalnych harmonogramów
-            // UWAGA: hd.Auta i hd.SztSzuflada mogą zawierać tekst, więc używamy TRY_CAST
-            const string query = @"
-                WITH DaneDostawy AS (
-                    SELECT fc.LpDostawy, fc.DeclI1, fc.NettoFarmWeight, fc.WagaDek,
-                           fc.FullWeight, fc.EmptyWeight, fc.NettoWeight, fc.LumQnt
-                    FROM dbo.FarmerCalc fc
-                    WHERE fc.CalcDate = @Data AND ISNULL(fc.Deleted, 0) = 0
-                ),
-                UnikalneHarmonogramy AS (
-                    -- Każdy LpDostawy tylko raz (bo może być kilka aut z tego samego harmonogramu)
-                    SELECT DISTINCT
-                        fc.LpDostawy,
-                        TRY_CAST(hd.SztukiDek AS INT) AS SztukiDek,
-                        TRY_CAST(hd.WagaDek AS DECIMAL(10,3)) AS WagaDek,
-                        TRY_CAST(hd.SztSzuflada AS DECIMAL(10,2)) AS SztSzuflada,
-                        TRY_CAST(hd.Auta AS INT) AS Auta,
-                        CAST(ISNULL(TRY_CAST(hd.SztukiDek AS INT), 0) * ISNULL(TRY_CAST(hd.WagaDek AS DECIMAL(10,3)), 0) AS DECIMAL(12,0)) AS KgPlanLacznie
-                    FROM DaneDostawy fc
-                    INNER JOIN dbo.HarmonogramDostaw hd ON TRY_CAST(fc.LpDostawy AS INT) = hd.Lp
-                    WHERE fc.LpDostawy IS NOT NULL
-                ),
-                PlanZFarmerCalc AS (
-                    -- Fallback: plan z FarmerCalc dla rekordów bez LpDostawy
-                    SELECT
-                        SUM(ISNULL(fc.DeclI1, 0)) AS SztukiPlan,
-                        SUM(CAST(COALESCE(fc.NettoFarmWeight, fc.WagaDek, 0) AS DECIMAL(18,2))) AS KgPlan
-                    FROM DaneDostawy fc
-                    WHERE fc.LpDostawy IS NULL
-                ),
-                PlanDlaZwazonych AS (
-                    -- Plan kg proporcjonalny przypisany TYLKO do zwazonych aut
-                    SELECT
-                        SUM(
-                            CASE
-                                WHEN hd.Lp IS NOT NULL AND ISNULL(TRY_CAST(hd.Auta AS INT), 1) > 0
-                                THEN CAST(ISNULL(TRY_CAST(hd.SztukiDek AS INT), 0) * ISNULL(TRY_CAST(hd.WagaDek AS DECIMAL(10,3)), 0) AS DECIMAL(12,0))
-                                     / ISNULL(TRY_CAST(hd.Auta AS INT), 1)
-                                ELSE CAST(COALESCE(fc.NettoFarmWeight, fc.WagaDek, 0) AS DECIMAL(18,2))
-                            END
-                        ) AS KgPlanDoZwazonych
-                    FROM DaneDostawy fc
-                    LEFT JOIN dbo.HarmonogramDostaw hd ON TRY_CAST(fc.LpDostawy AS INT) = hd.Lp
-                    WHERE ISNULL(fc.FullWeight, 0) > 0
-                      AND ISNULL(fc.EmptyWeight, 0) > 0
-                ),
-                RzeczywisteDnia AS (
-                    SELECT
-                        SUM(ISNULL(fc.LumQnt, 0)) AS SztukiRzeczSuma,
-                        SUM(ISNULL(fc.NettoWeight, 0)) AS KgRzeczSuma,
-                        COUNT(*) AS LiczbaDostawOgolem,
-                        SUM(CASE WHEN ISNULL(fc.FullWeight,0) > 0 AND ISNULL(fc.EmptyWeight,0) > 0 THEN 1 ELSE 0 END) AS LiczbaZwazonych,
-                        SUM(CASE WHEN ISNULL(fc.FullWeight,0) > 0 AND ISNULL(fc.EmptyWeight,0) = 0 THEN 1 ELSE 0 END) AS LiczbaCzekaNaTare,
-                        SUM(CASE WHEN ISNULL(fc.FullWeight,0) = 0 THEN 1 ELSE 0 END) AS LiczbaOczekujacych,
-
-                        -- Zważone kg
-                        SUM(CASE WHEN ISNULL(fc.FullWeight,0) > 0 AND ISNULL(fc.EmptyWeight,0) > 0
-                            THEN CAST(ISNULL(fc.NettoWeight, 0) AS DECIMAL(18,2)) ELSE 0 END) AS KgZwazoneSuma,
-                        SUM(CASE WHEN ISNULL(fc.FullWeight,0) > 0 AND ISNULL(fc.EmptyWeight,0) > 0
-                            THEN ISNULL(fc.LumQnt, 0) ELSE 0 END) AS SztukiZwazoneSuma
-                    FROM DaneDostawy fc
-                )
-                SELECT
-                    -- PLAN (z harmonogramów + fallback)
-                    ISNULL((SELECT SUM(uh.SztukiDek) FROM UnikalneHarmonogramy uh), 0) + ISNULL((SELECT SztukiPlan FROM PlanZFarmerCalc), 0) AS SztukiPlanSuma,
-                    ISNULL((SELECT SUM(uh.KgPlanLacznie) FROM UnikalneHarmonogramy uh), 0) + ISNULL((SELECT KgPlan FROM PlanZFarmerCalc), 0) AS KgPlanSuma,
-
-                    -- Średnia waga z harmonogramów (ważona)
-                    CASE WHEN (SELECT SUM(uh.SztukiDek) FROM UnikalneHarmonogramy uh) > 0
-                         THEN CAST((SELECT SUM(uh.KgPlanLacznie) FROM UnikalneHarmonogramy uh) / NULLIF((SELECT SUM(uh.SztukiDek) FROM UnikalneHarmonogramy uh), 0) AS DECIMAL(10,3))
-                         ELSE NULL END AS SrWagaPlanSrednia,
-
-                    -- RZECZYWISTE
-                    r.SztukiRzeczSuma,
-                    r.KgRzeczSuma,
-                    r.KgZwazoneSuma,
-                    r.SztukiZwazoneSuma,
-
-                    -- Średnia waga rzeczywista
-                    CASE WHEN r.SztukiZwazoneSuma > 0
-                         THEN CAST(r.KgZwazoneSuma / NULLIF(r.SztukiZwazoneSuma, 0) AS DECIMAL(10,3))
-                         ELSE NULL END AS SrWagaRzeczSrednia,
-
-                    -- ODCHYLENIE (zwazone kg - plan proporcjonalny do zwazonych aut)
-                    r.KgZwazoneSuma - ISNULL(pz.KgPlanDoZwazonych, 0) AS OdchylenieKgSuma,
-
-                    -- Plan przypisany do zwazonych aut (do obliczenia %)
-                    ISNULL(pz.KgPlanDoZwazonych, 0) AS KgPlanDoZwazonych,
-
-                    -- LICZNIKI
-                    r.LiczbaDostawOgolem,
-                    r.LiczbaZwazonych,
-                    r.LiczbaCzekaNaTare,
-                    r.LiczbaOczekujacych
-
-                FROM RzeczywisteDnia r
-                CROSS JOIN PlanDlaZwazonych pz";
-
-            try
-            {
-                using (var conn = new SqlConnection(_connectionString))
-                {
-                    await conn.OpenAsync();
-                    using (var cmd = new SqlCommand(query, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@Data", data.Date);
-                        cmd.CommandTimeout = 30;
-
-                        using (var reader = await cmd.ExecuteReaderAsync())
-                        {
-                            if (await reader.ReadAsync())
-                            {
-                                podsumowanie.SztukiPlanSuma = reader.IsDBNull(reader.GetOrdinal("SztukiPlanSuma")) ? 0 : Convert.ToInt32(reader.GetValue(reader.GetOrdinal("SztukiPlanSuma")));
-                                podsumowanie.KgPlanSuma = reader.IsDBNull(reader.GetOrdinal("KgPlanSuma")) ? 0 : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("KgPlanSuma")));
-                                podsumowanie.SrWagaPlanSrednia = reader.IsDBNull(reader.GetOrdinal("SrWagaPlanSrednia")) ? null : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("SrWagaPlanSrednia")));
-
-                                podsumowanie.SztukiZwazoneSuma = reader.IsDBNull(reader.GetOrdinal("SztukiZwazoneSuma")) ? 0 : Convert.ToInt32(reader.GetValue(reader.GetOrdinal("SztukiZwazoneSuma")));
-                                podsumowanie.KgZwazoneSuma = reader.IsDBNull(reader.GetOrdinal("KgZwazoneSuma")) ? 0 : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("KgZwazoneSuma")));
-                                podsumowanie.SrWagaRzeczSrednia = reader.IsDBNull(reader.GetOrdinal("SrWagaRzeczSrednia")) ? null : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("SrWagaRzeczSrednia")));
-
-                                podsumowanie.OdchylenieKgSuma = reader.IsDBNull(reader.GetOrdinal("OdchylenieKgSuma")) ? 0 : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("OdchylenieKgSuma")));
-                                podsumowanie.KgPlanDoZwazonych = reader.IsDBNull(reader.GetOrdinal("KgPlanDoZwazonych")) ? 0 : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("KgPlanDoZwazonych")));
-
-                                podsumowanie.LiczbaDostawOgolem = reader.IsDBNull(reader.GetOrdinal("LiczbaDostawOgolem")) ? 0 : Convert.ToInt32(reader.GetValue(reader.GetOrdinal("LiczbaDostawOgolem")));
-                                podsumowanie.LiczbaZwazonych = reader.IsDBNull(reader.GetOrdinal("LiczbaZwazonych")) ? 0 : Convert.ToInt32(reader.GetValue(reader.GetOrdinal("LiczbaZwazonych")));
-                                podsumowanie.LiczbaCzekaNaTare = reader.IsDBNull(reader.GetOrdinal("LiczbaCzekaNaTare")) ? 0 : Convert.ToInt32(reader.GetValue(reader.GetOrdinal("LiczbaCzekaNaTare")));
-                                podsumowanie.LiczbaOczekujacych = reader.IsDBNull(reader.GetOrdinal("LiczbaOczekujacych")) ? 0 : Convert.ToInt32(reader.GetValue(reader.GetOrdinal("LiczbaOczekujacych")));
-                            }
-                        }
-                    }
-                }
-
-                Debug.WriteLine($"[PrzychodService] Podsumowanie: Plan {podsumowanie.KgPlanSuma:N0} kg, Zważone {podsumowanie.KgZwazoneSuma:N0} kg");
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[PrzychodService] Błąd GetPodsumowanieAsync: {ex.Message}");
-                LastDiagnosticError = $"Błąd podsumowania: {ex.Message}\n\nStack trace:\n{ex.StackTrace}";
-                throw;
-            }
-
-            return podsumowanie;
-        }
-
-        /// <summary>
-        /// Pobiera prognoze koncowa dnia z alertem redukcji zamowien.
-        /// Prognoza = KgZwazone * (AutaOgolem / AutaZwazone)
-        /// </summary>
-        public async Task<PrognozaDnia> GetPrognozaDniaAsync(DateTime data)
-        {
-            var prognoza = new PrognozaDnia();
-
-            const string query = @"
-                WITH DaneDostawy AS (
-                    SELECT fc.LpDostawy, fc.FullWeight, fc.EmptyWeight, fc.NettoWeight
-                    FROM dbo.FarmerCalc fc
-                    WHERE fc.CalcDate = @Data AND ISNULL(fc.Deleted, 0) = 0
-                ),
-                DaneDnia AS (
-                    SELECT
-                        SUM(CASE WHEN ISNULL(fc.FullWeight,0) > 0 AND ISNULL(fc.EmptyWeight,0) > 0
-                                 THEN ISNULL(fc.NettoWeight, 0) ELSE 0 END) AS KgZwazone,
-                        SUM(CASE WHEN ISNULL(fc.FullWeight,0) > 0 AND ISNULL(fc.EmptyWeight,0) > 0
-                                 THEN 1 ELSE 0 END) AS AutaZwazone,
-                        COUNT(*) AS AutaOgolem
-                    FROM DaneDostawy fc
-                ),
-                PlanDnia AS (
-                    SELECT
-                        SUM(CAST(ISNULL(TRY_CAST(hd.SztukiDek AS INT), 0) * ISNULL(TRY_CAST(hd.WagaDek AS DECIMAL(10,3)), 0) AS DECIMAL(12,0))) AS KgPlanLacznie
-                    FROM (SELECT DISTINCT LpDostawy FROM DaneDostawy WHERE LpDostawy IS NOT NULL) fc
-                    INNER JOIN dbo.HarmonogramDostaw hd ON TRY_CAST(fc.LpDostawy AS INT) = hd.Lp
-                )
-                SELECT
-                    ISNULL(p.KgPlanLacznie, 0) AS KgPlanLacznie,
-                    ISNULL(d.KgZwazone, 0) AS KgZwazone,
-                    ISNULL(d.AutaZwazone, 0) AS AutaZwazone,
-                    ISNULL(d.AutaOgolem, 0) AS AutaOgolem
-                FROM DaneDnia d
-                CROSS JOIN PlanDnia p";
-
-            try
-            {
-                using (var conn = new SqlConnection(_connectionString))
-                {
-                    await conn.OpenAsync();
-                    using (var cmd = new SqlCommand(query, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@Data", data.Date);
-                        cmd.CommandTimeout = 30;
-
-                        using (var reader = await cmd.ExecuteReaderAsync())
-                        {
-                            if (await reader.ReadAsync())
-                            {
-                                prognoza.KgPlanLacznie = reader.IsDBNull(reader.GetOrdinal("KgPlanLacznie")) ? 0 : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("KgPlanLacznie")));
-                                prognoza.KgZwazone = reader.IsDBNull(reader.GetOrdinal("KgZwazone")) ? 0 : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("KgZwazone")));
-                                prognoza.AutaZwazone = reader.IsDBNull(reader.GetOrdinal("AutaZwazone")) ? 0 : Convert.ToInt32(reader.GetValue(reader.GetOrdinal("AutaZwazone")));
-                                prognoza.AutaOgolem = reader.IsDBNull(reader.GetOrdinal("AutaOgolem")) ? 0 : Convert.ToInt32(reader.GetValue(reader.GetOrdinal("AutaOgolem")));
-                            }
-                        }
-                    }
-                }
-
-                Debug.WriteLine($"[PrzychodService] Prognoza: Plan {prognoza.KgPlanLacznie:N0} kg, Zwazone {prognoza.KgZwazone:N0} kg, Trend {prognoza.TrendProc:N0}%");
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[PrzychodService] Blad GetPrognozaDniaAsync: {ex.Message}");
-                LastDiagnosticError = $"Blad prognozy: {ex.Message}\n\nStack trace:\n{ex.StackTrace}";
-                throw;
-            }
-
-            return prognoza;
-        }
-
-        /// <summary>
-        /// Pobiera liste postepow realizacji harmonogramow per hodowca.
-        /// </summary>
-        public async Task<List<PostepHarmonogramu>> GetPostepyHarmonogramowAsync(DateTime data)
-        {
-            var postepy = new List<PostepHarmonogramu>();
-
-            const string query = @"
-                WITH DaneDostawy AS (
-                    SELECT fc.LpDostawy, fc.LumQnt, fc.NettoWeight, fc.FullWeight, fc.EmptyWeight
-                    FROM dbo.FarmerCalc fc
-                    WHERE fc.CalcDate = @Data AND ISNULL(fc.Deleted, 0) = 0
-                ),
-                SumaZwazonychPerHarmonogram AS (
-                    SELECT
-                        fc.LpDostawy,
-                        COUNT(*) AS AutaZwazone,
-                        SUM(ISNULL(fc.LumQnt, 0)) AS SztukiZwazoneSuma,
-                        SUM(ISNULL(fc.NettoWeight, 0)) AS KgZwazoneSuma
-                    FROM DaneDostawy fc
-                    WHERE ISNULL(fc.FullWeight, 0) > 0
-                      AND ISNULL(fc.EmptyWeight, 0) > 0
-                    GROUP BY fc.LpDostawy
-                ),
-                SumaWszystkichPerHarmonogram AS (
-                    SELECT
-                        fc.LpDostawy,
-                        COUNT(*) AS AutaOgolem
-                    FROM DaneDostawy fc
-                    GROUP BY fc.LpDostawy
-                )
-                SELECT
-                    hd.Lp AS LpDostawy,
-                    ISNULL(hd.Dostawca, 'Nieznany') AS Hodowca,
-                    ISNULL(sz.AutaZwazone, 0) AS AutaZwazone,
-                    ISNULL(sw.AutaOgolem, 0) AS AutaOgolem,
-                    ISNULL(TRY_CAST(hd.Auta AS INT), 1) AS AutaPlanowane,
-                    ISNULL(TRY_CAST(hd.SztukiDek AS INT), 0) AS PlanSztukiLacznie,
-                    CAST(ISNULL(TRY_CAST(hd.SztukiDek AS INT), 0) * ISNULL(TRY_CAST(hd.WagaDek AS DECIMAL(10,3)), 0) AS DECIMAL(12,0)) AS PlanKgLacznie,
-                    ISNULL(sz.SztukiZwazoneSuma, 0) AS SztukiZwazoneSuma,
-                    ISNULL(sz.KgZwazoneSuma, 0) AS KgZwazoneSuma,
-                    TRY_CAST(hd.WagaDek AS DECIMAL(10,3)) AS SredniaWagaPlan,
-                    CASE WHEN ISNULL(sz.SztukiZwazoneSuma, 0) > 0
-                         THEN CAST(sz.KgZwazoneSuma AS DECIMAL(12,3)) / sz.SztukiZwazoneSuma
-                         ELSE NULL END AS SredniaWagaRzecz
-                FROM (SELECT DISTINCT LpDostawy FROM DaneDostawy WHERE LpDostawy IS NOT NULL) fc
-                INNER JOIN dbo.HarmonogramDostaw hd ON TRY_CAST(fc.LpDostawy AS INT) = hd.Lp
-                LEFT JOIN SumaZwazonychPerHarmonogram sz ON fc.LpDostawy = sz.LpDostawy
-                LEFT JOIN SumaWszystkichPerHarmonogram sw ON fc.LpDostawy = sw.LpDostawy
-                ORDER BY hd.Dostawca";
-
-            try
-            {
-                using (var conn = new SqlConnection(_connectionString))
-                {
-                    await conn.OpenAsync();
-                    using (var cmd = new SqlCommand(query, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@Data", data.Date);
-                        cmd.CommandTimeout = 30;
-
-                        using (var reader = await cmd.ExecuteReaderAsync())
-                        {
-                            while (await reader.ReadAsync())
-                            {
-                                var item = new PostepHarmonogramu
-                                {
-                                    LpDostawy = reader.GetInt32(reader.GetOrdinal("LpDostawy")),
-                                    Hodowca = reader.GetString(reader.GetOrdinal("Hodowca")),
-                                    AutaZwazone = reader.IsDBNull(reader.GetOrdinal("AutaZwazone")) ? 0 : reader.GetInt32(reader.GetOrdinal("AutaZwazone")),
-                                    AutaOgolem = reader.IsDBNull(reader.GetOrdinal("AutaOgolem")) ? 0 : reader.GetInt32(reader.GetOrdinal("AutaOgolem")),
-                                    AutaPlanowane = reader.IsDBNull(reader.GetOrdinal("AutaPlanowane")) ? 1 : reader.GetInt32(reader.GetOrdinal("AutaPlanowane")),
-                                    PlanSztukiLacznie = reader.IsDBNull(reader.GetOrdinal("PlanSztukiLacznie")) ? 0 : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("PlanSztukiLacznie"))),
-                                    PlanKgLacznie = reader.IsDBNull(reader.GetOrdinal("PlanKgLacznie")) ? 0 : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("PlanKgLacznie"))),
-                                    SztukiZwazoneSuma = reader.IsDBNull(reader.GetOrdinal("SztukiZwazoneSuma")) ? 0 : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("SztukiZwazoneSuma"))),
-                                    KgZwazoneSuma = reader.IsDBNull(reader.GetOrdinal("KgZwazoneSuma")) ? 0 : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("KgZwazoneSuma"))),
-                                    SredniaWagaPlan = reader.IsDBNull(reader.GetOrdinal("SredniaWagaPlan")) ? null : (decimal?)Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("SredniaWagaPlan"))),
-                                    SredniaWagaRzecz = reader.IsDBNull(reader.GetOrdinal("SredniaWagaRzecz")) ? null : (decimal?)Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("SredniaWagaRzecz")))
-                                };
-                                postepy.Add(item);
-                            }
-                        }
-                    }
-                }
-
-                Debug.WriteLine($"[PrzychodService] Pobrano {postepy.Count} harmonogramow");
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[PrzychodService] Blad GetPostepyHarmonogramowAsync: {ex.Message}");
-                LastDiagnosticError = $"Blad postepow: {ex.Message}\n\nStack trace:\n{ex.StackTrace}";
-                throw;
-            }
-
-            return postepy;
-        }
-
-        /// <summary>
-        /// Testuje polaczenie z baza danych
-        /// </summary>
-        public async Task<bool> TestConnectionAsync()
-        {
-            try
-            {
-                using (var conn = new SqlConnection(_connectionString))
-                {
-                    await conn.OpenAsync();
-                    return true;
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[PrzychodService] Test połączenia nieudany: {ex.Message}");
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// Pobiera faktyczny przychód produkcji (PWU) z systemu Symfonia (Handel)
-        /// Zwraca (FaktKlasaA, FaktKlasaB) w kg
-        /// Seria sPWU = Przychód Wewnętrzny Uboju
-        /// Kurczak A = produkty z katalogów 67095/67153 gdzie kod zawiera "Kurczak A"
-        /// Kurczak B = produkty z katalogów 67095/67153 gdzie kod zawiera "Kurczak B"
-        /// </summary>
-        public async Task<(decimal KlasaA, decimal KlasaB)> GetFaktycznyPrzychodAsync(DateTime data)
-        {
-            decimal faktA = 0;
-            decimal faktB = 0;
-
-            // Connection string do bazy Handel (Symfonia)
-            const string handelConnStr =
-                "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True;Connection Timeout=10;";
-
-            // Zapytanie pobierające sumy z dokumentów PWU (Przychód Wewnętrzny Uboju)
-            // Grupuje po nazwie produktu - Kurczak A vs Kurczak B
-            const string query = @"
-                SELECT
-                    CASE
-                        WHEN TW.kod LIKE '%Kurczak A%' THEN 'A'
-                        WHEN TW.kod LIKE '%Kurczak B%' THEN 'B'
-                        ELSE 'X'
-                    END AS Klasa,
-                    SUM(ABS(MZ.ilosc)) AS Ilosc
-                FROM [HM].[MZ] MZ
-                JOIN [HM].[MG] MG ON MZ.super = MG.id
-                JOIN [HM].[TW] TW ON MZ.idtw = TW.ID
-                WHERE MG.seria = 'sPWU'
-                  AND MG.aktywny = 1
-                  AND MG.data = @Data
-                  AND TW.katalog IN (67095, 67153)
-                GROUP BY CASE
-                    WHEN TW.kod LIKE '%Kurczak A%' THEN 'A'
-                    WHEN TW.kod LIKE '%Kurczak B%' THEN 'B'
-                    ELSE 'X'
-                END";
-
-            try
-            {
-                using (var conn = new SqlConnection(handelConnStr))
-                {
-                    await conn.OpenAsync();
-                    using (var cmd = new SqlCommand(query, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@Data", data.Date);
-                        cmd.CommandTimeout = 15;
-
-                        using (var reader = await cmd.ExecuteReaderAsync())
-                        {
-                            while (await reader.ReadAsync())
-                            {
-                                string klasa = reader.IsDBNull(reader.GetOrdinal("Klasa"))
-                                    ? "X" : reader.GetString(reader.GetOrdinal("Klasa"));
-                                decimal ilosc = reader.IsDBNull(reader.GetOrdinal("Ilosc"))
-                                    ? 0 : Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("Ilosc")));
-
-                                if (klasa == "A")
-                                    faktA = ilosc;
-                                else if (klasa == "B")
-                                    faktB = ilosc;
-                            }
-                        }
-                    }
-                }
-
-                Debug.WriteLine($"[PrzychodService] Faktyczny przychód Symfonia (sPWU): A={faktA:N0} kg, B={faktB:N0} kg");
-            }
-            catch (Exception ex)
-            {
-                // Nie rzucamy błędu - dane z Symfonia są opcjonalne
-                Debug.WriteLine($"[PrzychodService] Błąd GetFaktycznyPrzychodAsync (Handel): {ex.Message}");
-                // Zwracamy zera - UI pokaże "-"
-            }
-
-            return (faktA, faktB);
         }
     }
 }

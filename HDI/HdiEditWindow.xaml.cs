@@ -89,6 +89,8 @@ namespace Kalendarz1.HDI
                 int next = await _service.GetNextNumberAsync(_model.Rok);
                 _model.Numer = next;
                 LblNumer.Text = $"{next}/{_model.Rok:00}";
+                TxtNumer.Text = next.ToString();
+                LblNumerSuffix.Text = $"/{_model.Rok:00}";
 
                 // Dociągnij pełne imię + nazwisko wystawiającego z LibraNet.dbo.operators
                 // gdy App.UserFullName puste lub równe UserID (dla starych logowań).
@@ -405,6 +407,8 @@ namespace Kalendarz1.HDI
             var swBind = System.Diagnostics.Stopwatch.StartNew();
             HdiDiag.Log("BindFromModel", "START");
             LblNumer.Text = _model.NumerPelny;
+            TxtNumer.Text = _model.Numer > 0 ? _model.Numer.ToString() : "";
+            LblNumerSuffix.Text = $"/{_model.Rok:00}";
             TxtKlientNazwa.Text = _model.KlientNazwa;
             TxtKlientAdres.Text = _model.KlientAdres;
             TxtOpisTowaru.Text = _model.OpisTowaru;
@@ -469,6 +473,7 @@ namespace Kalendarz1.HDI
             TxtWagaBrutto.TextChanged += OnText;
             TxtNumerRejestracyjny.TextChanged += OnText;
             TxtNumerRejNaczepy.TextChanged += OnText;
+            TxtNumer.TextChanged += OnText;
             TxtUwagiTransport.TextChanged += OnText;
             TxtMiejscowosc.TextChanged += OnText;
             TxtWystawiajacy.TextChanged += OnText;
@@ -670,6 +675,12 @@ namespace Kalendarz1.HDI
             foreach (var ch in e.Text) { if (!char.IsDigit(ch)) { e.Handled = true; return; } }
         }
 
+        // Numer HDI — tylko cyfry
+        private void TxtNumer_PreviewTextInput(object sender, System.Windows.Input.TextCompositionEventArgs e)
+        {
+            foreach (var ch in e.Text) { if (!char.IsDigit(ch)) { e.Handled = true; return; } }
+        }
+
         private bool BindToModel()
         {
             _model.KlientNazwa = (TxtKlientNazwa.Text ?? "").Trim();
@@ -867,6 +878,37 @@ namespace Kalendarz1.HDI
             { MessageBox.Show(this, "Podaj nazwę klienta.", "Brak danych", MessageBoxButton.OK, MessageBoxImage.Warning); return; }
             if (string.IsNullOrWhiteSpace(_model.OpisTowaru))
             { MessageBox.Show(this, "Podaj opis towaru.", "Brak danych", MessageBoxButton.OK, MessageBoxImage.Warning); return; }
+
+            // ── Odczytaj ręcznie wpisany numer + walidacja unikalności ──
+            if (int.TryParse((TxtNumer.Text ?? "").Trim(), out int wpisanyNumer) && wpisanyNumer > 0)
+            {
+                if (wpisanyNumer != _model.Numer)
+                {
+                    // Numer zmieniony ręcznie — sprawdź czy wolny
+                    try
+                    {
+                        bool zajety = await _service.IsNumberTakenAsync(_model.Rok, wpisanyNumer, _model.Id);
+                        if (zajety)
+                        {
+                            MessageBox.Show(this,
+                                $"Numer {wpisanyNumer}/{_model.Rok:00} jest już zajęty przez inny HDI.\n\nWybierz inny numer.",
+                                "Numer zajęty", MessageBoxButton.OK, MessageBoxImage.Warning);
+                            return;
+                        }
+                        _model.Numer = wpisanyNumer;
+                    }
+                    catch (Exception exNr)
+                    {
+                        MessageBox.Show(this, "Błąd sprawdzania numeru: " + exNr.Message, "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                        return;
+                    }
+                }
+            }
+            else
+            {
+                MessageBox.Show(this, "Podaj prawidłowy numer HDI (liczba > 0).", "Zły numer", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
 
             try
             {

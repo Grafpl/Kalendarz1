@@ -520,8 +520,15 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <Button x:Name="btnCancel" Grid.Column="0" Content="Anuluj" 
-                        Style="{StaticResource SecondaryButtonStyle}" Click="BtnCancel_Click"/>
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <Button x:Name="btnCancel" Content="Anuluj"
+                            Style="{StaticResource SecondaryButtonStyle}" Click="BtnCancel_Click"/>
+                    <Button x:Name="btnDebug" Content="🐞 Debug importu"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Margin="10,0,0,0" Visibility="Collapsed"
+                            ToolTip="Pokaż dokładnie co odczytano z komórek i jak dopasowano hodowców"
+                            Click="BtnDebug_Click"/>
+                </StackPanel>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal">
                     <Button x:Name="btnPrevious" Content="← Wstecz" 

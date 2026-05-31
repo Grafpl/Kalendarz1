@@ -140,6 +140,10 @@
     <None Include="Assets\Towary\*.jpg;Assets\Towary\*.jpeg;Assets\Towary\*.png;Assets\Towary\*.webp;Assets\Towary\README.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <!-- Dashboard Przychod Zywca - skonsolidowane zapytania SQL ladowane przez PrzychodService z pliku -->
+    <Content Include="DashboardPrzychodu\SQL\*.sql">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
   <ItemGroup>

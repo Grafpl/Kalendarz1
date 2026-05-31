@@ -400,6 +400,58 @@ namespace Kalendarz1.WPF
         private void BtnNew_Click(object sender, RoutedEventArgs e) => OpenUmowaForm(null);
         private void BtnEdit_Click(object sender, RoutedEventArgs e) => EditSelected();
         private async void BtnRefresh_Click(object sender, RoutedEventArgs e) => await LoadDataAsync();
+
+        // ── Wejście do modułu Kontrakty (otwórz aktywny / utwórz nowy z prefill) ──
+        private async void BtnKontrakt_Click(object sender, RoutedEventArgs e)
+        {
+            if (dgvContracts.SelectedItem is not DostawaItem it)
+            {
+                MessageBox.Show("Zaznacz dostawę (wiersz), by przejść do kontraktu hodowcy.", "Kontrakty",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            string nazwa = (it.Dostawca ?? "").Trim();
+            if (nazwa.Length == 0) return;
+
+            try
+            {
+                var svc = new Kalendarz1.Kontrakty.Services.KontraktyService();
+                var hodowcy = await svc.GetHodowcyAsync(nazwa);
+                var dopas = hodowcy.Where(h => string.Equals(h.Nazwa?.Trim(), nazwa, StringComparison.OrdinalIgnoreCase)).ToList();
+                var hod = dopas.Count > 0 ? dopas[0] : hodowcy.FirstOrDefault();
+                if (hod == null)
+                {
+                    MessageBox.Show($"Nie znaleziono hodowcy '{nazwa}' w bazie dostawców.", "Kontrakty",
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                var aktywne = await svc.GetAktywneKontraktyHodowcyAsync(hod.DostawcaId);
+                if (aktywne.Count == 1)
+                {
+                    new Kalendarz1.Kontrakty.Views.KontraktyKartaWindow(aktywne[0].Id) { Owner = this }.ShowDialog();
+                }
+                else if (aktywne.Count > 1)
+                {
+                    MessageBox.Show($"Hodowca ma {aktywne.Count} aktywnych kontraktów — otwieram najbliższy wygaśnięciu ({aktywne[0].NumerKontraktu}).",
+                        "Kontrakty", MessageBoxButton.OK, MessageBoxImage.Information);
+                    new Kalendarz1.Kontrakty.Views.KontraktyKartaWindow(aktywne[0].Id) { Owner = this }.ShowDialog();
+                }
+                else
+                {
+                    if (MessageBox.Show($"Hodowca '{hod.Nazwa}' nie ma aktywnego kontraktu. Utworzyć nowy?",
+                        "Kontrakty", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+                    {
+                        new Kalendarz1.Kontrakty.Views.KontraktKreatorWindow(hod.DostawcaId) { Owner = this }.ShowDialog();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Błąd otwierania kontraktu: " + ex.Message, "Kontrakty",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
         private void BtnExport_Click(object sender, RoutedEventArgs e) => ExportCsv();
         private void MenuEdit_Click(object sender, RoutedEventArgs e) => EditSelected();
 

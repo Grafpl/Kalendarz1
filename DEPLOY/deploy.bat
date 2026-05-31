@@ -28,13 +28,21 @@ echo ============================================================
 echo.
 
 REM === [1/6] Test polaczenia z QNAP ===
+REM Sprawdzamy dostep do PARENT folderu (\\192.168.0.170\Install) - czy QNAP w sieci.
+REM Folder Kalendarz1L i podfoldery tworzymy automatycznie jesli nie istnieja.
 echo [1/6] Test polaczenia z QNAP...
-if not exist "%QNAP_ROOT%" (
-    echo BLAD: Nie mozna polaczyc sie z %QNAP_ROOT%
-    echo Sprawdz czy jestes w sieci firmowej i czy QNAP jest dostepny.
+if not exist "\\192.168.0.170\Install" (
+    echo BLAD: Nie mozna polaczyc sie z \\192.168.0.170\Install
+    echo Sprawdz czy jestes w sieci firmowej / VPN i czy QNAP jest dostepny.
     pause
     exit /b 1
 )
+REM Stworz strukture jesli usunieta
+if not exist "%QNAP_ROOT%" (
+    echo   Folder Kalendarz1L nie istnieje - tworze...
+    mkdir "%QNAP_ROOT%" 2>nul
+)
+if not exist "%QNAP_RELEASE%" mkdir "%QNAP_RELEASE%" 2>nul
 echo   OK
 echo.
 

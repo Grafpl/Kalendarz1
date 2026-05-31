@@ -403,6 +403,7 @@ namespace Kalendarz1.Admin.Services
                 new() { Key = "ProductImages",        DisplayName = "Zdjęcia Produktów",     Description = "Zarządzanie zdjęciami produktów",            Category = "Administracja Systemu", Icon = "📷" },
                 new() { Key = "UstawieniaZmianZamowien",DisplayName = "Ustawienia Zmian Zamówień",Description = "Konfiguracja zmian w zamówieniach",     Category = "Administracja Systemu", Icon = "⚙️" },
                 new() { Key = "CentrumNagranAI",      DisplayName = "Centrum nagrań AI",     Description = "Wyszukiwanie zdarzeń w CCTV przez Claude AI",Category = "Administracja Systemu", Icon = "🎥" },
+                new() { Key = "KameryPanelJola",      DisplayName = "Kamery Panelu Joli",    Description = "Konfiguracja 2 kanałów NVR widocznych na Panelu Pani Joli",Category = "Administracja Systemu", Icon = "📹" },
             };
         }
 

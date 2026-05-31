@@ -1,15 +1,18 @@
 using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
+using System.Linq;
 using System.Threading.Tasks;
 using Kalendarz1.AnalitykaPelna.Services;
 
 namespace Kalendarz1.ColdChain
 {
     /// <summary>
-    /// Cold Chain HACCP (#2). Tryb MANUALNY (operator wpisuje) działa od razu.
-    /// Tryb AUTO (sondy Modbus) — patrz TODO ReadModbusAsync (po zakupie sprzętu).
-    /// Baza: LibraNet. Wymaga ColdChain/SQL/CreateColdChain.sql.
+    /// Cold Chain HACCP — warstwa na ISTNIEJĄCYCH danych:
+    ///   • TemperaturyMiejsca — pomiary (PartiaId, Miejsce, Proba1..4, Srednia, Wykonal, DataPomiaru)
+    ///   • QC_Normy (Kategoria='TEMPERATURA') — progi rampa/chiller/tunel
+    ///   • ColdChainKorekta — działania naprawcze HACCP (nowa, mała tabela)
+    /// Baza: LibraNet. Ciągły monitoring sondami = osobna warstwa (CCP_* / SQL Sensors).
     /// </summary>
     public class ColdChainService
     {
@@ -21,236 +24,321 @@ namespace Kalendarz1.ColdChain
             _conn = AnalitykaConfig.ConnLibraNet;
         }
 
-        /// <summary>Wszystkie aktywne punkty CCP z ostatnim pomiarem.</summary>
-        public async Task<List<CCPPunkt>> GetPunktyZOstatnimPomiaremAsync()
+        // ─── Normy (QC_Normy) ──────────────────────────────────────────────
+        public async Task<List<TempNorma>> GetNormyTempAsync()
         {
-            var lista = new List<CCPPunkt>();
+            var lista = new List<TempNorma>();
             const string sql = @"
-SELECT p.Id, p.Kod, p.Nazwa, p.TypPomiaru, p.LimitDolny, p.LimitGorny,
-       p.Jednostka, p.CzestotliwoscMin, p.Aktywny,
-       m.Wartosc AS OstWartosc, m.PomiarDateTime AS OstDt
-FROM dbo.CCP_Punkt p
-OUTER APPLY (
-    SELECT TOP 1 Wartosc, PomiarDateTime
-    FROM dbo.CCP_Pomiar
-    WHERE PunktId = p.Id
-    ORDER BY PomiarDateTime DESC
-) m
-WHERE p.Aktywny = 1
-ORDER BY p.Kod;";
-
+SELECT ID, Nazwa, Opis, MinWartosc, MaxWartosc, ISNULL(JednostkaMiary,'C') AS Jm
+FROM dbo.QC_Normy
+WHERE IsAktywna = 1 AND Kategoria = 'TEMPERATURA'
+ORDER BY Kolejnosc;";
             using var cn = new SqlConnection(_conn);
             await cn.OpenAsync();
             using var cmd = new SqlCommand(sql, cn) { CommandTimeout = 30 };
             using var r = await cmd.ExecuteReaderAsync();
             while (await r.ReadAsync())
             {
-                lista.Add(new CCPPunkt
+                lista.Add(new TempNorma
                 {
                     Id = r.GetInt32(0),
-                    Kod = r.GetString(1),
-                    Nazwa = r.GetString(2),
-                    TypPomiaru = r.GetString(3),
-                    LimitDolny = r.IsDBNull(4) ? null : r.GetDecimal(4),
-                    LimitGorny = r.IsDBNull(5) ? null : r.GetDecimal(5),
-                    Jednostka = r.GetString(6),
-                    CzestotliwoscMin = r.IsDBNull(7) ? null : r.GetInt32(7),
-                    Aktywny = r.GetBoolean(8),
-                    OstatniaWartosc = r.IsDBNull(9) ? null : r.GetDecimal(9),
-                    OstatniPomiarDateTime = r.IsDBNull(10) ? null : r.GetDateTime(10)
+                    Nazwa = r.GetString(1),
+                    Opis = r.IsDBNull(2) ? null : r.GetString(2),
+                    Min = r.IsDBNull(3) ? null : r.GetDecimal(3),
+                    Max = r.IsDBNull(4) ? null : r.GetDecimal(4),
+                    Jednostka = r.GetString(5)
                 });
             }
+            DopelnijNormyFallbackiem(lista);
             return lista;
         }
 
         /// <summary>
-        /// Zapisuje pomiar (tryb manualny). Po zapisie wykrywa incydent jeśli poza limitem.
+        /// Dla miejsc, których nie ma w QC_Normy, dodaje normy domyślne z kodu (MiejscaCC.DomyslneNormy).
+        /// Dzięki temu oparzalnik/schładzalnik są oceniane vs norma nawet zanim uruchomisz SQL.
         /// </summary>
-        public async Task ZapiszPomiarAsync(int punktId, decimal wartosc, string? operatorId, string? uwagi)
+        private static void DopelnijNormyFallbackiem(List<TempNorma> zBazy)
         {
+            var pokryte = new HashSet<string>(zBazy.Select(n => n.Miejsce), StringComparer.OrdinalIgnoreCase);
+            foreach (var (kod, ikona, label) in MiejscaCC.Lista)
+            {
+                if (pokryte.Contains(kod)) continue;
+                if (!MiejscaCC.DomyslneNormy.TryGetValue(kod, out var prog)) continue;
+                zBazy.Add(new TempNorma
+                {
+                    Id = 0,
+                    Nazwa = "Temp" + char.ToUpper(kod[0]) + kod.Substring(1),
+                    Opis = label + " (norma domyślna z kodu)",
+                    Min = prog.Min,
+                    Max = prog.Max,
+                    Jednostka = "C"
+                });
+            }
+        }
+
+        private Dictionary<string, TempNorma> MapaNorm(List<TempNorma> normy)
+        {
+            var d = new Dictionary<string, TempNorma>(StringComparer.OrdinalIgnoreCase);
+            foreach (var n in normy) d[n.Miejsce] = n;
+            return d;
+        }
+
+        // ─── Pomiary (TemperaturyMiejsca) ──────────────────────────────────
+        public async Task<List<TempPomiar>> GetPomiaryAsync(DateTime od, DateTime doDate, List<TempNorma>? normy = null)
+        {
+            normy ??= await GetNormyTempAsync();
+            var mapa = MapaNorm(normy);
+            var lista = new List<TempPomiar>();
+
+            const string sql = @"
+SELECT t.Id, t.PartiaId, LOWER(t.Miejsce) AS Miejsce,
+       t.Proba1, t.Proba2, t.Proba3, t.Proba4, t.Srednia, t.Wykonal, t.DataPomiaru,
+       pd.CustomerName AS Hodowca,
+       CASE WHEN k.Id IS NOT NULL THEN 1 ELSE 0 END AS MaKorekta
+FROM dbo.TemperaturyMiejsca t
+LEFT JOIN dbo.PartiaDostawca pd ON pd.Partia = t.PartiaId
+LEFT JOIN dbo.ColdChainKorekta k ON k.TemperaturaMiejscaId = t.Id
+WHERE t.DataPomiaru BETWEEN @Od AND @Do
+ORDER BY t.DataPomiaru DESC;";
+
             using var cn = new SqlConnection(_conn);
             await cn.OpenAsync();
-
-            // 1. Zapis pomiaru
-            const string ins = @"
-INSERT INTO dbo.CCP_Pomiar (PunktId, PomiarDateTime, Wartosc, Zrodlo, OperatorId, Uwagi)
-VALUES (@P, GETDATE(), @W, 'MANUALNY', @Op, @U);";
-            using (var cmd = new SqlCommand(ins, cn) { CommandTimeout = 30 })
+            using var cmd = new SqlCommand(sql, cn) { CommandTimeout = 60 };
+            cmd.Parameters.AddWithValue("@Od", od.Date);
+            cmd.Parameters.AddWithValue("@Do", doDate.Date.AddDays(1).AddSeconds(-1));
+            using var r = await cmd.ExecuteReaderAsync();
+            while (await r.ReadAsync())
             {
-                cmd.Parameters.AddWithValue("@P", punktId);
-                cmd.Parameters.AddWithValue("@W", wartosc);
-                cmd.Parameters.AddWithValue("@Op", (object?)operatorId ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@U", (object?)uwagi ?? DBNull.Value);
-                await cmd.ExecuteNonQueryAsync();
-            }
-
-            // 2. Sprawdź limity punktu
-            decimal? limDol = null, limGor = null;
-            const string limSql = "SELECT LimitDolny, LimitGorny FROM dbo.CCP_Punkt WHERE Id = @P;";
-            using (var cmd = new SqlCommand(limSql, cn))
-            {
-                cmd.Parameters.AddWithValue("@P", punktId);
-                using var r = await cmd.ExecuteReaderAsync();
-                if (await r.ReadAsync())
+                string miejsce = r.IsDBNull(2) ? "" : r.GetString(2);
+                var p = new TempPomiar
                 {
-                    limDol = r.IsDBNull(0) ? null : r.GetDecimal(0);
-                    limGor = r.IsDBNull(1) ? null : r.GetDecimal(1);
+                    Id = r.GetInt32(0),
+                    PartiaId = r.IsDBNull(1) ? "" : r.GetString(1),
+                    Miejsce = miejsce,
+                    Proba1 = r.IsDBNull(3) ? null : r.GetDecimal(3),
+                    Proba2 = r.IsDBNull(4) ? null : r.GetDecimal(4),
+                    Proba3 = r.IsDBNull(5) ? null : r.GetDecimal(5),
+                    Proba4 = r.IsDBNull(6) ? null : r.GetDecimal(6),
+                    Srednia = r.IsDBNull(7) ? null : r.GetDecimal(7),
+                    Wykonal = r.IsDBNull(8) ? null : r.GetString(8),
+                    DataPomiaru = r.GetDateTime(9),
+                    Hodowca = r.IsDBNull(10) ? null : r.GetString(10),
+                    MaKorekta = r.GetInt32(11) == 1
+                };
+                if (mapa.TryGetValue(miejsce, out var norma))
+                {
+                    p.NormaMin = norma.Min;
+                    p.NormaMax = norma.Max;
                 }
+                lista.Add(p);
             }
-
-            bool poza = (limDol.HasValue && wartosc < limDol.Value)
-                     || (limGor.HasValue && wartosc > limGor.Value);
-
-            // 3. Zarządzaj incydentem
-            if (poza)
-                await OtworzLubPrzedluzIncydentAsync(cn, punktId, wartosc, limDol, limGor);
-            else
-                await ZamknijOtwartyIncydentAutoAsync(cn, punktId);
+            return lista;
         }
 
-        private async Task OtworzLubPrzedluzIncydentAsync(SqlConnection cn, int punktId,
-            decimal wartosc, decimal? limDol, decimal? limGor)
+        // ─── Kafelki dashboardu (agregat per miejsce) ──────────────────────
+        public List<MiejsceKafel> BudujKafelki(List<TempPomiar> pomiary, List<TempNorma> normy)
         {
-            // Czy jest otwarty incydent dla tego punktu?
-            const string check = @"SELECT TOP 1 Id, WartoscMin, WartoscMax FROM dbo.CCP_Incydent
-WHERE PunktId = @P AND StatusFinal = 'OTWARTY' ORDER BY StartDateTime DESC;";
-            long? incId = null; decimal min = wartosc, max = wartosc;
-            using (var cmd = new SqlCommand(check, cn))
+            var mapa = MapaNorm(normy);
+            var kafelki = new List<MiejsceKafel>();
+            foreach (var (kod, ikona, label) in MiejscaCC.Lista)
             {
-                cmd.Parameters.AddWithValue("@P", punktId);
-                using var r = await cmd.ExecuteReaderAsync();
-                if (await r.ReadAsync())
+                var grupa = pomiary.Where(p => string.Equals(p.Miejsce, kod, StringComparison.OrdinalIgnoreCase)
+                                               && p.Srednia.HasValue).ToList();
+                // Pokazuj kafelek tylko jeśli są pomiary LUB jest zdefiniowana norma (żeby nie zaśmiecać pustymi)
+                bool maNorme = mapa.ContainsKey(kod);
+                if (grupa.Count == 0 && !maNorme) continue;
+                kafelki.Add(new MiejsceKafel
                 {
-                    incId = r.GetInt64(0);
-                    if (!r.IsDBNull(1)) min = Math.Min(min, r.GetDecimal(1));
-                    if (!r.IsDBNull(2)) max = Math.Max(max, r.GetDecimal(2));
-                }
+                    Miejsce = label.Split('(')[0].Trim(),
+                    Ikona = ikona,
+                    LiczbaPomiarow = grupa.Count,
+                    LiczbaWNormie = grupa.Count(p => !p.CzyPozaNorma),
+                    SredniaTemp = grupa.Count > 0 ? Math.Round(grupa.Average(p => p.Srednia!.Value), 1) : null,
+                    NormaText = maNorme ? mapa[kod].ZakresFormatted : "—"
+                });
             }
-
-            if (incId.HasValue)
-            {
-                const string upd = "UPDATE dbo.CCP_Incydent SET WartoscMin=@Min, WartoscMax=@Max WHERE Id=@Id;";
-                using var cmd = new SqlCommand(upd, cn);
-                cmd.Parameters.AddWithValue("@Min", min);
-                cmd.Parameters.AddWithValue("@Max", max);
-                cmd.Parameters.AddWithValue("@Id", incId.Value);
-                await cmd.ExecuteNonQueryAsync();
-            }
-            else
-            {
-                const string ins = @"
-INSERT INTO dbo.CCP_Incydent (PunktId, StartDateTime, WartoscMin, WartoscMax, LimitDolny, LimitGorny, Priorytet, StatusFinal)
-VALUES (@P, GETDATE(), @Min, @Max, @LD, @LG, 'WYSOKI', 'OTWARTY');";
-                using var cmd = new SqlCommand(ins, cn);
-                cmd.Parameters.AddWithValue("@P", punktId);
-                cmd.Parameters.AddWithValue("@Min", wartosc);
-                cmd.Parameters.AddWithValue("@Max", wartosc);
-                cmd.Parameters.AddWithValue("@LD", (object?)limDol ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@LG", (object?)limGor ?? DBNull.Value);
-                await cmd.ExecuteNonQueryAsync();
-            }
+            return kafelki;
         }
 
-        private async Task ZamknijOtwartyIncydentAutoAsync(SqlConnection cn, int punktId)
+        // ─── Trend per miejsce (do wykresu) ────────────────────────────────
+        public async Task<List<TempTrendPunkt>> GetTrendAsync(string miejsce, DateTime od, DateTime doDate)
         {
-            // Gdy wartość wraca do normy — zamknij otwarty incydent (czas powrotu)
-            const string upd = @"
-UPDATE dbo.CCP_Incydent
-SET EndDateTime = GETDATE()
-WHERE PunktId = @P AND StatusFinal = 'OTWARTY' AND EndDateTime IS NULL;";
-            using var cmd = new SqlCommand(upd, cn);
-            cmd.Parameters.AddWithValue("@P", punktId);
+            var lista = new List<TempTrendPunkt>();
+            const string sql = @"
+SELECT t.DataPomiaru, t.Srednia
+FROM dbo.TemperaturyMiejsca t
+WHERE LOWER(t.Miejsce) = @M AND t.Srednia IS NOT NULL
+  AND t.DataPomiaru BETWEEN @Od AND @Do
+ORDER BY t.DataPomiaru;";
+            using var cn = new SqlConnection(_conn);
+            await cn.OpenAsync();
+            using var cmd = new SqlCommand(sql, cn) { CommandTimeout = 60 };
+            cmd.Parameters.AddWithValue("@M", miejsce.ToLowerInvariant());
+            cmd.Parameters.AddWithValue("@Od", od.Date);
+            cmd.Parameters.AddWithValue("@Do", doDate.Date.AddDays(1).AddSeconds(-1));
+            using var r = await cmd.ExecuteReaderAsync();
+            while (await r.ReadAsync())
+                lista.Add(new TempTrendPunkt { Data = r.GetDateTime(0), Srednia = r.GetDecimal(1) });
+            return lista;
+        }
+
+        // ─── Wpis pomiaru (INSERT do TemperaturyMiejsca) ───────────────────
+        public async Task ZapiszPomiarAsync(string partiaId, string miejsce,
+            decimal? p1, decimal? p2, decimal? p3, decimal? p4, string? wykonal)
+        {
+            var proby = new[] { p1, p2, p3, p4 }.Where(x => x.HasValue).Select(x => x!.Value).ToList();
+            decimal? srednia = proby.Count > 0 ? Math.Round(proby.Average(), 2) : null;
+
+            const string sql = @"
+INSERT INTO dbo.TemperaturyMiejsca (PartiaId, Miejsce, Proba1, Proba2, Proba3, Proba4, Srednia, Wykonal, DataPomiaru)
+VALUES (@P, @M, @P1, @P2, @P3, @P4, @Sr, @W, GETDATE());";
+            using var cn = new SqlConnection(_conn);
+            await cn.OpenAsync();
+            using var cmd = new SqlCommand(sql, cn) { CommandTimeout = 30 };
+            cmd.Parameters.AddWithValue("@P", partiaId);
+            cmd.Parameters.AddWithValue("@M", miejsce);
+            cmd.Parameters.AddWithValue("@P1", (object?)p1 ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@P2", (object?)p2 ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@P3", (object?)p3 ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@P4", (object?)p4 ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@Sr", (object?)srednia ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@W", (object?)wykonal ?? DBNull.Value);
             await cmd.ExecuteNonQueryAsync();
         }
 
-        /// <summary>Ostatnie pomiary danego punktu (do wykresu).</summary>
-        public async Task<List<CCPPomiar>> GetPomiaryAsync(int punktId, int ostatnieN = 60)
-        {
-            var lista = new List<CCPPomiar>();
-            const string sql = @"
-SELECT TOP (@N) Id, PunktId, PomiarDateTime, Wartosc, Zrodlo, OperatorId, Uwagi
-FROM dbo.CCP_Pomiar WHERE PunktId = @P
-ORDER BY PomiarDateTime DESC;";
-            using var cn = new SqlConnection(_conn);
-            await cn.OpenAsync();
-            using var cmd = new SqlCommand(sql, cn) { CommandTimeout = 30 };
-            cmd.Parameters.AddWithValue("@N", ostatnieN);
-            cmd.Parameters.AddWithValue("@P", punktId);
-            using var r = await cmd.ExecuteReaderAsync();
-            while (await r.ReadAsync())
-            {
-                lista.Add(new CCPPomiar
-                {
-                    Id = r.GetInt64(0),
-                    PunktId = r.GetInt32(1),
-                    PomiarDateTime = r.GetDateTime(2),
-                    Wartosc = r.GetDecimal(3),
-                    Zrodlo = r.GetString(4),
-                    OperatorId = r.IsDBNull(5) ? null : r.GetString(5),
-                    Uwagi = r.IsDBNull(6) ? null : r.GetString(6)
-                });
-            }
-            return lista;
-        }
-
-        /// <summary>Incydenty (domyślnie otwarte + ostatnie zamknięte).</summary>
-        public async Task<List<CCPIncydent>> GetIncydentyAsync(bool tylkoOtwarte = false)
-        {
-            var lista = new List<CCPIncydent>();
-            string sql = @"
-SELECT i.Id, i.PunktId, p.Nazwa, i.StartDateTime, i.EndDateTime,
-       i.WartoscMin, i.WartoscMax, i.LimitDolny, i.LimitGorny,
-       i.Priorytet, i.StatusFinal, i.KorektaOpis, i.KorektaPrzezId
-FROM dbo.CCP_Incydent i
-JOIN dbo.CCP_Punkt p ON p.Id = i.PunktId
-" + (tylkoOtwarte ? "WHERE i.StatusFinal = 'OTWARTY'" : "") + @"
-ORDER BY i.StartDateTime DESC;";
-            using var cn = new SqlConnection(_conn);
-            await cn.OpenAsync();
-            using var cmd = new SqlCommand(sql, cn) { CommandTimeout = 30 };
-            using var r = await cmd.ExecuteReaderAsync();
-            while (await r.ReadAsync())
-            {
-                lista.Add(new CCPIncydent
-                {
-                    Id = r.GetInt64(0),
-                    PunktId = r.GetInt32(1),
-                    PunktNazwa = r.GetString(2),
-                    StartDateTime = r.GetDateTime(3),
-                    EndDateTime = r.IsDBNull(4) ? null : r.GetDateTime(4),
-                    WartoscMin = r.IsDBNull(5) ? null : r.GetDecimal(5),
-                    WartoscMax = r.IsDBNull(6) ? null : r.GetDecimal(6),
-                    LimitDolny = r.IsDBNull(7) ? null : r.GetDecimal(7),
-                    LimitGorny = r.IsDBNull(8) ? null : r.GetDecimal(8),
-                    Priorytet = r.GetString(9),
-                    StatusFinal = r.GetString(10),
-                    KorektaOpis = r.IsDBNull(11) ? null : r.GetString(11),
-                    KorektaPrzezId = r.IsDBNull(12) ? null : r.GetString(12)
-                });
-            }
-            return lista;
-        }
-
-        /// <summary>Zamyka incydent z opisem korekty (działanie naprawcze HACCP).</summary>
-        public async Task ZamknijIncydentAsync(long incydentId, string korektaOpis, string? user)
+        // ─── Korekta HACCP (działanie naprawcze do incydentu) ──────────────
+        public async Task ZapiszKorekteAsync(int pomiarId, string opis, string? user)
         {
             const string sql = @"
-UPDATE dbo.CCP_Incydent
-SET StatusFinal = 'ZAMKNIETY',
-    EndDateTime = ISNULL(EndDateTime, GETDATE()),
-    KorektaOpis = @Op, KorektaPrzezId = @U, KorektaDateTime = GETDATE()
-WHERE Id = @Id;";
+MERGE dbo.ColdChainKorekta AS t
+USING (SELECT @Id AS Pid) AS s ON t.TemperaturaMiejscaId = s.Pid
+WHEN MATCHED THEN UPDATE SET KorektaOpis=@Op, KorektaPrzez=@U, KorektaDateTime=GETDATE()
+WHEN NOT MATCHED THEN INSERT (TemperaturaMiejscaId, KorektaOpis, KorektaPrzez, Status)
+    VALUES (@Id, @Op, @U, 'ZAMKNIETY');";
             using var cn = new SqlConnection(_conn);
             await cn.OpenAsync();
             using var cmd = new SqlCommand(sql, cn) { CommandTimeout = 30 };
-            cmd.Parameters.AddWithValue("@Op", korektaOpis);
+            cmd.Parameters.AddWithValue("@Id", pomiarId);
+            cmd.Parameters.AddWithValue("@Op", opis);
             cmd.Parameters.AddWithValue("@U", (object?)user ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("@Id", incydentId);
             await cmd.ExecuteNonQueryAsync();
         }
 
-        // TODO (tryb AUTO, po zakupie sond):
-        //   public async Task ReadModbusAsync() — odczyt PT1000 przez NModbus,
-        //   zapis z Zrodlo='AUTO'. Wzorzec w BAZA_WIEDZY/30_POMYSLY/09_Scalding_Monitor.md.
+        public async Task<string?> GetKorektaOpisAsync(int pomiarId)
+        {
+            const string sql = "SELECT KorektaOpis FROM dbo.ColdChainKorekta WHERE TemperaturaMiejscaId=@Id;";
+            using var cn = new SqlConnection(_conn);
+            await cn.OpenAsync();
+            using var cmd = new SqlCommand(sql, cn) { CommandTimeout = 30 };
+            cmd.Parameters.AddWithValue("@Id", pomiarId);
+            var v = await cmd.ExecuteScalarAsync();
+            return v as string;
+        }
+
+        // ─── Ranking hodowców po zgodności temperatur (z już-załadowanych pomiarów) ───
+        public List<RankingHodowcaTemp> BudujRankingHodowcow(List<TempPomiar> pomiary)
+        {
+            return pomiary
+                .Where(p => p.Srednia.HasValue && !string.IsNullOrEmpty(p.Hodowca))
+                .GroupBy(p => p.Hodowca!)
+                .Select(g => new RankingHodowcaTemp
+                {
+                    Hodowca = g.Key,
+                    LiczbaPomiarow = g.Count(),
+                    LiczbaPoza = g.Count(p => p.CzyPozaNorma)
+                })
+                .OrderByDescending(x => x.LiczbaPoza)
+                .ThenBy(x => x.ProcZgodnosci)
+                .Select((x, i) => { x.Pozycja = i + 1; return x; })
+                .ToList();
+        }
+
+        // ─── Partie bez kompletu pomiarów (luka HACCP) ─────────────────────
+        public List<NiekompletnaPartia> BudujNiekompletne(List<TempPomiar> pomiary)
+        {
+            string[] wymagane = { "rampa", "chiller", "tunel" };
+            return pomiary
+                .Where(p => !string.IsNullOrEmpty(p.PartiaId))
+                .GroupBy(p => p.PartiaId)
+                .Select(g =>
+                {
+                    var ma = g.Select(p => p.Miejsce).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                    var brak = wymagane.Where(w => !ma.Contains(w, StringComparer.OrdinalIgnoreCase)).ToList();
+                    return new NiekompletnaPartia
+                    {
+                        Partia = g.Key,
+                        Hodowca = g.Select(p => p.Hodowca).FirstOrDefault(h => !string.IsNullOrEmpty(h)),
+                        MaMiejsca = ma,
+                        BrakujeMiejsc = brak,
+                        OstatniPomiar = g.Max(p => p.DataPomiaru)
+                    };
+                })
+                .Where(x => x.BrakujeMiejsc.Count > 0)
+                .OrderByDescending(x => x.OstatniPomiar)
+                .ToList();
+        }
+
+        // ─── Pomiary konkretnej partii (do krzywej schładzania) ────────────
+        public async Task<List<TempPomiar>> GetPomiaryPartiiAsync(string partia, List<TempNorma>? normy = null)
+        {
+            normy ??= await GetNormyTempAsync();
+            var mapa = MapaNorm(normy);
+            var lista = new List<TempPomiar>();
+            const string sql = @"
+SELECT t.Id, t.PartiaId, LOWER(t.Miejsce) AS Miejsce,
+       t.Proba1, t.Proba2, t.Proba3, t.Proba4, t.Srednia, t.Wykonal, t.DataPomiaru
+FROM dbo.TemperaturyMiejsca t
+WHERE t.PartiaId = @P
+ORDER BY t.DataPomiaru;";
+            using var cn = new SqlConnection(_conn);
+            await cn.OpenAsync();
+            using var cmd = new SqlCommand(sql, cn) { CommandTimeout = 30 };
+            cmd.Parameters.AddWithValue("@P", partia);
+            using var r = await cmd.ExecuteReaderAsync();
+            while (await r.ReadAsync())
+            {
+                string miejsce = r.IsDBNull(2) ? "" : r.GetString(2);
+                var p = new TempPomiar
+                {
+                    Id = r.GetInt32(0),
+                    PartiaId = r.IsDBNull(1) ? "" : r.GetString(1),
+                    Miejsce = miejsce,
+                    Proba1 = r.IsDBNull(3) ? null : r.GetDecimal(3),
+                    Proba2 = r.IsDBNull(4) ? null : r.GetDecimal(4),
+                    Proba3 = r.IsDBNull(5) ? null : r.GetDecimal(5),
+                    Proba4 = r.IsDBNull(6) ? null : r.GetDecimal(6),
+                    Srednia = r.IsDBNull(7) ? null : r.GetDecimal(7),
+                    Wykonal = r.IsDBNull(8) ? null : r.GetString(8),
+                    DataPomiaru = r.GetDateTime(9)
+                };
+                if (mapa.TryGetValue(miejsce, out var norma)) { p.NormaMin = norma.Min; p.NormaMax = norma.Max; }
+                lista.Add(p);
+            }
+            return lista;
+        }
+
+        // ─── Partie do wyboru ──────────────────────────────────────────────
+        public async Task<List<PartiaItem>> GetPartieAsync()
+        {
+            var lista = new List<PartiaItem>();
+            const string sql = @"
+SELECT TOP 300 lp.Partia, pd.CustomerName
+FROM dbo.listapartii lp
+LEFT JOIN dbo.PartiaDostawca pd ON pd.Partia = lp.Partia
+ORDER BY lp.CreateData DESC;";
+            using var cn = new SqlConnection(_conn);
+            await cn.OpenAsync();
+            using var cmd = new SqlCommand(sql, cn) { CommandTimeout = 60 };
+            using var r = await cmd.ExecuteReaderAsync();
+            while (await r.ReadAsync())
+            {
+                lista.Add(new PartiaItem
+                {
+                    Partia = r["Partia"]?.ToString() ?? "",
+                    Hodowca = r["CustomerName"]?.ToString()
+                });
+            }
+            return lista;
+        }
     }
 }

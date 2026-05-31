@@ -1,0 +1,271 @@
+<Window x:Class="Kalendarz1.Kontrakty.Views.KontraktyListaWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Kontrakty Hodowców" Height="800" Width="1320"
+        WindowStartupLocation="CenterScreen" Background="#F1F5F9"
+        UseLayoutRounding="True" TextOptions.TextFormattingMode="Display"
+        PreviewKeyDown="Window_PreviewKeyDown">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/Kontrakty/Views/KontraktyTheme.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- ═══ Nagłówek + statystyki (góra, jak w starym programie) ═══ -->
+        <Border Grid.Row="0" Background="{StaticResource HeaderBrush}" Padding="22,14">
+            <Grid>
+                <StackPanel>
+                    <TextBlock Text="📜 Kontrakty Hodowców" Foreground="White" FontSize="21" FontWeight="Bold"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <TextBlock x:Name="chipRazem" Foreground="White" FontSize="12.5" FontWeight="Bold" Margin="0,0,16,0"/>
+                        <TextBlock x:Name="chipAktywne" Foreground="#C8F7D0" FontSize="12.5" FontWeight="SemiBold" Margin="0,0,16,0"/>
+                        <TextBlock x:Name="chipWygasajace" Foreground="#FFE0A3" FontSize="12.5" FontWeight="SemiBold" Margin="0,0,16,0"/>
+                        <TextBlock x:Name="chipWygasle" Foreground="#FCC4C4" FontSize="12.5" FontWeight="SemiBold" Margin="0,0,16,0"/>
+                        <TextBlock x:Name="chipRobocze" Foreground="#D7E3EE" FontSize="12.5" FontWeight="SemiBold" Margin="0,0,16,0"/>
+                    </StackPanel>
+                </StackPanel>
+                <Border x:Name="alertBadge" HorizontalAlignment="Right" VerticalAlignment="Center"
+                        Background="#F59E0B" CornerRadius="16" Padding="14,7" Visibility="Collapsed">
+                    <TextBlock x:Name="txtAlertBadge" Foreground="White" FontWeight="Bold" FontSize="13"/>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- ═══ Toolbar ═══ -->
+        <Border Grid.Row="1" Background="White" Padding="18,12" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1">
+            <StackPanel Orientation="Horizontal">
+                <Button Content="➕ Nowy kontrakt" Style="{StaticResource BtnPrimary}" Click="BtnNowy_Click" ToolTip="Nowy kontrakt (Ctrl+N) · tryb seryjny: Ctrl+Shift+N"/>
+                <Button Content="🔄 Przedłuż" Style="{StaticResource Btn}" Click="BtnPrzedluz_Click" ToolTip="Przedłuż zaznaczony (Ctrl+R)"/>
+                <Border Width="1" Background="{StaticResource Line}" Margin="6,3,14,3"/>
+                <Button Content="📊 Dashboard ARiMR" Style="{StaticResource Btn}" Click="BtnDashboard_Click"/>
+                <Button Content="🏆 Ranking" Style="{StaticResource Btn}" Click="BtnRanking_Click" ToolTip="Ranking hodowców wg wolumenu (12 mies.)"/>
+                <Button Content="🔔 Alerty" Style="{StaticResource Btn}" Click="BtnAlerty_Click"/>
+                <Button Content="📑 Eksport ARiMR PDF" Style="{StaticResource Btn}" Click="BtnExport_Click" ToolTip="Raport zgodności ARiMR do PDF (Ctrl+E)"/>
+                <Button Content="📚 Generuj zbiorczo" Style="{StaticResource Btn}" Click="BtnAneksy_Click" ToolTip="Masowe generowanie dokumentów Word (aneksy)"/>
+                <Button Content="🔄 Odśwież" Style="{StaticResource Btn}" Click="BtnOdswiez_Click" ToolTip="Odśwież listę (F5)"/>
+                <Border Width="1" Background="{StaticResource Line}" Margin="6,3,14,3"/>
+                <Button Content="🔢 Numeracja" Style="{StaticResource Btn}" Click="BtnNumeracja_Click"
+                        ToolTip="Ustaw format numeru kontraktu"/>
+            </StackPanel>
+        </Border>
+
+        <!-- ═══ Filtry ═══ -->
+        <Border Grid.Row="2" Background="White" Padding="18,11" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1">
+            <Grid>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border Background="{StaticResource Surface}" CornerRadius="8" BorderBrush="{StaticResource FieldBorder}"
+                            BorderThickness="1" Padding="8,0" Height="34">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="🔍" FontSize="14" VerticalAlignment="Center" Margin="2,0,4,0" Opacity="0.6"/>
+                            <TextBox x:Name="txtSzukaj" Width="230" Height="30" BorderThickness="0" Background="Transparent"
+                                     TextChanged="Filtr_Changed" VerticalContentAlignment="Center"
+                                     ToolTip="Szukaj po hodowcy, numerze lub twórcy"/>
+                        </StackPanel>
+                    </Border>
+                    <TextBlock Text="Status" VerticalAlignment="Center" Margin="18,0,6,0" Foreground="{StaticResource Muted}" FontSize="12"/>
+                    <ComboBox x:Name="cbStatus" Width="170" SelectionChanged="Filtr_Changed">
+                        <ComboBoxItem Content="Aktywne" Tag="AKTYWNE" IsSelected="True"/>
+                        <ComboBoxItem Content="Wygasające ≤90 dni" Tag="WYGASAJACE"/>
+                        <ComboBoxItem Content="Robocze" Tag="ROBOCZE"/>
+                        <ComboBoxItem Content="Wygasłe / wypowiedziane" Tag="WYGASLE"/>
+                        <ComboBoxItem Content="Wszystkie" Tag="WSZYSTKIE"/>
+                    </ComboBox>
+                    <TextBlock Text="Typ" VerticalAlignment="Center" Margin="16,0,6,0" Foreground="{StaticResource Muted}" FontSize="12"/>
+                    <ComboBox x:Name="cbTyp" Width="150" SelectionChanged="Filtr_Changed">
+                        <ComboBoxItem Content="Wszystkie typy" Tag="WSZYSTKIE" IsSelected="True"/>
+                        <ComboBoxItem Content="3-letni" Tag="ARIMR_3LAT"/>
+                        <ComboBoxItem Content="Roczny" Tag="ROCZNY"/>
+                        <ComboBoxItem Content="Sezonowy" Tag="SEZONOWY"/>
+                        <ComboBoxItem Content="Wieczny" Tag="WIECZNY"/>
+                        <ComboBoxItem Content="Spot" Tag="SPOT"/>
+                    </ComboBox>
+                    <CheckBox x:Name="chkArimr" Content="tylko ARiMR" VerticalAlignment="Center" Margin="18,0,0,0" Click="Filtr_Changed"/>
+                    <CheckBox x:Name="chkMoje" Content="moje" VerticalAlignment="Center" Margin="16,0,0,0" Click="Filtr_Changed"
+                              ToolTip="Tylko kontrakty utworzone przeze mnie"/>
+                </StackPanel>
+                <TextBlock x:Name="txtLicznik" HorizontalAlignment="Right" VerticalAlignment="Center"
+                           Foreground="{StaticResource Muted}" FontWeight="SemiBold" FontSize="12.5"/>
+            </Grid>
+        </Border>
+
+        <!-- ═══ Lista + stany ═══ -->
+        <Grid Grid.Row="4" Margin="18,14,18,14">
+            <Border x:Name="banerSchema" VerticalAlignment="Top" Background="#FEF3C7" BorderBrush="#F59E0B"
+                    BorderThickness="1" CornerRadius="10" Padding="16,12" Visibility="Collapsed" Panel.ZIndex="2">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="⚠️" FontSize="16" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <TextBlock VerticalAlignment="Center" Foreground="#92400E" FontSize="12.5" TextWrapping="Wrap">
+                        Tabele modułu nie istnieją jeszcze w LibraNet. Uruchom skrypt
+                        <Run FontWeight="Bold" Text="Kontrakty\SQL\01_Kontrakty_v2_schema.sql"/>
+                        i kliknij „Odśwież".
+                    </TextBlock>
+                </StackPanel>
+            </Border>
+
+            <DataGrid x:Name="dgKontrakty" MouseDoubleClick="Dg_DoubleClick" RowHeight="46"
+                      PreviewMouseRightButtonDown="Dg_PreviewRightDown" VirtualizingPanel.IsVirtualizing="True">
+                <DataGrid.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="📜 Otwórz kartę" Click="Ctx_Karta_Click" FontWeight="SemiBold"/>
+                        <MenuItem Header="🕓 Pokaż historię wersji" Click="Ctx_Historia_Click"/>
+                        <MenuItem Header="🔄 Przedłuż" Click="Ctx_Przedluz_Click"/>
+                        <Separator/>
+                        <MenuItem Header="📝 Generuj Word" Click="Ctx_Word_Click"/>
+                        <MenuItem Header="📂 Otwórz plik" Click="Ctx_Plik_Click"/>
+                        <Separator/>
+                        <MenuItem Header="📋 Kopiuj numer" Click="Ctx_Kopiuj_Click"/>
+                    </ContextMenu>
+                </DataGrid.ContextMenu>
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="NR" Binding="{Binding NumerKontraktu}" Width="92">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="FontFamily" Value="Consolas, Cascadia Mono, Courier New"/>
+                                <Setter Property="FontSize" Value="12.5"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+                                <Setter Property="VerticalAlignment" Value="Center"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+
+                    <DataGridTemplateColumn Header="HODOWCA" Width="2*">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <StackPanel VerticalAlignment="Center" Margin="0,2">
+                                    <TextBlock Text="{Binding Hodowca}" FontSize="13" FontWeight="SemiBold"
+                                               Foreground="{StaticResource Ink}" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Text="{Binding HodowcaPodtytul}" FontSize="10.5"
+                                               Foreground="{StaticResource TextTertiary}" TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+
+                    <DataGridTextColumn Header="TYP" Binding="{Binding TypLabel}" Width="115"/>
+
+                    <DataGridTemplateColumn Header="ARiMR" Width="68">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Border CornerRadius="9" Background="#DBEAFE" Padding="8,2" HorizontalAlignment="Left">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding LiczySieDoArimr}" Value="True">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <TextBlock Text="ARiMR" FontSize="10.5" FontWeight="Bold" Foreground="#1E40AF"/>
+                                </Border>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+
+                    <DataGridTextColumn Header="WER." Binding="{Binding WersjaLabel}" Width="48"/>
+
+                    <DataGridTemplateColumn Header="STATUS" Width="125">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Border CornerRadius="10" Padding="9,3" HorizontalAlignment="Left">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Background" Value="#E2E8F0"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Status}" Value="ACTIVE"><Setter Property="Background" Value="#DCFCE7"/></DataTrigger>
+                                                <DataTrigger Binding="{Binding Status}" Value="SIGNED"><Setter Property="Background" Value="#DCFCE7"/></DataTrigger>
+                                                <DataTrigger Binding="{Binding Status}" Value="EXPIRING"><Setter Property="Background" Value="#FEF3C7"/></DataTrigger>
+                                                <DataTrigger Binding="{Binding Status}" Value="NEGOCJACJE"><Setter Property="Background" Value="#E0E7FF"/></DataTrigger>
+                                                <DataTrigger Binding="{Binding Status}" Value="SENT"><Setter Property="Background" Value="#E0E7FF"/></DataTrigger>
+                                                <DataTrigger Binding="{Binding Status}" Value="EXPIRED"><Setter Property="Background" Value="#FEE2E2"/></DataTrigger>
+                                                <DataTrigger Binding="{Binding Status}" Value="TERMINATED"><Setter Property="Background" Value="#FEE2E2"/></DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <TextBlock Text="{Binding StatusLabel}" FontSize="11.5" FontWeight="SemiBold" Foreground="#0F172A"/>
+                                </Border>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+
+                    <DataGridTextColumn Header="OKRES" Binding="{Binding OkresLabel}" Width="160"/>
+
+                    <DataGridTemplateColumn Header="WYGASA" Width="110">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding WygasaLabel}" FontWeight="SemiBold" VerticalAlignment="Center">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="#0F172A"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Pilnosc}" Value="SOON"><Setter Property="Foreground" Value="#B45309"/></DataTrigger>
+                                                <DataTrigger Binding="{Binding Pilnosc}" Value="WARN"><Setter Property="Foreground" Value="#C2410C"/></DataTrigger>
+                                                <DataTrigger Binding="{Binding Pilnosc}" Value="CRIT"><Setter Property="Foreground" Value="#DC2626"/><Setter Property="FontWeight" Value="Bold"/></DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+
+                    <!-- Utworzył: avatar + nazwa + data (jak w starym programie) -->
+                    <DataGridTemplateColumn Header="UTWORZYŁ" Width="185">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Border Width="30" Height="30" CornerRadius="15" Background="#E2E8F0" Margin="0,0,9,0">
+                                        <Image Source="{Binding AvatarUtw}" Width="30" Height="30" Stretch="UniformToFill"/>
+                                    </Border>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding UtworzylNazwa}" FontSize="12.5" FontWeight="SemiBold" Foreground="#0F172A" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Text="{Binding UtworzylKiedyLabel}" FontSize="10.5" Foreground="#94A3B8"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+
+                    <DataGridTemplateColumn Header="" Width="40">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="📎" FontSize="14" HorizontalAlignment="Center" ToolTip="Plik podpięty">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding HasPlik}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <StackPanel x:Name="txtPusto" VerticalAlignment="Center" HorizontalAlignment="Center"
+                        Visibility="Collapsed" Panel.ZIndex="1">
+                <TextBlock Text="📭" FontSize="40" HorizontalAlignment="Center" Opacity="0.5"/>
+                <TextBlock Text="Brak kontraktów dla tych filtrów" FontSize="15" FontWeight="SemiBold"
+                           Foreground="{StaticResource Muted}" HorizontalAlignment="Center" Margin="0,8,0,2"/>
+                <TextBlock Text="Kliknij „➕ Nowy kontrakt”, aby dodać pierwszy." FontSize="12.5"
+                           Foreground="{StaticResource Muted}" HorizontalAlignment="Center"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

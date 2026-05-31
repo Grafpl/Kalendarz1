@@ -329,6 +329,8 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
             btnNext.Visibility = _currentStep < 3 ? Visibility.Visible : Visibility.Collapsed;
             btnImport.Visibility = _currentStep == 3 ? Visibility.Visible : Visibility.Collapsed;
             btnClose.Visibility = postImportPanel.Visibility == Visibility.Visible ? Visibility.Visible : Visibility.Collapsed;
+            // Debugger ma sens dopiero gdy są wczytane dane (krok 2 = parsowanie, krok 3 = mapowanie)
+            btnDebug.Visibility = (_currentStep == 2 || _currentStep == 3) ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private void GoToStep(int step)
@@ -876,11 +878,13 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
                     IloscWierszy = group.Count()
                 };
 
-                // Spróbuj automatycznie dopasować dostawcę
-                var match = FindBestMatch(group.Key);
-                if (match != null)
+                // Spróbuj automatycznie dopasować dostawcę (z diagnostyką: metoda + pewność)
+                var matchDiag = DopasujDostawceDiag(group.Key);
+                mapping.MatchMetoda = matchDiag.Metoda;
+                mapping.MatchRank = matchDiag.Rank;
+                if (matchDiag.Dostawca != null)
                 {
-                    mapping.WybranyDostawca = match;
+                    mapping.WybranyDostawca = matchDiag.Dostawca;
                 }
 
                 // Spróbuj automatycznie dopasować LP z harmonogramu
@@ -927,37 +931,113 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
 
         private DostawcaItem FindBestMatch(string excelName)
         {
-            if (string.IsNullOrWhiteSpace(excelName)) return null;
+            return DopasujDostawceDiag(excelName).Dostawca;
+        }
+
+        /// <summary>
+        /// Dopasowanie dostawcy z diagnostyką: zwraca też METODĘ i RANK pewności
+        /// (3=Wysoka, 2=Średnia, 1=Niska, 0=brak). Używane przez debugger importu,
+        /// żeby pokazać DLACZEGO coś się dopasowało i co wymaga ręcznej kontroli.
+        /// </summary>
+        private (DostawcaItem Dostawca, string Metoda, int Rank) DopasujDostawceDiag(string excelName)
+        {
+            if (string.IsNullOrWhiteSpace(excelName))
+                return (null, "Brak — pusta nazwa w Excelu", 0);
 
             var searchName = excelName.ToLower().Trim();
 
-            // 1. Dokładne dopasowanie
-            var exact = ListaDostawcow.FirstOrDefault(d => 
+            // 1. Dokładne dopasowanie — najwyższa pewność
+            var exact = ListaDostawcow.FirstOrDefault(d =>
                 d.Nazwa?.ToLower().Trim() == searchName);
-            if (exact != null) return exact;
+            if (exact != null) return (exact, "Dokładne (1:1)", 3);
 
             // 2. Dopasowanie po części nazwy (bez prefiksu jak "De Heus – ")
             var parts = searchName.Split(new[] { '–', '-' }, StringSplitOptions.RemoveEmptyEntries);
             if (parts.Length > 1)
             {
                 var lastName = parts.Last().Trim();
-                var partial = ListaDostawcow.FirstOrDefault(d =>
-                    d.Nazwa?.ToLower().Contains(lastName) == true);
-                if (partial != null) return partial;
+                if (lastName.Length >= 3)
+                {
+                    var partial = ListaDostawcow.FirstOrDefault(d =>
+                        d.Nazwa?.ToLower().Contains(lastName) == true);
+                    if (partial != null) return (partial, $"Po nazwisku „{lastName}\"", 2);
+                }
             }
 
-            // 3. Dopasowanie po zawartości
+            // 3. Dopasowanie po zawartości (z zabezpieczeniem: nie łap pustych nazw / zbyt krótkich)
             var contains = ListaDostawcow.FirstOrDefault(d =>
-                d.Nazwa?.ToLower().Contains(searchName) == true ||
-                searchName.Contains(d.Nazwa?.ToLower() ?? ""));
-            if (contains != null) return contains;
+            {
+                var n = d.Nazwa?.ToLower();
+                if (string.IsNullOrWhiteSpace(n) || n.Length < 3) return false;
+                return n.Contains(searchName) || (searchName.Length >= 3 && searchName.Contains(n));
+            });
+            if (contains != null) return (contains, "Zawiera fragment", 1);
 
-            return null;
+            return (null, "Brak — wybierz ręcznie", 0);
         }
 
         #endregion
 
         #region Krok 4: Import
+
+        /// <summary>
+        /// Sprawdza, czy w bazie są już specyfikacje (FarmerCalc) na podaną datę uboju.
+        /// Dodatkowo wykrywa, czy był wcześniejszy IMPORT (z FarmerCalcChangeLog) — żeby
+        /// odróżnić ponowny import od danych z systemu wagowego.
+        /// </summary>
+        private async Task<(int Count, bool BylImport, string OstatniImportInfo)> SprawdzIstniejaceSpecyfikacjeAsync(DateTime data)
+        {
+            return await Task.Run(() =>
+            {
+                int count = 0;
+                bool bylImport = false;
+                string info = "";
+
+                try
+                {
+                    using (var conn = new SqlConnection(connectionString))
+                    {
+                        conn.Open();
+
+                        using (var cmd = new SqlCommand(
+                            "SELECT COUNT(*) FROM dbo.FarmerCalc WHERE CalcDate = @d", conn))
+                        {
+                            cmd.Parameters.AddWithValue("@d", data.Date);
+                            count = Convert.ToInt32(cmd.ExecuteScalar());
+                        }
+
+                        // Ślad wcześniejszego importu (tabela logu może nie istnieć — łapiemy osobno)
+                        try
+                        {
+                            using (var cmd = new SqlCommand(@"
+                                SELECT TOP 1 ChangedBy, ChangeDate
+                                FROM dbo.FarmerCalcChangeLog
+                                WHERE FieldName = 'IMPORT' AND CalcDate = @d
+                                ORDER BY ChangeDate DESC", conn))
+                            {
+                                cmd.Parameters.AddWithValue("@d", data.Date);
+                                using (var rd = cmd.ExecuteReader())
+                                {
+                                    if (rd.Read())
+                                    {
+                                        bylImport = true;
+                                        string przez = rd["ChangedBy"]?.ToString() ?? "?";
+                                        string kiedy = rd["ChangeDate"] is DateTime dt
+                                            ? dt.ToString("dd.MM.yyyy HH:mm")
+                                            : "?";
+                                        info = $"ostatni import: {kiedy}, przez {przez}";
+                                    }
+                                }
+                            }
+                        }
+                        catch { /* brak tabeli logu — pomijamy, liczy się sam COUNT */ }
+                    }
+                }
+                catch { /* problem z połączeniem — nie blokuj importu, zwróć 0 */ }
+
+                return (count, bylImport, info);
+            });
+        }
 
         private async void BtnImport_Click(object sender, RoutedEventArgs e)
         {
@@ -975,8 +1055,32 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
                 if (result != MessageBoxResult.Yes) return;
             }
 
+            // Sprawdź, czy na ten dzień są JUŻ jakieś specyfikacje (ochrona przed podwójnym importem)
+            bool overwriteExisting = false;
+            var istn = await SprawdzIstniejaceSpecyfikacjeAsync(_dataUboju);
+            if (istn.Count > 0)
+            {
+                string zrodlo = istn.BylImport
+                    ? $"⚠ Specyfikacje z tego dnia były już IMPORTOWANE ({istn.OstatniImportInfo})."
+                    : "Dane prawdopodobnie pochodzą z systemu wagowego (brak śladu wcześniejszego importu w historii).";
+
+                var res = MessageBox.Show(
+                    $"Na dzień {_dataUboju:dd.MM.yyyy} jest już {istn.Count} pozycji w bazie.\n\n" +
+                    $"{zrodlo}\n\n" +
+                    "Co chcesz zrobić?\n\n" +
+                    "• TAK – usuń istniejące pozycje z tego dnia i zaimportuj na nowo (nadpisanie)\n" +
+                    "• NIE – importuj DODATKOWO do istniejących (UWAGA: powstaną duplikaty!)\n" +
+                    "• ANULUJ – przerwij import",
+                    "Specyfikacje na ten dzień już istnieją",
+                    MessageBoxButton.YesNoCancel,
+                    MessageBoxImage.Warning);
+
+                if (res == MessageBoxResult.Cancel) return;
+                overwriteExisting = (res == MessageBoxResult.Yes);
+            }
+
             GoToStep(4);
-            
+
             // Pokaż panel importowania
             preImportPanel.Visibility = Visibility.Collapsed;
             importingPanel.Visibility = Visibility.Visible;
@@ -984,8 +1088,8 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
             btnPrevious.Visibility = Visibility.Collapsed;
             btnCancel.IsEnabled = false;
 
-            // WAŻNE: Odczytaj wartość checkboxa PRZED Task.Run (dostęp do UI tylko z głównego wątku)
-            bool overwriteExisting = chkOverwrite.IsChecked == true;
+            // Synchronizuj checkbox z decyzją (gdyby panel był widoczny)
+            chkOverwrite.IsChecked = overwriteExisting;
             DateTime dataUboju = _dataUboju;
             var importData = _importData.ToList(); // Kopia danych
             var supplierMappings = _supplierMappings.ToList(); // Kopia mapowań
@@ -1329,6 +1433,158 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
 
         #endregion
 
+        #region Debugger importu
+
+        private void BtnDebug_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (_importData == null || _importData.Count == 0)
+                {
+                    MessageBox.Show("Brak wczytanych danych do diagnostyki. Najpierw wybierz plik i arkusz.",
+                        "Debugger importu", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                // --- META o pliku ---
+                string ext = Path.GetExtension(_selectedFilePath ?? "")?.ToLower() ?? "";
+                string typPliku = _isOdsFile ? "LibreOffice Calc (.ods)"
+                    : ext == ".xls" ? "Excel 97-2003 (.xls)"
+                    : "Excel (.xlsx/.xlsm)";
+
+                var meta = new ImportDebugMeta
+                {
+                    Plik = Path.GetFileName(_selectedFilePath ?? "?"),
+                    SciezkaPelna = _selectedFilePath ?? "",
+                    TypPliku = typPliku,
+                    Arkusz = _selectedSheetName ?? "?",
+                    DataUboju = _dataUboju,
+                    LiczbaWierszy = _importData.Count,
+                    LiczbaDostawcow = _importData.Select(x => x.DostawcaExcel).Distinct().Count()
+                };
+
+                // --- WIERSZE: parsowanie + podgląd wyliczeń ---
+                var parseRows = new List<ImportDebugRow>();
+                foreach (var r in _importData)
+                {
+                    var w = PodgladWyliczen(r);
+                    var flagi = new List<string>();
+                    if (r.BruttoHodowcy == r.BruttoUbojni && r.TaraHodowcy == r.TaraUbojni && r.BruttoUbojni > 0)
+                        flagi.Add("waga H=U (przepisana)");
+                    if (r.PiK) flagi.Add("PiK (bez padłych/konf.)");
+                    if (string.Equals(r.TypCeny, "łączona", StringComparison.OrdinalIgnoreCase))
+                        flagi.Add("cena łączona");
+                    if (w.SrWaga > 0 && (w.SrWaga < 1.0m || w.SrWaga > 4.5m))
+                        flagi.Add($"śr.waga {w.SrWaga:N2} poza 1,0–4,5 kg ⚠");
+                    if (r.Cena <= 0) flagi.Add("cena = 0 ⚠");
+                    if (w.Netto <= 0) flagi.Add("netto ≤ 0 ⚠");
+
+                    parseRows.Add(new ImportDebugRow
+                    {
+                        NrAuta = r.NrAuta,
+                        NrSpecyfikacji = r.NrSpecyfikacji,
+                        DostawcaExcel = r.DostawcaExcel,
+                        SztukiDek = r.SztukiDek,
+                        Padle = r.Padle,
+                        CH = r.CH,
+                        NW = r.NW,
+                        ZM = r.ZM,
+                        BruttoHodowcy = r.BruttoHodowcy,
+                        TaraHodowcy = r.TaraHodowcy,
+                        BruttoUbojni = r.BruttoUbojni,
+                        TaraUbojni = r.TaraUbojni,
+                        LUMEL = r.LUMEL,
+                        TypCeny = r.TypCeny,
+                        Cena = r.Cena,
+                        Dodatek = r.Dodatek,
+                        PiK = r.PiK,
+                        Ubytek = r.Ubytek,
+                        Netto = w.Netto,
+                        SrWaga = w.SrWaga,
+                        DoZaplaty = w.DoZaplaty,
+                        Wartosc = w.Wartosc,
+                        Flagi = string.Join(", ", flagi)
+                    });
+                }
+
+                // --- DOPASOWANIE dostawców: użyj mapowań z kroku 3 jeśli są, inaczej policz świeżo ---
+                var matchRows = new List<ImportDebugMatch>();
+                var grupy = _importData.GroupBy(x => x.DostawcaExcel).OrderBy(g => g.Key);
+                foreach (var g in grupy)
+                {
+                    var mapping = _supplierMappings?.FirstOrDefault(m => m.DostawcaExcel == g.Key);
+                    string metoda; int rank; DostawcaItem dost; HarmonogramItem harm;
+
+                    if (mapping != null && (mapping.MatchRank > 0 || mapping.WybranyDostawca != null))
+                    {
+                        metoda = mapping.MatchMetoda;
+                        rank = mapping.MatchRank;
+                        dost = mapping.WybranyDostawca;
+                        harm = mapping.WybranyHarmonogram;
+                    }
+                    else
+                    {
+                        var diag = DopasujDostawceDiag(g.Key);
+                        metoda = diag.Metoda; rank = diag.Rank; dost = diag.Dostawca;
+                        harm = FindBestHarmonogramMatch(g.Key);
+                    }
+
+                    matchRows.Add(new ImportDebugMatch
+                    {
+                        DostawcaExcel = g.Key,
+                        IloscWierszy = g.Count(),
+                        Metoda = metoda,
+                        Rank = rank,
+                        DopasowanoDo = dost?.Nazwa ?? "— BRAK —",
+                        AnimNo = dost?.AnimNo ?? "",
+                        IdBazy = dost?.ID ?? "",
+                        Harmonogram = harm != null ? $"LP {harm.LP}: {harm.Dostawca}" : "—"
+                    });
+                }
+
+                var okno = new ImportDebugWindow(meta, parseRows, matchRows) { Owner = this };
+                okno.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd debuggera importu:\n{ex.Message}",
+                    "Debugger importu", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// Podgląd wyliczeń wg KANONICZNEJ formuły (identycznej z PDF/Rozliczenia/Wyliczenia/AmBasic).
+        /// Pozwala w debuggerze sprawdzić, czy import wyprodukuje wartości zgodne ze specyfikacją.
+        /// ROUND half-away-from-zero = jak SQL ROUND.
+        /// </summary>
+        private (decimal Netto, decimal SrWaga, decimal DoZaplaty, decimal Wartosc) PodgladWyliczen(ImportRow r)
+        {
+            // Skladniki zaokraglane BANKOWO (half-to-even) — dokladnie jak Math.Round w PDF/AmBasic.
+            decimal Bank(decimal v) => Math.Round(v, 0, MidpointRounding.ToEven);
+            // Wartosci finalne / wyswietlane w gore od .5 — jak .ToString("N0")/("N2") w PDF.
+            decimal Up(decimal v, int dec) => Math.Round(v, dec, MidpointRounding.AwayFromZero);
+
+            decimal nettoHod = r.BruttoHodowcy - r.TaraHodowcy;
+            decimal nettoUb = r.BruttoUbojni - r.TaraUbojni;
+            // COALESCE(NULLIF(NettoFarmWeight,0), NettoWeight): netto hodowcy jeśli != 0, inaczej ubojni
+            decimal netto = nettoHod != 0 ? nettoHod : (nettoUb > 0 ? nettoUb : nettoHod);
+
+            int sztDoRozl = r.LUMEL + r.Padle;       // LumQnt + DeclI2
+            decimal srWaga = sztDoRozl > 0 ? netto / sztDoRozl : 0m;
+
+            decimal padleKg = r.PiK ? 0m : Bank(r.Padle * srWaga);
+            decimal konfKg = r.PiK ? 0m : Bank((r.CH + r.NW + r.ZM) * srWaga);
+            decimal ubytekKg = Bank(netto * r.Ubytek);
+
+            decimal doZapl = Up(netto - padleKg - konfKg - ubytekKg, 0);
+            // Wartosc = DoZapl × cena w GROSZACH (jak PDF/Symfonia) — NIE zaokraglona do pelnych zlotych.
+            decimal wartosc = Up(doZapl * (r.Cena + r.Dodatek), 2);
+
+            return (Up(netto, 0), Math.Round(srWaga, 3, MidpointRounding.AwayFromZero), doZapl, wartosc);
+        }
+
+        #endregion
+
         #region INotifyPropertyChanged
 
         protected void OnPropertyChanged(string propertyName)
@@ -1383,6 +1639,17 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
 
         public string DostawcaExcel { get; set; }
         public int IloscWierszy { get; set; }
+
+        // Diagnostyka auto-dopasowania (dla debuggera importu)
+        public string MatchMetoda { get; set; } = "";
+        public int MatchRank { get; set; } = 0;   // 3=Wysoka 2=Średnia 1=Niska 0=brak
+        public string MatchPewnosc => MatchRank switch
+        {
+            3 => "Wysoka",
+            2 => "Średnia",
+            1 => "Niska",
+            _ => "—"
+        };
 
         public DostawcaItem WybranyDostawca
         {

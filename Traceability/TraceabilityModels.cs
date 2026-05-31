@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Kalendarz1.Traceability
 {
@@ -115,5 +116,63 @@ namespace Kalendarz1.Traceability
         public int LiczbaKlientow { get; set; }
         public decimal WagaKg { get; set; }
         public List<PaletaWyrob> Palety { get; set; } = new();
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // REVERSE TRACE NA ISTNIEJĄCYCH DANYCH (In0E / Haccp / Out1A / PartiaDostawca)
+    // Nie wymaga ręcznej rejestracji palet — czyta to, co już masz w LibraNet.
+    // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>Pełna droga partii przez zakład — z danych, które już są w bazie.</summary>
+    public class TraceExistingResult
+    {
+        public string Partia { get; set; } = "";
+        public string? Hodowca { get; set; }
+        public string? CustomerID { get; set; }
+        public List<TracePrzyjecie> Przyjecia { get; set; } = new();   // In0E (surowiec)
+        public List<TracePrzeplyw> Przeplywy { get; set; } = new();    // Haccp (między działami)
+        public List<TraceWyjscie> Wyjscia { get; set; } = new();       // Out1A (krojenie/wyjście)
+        public string? Blad { get; set; }
+
+        public bool Znaleziono => Blad == null &&
+            (!string.IsNullOrEmpty(Hodowca) || Przyjecia.Count > 0 || Przeplywy.Count > 0 || Wyjscia.Count > 0);
+
+        public decimal SumaPrzyjeteKg => Przyjecia.Sum(x => x.Kg);
+        public decimal SumaWyjscieKg => Wyjscia.Sum(x => x.Kg);
+        public string PodsumowanieFormatted =>
+            $"Przyjęto {SumaPrzyjeteKg:N0} kg • Wyjście {SumaWyjscieKg:N0} kg • "
+            + $"{Przyjecia.Count} poz. surowca • {Przeplywy.Count} przepływów • {Wyjscia.Count} poz. wyjścia";
+    }
+
+    public class TracePrzyjecie
+    {
+        public string Towar { get; set; } = "";
+        public string? Jm { get; set; }
+        public decimal Kg { get; set; }
+        public decimal Szt { get; set; }
+        public string Data { get; set; } = "";
+        public string KgFormatted => $"{Kg:N1} kg";
+        public string SztFormatted => Szt > 0 ? $"{Szt:N0}" : "—";
+    }
+
+    public class TracePrzeplyw
+    {
+        public string? DzialZ { get; set; }
+        public string? DzialDo { get; set; }
+        public decimal SumaKg { get; set; }
+        public string? Kind { get; set; }
+        public string Data { get; set; } = "";
+        public string KgFormatted => $"{SumaKg:N1} kg";
+        public string Kierunek => $"{DzialZ ?? "?"} → {DzialDo ?? "?"}";
+    }
+
+    public class TraceWyjscie
+    {
+        public string Towar { get; set; } = "";
+        public string? Jm { get; set; }
+        public decimal Kg { get; set; }
+        public string? DocNo { get; set; }
+        public string Data { get; set; } = "";
+        public string KgFormatted => $"{Kg:N1} kg";
     }
 }

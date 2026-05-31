@@ -1,0 +1,287 @@
+<Window x:Class="Kalendarz1.Zywiec.WidokSpecyfikacji.ImportDebugWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="🐞 Debugger importu specyfikacji"
+        Height="820" Width="1320"
+        WindowStartupLocation="CenterOwner"
+        Background="#F5F5F5"
+        FontFamily="Segoe UI">
+
+    <Window.Resources>
+        <Style x:Key="ChipText" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style TargetType="DataGridColumnHeader">
+            <Setter Property="Padding" Value="6,4"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Background" Value="#ECEFF1"/>
+            <Setter Property="BorderBrush" Value="#CFD8DC"/>
+            <Setter Property="BorderThickness" Value="0,0,1,1"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- NAGŁÓWEK -->
+        <Border Grid.Row="0" Background="White" Padding="20,15" BorderThickness="0,0,0,1" BorderBrush="#E0E0E0">
+            <StackPanel>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0">
+                        <TextBlock x:Name="lblPlik" FontSize="16" FontWeight="Bold" Foreground="#263238"/>
+                        <TextBlock x:Name="lblSciezka" FontSize="11" Foreground="#90A4AE" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                            <TextBlock Text="Arkusz:" Foreground="#607D8B"/>
+                            <TextBlock x:Name="lblArkusz" FontWeight="SemiBold" Margin="4,0,16,0"/>
+                            <TextBlock Text="Data uboju:" Foreground="#607D8B"/>
+                            <TextBlock x:Name="lblData" FontWeight="SemiBold" Foreground="#1976D2" Margin="4,0,16,0"/>
+                            <TextBlock Text="Wierszy:" Foreground="#607D8B"/>
+                            <TextBlock x:Name="lblWierszy" FontWeight="SemiBold" Margin="4,0,16,0"/>
+                            <TextBlock Text="Dostawców:" Foreground="#607D8B"/>
+                            <TextBlock x:Name="lblDostawcow" FontWeight="SemiBold" Margin="4,0,0,0"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Liczniki pewności -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Border Background="#E8F5E9" CornerRadius="6" Padding="10,6" Margin="0,0,8,0">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="✓✓ " Foreground="#2E7D32" Style="{StaticResource ChipText}"/>
+                                <TextBlock x:Name="lblWysoka" Foreground="#2E7D32" Style="{StaticResource ChipText}"/>
+                                <TextBlock Text=" wysoka" Foreground="#2E7D32" VerticalAlignment="Center" Margin="3,0,0,0"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Background="#FFF8E1" CornerRadius="6" Padding="10,6" Margin="0,0,8,0">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock x:Name="lblSrednia" Foreground="#F57C00" Style="{StaticResource ChipText}"/>
+                                <TextBlock Text=" śred." Foreground="#F57C00" VerticalAlignment="Center" Margin="3,0,0,0"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Background="#FFE0B2" CornerRadius="6" Padding="10,6" Margin="0,0,8,0">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock x:Name="lblNiska" Foreground="#E65100" Style="{StaticResource ChipText}"/>
+                                <TextBlock Text=" niska" Foreground="#E65100" VerticalAlignment="Center" Margin="3,0,0,0"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Background="#FFCDD2" CornerRadius="6" Padding="10,6" Margin="0,0,8,0">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="✗ " Foreground="#C62828" Style="{StaticResource ChipText}"/>
+                                <TextBlock x:Name="lblBrak" Foreground="#C62828" Style="{StaticResource ChipText}"/>
+                                <TextBlock Text=" brak" Foreground="#C62828" VerticalAlignment="Center" Margin="3,0,0,0"/>
+                            </StackPanel>
+                        </Border>
+                        <Border x:Name="chipProblemy" Background="#FFEBEE" CornerRadius="6" Padding="10,6" Visibility="Collapsed">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="⚠ " Foreground="#C62828" Style="{StaticResource ChipText}"/>
+                                <TextBlock x:Name="lblProblemy" Foreground="#C62828" Style="{StaticResource ChipText}"/>
+                                <TextBlock Text=" ostrzeż." Foreground="#C62828" VerticalAlignment="Center" Margin="3,0,0,0"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Grid>
+
+                <TextBlock x:Name="lblHint" Margin="0,10,0,0" Foreground="#455A64" FontStyle="Italic"
+                           TextWrapping="Wrap" Visibility="Collapsed"/>
+            </StackPanel>
+        </Border>
+
+        <!-- ZAKŁADKI -->
+        <TabControl Grid.Row="1" Margin="12,10,12,0" Background="Transparent" BorderThickness="0">
+
+            <!-- DOPASOWANIE -->
+            <TabItem x:Name="tabMatch" Header="🔗 Dopasowanie hodowców">
+                <DataGrid x:Name="dataGridMatch"
+                          AutoGenerateColumns="False"
+                          CanUserAddRows="False" CanUserDeleteRows="False" IsReadOnly="True"
+                          RowHeight="34" FontSize="12.5"
+                          GridLinesVisibility="All"
+                          HorizontalGridLinesBrush="#ECEFF1" VerticalGridLinesBrush="#ECEFF1"
+                          HeadersVisibility="Column">
+                    <DataGrid.RowStyle>
+                        <Style TargetType="DataGridRow">
+                            <Setter Property="Background" Value="{Binding RowBrush}"/>
+                        </Style>
+                    </DataGrid.RowStyle>
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Dostawca w Excelu" Binding="{Binding DostawcaExcel}" Width="280">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                    <Setter Property="Padding" Value="6,0"/>
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="Wierszy" Binding="{Binding IloscWierszy}" Width="60">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Center"/>
+                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTemplateColumn Header="Pewność" Width="90">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding MatchPewnosc}" Foreground="{Binding PewnoscBrush}"
+                                               FontWeight="Bold" VerticalAlignment="Center" Padding="6,0"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTextColumn Header="Metoda dopasowania" Binding="{Binding Metoda}" Width="190">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                    <Setter Property="Padding" Value="6,0"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="→ Dopasowano w bazie (LibraNet)" Binding="{Binding DopasowanoDo}" Width="*">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                    <Setter Property="Padding" Value="6,0"/>
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="Nr ARiMR" Binding="{Binding AnimNo}" Width="100">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                    <Setter Property="Padding" Value="6,0"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="LP Harmonogramu" Binding="{Binding Harmonogram}" Width="220">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                    <Setter Property="Padding" Value="6,0"/>
+                                    <Setter Property="Foreground" Value="#546E7A"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </TabItem>
+
+            <!-- PARSOWANIE -->
+            <TabItem x:Name="tabParse" Header="📋 Parsowanie komórek">
+                <DataGrid x:Name="dataGridParse"
+                          AutoGenerateColumns="False"
+                          CanUserAddRows="False" CanUserDeleteRows="False" IsReadOnly="True"
+                          RowHeight="30" FontSize="11.5"
+                          GridLinesVisibility="All"
+                          HorizontalGridLinesBrush="#ECEFF1" VerticalGridLinesBrush="#ECEFF1"
+                          HeadersVisibility="Column"
+                          ColumnHeaderHeight="40">
+                    <DataGrid.RowStyle>
+                        <Style TargetType="DataGridRow">
+                            <Setter Property="Background" Value="{Binding RowBrush}"/>
+                        </Style>
+                    </DataGrid.RowStyle>
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="A&#x0a;Nr" Binding="{Binding NrAuta}" Width="38"/>
+                        <DataGridTextColumn Header="B&#x0a;Spec" Binding="{Binding NrSpecyfikacji}" Width="50"/>
+                        <DataGridTextColumn Header="C&#x0a;Dostawca" Binding="{Binding DostawcaExcel}" Width="180"/>
+                        <DataGridTextColumn Header="D&#x0a;Szt.dek" Binding="{Binding SztukiDek}" Width="55"/>
+                        <DataGridTextColumn Header="E&#x0a;Padłe" Binding="{Binding Padle}" Width="45"/>
+                        <DataGridTextColumn Header="F&#x0a;CH" Binding="{Binding CH}" Width="40"/>
+                        <DataGridTextColumn Header="G&#x0a;NW" Binding="{Binding NW}" Width="40"/>
+                        <DataGridTextColumn Header="H&#x0a;ZM" Binding="{Binding ZM}" Width="40"/>
+                        <DataGridTextColumn Header="I&#x0a;Brutto H" Binding="{Binding BruttoHodowcy, StringFormat=N0}" Width="65"/>
+                        <DataGridTextColumn Header="J&#x0a;Tara H" Binding="{Binding TaraHodowcy, StringFormat=N0}" Width="60"/>
+                        <DataGridTextColumn Header="K&#x0a;Brutto U" Binding="{Binding BruttoUbojni, StringFormat=N0}" Width="65"/>
+                        <DataGridTextColumn Header="L&#x0a;Tara U" Binding="{Binding TaraUbojni, StringFormat=N0}" Width="60"/>
+                        <DataGridTextColumn Header="M&#x0a;LUMEL" Binding="{Binding LUMEL}" Width="55"/>
+                        <DataGridTextColumn Header="P&#x0a;Typ ceny" Binding="{Binding TypCeny}" Width="85"/>
+                        <DataGridTextColumn Header="Q&#x0a;Cena" Binding="{Binding Cena, StringFormat=N2}" Width="55"/>
+                        <DataGridTextColumn Header="U&#x0a;Dodatek" Binding="{Binding Dodatek, StringFormat=N2}" Width="60"/>
+                        <DataGridCheckBoxColumn Header="V&#x0a;PiK" Binding="{Binding PiK}" Width="38"/>
+                        <DataGridTextColumn Header="W&#x0a;Ubytek" Binding="{Binding Ubytek, StringFormat=P1}" Width="55"/>
+                        <!-- Podgląd wyliczeń -->
+                        <DataGridTextColumn Header="= Netto" Binding="{Binding Netto, StringFormat=N0}" Width="65">
+                            <DataGridTextColumn.HeaderStyle>
+                                <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}">
+                                    <Setter Property="Background" Value="#E1F5FE"/>
+                                </Style>
+                            </DataGridTextColumn.HeaderStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="= Śr.waga" Binding="{Binding SrWaga, StringFormat=N2}" Width="65">
+                            <DataGridTextColumn.HeaderStyle>
+                                <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}">
+                                    <Setter Property="Background" Value="#E1F5FE"/>
+                                </Style>
+                            </DataGridTextColumn.HeaderStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="= Do zapł." Binding="{Binding DoZaplaty, StringFormat=N0}" Width="75">
+                            <DataGridTextColumn.HeaderStyle>
+                                <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}">
+                                    <Setter Property="Background" Value="#E8F5E9"/>
+                                </Style>
+                            </DataGridTextColumn.HeaderStyle>
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="= Wartość zł" Binding="{Binding Wartosc, StringFormat=N2}" Width="100">
+                            <DataGridTextColumn.HeaderStyle>
+                                <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}">
+                                    <Setter Property="Background" Value="#E8F5E9"/>
+                                </Style>
+                            </DataGridTextColumn.HeaderStyle>
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="FontWeight" Value="Bold"/>
+                                    <Setter Property="Foreground" Value="#2E7D32"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="Flagi / ostrzeżenia" Binding="{Binding Flagi}" Width="*">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Foreground" Value="#C62828"/>
+                                    <Setter Property="TextWrapping" Value="Wrap"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </TabItem>
+        </TabControl>
+
+        <!-- STOPKA -->
+        <Border Grid.Row="2" Background="White" Padding="20,12" BorderThickness="0,1,0,0" BorderBrush="#E0E0E0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="#90A4AE" FontSize="11"
+                           Text="Podgląd „Do zapł.” i „Wartość” liczone tą samą formułą co PDF/Rozliczenia — porównaj ze specyfikacją przed importem."/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button Content="📋 Kopiuj raport" Click="BtnKopiuj_Click"
+                            Background="#E0E0E0" Foreground="#424242" FontWeight="SemiBold"
+                            Padding="16,8" BorderThickness="0" Cursor="Hand" Margin="0,0,10,0"/>
+                    <Button Content="Zamknij" Click="BtnZamknij_Click"
+                            Background="#1976D2" Foreground="White" FontWeight="SemiBold"
+                            Padding="20,8" BorderThickness="0" Cursor="Hand"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

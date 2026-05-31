@@ -1,0 +1,3559 @@
+
+
+========================================================================
+=== PLIK: Transport/WPF/BRIEFING_DLA_CLAUDE_WEB.md
+========================================================================
+
+# Briefing dla Claude Web — moduł „Planowanie Transportu (WPF)" w ZPSP (stan: 2026-05-26)
+
+> **Twoja rola (Claude Web):** przeczytaj stan, zaproponuj **priorytetowy plan dalszych kroków** (funkcje + droga do uczynienia modułu oficjalnym zamiast WinForms), a na końcu napisz **bardzo dokładny, długi prompt dla Claude Code** (agent w repo) na 1–2 najbliższe etapy. Pisz po polsku, technicznie i konkretnie.
+
+## 1. Kontekst
+- Aplikacja „Kalendarz1" (ZPSP) — WPF .NET 8 dla zakładu drobiarskiego „Piórkowscy". Code-behind (NIE MVVM), conn-stringi hardcoded.
+- 4 SQL Server: HANDEL 192.168.0.112 (Sage), LibraNet 192.168.0.109 (zamówienia), TransportPL 192.168.0.109 (transport), UNISYSTEM.
+- KRYTYCZNE: HANDEL (.112) NIE jest cross-DB z .109 — łączymy w .NET. TransportPL↔LibraNet (.109) JOIN-y działają.
+- Moduł to **piaskownica** `Transport/WPF/` (namespace `Kalendarz1.Transport.WPF`), kafelek accessMap[77], izolowany od produkcyjnego WinForms (`transport-panel-main.cs`, `transport-editor.cs`) i WPF Huba — docelowo go zastąpi.
+
+## 2. Co JUŻ ZROBIONE (działa, skompilowane, wypchnięte na master)
+**Funkcjonalność (pełna parzystość z WinForms):** okno planowania (lista kursów + wolne zamówienia), edytor tworzenia/modyfikacji kursu, dialogi (nowy kierowca/pojazd, prompt, szybki przydział). Drag&drop (wolne→kurs/ładunki), szybkie dodawanie, odbiór własny, filtr kursów, auto-odświeżanie 45s, cache nazw (klient/użytkownik/handlowiec), spójne statusy + auto-healing sierot.
+
+**Pełna przebudowa UI/UX (Etapy 1–5 + układ + edytor):**
+- Wspólny język wizualny (`Theme/TransportWpfStyles.xaml`): akcent **turkus #00838F**, statusy = znaczenie (zielony/amber/czerwony), ikony **Segoe MDL2**, **karty z cieniem** zamiast ramek, skala typografii, styl pola `Input` (zaokrąglony, akcent przy focusie), przyciski Primary/Ghost/Icon.
+- Lista kursów: **lewy pasek statusu 4px „bez czytania"** (pusty=czerwony, brak przydziału=amber, przeładowany=czerwony, OK=zielony), ikony przy kierowcy/pojeździe, metryki zgrupowane + mini-pasek wypełnienia, „Utworzył"→tooltip, avatary handlowców (zdjęcia z sieci).
+- **Wolne zamówienia jako sidebar na CAŁĄ wysokość** (od góry do dołu), pogrupowane DNIAMI odbioru (nagłówek „📅 dd.MM ddd [N]"), karty kompaktowe; **drag&drop z ghostem + strefą „Upuść"** i podświetleniem celu.
+- Górne paski skrócone i scalone w jedną kartę (nawigacja + akcje + statystyki).
+- Edytor: lewa karta = formularz kursu (czysty rząd pól Kierowca/Pojazd/Data/Godziny + Trasa na pełną szerokość, pasek pakowania, ładunki) na całą wysokość; prawa karta = wolne na całą wysokość.
+
+**Pliki:** `PlanowanieTransportuWpfWindow`, `EdytorKursuWpfWindow`, `Services/TransportWpfService`, `Models/TransportWpfModels`, `Controls/AvatarControl`, `Theme/TransportWpfStyles`, `WpfDragHelper` (+ `DragGhostAdorner`), `Dialogs/` (4). Reuse: `TransportRepozytorium` (TransportPL).
+
+## 3. Fundament — tabele/kolumny (Claude Code to zna)
+- TransportPL: `Kurs`, `Ladunek` (KodKlienta='ZAM_{id}'), `Kierowca`, `Pojazd`, widok `vKursWypelnienie`. Repo `TransportRepozytorium` (UsunKursAsync sam zwalnia statusy).
+- LibraNet: `ZamowieniaMieso` (DataPrzyjazdu=awizacja, DataUboju, TransportStatus ['Oczekuje'/'Przypisany'/'Wlasny'], TransportKursId, LiczbaPalet/Pojemnikow); `ZamowieniaMiesoTowar` (Ilosc=KG); `operators` (ID,Name); `UserHandlowcy` (HandlowiecName→UserID).
+- HANDEL (osobne połączenie): `SSCommon.STContractors` (Shortcut), `ContractorClassification` (CDim_Handlowiec_Val), `STPostOfficeAddresses`.
+- Filtr wolnych (jak stary): `CAST(DataUboju AS DATE)=@Data` + `TransportStatus NOT IN ('Przypisany','Wlasny')` + `TransportKursID IS NULL`; grupowanie po DataPrzyjazdu.Date.
+- Avatary: `\\192.168.0.170(.171)\Install\Prace Graficzne\Avatary\{userId}.png` (UserAvatarManager.GetAvatarFilePathOrNull), fallback inicjały.
+
+## 4. Reguły i pułapki (MUSZĄ być respektowane)
+- **Spójność statusów:** przypisanie żyje w 2 bazach (LibraNet.TransportStatus/TransportKursId + TransportPL.Ladunek) — muszą być spójne. „Sierota" = status/KursId bez ładunku → znika z widoku. Rozwiązanie: `SyncStatusyKursuAsync` (status tylko dla faktycznych ładunków + auto-healing). Skrypt: `Transport/SQL/fix_orphan_transport_status.sql`.
+- WPF: NIE `Run.Text` z bindingiem (TwoWay→błąd na read-only) — używać `TextBlock.Text`. Grupowane listy = `ListBox` + GroupStyle, NIE grupowany DataGrid. Pilnować szerokości kolumn (gwiazdka „Klient" nie może zniknąć).
+- Build: `dotnet build Kalendarz1.csproj`; **MSB3027/MSB3021 = uruchomiona aplikacja, NIE błąd**. Cross-DB tylko w .NET. Po każdym etapie: build (0 błędów) + commit PL z `Co-Authored-By` + push. Nie ruszać WinForms.
+- Profil usera (Sergiusz, właściciel-developer): pracuje iteracyjnie, ogląda na żywo, lubi wierność + estetykę (kompaktowość, czytelność, avatary, grupowanie dniami). Każdy etap kończyć buildem+commitem+push.
+
+## 5. Co ZOSTAŁO / obszary do planu
+1. **Edytor — live-refresh** (auto-aktualizacja zmienionych zamówień co ~10s, jak stary) + edycja inline pojemników/uwag.
+2. **Wskaźnik „Alert"** dla kursów z oczekującymi zmianami (`TransportPL.TransportZmiany` + `TransportZmianyService`) — integracja z systemem akceptacji zmian.
+3. **Comboboxy/DatePicker** — przeszablonowanie do stylu pól `Input` (zaokrąglenie, akcent przy focusie) dla pełnej spójności formularza.
+4. **Mapa trasy** kursu (moduł MapaFloty/Webfleet — Webfleet na OAuth, GPS chwilowo nie działa).
+5. **Ścieżka „oficjalna":** checklista parytetu 1:1, testy ręczne, przełączenie kafelka/menu, wycofanie starego WinForms, komunikat dla zespołu.
+6. **Walidacje i odporność:** walidacja zapisu (godziny, brak pojazdu vs pakowanie), timeouty/wyjątki cross-DB, zachowanie zaznaczenia, wydajność przy dużej liczbie kursów/zamówień, mniejsze ekrany.
+7. Brak test runnera (nie dodawać testów bez prośby).
+
+## 6. TWOJE ZADANIE
+1. **Priorytetowy plan** dalszych kroków (fazy: cel, zadania, pliki/tabele, ryzyka, kryteria „gotowe"); co da największą wartość i co blokuje „oficjalność".
+2. **Bardzo dokładny, długi PROMPT dla Claude Code** na 1–2 pierwsze fazy: zakres+kolejność, konkretne pliki/metody/tabele, reguły (§4), kryteria akceptacji + weryfikacja, prośba o aktualizację notatek i commity PL. Pisz jak do doświadczonego programisty WPF/.NET z pełnym dostępem do repo i baz.
+
+
+========================================================================
+=== PLIK: Transport/WPF/Theme/TransportWpfStyles.xaml
+========================================================================
+
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- ════════════════════════════════════════════════════════════════════
+         JĘZYK WIZUALNY modułu Transport WPF (v2 — dispatch-friendly).
+         Akcent: turkus #00838F. Statusy = znaczenie. Ikony: Segoe Fluent/MDL2.
+         Hierarchia przez typografię i odstępy, nie przez ramki.
+         ════════════════════════════════════════════════════════════════════ -->
+
+    <!-- ── PALETA ── -->
+    <SolidColorBrush x:Key="Bg"          Color="#F4F6F8"/>
+    <SolidColorBrush x:Key="Surface"     Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="SurfaceAlt"  Color="#F8FAFB"/>
+    <SolidColorBrush x:Key="Line"        Color="#EAEDF0"/>
+    <SolidColorBrush x:Key="LineStrong"  Color="#DCE1E6"/>
+    <SolidColorBrush x:Key="InkPrimary"  Color="#1F2733"/>
+    <SolidColorBrush x:Key="InkSecondary" Color="#5B6776"/>
+    <SolidColorBrush x:Key="InkMuted"    Color="#8A95A3"/>
+
+    <SolidColorBrush x:Key="Accent"      Color="#00838F"/>
+    <SolidColorBrush x:Key="AccentDark"  Color="#00695C"/>
+    <SolidColorBrush x:Key="AccentSoft"  Color="#E0F2F1"/>
+    <SolidColorBrush x:Key="Selection"   Color="#D2EEF0"/>
+    <SolidColorBrush x:Key="HoverBg"     Color="#F0F4F5"/>
+
+    <!-- statusy: kolor = znaczenie -->
+    <SolidColorBrush x:Key="OkFg"      Color="#2E7D32"/>
+    <SolidColorBrush x:Key="OkBg"      Color="#E7F4E8"/>
+    <SolidColorBrush x:Key="WarnFg"    Color="#B26A00"/>
+    <SolidColorBrush x:Key="WarnBg"    Color="#FFF3DC"/>
+    <SolidColorBrush x:Key="CritFg"    Color="#C62828"/>
+    <SolidColorBrush x:Key="CritBg"    Color="#FDECEC"/>
+    <SolidColorBrush x:Key="NeutralFg" Color="#546E7A"/>
+    <SolidColorBrush x:Key="NeutralBg" Color="#ECEFF1"/>
+
+    <!-- ── CIEŃ kart (zamiast ramek) ── -->
+    <DropShadowEffect x:Key="CardShadow" BlurRadius="14" ShadowDepth="1" Direction="270" Color="#000000" Opacity="0.10"/>
+
+    <!-- ── TYPOGRAFIA (klucze T.*) ── -->
+    <Style x:Key="T.Title" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="19"/><Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="{StaticResource InkPrimary}"/>
+    </Style>
+    <Style x:Key="T.Section" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="10.5"/><Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="{StaticResource InkMuted}"/>
+    </Style>
+    <Style x:Key="T.Data" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="14"/><Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="{StaticResource InkPrimary}"/>
+    </Style>
+    <Style x:Key="T.Body" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="13"/><Setter Property="Foreground" Value="{StaticResource InkPrimary}"/>
+    </Style>
+    <Style x:Key="T.Muted" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="11"/><Setter Property="Foreground" Value="{StaticResource InkMuted}"/>
+    </Style>
+
+    <!-- ── IKONA (Segoe Fluent/MDL2); glif podaj w Text="&#xE710;" ── -->
+    <Style x:Key="Icon" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets"/>
+        <Setter Property="FontSize" Value="16"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="TextOptions.TextFormattingMode" Value="Ideal"/>
+    </Style>
+
+    <!-- ── PRZYCISK: PRIMARY (akcent) ── -->
+    <Style x:Key="BtnPrimary" TargetType="Button">
+        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="Background" Value="{StaticResource Accent}"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Padding" Value="14,8"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="bd" Property="Background" Value="{StaticResource AccentDark}"/></Trigger>
+                        <Trigger Property="IsEnabled" Value="False"><Setter TargetName="bd" Property="Opacity" Value="0.4"/></Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ── PRZYCISK: GHOST (subtelny) ── -->
+    <Style x:Key="BtnGhost" TargetType="Button">
+        <Setter Property="Foreground" Value="{StaticResource InkSecondary}"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="FontSize" Value="12.5"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Padding" Value="12,7"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="bd" Property="Background" Value="{StaticResource HoverBg}"/></Trigger>
+                        <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.4"/></Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ── PRZYCISK: IKONOWY (glif w Tag="&#xE70F;") ── -->
+    <Style x:Key="BtnIcon" TargetType="Button">
+        <Setter Property="Foreground" Value="{StaticResource InkSecondary}"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Width" Value="36"/>
+        <Setter Property="Height" Value="34"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="6">
+                        <TextBlock Text="{TemplateBinding Tag}" Foreground="{TemplateBinding Foreground}"
+                                   FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="16"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="bd" Property="Background" Value="{StaticResource HoverBg}"/></Trigger>
+                        <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.35"/></Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ── PRZYCISK: DANGER (ikonowy, czerwony hover) ── -->
+    <Style x:Key="BtnIconDanger" TargetType="Button" BasedOn="{StaticResource BtnIcon}">
+        <Setter Property="Foreground" Value="{StaticResource CritFg}"/>
+    </Style>
+
+    <!-- ── POLE TEKSTOWE (zaokrąglone, akcent przy focusie) ── -->
+    <Style x:Key="Input" TargetType="TextBox">
+        <Setter Property="Height" Value="32"/>
+        <Setter Property="Padding" Value="9,0"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Background" Value="{StaticResource Surface}"/>
+        <Setter Property="Foreground" Value="{StaticResource InkPrimary}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource LineStrong}"/>
+        <Setter Property="CaretBrush" Value="{StaticResource Accent}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TextBox">
+                    <Border x:Name="bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="1" CornerRadius="6">
+                        <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource InkMuted}"/></Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource Accent}"/>
+                            <Setter TargetName="bd" Property="BorderThickness" Value="1.5"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ── KARTA (biel na szarym + cień) ── -->
+    <Style x:Key="Card" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource Surface}"/>
+        <Setter Property="CornerRadius" Value="10"/>
+        <Setter Property="Effect" Value="{StaticResource CardShadow}"/>
+    </Style>
+
+    <!-- ════════════════════════════════════════════════════════════════════
+         Implicit styles siatek (zachowane — dopracujemy listę kursów osobno)
+         ════════════════════════════════════════════════════════════════════ -->
+    <Style TargetType="{x:Type DataGridColumnHeader}">
+        <Setter Property="Background" Value="#f4f6f9"/>
+        <Setter Property="Foreground" Value="#5a6b7b"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="FontSize" Value="11.5"/>
+        <Setter Property="Height" Value="36"/>
+        <Setter Property="Padding" Value="9,0"/>
+        <Setter Property="BorderBrush" Value="#e4e6ea"/>
+        <Setter Property="BorderThickness" Value="0,0,1,1"/>
+        <Setter Property="HorizontalContentAlignment" Value="Left"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="SeparatorBrush" Value="#eceff1"/>
+    </Style>
+
+    <Style TargetType="{x:Type DataGridCell}">
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="9,0"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type DataGridCell}">
+                    <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter VerticalAlignment="Center"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="IsSelected" Value="True">
+                <Setter Property="Background" Value="Transparent"/>
+                <Setter Property="Foreground" Value="#0d2b6b"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style TargetType="{x:Type DataGridRow}">
+        <Setter Property="Height" Value="32"/>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="#eef3fb"/>
+            </Trigger>
+            <Trigger Property="IsSelected" Value="True">
+                <Setter Property="Background" Value="#d6e4ff"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+</ResourceDictionary>
+
+
+========================================================================
+=== PLIK: Transport/WPF/Models/TransportWpfModels.cs
+========================================================================
+
+// ════════════════════════════════════════════════════════════════════════════
+// Transport/WPF/Models/TransportWpfModels.cs
+// ════════════════════════════════════════════════════════════════════════════
+// Modele dla NOWEJ (sandbox) wersji WPF planowania transportu.
+// Izolowane od WinForms (transport-panel-main.cs / transport-editor.cs) — nic z
+// tamtego nie jest dotykane. Reuse: TransportRepozytorium + Kurs/Ladunek/Kierowca/Pojazd.
+// ════════════════════════════════════════════════════════════════════════════
+
+using System;
+using System.ComponentModel;
+using System.Globalization;
+
+namespace Kalendarz1.Transport.WPF.Models
+{
+    /// <summary>
+    /// Wolne zamówienie (z LibraNet) gotowe do dołożenia do kursu.
+    /// Nazwa/handlowiec/adres uzupełniane z HANDEL (cross-DB, łączone w .NET).
+    /// </summary>
+    public class WolneZamowienieWpf
+    {
+        public int ZamowienieId { get; set; }
+        public int KlientId { get; set; }
+        public string KlientNazwa { get; set; } = "";
+        public string Handlowiec { get; set; } = "";
+        public string? HandlowiecId { get; set; }   // userId (login) → zdjęcie avatara
+        public string Adres { get; set; } = "";
+        public int Pojemniki { get; set; }
+        public decimal Palety { get; set; }
+        public bool TrybE2 { get; set; }
+        public DateTime DataPrzyjazdu { get; set; }   // awizacja
+        public DateTime? DataUboju { get; set; }
+        public decimal IloscKg { get; set; }
+        public string TransportStatus { get; set; } = "Oczekuje";
+
+        // ── pola wyświetlane w gridzie ──
+        private static readonly CultureInfo PL = new("pl-PL");
+        public string GodzAwizacji => DataPrzyjazdu.ToString("HH:mm");
+        public string KodKlienta => $"ZAM_{ZamowienieId}";
+        public string PojemnikiDisplay => $"{Pojemniki} poj.";
+        public string HandlowiecDisplay => string.IsNullOrWhiteSpace(Handlowiec) ? "—" : Handlowiec;
+
+        /// <summary>Klucz grupowania = dzień odbioru (awizacja), jak w starym panelu.</summary>
+        public DateTime DzienOdbioru => DataPrzyjazdu.Date;
+        public string UbojDisplay => DataUboju.HasValue ? DataUboju.Value.ToString("dd.MM ddd", PL) : "—";
+        public string OdbiorDisplay => DataPrzyjazdu.ToString("dd.MM ddd", PL);
+        public string PaletyDisplay => Palety.ToString("N1", PL);
+
+        /// <summary>Podtytuł karty wolnego: data uboju + handlowiec.</summary>
+        public string WolnePodtytul
+        {
+            get
+            {
+                var uboj = DataUboju.HasValue ? $"Ubój {DataUboju.Value.ToString("dd.MM ddd", PL)}" : "Ubój —";
+                return string.IsNullOrWhiteSpace(Handlowiec) ? uboj : $"{uboj}  ·  {Handlowiec}";
+            }
+        }
+
+        public string Tooltip =>
+            $"{KlientNazwa}\n" +
+            $"Handlowiec: {(string.IsNullOrWhiteSpace(Handlowiec) ? "—" : Handlowiec)}\n" +
+            $"Adres: {(string.IsNullOrWhiteSpace(Adres) ? "—" : Adres)}\n" +
+            $"Awizacja: {GodzAwizacji}  ·  {Pojemniki} poj.  ·  {ZamowienieId}";
+    }
+
+    /// <summary>
+    /// Wiersz ładunku w edytowanym kursie. LadunekID == 0 ⇒ nowy (jeszcze niezapisany).
+    /// INotifyPropertyChanged żeby kolejność/edycje odświeżały DataGrid.
+    /// </summary>
+    public class LadunekWierszWpf : INotifyPropertyChanged
+    {
+        public long LadunekID { get; set; }           // 0 = nowy
+        public long KursID { get; set; }
+
+        private int _kolejnosc;
+        public int Kolejnosc
+        {
+            get => _kolejnosc;
+            set { _kolejnosc = value; OnChanged(nameof(Kolejnosc)); }
+        }
+
+        public string? KodKlienta { get; set; }       // "ZAM_123" lub tekst ręczny
+        public int PojemnikiE2 { get; set; }
+        public string? Uwagi { get; set; }
+        public bool TrybE2 { get; set; }
+        public byte? PlanE2NaPaleteOverride { get; set; }
+
+        private string _nazwaKlienta = "";
+        public string NazwaKlienta
+        {
+            get => _nazwaKlienta;
+            set { _nazwaKlienta = value; OnChanged(nameof(NazwaKlienta)); }
+        }
+
+        public DateTime? Awizacja { get; set; }
+        public string Handlowiec { get; set; } = "";
+
+        // ── pola wyświetlane ──
+        public string AwizacjaDisplay => Awizacja?.ToString("HH:mm") ?? "—";
+        public string PojemnikiDisplay => $"{PojemnikiE2} poj.";
+        public string NazwaDisplay => string.IsNullOrWhiteSpace(NazwaKlienta) ? (KodKlienta ?? "—") : NazwaKlienta;
+
+        /// <summary>ID zamówienia LibraNet z KodKlienta "ZAM_{id}" (null jeśli wpis ręczny).</summary>
+        public int? ZamowienieId
+        {
+            get
+            {
+                if (KodKlienta != null && KodKlienta.StartsWith("ZAM_") &&
+                    int.TryParse(KodKlienta.Substring(4), out var id))
+                    return id;
+                return null;
+            }
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+        private void OnChanged(string p) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(p));
+    }
+
+    /// <summary>Rozwiązane dane klienta dla istniejącego ładunku ZAM_*.</summary>
+    public class ZamowienieNazwaInfo
+    {
+        public int ZamowienieId { get; set; }
+        public int KlientId { get; set; }
+        public string Nazwa { get; set; } = "";
+        public string Handlowiec { get; set; } = "";
+        public string Adres { get; set; } = "";
+        public DateTime? Awizacja { get; set; }
+        public int Pojemniki { get; set; }
+        public decimal IloscKg { get; set; }
+    }
+}
+
+
+========================================================================
+=== PLIK: Transport/WPF/Services/TransportWpfService.cs
+========================================================================
+
+// ════════════════════════════════════════════════════════════════════════════
+// Transport/WPF/Services/TransportWpfService.cs
+// ════════════════════════════════════════════════════════════════════════════
+// Warstwa danych dla sandbox WPF transportu. Opakowuje TransportRepozytorium
+// (TransportPL) i dokłada zapytania cross-DB do LibraNet (wolne zamówienia) +
+// HANDEL (nazwy klientów). Łączenie po stronie .NET (brak cross-DB JOIN do .112).
+//
+// Synchronizacja statusów (SyncStatusyKursuAsync) powiela poprawiony algorytm z
+// transport-editor.cs (commity 6a326bf + e59126c): status 'Przypisany' tylko dla
+// zamówień faktycznie w kursie + auto-healing sierot (TransportKursId bez ładunku).
+// ════════════════════════════════════════════════════════════════════════════
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Microsoft.Data.SqlClient;
+using Kalendarz1.Transport;
+using Kalendarz1.Transport.Repozytorium;
+using Kalendarz1.Transport.WPF.Models;
+using Kalendarz1.Services;
+
+namespace Kalendarz1.Transport.WPF.Services
+{
+    public class TransportWpfService
+    {
+        // Hardcoded conn-stringi — spójne z transport-editor.cs (legacy pattern modułu).
+        public const string ConnTransport =
+            "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+        public const string ConnLibra =
+            "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+        public const string ConnHandel =
+            "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
+
+        public TransportRepozytorium Repo { get; }
+
+        // Cache nazw klientów (HANDEL = najdroższy, cross-DB). Pytamy raz na sesję per KlientId.
+        private readonly Dictionary<int, (string Nazwa, string Handlowiec, string Adres)> _nazwaCache = new();
+
+        // Mapowanie handlowiec (nazwa) → userId (login) z LibraNet.UserHandlowcy — do avatara ze zdjęciem.
+        private Dictionary<string, string>? _handlowiecMap;
+
+        public TransportWpfService()
+        {
+            Repo = new TransportRepozytorium(ConnTransport, ConnLibra);
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // WOLNE ZAMÓWIENIA (LibraNet) + nazwy (HANDEL)
+        // ════════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Wolne zamówienia — DOKŁADNIE jak stary panel (LoadWolneZamowieniaAsync):
+        /// jeden dzień (po dacie uboju domyślnie), TransportStatus NOT IN ('Przypisany','Wlasny'),
+        /// TransportKursID IS NULL, bez 'Anulowane'. poUboju=true ⇒ filtr po DataUboju,
+        /// inaczej po DataPrzyjazdu (odbiór). Grupowanie po dniu odbioru robi UI.
+        /// </summary>
+        public async Task<List<WolneZamowienieWpf>> LoadWolneZamowieniaAsync(DateTime data, bool poUboju)
+        {
+            var wynik = new List<WolneZamowienieWpf>();
+
+            await using (var cn = new SqlConnection(ConnLibra))
+            {
+                await cn.OpenAsync();
+
+                string kol = poUboju ? "zm.DataUboju" : "zm.DataPrzyjazdu";
+                var sql = $@"
+                    SELECT
+                        zm.Id, zm.KlientId, zm.DataPrzyjazdu, zm.Status,
+                        ISNULL(zm.LiczbaPalet, 0)      AS LiczbaPalet,
+                        ISNULL(zm.LiczbaPojemnikow, 0) AS LiczbaPojemnikow,
+                        ISNULL(zm.TrybE2, 0)           AS TrybE2,
+                        ISNULL(zm.TransportStatus, 'Oczekuje') AS TransportStatus,
+                        zm.DataUboju
+                    FROM dbo.ZamowieniaMieso zm
+                    WHERE CAST({kol} AS DATE) = @Data
+                      AND ISNULL(zm.Status, 'Nowe') NOT IN ('Anulowane')
+                      AND ISNULL(zm.TransportStatus, 'Oczekuje') NOT IN ('Przypisany', 'Wlasny')
+                      AND zm.TransportKursID IS NULL
+                    ORDER BY zm.DataPrzyjazdu";
+
+                using var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@Data", data.Date);
+                cmd.CommandTimeout = 60;
+
+                using var r = await cmd.ExecuteReaderAsync();
+                while (await r.ReadAsync())
+                {
+                    wynik.Add(new WolneZamowienieWpf
+                    {
+                        ZamowienieId = r.GetInt32(0),
+                        KlientId = r.GetInt32(1),
+                        DataPrzyjazdu = r.GetDateTime(2),
+                        Palety = r.GetDecimal(4),
+                        Pojemniki = r.GetInt32(5),
+                        TrybE2 = r.GetBoolean(6),
+                        TransportStatus = r.GetString(7),
+                        DataUboju = r.IsDBNull(8) ? null : r.GetDateTime(8)
+                    });
+                }
+            }
+
+            await UzupelnijNazwyKlientowAsync(wynik);
+            return wynik;
+        }
+
+        private async Task UzupelnijNazwyKlientowAsync(List<WolneZamowienieWpf> zamowienia)
+        {
+            if (zamowienia.Count == 0) return;
+            await EnsureHandlowiecMapAsync();
+            var nazwy = await PobierzNazwyKlientowAsync(zamowienia.Select(z => z.KlientId));
+            foreach (var z in zamowienia)
+            {
+                if (nazwy.TryGetValue(z.KlientId, out var info))
+                {
+                    z.KlientNazwa = info.Nazwa;
+                    z.Handlowiec = info.Handlowiec;
+                    z.Adres = info.Adres;
+                }
+                else
+                {
+                    z.KlientNazwa = $"Klient {z.KlientId}";
+                }
+                z.HandlowiecId = HandlowiecUserId(z.Handlowiec);
+            }
+        }
+
+        /// <summary>Ładuje raz mapowanie handlowiec→userId z LibraNet.UserHandlowcy (do avatarów handlowców).</summary>
+        public async Task EnsureHandlowiecMapAsync()
+        {
+            if (_handlowiecMap != null) return;
+            var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                await using var cn = new SqlConnection(ConnLibra);
+                await cn.OpenAsync();
+                using var cmd = new SqlCommand("SELECT HandlowiecName, UserID FROM UserHandlowcy", cn);
+                using var r = await cmd.ExecuteReaderAsync();
+                while (await r.ReadAsync())
+                    if (!r.IsDBNull(0) && !r.IsDBNull(1))
+                        map[r.GetString(0)] = r.GetString(1);
+            }
+            catch { /* brak mapowania → inicjały */ }
+            _handlowiecMap = map;
+        }
+
+        /// <summary>userId handlowca po nazwie (null gdy brak mapowania → avatar pokaże inicjały).</summary>
+        public string? HandlowiecUserId(string? handlowiecName)
+        {
+            if (string.IsNullOrWhiteSpace(handlowiecName) || _handlowiecMap == null) return null;
+            return _handlowiecMap.TryGetValue(handlowiecName, out var uid) ? uid : null;
+        }
+
+        /// <summary>HANDEL: KlientId → (nazwa skrócona, handlowiec, adres). Łączone w .NET.</summary>
+        private async Task<Dictionary<int, (string Nazwa, string Handlowiec, string Adres)>>
+            PobierzNazwyKlientowAsync(IEnumerable<int> klientIds)
+        {
+            var ids = klientIds.Distinct().Where(i => i > 0).ToList();
+            var dict = new Dictionary<int, (string, string, string)>();
+            if (ids.Count == 0) return dict;
+
+            // z cache + lista brakujących do dociągnięcia z HANDEL
+            var missing = new List<int>();
+            foreach (var id in ids)
+            {
+                if (_nazwaCache.TryGetValue(id, out var c)) dict[id] = c;
+                else missing.Add(id);
+            }
+            if (missing.Count == 0) return dict;
+
+            await using var cn = new SqlConnection(ConnHandel);
+            await cn.OpenAsync();
+
+            var sql = $@"
+                SELECT
+                    c.Id,
+                    ISNULL(c.Shortcut, 'KH ' + CAST(c.Id AS VARCHAR(10))) AS Nazwa,
+                    ISNULL(wym.CDim_Handlowiec_Val, '') AS Handlowiec,
+                    ISNULL(poa.Postcode, '') + ' ' + ISNULL(poa.Street, '') AS Adres
+                FROM SSCommon.STContractors c
+                LEFT JOIN SSCommon.ContractorClassification wym ON c.Id = wym.ElementId
+                LEFT JOIN SSCommon.STPostOfficeAddresses poa ON poa.ContactGuid = c.ContactGuid
+                    AND poa.AddressName = N'adres domyślny'
+                WHERE c.Id IN ({string.Join(",", missing)})";
+
+            using var cmd = new SqlCommand(sql, cn);
+            cmd.CommandTimeout = 60;
+            using var r = await cmd.ExecuteReaderAsync();
+            while (await r.ReadAsync())
+            {
+                var t = (r.GetString(1), r.GetString(2), r.GetString(3).Trim());
+                int id = r.GetInt32(0);
+                _nazwaCache[id] = t;
+                dict[id] = t;
+            }
+            return dict;
+        }
+
+        /// <summary>
+        /// Rozwiązuje dane klientów dla istniejących ładunków ZAM_* (edycja kursu):
+        /// LibraNet (zamId → KlientId/awizacja/poj.) + HANDEL (KlientId → nazwa).
+        /// </summary>
+        public async Task<Dictionary<int, ZamowienieNazwaInfo>> ResolveNazwyAsync(IEnumerable<int> zamIds)
+        {
+            var result = new Dictionary<int, ZamowienieNazwaInfo>();
+            var ids = zamIds.Distinct().ToList();
+            if (ids.Count == 0) return result;
+
+            await using (var cn = new SqlConnection(ConnLibra))
+            {
+                await cn.OpenAsync();
+                var sql = $@"
+                    SELECT zm.Id, zm.KlientId, zm.DataPrzyjazdu, ISNULL(zm.LiczbaPojemnikow, 0),
+                           (SELECT ISNULL(SUM(t.Ilosc), 0) FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = zm.Id) AS Kg
+                    FROM dbo.ZamowieniaMieso zm
+                    WHERE zm.Id IN ({string.Join(",", ids)})";
+                using var cmd = new SqlCommand(sql, cn);
+                cmd.CommandTimeout = 60;
+                using var r = await cmd.ExecuteReaderAsync();
+                while (await r.ReadAsync())
+                {
+                    var zid = r.GetInt32(0);
+                    result[zid] = new ZamowienieNazwaInfo
+                    {
+                        ZamowienieId = zid,
+                        KlientId = r.GetInt32(1),
+                        Awizacja = r.IsDBNull(2) ? null : r.GetDateTime(2),
+                        Pojemniki = r.GetInt32(3),
+                        IloscKg = r.IsDBNull(4) ? 0 : r.GetDecimal(4)
+                    };
+                }
+            }
+
+            var nazwy = await PobierzNazwyKlientowAsync(result.Values.Select(v => v.KlientId));
+            foreach (var info in result.Values)
+            {
+                if (nazwy.TryGetValue(info.KlientId, out var n))
+                {
+                    info.Nazwa = n.Nazwa;
+                    info.Handlowiec = n.Handlowiec;
+                    info.Adres = n.Adres;
+                }
+                else info.Nazwa = $"Klient {info.KlientId}";
+            }
+            return result;
+        }
+
+        // Nazwy użytkowników (LibraNet.operators) — do podpisu „Utworzył" + avatar.
+        private readonly Dictionary<string, string> _userCache = new();
+        public async Task<Dictionary<string, string>> PobierzNazwyUzytkownikowAsync(IEnumerable<string> userIds)
+        {
+            var ids = userIds.Where(s => !string.IsNullOrEmpty(s)).Distinct().ToList();
+            var result = new Dictionary<string, string>();
+            var missing = new List<string>();
+            foreach (var id in ids)
+            {
+                if (_userCache.TryGetValue(id, out var n)) result[id] = n;
+                else missing.Add(id);
+            }
+            if (missing.Count == 0) return result;
+
+            try
+            {
+                await using var cn = new SqlConnection(ConnLibra);
+                await cn.OpenAsync();
+                var pars = missing.Select((id, i) => $"@u{i}").ToList();
+                var sql = $"SELECT ID, ISNULL(Name, ID) FROM operators WHERE ID IN ({string.Join(",", pars)})";
+                using var cmd = new SqlCommand(sql, cn);
+                for (int i = 0; i < missing.Count; i++) cmd.Parameters.AddWithValue($"@u{i}", missing[i]);
+                using var r = await cmd.ExecuteReaderAsync();
+                while (await r.ReadAsync())
+                {
+                    var id = r.GetString(0); var name = r.GetString(1);
+                    _userCache[id] = name; result[id] = name;
+                }
+            }
+            catch { /* fallback niżej */ }
+            foreach (var id in missing)
+                if (!result.ContainsKey(id)) { _userCache[id] = id; result[id] = id; }
+            return result;
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // SYNCHRONIZACJA STATUSÓW (spójna z naprawą sierot)
+        // ════════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Po zapisie kursu: ustaw 'Przypisany' + TransportKursId dla zamówień faktycznie
+        /// w kursie (zamIdyWKursie), oraz AUTO-HEALING: zwolnij każde zamówienie, które
+        /// w LibraNet wskazuje na ten kurs (TransportKursId = kursId), a NIE jest w zbiorze
+        /// (= sierota bez ładunku). Gwarantuje spójność TransportStatus ↔ Ladunek.
+        /// </summary>
+        public async Task SyncStatusyKursuAsync(long kursId, ISet<int> zamIdyWKursie, string uzytkownik)
+        {
+            await using var cn = new SqlConnection(ConnLibra);
+            await cn.OpenAsync();
+
+            // 1) Ustaw 'Przypisany' dla zamówień w kursie
+            foreach (var zamId in zamIdyWKursie)
+            {
+                using var cmd = new SqlCommand(
+                    @"UPDATE dbo.ZamowieniaMieso
+                      SET TransportStatus = 'Przypisany', TransportKursId = @KursId
+                      WHERE Id = @ZamId
+                        AND (ISNULL(TransportStatus,'') <> 'Przypisany'
+                             OR TransportKursId IS NULL OR TransportKursId <> @KursId)", cn);
+                cmd.Parameters.AddWithValue("@KursId", kursId);
+                cmd.Parameters.AddWithValue("@ZamId", zamId);
+                var rows = await cmd.ExecuteNonQueryAsync();
+                if (rows > 0)
+                    await LogSafe(zamId, uzytkownik, "Transport WPF - przypisanie do kursu",
+                        "Oczekuje na przypisanie", $"Kurs #{kursId}");
+            }
+
+            // 2) Auto-healing: zwolnij sieroty wskazujące na ten kurs bez ładunku
+            var sieroty = new List<int>();
+            using (var find = new SqlCommand(
+                @"SELECT Id FROM dbo.ZamowieniaMieso WHERE TransportKursId = @KursId", cn))
+            {
+                find.Parameters.AddWithValue("@KursId", kursId);
+                using var r = await find.ExecuteReaderAsync();
+                while (await r.ReadAsync())
+                {
+                    int id = r.GetInt32(0);
+                    if (!zamIdyWKursie.Contains(id)) sieroty.Add(id);
+                }
+            }
+            foreach (var zamId in sieroty)
+            {
+                using var cmd = new SqlCommand(
+                    @"UPDATE dbo.ZamowieniaMieso
+                      SET TransportStatus = 'Oczekuje', TransportKursId = NULL
+                      WHERE Id = @ZamId", cn);
+                cmd.Parameters.AddWithValue("@ZamId", zamId);
+                await cmd.ExecuteNonQueryAsync();
+                await LogSafe(zamId, uzytkownik, "Transport WPF - auto-zwolnienie sieroty",
+                    $"Kurs #{kursId}", "Oczekuje na przypisanie");
+            }
+        }
+
+        /// <summary>
+        /// Odbiór własny klienta: zamówienie znika z puli transportowej
+        /// (TransportStatus='Wlasny', TransportKursId=NULL). Jak ZmienNaWlasnyOdbior w WinForms.
+        /// </summary>
+        public async Task WlasnyOdbiorAsync(int zamId, string uzytkownik)
+        {
+            await using var cn = new SqlConnection(ConnLibra);
+            await cn.OpenAsync();
+            using var cmd = new SqlCommand(
+                @"UPDATE dbo.ZamowieniaMieso SET TransportStatus = 'Wlasny', TransportKursId = NULL
+                  WHERE Id = @Id", cn);
+            cmd.Parameters.AddWithValue("@Id", zamId);
+            await cmd.ExecuteNonQueryAsync();
+            await LogSafe(zamId, uzytkownik, "Transport WPF - odbiór własny", "Oczekuje", "Własny");
+        }
+
+        private static async Task LogSafe(int zamId, string user, string operacja, string przed, string po)
+        {
+            try
+            {
+                await HistoriaZmianService.LogujEdycje(zamId, user ?? "system", App.UserFullName,
+                    operacja, przed, po, "Zmiana z nowego edytora WPF");
+            }
+            catch { /* log nie może blokować zapisu */ }
+        }
+    }
+}
+
+
+========================================================================
+=== PLIK: Transport/WPF/Controls/AvatarControl.xaml
+========================================================================
+
+<UserControl x:Class="Kalendarz1.Transport.WPF.Controls.AvatarControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             SnapsToDevicePixels="True">
+    <Grid>
+        <Ellipse x:Name="Circle" Stroke="White" StrokeThickness="2"/>
+        <TextBlock x:Name="Initials" HorizontalAlignment="Center" VerticalAlignment="Center"
+                   Foreground="White" FontWeight="Bold" FontFamily="Segoe UI"/>
+    </Grid>
+</UserControl>
+
+
+========================================================================
+=== PLIK: Transport/WPF/Controls/AvatarControl.xaml.cs
+========================================================================
+
+// ════════════════════════════════════════════════════════════════════════════
+// Transport/WPF/Controls/AvatarControl.xaml.cs
+// ════════════════════════════════════════════════════════════════════════════
+// Okrągły avatar (WPF) — wierny oryginałowi WinForms (UserAvatarManager):
+// zdjęcie PNG z sieci \\...\Avatary\{userId}.png, a gdy brak — inicjały na
+// kolorowym tle (kolor deterministyczny z hasha ID, te same 8 kolorów co stary).
+// Cache ścieżek i obrazów (statyczny) → brak powtarzanych odpytań sieci.
+// ════════════════════════════════════════════════════════════════════════════
+
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using Kalendarz1;
+
+namespace Kalendarz1.Transport.WPF.Controls
+{
+    public partial class AvatarControl : UserControl
+    {
+        private static readonly Dictionary<string, string?> _pathCache = new();
+        private static readonly Dictionary<string, ImageSource?> _imgCache = new();
+
+        public static readonly DependencyProperty UserIdProperty =
+            DependencyProperty.Register(nameof(UserId), typeof(string), typeof(AvatarControl),
+                new PropertyMetadata(null, OnChanged));
+        public static readonly DependencyProperty DisplayNameProperty =
+            DependencyProperty.Register(nameof(DisplayName), typeof(string), typeof(AvatarControl),
+                new PropertyMetadata(null, OnChanged));
+        public static readonly DependencyProperty DiameterProperty =
+            DependencyProperty.Register(nameof(Diameter), typeof(double), typeof(AvatarControl),
+                new PropertyMetadata(30.0, OnChanged));
+
+        public string? UserId { get => (string?)GetValue(UserIdProperty); set => SetValue(UserIdProperty, value); }
+        public string? DisplayName { get => (string?)GetValue(DisplayNameProperty); set => SetValue(DisplayNameProperty, value); }
+        public double Diameter { get => (double)GetValue(DiameterProperty); set => SetValue(DiameterProperty, value); }
+
+        public AvatarControl()
+        {
+            InitializeComponent();
+            Loaded += (_, _) => Render();
+            Render();
+        }
+
+        private static void OnChanged(DependencyObject d, DependencyPropertyChangedEventArgs e) => ((AvatarControl)d).Render();
+
+        private void Render()
+        {
+            double dia = Diameter <= 0 ? 30 : Diameter;
+            Width = Height = dia;
+            Circle.Width = Circle.Height = dia;
+            Initials.FontSize = Math.Max(8, dia / 2.6);
+
+            var img = TryGetImage(UserId);
+            if (img != null)
+            {
+                Circle.Fill = new ImageBrush(img) { Stretch = Stretch.UniformToFill };
+                Initials.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                Circle.Fill = new SolidColorBrush(KolorZId(UserId ?? DisplayName ?? "?"));
+                Initials.Text = Inicjaly(DisplayName ?? UserId ?? "?");
+                Initials.Visibility = Visibility.Visible;
+            }
+        }
+
+        private static ImageSource? TryGetImage(string? userId)
+        {
+            if (string.IsNullOrWhiteSpace(userId)) return null;
+            if (_imgCache.TryGetValue(userId, out var cached)) return cached;
+
+            if (!_pathCache.TryGetValue(userId, out var path))
+            {
+                try { path = UserAvatarManager.GetAvatarFilePathOrNull(userId); } catch { path = null; }
+                _pathCache[userId] = path;
+            }
+
+            ImageSource? img = null;
+            if (!string.IsNullOrEmpty(path) && File.Exists(path))
+            {
+                try
+                {
+                    var bi = new BitmapImage();
+                    bi.BeginInit();
+                    bi.CacheOption = BitmapCacheOption.OnLoad;
+                    bi.UriSource = new Uri(path);
+                    bi.DecodePixelWidth = 96;
+                    bi.EndInit();
+                    bi.Freeze();
+                    img = bi;
+                }
+                catch { img = null; }
+            }
+            _imgCache[userId] = img;
+            return img;
+        }
+
+        private static string Inicjaly(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return "?";
+            var parts = name.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length >= 2) return (parts[0][0].ToString() + parts[1][0]).ToUpper();
+            return name.Length >= 2 ? name.Substring(0, 2).ToUpper() : name.ToUpper();
+        }
+
+        private static Color KolorZId(string id)
+        {
+            int hash = id?.GetHashCode() ?? 0;
+            Color[] colors =
+            {
+                Color.FromRgb(46,125,50),  Color.FromRgb(25,118,210), Color.FromRgb(156,39,176),
+                Color.FromRgb(230,81,0),   Color.FromRgb(0,137,123),  Color.FromRgb(194,24,91),
+                Color.FromRgb(69,90,100),  Color.FromRgb(121,85,72)
+            };
+            return colors[Math.Abs(hash) % colors.Length];
+        }
+    }
+}
+
+
+========================================================================
+=== PLIK: Transport/WPF/WpfDragHelper.cs
+========================================================================
+
+// ════════════════════════════════════════════════════════════════════════════
+// Transport/WPF/WpfDragHelper.cs — pomocnik drag&drop dla DataGrid (sandbox WPF).
+// ════════════════════════════════════════════════════════════════════════════
+
+using System;
+using System.ComponentModel;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Documents;
+using System.Windows.Media;
+
+namespace Kalendarz1.Transport.WPF
+{
+    /// <summary>Ghost (chip) podążający za kursorem podczas drag&drop. Dodawany na AdornerLayer okna.</summary>
+    internal sealed class DragGhostAdorner : Adorner
+    {
+        private readonly Border _child;
+        private Point _pos;
+
+        public DragGhostAdorner(UIElement adorned, string text) : base(adorned)
+        {
+            IsHitTestVisible = false;
+            _child = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(0x00, 0x83, 0x8F)),
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(10, 6, 10, 6),
+                Opacity = 0.93,
+                Child = new TextBlock
+                {
+                    Text = text,
+                    Foreground = Brushes.White,
+                    FontWeight = FontWeights.SemiBold,
+                    FontSize = 12
+                }
+            };
+        }
+
+        public void SetPosition(Point p) { _pos = new Point(p.X + 14, p.Y + 10); InvalidateArrange(); }
+
+        protected override int VisualChildrenCount => 1;
+        protected override Visual GetVisualChild(int index) => _child;
+        protected override Size MeasureOverride(Size constraint) { _child.Measure(constraint); return _child.DesiredSize; }
+        protected override Size ArrangeOverride(Size finalSize) { _child.Arrange(new Rect(_pos, _child.DesiredSize)); return finalSize; }
+    }
+
+    internal static class WpfDragHelper
+    {
+        /// <summary>Grupuje kolekcję po właściwości (nagłówki sekcji) + sortowanie. Dla WolneGrid → grupy per klient.</summary>
+        public static void GrupujKolekcje(object source, string groupProp, params string[] sortProps)
+        {
+            var view = CollectionViewSource.GetDefaultView(source);
+            if (view == null) return;
+            view.GroupDescriptions.Clear();
+            view.GroupDescriptions.Add(new PropertyGroupDescription(groupProp));
+            view.SortDescriptions.Clear();
+            foreach (var sp in sortProps)
+                view.SortDescriptions.Add(new SortDescription(sp, ListSortDirection.Ascending));
+        }
+
+        public static T? FindAncestor<T>(DependencyObject? current) where T : DependencyObject
+        {
+            while (current != null)
+            {
+                if (current is T t) return t;
+                current = VisualTreeHelper.GetParent(current);
+            }
+            return null;
+        }
+
+        /// <summary>Element (DataItem) wiersza DataGrid pod podanym punktem (względem grida). Null jeśli brak.</summary>
+        public static object? GetItemAtPoint(DataGrid grid, Point p)
+        {
+            if (grid.InputHitTest(p) is not DependencyObject el) return null;
+            var row = FindAncestor<DataGridRow>(el);
+            return row?.Item;
+        }
+
+        /// <summary>DataGridRow (kontener) pod punktem — do podświetlania celu przy drag&drop.</summary>
+        public static DataGridRow? GetRowAtPoint(DataGrid grid, Point p)
+        {
+            if (grid.InputHitTest(p) is not DependencyObject el) return null;
+            return FindAncestor<DataGridRow>(el);
+        }
+
+        public static bool ExceededThreshold(Point a, Point b) =>
+            Math.Abs(a.X - b.X) >= SystemParameters.MinimumHorizontalDragDistance ||
+            Math.Abs(a.Y - b.Y) >= SystemParameters.MinimumVerticalDragDistance;
+    }
+}
+
+
+========================================================================
+=== PLIK: Transport/WPF/PlanowanieTransportuWpfWindow.xaml
+========================================================================
+
+<Window x:Class="Kalendarz1.Transport.WPF.PlanowanieTransportuWpfWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ctrl="clr-namespace:Kalendarz1.Transport.WPF.Controls"
+        Title="Planowanie Transportu (WPF) — ZPSP" Height="860" Width="1480"
+        MinHeight="640" MinWidth="1080"
+        WindowStartupLocation="CenterScreen" WindowState="Maximized"
+        Background="#F4F6F8" FontFamily="Segoe UI" FontSize="13">
+
+    <Window.Resources>
+        <ResourceDictionary>
+        <ResourceDictionary.MergedDictionaries>
+            <ResourceDictionary Source="/Kalendarz1;component/Transport/WPF/Theme/TransportWpfStyles.xaml"/>
+        </ResourceDictionary.MergedDictionaries>
+        <Style x:Key="Btn" TargetType="Button">
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="13,7"/>
+            <Setter Property="Margin" Value="3,0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="5"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="bd" Property="Opacity" Value="0.85"/></Trigger>
+                            <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.4"/></Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid Margin="10">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="10"/>
+            <ColumnDefinition Width="440"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- ═══════════════ LEWA: top + lista kursów ═══════════════ -->
+        <Grid Grid.Column="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>   <!-- top card -->
+                <RowDefinition Height="10"/>
+                <RowDefinition Height="*"/>      <!-- kursy -->
+                <RowDefinition Height="Auto"/>   <!-- status -->
+            </Grid.RowDefinitions>
+
+            <!-- ── TOP CARD: nawigacja + akcje + statystyki (skrócone) ── -->
+            <Border Grid.Row="0" Style="{StaticResource Card}">
+                <StackPanel>
+                    <DockPanel Margin="12,7">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Style="{StaticResource BtnIcon}" Tag="&#xE76B;" Click="BtnPrev_Click" ToolTip="Poprzedni dzień"/>
+                            <DatePicker x:Name="DataKursu" Width="132" FontSize="13" VerticalAlignment="Center"
+                                        SelectedDateChanged="DataKursu_Changed" Margin="2,0"/>
+                            <Button Style="{StaticResource BtnIcon}" Tag="&#xE76C;" Click="BtnNext_Click" ToolTip="Następny dzień"/>
+                            <Button Content="Dziś" Click="BtnDzis_Click" Style="{StaticResource BtnGhost}" Margin="4,0,0,0"/>
+                            <TextBlock x:Name="DayNameText" Style="{StaticResource T.Data}" Foreground="{StaticResource Accent}"
+                                       VerticalAlignment="Center" Margin="16,0,0,0"/>
+                        </StackPanel>
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                            <Button Style="{StaticResource BtnPrimary}" Click="BtnNowy_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Style="{StaticResource Icon}" Text="&#xE710;" Foreground="White" FontSize="15" Margin="0,0,7,0"/>
+                                    <TextBlock Text="Nowy kurs" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                            <Button x:Name="BtnEdytuj" Style="{StaticResource BtnIcon}" Tag="&#xE70F;" Click="BtnEdytuj_Click"
+                                    IsEnabled="False" Margin="8,0,0,0" ToolTip="Edytuj kurs (Enter)"/>
+                            <Button x:Name="BtnUsun" Style="{StaticResource BtnIconDanger}" Tag="&#xE74D;" Click="BtnUsun_Click"
+                                    IsEnabled="False" ToolTip="Usuń kurs (Delete)"/>
+                            <Border Width="1" Background="{StaticResource Line}" Margin="8,4"/>
+                            <Button Style="{StaticResource BtnIcon}" Tag="&#xE72C;" Click="BtnRefresh_Click" ToolTip="Odśwież (F5)"/>
+                            <ToggleButton x:Name="TglAuto" Click="TglAuto_Click" Cursor="Hand" Background="Transparent"
+                                          Foreground="{StaticResource InkSecondary}" VerticalAlignment="Center"
+                                          ToolTip="Auto-odświeżanie co 45 s">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="6" Padding="10,6">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Style="{StaticResource Icon}" Text="&#xE72C;" FontSize="14" Foreground="{TemplateBinding Foreground}" Margin="0,0,5,0"/>
+                                                <TextBlock Text="Auto" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="12.5" Foreground="{TemplateBinding Foreground}"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="bd" Property="Background" Value="{StaticResource HoverBg}"/></Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                        </StackPanel>
+                    </DockPanel>
+                    <Border Height="1" Background="{StaticResource Line}"/>
+                    <DockPanel Margin="14,6">
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Border Background="{StaticResource SurfaceAlt}" CornerRadius="6" BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="8,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Style="{StaticResource Icon}" Text="&#xE721;" FontSize="13" Foreground="{StaticResource InkMuted}" Margin="0,0,5,0"/>
+                                    <TextBox x:Name="TxtFiltrKursy" Width="150" Height="26" BorderThickness="0" Background="Transparent"
+                                             VerticalContentAlignment="Center" TextChanged="FiltrKursyTekst_Changed" ToolTip="Filtruj: trasa / kierowca / pojazd"/>
+                                </StackPanel>
+                            </Border>
+                            <CheckBox x:Name="ChkWymaga" Content="tylko wymagające uwagi" Margin="12,0,0,0"
+                                      VerticalAlignment="Center" Foreground="{StaticResource WarnFg}" Click="FiltrKursy_Changed"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <StackPanel Margin="0,0,22,0">
+                                <TextBlock x:Name="KpiKursy" Text="0" FontSize="16" FontWeight="Bold" Foreground="{StaticResource InkPrimary}"/>
+                                <TextBlock Text="KURSÓW" Style="{StaticResource T.Section}"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,22,0">
+                                <TextBlock x:Name="KpiZKierowca" Text="0" FontSize="16" FontWeight="Bold" Foreground="{StaticResource OkFg}"/>
+                                <TextBlock Text="Z KIEROWCĄ" Style="{StaticResource T.Section}"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,22,0">
+                                <TextBlock x:Name="KpiBezZasobow" Text="0" FontSize="16" FontWeight="Bold" Foreground="{StaticResource WarnFg}"/>
+                                <TextBlock Text="BEZ PRZYDZIAŁU" Style="{StaticResource T.Section}"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,22,0">
+                                <TextBlock x:Name="KpiPalety" Text="0" FontSize="16" FontWeight="Bold" Foreground="{StaticResource InkPrimary}"/>
+                                <TextBlock Text="PALET" Style="{StaticResource T.Section}"/>
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock x:Name="KpiWolne" Text="0" FontSize="16" FontWeight="Bold" Foreground="{StaticResource Accent}"/>
+                                <TextBlock Text="WOLNYCH" Style="{StaticResource T.Section}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </DockPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- ── KURSY ── -->
+            <Grid Grid.Row="2">
+                <Border Style="{StaticResource Card}">
+                    <DataGrid x:Name="KursyGrid" Margin="2,4,4,4" AllowDrop="True"
+                              AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
+                              HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                              HorizontalGridLinesBrush="#F0F2F4" RowBackground="White"
+                              BorderThickness="0" FontSize="12" IsReadOnly="True"
+                              SelectionMode="Single" SelectionUnit="FullRow"
+                              SelectionChanged="KursyGrid_SelectionChanged"
+                              MouseDoubleClick="KursyGrid_DoubleClick">
+                        <DataGrid.RowStyle>
+                            <Style TargetType="DataGridRow">
+                                <Setter Property="Background" Value="{Binding RowBg}"/>
+                                <Setter Property="Height" Value="48"/>
+                                <Setter Property="ToolTip" Value="{Binding WierszTooltip}"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="{x:Type DataGridRow}">
+                                            <Border x:Name="rb" Background="{TemplateBinding Background}" SnapsToDevicePixels="True">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="4"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <Rectangle Grid.Column="0" Fill="{Binding StatusAccent}"/>
+                                                    <DataGridCellsPresenter Grid.Column="1"
+                                                        SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                                                </Grid>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="rb" Property="Background" Value="#F0F4F5"/></Trigger>
+                                                <Trigger Property="IsSelected" Value="True"><Setter TargetName="rb" Property="Background" Value="#D2EEF0"/></Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </DataGrid.RowStyle>
+                        <DataGrid.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Edytuj kurs" Click="BtnEdytuj_Click"/>
+                                <MenuItem Header="Szybki przydział kierowcy/pojazdu" Click="MiPrzydzial_Click"/>
+                                <Separator/>
+                                <MenuItem Header="Usuń kurs" Click="BtnUsun_Click"/>
+                            </ContextMenu>
+                        </DataGrid.ContextMenu>
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Wyj." Binding="{Binding GodzWyjazduDisplay}" Width="56">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="FontSize" Value="13"/><Setter Property="Foreground" Value="#1F2733"/></Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTemplateColumn Header="Kierowca / pojazd" Width="158">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Style="{StaticResource Icon}" Text="&#xE77B;" FontSize="11.5" Foreground="{Binding KierowcaFg}" Margin="0,0,5,0"/>
+                                                <TextBlock Text="{Binding KierowcaDisplay}" Foreground="{Binding KierowcaFg}" FontWeight="{Binding KierowcaWaga}" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                                <TextBlock Style="{StaticResource Icon}" Text="&#xE804;" FontSize="11.5" Foreground="{Binding PojazdFg}" Margin="0,0,5,0"/>
+                                                <TextBlock Text="{Binding PojazdDisplay}" Foreground="{Binding PojazdFg}" FontWeight="{Binding PojazdWaga}" FontSize="11.5" TextTrimming="CharacterEllipsis"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTextColumn Header="Trasa" Binding="{Binding Trasa}" Width="*">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock"><Setter Property="TextTrimming" Value="CharacterEllipsis"/><Setter Property="FontSize" Value="12.5"/><Setter Property="Foreground" Value="#1F2733"/></Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTemplateColumn Header="Ładunek" Width="150">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding LadunekLinia1}" FontSize="12.5" FontWeight="SemiBold" Foreground="#37474F"/>
+                                            <TextBlock Text="{Binding KgDisplay2}" FontSize="11" Foreground="#8A95A3"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Wypełnienie" Width="100">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding WypDisplay}" FontWeight="Bold" FontSize="13" Foreground="{Binding WypelnienieFg}"/>
+                                            <Border Width="78" Height="5" Background="#EAEDF0" CornerRadius="2.5" Margin="0,3,0,0" HorizontalAlignment="Left">
+                                                <Border Background="{Binding WypelnienieFg}" CornerRadius="2.5" HorizontalAlignment="Left" Width="{Binding WypBarWidth}"/>
+                                            </Border>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Handl." Width="120">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" ToolTip="{Binding HandlowcyTooltip}">
+                                            <ItemsControl ItemsSource="{Binding HandlowcyAvatars}" VerticalAlignment="Center">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <ctrl:AvatarControl UserId="{Binding Id}" DisplayName="{Binding Name}" Diameter="26" Margin="0,0,-7,0"/>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                            <TextBlock Text="{Binding HandlowcyText}" VerticalAlignment="Center" Margin="11,0,0,0" FontSize="10.5" Foreground="#546e7a" TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+                <TextBlock x:Name="KursyEmpty" Visibility="Collapsed" IsHitTestVisible="False"
+                           Text="Brak kursów na ten dzień.&#x0a;Dodaj nowy kurs lub przeciągnij tu wolne zamówienie."
+                           Foreground="#90a4ae" FontSize="13.5" TextAlignment="Center"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <!-- strefa upuszczania (widoczna podczas przeciągania wolnego zamówienia) -->
+                <Border x:Name="DropHint" Visibility="Collapsed" IsHitTestVisible="False"
+                        Background="#1400838F" BorderBrush="{StaticResource Accent}" BorderThickness="2" CornerRadius="10">
+                    <Border Background="{StaticResource Accent}" CornerRadius="6" Padding="16,9"
+                            VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,12,0,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource Icon}" Text="&#xE70D;" Foreground="White" FontSize="14" Margin="0,0,7,0"/>
+                            <TextBlock Text="Upuść na kurs, aby przypisać" Foreground="White" FontWeight="SemiBold" FontSize="13"/>
+                        </StackPanel>
+                    </Border>
+                </Border>
+            </Grid>
+
+            <!-- ── STATUS ── -->
+            <DockPanel Grid.Row="3" Margin="6,7,6,0">
+                <TextBlock x:Name="StatusText" Foreground="{StaticResource InkMuted}" FontSize="11" VerticalAlignment="Center"/>
+                <TextBlock Text="Dwuklik na kurs = edycja · przeciągnij wolne zamówienie na kurs"
+                           Foreground="#B0BEC5" FontSize="11" DockPanel.Dock="Right" HorizontalAlignment="Right"/>
+            </DockPanel>
+        </Grid>
+
+        <!-- ═══════════════ PRAWA: WOLNE ZAMÓWIENIA (cała wysokość) ═══════════════ -->
+        <Border Grid.Column="2" Style="{StaticResource Card}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>   <!-- header -->
+                        <RowDefinition Height="Auto"/>   <!-- toolbar -->
+                        <RowDefinition Height="*"/>      <!-- grid -->
+                        <RowDefinition Height="Auto"/>   <!-- akcja -->
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0" Background="{StaticResource Surface}" Padding="14,12" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" CornerRadius="10,10,0,0">
+                        <DockPanel>
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <Border Width="3" Background="{StaticResource Accent}" CornerRadius="2" Margin="0,1,8,1"/>
+                                    <TextBlock Text="WOLNE ZAMÓWIENIA" Foreground="{StaticResource InkPrimary}" FontWeight="Bold" FontSize="13.5"/>
+                                </StackPanel>
+                                <TextBlock x:Name="WolneSubtitle" Text="bez przypisanego kursu — przeciągnij na kurs"
+                                           Foreground="{StaticResource InkMuted}" FontSize="10.5" Margin="11,2,0,0"/>
+                            </StackPanel>
+                            <Border DockPanel.Dock="Right" Background="{StaticResource AccentSoft}" CornerRadius="11" Padding="11,3" VerticalAlignment="Center">
+                                <TextBlock x:Name="WolneCountText" Text="0" Foreground="{StaticResource AccentDark}" FontWeight="Bold" FontSize="13"/>
+                            </Border>
+                        </DockPanel>
+                    </Border>
+
+                    <Border Grid.Row="1" Background="{StaticResource SurfaceAlt}" Padding="10,8" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <Border Background="{StaticResource Surface}" CornerRadius="6" BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="8,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Style="{StaticResource Icon}" Text="&#xE721;" FontSize="13" Foreground="{StaticResource InkMuted}" Margin="0,0,5,0"/>
+                                        <TextBox x:Name="TxtSzukaj" Width="138" Height="26" BorderThickness="0" Background="Transparent"
+                                                 VerticalContentAlignment="Center" TextChanged="TxtSzukaj_TextChanged" ToolTip="Szukaj klient / handlowiec"/>
+                                    </StackPanel>
+                                </Border>
+                                <RadioButton x:Name="RbUboj" Content="Ubój" IsChecked="True" Margin="12,0,8,0"
+                                             VerticalAlignment="Center" GroupName="DataTyp" Checked="DataTyp_Changed"/>
+                                <RadioButton x:Name="RbOdbior" Content="Odbiór" VerticalAlignment="Center"
+                                             GroupName="DataTyp" Checked="DataTyp_Changed"/>
+                                <Button Style="{StaticResource BtnIcon}" Tag="&#xE72C;" Width="30" Height="28"
+                                        Margin="8,0,0,0" Click="BtnOdswiezWolne_Click" ToolTip="Odśwież wolne"/>
+                            </StackPanel>
+                            <TextBlock x:Name="WolneSuma" Text="" Foreground="{StaticResource InkMuted}" FontSize="11" Margin="2,6,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <ListBox x:Name="WolneGrid" Grid.Row="2" Margin="4" BorderThickness="0"
+                             Background="Transparent" SelectionMode="Extended"
+                             HorizontalContentAlignment="Stretch"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             MouseDoubleClick="WolneGrid_DoubleClick">
+                        <ListBox.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="➕ Dodaj do zaznaczonego kursu" Click="BtnDodajDoKursu_Click"/>
+                                <MenuItem Header="🚗 Odbiór własny (zdejmij z transportu)" Click="MiWlasnyOdbior_Click"/>
+                                <Separator/>
+                                <MenuItem Header="🔄 Odśwież" Click="BtnOdswiezWolne_Click"/>
+                            </ContextMenu>
+                        </ListBox.ContextMenu>
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ListBoxItem">
+                                            <Border x:Name="bd" Background="White" CornerRadius="6" Padding="8,6"
+                                                    Margin="2,2" BorderBrush="#eceef2" BorderThickness="1">
+                                                <ContentPresenter/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="bd" Property="Background" Value="#f7f1fb"/>
+                                                </Trigger>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter TargetName="bd" Property="Background" Value="#ede7f6"/>
+                                                    <Setter TargetName="bd" Property="BorderBrush" Value="#b39ddb"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                        <ListBox.GroupStyle>
+                            <GroupStyle>
+                                <GroupStyle.HeaderTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#EEF1F4" Padding="10,6" Margin="0,6,0,2" CornerRadius="4">
+                                            <StackPanel Orientation="Horizontal">
+                                                <Border Width="3" Background="{StaticResource Accent}" CornerRadius="2" Margin="0,0,8,0"/>
+                                                <TextBlock Style="{StaticResource Icon}" Text="&#xE787;" FontSize="12" Foreground="{StaticResource Accent}" Margin="0,0,6,0"/>
+                                                <TextBlock Text="{Binding Name, StringFormat='{}{0:dd.MM ddd}'}" Language="pl-PL"
+                                                           FontWeight="Bold" Foreground="{StaticResource InkPrimary}" FontSize="12.5" VerticalAlignment="Center"/>
+                                                <Border Background="{StaticResource AccentSoft}" CornerRadius="8" Padding="7,1" Margin="9,0,0,0" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding ItemCount}" Foreground="{StaticResource AccentDark}" FontSize="10.5" FontWeight="SemiBold"/>
+                                                </Border>
+                                                <TextBlock Text="zam." Foreground="{StaticResource InkMuted}" FontSize="10.5" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </GroupStyle.HeaderTemplate>
+                            </GroupStyle>
+                        </ListBox.GroupStyle>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Grid ToolTip="{Binding Tooltip}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <ctrl:AvatarControl Grid.Column="0" UserId="{Binding HandlowiecId}" DisplayName="{Binding Handlowiec}"
+                                                        Diameter="30" Margin="0,0,9,0" VerticalAlignment="Center"/>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding KlientNazwa}" FontWeight="SemiBold" Foreground="#26323c"
+                                                   FontSize="12.5" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Text="{Binding WolnePodtytul}" Foreground="#8893a0" FontSize="10.5" TextTrimming="CharacterEllipsis"/>
+                                    </StackPanel>
+                                    <Border Grid.Column="2" Width="1" Background="#eceef2" Margin="9,4"/>
+                                    <StackPanel Grid.Column="3" VerticalAlignment="Center" Margin="9,0,0,0">
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                            <TextBlock Text="{Binding GodzAwizacji}" FontWeight="Bold" FontSize="13" Foreground="{StaticResource Accent}" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{Binding OdbiorDisplay}" Foreground="#9aa0b0" FontSize="9.5" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,3,0,0">
+                                            <Border Background="#ECEFF1" CornerRadius="3" Padding="5,1" Margin="0,0,4,0">
+                                                <TextBlock Text="{Binding PojemnikiDisplay}" FontSize="10" Foreground="#546E7A" FontWeight="SemiBold"/>
+                                            </Border>
+                                            <Border Background="#ECEFF1" CornerRadius="3" Padding="5,1">
+                                                <TextBlock Text="{Binding PaletyDisplay, StringFormat='{}{0} pal'}" FontSize="10" Foreground="#546E7A" FontWeight="SemiBold"/>
+                                            </Border>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                    <TextBlock Grid.Row="2" x:Name="WolneEmpty" Visibility="Collapsed" IsHitTestVisible="False"
+                               Text="✅  Brak wolnych zamówień.&#x0a;Wszystko przypisane do kursów."
+                               Foreground="#9575cd" FontSize="13" TextAlignment="Center"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                    <Border Grid.Row="3" Background="{StaticResource SurfaceAlt}" Padding="10,8" BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0" CornerRadius="0,0,10,10">
+                        <DockPanel>
+                            <TextBlock x:Name="DodajHint" DockPanel.Dock="Top" Foreground="{StaticResource InkMuted}" FontSize="10.5"
+                                       Text="Wybierz kurs po lewej, zaznacz zamówienia i kliknij Dodaj" Margin="0,0,0,6"/>
+                            <Button x:Name="BtnDodajDoKursu" Style="{StaticResource BtnPrimary}" Height="38"
+                                    IsEnabled="False" Click="BtnDodajDoKursu_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Style="{StaticResource Icon}" Text="&#xE710;" Foreground="White" FontSize="14" Margin="0,0,7,0"/>
+                                    <TextBlock Text="Dodaj do zaznaczonego kursu" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                        </DockPanel>
+                    </Border>
+                </Grid>
+            </Border>
+        </Grid>
+    </Window>
+
+
+========================================================================
+=== PLIK: Transport/WPF/PlanowanieTransportuWpfWindow.xaml.cs
+========================================================================
+
+// ════════════════════════════════════════════════════════════════════════════
+// Transport/WPF/PlanowanieTransportuWpfWindow.xaml.cs
+// ════════════════════════════════════════════════════════════════════════════
+// Okno planowania — sandbox WPF. Wierne oryginałowi WinForms (kursy po lewej,
+// WOLNE ZAMÓWIENIA po prawej), tylko lepsze. NIE dotyka WinForms ani WPF Huba.
+// Reuse: TransportRepozytorium / TransportWpfService. Szybkie dodawanie zamówień
+// do zaznaczonego kursu (ładunek + spójny status, bez otwierania edytora).
+// ════════════════════════════════════════════════════════════════════════════
+
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Globalization;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Media;
+using Kalendarz1.Transport;
+using Kalendarz1.Transport.WPF.Models;
+using Kalendarz1.Transport.WPF.Services;
+
+namespace Kalendarz1.Transport.WPF
+{
+    public partial class PlanowanieTransportuWpfWindow : Window
+    {
+        private readonly TransportWpfService _svc = new();
+        private readonly string _user = App.UserID ?? "system";
+        private List<KursRow> _rows = new();      // widoczne (po filtrze)
+        private List<KursRow> _rowsAll = new();   // wszystkie z dnia
+
+        private List<WolneZamowienieWpf> _wolneAll = new();
+        private readonly ObservableCollection<WolneZamowienieWpf> _wolne = new();
+        private bool _ladowanie;
+
+        private List<Kierowca> _kierowcy = new();
+        private List<Pojazd> _pojazdy = new();
+        private bool _slownikiZaladowane;
+
+        private Point _dragStart;
+        private const string FmtWolne = "ZPSP_wolne";
+        private DataGridRow? _hoverRow;
+        private System.Windows.Threading.DispatcherTimer? _autoTimer;
+        private DragGhostAdorner? _ghost;
+        private System.Windows.Documents.AdornerLayer? _ghostLayer;
+
+        public PlanowanieTransportuWpfWindow()
+        {
+            InitializeComponent();
+            try { WindowIconHelper.SetIcon(this); } catch { }
+            WolneGrid.ItemsSource = _wolne;
+            WpfDragHelper.GrupujKolekcje(_wolne, nameof(WolneZamowienieWpf.DzienOdbioru),
+                nameof(WolneZamowienieWpf.DzienOdbioru), nameof(WolneZamowienieWpf.DataPrzyjazdu));
+            WolneGrid.SelectionChanged += (_, _) => UpdateDodajButton();
+            WolneGrid.PreviewMouseLeftButtonDown += (_, e) => _dragStart = e.GetPosition(null);
+            WolneGrid.PreviewMouseMove += WolneGrid_PreviewMouseMove;
+            KursyGrid.DragOver += KursyGrid_DragOver;
+            KursyGrid.Drop += KursyGrid_Drop;
+            KursyGrid.DragLeave += (_, _) => ResetHover();
+            DataKursu.SelectedDate = DateTime.Today;
+            Loaded += async (_, _) => await LoadWszystkoAsync();
+            KeyDown += Skroty_KeyDown;
+            Closed += (_, _) => _autoTimer?.Stop();
+        }
+
+        private async Task EnsureSlownikiAsync()
+        {
+            if (_slownikiZaladowane) return;
+            _kierowcy = await _svc.Repo.PobierzKierowcowAsync(true);
+            _pojazdy = await _svc.Repo.PobierzPojazdyAsync(true);
+            _slownikiZaladowane = true;
+        }
+
+        // ── nawigacja datą ──
+        private void BtnPrev_Click(object s, RoutedEventArgs e) => DataKursu.SelectedDate = (DataKursu.SelectedDate ?? DateTime.Today).AddDays(-1);
+        private void BtnNext_Click(object s, RoutedEventArgs e) => DataKursu.SelectedDate = (DataKursu.SelectedDate ?? DateTime.Today).AddDays(1);
+        private void BtnDzis_Click(object s, RoutedEventArgs e) => DataKursu.SelectedDate = DateTime.Today;
+        private async void DataKursu_Changed(object s, SelectionChangedEventArgs e) { if (!_ladowanie) await LoadWszystkoAsync(); }
+        private async void BtnRefresh_Click(object s, RoutedEventArgs e) => await LoadWszystkoAsync();
+
+        private async Task LoadWszystkoAsync()
+        {
+            await LoadKursyAsync();
+            await OdswiezWolneAsync();
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // KURSY
+        // ════════════════════════════════════════════════════════════════════
+        private async Task LoadKursyAsync()
+        {
+            try
+            {
+                var data = DataKursu.SelectedDate ?? DateTime.Today;
+                StatusText.Text = $"Ładowanie {data:dd.MM.yyyy}...";
+                DayNameText.Text = data.ToString("dddd", new CultureInfo("pl-PL"));
+
+                var kursy = await _svc.Repo.PobierzKursyPoDacieAsync(data);
+                var ladunki = await _svc.Repo.PobierzLadunkiDlaKursowAsync(kursy.Select(k => k.KursID));
+
+                _rowsAll = kursy.Select(k => new KursRow(k,
+                    ladunki.TryGetValue(k.KursID, out var l) ? l.Count : 0)).ToList();
+
+                await UzupelnijAgregatyAsync(ladunki);
+                UpdateKpi();
+                FiltrujKursy();
+                StatusText.Text = _rowsAll.Count == 0
+                    ? $"Brak kursów na {data:dd.MM.yyyy}"
+                    : $"Załadowano {_rowsAll.Count} kursów na {data:dd.MM.yyyy}";
+                UpdateButtons();
+            }
+            catch (Exception ex)
+            {
+                StatusText.Text = $"Błąd: {ex.Message}";
+                MessageBox.Show($"Błąd ładowania kursów:\n{ex.Message}", "Błąd",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void UpdateKpi()
+        {
+            KpiKursy.Text = _rowsAll.Count.ToString();
+            KpiZKierowca.Text = _rowsAll.Count(r => !string.IsNullOrEmpty(r.KierowcaNazwa)).ToString();
+            KpiBezZasobow.Text = _rowsAll.Count(r => string.IsNullOrEmpty(r.KierowcaNazwa) || string.IsNullOrEmpty(r.PojazdRejestracja)).ToString();
+            KpiPalety.Text = _rowsAll.Sum(r => r.PaletyNominal).ToString();
+        }
+
+        // filtr listy kursów: szukaj (trasa/kierowca/pojazd) + „tylko wymagające uwagi"
+        private void FiltrujKursy()
+        {
+            var q = TxtFiltrKursy.Text?.Trim().ToLowerInvariant() ?? "";
+            bool tylkoWymaga = ChkWymaga.IsChecked == true;
+
+            IEnumerable<KursRow> src = _rowsAll;
+            if (!string.IsNullOrEmpty(q))
+                src = src.Where(r => ((r.Trasa ?? "") + " " + (r.KierowcaNazwa ?? "") + " " + (r.PojazdRejestracja ?? ""))
+                    .ToLowerInvariant().Contains(q));
+            if (tylkoWymaga)
+                src = src.Where(r => r.LiczbaLadunkow == 0 || string.IsNullOrEmpty(r.KierowcaNazwa) || string.IsNullOrEmpty(r.PojazdRejestracja));
+
+            _rows = src.ToList();
+            KursyGrid.ItemsSource = _rows;
+            KursyEmpty.Visibility = _rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private void FiltrKursy_Changed(object s, RoutedEventArgs e) { if (!_ladowanie) FiltrujKursy(); }
+        private void FiltrKursyTekst_Changed(object s, TextChangedEventArgs e) { if (!_ladowanie) FiltrujKursy(); }
+
+        private async void Skroty_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.F5) { await LoadWszystkoAsync(); e.Handled = true; return; }
+            if (Keyboard.FocusedElement is TextBox) return;   // nie przejmuj skrótów podczas pisania
+            if (e.Key == Key.Insert) { OtworzEdytor(true); e.Handled = true; }
+            else if (e.Key == Key.Delete && KursyGrid.SelectedItem is KursRow) { BtnUsun_Click(this, new RoutedEventArgs()); e.Handled = true; }
+            else if (e.Key == Key.Enter && KursyGrid.SelectedItem is KursRow) { OtworzEdytor(false); e.Handled = true; }
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // WOLNE ZAMÓWIENIA
+        // ════════════════════════════════════════════════════════════════════
+        private async Task OdswiezWolneAsync()
+        {
+            try
+            {
+                var data = DataKursu.SelectedDate ?? DateTime.Today;
+                bool poUboju = RbUboj.IsChecked == true;
+                _wolneAll = await _svc.LoadWolneZamowieniaAsync(data, poUboju);
+                KpiWolne.Text = _wolneAll.Count.ToString();
+                FiltrujWolne();
+            }
+            catch (Exception ex)
+            {
+                StatusText.Text = $"Błąd wolnych zamówień: {ex.Message}";
+            }
+        }
+
+        private void FiltrujWolne()
+        {
+            var q = TxtSzukaj.Text?.Trim().ToLowerInvariant() ?? "";
+            _wolne.Clear();
+            IEnumerable<WolneZamowienieWpf> src = _wolneAll;
+            if (!string.IsNullOrEmpty(q))
+                src = src.Where(z => (z.KlientNazwa ?? "").ToLowerInvariant().Contains(q)
+                                  || (z.Handlowiec ?? "").ToLowerInvariant().Contains(q));
+            var lista = src.OrderBy(z => z.DataPrzyjazdu).ToList();
+            foreach (var z in lista) _wolne.Add(z);
+
+            WolneCountText.Text = _wolne.Count.ToString();
+            int sumaPoj = lista.Sum(z => z.Pojemniki);
+            WolneSuma.Text = $"Σ {lista.Count} zam.  ·  {sumaPoj} pojemników  ·  ~{(sumaPoj == 0 ? 0 : (int)Math.Ceiling(sumaPoj / 36.0))} palet";
+            WolneEmpty.Visibility = _wolne.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            UpdateDodajButton();
+        }
+
+        private void TxtSzukaj_TextChanged(object s, TextChangedEventArgs e) { if (!_ladowanie) FiltrujWolne(); }
+        private async void DataTyp_Changed(object s, RoutedEventArgs e) { if (!_ladowanie) await OdswiezWolneAsync(); }
+        private async void BtnOdswiezWolne_Click(object s, RoutedEventArgs e) => await OdswiezWolneAsync();
+
+        // ════════════════════════════════════════════════════════════════════
+        // SELEKCJA kursu + podgląd ładunków
+        // ════════════════════════════════════════════════════════════════════
+        private void KursyGrid_SelectionChanged(object s, SelectionChangedEventArgs e)
+        {
+            UpdateButtons();
+            UpdateDodajButton();
+        }
+
+        private void UpdateButtons()
+        {
+            bool sel = KursyGrid?.SelectedItem != null;
+            if (BtnEdytuj != null) BtnEdytuj.IsEnabled = sel;
+            if (BtnUsun != null) BtnUsun.IsEnabled = sel;
+        }
+
+        private void UpdateDodajButton()
+        {
+            bool kursSel = KursyGrid?.SelectedItem is KursRow;
+            bool wolneSel = WolneGrid?.SelectedItems != null && WolneGrid.SelectedItems.Count > 0;
+            if (BtnDodajDoKursu != null) BtnDodajDoKursu.IsEnabled = kursSel && wolneSel;
+            if (DodajHint != null)
+            {
+                DodajHint.Text = !kursSel
+                    ? "① Zaznacz kurs po lewej  →  ② zaznacz zamówienia  →  ③ Dodaj"
+                    : (KursyGrid.SelectedItem is KursRow r
+                        ? $"Dodasz do kursu #{r.KursID} ({r.Trasa ?? "—"})"
+                        : "");
+            }
+        }
+
+        // Dociąga per kurs: KG (suma zamówień), nazwiska handlowców, nazwę twórcy (do avatara).
+        private async Task UzupelnijAgregatyAsync(Dictionary<long, List<Ladunek>> ladunki)
+        {
+            try
+            {
+                var allZam = new List<int>();
+                foreach (var kv in ladunki)
+                    foreach (var l in kv.Value)
+                        if (l.KodKlienta != null && l.KodKlienta.StartsWith("ZAM_") && int.TryParse(l.KodKlienta.Substring(4), out var id))
+                            allZam.Add(id);
+
+                var info = allZam.Count > 0
+                    ? await _svc.ResolveNazwyAsync(allZam.Distinct())
+                    : new Dictionary<int, ZamowienieNazwaInfo>();
+                var userNames = await _svc.PobierzNazwyUzytkownikowAsync(_rowsAll.Select(r => r.UtworzylId));
+                await _svc.EnsureHandlowiecMapAsync();
+
+                foreach (var row in _rowsAll)
+                {
+                    decimal kg = 0;
+                    var handl = new List<string>();
+                    if (ladunki.TryGetValue(row.KursID, out var lad))
+                    {
+                        foreach (var l in lad)
+                        {
+                            if (l.KodKlienta != null && l.KodKlienta.StartsWith("ZAM_")
+                                && int.TryParse(l.KodKlienta.Substring(4), out var id)
+                                && info.TryGetValue(id, out var zi))
+                            {
+                                kg += zi.IloscKg;
+                                if (!string.IsNullOrWhiteSpace(zi.Handlowiec) && !handl.Contains(zi.Handlowiec))
+                                    handl.Add(zi.Handlowiec);
+                            }
+                        }
+                    }
+                    row.Kg = kg;
+                    row.UtworzylName = userNames.TryGetValue(row.UtworzylId, out var n) ? n : row.UtworzylId;
+                    row.UstawHandlowcow(handl, _svc.HandlowiecUserId);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[TransportWPF] agregaty: {ex.Message}");
+            }
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // SZYBKIE DODAWANIE wolnych → zaznaczony kurs
+        // ════════════════════════════════════════════════════════════════════
+        private void WolneGrid_DoubleClick(object s, MouseButtonEventArgs e)
+        {
+            if (WolneGrid.SelectedItem is WolneZamowienieWpf z) _ = DodajDoKursuAsync(new List<WolneZamowienieWpf> { z });
+        }
+
+        private void BtnDodajDoKursu_Click(object s, RoutedEventArgs e)
+        {
+            var wybrane = WolneGrid.SelectedItems.Cast<WolneZamowienieWpf>().ToList();
+            _ = DodajDoKursuAsync(wybrane);
+        }
+
+        // drag&drop: wolne zamówienie(a) → wiersz kursu
+        private void WolneGrid_PreviewMouseMove(object sender, MouseEventArgs e)
+        {
+            if (e.LeftButton != MouseButtonState.Pressed) return;
+            if (!WpfDragHelper.ExceededThreshold(_dragStart, e.GetPosition(null))) return;
+            var items = WolneGrid.SelectedItems.Cast<WolneZamowienieWpf>().ToList();
+            if (items.Count == 0) return;
+
+            StartGhost(items.Count == 1
+                ? $"📦 {items[0].KlientNazwa} — przeciągnij na kurs"
+                : $"📦 {items.Count} zam. — przeciągnij na kurs");
+            if (DropHint != null) DropHint.Visibility = Visibility.Visible;
+            try { DragDrop.DoDragDrop(WolneGrid, new DataObject(FmtWolne, items), DragDropEffects.Copy); }
+            catch { }
+            finally
+            {
+                EndGhost();
+                if (DropHint != null) DropHint.Visibility = Visibility.Collapsed;
+                ResetHover();
+            }
+        }
+
+        private void StartGhost(string text)
+        {
+            try
+            {
+                if (Content is not UIElement host) return;
+                _ghostLayer = System.Windows.Documents.AdornerLayer.GetAdornerLayer(host);
+                if (_ghostLayer == null) return;
+                _ghost = new DragGhostAdorner(host, text);
+                _ghostLayer.Add(_ghost);
+            }
+            catch { }
+        }
+
+        private void EndGhost()
+        {
+            try { if (_ghostLayer != null && _ghost != null) _ghostLayer.Remove(_ghost); } catch { }
+            _ghost = null; _ghostLayer = null;
+        }
+
+        private void KursyGrid_DragOver(object sender, DragEventArgs e)
+        {
+            bool ok = e.Data.GetDataPresent(FmtWolne);
+            e.Effects = ok ? DragDropEffects.Copy : DragDropEffects.None;
+            if (ok)
+            {
+                Highlight(WpfDragHelper.GetRowAtPoint(KursyGrid, e.GetPosition(KursyGrid)));
+                if (_ghost != null && Content is IInputElement root) _ghost.SetPosition(e.GetPosition(root));
+            }
+            e.Handled = true;
+        }
+
+        private void Highlight(DataGridRow? row)
+        {
+            if (ReferenceEquals(row, _hoverRow)) return;
+            ResetHover();
+            if (row != null)
+            {
+                row.Background = new SolidColorBrush(Color.FromRgb(0xC8, 0xE6, 0xC9)); // zielony cel
+                _hoverRow = row;
+            }
+        }
+        private void ResetHover()
+        {
+            if (_hoverRow != null) { _hoverRow.ClearValue(Control.BackgroundProperty); _hoverRow = null; }
+        }
+
+        private void KursyGrid_Drop(object sender, DragEventArgs e)
+        {
+            ResetHover();
+            if (!e.Data.GetDataPresent(FmtWolne)) return;
+            if (WpfDragHelper.GetItemAtPoint(KursyGrid, e.GetPosition(KursyGrid)) is not KursRow target)
+            {
+                MessageBox.Show("Upuść zamówienie na konkretny kurs.", "Brak kursu",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            if (e.Data.GetData(FmtWolne) is List<WolneZamowienieWpf> items)
+            {
+                KursyGrid.SelectedItem = target;
+                _ = DodajDoKursuAsync(items, target);
+            }
+            e.Handled = true;
+        }
+
+        private async Task DodajDoKursuAsync(List<WolneZamowienieWpf> zamowienia, KursRow? target = null)
+        {
+            var row = target ?? KursyGrid.SelectedItem as KursRow;
+            if (row == null)
+            {
+                MessageBox.Show("Najpierw zaznacz kurs po lewej stronie (lub przeciągnij na wiersz kursu).", "Brak kursu",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            if (zamowienia == null || zamowienia.Count == 0) return;
+
+            try
+            {
+                StatusText.Text = $"Dodawanie {zamowienia.Count} zam. do kursu #{row.KursID}...";
+                foreach (var z in zamowienia)
+                {
+                    await _svc.Repo.DodajLadunekAsync(new Ladunek
+                    {
+                        KursID = row.KursID,
+                        KodKlienta = z.KodKlienta,
+                        PojemnikiE2 = z.Pojemniki,
+                        TrybE2 = z.TrybE2
+                    });
+                }
+
+                // pełny zbiór zamówień w kursie → spójny status + auto-healing
+                var lad = await _svc.Repo.PobierzLadunkiAsync(row.KursID);
+                var zamIds = lad.Where(l => l.KodKlienta != null && l.KodKlienta.StartsWith("ZAM_")
+                                            && int.TryParse(l.KodKlienta.Substring(4), out _))
+                                .Select(l => int.Parse(l.KodKlienta!.Substring(4)))
+                                .ToHashSet();
+                await _svc.SyncStatusyKursuAsync(row.KursID, zamIds, _user);
+
+                long keepId = row.KursID;
+                await LoadKursyAsync();
+                await OdswiezWolneAsync();
+                var again = _rows.FirstOrDefault(r => r.KursID == keepId);
+                if (again != null) { KursyGrid.SelectedItem = again; KursyGrid.ScrollIntoView(again); }
+                StatusText.Text = $"Dodano {zamowienia.Count} zam. do kursu #{keepId}.";
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd dodawania do kursu:\n{ex.Message}", "Błąd",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+                StatusText.Text = "Błąd dodawania.";
+            }
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // EDYTOR / NOWY / USUŃ
+        // ════════════════════════════════════════════════════════════════════
+        private void KursyGrid_DoubleClick(object s, MouseButtonEventArgs e)
+        {
+            if (KursyGrid.SelectedItem is KursRow) OtworzEdytor(false);
+        }
+        private void BtnNowy_Click(object s, RoutedEventArgs e) => OtworzEdytor(true);
+        private void BtnEdytuj_Click(object s, RoutedEventArgs e) => OtworzEdytor(false);
+
+        private void OtworzEdytor(bool nowy)
+        {
+            try
+            {
+                var data = DataKursu.SelectedDate ?? DateTime.Today;
+                long? kursId = null;
+                if (!nowy)
+                {
+                    if (KursyGrid.SelectedItem is not KursRow row) return;
+                    kursId = row.KursID;
+                }
+                var ed = new EdytorKursuWpfWindow(_svc, _user, data, kursId) { Owner = this };
+                if (ed.ShowDialog() == true) _ = LoadWszystkoAsync();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd otwierania edytora:\n{ex.Message}", "Błąd",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async void BtnUsun_Click(object s, RoutedEventArgs e)
+        {
+            if (KursyGrid.SelectedItem is not KursRow row) return;
+            var msg = $"Usunąć kurs #{row.KursID}?\n" +
+                      $"Trasa: {row.Trasa ?? "—"}\n" +
+                      $"Kierowca: {row.KierowcaNazwa ?? "—"} · Pojazd: {row.PojazdRejestracja ?? "—"}\n\n" +
+                      "Zamówienia w kursie wrócą do statusu wolnych.";
+            if (MessageBox.Show(msg, "Potwierdź usunięcie", MessageBoxButton.YesNo, MessageBoxImage.Question)
+                != MessageBoxResult.Yes) return;
+
+            try
+            {
+                await _svc.Repo.UsunKursAsync(row.KursID);   // sam zwalnia statusy zamówień
+                StatusText.Text = $"Usunięto kurs #{row.KursID}";
+                await LoadWszystkoAsync();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd usuwania:\n{ex.Message}", "Błąd",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // SZYBKI PRZYDZIAŁ kierowcy/pojazdu
+        // ════════════════════════════════════════════════════════════════════
+        private async void MiPrzydzial_Click(object sender, RoutedEventArgs e)
+        {
+            if (KursyGrid.SelectedItem is not KursRow row) return;
+            try
+            {
+                await EnsureSlownikiAsync();
+                var dlg = new Dialogs.SzybkiPrzydzialDialog(_kierowcy, _pojazdy,
+                    row.Source.KierowcaID, row.Source.PojazdID, $"🧑‍✈ Przydział — kurs #{row.KursID}") { Owner = this };
+                if (dlg.ShowDialog() != true) return;
+
+                var k = row.Source;
+                k.KierowcaID = dlg.KierowcaID;
+                k.PojazdID = dlg.PojazdID;
+                await _svc.Repo.AktualizujNaglowekKursuAsync(k, _user);
+
+                long keep = row.KursID;
+                await LoadKursyAsync();
+                var again = _rows.FirstOrDefault(r => r.KursID == keep);
+                if (again != null) { KursyGrid.SelectedItem = again; KursyGrid.ScrollIntoView(again); }
+                StatusText.Text = $"Zaktualizowano przydział kursu #{keep}.";
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd przydziału:\n{ex.Message}", "Błąd",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // ODBIÓR WŁASNY + AUTO-ODŚWIEŻANIE
+        // ════════════════════════════════════════════════════════════════════
+        private async void MiWlasnyOdbior_Click(object sender, RoutedEventArgs e)
+        {
+            var wybrane = WolneGrid.SelectedItems.Cast<WolneZamowienieWpf>().ToList();
+            if (wybrane.Count == 0) return;
+            if (MessageBox.Show($"Oznaczyć {wybrane.Count} zam. jako ODBIÓR WŁASNY?\nZnikną z puli wolnych (transport po stronie klienta).",
+                "Odbiór własny", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+            try
+            {
+                foreach (var z in wybrane) await _svc.WlasnyOdbiorAsync(z.ZamowienieId, _user);
+                await OdswiezWolneAsync();
+                StatusText.Text = $"Oznaczono {wybrane.Count} jako odbiór własny.";
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void TglAuto_Click(object sender, RoutedEventArgs e)
+        {
+            if (TglAuto.IsChecked == true)
+            {
+                _autoTimer ??= new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(45) };
+                _autoTimer.Tick -= AutoTick;
+                _autoTimer.Tick += AutoTick;
+                _autoTimer.Start();
+                TglAuto.Background = new SolidColorBrush(Color.FromRgb(0xC8, 0xE6, 0xC9));
+                TglAuto.Foreground = new SolidColorBrush(Color.FromRgb(0x2E, 0x7D, 0x32));
+                StatusText.Text = "Auto-odświeżanie WŁ. (co 45 s)";
+            }
+            else
+            {
+                _autoTimer?.Stop();
+                TglAuto.ClearValue(BackgroundProperty);
+                TglAuto.ClearValue(ForegroundProperty);
+                StatusText.Text = "Auto-odświeżanie WYŁ.";
+            }
+        }
+
+        private async void AutoTick(object? sender, EventArgs e)
+        {
+            var keep = (KursyGrid.SelectedItem as KursRow)?.KursID;
+            await LoadWszystkoAsync();
+            if (keep.HasValue)
+            {
+                var again = _rows.FirstOrDefault(r => r.KursID == keep.Value);
+                if (again != null) KursyGrid.SelectedItem = again;
+            }
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // Row wrapper
+        // ════════════════════════════════════════════════════════════════════
+        public class HandlowiecAvatar
+        {
+            public string? Id { get; set; }
+            public string Name { get; set; } = "";
+        }
+
+        public class KursRow
+        {
+            public Kurs Source { get; }
+            public int LiczbaLadunkow { get; }
+            public KursRow(Kurs k, int liczbaLadunkow) { Source = k; LiczbaLadunkow = liczbaLadunkow; }
+
+            public long KursID => Source.KursID;
+            public string? Trasa => Source.Trasa;
+            public string? KierowcaNazwa => Source.KierowcaNazwa;
+            public string? PojazdRejestracja => Source.PojazdRejestracja;
+            public string Status => Source.Status ?? "Planowany";
+            public int PaletyNominal => Source.PaletyNominal;
+
+            // ── kolumny wierne oryginałowi ──
+            public string GodzWyjazduDisplay => Source.GodzWyjazdu?.ToString(@"hh\:mm") ?? "--:--";
+
+            public bool BrakKierowcy => string.IsNullOrEmpty(KierowcaNazwa);
+            public bool BrakPojazdu => string.IsNullOrEmpty(PojazdRejestracja);
+            public string KierowcaDisplay => BrakKierowcy ? "⚠ BRAK" : KierowcaNazwa!;
+            public string PojazdDisplay => BrakPojazdu ? "⚠ BRAK" : PojazdRejestracja!;
+            public Brush KierowcaFg => BrakKierowcy ? new SolidColorBrush(Color.FromRgb(0xE6, 0x7E, 0x22)) : new SolidColorBrush(Color.FromRgb(0x37, 0x47, 0x4F));
+            public Brush PojazdFg => BrakPojazdu ? new SolidColorBrush(Color.FromRgb(0xE6, 0x7E, 0x22)) : new SolidColorBrush(Color.FromRgb(0x37, 0x47, 0x4F));
+            public FontWeight KierowcaWaga => BrakKierowcy ? FontWeights.Bold : FontWeights.Normal;
+            public FontWeight PojazdWaga => BrakPojazdu ? FontWeights.Bold : FontWeights.Normal;
+
+            public int Pal => Source.PaletyNominal;
+            public int Poj => Source.SumaE2;
+            public decimal Kg { get; set; }
+            public string KgDisplay => Kg > 0 ? Kg.ToString("N0") : "—";
+            public string WypDisplay => Source.PaletyPojazdu <= 0 ? "—" : $"{Source.ProcNominal:F0}%";
+
+            public string UtworzylId => Source.Utworzyl ?? "";
+            public string UtworzylName { get; set; } = "";
+            public string UtworzylDataDisplay => string.IsNullOrEmpty(Source.Utworzyl) ? "" : Source.UtworzonoUTC.ToLocalTime().ToString("dd.MM HH:mm");
+
+            public List<HandlowiecAvatar> HandlowcyAvatars { get; private set; } = new();
+            public string HandlowcyText { get; private set; } = "";
+            public string HandlowcyTooltip { get; private set; } = "";
+
+            public void UstawHandlowcow(List<string> names, Func<string, string?> resolveId)
+            {
+                HandlowcyAvatars = names.Take(3).Select(n => new HandlowiecAvatar { Name = n, Id = resolveId(n) }).ToList();
+                HandlowcyText = names.Count == 0 ? ""
+                    : names.Count <= 2 ? string.Join(", ", names.Select(Skroc))
+                    : $"{Skroc(names[0])} +{names.Count - 1}";
+                HandlowcyTooltip = names.Count == 0 ? "" : "Handlowcy:\n" + string.Join("\n", names);
+            }
+
+            private static string Skroc(string s)
+            {
+                if (string.IsNullOrWhiteSpace(s)) return s;
+                var p = s.Split(' ');
+                return p.Length >= 2 && p[1].Length > 0 ? $"{p[0]} {p[1][0]}." : s;
+            }
+
+            public string GodzinyDisplay =>
+                $"{Source.GodzWyjazdu?.ToString(@"hh\:mm") ?? "—"} → {Source.GodzPowrotu?.ToString(@"hh\:mm") ?? "—"}";
+
+            public string WypelnienieDisplay => Source.PaletyPojazdu <= 0
+                ? "—"
+                : $"{Source.PaletyNominal}/{Source.PaletyPojazdu}  ({Source.ProcNominal:F0}%)";
+
+            // kolor wiersza: pusty kurs = czerwonawy, brak kierowcy/pojazdu = żółty, OK = biały
+            public Brush RowBg
+            {
+                get
+                {
+                    if (LiczbaLadunkow == 0) return new SolidColorBrush(Color.FromRgb(0xFE, 0xE6, 0xE6));
+                    if (string.IsNullOrEmpty(KierowcaNazwa) || string.IsNullOrEmpty(PojazdRejestracja))
+                        return new SolidColorBrush(Color.FromRgb(0xFF, 0xF8, 0xE1));
+                    return Brushes.White;
+                }
+            }
+
+            // kolor tekstu wypełnienia: zielony <75%, pomarańcz 75-100%, czerwony >100%
+            public Brush WypelnienieFg
+            {
+                get
+                {
+                    if (Source.PaletyPojazdu <= 0) return new SolidColorBrush(Color.FromRgb(0x90, 0xA4, 0xAE));
+                    var p = Source.ProcNominal;
+                    if (p > 100) return new SolidColorBrush(Color.FromRgb(0xC6, 0x28, 0x28));
+                    if (p >= 75) return new SolidColorBrush(Color.FromRgb(0xEF, 0x6C, 0x00));
+                    return new SolidColorBrush(Color.FromRgb(0x2E, 0x7D, 0x32));
+                }
+            }
+
+            // lewy pasek statusu „bez czytania": pusty=czerwony, brak przydziału=amber, przeładowany=czerwony, OK=zielony
+            public Brush StatusAccent
+            {
+                get
+                {
+                    if (LiczbaLadunkow == 0) return new SolidColorBrush(Color.FromRgb(0xC6, 0x28, 0x28));
+                    if (BrakKierowcy || BrakPojazdu) return new SolidColorBrush(Color.FromRgb(0xB2, 0x6A, 0x00));
+                    if (Source.PaletyPojazdu > 0 && Source.ProcNominal > 100) return new SolidColorBrush(Color.FromRgb(0xC6, 0x28, 0x28));
+                    return new SolidColorBrush(Color.FromRgb(0x2E, 0x7D, 0x32));
+                }
+            }
+
+            // zgrupowane metryki + mini-pasek wypełnienia + tooltip wiersza (audyt: kto utworzył)
+            public string LadunekLinia1 => $"{Pal} pal · {Poj} poj";
+            public string KgDisplay2 => Kg > 0 ? $"{Kg:N0} kg" : "—";
+            public double WypBarWidth => Source.PaletyPojazdu <= 0 ? 0 : Math.Min(100.0, (double)Source.ProcNominal) / 100.0 * 78.0;
+            public string? WierszTooltip
+            {
+                get
+                {
+                    var t = string.IsNullOrEmpty(UtworzylName) ? "" : $"Utworzył: {UtworzylName}";
+                    if (!string.IsNullOrEmpty(UtworzylDataDisplay)) t += (t.Length > 0 ? " · " : "") + UtworzylDataDisplay;
+                    return string.IsNullOrEmpty(t) ? null : t;
+                }
+            }
+
+            public Brush StatusBg => Status switch
+            {
+                "WTrasie" or "W trasie" => new SolidColorBrush(Color.FromRgb(232, 245, 233)),
+                "Zakonczony" or "Zakończony" => new SolidColorBrush(Color.FromRgb(232, 234, 246)),
+                "Anulowany" => new SolidColorBrush(Color.FromRgb(255, 235, 238)),
+                "Akceptowany" => new SolidColorBrush(Color.FromRgb(225, 245, 254)),
+                _ => new SolidColorBrush(Color.FromRgb(255, 243, 224))
+            };
+            public Brush StatusFg => Status switch
+            {
+                "WTrasie" or "W trasie" => new SolidColorBrush(Color.FromRgb(46, 125, 50)),
+                "Zakonczony" or "Zakończony" => new SolidColorBrush(Color.FromRgb(57, 73, 171)),
+                "Anulowany" => new SolidColorBrush(Color.FromRgb(198, 40, 40)),
+                "Akceptowany" => new SolidColorBrush(Color.FromRgb(2, 119, 189)),
+                _ => new SolidColorBrush(Color.FromRgb(230, 81, 0))
+            };
+        }
+    }
+}
+
+
+========================================================================
+=== PLIK: Transport/WPF/EdytorKursuWpfWindow.xaml
+========================================================================
+
+<Window x:Class="Kalendarz1.Transport.WPF.EdytorKursuWpfWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ctrl="clr-namespace:Kalendarz1.Transport.WPF.Controls"
+        Title="Edytor kursu (WPF)" Height="840" Width="1320"
+        MinHeight="650" MinWidth="1080"
+        WindowStartupLocation="CenterOwner"
+        Background="#F4F6F8" FontFamily="Segoe UI" FontSize="13">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/Kalendarz1;component/Transport/WPF/Theme/TransportWpfStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            <Style TargetType="DataGrid">
+                <Setter Property="AutoGenerateColumns" Value="False"/>
+                <Setter Property="CanUserAddRows" Value="False"/>
+                <Setter Property="CanUserDeleteRows" Value="False"/>
+                <Setter Property="IsReadOnly" Value="True"/>
+                <Setter Property="HeadersVisibility" Value="Column"/>
+                <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+                <Setter Property="HorizontalGridLinesBrush" Value="#F0F2F4"/>
+                <Setter Property="RowBackground" Value="White"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="SelectionMode" Value="Single"/>
+                <Setter Property="SelectionUnit" Value="FullRow"/>
+                <Setter Property="FontSize" Value="12"/>
+                <Setter Property="RowHeight" Value="32"/>
+            </Style>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid Margin="10">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="10"/>
+            <ColumnDefinition Width="440"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- ═══════════════ LEWA: karta kursu (cała wysokość) ═══════════════ -->
+        <Border Grid.Column="0" Style="{StaticResource Card}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>   <!-- header -->
+                    <RowDefinition Height="Auto"/>   <!-- packing -->
+                    <RowDefinition Height="*"/>      <!-- ladunki -->
+                    <RowDefinition Height="Auto"/>   <!-- przyciski -->
+                </Grid.RowDefinitions>
+
+                <!-- ── HEADER (skrócony) ── -->
+                <Border Grid.Row="0" Background="{StaticResource Surface}" Padding="18,13" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" CornerRadius="10,10,0,0">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>   <!-- tytuł -->
+                            <RowDefinition Height="Auto"/>   <!-- pola -->
+                            <RowDefinition Height="Auto"/>   <!-- trasa -->
+                        </Grid.RowDefinitions>
+
+                        <!-- tytuł -->
+                        <DockPanel Grid.Row="0" Margin="0,0,0,14">
+                            <StackPanel Orientation="Horizontal">
+                                <Border Width="3" Background="{StaticResource Accent}" CornerRadius="2" Margin="0,2,10,2"/>
+                                <TextBlock x:Name="TytulText" Text="Nowy kurs" Style="{StaticResource T.Title}"/>
+                            </StackPanel>
+                            <TextBlock x:Name="InfoText" DockPanel.Dock="Right" HorizontalAlignment="Right"
+                                       Foreground="{StaticResource InkMuted}" FontSize="11" VerticalAlignment="Center" TextAlignment="Right"/>
+                        </DockPanel>
+
+                        <!-- pola w jednym rzędzie (zawijane) -->
+                        <WrapPanel Grid.Row="1">
+                            <StackPanel Margin="0,0,26,12">
+                                <TextBlock Text="KIEROWCA" Style="{StaticResource T.Section}" Margin="0,0,0,4"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <ComboBox x:Name="CmbKierowca" Width="210" Height="32" DisplayMemberPath="PelneNazwisko"
+                                              IsEditable="True" IsTextSearchEnabled="True"/>
+                                    <Button Style="{StaticResource BtnIcon}" Tag="&#xE710;" Foreground="{StaticResource Accent}"
+                                            Width="32" Height="32" Margin="6,0,0,0" Click="BtnNowyKierowca_Click" ToolTip="Nowy kierowca"/>
+                                </StackPanel>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,26,12">
+                                <TextBlock Text="POJAZD" Style="{StaticResource T.Section}" Margin="0,0,0,4"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <ComboBox x:Name="CmbPojazd" Width="180" Height="32" DisplayMemberPath="Opis"
+                                              IsEditable="True" IsTextSearchEnabled="True"
+                                              SelectionChanged="CmbPojazd_SelectionChanged"/>
+                                    <Button Style="{StaticResource BtnIcon}" Tag="&#xE710;" Foreground="{StaticResource Accent}"
+                                            Width="32" Height="32" Margin="6,0,0,0" Click="BtnNowyPojazd_Click" ToolTip="Nowy pojazd"/>
+                                </StackPanel>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,26,12">
+                                <TextBlock Text="DATA" Style="{StaticResource T.Section}" Margin="0,0,0,4"/>
+                                <DatePicker x:Name="DataKursu" Width="132" Height="32" SelectedDateChanged="DataKursu_Changed"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,0,12">
+                                <TextBlock Text="GODZINY  (wyjazd → powrót)" Style="{StaticResource T.Section}" Margin="0,0,0,4"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBox x:Name="TxtWyjazd" Style="{StaticResource Input}" Width="66" Text="06:00" TextAlignment="Center"/>
+                                    <TextBlock Text="→" Foreground="{StaticResource InkMuted}" VerticalAlignment="Center" Margin="8,0,8,0" FontSize="15"/>
+                                    <TextBox x:Name="TxtPowrot" Style="{StaticResource Input}" Width="66" Text="18:00" TextAlignment="Center"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </WrapPanel>
+
+                        <!-- trasa (pełna szerokość) -->
+                        <StackPanel Grid.Row="2">
+                            <TextBlock Text="TRASA" Style="{StaticResource T.Section}" Margin="0,0,0,4"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="TxtTrasa" Grid.Column="0" Style="{StaticResource Input}"/>
+                                <Button Grid.Column="1" Content="auto" Style="{StaticResource BtnGhost}" Height="32" Margin="8,0,0,0"
+                                        Click="BtnAutoTrasa_Click" ToolTip="Złóż trasę z nazw klientów"/>
+                            </Grid>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- ── PASEK PAKOWANIA (skrócony) ── -->
+                <Border Grid.Row="1" Background="{StaticResource Surface}" Padding="16,8" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid Grid.Column="0" VerticalAlignment="Center">
+                            <Border Height="22" Background="#EAEDF0" CornerRadius="11"/>
+                            <Border x:Name="PaskoFill" Height="22" Background="#43a047" CornerRadius="11"
+                                    HorizontalAlignment="Left" Width="0"/>
+                            <TextBlock x:Name="PaskoText" Text="0%" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       FontWeight="Bold" Foreground="#1F2733"/>
+                        </Grid>
+                        <TextBlock x:Name="PaletyText" Grid.Column="1" Text="0 / 33 palet" VerticalAlignment="Center"
+                                   Margin="16,0,0,0" FontWeight="SemiBold" Foreground="{StaticResource InkSecondary}"/>
+                    </Grid>
+                </Border>
+
+                <!-- ── ŁADUNKI ── -->
+                <Grid Grid.Row="2">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Border Grid.Row="0" Background="{StaticResource SurfaceAlt}" Padding="12,8" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1">
+                        <DockPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <Border Width="3" Background="{StaticResource Accent}" CornerRadius="2" Margin="0,1,8,1"/>
+                                <TextBlock Text="ŁADUNKI W KURSIE" FontWeight="Bold" Foreground="{StaticResource InkPrimary}" FontSize="12.5" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right">
+                                <Button Content="Sortuj" Style="{StaticResource BtnGhost}" Click="BtnSortuj_Click" ToolTip="Sortuj po godzinie awizacji"/>
+                                <Button Style="{StaticResource BtnIcon}" Tag="&#xE70E;" Width="32" Click="BtnGora_Click" ToolTip="W górę"/>
+                                <Button Style="{StaticResource BtnIcon}" Tag="&#xE70D;" Width="32" Click="BtnDol_Click" ToolTip="W dół"/>
+                                <Button Style="{StaticResource BtnIconDanger}" Tag="&#xE74D;" Width="32" Click="BtnUsunLadunek_Click" ToolTip="Usuń z kursu"/>
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+                    <Grid Grid.Row="1">
+                        <DataGrid x:Name="LadunkiGrid" Margin="4" AllowDrop="True" MouseDoubleClick="LadunkiGrid_DoubleClick">
+                            <DataGrid.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="Edytuj uwagi" Click="MiEdytujUwagi_Click"/>
+                                    <Separator/>
+                                    <MenuItem Header="W górę" Click="BtnGora_Click"/>
+                                    <MenuItem Header="W dół" Click="BtnDol_Click"/>
+                                    <Separator/>
+                                    <MenuItem Header="Usuń z kursu" Click="BtnUsunLadunek_Click"/>
+                                </ContextMenu>
+                            </DataGrid.ContextMenu>
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="#" Binding="{Binding Kolejnosc}" Width="38">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/><Setter Property="Foreground" Value="#8A95A3"/></Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Klient" Binding="{Binding NazwaDisplay}" Width="*">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock"><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Foreground" Value="#26323C"/><Setter Property="TextTrimming" Value="CharacterEllipsis"/></Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Awiz." Binding="{Binding AwizacjaDisplay}" Width="60">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/><Setter Property="Foreground" Value="{StaticResource Accent}"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Pojemniki" Binding="{Binding PojemnikiDisplay}" Width="86">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Uwagi" Binding="{Binding Uwagi}" Width="130">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock"><Setter Property="Foreground" Value="#8A95A3"/><Setter Property="TextTrimming" Value="CharacterEllipsis"/></Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                        <Border x:Name="DropHintLad" Visibility="Collapsed" IsHitTestVisible="False"
+                                Background="#1400838F" BorderBrush="{StaticResource Accent}" BorderThickness="2" CornerRadius="8" Margin="2">
+                            <Border Background="{StaticResource Accent}" CornerRadius="6" Padding="14,8"
+                                    VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,10,0,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Style="{StaticResource Icon}" Text="&#xE70D;" Foreground="White" FontSize="14" Margin="0,0,7,0"/>
+                                    <TextBlock Text="Upuść tutaj, aby dodać do kursu" Foreground="White" FontWeight="SemiBold" FontSize="13"/>
+                                </StackPanel>
+                            </Border>
+                        </Border>
+                    </Grid>
+                </Grid>
+
+                <!-- ── PRZYCISKI ── -->
+                <Border Grid.Row="3" Background="{StaticResource Surface}" Padding="16,12" BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0" CornerRadius="0,0,10,10">
+                    <DockPanel>
+                        <TextBlock x:Name="StatusText" Foreground="{StaticResource InkMuted}" FontSize="11.5" VerticalAlignment="Center"/>
+                        <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right">
+                            <Button Content="Anuluj" Style="{StaticResource BtnGhost}" Width="110" Height="40" Margin="0,0,10,0" Click="BtnAnuluj_Click"/>
+                            <Button x:Name="BtnZapisz" Style="{StaticResource BtnPrimary}" Width="190" Height="40" FontSize="14" Click="BtnZapisz_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Style="{StaticResource Icon}" Text="&#xE8FB;" Foreground="White" FontSize="15" Margin="0,0,8,0"/>
+                                    <TextBlock Text="ZAPISZ KURS" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- ═══════════════ PRAWA: WOLNE ZAMÓWIENIA (cała wysokość) ═══════════════ -->
+        <Border Grid.Column="2" Style="{StaticResource Card}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <Border Grid.Row="0" Background="{StaticResource Surface}" Padding="14,11" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" CornerRadius="10,10,0,0">
+                    <DockPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <Border Width="3" Background="{StaticResource Accent}" CornerRadius="2" Margin="0,1,8,1"/>
+                            <TextBlock Text="WOLNE ZAMÓWIENIA" FontWeight="Bold" Foreground="{StaticResource InkPrimary}" FontSize="13" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <Border DockPanel.Dock="Right" Background="{StaticResource AccentSoft}" CornerRadius="11" Padding="10,2" VerticalAlignment="Center">
+                            <TextBlock x:Name="WolneCountText" Text="0" Foreground="{StaticResource AccentDark}" FontWeight="Bold"/>
+                        </Border>
+                    </DockPanel>
+                </Border>
+                <Border Grid.Row="1" Background="{StaticResource SurfaceAlt}" Padding="10,8" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1">
+                    <StackPanel Orientation="Horizontal">
+                        <Border Background="{StaticResource Surface}" CornerRadius="6" BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="8,0">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource Icon}" Text="&#xE721;" FontSize="13" Foreground="{StaticResource InkMuted}" Margin="0,0,5,0"/>
+                                <TextBox x:Name="TxtSzukaj" Width="120" Height="26" BorderThickness="0" Background="Transparent"
+                                         VerticalContentAlignment="Center" TextChanged="TxtSzukaj_TextChanged"/>
+                            </StackPanel>
+                        </Border>
+                        <RadioButton x:Name="RbUboj" Content="Ubój" IsChecked="True" Margin="10,0,8,0"
+                                     VerticalAlignment="Center" GroupName="DataTyp" Checked="DataTyp_Changed"/>
+                        <RadioButton x:Name="RbOdbior" Content="Odbiór" VerticalAlignment="Center"
+                                     GroupName="DataTyp" Checked="DataTyp_Changed"/>
+                        <Button Style="{StaticResource BtnIcon}" Tag="&#xE72C;" Width="30" Height="28"
+                                Margin="8,0,0,0" Click="BtnOdswiezWolne_Click" ToolTip="Odśwież"/>
+                        <Button Style="{StaticResource BtnPrimary}" Padding="10,5" Margin="6,0,0,0" Click="BtnDodajWolne_Click" ToolTip="Dodaj zaznaczone do kursu">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource Icon}" Text="&#xE710;" Foreground="White" FontSize="13" Margin="0,0,5,0"/>
+                                <TextBlock Text="Dodaj" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Border>
+                <ListBox x:Name="WolneGrid" Grid.Row="2" Margin="4" BorderThickness="0"
+                         Background="Transparent" SelectionMode="Extended"
+                         HorizontalContentAlignment="Stretch"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         MouseDoubleClick="WolneGrid_DoubleClick">
+                    <ListBox.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="Dodaj do kursu" Click="BtnDodajWolne_Click"/>
+                            <MenuItem Header="Odbiór własny (zdejmij z transportu)" Click="MiWlasnyOdbior_Click"/>
+                            <Separator/>
+                            <MenuItem Header="Odśwież" Click="BtnOdswiezWolne_Click"/>
+                        </ContextMenu>
+                    </ListBox.ContextMenu>
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem">
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ListBoxItem">
+                                        <Border x:Name="bd" Background="White" CornerRadius="6" Padding="8,6"
+                                                Margin="2,2" BorderBrush="#eceef2" BorderThickness="1">
+                                            <ContentPresenter/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="bd" Property="Background" Value="#F0F8F8"/>
+                                            </Trigger>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter TargetName="bd" Property="Background" Value="#E0F2F1"/>
+                                                <Setter TargetName="bd" Property="BorderBrush" Value="#80CBC4"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                    <ListBox.GroupStyle>
+                        <GroupStyle>
+                            <GroupStyle.HeaderTemplate>
+                                <DataTemplate>
+                                    <Border Background="#EEF1F4" Padding="10,6" Margin="0,6,0,2" CornerRadius="4">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Border Width="3" Background="{StaticResource Accent}" CornerRadius="2" Margin="0,0,8,0"/>
+                                            <TextBlock Style="{StaticResource Icon}" Text="&#xE787;" FontSize="12" Foreground="{StaticResource Accent}" Margin="0,0,6,0"/>
+                                            <TextBlock Text="{Binding Name, StringFormat='{}{0:dd.MM ddd}'}" Language="pl-PL"
+                                                       FontWeight="Bold" Foreground="{StaticResource InkPrimary}" FontSize="12.5" VerticalAlignment="Center"/>
+                                            <Border Background="{StaticResource AccentSoft}" CornerRadius="8" Padding="7,1" Margin="9,0,0,0" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding ItemCount}" Foreground="{StaticResource AccentDark}" FontSize="10.5" FontWeight="SemiBold"/>
+                                            </Border>
+                                            <TextBlock Text="zam." Foreground="{StaticResource InkMuted}" FontSize="10.5" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </GroupStyle.HeaderTemplate>
+                        </GroupStyle>
+                    </ListBox.GroupStyle>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Grid ToolTip="{Binding Tooltip}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <ctrl:AvatarControl Grid.Column="0" UserId="{Binding HandlowiecId}" DisplayName="{Binding Handlowiec}"
+                                                    Diameter="30" Margin="0,0,9,0" VerticalAlignment="Center"/>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding KlientNazwa}" FontWeight="SemiBold" Foreground="#26323c"
+                                               FontSize="12.5" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Text="{Binding WolnePodtytul}" Foreground="#8893a0" FontSize="10.5" TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
+                                <Border Grid.Column="2" Width="1" Background="#eceef2" Margin="9,4"/>
+                                <StackPanel Grid.Column="3" VerticalAlignment="Center" Margin="9,0,0,0">
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <TextBlock Text="{Binding GodzAwizacji}" FontWeight="Bold" FontSize="13" Foreground="{StaticResource Accent}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding OdbiorDisplay}" Foreground="#9aa0b0" FontSize="9.5" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,3,0,0">
+                                        <Border Background="#ECEFF1" CornerRadius="3" Padding="5,1" Margin="0,0,4,0">
+                                            <TextBlock Text="{Binding PojemnikiDisplay}" FontSize="10" Foreground="#546E7A" FontWeight="SemiBold"/>
+                                        </Border>
+                                        <Border Background="#ECEFF1" CornerRadius="3" Padding="5,1">
+                                            <TextBlock Text="{Binding PaletyDisplay, StringFormat='{}{0} pal'}" FontSize="10" Foreground="#546E7A" FontWeight="SemiBold"/>
+                                        </Border>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
+
+
+========================================================================
+=== PLIK: Transport/WPF/EdytorKursuWpfWindow.xaml.cs
+========================================================================
+
+// ════════════════════════════════════════════════════════════════════════════
+// Transport/WPF/EdytorKursuWpfWindow.xaml.cs
+// ════════════════════════════════════════════════════════════════════════════
+// Edytor kursu — sandbox WPF (tworzenie + modyfikacja). Pełna funkcjonalność jak
+// w oryginale WinForms + lepszy UX: drag&drop (wolne→ładunki, reorder), menu
+// kontekstowe, edycja uwag, sortowanie, info bar (utworzył/zmienił), pasek
+// pakowania. Reuse: TransportRepozytorium (przez TransportWpfService). Zapis
+// gwarantuje spójność TransportStatus ↔ Ladunek (SyncStatusyKursuAsync + auto-healing).
+// ════════════════════════════════════════════════════════════════════════════
+
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Media;
+using Kalendarz1.Transport;
+using Kalendarz1.Transport.WPF.Dialogs;
+using Kalendarz1.Transport.WPF.Models;
+using Kalendarz1.Transport.WPF.Services;
+
+namespace Kalendarz1.Transport.WPF
+{
+    public partial class EdytorKursuWpfWindow : Window
+    {
+        private readonly TransportWpfService _svc;
+        private readonly string _user;
+        private long? _kursId;            // null = nowy
+        private Kurs? _kurs;
+
+        private readonly ObservableCollection<LadunekWierszWpf> _ladunki = new();
+        private readonly ObservableCollection<WolneZamowienieWpf> _wolne = new();
+        private List<WolneZamowienieWpf> _wolneAll = new();
+        private readonly HashSet<long> _ladunkiDoUsuniecia = new();
+
+        private List<Kierowca> _kierowcy = new();
+        private List<Pojazd> _pojazdy = new();
+        private bool _ladowanie;
+
+        // drag&drop
+        private Point _dragStart;
+        private const string FmtWolne = "ZPSP_wolne";
+        private const string FmtLadunek = "ZPSP_ladunek";
+        private DataGridRow? _hoverRow;
+        private DragGhostAdorner? _ghost;
+        private System.Windows.Documents.AdornerLayer? _ghostLayer;
+
+        public EdytorKursuWpfWindow(TransportWpfService svc, string user, DateTime data, long? kursId = null)
+        {
+            InitializeComponent();
+            _svc = svc;
+            _user = user ?? "system";
+            _kursId = kursId;
+
+            LadunkiGrid.ItemsSource = _ladunki;
+            WolneGrid.ItemsSource = _wolne;
+            WpfDragHelper.GrupujKolekcje(_wolne, nameof(WolneZamowienieWpf.DzienOdbioru),
+                nameof(WolneZamowienieWpf.DzienOdbioru), nameof(WolneZamowienieWpf.DataPrzyjazdu));
+            DataKursu.SelectedDate = data.Date;
+
+            // drag&drop
+            WolneGrid.PreviewMouseLeftButtonDown += (_, e) => _dragStart = e.GetPosition(null);
+            WolneGrid.PreviewMouseMove += WolneGrid_PreviewMouseMove;
+            LadunkiGrid.PreviewMouseLeftButtonDown += (_, e) => _dragStart = e.GetPosition(null);
+            LadunkiGrid.PreviewMouseMove += LadunkiGrid_PreviewMouseMove;
+            LadunkiGrid.DragOver += LadunkiGrid_DragOver;
+            LadunkiGrid.Drop += LadunkiGrid_Drop;
+            LadunkiGrid.DragLeave += (_, _) => ResetHover();
+
+            Loaded += async (_, _) => await LoadAsync();
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // LOAD
+        // ════════════════════════════════════════════════════════════════════
+        private async Task LoadAsync()
+        {
+            _ladowanie = true;
+            try
+            {
+                _kierowcy = await _svc.Repo.PobierzKierowcowAsync(true);
+                _pojazdy = await _svc.Repo.PobierzPojazdyAsync(true);
+                CmbKierowca.ItemsSource = _kierowcy;
+                CmbPojazd.ItemsSource = _pojazdy;
+
+                if (_kursId.HasValue)
+                {
+                    TytulText.Text = $"📝 Edycja kursu #{_kursId.Value}";
+                    _kurs = await _svc.Repo.PobierzKursAsync(_kursId.Value);
+                    if (_kurs != null)
+                    {
+                        DataKursu.SelectedDate = _kurs.DataKursu.Date;
+                        if (_kurs.KierowcaID.HasValue)
+                            CmbKierowca.SelectedItem = _kierowcy.FirstOrDefault(k => k.KierowcaID == _kurs.KierowcaID.Value);
+                        if (_kurs.PojazdID.HasValue)
+                            CmbPojazd.SelectedItem = _pojazdy.FirstOrDefault(p => p.PojazdID == _kurs.PojazdID.Value);
+                        TxtWyjazd.Text = _kurs.GodzWyjazdu?.ToString(@"hh\:mm") ?? "";
+                        TxtPowrot.Text = _kurs.GodzPowrotu?.ToString(@"hh\:mm") ?? "";
+                        TxtTrasa.Text = _kurs.Trasa ?? "";
+                        UpdateInfoBar();
+                    }
+                    await LoadLadunkiAsync();
+                }
+                else
+                {
+                    TytulText.Text = "🚚 Nowy kurs";
+                    InfoText.Text = "";
+                }
+
+                await OdswiezWolneAsync();
+                PrzeliczPakowanie();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd ładowania:\n{ex.Message}", "Błąd",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally { _ladowanie = false; }
+        }
+
+        private void UpdateInfoBar()
+        {
+            if (_kurs == null) { InfoText.Text = ""; return; }
+            var parts = new List<string>();
+            if (!string.IsNullOrEmpty(_kurs.Utworzyl))
+                parts.Add($"Utworzył: {_kurs.Utworzyl} · {_kurs.UtworzonoUTC.ToLocalTime():dd.MM HH:mm}");
+            if (!string.IsNullOrEmpty(_kurs.Zmienil) && _kurs.ZmienionoUTC.HasValue)
+                parts.Add($"Zmienił: {_kurs.Zmienil} · {_kurs.ZmienionoUTC.Value.ToLocalTime():dd.MM HH:mm}");
+            InfoText.Text = string.Join("      ", parts);
+        }
+
+        private async Task LoadLadunkiAsync()
+        {
+            _ladunki.Clear();
+            var dbLad = await _svc.Repo.PobierzLadunkiAsync(_kursId!.Value);
+
+            var rows = dbLad.Select(l => new LadunekWierszWpf
+            {
+                LadunekID = l.LadunekID,
+                KursID = l.KursID,
+                Kolejnosc = l.Kolejnosc,
+                KodKlienta = l.KodKlienta,
+                PojemnikiE2 = l.PojemnikiE2,
+                Uwagi = l.Uwagi,
+                TrybE2 = l.TrybE2,
+                PlanE2NaPaleteOverride = l.PlanE2NaPaleteOverride
+            }).ToList();
+
+            var zamIds = rows.Where(r => r.ZamowienieId.HasValue).Select(r => r.ZamowienieId!.Value).ToList();
+            if (zamIds.Count > 0)
+            {
+                var nazwy = await _svc.ResolveNazwyAsync(zamIds);
+                foreach (var r in rows)
+                {
+                    if (r.ZamowienieId.HasValue && nazwy.TryGetValue(r.ZamowienieId.Value, out var info))
+                    {
+                        r.NazwaKlienta = info.Nazwa;
+                        r.Awizacja = info.Awizacja;
+                        r.Handlowiec = info.Handlowiec;
+                    }
+                    else r.NazwaKlienta = r.KodKlienta ?? "—";
+                }
+            }
+            else foreach (var r in rows) r.NazwaKlienta = r.KodKlienta ?? "—";
+
+            foreach (var r in rows.OrderBy(r => r.Kolejnosc)) _ladunki.Add(r);
+        }
+
+        private async Task OdswiezWolneAsync()
+        {
+            try
+            {
+                var data = DataKursu.SelectedDate ?? DateTime.Today;
+                bool poUboju = RbUboj.IsChecked == true;
+                _wolneAll = await _svc.LoadWolneZamowieniaAsync(data, poUboju);
+
+                var wKursie = _ladunki.Where(l => l.ZamowienieId.HasValue)
+                                      .Select(l => l.ZamowienieId!.Value).ToHashSet();
+                _wolneAll = _wolneAll.Where(z => !wKursie.Contains(z.ZamowienieId)).ToList();
+                FiltrujWolne();
+            }
+            catch (Exception ex)
+            {
+                StatusText.Text = $"Błąd wolnych zamówień: {ex.Message}";
+            }
+        }
+
+        private void FiltrujWolne()
+        {
+            var q = TxtSzukaj.Text?.Trim().ToLowerInvariant() ?? "";
+            _wolne.Clear();
+            IEnumerable<WolneZamowienieWpf> src = _wolneAll;
+            if (!string.IsNullOrEmpty(q))
+                src = src.Where(z => (z.KlientNazwa ?? "").ToLowerInvariant().Contains(q)
+                                  || (z.Handlowiec ?? "").ToLowerInvariant().Contains(q));
+            foreach (var z in src.OrderBy(z => z.DataPrzyjazdu)) _wolne.Add(z);
+            WolneCountText.Text = _wolne.Count.ToString();
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // PAKOWANIE
+        // ════════════════════════════════════════════════════════════════════
+        private void PrzeliczPakowanie()
+        {
+            int sumaE2 = _ladunki.Sum(l => l.PojemnikiE2);
+            const int planE2 = 36;
+            int paletyNominal = sumaE2 == 0 ? 0 : (int)Math.Ceiling(sumaE2 / (double)planE2);
+            int kapacita = (CmbPojazd.SelectedItem as Pojazd)?.PaletyH1 ?? 33;
+            double proc = kapacita > 0 ? 100.0 * paletyNominal / kapacita : 0;
+
+            PaskoText.Text = $"{proc:F0}%";
+            PaletyText.Text = $"{paletyNominal} / {kapacita} palet  ·  {sumaE2} poj.  ·  {_ladunki.Count} ład.";
+
+            double maxW = ((FrameworkElement)PaskoFill.Parent).ActualWidth;
+            if (maxW <= 0) maxW = 600;
+            PaskoFill.Width = Math.Min(1.0, proc / 100.0) * maxW;
+            PaskoFill.Background = new SolidColorBrush(
+                proc > 100 ? Color.FromRgb(0xC6, 0x28, 0x28) :
+                proc >= 75 ? Color.FromRgb(0xF5, 0x7C, 0x00) :
+                             Color.FromRgb(0x43, 0xA0, 0x47));
+        }
+
+        private void CmbPojazd_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (!_ladowanie) PrzeliczPakowanie();
+        }
+
+        private async void DataKursu_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            if (!_ladowanie) await OdswiezWolneAsync();
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // DODAWANIE / USUWANIE / KOLEJNOŚĆ
+        // ════════════════════════════════════════════════════════════════════
+        private void BtnDodajWolne_Click(object sender, RoutedEventArgs e)
+        {
+            foreach (var z in WolneGrid.SelectedItems.Cast<WolneZamowienieWpf>().ToList())
+                DodajWolne(z);
+        }
+        private void WolneGrid_DoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (WolneGrid.SelectedItem is WolneZamowienieWpf z) DodajWolne(z);
+        }
+
+        private void DodajWolne(WolneZamowienieWpf z)
+        {
+            if (_ladunki.Any(l => l.ZamowienieId == z.ZamowienieId)) return;
+            _ladunki.Add(new LadunekWierszWpf
+            {
+                LadunekID = 0,
+                KodKlienta = z.KodKlienta,
+                PojemnikiE2 = z.Pojemniki,
+                TrybE2 = z.TrybE2,
+                NazwaKlienta = z.KlientNazwa,
+                Awizacja = z.DataPrzyjazdu,
+                Handlowiec = z.Handlowiec,
+                Kolejnosc = _ladunki.Count + 1
+            });
+            _wolneAll.RemoveAll(x => x.ZamowienieId == z.ZamowienieId);
+            FiltrujWolne();
+            PrzeliczPakowanie();
+        }
+
+        private void BtnUsunLadunek_Click(object sender, RoutedEventArgs e)
+        {
+            if (LadunkiGrid.SelectedItem is not LadunekWierszWpf lad) return;
+            if (lad.LadunekID > 0) _ladunkiDoUsuniecia.Add(lad.LadunekID);
+            _ladunki.Remove(lad);
+            Renumeruj();
+
+            if (lad.ZamowienieId.HasValue && !_wolneAll.Any(z => z.ZamowienieId == lad.ZamowienieId.Value))
+            {
+                _wolneAll.Add(new WolneZamowienieWpf
+                {
+                    ZamowienieId = lad.ZamowienieId.Value,
+                    KlientNazwa = lad.NazwaKlienta,
+                    Handlowiec = lad.Handlowiec,
+                    Pojemniki = lad.PojemnikiE2,
+                    TrybE2 = lad.TrybE2,
+                    DataPrzyjazdu = lad.Awizacja ?? (DataKursu.SelectedDate ?? DateTime.Today)
+                });
+                FiltrujWolne();
+            }
+            PrzeliczPakowanie();
+        }
+
+        private void BtnGora_Click(object sender, RoutedEventArgs e) => Przesun(-1);
+        private void BtnDol_Click(object sender, RoutedEventArgs e) => Przesun(+1);
+
+        private void Przesun(int delta)
+        {
+            if (LadunkiGrid.SelectedItem is not LadunekWierszWpf lad) return;
+            int idx = _ladunki.IndexOf(lad);
+            int nowy = idx + delta;
+            if (nowy < 0 || nowy >= _ladunki.Count) return;
+            _ladunki.Move(idx, nowy);
+            Renumeruj();
+            LadunkiGrid.SelectedItem = lad;
+        }
+
+        private void BtnSortuj_Click(object sender, RoutedEventArgs e)
+        {
+            var posort = _ladunki.OrderBy(l => l.Awizacja ?? DateTime.MaxValue).ThenBy(l => l.NazwaDisplay).ToList();
+            _ladunki.Clear();
+            foreach (var l in posort) _ladunki.Add(l);
+            Renumeruj();
+        }
+
+        private void Renumeruj()
+        {
+            for (int i = 0; i < _ladunki.Count; i++) _ladunki[i].Kolejnosc = i + 1;
+        }
+
+        private void LadunkiGrid_DoubleClick(object sender, MouseButtonEventArgs e) => EdytujUwagi();
+        private void MiEdytujUwagi_Click(object sender, RoutedEventArgs e) => EdytujUwagi();
+
+        private void EdytujUwagi()
+        {
+            if (LadunkiGrid.SelectedItem is not LadunekWierszWpf lad) return;
+            var dlg = new TekstPromptDialog("Uwagi do ładunku", $"Uwagi — {lad.NazwaDisplay}:", lad.Uwagi ?? "") { Owner = this };
+            if (dlg.ShowDialog() == true)
+            {
+                lad.Uwagi = string.IsNullOrWhiteSpace(dlg.Wartosc) ? null : dlg.Wartosc.Trim();
+                LadunkiGrid.Items.Refresh();
+            }
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // DRAG & DROP
+        // ════════════════════════════════════════════════════════════════════
+        private void WolneGrid_PreviewMouseMove(object sender, MouseEventArgs e)
+        {
+            if (e.LeftButton != MouseButtonState.Pressed) return;
+            if (!WpfDragHelper.ExceededThreshold(_dragStart, e.GetPosition(null))) return;
+            var items = WolneGrid.SelectedItems.Cast<WolneZamowienieWpf>().ToList();
+            if (items.Count == 0) return;
+
+            StartGhost(items.Count == 1
+                ? $"📦 {items[0].KlientNazwa} — przeciągnij do kursu"
+                : $"📦 {items.Count} zam. — przeciągnij do kursu");
+            if (DropHintLad != null) DropHintLad.Visibility = Visibility.Visible;
+            try { DragDrop.DoDragDrop(WolneGrid, new DataObject(FmtWolne, items), DragDropEffects.Copy); }
+            catch { /* drag anulowany */ }
+            finally
+            {
+                EndGhost();
+                if (DropHintLad != null) DropHintLad.Visibility = Visibility.Collapsed;
+                ResetHover();
+            }
+        }
+
+        private void StartGhost(string text)
+        {
+            try
+            {
+                if (Content is not UIElement host) return;
+                _ghostLayer = System.Windows.Documents.AdornerLayer.GetAdornerLayer(host);
+                if (_ghostLayer == null) return;
+                _ghost = new DragGhostAdorner(host, text);
+                _ghostLayer.Add(_ghost);
+            }
+            catch { }
+        }
+
+        private void EndGhost()
+        {
+            try { if (_ghostLayer != null && _ghost != null) _ghostLayer.Remove(_ghost); } catch { }
+            _ghost = null; _ghostLayer = null;
+        }
+
+        private void LadunkiGrid_PreviewMouseMove(object sender, MouseEventArgs e)
+        {
+            if (e.LeftButton != MouseButtonState.Pressed) return;
+            if (!WpfDragHelper.ExceededThreshold(_dragStart, e.GetPosition(null))) return;
+            if (LadunkiGrid.SelectedItem is not LadunekWierszWpf lad) return;
+            try { DragDrop.DoDragDrop(LadunkiGrid, new DataObject(FmtLadunek, lad), DragDropEffects.Move); }
+            catch { }
+        }
+
+        private void LadunkiGrid_DragOver(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent(FmtWolne)) e.Effects = DragDropEffects.Copy;
+            else if (e.Data.GetDataPresent(FmtLadunek)) e.Effects = DragDropEffects.Move;
+            else e.Effects = DragDropEffects.None;
+            Highlight(WpfDragHelper.GetRowAtPoint(LadunkiGrid, e.GetPosition(LadunkiGrid)));
+            if (_ghost != null && Content is IInputElement root) _ghost.SetPosition(e.GetPosition(root));
+            e.Handled = true;
+        }
+
+        private void Highlight(DataGridRow? row)
+        {
+            if (ReferenceEquals(row, _hoverRow)) return;
+            ResetHover();
+            if (row != null)
+            {
+                row.Background = new SolidColorBrush(Color.FromRgb(0xC8, 0xE6, 0xC9)); // zielony cel
+                _hoverRow = row;
+            }
+        }
+        private void ResetHover()
+        {
+            if (_hoverRow != null) { _hoverRow.ClearValue(Control.BackgroundProperty); _hoverRow = null; }
+        }
+
+        private void LadunkiGrid_Drop(object sender, DragEventArgs e)
+        {
+            ResetHover();
+            var target = WpfDragHelper.GetItemAtPoint(LadunkiGrid, e.GetPosition(LadunkiGrid)) as LadunekWierszWpf;
+
+            if (e.Data.GetDataPresent(FmtWolne))
+            {
+                if (e.Data.GetData(FmtWolne) is List<WolneZamowienieWpf> items)
+                    foreach (var z in items) DodajWolne(z);
+            }
+            else if (e.Data.GetDataPresent(FmtLadunek))
+            {
+                if (e.Data.GetData(FmtLadunek) is LadunekWierszWpf src)
+                {
+                    int from = _ladunki.IndexOf(src);
+                    int to = target != null ? _ladunki.IndexOf(target) : _ladunki.Count - 1;
+                    if (from >= 0 && to >= 0 && from != to)
+                    {
+                        _ladunki.Move(from, to);
+                        Renumeruj();
+                        LadunkiGrid.SelectedItem = src;
+                    }
+                }
+            }
+            e.Handled = true;
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // Filtry / odświeżanie / trasa
+        // ════════════════════════════════════════════════════════════════════
+        private void TxtSzukaj_TextChanged(object sender, TextChangedEventArgs e) { if (!_ladowanie) FiltrujWolne(); }
+        private async void DataTyp_Changed(object sender, RoutedEventArgs e) { if (!_ladowanie) await OdswiezWolneAsync(); }
+        private async void BtnOdswiezWolne_Click(object sender, RoutedEventArgs e) => await OdswiezWolneAsync();
+
+        private async void MiWlasnyOdbior_Click(object sender, RoutedEventArgs e)
+        {
+            var wybrane = WolneGrid.SelectedItems.Cast<WolneZamowienieWpf>().ToList();
+            if (wybrane.Count == 0) return;
+            if (MessageBox.Show($"Oznaczyć {wybrane.Count} zam. jako ODBIÓR WŁASNY?\nZnikną z puli transportu.",
+                "Odbiór własny", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+            try
+            {
+                foreach (var z in wybrane) await _svc.WlasnyOdbiorAsync(z.ZamowienieId, _user);
+                await OdswiezWolneAsync();
+                StatusText.Text = $"Oznaczono {wybrane.Count} jako odbiór własny.";
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void BtnAutoTrasa_Click(object sender, RoutedEventArgs e)
+        {
+            var nazwy = _ladunki.Select(l => l.NazwaDisplay).Where(n => n != "—").Distinct().Take(3).ToList();
+            if (nazwy.Count == 0) { StatusText.Text = "Brak ładunków do złożenia trasy."; return; }
+            TxtTrasa.Text = string.Join(" → ", nazwy) + (_ladunki.Count > 3 ? " → …" : "");
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // Nowy kierowca / pojazd
+        // ════════════════════════════════════════════════════════════════════
+        private async void BtnNowyKierowca_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new NowyKierowcaWpfDialog { Owner = this };
+            if (dlg.ShowDialog() == true && dlg.Wynik != null)
+            {
+                try
+                {
+                    var id = await _svc.Repo.DodajKierowceAsync(dlg.Wynik);
+                    _kierowcy = await _svc.Repo.PobierzKierowcowAsync(true);
+                    CmbKierowca.ItemsSource = _kierowcy;
+                    CmbKierowca.SelectedItem = _kierowcy.FirstOrDefault(k => k.KierowcaID == id);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Błąd dodawania kierowcy:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+
+        private async void BtnNowyPojazd_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new NowyPojazdWpfDialog { Owner = this };
+            if (dlg.ShowDialog() == true && dlg.Wynik != null)
+            {
+                try
+                {
+                    var id = await _svc.Repo.DodajPojazdAsync(dlg.Wynik);
+                    _pojazdy = await _svc.Repo.PobierzPojazdyAsync(true);
+                    CmbPojazd.ItemsSource = _pojazdy;
+                    CmbPojazd.SelectedItem = _pojazdy.FirstOrDefault(p => p.PojazdID == id);
+                    PrzeliczPakowanie();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Błąd dodawania pojazdu:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // ZAPIS
+        // ════════════════════════════════════════════════════════════════════
+        private async void BtnZapisz_Click(object sender, RoutedEventArgs e)
+        {
+            BtnZapisz.IsEnabled = false;
+            StatusText.Text = "Zapisywanie...";
+            try
+            {
+                var kursId = await ZapiszAsync();
+                StatusText.Text = $"Zapisano kurs #{kursId}.";
+                DialogResult = true;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd zapisu:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                StatusText.Text = "Błąd zapisu.";
+                BtnZapisz.IsEnabled = true;
+            }
+        }
+
+        private async Task<long> ZapiszAsync()
+        {
+            var data = (DataKursu.SelectedDate ?? DateTime.Today).Date;
+            var kurs = new Kurs
+            {
+                KursID = _kursId ?? 0,
+                DataKursu = data,
+                KierowcaID = (CmbKierowca.SelectedItem as Kierowca)?.KierowcaID,
+                PojazdID = (CmbPojazd.SelectedItem as Pojazd)?.PojazdID,
+                Trasa = string.IsNullOrWhiteSpace(TxtTrasa.Text) ? null : TxtTrasa.Text.Trim(),
+                GodzWyjazdu = ParseGodz(TxtWyjazd.Text),
+                GodzPowrotu = ParseGodz(TxtPowrot.Text),
+                Status = _kurs?.Status ?? "Planowany",
+                PlanE2NaPalete = 36
+            };
+
+            long kursId;
+            if (_kursId.HasValue)
+            {
+                kursId = _kursId.Value;
+                kurs.KursID = kursId;
+                await _svc.Repo.AktualizujNaglowekKursuAsync(kurs, _user);
+            }
+            else
+            {
+                kursId = await _svc.Repo.DodajKursAsync(kurs, _user);
+                _kursId = kursId;
+            }
+
+            foreach (var id in _ladunkiDoUsuniecia)
+                await _svc.Repo.UsunLadunekAsync(id);
+            _ladunkiDoUsuniecia.Clear();
+
+            for (int i = 0; i < _ladunki.Count; i++)
+            {
+                var w = _ladunki[i];
+                w.Kolejnosc = i + 1;
+                var l = new Ladunek
+                {
+                    LadunekID = w.LadunekID,
+                    KursID = kursId,
+                    Kolejnosc = i + 1,
+                    KodKlienta = w.KodKlienta,
+                    PojemnikiE2 = w.PojemnikiE2,
+                    Uwagi = w.Uwagi,
+                    TrybE2 = w.TrybE2,
+                    PlanE2NaPaleteOverride = w.PlanE2NaPaleteOverride
+                };
+                if (w.LadunekID == 0)
+                    w.LadunekID = await _svc.Repo.DodajLadunekAsync(l);
+                l.LadunekID = w.LadunekID;
+                await _svc.Repo.AktualizujLadunekAsync(l);
+            }
+
+            var zamIdyWKursie = _ladunki.Where(x => x.ZamowienieId.HasValue)
+                                        .Select(x => x.ZamowienieId!.Value)
+                                        .ToHashSet();
+            await _svc.SyncStatusyKursuAsync(kursId, zamIdyWKursie, _user);
+
+            return kursId;
+        }
+
+        private static TimeSpan? ParseGodz(string s)
+        {
+            if (string.IsNullOrWhiteSpace(s)) return null;
+            return TimeSpan.TryParse(s.Trim(), out var ts) ? ts : (TimeSpan?)null;
+        }
+
+        private void BtnAnuluj_Click(object sender, RoutedEventArgs e) => DialogResult = false;
+    }
+}
+
+
+========================================================================
+=== PLIK: Transport/WPF/Dialogs/NowyKierowcaWpfDialog.xaml
+========================================================================
+
+<Window x:Class="Kalendarz1.Transport.WPF.Dialogs.NowyKierowcaWpfDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Nowy kierowca" Height="300" Width="420"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
+        Background="#F4F6F8" FontFamily="Segoe UI" FontSize="13">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/Kalendarz1;component/Transport/WPF/Theme/TransportWpfStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Background="{StaticResource Surface}" Padding="18,14" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1">
+            <StackPanel Orientation="Horizontal">
+                <Border Width="3" Background="{StaticResource Accent}" CornerRadius="2" Margin="0,1,10,1"/>
+                <TextBlock Text="Nowy kierowca" Style="{StaticResource T.Title}" FontSize="16"/>
+            </StackPanel>
+        </Border>
+
+        <StackPanel Grid.Row="1" Margin="22,16,22,10">
+            <TextBlock Text="IMIĘ *" Style="{StaticResource T.Section}" Margin="0,0,0,4"/>
+            <TextBox x:Name="TxtImie" Padding="7,6" Margin="0,0,0,12"/>
+            <TextBlock Text="NAZWISKO *" Style="{StaticResource T.Section}" Margin="0,0,0,4"/>
+            <TextBox x:Name="TxtNazwisko" Padding="7,6" Margin="0,0,0,12"/>
+            <TextBlock Text="TELEFON" Style="{StaticResource T.Section}" Margin="0,0,0,4"/>
+            <TextBox x:Name="TxtTelefon" Padding="7,6"/>
+        </StackPanel>
+
+        <Border Grid.Row="2" Background="{StaticResource Surface}" Padding="16,12" BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="Anuluj" Style="{StaticResource BtnGhost}" Width="90" Height="36" Margin="0,0,8,0" Click="BtnAnuluj_Click"/>
+                <Button Style="{StaticResource BtnPrimary}" Width="120" Height="36" Click="BtnZapisz_Click">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Style="{StaticResource Icon}" Text="&#xE8FB;" Foreground="White" FontSize="14" Margin="0,0,6,0"/>
+                        <TextBlock Text="Zapisz" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>
+
+
+========================================================================
+=== PLIK: Transport/WPF/Dialogs/NowyKierowcaWpfDialog.xaml.cs
+========================================================================
+
+using System.Windows;
+using Kalendarz1.Transport;
+
+namespace Kalendarz1.Transport.WPF.Dialogs
+{
+    /// <summary>Lekki dialog WPF dodawania kierowcy. Zwraca obiekt Kierowca (bez ID — zapis robi wołający przez repo).</summary>
+    public partial class NowyKierowcaWpfDialog : Window
+    {
+        public Kierowca? Wynik { get; private set; }
+
+        public NowyKierowcaWpfDialog()
+        {
+            InitializeComponent();
+            Loaded += (_, _) => TxtImie.Focus();
+        }
+
+        private void BtnZapisz_Click(object sender, RoutedEventArgs e)
+        {
+            var imie = TxtImie.Text.Trim();
+            var nazwisko = TxtNazwisko.Text.Trim();
+            if (string.IsNullOrWhiteSpace(imie) || string.IsNullOrWhiteSpace(nazwisko))
+            {
+                MessageBox.Show("Imię i nazwisko są wymagane.", "Brak danych",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            Wynik = new Kierowca
+            {
+                Imie = imie,
+                Nazwisko = nazwisko,
+                Telefon = string.IsNullOrWhiteSpace(TxtTelefon.Text) ? null : TxtTelefon.Text.Trim(),
+                Aktywny = true
+            };
+            DialogResult = true;
+        }
+
+        private void BtnAnuluj_Click(object sender, RoutedEventArgs e) => DialogResult = false;
+    }
+}
+
+
+========================================================================
+=== PLIK: Transport/WPF/Dialogs/NowyPojazdWpfDialog.xaml
+========================================================================
+
+<Window x:Class="Kalendarz1.Transport.WPF.Dialogs.NowyPojazdWpfDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Nowy pojazd" Height="350" Width="420"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
+        Background="#F4F6F8" FontFamily="Segoe UI" FontSize="13">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/Kalendarz1;component/Transport/WPF/Theme/TransportWpfStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Background="{StaticResource Surface}" Padding="18,14" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1">
+            <StackPanel Orientation="Horizontal">
+                <Border Width="3" Background="{StaticResource Accent}" CornerRadius="2" Margin="0,1,10,1"/>
+                <TextBlock Text="Nowy pojazd" Style="{StaticResource T.Title}" FontSize="16"/>
+            </StackPanel>
+        </Border>
+
+        <StackPanel Grid.Row="1" Margin="22,16,22,10">
+            <TextBlock Text="REJESTRACJA *" Style="{StaticResource T.Section}" Margin="0,0,0,4"/>
+            <TextBox x:Name="TxtRejestracja" Padding="7,6" Margin="0,0,0,12" CharacterCasing="Upper"/>
+            <Grid Margin="0,0,0,12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="12"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="MARKA" Style="{StaticResource T.Section}" Margin="0,0,0,4"/>
+                    <TextBox x:Name="TxtMarka" Padding="7,6"/>
+                </StackPanel>
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="MODEL" Style="{StaticResource T.Section}" Margin="0,0,0,4"/>
+                    <TextBox x:Name="TxtModel" Padding="7,6"/>
+                </StackPanel>
+            </Grid>
+            <TextBlock Text="LICZBA PALET (H1)" Style="{StaticResource T.Section}" Margin="0,0,0,4"/>
+            <TextBox x:Name="TxtPalety" Padding="7,6" Text="33"/>
+        </StackPanel>
+
+        <Border Grid.Row="2" Background="{StaticResource Surface}" Padding="16,12" BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="Anuluj" Style="{StaticResource BtnGhost}" Width="90" Height="36" Margin="0,0,8,0" Click="BtnAnuluj_Click"/>
+                <Button Style="{StaticResource BtnPrimary}" Width="120" Height="36" Click="BtnZapisz_Click">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Style="{StaticResource Icon}" Text="&#xE8FB;" Foreground="White" FontSize="14" Margin="0,0,6,0"/>
+                        <TextBlock Text="Zapisz" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>
+
+
+========================================================================
+=== PLIK: Transport/WPF/Dialogs/NowyPojazdWpfDialog.xaml.cs
+========================================================================
+
+using System.Windows;
+using Kalendarz1.Transport;
+
+namespace Kalendarz1.Transport.WPF.Dialogs
+{
+    /// <summary>Lekki dialog WPF dodawania pojazdu. Zwraca obiekt Pojazd (bez ID — zapis robi wołający przez repo).</summary>
+    public partial class NowyPojazdWpfDialog : Window
+    {
+        public Pojazd? Wynik { get; private set; }
+
+        public NowyPojazdWpfDialog()
+        {
+            InitializeComponent();
+            Loaded += (_, _) => TxtRejestracja.Focus();
+        }
+
+        private void BtnZapisz_Click(object sender, RoutedEventArgs e)
+        {
+            var rej = TxtRejestracja.Text.Trim();
+            if (string.IsNullOrWhiteSpace(rej))
+            {
+                MessageBox.Show("Rejestracja jest wymagana.", "Brak danych",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            if (!int.TryParse(TxtPalety.Text.Trim(), out var palety) || palety < 1 || palety > 100)
+                palety = 33;
+
+            Wynik = new Pojazd
+            {
+                Rejestracja = rej,
+                Marka = string.IsNullOrWhiteSpace(TxtMarka.Text) ? null : TxtMarka.Text.Trim(),
+                Model = string.IsNullOrWhiteSpace(TxtModel.Text) ? null : TxtModel.Text.Trim(),
+                PaletyH1 = palety,
+                Aktywny = true
+            };
+            DialogResult = true;
+        }
+
+        private void BtnAnuluj_Click(object sender, RoutedEventArgs e) => DialogResult = false;
+    }
+}
+
+
+========================================================================
+=== PLIK: Transport/WPF/Dialogs/TekstPromptDialog.xaml
+========================================================================
+
+<Window x:Class="Kalendarz1.Transport.WPF.Dialogs.TekstPromptDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Edycja" Height="230" Width="440"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
+        Background="#F4F6F8" FontFamily="Segoe UI" FontSize="13">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/Kalendarz1;component/Transport/WPF/Theme/TransportWpfStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <Border Grid.Row="0" Background="{StaticResource Surface}" Padding="16,13" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1">
+            <StackPanel Orientation="Horizontal">
+                <Border Width="3" Background="{StaticResource Accent}" CornerRadius="2" Margin="0,1,10,1"/>
+                <TextBlock x:Name="TytulText" Text="Edycja" Style="{StaticResource T.Title}" FontSize="15"/>
+            </StackPanel>
+        </Border>
+        <StackPanel Grid.Row="1" Margin="20,14,20,8">
+            <TextBlock x:Name="EtykietaText" Text="Wartość:" Style="{StaticResource T.Section}" Margin="0,0,0,5"/>
+            <TextBox x:Name="TxtWartosc" Padding="8,7" MinHeight="36" AcceptsReturn="True" TextWrapping="Wrap"/>
+        </StackPanel>
+        <Border Grid.Row="2" Background="{StaticResource Surface}" Padding="16,12" BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="Anuluj" Style="{StaticResource BtnGhost}" Width="90" Height="36" Margin="0,0,8,0" Click="BtnAnuluj_Click"/>
+                <Button Style="{StaticResource BtnPrimary}" Width="110" Height="36" Click="BtnOk_Click">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Style="{StaticResource Icon}" Text="&#xE8FB;" Foreground="White" FontSize="14" Margin="0,0,6,0"/>
+                        <TextBlock Text="OK" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>
+
+
+========================================================================
+=== PLIK: Transport/WPF/Dialogs/TekstPromptDialog.xaml.cs
+========================================================================
+
+using System.Windows;
+
+namespace Kalendarz1.Transport.WPF.Dialogs
+{
+    /// <summary>Uniwersalny dialog wpisania tekstu (uwagi, trasa itp.).</summary>
+    public partial class TekstPromptDialog : Window
+    {
+        public string Wartosc => TxtWartosc.Text;
+
+        public TekstPromptDialog(string tytul, string etykieta, string wartoscPoczatkowa = "")
+        {
+            InitializeComponent();
+            TytulText.Text = tytul;
+            EtykietaText.Text = etykieta;
+            TxtWartosc.Text = wartoscPoczatkowa ?? "";
+            Loaded += (_, _) => { TxtWartosc.Focus(); TxtWartosc.SelectAll(); };
+        }
+
+        private void BtnOk_Click(object sender, RoutedEventArgs e) => DialogResult = true;
+        private void BtnAnuluj_Click(object sender, RoutedEventArgs e) => DialogResult = false;
+    }
+}
+
+
+========================================================================
+=== PLIK: Transport/WPF/Dialogs/SzybkiPrzydzialDialog.xaml
+========================================================================
+
+<Window x:Class="Kalendarz1.Transport.WPF.Dialogs.SzybkiPrzydzialDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Szybki przydział" Height="260" Width="440"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
+        Background="#F4F6F8" FontFamily="Segoe UI" FontSize="13">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/Kalendarz1;component/Transport/WPF/Theme/TransportWpfStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <Border Grid.Row="0" Background="{StaticResource Surface}" Padding="16,13" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1">
+            <StackPanel Orientation="Horizontal">
+                <Border Width="3" Background="{StaticResource Accent}" CornerRadius="2" Margin="0,1,10,1"/>
+                <TextBlock x:Name="TytulText" Text="Przydziel kierowcę i pojazd" Style="{StaticResource T.Title}" FontSize="15"/>
+            </StackPanel>
+        </Border>
+        <StackPanel Grid.Row="1" Margin="20,16,20,8">
+            <TextBlock Text="KIEROWCA" Style="{StaticResource T.Section}" Margin="0,0,0,4"/>
+            <ComboBox x:Name="CmbKierowca" Height="32" DisplayMemberPath="PelneNazwisko"
+                      IsEditable="True" IsTextSearchEnabled="True" Margin="0,0,0,12"/>
+            <TextBlock Text="POJAZD" Style="{StaticResource T.Section}" Margin="0,0,0,4"/>
+            <ComboBox x:Name="CmbPojazd" Height="32" DisplayMemberPath="Opis"
+                      IsEditable="True" IsTextSearchEnabled="True"/>
+        </StackPanel>
+        <Border Grid.Row="2" Background="{StaticResource Surface}" Padding="16,12" BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="Anuluj" Style="{StaticResource BtnGhost}" Width="90" Height="36" Margin="0,0,8,0" Click="BtnAnuluj_Click"/>
+                <Button Style="{StaticResource BtnPrimary}" Width="130" Height="36" Click="BtnOk_Click">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Style="{StaticResource Icon}" Text="&#xE8FB;" Foreground="White" FontSize="14" Margin="0,0,6,0"/>
+                        <TextBlock Text="Przydziel" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>
+
+
+========================================================================
+=== PLIK: Transport/WPF/Dialogs/SzybkiPrzydzialDialog.xaml.cs
+========================================================================
+
+using System.Collections.Generic;
+using System.Linq;
+using System.Windows;
+using Kalendarz1.Transport;
+
+namespace Kalendarz1.Transport.WPF.Dialogs
+{
+    /// <summary>Szybki przydział kierowcy + pojazdu do kursu (bez pełnego edytora).</summary>
+    public partial class SzybkiPrzydzialDialog : Window
+    {
+        public int? KierowcaID { get; private set; }
+        public int? PojazdID { get; private set; }
+
+        public SzybkiPrzydzialDialog(List<Kierowca> kierowcy, List<Pojazd> pojazdy,
+            int? aktualnyKierowca, int? aktualnyPojazd, string naglowek)
+        {
+            InitializeComponent();
+            TytulText.Text = naglowek;
+            CmbKierowca.ItemsSource = kierowcy;
+            CmbPojazd.ItemsSource = pojazdy;
+            if (aktualnyKierowca.HasValue)
+                CmbKierowca.SelectedItem = kierowcy.FirstOrDefault(k => k.KierowcaID == aktualnyKierowca.Value);
+            if (aktualnyPojazd.HasValue)
+                CmbPojazd.SelectedItem = pojazdy.FirstOrDefault(p => p.PojazdID == aktualnyPojazd.Value);
+        }
+
+        private void BtnOk_Click(object sender, RoutedEventArgs e)
+        {
+            KierowcaID = (CmbKierowca.SelectedItem as Kierowca)?.KierowcaID;
+            PojazdID = (CmbPojazd.SelectedItem as Pojazd)?.PojazdID;
+            DialogResult = true;
+        }
+
+        private void BtnAnuluj_Click(object sender, RoutedEventArgs e) => DialogResult = false;
+    }
+}

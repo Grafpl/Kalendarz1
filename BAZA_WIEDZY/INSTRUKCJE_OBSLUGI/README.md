@@ -124,8 +124,32 @@
 7. **Mockupy ASCII** dla 2-4 kluczowych ekranów.
 8. **Sekcja "Co dalej"** z linkami.
 
+## 🔗 Instrukcje role-based (druga sesja — dział zakupu pod nowych ludzi)
+
+> **WAŻNE — aktualizacja kadrowa (2026-05-25):** te instrukcje pisano gdy zaopatrzenie prowadziła „Maja". Tymczasem **dział zakupu przejmuje Magda + Asia** (Paulina odeszła, Tereska odchodzi). Opisy okien tutaj są poprawne technicznie — ale **operacyjne instrukcje „krok po kroku" dla nowych ludzi** są w osobnych folderach:
+
+| Folder | Dla kogo | Co |
+|---|---|---|
+| [`../INSTRUKCJE_MAGDA/`](../INSTRUKCJE_MAGDA/00_INDEKS.md) | **Magda** (nowa w zakupie) | 16 instrukcji „co robisz krok po kroku" + cheatsheet |
+| [`../INSTRUKCJE_ASIA/`](../INSTRUKCJE_ASIA/00_INDEKS.md) | **Asia** (strażnik kontraktów) | 5 instrukcji: kontrakty, ZSRIR, GUS R09, dashboard ARiMR |
+| [`../INSTRUKCJE_TERESKA/`](../INSTRUKCJE_TERESKA/01_przekazanie_magdzie_30_dni.md) | **Tereska** (odchodzi) | przekazanie wiedzy 30 dni |
+| [`../INSTRUKCJE_JUSTYNA/`](../INSTRUKCJE_JUSTYNA/01_padle_hpai_procedura_kryzysowa.md) | **Justyna** (jakość) | HPAI/padłe procedura kryzysowa |
+
+**Podział ról folderów:**
+- **`INSTRUKCJE_OBSLUGI/`** (ten) = referencja techniczna „jak działa okno" — dla każdego, pełne pokrycie funkcji.
+- **`INSTRUKCJE_MAGDA/` itd.** = „co konkretna osoba robi krok po kroku" — operacyjne, role-based.
+- Te same okna są w obu, ale z różnej perspektywy — **komplementarne, nie duplikaty.**
+
+**Mapa nakładających się okien** (ten folder ↔ INSTRUKCJE_MAGDA):
+- `01_Wstawienia_Kurczakow.md` ↔ `../INSTRUKCJE_MAGDA/02_nowe_wstawienie.md` + `03_potwierdzenie_wstawienia.md`
+- `05_Kalendarz_Dostaw_Zywca.md` ↔ kontekst w instrukcjach Magdy #2/#4
+- `06_Baza_Hodowcow.md` ↔ kontekst w #1/#10/#11
+- `07_Umowy_i_Dokumenty.md` ↔ `../INSTRUKCJE_MAGDA/06_umowa_zakupu.md` (+ docelowy moduł Kontrakty)
+
 ## Powiązane dokumenty
 
 - **Audyt techniczny i biznesowy** modułów → `BAZA_WIEDZY/AUDYT_BROILER_SIGNALS/` (13 plików).
+- **Audyt działu zakupu + moduł Kontrakty** → `BAZA_WIEDZY/AUDYT_ZAKUPY_2026_05_23/` (druga sesja, 2026-05-25).
+- **Scalone podsumowanie obu sesji** → `BAZA_WIEDZY/PODSUMOWANIE_SCALONE_2026_05_25.md`.
 - **Architektura kodu** → `CLAUDE.md` w korzeniu repo.
 - **SQL i schemat baz** → `BAZA_WIEDZY/13_Bazy_danych.md`.

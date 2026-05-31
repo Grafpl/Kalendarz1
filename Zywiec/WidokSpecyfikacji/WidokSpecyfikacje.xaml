@@ -8,7 +8,8 @@
         WindowState="Maximized"
         Background="#ECEFF1"
         FontFamily="Segoe UI"
-        Loaded="Window_Loaded">
+        Loaded="Window_Loaded"
+        KeyDown="WidokSpecyfikacje_KeyDown">
 
     <Window.RenderTransform>
         <TranslateTransform/>
@@ -1312,6 +1313,31 @@
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
+
+                                <!-- Anomalie: ⚠ gdy cena/ubytek/waga odstaje. Tooltip = powod. -->
+                                <DataGridTemplateColumn Header="⚠" Width="32" IsReadOnly="True"
+                                                        ToolTipService.ToolTip="Anomalia: odchylenie ceny/ubytku/wagi od reszty dostawcy lub normy">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="Transparent"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding MaAnomalie}" Value="True">
+                                                                <Setter Property="Background" Value="#FEE2E2"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <TextBlock Text="{Binding AnomaliaIkona}"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                           FontSize="14" FontWeight="Bold" Foreground="#B91C1C"
+                                                           ToolTip="{Binding AnomaliaOpis}"/>
+                                            </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
 
                                 <DataGridTemplateColumn Header="PDF" Width="35" IsReadOnly="True" ToolTipService.ToolTip="Status PDF - kliknij aby otworzyć">
                                     <DataGridTemplateColumn.CellTemplate>
@@ -4290,6 +4316,145 @@
                                             Style="{StaticResource ProgressButton}" Background="#2E7D32" FontWeight="Bold"/>
                                 </StackPanel>
                             </Grid>
+                        </Border>
+                    </Grid>
+                </Border>
+            </TabItem>
+
+            <!-- === KARTA WYLICZENIA (1:1 z PDF specyfikacji) === -->
+            <TabItem Header="📐 Wyliczenia">
+                <Border Background="White" CornerRadius="8" Margin="5" Padding="10">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Nagłówek -->
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8" VerticalAlignment="Center">
+                            <TextBlock Text="Wyliczenia rozliczenia" FontSize="18" FontWeight="Bold" Foreground="#2C3E50" VerticalAlignment="Center"/>
+                            <Border Background="#E3F2FD" CornerRadius="4" Padding="8,3" Margin="14,0,0,0" VerticalAlignment="Center">
+                                <TextBlock Text="📄 Identyczne kolumny jak w PDF specyfikacji — bez generowania PDF"
+                                           FontSize="11" Foreground="#1565C0" FontWeight="SemiBold"/>
+                            </Border>
+                        </StackPanel>
+
+                        <DataGrid Grid.Row="1" x:Name="dataGridWyliczenia"
+                                  ItemsSource="{Binding}"
+                                  AutoGenerateColumns="False"
+                                  CanUserAddRows="False" CanUserDeleteRows="False"
+                                  CanUserReorderColumns="True" IsReadOnly="True"
+                                  SelectionMode="Single" SelectionUnit="FullRow"
+                                  RowHeight="26" FontSize="11"
+                                  GridLinesVisibility="All"
+                                  HorizontalGridLinesBrush="#E0E0E0" VerticalGridLinesBrush="#E0E0E0"
+                                  AlternatingRowBackground="#F8F9FA"
+                                  HeadersVisibility="Column"
+                                  BorderThickness="1" BorderBrush="#BDBDBD"
+                                  ColumnWidth="Auto"
+                                  FrozenColumnCount="2">
+                            <DataGrid.Resources>
+                                <!-- Styl naglowka grupy WAGA (niebieski) -->
+                                <Style x:Key="HdrWaga" TargetType="DataGridColumnHeader">
+                                    <Setter Property="Background" Value="#1976D2"/>
+                                    <Setter Property="Foreground" Value="White"/>
+                                    <Setter Property="FontWeight" Value="Bold"/>
+                                    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                                    <Setter Property="Padding" Value="4,4"/>
+                                </Style>
+                                <!-- Styl naglowka grupy SZTUKI (pomaranczowy) -->
+                                <Style x:Key="HdrSzt" TargetType="DataGridColumnHeader">
+                                    <Setter Property="Background" Value="#F57C00"/>
+                                    <Setter Property="Foreground" Value="White"/>
+                                    <Setter Property="FontWeight" Value="Bold"/>
+                                    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                                    <Setter Property="Padding" Value="4,4"/>
+                                </Style>
+                                <!-- Styl naglowka grupy KILOGRAMY (fioletowy) -->
+                                <Style x:Key="HdrKg" TargetType="DataGridColumnHeader">
+                                    <Setter Property="Background" Value="#8E44AD"/>
+                                    <Setter Property="Foreground" Value="White"/>
+                                    <Setter Property="FontWeight" Value="Bold"/>
+                                    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                                    <Setter Property="Padding" Value="4,4"/>
+                                </Style>
+                                <!-- Styl naglowka grupy WYNIK (zielony) -->
+                                <Style x:Key="HdrWynik" TargetType="DataGridColumnHeader">
+                                    <Setter Property="Background" Value="#2E7D32"/>
+                                    <Setter Property="Foreground" Value="White"/>
+                                    <Setter Property="FontWeight" Value="Bold"/>
+                                    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                                    <Setter Property="Padding" Value="4,4"/>
+                                </Style>
+                                <Style x:Key="NumRight" TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Right"/>
+                                    <Setter Property="Padding" Value="0,0,6,0"/>
+                                </Style>
+                            </DataGrid.Resources>
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Lp" Binding="{Binding Nr}" Width="36"/>
+                                <DataGridTextColumn Header="Dostawca" Binding="{Binding Dostawca}" Width="150"/>
+
+                                <!-- GRUPA WAGA -->
+                                <DataGridTextColumn Header="Brutto" Binding="{Binding BruttoDoRozliczenia}" Width="70" HeaderStyle="{StaticResource HdrWaga}" ElementStyle="{StaticResource NumRight}"/>
+                                <DataGridTextColumn Header="Tara" Binding="{Binding TaraDoRozliczenia}" Width="70" HeaderStyle="{StaticResource HdrWaga}" ElementStyle="{StaticResource NumRight}"/>
+                                <DataGridTextColumn Header="Netto" Binding="{Binding WagaNettoDoRozliczenia, StringFormat={}{0:N0}}" Width="75" HeaderStyle="{StaticResource HdrWaga}" ElementStyle="{StaticResource NumRight}"/>
+
+                                <!-- GRUPA ROZLICZENIE SZTUK -->
+                                <DataGridTextColumn Header="Dostarcz." Binding="{Binding RozlDostarczono, StringFormat={}{0:N0}}" Width="70" HeaderStyle="{StaticResource HdrSzt}" ElementStyle="{StaticResource NumRight}"/>
+                                <DataGridTextColumn Header="Padłe" Binding="{Binding Padle, StringFormat={}{0:N0}}" Width="55" HeaderStyle="{StaticResource HdrSzt}" ElementStyle="{StaticResource NumRight}"/>
+                                <DataGridTextColumn Header="Konf." Binding="{Binding Konfiskaty, StringFormat={}{0:N0}}" Width="55" HeaderStyle="{StaticResource HdrSzt}" ElementStyle="{StaticResource NumRight}"/>
+                                <DataGridTextColumn Header="Zdatne" Binding="{Binding RozlZdatne, StringFormat={}{0:N0}}" Width="60" HeaderStyle="{StaticResource HdrSzt}" ElementStyle="{StaticResource NumRight}"/>
+
+                                <!-- SR WAGA -->
+                                <DataGridTextColumn Header="Śr.waga" Binding="{Binding SredniaWaga, StringFormat={}{0:N2}}" Width="65" HeaderStyle="{StaticResource HdrSzt}" ElementStyle="{StaticResource NumRight}"/>
+
+                                <!-- GRUPA ROZLICZENIE KILOGRAMÓW -->
+                                <DataGridTextColumn Header="Netto kg" Binding="{Binding WagaNettoDoRozliczenia, StringFormat={}{0:N0}}" Width="70" HeaderStyle="{StaticResource HdrKg}" ElementStyle="{StaticResource NumRight}"/>
+                                <DataGridTextColumn Header="Padłe kg" Binding="{Binding RozlPadleKg, StringFormat={}{0:N0}}" Width="65" HeaderStyle="{StaticResource HdrKg}" ElementStyle="{StaticResource NumRight}"/>
+                                <DataGridTextColumn Header="Konf.kg" Binding="{Binding RozlKonfiskatyKg, StringFormat={}{0:N0}}" Width="65" HeaderStyle="{StaticResource HdrKg}" ElementStyle="{StaticResource NumRight}"/>
+                                <DataGridTextColumn Header="Ubytek kg" Binding="{Binding RozlUbytekKg, StringFormat={}{0:N0}}" Width="70" HeaderStyle="{StaticResource HdrKg}" ElementStyle="{StaticResource NumRight}"/>
+                                <DataGridTextColumn Header="Opas." Binding="{Binding Opasienie, StringFormat={}{0:N0}}" Width="55" HeaderStyle="{StaticResource HdrKg}" ElementStyle="{StaticResource NumRight}"/>
+                                <DataGridTextColumn Header="Kl.B" Binding="{Binding KlasaB, StringFormat={}{0:N0}}" Width="50" HeaderStyle="{StaticResource HdrKg}" ElementStyle="{StaticResource NumRight}"/>
+
+                                <!-- WYNIK -->
+                                <DataGridTextColumn Header="DO ZAPŁ." Binding="{Binding DoZaplaty, StringFormat={}{0:N0}}" Width="80" HeaderStyle="{StaticResource HdrWynik}">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Setter Property="Padding" Value="0,0,6,0"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                            <Setter Property="Foreground" Value="#2E7D32"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Cena" Binding="{Binding CenaKoncowa, StringFormat={}{0:N2}}" Width="60" HeaderStyle="{StaticResource HdrWynik}" ElementStyle="{StaticResource NumRight}"/>
+                                <DataGridTextColumn Header="WARTOŚĆ" Binding="{Binding Wartosc, StringFormat={}{0:N2}}" Width="90" HeaderStyle="{StaticResource HdrWynik}">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Setter Property="Padding" Value="0,0,6,0"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                            <Setter Property="Foreground" Value="#2E7D32"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <!-- Pasek sum -->
+                        <Border Grid.Row="2" Background="#ECEFF1" Padding="10" Margin="0,8,0,0" CornerRadius="5">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="Wierszy: " FontWeight="SemiBold"/>
+                                <TextBlock x:Name="lblWylSumaWierszy" Text="0" FontWeight="Bold" Foreground="#2C3E50" Margin="0,0,20,0"/>
+                                <TextBlock Text="Suma Netto: " FontWeight="SemiBold"/>
+                                <TextBlock x:Name="lblWylSumaNetto" Text="0" FontWeight="Bold" Foreground="#1565C0" Margin="0,0,20,0"/>
+                                <TextBlock Text="Suma Do zapł.: " FontWeight="SemiBold" Foreground="#0D47A1"/>
+                                <TextBlock x:Name="lblWylSumaDoZapl" Text="0" FontWeight="Bold" Foreground="#0D47A1" Margin="0,0,20,0"/>
+                                <TextBlock Text="Suma Wartość: " FontWeight="SemiBold" Foreground="#1B5E20"/>
+                                <TextBlock x:Name="lblWylSumaWartosc" Text="0,00 zł" FontWeight="Bold" Foreground="#2E7D32"/>
+                            </StackPanel>
                         </Border>
                     </Grid>
                 </Border>

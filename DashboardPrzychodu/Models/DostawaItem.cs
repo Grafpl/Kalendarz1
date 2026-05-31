@@ -64,8 +64,10 @@ namespace Kalendarz1.DashboardPrzychodu.Models
         private int _sztukiRzeczywiste;
         private decimal? _sredniaWagaRzeczywista;
         private decimal? _sztPojRzecz;           // Szt/pojemnik rzeczywiste
-        private decimal? _odchylenieKg;
-        private decimal? _odchylenieProc;
+        private decimal? _odchylenieVsPlanAutoKg;
+        private decimal? _odchylenieVsPlanAutoProc;
+        private decimal? _odchylenieVsDeklHodowcaKg;
+        private decimal? _odchylenieVsDeklHodowcaProc;
         private decimal? _odchylenieWagi;        // Różnica średnich wag
         private int _statusId;
         private int _sztukiExcel;            // Sztuki z Excel AVILOG (SztukiExcel w FarmerCalc)
@@ -693,29 +695,127 @@ namespace Kalendarz1.DashboardPrzychodu.Models
 
         #endregion
 
-        #region Properties - Odchylenie
+        #region Properties - Odchylenie (DWIE ROZDZIELONE METRYKI - patrz #2 fix)
 
-        public decimal? OdchylenieKg
+        /// <summary>
+        /// Odchylenie vs PLAN-NA-AUTO (kg).
+        /// Liczone gdy istnieje harmonogram dla tej dostawy. NULL gdy brak.
+        /// Sens: "ile zwazyla waga w stosunku do tego, co dispatcher zaplanowal dla tego auta".
+        /// </summary>
+        public decimal? OdchylenieVsPlanAutoKg
         {
-            get => _odchylenieKg;
+            get => _odchylenieVsPlanAutoKg;
             set
             {
-                _odchylenieKg = value;
+                _odchylenieVsPlanAutoKg = value;
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(OdchylenieKg));
                 OnPropertyChanged(nameof(OdchylenieDisplay));
+                OnPropertyChanged(nameof(OdchylenieVsPlanAutoDisplay));
                 OnPropertyChanged(nameof(Poziom));
             }
         }
 
-        public decimal? OdchylenieProc
+        public decimal? OdchylenieVsPlanAutoProc
         {
-            get => _odchylenieProc;
+            get => _odchylenieVsPlanAutoProc;
             set
             {
-                _odchylenieProc = value;
+                _odchylenieVsPlanAutoProc = value;
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(OdchylenieProc));
                 OnPropertyChanged(nameof(OdchylenieDisplay));
+                OnPropertyChanged(nameof(OdchylenieVsPlanAutoDisplay));
                 OnPropertyChanged(nameof(Poziom));
+            }
+        }
+
+        /// <summary>
+        /// Odchylenie vs DEKLARACJA HODOWCY (kg).
+        /// Liczone gdy znamy WagaDek/NettoFarmWeight. Niezalezne od harmonogramu.
+        /// Sens: "ile rzeczywiscie wazyl drob w stosunku do tego, co hodowca obiecal".
+        /// Sluzy do wykrywania klamstw hodowcy (klasyczny use case branzowy).
+        /// </summary>
+        public decimal? OdchylenieVsDeklHodowcaKg
+        {
+            get => _odchylenieVsDeklHodowcaKg;
+            set
+            {
+                _odchylenieVsDeklHodowcaKg = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(OdchylenieKg));
+                OnPropertyChanged(nameof(OdchylenieDisplay));
+                OnPropertyChanged(nameof(OdchylenieVsDeklHodowcaDisplay));
+                OnPropertyChanged(nameof(OdchylenieFullTooltip));
+            }
+        }
+
+        public decimal? OdchylenieVsDeklHodowcaProc
+        {
+            get => _odchylenieVsDeklHodowcaProc;
+            set
+            {
+                _odchylenieVsDeklHodowcaProc = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(OdchylenieProc));
+                OnPropertyChanged(nameof(OdchylenieDisplay));
+                OnPropertyChanged(nameof(OdchylenieVsDeklHodowcaDisplay));
+                OnPropertyChanged(nameof(OdchylenieFullTooltip));
+            }
+        }
+
+        /// <summary>
+        /// Legacy alias: preferuje vs PlanAuto (dispatching POV), fallback do vs DeklHodowca (gdy brak harmonogramu).
+        /// Uzywane przez stare miejsca w UI (Excel export, summary fallback).
+        /// </summary>
+        public decimal? OdchylenieKg => OdchylenieVsPlanAutoKg ?? OdchylenieVsDeklHodowcaKg;
+
+        /// <summary>
+        /// Legacy alias dla OdchylenieProc (vs plan-auto preferowane).
+        /// </summary>
+        public decimal? OdchylenieProc => OdchylenieVsPlanAutoProc ?? OdchylenieVsDeklHodowcaProc;
+
+        /// <summary>
+        /// Display vs plan-auto (kg + %): "+125 kg (+3.2%)" lub "-".
+        /// </summary>
+        public string OdchylenieVsPlanAutoDisplay
+        {
+            get
+            {
+                if (!OdchylenieVsPlanAutoKg.HasValue || !OdchylenieVsPlanAutoProc.HasValue || Status != StatusDostawy.Zwazony)
+                    return "-";
+                string znak = OdchylenieVsPlanAutoKg > 0 ? "+" : "";
+                return $"{znak}{OdchylenieVsPlanAutoKg:N0} kg ({znak}{OdchylenieVsPlanAutoProc:N1}%)";
+            }
+        }
+
+        /// <summary>
+        /// Display vs deklaracja hodowcy (kg + %): "+125 kg (+3.2%)" lub "-".
+        /// </summary>
+        public string OdchylenieVsDeklHodowcaDisplay
+        {
+            get
+            {
+                if (!OdchylenieVsDeklHodowcaKg.HasValue || !OdchylenieVsDeklHodowcaProc.HasValue || Status != StatusDostawy.Zwazony)
+                    return "-";
+                string znak = OdchylenieVsDeklHodowcaKg > 0 ? "+" : "";
+                return $"{znak}{OdchylenieVsDeklHodowcaKg:N0} kg ({znak}{OdchylenieVsDeklHodowcaProc:N1}%)";
+            }
+        }
+
+        /// <summary>
+        /// Tooltip pokazujacy OBIE metryki rozdzielone - rozwiazuje semantyczna sprzecznosc starej kolumny.
+        /// </summary>
+        public string OdchylenieFullTooltip
+        {
+            get
+            {
+                if (Status != StatusDostawy.Zwazony) return "Auto jeszcze nie zwazone";
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine($"vs plan-na-auto:   {OdchylenieVsPlanAutoDisplay}");
+                sb.AppendLine($"vs deklaracja:     {OdchylenieVsDeklHodowcaDisplay}");
+                sb.Append("(pierwsza vs plan dispatchera, druga vs to co hodowca obiecal)");
+                return sb.ToString();
             }
         }
 

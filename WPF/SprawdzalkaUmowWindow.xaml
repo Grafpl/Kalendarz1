@@ -521,6 +521,10 @@
                             ToolTip="Eksport do CSV (Ctrl+E)">
                         <TextBlock Text="📤  Eksport"/>
                     </Button>
+                    <Button x:Name="btnKontrakt" Style="{StaticResource SecondaryButton}" Click="BtnKontrakt_Click"
+                            ToolTip="Kontrakt hodowcy (otwórz aktywny lub utwórz nowy)" Margin="6,0,0,0">
+                        <TextBlock Text="📜  Kontrakt hodowcy"/>
+                    </Button>
                 </StackPanel>
 
                 <!-- Row 2: Chips + checkboxes -->
@@ -800,6 +804,7 @@
 
             <DataGrid.ContextMenu>
                 <ContextMenu>
+                    <MenuItem Header="📜  Kontrakt hodowcy" Click="BtnKontrakt_Click"/>
                     <MenuItem Header="✏  Edytuj umowę" Click="MenuEdit_Click"/>
                     <Separator/>
                     <MenuItem Header="📁  Pokaż plik umowy w Eksploratorze" Click="MenuShowFile_Click"/>

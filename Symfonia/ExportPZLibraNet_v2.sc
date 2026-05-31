@@ -1,4 +1,8 @@
-//"ExportPZLibraNet_v2.sc","Eksport PZ + FV + RWU z LibraNet","\Procedury\Raporty z menu kartotek\Magazyn",0,5.3.0,SYSTEM
+//"ExportPZLibraNet_v2.sc","Eksport PZ + FV + RWU z LibraNet","\Procedury\Raporty z menu kartotek\Magazyn",0,5.4.0,SYSTEM
+// Wersja 5.4.0 — KRYTYCZNE: waga liczona SWIEZO z pol surowych (CROSS APPLY), NIE z PayWgt.
+//                PayWgt bywal zapisany niespojnie przez WPF (ubytek na 1 wierszu, na 2 nie).
+//                Teraz DoZapl = round(netto - padleKg - konfKg - ubytekKg - opas - klB) liczone w SQL.
+//                Wzor 1:1 z PDF/karta Wyliczenia. Niezalezne od PayWgt.
 // Wersja 5.3.0 — UPDATE HM.DK po imporcie ustawia teraz rodzaj + schemat='ZK':
 //                ImportZK dla FVR daje schemat="ZKRR", a firmowy standard to "ZK" (367 vs 10 w historii).
 //                Po naszym UPDATE FVR i FVZ maja zawsze schemat='ZK'.
@@ -71,6 +75,44 @@ String gLastFVZ
 int gLiczbaWierszy
 String tytul2
 String licznikTxt
+
+// =====================================================================
+// WYRAZENIE "Do zaplaty" liczone SWIEZO z pol surowych (NIE z PayWgt!).
+// MUSI dac IDENTYCZNY wynik jak PDF specyfikacji (kod C#: Math.Round(...) + .ToString("N0")).
+//   netto    = COALESCE(NULLIF(NettoFarmWeight,0), NettoWeight)
+//   srWaga   = netto / (LumQnt + DeclI2)
+//   padleKg  = PiK ? 0 : ROUND_BANKOWO(DeclI2 × srWaga)             <- Math.Round w PDF = do parzystej
+//   konfKg   = PiK ? 0 : ROUND_BANKOWO((DeclI3+DeclI4+DeclI5) × srWaga)
+//   ubytekKg = ROUND_BANKOWO(netto × Loss)
+//   opasKg   = ROUND_BANKOWO(Opasienie),  klBKg = ROUND_BANKOWO(KlasaB)
+//   DoZapl   = ROUND(netto - padleKg - konfKg - ubytekKg - opasKg - klBKg, 0)  <- jak .ToString("N0") = w gore od .5
+//
+// KLUCZOWE ROZNICE vs poprzednia wersja (naprawiaja rozjazd 1 wiersza na 16):
+//   1) Wszystko w DECIMAL (CAST) — eliminuje szum float przy dzieleniu srWaga.
+//   2) Skladniki (pad/kon/uby/opas/klB) zaokraglane BANKOWO (half-to-even) — bo PDF uzywa Math.Round,
+//      ktore domyslnie zaokragla do liczby parzystej. SQL ROUND() zaokragla w gore od .5 -> stad rozjazd
+//      gdy iloczyn wpadnie dokladnie na X.5.
+//   3) Finalne DoZapl zwyklym ROUND(,0) — bo PDF wyswietla doZaplaty przez .ToString("N0") (w gore od .5).
+// PayWgt bywal zapisany niespojnie przez WPF, dlatego liczymy sami. gCrossApplyDoZapl -> FROM, gSelDoZapl -> kolumna.
+String gCrossApplyDoZapl
+String gSelDoZapl
+
+gCrossApplyDoZapl = " CROSS APPLY (SELECT netto = CAST(COALESCE(NULLIF(fc.NettoFarmWeight,0), fc.NettoWeight) AS DECIMAL(28,8))) v1"
+gCrossApplyDoZapl = gCrossApplyDoZapl + " CROSS APPLY (SELECT cnt = (ISNULL(fc.LumQnt,0)+ISNULL(fc.DeclI2,0))) vc"
+gCrossApplyDoZapl = gCrossApplyDoZapl + " CROSS APPLY (SELECT srw = CASE WHEN vc.cnt > 0 THEN v1.netto / CAST(vc.cnt AS DECIMAL(28,8)) ELSE CAST(0 AS DECIMAL(28,8)) END) v2"
+gCrossApplyDoZapl = gCrossApplyDoZapl + " CROSS APPLY (SELECT padR = CASE WHEN ISNULL(fc.IncDeadConf,0)=1 THEN CAST(0 AS DECIMAL(28,8)) ELSE CAST(ISNULL(fc.DeclI2,0) AS DECIMAL(28,8))*v2.srw END,"
+gCrossApplyDoZapl = gCrossApplyDoZapl + " konR = CASE WHEN ISNULL(fc.IncDeadConf,0)=1 THEN CAST(0 AS DECIMAL(28,8)) ELSE CAST(ISNULL(fc.DeclI3,0)+ISNULL(fc.DeclI4,0)+ISNULL(fc.DeclI5,0) AS DECIMAL(28,8))*v2.srw END,"
+gCrossApplyDoZapl = gCrossApplyDoZapl + " ubyR = v1.netto*CAST(ISNULL(fc.Loss,0) AS DECIMAL(28,10)),"
+gCrossApplyDoZapl = gCrossApplyDoZapl + " opaR = CAST(ISNULL(fc.Opasienie,0) AS DECIMAL(28,8)),"
+gCrossApplyDoZapl = gCrossApplyDoZapl + " klbR = CAST(ISNULL(fc.KlasaB,0) AS DECIMAL(28,8))) vr"
+gCrossApplyDoZapl = gCrossApplyDoZapl + " CROSS APPLY (SELECT pad = (CASE WHEN vr.padR-FLOOR(vr.padR)<0.5 THEN FLOOR(vr.padR) WHEN vr.padR-FLOOR(vr.padR)>0.5 THEN FLOOR(vr.padR)+1 ELSE (CASE WHEN CAST(FLOOR(vr.padR) AS BIGINT)%2=0 THEN FLOOR(vr.padR) ELSE FLOOR(vr.padR)+1 END) END),"
+gCrossApplyDoZapl = gCrossApplyDoZapl + " kon = (CASE WHEN vr.konR-FLOOR(vr.konR)<0.5 THEN FLOOR(vr.konR) WHEN vr.konR-FLOOR(vr.konR)>0.5 THEN FLOOR(vr.konR)+1 ELSE (CASE WHEN CAST(FLOOR(vr.konR) AS BIGINT)%2=0 THEN FLOOR(vr.konR) ELSE FLOOR(vr.konR)+1 END) END),"
+gCrossApplyDoZapl = gCrossApplyDoZapl + " uby = (CASE WHEN vr.ubyR-FLOOR(vr.ubyR)<0.5 THEN FLOOR(vr.ubyR) WHEN vr.ubyR-FLOOR(vr.ubyR)>0.5 THEN FLOOR(vr.ubyR)+1 ELSE (CASE WHEN CAST(FLOOR(vr.ubyR) AS BIGINT)%2=0 THEN FLOOR(vr.ubyR) ELSE FLOOR(vr.ubyR)+1 END) END),"
+gCrossApplyDoZapl = gCrossApplyDoZapl + " opa = (CASE WHEN vr.opaR-FLOOR(vr.opaR)<0.5 THEN FLOOR(vr.opaR) WHEN vr.opaR-FLOOR(vr.opaR)>0.5 THEN FLOOR(vr.opaR)+1 ELSE (CASE WHEN CAST(FLOOR(vr.opaR) AS BIGINT)%2=0 THEN FLOOR(vr.opaR) ELSE FLOOR(vr.opaR)+1 END) END),"
+gCrossApplyDoZapl = gCrossApplyDoZapl + " klb = (CASE WHEN vr.klbR-FLOOR(vr.klbR)<0.5 THEN FLOOR(vr.klbR) WHEN vr.klbR-FLOOR(vr.klbR)>0.5 THEN FLOOR(vr.klbR)+1 ELSE (CASE WHEN CAST(FLOOR(vr.klbR) AS BIGINT)%2=0 THEN FLOOR(vr.klbR) ELSE FLOOR(vr.klbR)+1 END) END)) v3"
+gCrossApplyDoZapl = gCrossApplyDoZapl + " CROSS APPLY (SELECT DoZapl = CAST(ROUND(v1.netto - v3.pad - v3.kon - v3.uby - v3.opa - v3.klb, 0) AS DECIMAL(18,0))) calc"
+
+gSelDoZapl = "calc.DoZapl"
 
 dispatch grid
 
@@ -362,14 +404,14 @@ int sub ImportujPZDostawcy(String pFiltrFC, String pShortcut, String pNazwa, Str
     con.connectionString = gConnStr
     con.open()
     rs  = "ADODB.Recordset"
-    // KLUCZOWE: PayWgt = "Do zapl." z PDF specyfikacji (juz po potraceniach: padle, konf., ubytek, opas., klB).
-    // Cena jednostkowa = Price + Addition (cena bazowa + dodatek per kg).
-    // Iloczyn = identyczna Wartosc jak w PDF.
-    sql = "SELECT ISNULL(CAST(fc.PayWgt AS VARCHAR(50)),'0') AS Waga, "
+    // Waga = DoZapl liczona SWIEZO z pol surowych (nie PayWgt — bywal niespojny).
+    // Cena jednostkowa = Price + Addition. Iloczyn = identyczna Wartosc jak w PDF.
+    sql = "SELECT ISNULL(CAST(" + gSelDoZapl + " AS VARCHAR(50)),'0') AS Waga, "
     sql = sql + "ISNULL(CAST((fc.Price + ISNULL(fc.Addition,0)) AS VARCHAR(50)),'0') AS Cena "
     sql = sql + "FROM dbo.FarmerCalc fc "
+    sql = sql + gCrossApplyDoZapl + " "
     sql = sql + "WHERE " + pFiltrFC + " AND fc.CalcDate = '" + pData + "' "
-    sql = sql + "AND fc.PayWgt > 0"
+    sql = sql + "AND " + gSelDoZapl + " > 0"
     rs.open(sql, con)
     nPoz = 0
     While !rs.EOF
@@ -511,12 +553,13 @@ int sub ImportujFakture(String pFiltrFC, String pShortcut, String pNazwa, String
     con.connectionString = gConnStr
     con.open()
     rs  = "ADODB.Recordset"
-    // KLUCZOWE: PayWgt = "Do zapl." z PDF (juz po potraceniach). Cena = Price + Addition.
-    sql = "SELECT ISNULL(CAST(fc.PayWgt AS VARCHAR(50)),'0') AS Waga, "
+    // Waga = DoZapl liczona SWIEZO z pol surowych (nie PayWgt). Cena = Price + Addition.
+    sql = "SELECT ISNULL(CAST(" + gSelDoZapl + " AS VARCHAR(50)),'0') AS Waga, "
     sql = sql + "ISNULL(CAST((fc.Price + ISNULL(fc.Addition,0)) AS VARCHAR(50)),'0') AS Cena "
     sql = sql + "FROM dbo.FarmerCalc fc "
+    sql = sql + gCrossApplyDoZapl + " "
     sql = sql + "WHERE " + pFiltrFC + " AND fc.CalcDate = '" + pData + "' "
-    sql = sql + "AND fc.PayWgt > 0"
+    sql = sql + "AND " + gSelDoZapl + " > 0"
     rs.open(sql, con)
     nPoz = 0
     While !rs.EOF
@@ -626,16 +669,17 @@ int sub ZaladujGridDostawcow()
     sql = sql + "  ISNULL(CAST(COALESCE(p.SymfoniaId, d.IdSymf) AS VARCHAR(20)),'0') AS IdSymf, "
     sql = sql + "  CASE WHEN fc.IdPosrednik IS NOT NULL THEN '1' "
     sql = sql + "       ELSE CAST(ISNULL(CAST(d.IsVatowiec AS INT), -1) AS VARCHAR(5)) END AS Typ, "
-    sql = sql + "  ISNULL(CAST(CAST(SUM(fc.PayWgt) AS DECIMAL(18,2)) AS VARCHAR(30)),'0') AS Netto, "
-    sql = sql + "  ISNULL(CAST(CAST(CASE WHEN SUM(fc.PayWgt) > 0 "
-    sql = sql + "       THEN SUM(fc.PayWgt * (fc.Price + ISNULL(fc.Addition,0))) / SUM(fc.PayWgt) "
+    sql = sql + "  ISNULL(CAST(CAST(SUM(" + gSelDoZapl + ") AS DECIMAL(18,2)) AS VARCHAR(30)),'0') AS Netto, "
+    sql = sql + "  ISNULL(CAST(CAST(CASE WHEN SUM(" + gSelDoZapl + ") > 0 "
+    sql = sql + "       THEN SUM(" + gSelDoZapl + " * (fc.Price + ISNULL(fc.Addition,0))) / SUM(" + gSelDoZapl + ") "
     sql = sql + "       ELSE 0 END AS DECIMAL(18,4)) AS VARCHAR(30)),'0') AS Cena "
     sql = sql + "FROM dbo.FarmerCalc fc "
     sql = sql + "LEFT JOIN dbo.Dostawcy d ON LTRIM(RTRIM(fc.CustomerGID)) = LTRIM(RTRIM(d.ID)) "
     sql = sql + "LEFT JOIN dbo.Posrednicy p ON fc.IdPosrednik = p.Id AND p.Aktywny = 1 "
+    sql = sql + gCrossApplyDoZapl + " "
     sql = sql + "WHERE fc.CalcDate = '" + datap + "' "
     sql = sql + "AND fc.CustomerGID IS NOT NULL "
-    sql = sql + "AND fc.PayWgt > 0 "
+    sql = sql + "AND " + gSelDoZapl + " > 0 "
     sql = sql + "GROUP BY "
     sql = sql + "  CASE WHEN fc.IdPosrednik IS NOT NULL THEN 1 ELSE 0 END, "
     sql = sql + "  fc.IdPosrednik, fc.CustomerGID, p.Name1, d.ShortName, "

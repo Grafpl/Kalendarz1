@@ -41,8 +41,14 @@ namespace Kalendarz1.WPF
         private bool _isAutoPlay = true; // AUTO włączone domyślnie
         private DispatcherTimer? _autoTimer;
         private DispatcherTimer? _clockTimer;
+        // Niezależny watchdog detekcji zmiany dnia — tyka co 30s,
+        // żyje niezależnie od _clockTimer i od cyklu RefreshContent, więc nigdy nie zgubi przeskoku.
+        private DispatcherTimer? _dayWatchdogTimer;
         private int _autoCountdown = 40; // 40 sekund
         private TextBlock? _clockText;
+        // Pokazuje realny "dzisiaj" (Pon 31.05) niezależnie od _selectedDate
+        // (która po 14:00 pokazuje już jutro w trybie domyślnym).
+        private TextBlock? _todayDateText;
         // Śledzimy aktualny dzień — gdy panel działa parę dni jako kiosk, po przejściu północy
         // (lub granicy 14:00 z GetDefaultDate) musimy automatycznie przeskoczyć na nowy dzień.
         private DateTime _lastTrackedDate;
@@ -54,6 +60,7 @@ namespace Kalendarz1.WPF
         private Grid? _leftPanel;       // Lewy panel (produkty, nawigacja) - ODŚWIEŻANY
         private Grid? _contentPanel;    // Tabele odbiorców - ODŚWIEŻANE
         private Grid? _camerasArea;     // Kamery - STAŁE, NIGDY nie odświeżane
+        private Border? _loadingOverlay; // Overlay "Ładuję..." podczas zmiany daty (LoadDataAsync)
 
         // Flagi stanu kamer
         private bool _camerasInitialized = false;
@@ -61,26 +68,20 @@ namespace Kalendarz1.WPF
         private bool _camera2Connected = false;
         private DispatcherTimer? _reconnectTimer;
 
+        // Exponential backoff per kamera — przy długim downtime NVR nie zalewamy LibVLC
+        // próbami co 10s. Reset do 0 przy Playing.
+        private static readonly int[] _backoffSeconds = { 10, 30, 60, 180, 300 };
+        private int _camera1FailCount = 0;
+        private int _camera2FailCount = 0;
+        private DateTime _camera1NextRetry = DateTime.MinValue;
+        private DateTime _camera2NextRetry = DateTime.MinValue;
+
         // Kamery - konfiguracja RTSP przez NVR INTERNEC
         // Format URL: rtsp://admin:terePacja12%24@192.168.0.125:554/unicast/c{CHANNEL}/s{STREAM}/live
         // s0 = strumień główny (HD), s1 = podstrumień (SD - mniejsze obciążenie sieci)
-        private static readonly List<CameraConfig> _cameras = new()
-        {
-            new CameraConfig
-            {
-                Name = "Kanał 6 - PROD_Waga",
-                Channel = 6,
-                RtspUrl = "rtsp://admin:terePacja12%24@192.168.0.125:554/unicast/c6/s1/live",     // s1 = substream (podgląd)
-                RtspUrlHD = "rtsp://admin:terePacja12%24@192.168.0.125:554/unicast/c6/s0/live"    // s0 = main (fullscreen)
-            },
-            new CameraConfig
-            {
-                Name = "Kanał 21 - Zew_Tyl",
-                Channel = 21,
-                RtspUrl = "rtsp://admin:terePacja12%24@192.168.0.125:554/unicast/c21/s1/live",
-                RtspUrlHD = "rtsp://admin:terePacja12%24@192.168.0.125:554/unicast/c21/s0/live"
-            }
-        };
+        // Lista budowana z PanelJolaKameryConfig (plik %LOCALAPPDATA%\Kalendarz1\panel_jola_cameras.json)
+        // — admin ustawia kanały i nazwy w oknie "Kamery Panelu Joli", Jola tylko ogląda.
+        private readonly List<CameraConfig> _cameras;
 
         private class CameraConfig
         {
@@ -131,6 +132,26 @@ namespace Kalendarz1.WPF
             _connHandel = connHandel;
             _selectedDate = GetDefaultDate();
             _lastTrackedDate = _selectedDate;
+
+            // Wczytaj konfigurację kamer (admin ustawia w osobnym oknie, fallback ch6/ch21).
+            var camCfg = PanelJolaKameryConfig.Load();
+            _cameras = new List<CameraConfig>
+            {
+                new CameraConfig
+                {
+                    Name = camCfg.Camera1.Name,
+                    Channel = camCfg.Camera1.Channel,
+                    RtspUrl = PanelJolaKameryConfig.BuildRtspUrl(camCfg.Camera1.Channel, 1),
+                    RtspUrlHD = PanelJolaKameryConfig.BuildRtspUrl(camCfg.Camera1.Channel, 0)
+                },
+                new CameraConfig
+                {
+                    Name = camCfg.Camera2.Name,
+                    Channel = camCfg.Camera2.Channel,
+                    RtspUrl = PanelJolaKameryConfig.BuildRtspUrl(camCfg.Camera2.Channel, 1),
+                    RtspUrlHD = PanelJolaKameryConfig.BuildRtspUrl(camCfg.Camera2.Channel, 0)
+                }
+            };
 
             // Inicjalizacja LibVLC dla streamingu RTSP - ZOPTYMALIZOWANE
             Core.Initialize();
@@ -232,6 +253,34 @@ namespace Kalendarz1.WPF
 
             _mainContainer.Children.Add(rootGrid);
 
+            // Overlay "Ładuję..." pokazywany podczas async LoadDataAsync (zmiana daty).
+            // Stworzony tylko raz, normalnie Collapsed. Pokrywa CAŁE okno żeby zatrzymać kliknięcia w UI.
+            _loadingOverlay = new Border
+            {
+                Background = new SolidColorBrush(Color.FromArgb(180, 0, 0, 0)),
+                Visibility = Visibility.Collapsed
+            };
+            var loadingStack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+            loadingStack.Children.Add(new TextBlock
+            {
+                Text = "⏳",
+                FontSize = 60,
+                Foreground = Brushes.White,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 10)
+            });
+            loadingStack.Children.Add(new TextBlock
+            {
+                Text = "Ładuję dane...",
+                FontSize = 32,
+                FontWeight = FontWeights.Bold,
+                Foreground = Brushes.White,
+                HorizontalAlignment = HorizontalAlignment.Center
+            });
+            _loadingOverlay.Child = loadingStack;
+            Panel.SetZIndex(_loadingOverlay, 999);
+            _mainContainer.Children.Add(_loadingOverlay);
+
             // Pokaż ładowanie
             var loadingText = new TextBlock
             {
@@ -252,6 +301,10 @@ namespace Kalendarz1.WPF
 
             // Uruchom timer auto-reconnect
             StartReconnectTimer();
+
+            // Uruchom watchdog dnia — niezależny od _clockTimer (który żyje wewnątrz RefreshContent).
+            // Tyka co 30s i sam pilnuje, czy przeskoczyła północ lub granica 14:00.
+            StartDayWatchdog();
 
             try
             {
@@ -348,7 +401,12 @@ namespace Kalendarz1.WPF
                     }
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                // Nie psujemy okna jeśli zdjęcia nie wchodzą — ale chcemy ślad w logu,
+                // żeby nie zgadywać "czemu Jola nie widzi zdjęć".
+                LogCamera($"[IMG] LoadProductImagesAsync BLAD: {ex.Message}");
+            }
         }
 
         private BitmapImage? BytesToBitmapImage(byte[] data)
@@ -641,6 +699,24 @@ namespace Kalendarz1.WPF
             }
         }
 
+        /// <summary>
+        /// Wykonuje async work z widocznym overlay'em "Ładuję..." — żeby Jola wiedziała,
+        /// że klik został przyjęty (LoadDataAsync to 2-5s SQL). Overlay blokuje też klikanie
+        /// w UI w trakcie ładowania (zapobiega podwójnym klikom).
+        /// </summary>
+        private async System.Threading.Tasks.Task RunWithLoadingAsync(Func<System.Threading.Tasks.Task> work)
+        {
+            if (_loadingOverlay != null) _loadingOverlay.Visibility = Visibility.Visible;
+            try
+            {
+                await work();
+            }
+            finally
+            {
+                if (_loadingOverlay != null) _loadingOverlay.Visibility = Visibility.Collapsed;
+            }
+        }
+
         private void StartAutoTimer()
         {
             if (_autoTimer != null) return; // już uruchomiony
@@ -671,7 +747,7 @@ namespace Kalendarz1.WPF
             // ========== LEWA KOLUMNA (produkty, nawigacja) ==========
             var leftStack = new StackPanel { Margin = new Thickness(0, 0, 10, 0) };
 
-            // Zegar
+            // Zegar + realny dzisiejszy dzień (niezależny od _selectedDate)
             var clockBorder = new Border
             {
                 Background = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
@@ -680,48 +756,48 @@ namespace Kalendarz1.WPF
                 Margin = new Thickness(0, 0, 0, 10),
                 HorizontalAlignment = HorizontalAlignment.Center
             };
+            var clockStack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
+            var nowInit = DateTime.Now;
+            _todayDateText = new TextBlock
+            {
+                Text = "Dziś: " + nowInit.ToString("ddd dd.MM", new System.Globalization.CultureInfo("pl-PL")).ToUpper(),
+                FontSize = 13,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Color.FromRgb(241, 196, 15)), // żółto-pomarańczowy — wyraźny
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+            clockStack.Children.Add(_todayDateText);
             _clockText = new TextBlock
             {
-                Text = DateTime.Now.ToString("HH:mm:ss"),
+                Text = nowInit.ToString("HH:mm:ss"),
                 FontSize = 28,
                 FontWeight = FontWeights.Bold,
                 Foreground = Brushes.White,
                 HorizontalAlignment = HorizontalAlignment.Center
             };
-            clockBorder.Child = _clockText;
+            clockStack.Children.Add(_clockText);
+            clockBorder.Child = clockStack;
             leftStack.Children.Add(clockBorder);
 
             if (_clockTimer == null)
             {
                 _clockTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-                _clockTimer.Tick += async (s, e) =>
+                _clockTimer.Tick += (s, e) =>
                 {
-                    if (_clockText != null) _clockText.Text = DateTime.Now.ToString("HH:mm:ss");
+                    var now = DateTime.Now;
+                    if (_clockText != null) _clockText.Text = now.ToString("HH:mm:ss");
+                    if (_todayDateText != null)
+                    {
+                        // Realny "dzisiaj" niezależny od _selectedDate — żeby Jola zawsze widziała
+                        // jaki jest faktyczny dzień kalendarzowy (a nie tylko wybrany do edycji).
+                        _todayDateText.Text = "Dziś: " + now.ToString("ddd dd.MM", new System.Globalization.CultureInfo("pl-PL")).ToUpper();
+                    }
                     if (_isAutoPlay && _countdownText != null && _countdownBar != null)
                     {
                         _autoCountdown--;
                         if (_autoCountdown <= 0) _autoCountdown = 40;
                         _countdownText.Text = $"{_autoCountdown}s";
                         _countdownBar.Value = _autoCountdown;
-                    }
-
-                    // Wykryj zmianę dnia (lub granicę 14:00) — gdy panel działa parę dni jako kiosk,
-                    // bez tego data zostaje sprzed paru dni. Aktualizuj tylko jeśli user nie nawigował
-                    // ręcznie do innej daty (czyli wciąż "śledzi" auto-default).
-                    var newDefault = GetDefaultDate();
-                    if (newDefault != _lastTrackedDate && _selectedDate == _lastTrackedDate)
-                    {
-                        _lastTrackedDate = newDefault;
-                        _selectedDate = newDefault;
-                        try
-                        {
-                            await LoadDataAsync();
-                            RefreshContent();
-                        }
-                        catch (Exception ex)
-                        {
-                            System.Diagnostics.Debug.WriteLine($"PanelPaniJola day-change refresh error: {ex.Message}");
-                        }
                     }
                 };
                 _clockTimer.Start();
@@ -787,12 +863,25 @@ namespace Kalendarz1.WPF
             dateGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             dateGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-            var btnDatePrev = new Button { Content = "◀", FontSize = 16, Width = 32, Height = 32, Background = new SolidColorBrush(Color.FromRgb(52, 73, 94)), Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = System.Windows.Input.Cursors.Hand };
+            // Strzałki daty 48×48 — touch target zgodny z wytycznymi (przed: 32×32, palec ślizgał się).
+            var btnDatePrev = new Button { Content = "◀", FontSize = 22, Width = 48, Height = 48, Background = new SolidColorBrush(Color.FromRgb(52, 73, 94)), Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = System.Windows.Input.Cursors.Hand };
             var dateTxt = new TextBlock { Text = _selectedDate.ToString("dd.MM.yyyy"), FontSize = 18, FontWeight = FontWeights.Bold, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 6, 0) };
-            var btnDateNext = new Button { Content = "▶", FontSize = 16, Width = 32, Height = 32, Background = new SolidColorBrush(Color.FromRgb(52, 73, 94)), Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = System.Windows.Input.Cursors.Hand };
+            var btnDateNext = new Button { Content = "▶", FontSize = 22, Width = 48, Height = 48, Background = new SolidColorBrush(Color.FromRgb(52, 73, 94)), Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = System.Windows.Input.Cursors.Hand };
 
-            btnDatePrev.Click += async (s, e) => { _selectedDate = _selectedDate.AddDays(-1); await LoadDataAsync(); RefreshContent(); };
-            btnDateNext.Click += async (s, e) => { _selectedDate = _selectedDate.AddDays(1); await LoadDataAsync(); RefreshContent(); };
+            btnDatePrev.Click += async (s, e) =>
+            {
+                _selectedDate = _selectedDate.AddDays(-1);
+                _autoCountdown = 40; // reset countdown żeby auto-play nie odpalił od razu
+                await RunWithLoadingAsync(LoadDataAsync);
+                RefreshContent();
+            };
+            btnDateNext.Click += async (s, e) =>
+            {
+                _selectedDate = _selectedDate.AddDays(1);
+                _autoCountdown = 40;
+                await RunWithLoadingAsync(LoadDataAsync);
+                RefreshContent();
+            };
 
             Grid.SetColumn(btnDatePrev, 0); Grid.SetColumn(dateTxt, 1); Grid.SetColumn(btnDateNext, 2);
             dateGrid.Children.Add(btnDatePrev); dateGrid.Children.Add(dateTxt); dateGrid.Children.Add(btnDateNext);
@@ -801,14 +890,15 @@ namespace Kalendarz1.WPF
             string dzienTygodnia = _selectedDate.ToString("dddd", new System.Globalization.CultureInfo("pl-PL"));
             datePanel.Children.Add(new TextBlock { Text = dzienTygodnia, FontSize = 12, Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 2, 0, 0) });
 
-            var btnDzis = new Button { Content = "DZIŚ", FontSize = 12, FontWeight = FontWeights.Bold, Padding = new Thickness(15, 5, 15, 5), Background = new SolidColorBrush(Color.FromRgb(39, 174, 96)), Foreground = Brushes.White, BorderThickness = new Thickness(0), Margin = new Thickness(0, 5, 0, 0), Cursor = System.Windows.Input.Cursors.Hand, HorizontalAlignment = HorizontalAlignment.Center };
+            var btnDzis = new Button { Content = "DZIŚ", FontSize = 14, FontWeight = FontWeights.Bold, Padding = new Thickness(25, 12, 25, 12), Background = new SolidColorBrush(Color.FromRgb(39, 174, 96)), Foreground = Brushes.White, BorderThickness = new Thickness(0), Margin = new Thickness(0, 8, 0, 0), Cursor = System.Windows.Input.Cursors.Hand, HorizontalAlignment = HorizontalAlignment.Center };
             btnDzis.Click += async (s, e) =>
             {
                 // Po kliknięciu DZIŚ wracamy do auto-default i odnawiamy "śledzenie" dnia
                 // — kolejne przejście północy znów automatycznie aktualizuje datę.
                 _selectedDate = GetDefaultDate();
                 _lastTrackedDate = _selectedDate;
-                await LoadDataAsync();
+                _autoCountdown = 40;
+                await RunWithLoadingAsync(LoadDataAsync);
                 RefreshContent();
             };
             datePanel.Children.Add(btnDzis);
@@ -1017,12 +1107,13 @@ namespace Kalendarz1.WPF
             };
             camera1Grid.Children.Add(_videoView1);
 
-            // Warstwa 2: Status text
+            // Warstwa 2: Status text — biały dla lepszego kontrastu na czarnym tle (było szare ~4.5:1)
             _camera1Status = new TextBlock
             {
                 Text = "Laczenie...",
                 FontSize = 18,
-                Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)),
+                FontWeight = FontWeights.SemiBold,
+                Foreground = Brushes.White,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
@@ -1065,12 +1156,13 @@ namespace Kalendarz1.WPF
             };
             camera2Grid.Children.Add(_videoView2);
 
-            // Warstwa 2: Status text
+            // Warstwa 2: Status text — biały dla lepszego kontrastu (analogicznie do CAM1)
             _camera2Status = new TextBlock
             {
                 Text = "Laczenie...",
                 FontSize = 18,
-                Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)),
+                FontWeight = FontWeights.SemiBold,
+                Foreground = Brushes.White,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
@@ -1179,9 +1271,17 @@ namespace Kalendarz1.WPF
                         statusText.Visibility = Visibility.Collapsed;
 
                     if (cameraIndex == 0)
+                    {
                         _camera1Connected = true;
+                        _camera1FailCount = 0;
+                        _camera1NextRetry = DateTime.MinValue;
+                    }
                     else
+                    {
                         _camera2Connected = true;
+                        _camera2FailCount = 0;
+                        _camera2NextRetry = DateTime.MinValue;
+                    }
 
                     LogCamera($"[CAM{cameraIndex + 1}] OK Polaczono i odtwarza");
                 });
@@ -1233,11 +1333,11 @@ namespace Kalendarz1.WPF
                 // Uruchom
                 player.Play(media);
 
-                // Ustaw status
+                // Ustaw status — biały dla lepszego kontrastu na czarnym tle
                 if (statusText != null)
                 {
                     statusText.Text = "Laczenie...";
-                    statusText.Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166));
+                    statusText.Foreground = Brushes.White;
                     statusText.Visibility = Visibility.Visible;
                 }
 
@@ -1255,29 +1355,77 @@ namespace Kalendarz1.WPF
         }
 
         /// <summary>
-        /// Timer automatycznego ponownego łączenia - sprawdza co 10 sekund
+        /// Watchdog dnia — niezależny timer 30s.
+        /// Wcześniej detekcja siedziała w _clockTimer (1s), który był tworzony dopiero w RefreshContent
+        /// i mógł zostać zagłodzony przez auto-play. Teraz watchdog żyje od InitializeAsync do końca okna.
+        /// Po wykryciu przeskoku północy / 14:00 sam ładuje dane i odświeża widok.
+        /// </summary>
+        private void StartDayWatchdog()
+        {
+            _dayWatchdogTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
+            _dayWatchdogTimer.Tick += async (s, e) => await CheckDayChangeAsync();
+            _dayWatchdogTimer.Start();
+        }
+
+        /// <summary>
+        /// Sprawdza czy bieżący "domyślny dzień" (zmienia się o północy i o 14:00) różni się od ostatnio
+        /// śledzonego. Jeśli tak — i użytkownik wciąż patrzy na ten dzień (nie nawigował ręcznie) — odświeża.
+        /// Jeśli użytkownik nawigował ręcznie strzałkami, tracking jest pasywny aż do "DZIŚ".
+        /// </summary>
+        private async System.Threading.Tasks.Task CheckDayChangeAsync()
+        {
+            try
+            {
+                var newDefault = GetDefaultDate();
+                if (newDefault == _lastTrackedDate) return;          // nic się nie zmieniło
+                if (_selectedDate != _lastTrackedDate) return;        // user nawigował ręcznie — nie nadpisuj
+
+                _lastTrackedDate = newDefault;
+                _selectedDate = newDefault;
+                await RunWithLoadingAsync(LoadDataAsync);
+                RefreshContent();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"PanelPaniJola day-watchdog error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Timer auto-reconnect — tyka co 10s, ale faktyczna próba wg exponential backoff
+        /// per kamera (10s → 30s → 60s → 180s → 300s). Reset po sukcesie (Playing event).
+        /// Wcześniej waliliśmy reconnect co 10s niezależnie od liczby porażek, co zalewało LibVLC
+        /// gdy NVR był offline na dłużej.
         /// </summary>
         private void StartReconnectTimer()
         {
             _reconnectTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };
             _reconnectTimer.Tick += (s, e) =>
             {
-                // Sprawdź kamerę 1
-                if (!_camera1Connected || (_mediaPlayer1 != null && !_mediaPlayer1.IsPlaying))
+                var now = DateTime.Now;
+
+                if ((!_camera1Connected || (_mediaPlayer1 != null && !_mediaPlayer1.IsPlaying))
+                    && now >= _camera1NextRetry)
                 {
-                    LogCamera("[RECONNECT] Ponawiam połączenie z kamerą 1...");
+                    var delay = _backoffSeconds[Math.Min(_camera1FailCount, _backoffSeconds.Length - 1)];
+                    _camera1NextRetry = now.AddSeconds(delay);
+                    _camera1FailCount++;
+                    LogCamera($"[RECONNECT] CAM1 próba #{_camera1FailCount} (kolejna za ~{delay}s przy braku sukcesu)");
                     StartCameraStream(0);
                 }
 
-                // Sprawdź kamerę 2
-                if (!_camera2Connected || (_mediaPlayer2 != null && !_mediaPlayer2.IsPlaying))
+                if ((!_camera2Connected || (_mediaPlayer2 != null && !_mediaPlayer2.IsPlaying))
+                    && now >= _camera2NextRetry)
                 {
-                    LogCamera("[RECONNECT] Ponawiam połączenie z kamerą 2...");
+                    var delay = _backoffSeconds[Math.Min(_camera2FailCount, _backoffSeconds.Length - 1)];
+                    _camera2NextRetry = now.AddSeconds(delay);
+                    _camera2FailCount++;
+                    LogCamera($"[RECONNECT] CAM2 próba #{_camera2FailCount} (kolejna za ~{delay}s przy braku sukcesu)");
                     StartCameraStream(1);
                 }
             };
             _reconnectTimer.Start();
-            LogCamera("[RECONNECT] Timer auto-reconnect uruchomiony (co 10s)");
+            LogCamera("[RECONNECT] Timer auto-reconnect uruchomiony (co 10s, exp backoff)");
         }
 
         /// <summary>
@@ -1323,13 +1471,15 @@ namespace Kalendarz1.WPF
             };
             fullscreenVideoView.MediaPlayer = fullscreenPlayer;
 
-            var fullscreenMedia = new Media(_libVLC, new Uri(camera.RtspUrl)); // s1 - substream
+            // Fullscreen = HD (s0 mainstream). Podgląd w panelu nadal używa s1 (substream)
+            // dla wydajności sieci, ale po powiększeniu dajemy pełną rozdzielczość.
+            var fullscreenMedia = new Media(_libVLC, new Uri(camera.RtspUrlHD));
             fullscreenMedia.AddOption(":rtsp-tcp");
-            fullscreenMedia.AddOption(":network-caching=1000");
-            fullscreenMedia.AddOption(":live-caching=1000");
+            fullscreenMedia.AddOption(":network-caching=1500");
+            fullscreenMedia.AddOption(":live-caching=1500");
             fullscreenPlayer.Play(fullscreenMedia);
 
-            LogCamera($"[FULLSCREEN] Otwarto kamerę {cameraIndex + 1}: {camera.RtspUrl}");
+            LogCamera($"[FULLSCREEN] Otwarto kamerę {cameraIndex + 1} HD: {camera.RtspUrlHD}");
 
             // Przycisk zamknięcia w prawym górnym rogu
             var closeBtn = new Button
@@ -1355,11 +1505,25 @@ namespace Kalendarz1.WPF
             {
                 closeBtn.Background = new SolidColorBrush(Color.FromArgb(200, 231, 76, 60));
             };
+            // Idempotentny cleanup — chroni przed AccessViolationException przy zamykaniu fullscreen.
+            // Bez tego LibVLCSharp wywala się gdy Dispose() leci dwa razy (Click + Closed)
+            // lub gdy MediaPlayer nie jest odpięty od VideoView przed disposem.
+            bool fsDisposed = false;
+            Action fsCleanup = () =>
+            {
+                if (fsDisposed) return;
+                fsDisposed = true;
+                try { if (fullscreenVideoView != null) fullscreenVideoView.MediaPlayer = null; } catch { }
+                try { fullscreenPlayer.Stop(); } catch { }
+                // Daj LibVLC chwilę na detach zanim zwolnimy native handle.
+                System.Threading.Thread.Sleep(50);
+                try { fullscreenPlayer.Dispose(); } catch (Exception ex) { LogCamera($"[FULLSCREEN] Dispose ex: {ex.Message}"); }
+            };
+
             closeBtn.Click += (s, e) =>
             {
                 LogCamera("[FULLSCREEN] Przycisk X - zamykam");
-                fullscreenPlayer.Stop();
-                fullscreenPlayer.Dispose();
+                fsCleanup();
                 fullscreenWindow.Close();
             };
             fullscreenGrid.Children.Add(closeBtn);
@@ -1390,21 +1554,14 @@ namespace Kalendarz1.WPF
             {
                 if (e.Key == System.Windows.Input.Key.Escape)
                 {
-                    fullscreenPlayer.Stop();
-                    fullscreenPlayer.Dispose();
+                    fsCleanup();
                     fullscreenWindow.Close();
                 }
             };
 
-            fullscreenWindow.Closed += (s, e) =>
-            {
-                try
-                {
-                    fullscreenPlayer.Stop();
-                    fullscreenPlayer.Dispose();
-                }
-                catch { }
-            };
+            // Safety net — jeśli okno zostanie zamknięte inną drogą (Alt+F4, itp.)
+            // fsCleanup jest idempotentne, więc bezpiecznie wołać drugi raz.
+            fullscreenWindow.Closed += (s, e) => fsCleanup();
 
             fullscreenWindow.ShowDialog();
         }
@@ -1418,6 +1575,7 @@ namespace Kalendarz1.WPF
             _autoTimer?.Stop();
             _clockTimer?.Stop();
             _reconnectTimer?.Stop();
+            _dayWatchdogTimer?.Stop();
 
             LogCamera("[DISPOSE] Zwalnianie zasobów...");
 
@@ -1439,8 +1597,7 @@ namespace Kalendarz1.WPF
                 _mediaPlayer2 = null;
                 _libVLC = null;
 
-                // Reset flag
-                _camerasInitialized = false;
+                // Okno jednorazowe — flagi resetowane po dispose i tak nigdy nie są czytane.
                 _camera1Connected = false;
                 _camera2Connected = false;
             }
@@ -1452,21 +1609,66 @@ namespace Kalendarz1.WPF
             LogCamera("[DISPOSE] Zasoby kamery zwolnione");
         }
 
+        // Log w AppData + rotacja >1MB + filtr — wcześniej leciał na Desktop bez limitu
+        // i logował każdy event Playing/EndReached (po roku = setki MB śmiecia u Joli).
+        private static readonly object _logLock = new object();
+        private const long LogMaxSizeBytes = 1_048_576; // 1 MB
+
+        private static string LogPath
+        {
+            get
+            {
+                var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Kalendarz1");
+                Directory.CreateDirectory(dir);
+                return Path.Combine(dir, "panel_jola_camera.log");
+            }
+        }
+
+        private static bool ShouldLogToFile(string message)
+        {
+            // Tylko wpisy diagnostyczne — pomijamy spam Playing/EndReached/"Łączenie z:".
+            return message.Contains("[INIT]")
+                || message.Contains("[DISPOSE]")
+                || message.Contains("[RECONNECT]")
+                || message.Contains("[FULLSCREEN]")
+                || message.Contains("[IMG]")
+                || message.Contains("BLAD")
+                || message.Contains("Wyjątek")
+                || message.Contains("Dispose ex");
+        }
+
         private static void LogCamera(string message)
         {
             var timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
             var logEntry = $"[{timestamp}] {message}";
-            _cameraDebugLog.Add(logEntry);
 
-            // Zachowaj tylko ostatnie 100 wpisów
-            while (_cameraDebugLog.Count > 100)
-                _cameraDebugLog.RemoveAt(0);
+            // In-memory tail dla debug (do zachowania)
+            lock (_logLock)
+            {
+                _cameraDebugLog.Add(logEntry);
+                while (_cameraDebugLog.Count > 100)
+                    _cameraDebugLog.RemoveAt(0);
+            }
 
-            // Zapisz do pliku debug
+            if (!ShouldLogToFile(message)) return;
+
             try
             {
-                var logPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "camera_debug.log");
-                File.AppendAllText(logPath, logEntry + Environment.NewLine);
+                lock (_logLock)
+                {
+                    // Rotacja przy przekroczeniu rozmiaru — stary log idzie do .old
+                    if (File.Exists(LogPath))
+                    {
+                        var info = new FileInfo(LogPath);
+                        if (info.Length > LogMaxSizeBytes)
+                        {
+                            var oldPath = LogPath + ".old";
+                            if (File.Exists(oldPath)) File.Delete(oldPath);
+                            File.Move(LogPath, oldPath);
+                        }
+                    }
+                    File.AppendAllText(LogPath, logEntry + Environment.NewLine);
+                }
             }
             catch { }
         }

@@ -1,0 +1,142 @@
+<Window x:Class="Kalendarz1.Kontrakty.Views.KontraktWstawienieDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Wstawienie" Height="660" Width="640"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize" Background="#F1F5F9"
+        UseLayoutRounding="True" TextOptions.TextFormattingMode="Display">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/Kontrakty/Views/KontraktyTheme.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- Większe kontrolki w dialogu -->
+            <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+                <Setter Property="Height" Value="44"/>
+                <Setter Property="FontSize" Value="15"/>
+                <Setter Property="Padding" Value="13,0"/>
+                <Setter Property="VerticalContentAlignment" Value="Center"/>
+            </Style>
+            <Style TargetType="DatePicker" BasedOn="{StaticResource {x:Type DatePicker}}">
+                <Setter Property="Height" Value="44"/>
+                <Setter Property="FontSize" Value="15"/>
+                <Setter Property="VerticalContentAlignment" Value="Center"/>
+            </Style>
+            <Style TargetType="TextBlock" x:Key="LblBig" BasedOn="{StaticResource Lbl}">
+                <Setter Property="FontSize" Value="13"/>
+                <Setter Property="Margin" Value="0,12,0,5"/>
+            </Style>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Border Grid.Row="0" Background="{StaticResource HeaderBrush}" Padding="24,13">
+            <StackPanel>
+                <TextBlock x:Name="txtTytul" Text="🐔 Nowe wstawienie" Foreground="White" FontSize="17" FontWeight="Bold"/>
+                <TextBlock Text="Podaj datę i liczbę piskląt — daty ubiórki i pełnego uboju policzą się automatycznie."
+                           Foreground="#C8E6C9" FontSize="12" Margin="0,3,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="22,16">
+        <StackPanel>
+            <!-- 1. Wstawienie -->
+            <Border Background="White" CornerRadius="12" Padding="18,14" BorderBrush="{StaticResource Line}" BorderThickness="1">
+                <StackPanel>
+                    <TextBlock Text="📅  WSTAWIENIE" Style="{StaticResource CardTitle}"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/><ColumnDefinition Width="14"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="📅 Data wstawienia" Style="{StaticResource LblBig}"/>
+                            <DatePicker x:Name="dpWst" SelectedDateChanged="Pole_Changed"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="🐔 Liczba piskląt (szt.)" Style="{StaticResource LblBig}"/>
+                            <TextBox x:Name="txtSzt" TextChanged="Pole_Changed"/>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- 2. Auto-podgląd dat -->
+            <Border Background="{StaticResource GreenSoft}" CornerRadius="12" Padding="18,14" Margin="0,12,0,0"
+                    BorderBrush="{StaticResource Green}" BorderThickness="1">
+                <StackPanel>
+                    <TextBlock Text="🔄  WYLICZONE AUTOMATYCZNIE" FontSize="12" FontWeight="Bold" Foreground="{StaticResource GreenDark}"/>
+                    <UniformGrid Columns="2" Margin="0,10,0,0">
+                        <StackPanel>
+                            <TextBlock Text="📦 Ubiórka (+33 dni)" FontSize="12" Foreground="{StaticResource GreenDark}" Opacity="0.85"/>
+                            <TextBlock x:Name="txtAutoUbiorka" FontSize="19" FontWeight="Bold" Foreground="{StaticResource GreenDark}" Margin="0,3,0,0"/>
+                        </StackPanel>
+                        <StackPanel>
+                            <TextBlock Text="🔪 Pełny ubój (+42 dni)" FontSize="12" Foreground="{StaticResource GreenDark}" Opacity="0.85"/>
+                            <TextBlock x:Name="txtAutoUboj" FontSize="19" FontWeight="Bold" Foreground="{StaticResource GreenDark}" Margin="0,3,0,0"/>
+                        </StackPanel>
+                    </UniformGrid>
+                </StackPanel>
+            </Border>
+
+            <!-- 3. Powtórz (tylko w trybie NOWE) -->
+            <Border x:Name="panelPowtorz" Background="White" CornerRadius="12" Padding="18,14" Margin="0,12,0,0"
+                    BorderBrush="{StaticResource Line}" BorderThickness="1">
+                <StackPanel>
+                    <TextBlock Text="🔁  POWTÓRZ (opcjonalnie)" Style="{StaticResource CardTitle}"/>
+                    <TextBlock Text="Doda kolejne wstawienia w stałych odstępach od daty wyżej."
+                               FontSize="12" Foreground="{StaticResource Muted}" Margin="0,-4,0,10"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/><ColumnDefinition Width="14"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="📆 Co ile dni" Style="{StaticResource LblBig}"/>
+                            <TextBox x:Name="txtCoIle" Text="67" TextChanged="Pole_Changed"
+                                     ToolTip="Odstęp między wstawieniami (typowo 60–70 dni)"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="🔢 Ile wstawień łącznie" Style="{StaticResource LblBig}"/>
+                            <TextBox x:Name="txtIle" Text="1" TextChanged="Pole_Changed"
+                                     ToolTip="1 = tylko to jedno. Większa liczba doda kopie co N dni."/>
+                        </StackPanel>
+                    </Grid>
+                    <TextBlock x:Name="txtPodpowiedzPowtorz" FontSize="12.5" Foreground="{StaticResource Muted}"
+                               Margin="2,10,0,0" TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+
+            <Border x:Name="boxBlad" Background="#FEE2E2" CornerRadius="9" Padding="14,9" Margin="0,12,0,0"
+                    BorderBrush="#FCA5A5" BorderThickness="1" Visibility="Collapsed">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="⚠" FontSize="18" Foreground="#991B1B"
+                               VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <TextBlock Grid.Column="1" x:Name="txtBlad" Foreground="#991B1B" FontSize="12.5"
+                               FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                </Grid>
+            </Border>
+        </StackPanel>
+        </ScrollViewer>
+
+        <Border Grid.Row="2" Background="White" Padding="24,14" BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="Anuluj" Style="{StaticResource Btn}" Click="BtnAnuluj_Click"
+                        Height="44" FontSize="14" Padding="22,0"/>
+                <Button x:Name="btnOk" Content="✔ Zapisz wstawienie" Style="{StaticResource BtnPrimary}" Click="BtnOk_Click"
+                        Height="44" FontSize="14" Padding="22,0"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

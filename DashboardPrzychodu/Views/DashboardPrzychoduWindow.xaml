@@ -343,10 +343,10 @@
 
                     <TextBlock Text="Plan:" FontSize="9" Foreground="#78716c" VerticalAlignment="Center" Margin="0,0,6,0"/>
                     <RadioButton x:Name="rbPlanStare" Content="Stare" GroupName="PlanMode"
-                                 IsChecked="True" Checked="RbPlanMode_Checked"
+                                 Checked="RbPlanMode_Checked"
                                  Foreground="#a8a29e" FontSize="9" VerticalAlignment="Center" Margin="0,0,8,0" Cursor="Hand"/>
                     <RadioButton x:Name="rbPlanNowe" Content="Nowe" GroupName="PlanMode"
-                                 Checked="RbPlanMode_Checked"
+                                 IsChecked="True" Checked="RbPlanMode_Checked"
                                  Foreground="#a8a29e" FontSize="9" VerticalAlignment="Center" Cursor="Hand"/>
                 </StackPanel>
 
@@ -363,9 +363,9 @@
         </Border>
 
         <!-- ============================================ -->
-        <!-- ROW 1: KPI STRIP (36px) - 6 kafelków -->
+        <!-- ROW 1: KPI STRIP (36px) - 7 kafelków (dodano ETA) -->
         <!-- ============================================ -->
-        <UniformGrid Grid.Row="1" Columns="6" Margin="0,4,0,0">
+        <UniformGrid Grid.Row="1" Columns="7" Margin="0,4,0,0">
 
             <!-- PLAN -->
             <Border Background="#292524" CornerRadius="4" Margin="0,0,2,0" Padding="6,3"
@@ -455,6 +455,22 @@
                             <TextBlock x:Name="txtPrognozaTuszek" Text="0" FontSize="13" FontWeight="Bold" Foreground="#c084fc"/>
                             <TextBlock Text=" kg" FontSize="8" Foreground="#78716c" VerticalAlignment="Bottom" Margin="0,0,0,1"/>
                         </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- ETA + PACE - nowy kafelek (#6 + #7) - tooltip ustawiany programowo z UpdateSummaryUI -->
+            <Border x:Name="borderEta" Background="#292524" CornerRadius="4" Margin="2,0" Padding="6,3"
+                    BorderThickness="0,0,0,2" BorderBrush="#60a5fa" Cursor="Help">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock x:Name="IcoEta" Text="⏰" FontSize="14" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="ETA" FontSize="7" Foreground="#78716c" FontWeight="SemiBold"/>
+                            <TextBlock x:Name="txtPaceBadge" Text="" FontSize="7" FontWeight="SemiBold"
+                                       Foreground="#78716c" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <TextBlock x:Name="txtEta" Text="—" FontSize="13" FontWeight="Bold" Foreground="#60a5fa"/>
                     </StackPanel>
                 </StackPanel>
             </Border>
@@ -797,6 +813,55 @@
                         </Expander>
                     </Border>
 
+                    <!-- HISTORIA ZMIAN DEKLARACJI - pod AKCJE, kompaktowa lista -->
+                    <Border Background="#292524" CornerRadius="5" Padding="8,6" Margin="0,6,0,0">
+                        <StackPanel>
+                            <Grid Margin="0,0,0,4">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="📝 HISTORIA DEKLARACJI" FontSize="10" FontWeight="Bold" Foreground="#fbbf24"/>
+                                    <TextBlock x:Name="txtHistoriaCount" Text="(0)" FontSize="9" Foreground="#78716c" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <TextBlock Text="Szt.Dek / Waga Brutto / Tara hodowcy" FontSize="8" Foreground="#78716c"
+                                           HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                            </Grid>
+
+                            <!-- Lista zmian: TOP 100 najnowszych, scroll w pionie -->
+                            <Border Background="#1c1917" CornerRadius="4" Padding="4" MaxHeight="280">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                    <ItemsControl x:Name="icHistoriaZmian">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Background="#292524" CornerRadius="3" Padding="6,4" Margin="0,0,0,3"
+                                                        ToolTip="{Binding Tooltip}">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="38"/>  <!-- HH:mm -->
+                                                            <ColumnDefinition Width="50"/>  <!-- Pole (Szt/Brutto/Tara) -->
+                                                            <ColumnDefinition Width="*"/>   <!-- Old → New + hodowca -->
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Grid.Column="0" Text="{Binding TimeDisplay}"
+                                                                   FontSize="9" FontWeight="SemiBold" Foreground="#fbbf24"
+                                                                   VerticalAlignment="Center"/>
+                                                        <Border Grid.Column="1" Background="#44403c" CornerRadius="2" Padding="3,1" Margin="0,0,4,0"
+                                                                HorizontalAlignment="Left" VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding FieldShort}" FontSize="8" FontWeight="Bold" Foreground="#e7e5e4"/>
+                                                        </Border>
+                                                        <StackPanel Grid.Column="2">
+                                                            <TextBlock Text="{Binding Hodowca}" FontSize="9" FontWeight="SemiBold"
+                                                                       Foreground="#a8a29e" TextTrimming="CharacterEllipsis"/>
+                                                            <TextBlock Text="{Binding ZmianaDisplay}" FontSize="10" FontWeight="Bold"
+                                                                       Foreground="#60a5fa" TextTrimming="CharacterEllipsis"/>
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
                 </StackPanel>
             </ScrollViewer>
 
@@ -851,7 +916,7 @@
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
 
-                            <DataGridTemplateColumn Header="HODOWCA" Width="*" MinWidth="180">
+                            <DataGridTemplateColumn Header="HODOWCA" Width="*" MinWidth="140">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding Hodowca}"
@@ -887,12 +952,15 @@
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
-                            <DataGridTemplateColumn Header="ODCHYL." Width="115">
+                            <!-- ODCH.PLAN: vs plan-na-auto (dispatching POV). Tooltip pokazuje OBIE metryki. -->
+                            <DataGridTemplateColumn Header="ODCH.PLAN" Width="115"
+                                                    ToolTipService.ToolTip="Odchylenie wzgledem planu dispatchera na to auto">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <TextBlock Text="{Binding OdchylenieDisplay}"
+                                        <TextBlock Text="{Binding OdchylenieVsPlanAutoDisplay}"
                                                    Foreground="{Binding Poziom, Converter={StaticResource OdchylenieToColorConverter}}"
-                                                   VerticalAlignment="Center" FontSize="11"/>
+                                                   VerticalAlignment="Center" FontSize="11"
+                                                   ToolTip="{Binding OdchylenieFullTooltip}"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
@@ -935,10 +1003,11 @@
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
-                            <DataGridTemplateColumn Header="W.RZ" Width="75">
+                            <DataGridTemplateColumn Header="W.RZ" Width="75"
+                                                    ToolTipService.ToolTip="Srednia waga rzeczywista [kg/szt] = Netto / SztRzecz">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <TextBlock Text="{Binding SredniaWagaRzeczywistaCalc, Converter={StaticResource NullToDashConverter}}"
+                                        <TextBlock Text="{Binding SredniaWagaRzeczywistaCalc, StringFormat='{}{0:N2}', TargetNullValue='-', FallbackValue='-'}"
                                                    Foreground="{Binding Status, Converter={StaticResource StatusToColorConverter}}"
                                                    FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     </DataTemplate>
@@ -956,27 +1025,7 @@
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
-                            <!-- ROZMIAR kurczaka (5-12 szt/pojemnik) -->
-                            <DataGridTemplateColumn Header="ROZM." Width="55"
-                                                    ToolTipService.ToolTip="Rozmiar kurczaka (szt/pojemnik 15kg)">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding RozmiarDisplay}" FontSize="11" FontWeight="Bold"
-                                                   Foreground="#60a5fa" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
-
-                            <!-- Status jako ikona -->
-                            <DataGridTemplateColumn Header="" Width="42">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding StatusIcon}" FontSize="16"
-                                                   HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                   ToolTip="{Binding StatusText}"/>
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
+                            <!-- ROZM. i Status icon usuniete na zyczenie usera -->
 
                             <DataGridTextColumn Header="GODZ" Binding="{Binding PrzyjazdDisplay}" Width="75">
                                 <DataGridTextColumn.ElementStyle>
@@ -997,17 +1046,15 @@
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="55"/>   <!-- LP -->
-                                <ColumnDefinition Width="*"/>    <!-- HODOWCA -->
+                                <ColumnDefinition Width="*" MinWidth="140"/>  <!-- HODOWCA (zwezona) -->
                                 <ColumnDefinition Width="100"/>  <!-- PLAN -->
                                 <ColumnDefinition Width="95"/>   <!-- RZECZ -->
-                                <ColumnDefinition Width="115"/>  <!-- ODCHYLENIE -->
+                                <ColumnDefinition Width="115"/>  <!-- ODCH.PLAN -->
                                 <ColumnDefinition Width="105"/>  <!-- POZOSTAŁO -->
                                 <ColumnDefinition Width="80"/>   <!-- POSTĘP -->
                                 <ColumnDefinition Width="75"/>   <!-- W.DEK -->
                                 <ColumnDefinition Width="75"/>   <!-- W.RZ -->
                                 <ColumnDefinition Width="85"/>   <!-- TUSZKI -->
-                                <ColumnDefinition Width="55"/>   <!-- ROZMIAR -->
-                                <ColumnDefinition Width="42"/>   <!-- STATUS -->
                                 <ColumnDefinition Width="75"/>   <!-- GODZ -->
                             </Grid.ColumnDefinitions>
 
@@ -1015,7 +1062,8 @@
                             <TextBlock Grid.Column="1" x:Name="txtSumaDostawy" Text="0 dostaw" FontSize="11" Foreground="#a8a29e" VerticalAlignment="Center"/>
                             <TextBlock Grid.Column="2" x:Name="txtSumaPlan" Text="0" FontSize="12" FontWeight="SemiBold" Foreground="#e7e5e4" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                             <TextBlock Grid.Column="3" x:Name="txtSumaRzecz" Text="0" FontSize="12" FontWeight="Bold" Foreground="#22c55e" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="4" x:Name="txtSumaOdchylenie" Text="-" FontSize="11" FontWeight="SemiBold" Foreground="#fbbf24" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                            <TextBlock Grid.Column="4" x:Name="txtSumaOdchylenie" Text="-" FontSize="11" FontWeight="SemiBold" Foreground="#fbbf24" VerticalAlignment="Center" HorizontalAlignment="Center"
+                                       ToolTip="Suma odchylen vs plan-na-auto"/>
                             <StackPanel Grid.Column="5" VerticalAlignment="Center">
                                 <TextBlock x:Name="txtSumaPozostaloKg" Text="-" Foreground="#60a5fa" FontSize="11" FontWeight="SemiBold"/>
                                 <TextBlock x:Name="txtSumaPozostaloTuszki" Text="-" Foreground="#c084fc" FontSize="10"/>
@@ -1024,9 +1072,7 @@
                             <TextBlock Grid.Column="7" x:Name="txtSumaWagaPlan" Text="-" FontSize="11" Foreground="#78716c" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             <TextBlock Grid.Column="8" x:Name="txtSumaSrWaga" Text="-" FontSize="11" Foreground="#e7e5e4" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             <TextBlock Grid.Column="9" x:Name="txtSumaTuszkiRzecz" Text="-" FontSize="12" FontWeight="Bold" Foreground="#c084fc" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="10" Text="-" FontSize="11" Foreground="#60a5fa" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="11" Text="-" FontSize="11" Foreground="#78716c" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="12" Text="-" FontSize="11" Foreground="#78716c" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="10" Text="-" FontSize="11" Foreground="#78716c" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Grid>
                     </Border>
                 </Grid>

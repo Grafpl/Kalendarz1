@@ -2258,7 +2258,24 @@ namespace Kalendarz1
                 new ModuleInfo("ProductImages", "Zdjęcia Produktów", "Zarządzanie zdjęciami produktów", "Administracja Systemu", "📷"),
                 new ModuleInfo("UstawieniaZmianZamowien", "Ustawienia Zmian Zamówień", "Konfiguracja zmian w zamówieniach", "Administracja Systemu", "⚙️"),
                 new ModuleInfo("CentrumNagranAI", "Centrum nagrań AI", "Wyszukiwanie zdarzeń w nagraniach CCTV po polskim opisie - kamery NVR + Claude AI", "Administracja Systemu", "🎥"),
-                new ModuleInfo("PozyskiwanieHodowcow", "Pozyskiwanie Hodowców", "CRM do pozyskiwania nowych hodowców drobiu", "Zaopatrzenie i Zakupy", "🐔")
+                new ModuleInfo("KameryPanelJola", "Kamery Panelu Joli", "Konfiguracja 2 kanałów NVR widocznych na Panelu Pani Joli (admin)", "Administracja Systemu", "📹"),
+                new ModuleInfo("PozyskiwanieHodowcow", "Pozyskiwanie Hodowców", "CRM do pozyskiwania nowych hodowców drobiu", "Zaopatrzenie i Zakupy", "🐔"),
+
+                // === Moduly dodane do przydzielania (wczesniej brakowalo w panelu) ===
+                new ModuleInfo("DOA", "DOA - Padłe w Transporcie", "Rejestr padłych sztuk w transporcie żywca", "Zaopatrzenie i Zakupy", "💀"),
+                new ModuleInfo("ColdChain", "Cold Chain HACCP", "Monitoring łańcucha chłodniczego - temperatury HACCP", "Produkcja i Magazyn", "🌡️"),
+                new ModuleInfo("Traceability", "Traceability + Recall", "Śledzenie partii od hodowcy do klienta + wycofanie produktu", "Produkcja i Magazyn", "🔗"),
+                new ModuleInfo("RezerwacjaKlas", "Rezerwacja Klas Wagowych", "Rezerwacja klas wagowych drobiu dla klientów", "Sprzedaż i CRM", "⚖️"),
+                new ModuleInfo("Customer360", "Karta Klienta 360°", "Pełen widok klienta - zamówienia, faktury, salda, historia", "Sprzedaż i CRM", "👤"),
+                new ModuleInfo("PrognozyUboju", "Prognoza Uboju", "Prognoza uboju i produkcji (starszy moduł)", "Planowanie i Analizy", "📈"),
+                new ModuleInfo("AnalizaPrzychodu", "Analiza Przychodu", "Analiza przychodu produkcji (starszy moduł)", "Planowanie i Analizy", "📊"),
+                new ModuleInfo("AnalizaTygodniowa", "Dashboard Analityczny", "Analiza tygodniowa sprzedaży (starszy moduł)", "Planowanie i Analizy", "📉"),
+                new ModuleInfo("AnalizaWydajnosci", "Analiza Wydajności", "Analiza wydajności krojenia (starszy moduł)", "Planowanie i Analizy", "⚡"),
+                new ModuleInfo("TransportHub", "Centrum Transportu", "Centralne zarządzanie transportem i kursami", "Opakowania i Transport", "🚚"),
+                new ModuleInfo("MapowanieFlota", "Mapowanie Webfleet (GPS)", "Mapowanie pojazdów GPS z systemem Webfleet", "Opakowania i Transport", "📍"),
+                new ModuleInfo("Sprawozdania", "Sprawozdania", "Generowanie sprawozdań i raportów", "Finanse i Zarządzanie", "📄"),
+                new ModuleInfo("SprawozdaniaGus", "Sprawozdania GUS", "Sprawozdania dla Głównego Urzędu Statystycznego", "Finanse i Zarządzanie", "🏛️"),
+                new ModuleInfo("ZSRIR", "ZSRIR", "Zintegrowany System Rolniczej Informacji Rynkowej", "Finanse i Zarządzanie", "📋")
             };
         }
 
@@ -2336,7 +2353,20 @@ namespace Kalendarz1
                 [64] = "RaportFloty",
                 [65] = "StatystykiReklamacji",
                 [66] = "AnalitykaPelna",
-                [67] = "CentrumNagranAI"
+                [67] = "CentrumNagranAI",
+                [68] = "MapowanieFlota",
+                [69] = "TransportHub",
+                [70] = "Sprawozdania",
+                [71] = "ZSRIR",
+                [72] = "SprawozdaniaGus",
+                [73] = "Customer360",
+                [74] = "DOA",
+                [75] = "ColdChain",
+                [76] = "Traceability",
+                [77] = "TransportWPF",
+                [78] = "KontraktyHodowcow",
+                [79] = "MapowanieDostawcow",
+                [80] = "KameryPanelJola"
             };
         }
 

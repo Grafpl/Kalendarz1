@@ -122,8 +122,10 @@
             </Grid>
         </Border>
 
-        <!-- GRID (single, full body) -->
-        <Border Grid.Row="1" Background="White" Margin="14,12,14,8" CornerRadius="6"
+        <!-- TABS: główne mapowanie + faktury bez przypisania -->
+        <TabControl Grid.Row="1" Margin="14,8,14,8" Background="Transparent" BorderThickness="0">
+            <TabItem Header="👥 Hodowcy → Symfonia" FontWeight="SemiBold" Padding="14,8">
+            <Border Background="White" CornerRadius="6"
                 BorderBrush="#E5E7EB" BorderThickness="1">
             <DataGrid x:Name="dgDostawcy"
                       ItemsSource="{Binding Dostawcy}"
@@ -281,6 +283,262 @@
                 </DataGrid.Columns>
             </DataGrid>
         </Border>
+            </TabItem>
+
+            <!-- ============ TAB 2: kontrahenci Symfonii z FVR/FVZ bez mapowania na LibraNet ============ -->
+            <TabItem x:Name="tabOrfani" Header="📄 Faktury bez przypisania" FontWeight="SemiBold" Padding="14,8">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Pasek filtrów: okres + filtr tekstowy + bulk + licznik -->
+                    <Border Grid.Row="0" Background="White" BorderBrush="#E5E7EB" BorderThickness="1,1,1,0" CornerRadius="6,6,0,0" Padding="14,10">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- LEWA strona: okres + filtr -->
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="📅" FontSize="14" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <TextBlock Text="Okres:" VerticalAlignment="Center" Foreground="#374151" FontWeight="SemiBold"/>
+                                <ComboBox x:Name="cmbOrfaniOkres" Width="150" Margin="8,0,0,0" Padding="8,4"
+                                          SelectionChanged="CmbOrfaniOkres_SelectionChanged"
+                                          ToolTip="Ile miesięcy wstecz szukać faktur FVR/FVZ za Kurczaka żywego">
+                                    <ComboBoxItem Tag="3">3 miesiące</ComboBoxItem>
+                                    <ComboBoxItem Tag="6">6 miesięcy</ComboBoxItem>
+                                    <ComboBoxItem Tag="12" IsSelected="True">12 miesięcy (rok)</ComboBoxItem>
+                                    <ComboBoxItem Tag="24">24 miesiące</ComboBoxItem>
+                                    <ComboBoxItem Tag="36">36 miesięcy</ComboBoxItem>
+                                </ComboBox>
+                                <Button Content="🔄" Click="BtnRefreshOrfani_Click"
+                                        Style="{StaticResource SecondaryButton}" Margin="6,0,16,0" Padding="10,4"
+                                        ToolTip="Przelicz dla wybranego okresu"/>
+                                <TextBox x:Name="txtOrfaniFilter" Width="240" Padding="10,6" FontSize="13"
+                                         BorderBrush="#E5E7EB" BorderThickness="1"
+                                         TextChanged="TxtOrfaniFilter_TextChanged"
+                                         ToolTip="🔍 Szukaj po nazwie kontrahenta lub NIP"/>
+                            </StackPanel>
+
+                            <!-- ŚRODEK: licznik -->
+                            <Border Grid.Column="1" Background="#EEF2FF" CornerRadius="6" Padding="12,6" Margin="14,0,14,0" VerticalAlignment="Center"
+                                    BorderBrush="#C7D2FE" BorderThickness="1" HorizontalAlignment="Center">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="🐔 " FontSize="14" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="txtOrfaniCount" Text="0" Foreground="#3730A3" FontWeight="Bold" FontSize="14" VerticalAlignment="Center"/>
+                                    <TextBlock Text=" kontrahentów z fakturami za 'Kurczak żywy' bez hodowcy w LibraNet"
+                                               Foreground="#4338CA" FontSize="12" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- PRAWA strona: bulk auto-NIP -->
+                            <Button Grid.Column="2" Content="⚡ Auto-przypisz po NIP" Click="BtnOrfaniBulkAutoMap_Click"
+                                    Style="{StaticResource PrimaryButton}" Padding="14,6"
+                                    ToolTip="Przypisz hurtowo wszystkich orfanów, dla których istnieje niezmapowany hodowca LibraNet o tym samym NIP-ie (10 cyfr, 1:1)"/>
+                        </Grid>
+                    </Border>
+
+                    <Grid Grid.Row="1">
+                    <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1,0,1,1" CornerRadius="0,0,6,6">
+                        <DataGrid x:Name="dgOrfani"
+                                  ItemsSource="{Binding Orfani}"
+                                  AutoGenerateColumns="False"
+                                  CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="False"
+                                  GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="{StaticResource BorderSubtle}"
+                                  HeadersVisibility="Column" RowHeaderWidth="0"
+                                  Background="White" BorderThickness="0"
+                                  RowHeight="44"
+                                  SelectionMode="Single" SelectionUnit="FullRow"
+                                  ColumnHeaderStyle="{StaticResource DgHeader}"
+                                  VirtualizingPanel.IsVirtualizing="True">
+                            <DataGrid.RowStyle>
+                                <Style TargetType="DataGridRow">
+                                    <!-- Tło wiersza wg "staleness" (im starsza ostatnia faktura, tym cieplejsza barwa) -->
+                                    <Setter Property="Background" Value="{Binding WierszTlo}"/>
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" Value="#E0E7FF"/>
+                                        </Trigger>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter Property="Background" Value="#C7D2FE"/>
+                                            <Setter Property="Foreground" Value="#1E1B4B"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </DataGrid.RowStyle>
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Kontrahent (Symfonia)" Binding="{Binding KontrahentName}" Width="300" IsReadOnly="True">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                            <Setter Property="Padding" Value="6,0"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <DataGridTextColumn Header="NIP Symfonia" Binding="{Binding KontrahentNipDisplay}" Width="130" IsReadOnly="True">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="FontFamily" Value="Consolas"/>
+                                            <Setter Property="FontSize" Value="12"/>
+                                            <Setter Property="Foreground" Value="#4338CA"/>
+                                            <Setter Property="Padding" Value="6,0"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <!-- WOLUMEN: kg + zł, kolor zależy od skali (większy kontrahent = mocniejszy fiolet) -->
+                                <DataGridTemplateColumn Header="Wolumen 'Kurczak żywy'" Width="210" IsReadOnly="True">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border CornerRadius="6" Padding="10,5" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="6,0"
+                                                    Background="{Binding WolumenBadgeBg}">
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding KgText}" Foreground="{Binding WolumenBadgeFg}" FontWeight="Bold" FontSize="13"/>
+                                                    <TextBlock Text="{Binding WartoscText}" Foreground="{Binding WolumenBadgeFg}" FontSize="11" Opacity="0.92"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
+                                <DataGridTemplateColumn Header="Faktur (FVR/FVZ)" Width="110" IsReadOnly="True">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border CornerRadius="10" Padding="10,3" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                    Background="{Binding FvBadgeBg}">
+                                                <TextBlock Text="{Binding FvCount}" Foreground="{Binding FvBadgeFg}" FontWeight="Bold" FontSize="13"/>
+                                            </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
+                                <DataGridTemplateColumn Header="Ostatnia faktura" Width="190" IsReadOnly="True">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="6,0">
+                                                <TextBlock Text="{Binding OstatniaFakturaText}" FontWeight="SemiBold" Foreground="#1F2937" VerticalAlignment="Center"/>
+                                                <Border CornerRadius="8" Padding="7,2" Margin="8,0,0,0" VerticalAlignment="Center"
+                                                        Background="{Binding DniBadgeBg}">
+                                                    <TextBlock Text="{Binding DniText}" Foreground="{Binding DniBadgeFg}" FontWeight="SemiBold" FontSize="10.5"/>
+                                                </Border>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
+                                <!-- PRZYPISZ HODOWCĘ Z LIBRANET — sugestia NIP (jeśli jest) + inline autocomplete -->
+                                <DataGridTemplateColumn Header="→ Przypisz hodowcę z LibraNet (wpisz aby szukać, lub kliknij sugestię)" Width="*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Grid Margin="4,2">
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="*"/>
+                                                </Grid.RowDefinitions>
+
+                                                <!-- Sugestia NIP (1-click) — widoczna tylko gdy istnieje hodowca z tym samym NIP-em -->
+                                                <Button Grid.Row="0"
+                                                        Content="{Binding SugestiaNipText}"
+                                                        Click="BtnSugestiaNip_Click"
+                                                        Tag="{Binding}"
+                                                        Visibility="{Binding MaSugestieNip, Converter={StaticResource BoolToVisConv}}"
+                                                        Background="#10B981" Foreground="White" FontWeight="SemiBold" FontSize="11.5"
+                                                        BorderThickness="0" Padding="10,5" Cursor="Hand"
+                                                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                                                        Margin="0,0,0,4"
+                                                        ToolTip="Kliknij aby od razu przypisać tego hodowcę">
+                                                    <Button.Template>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                                                                <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="bd" Property="Background" Value="#059669"/>
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Button.Template>
+                                                </Button>
+
+                                                <TextBox x:Name="tbSearchOrf" Grid.Row="1"
+                                                         Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
+                                                         Padding="6,5" FontSize="12"
+                                                         BorderBrush="{StaticResource BorderSubtle}" BorderThickness="1"
+                                                         VerticalContentAlignment="Center"
+                                                         GotFocus="OrfanSearch_GotFocus"
+                                                         LostFocus="OrfanSearch_LostFocus"
+                                                         KeyDown="OrfanSearch_KeyDown"
+                                                         Tag="{Binding}"/>
+
+                                                <Popup IsOpen="{Binding IsPopupOpen, Mode=TwoWay}"
+                                                       PlacementTarget="{Binding ElementName=tbSearchOrf}"
+                                                       Placement="Bottom"
+                                                       StaysOpen="False"
+                                                       AllowsTransparency="True"
+                                                       PopupAnimation="Slide"
+                                                       Width="{Binding ElementName=tbSearchOrf, Path=ActualWidth}">
+                                                    <Border Background="White" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="4">
+                                                        <Border.Effect>
+                                                            <DropShadowEffect Color="#000" Opacity="0.18" BlurRadius="10" ShadowDepth="3"/>
+                                                        </Border.Effect>
+                                                        <ListBox x:Name="lbSuggestionsOrf"
+                                                                 ItemsSource="{Binding Suggestions}"
+                                                                 SelectionMode="Single"
+                                                                 PreviewMouseLeftButtonDown="OrfanSuggestion_MouseDown"
+                                                                 BorderThickness="0"
+                                                                 MaxHeight="240">
+                                                            <ListBox.ItemTemplate>
+                                                                <DataTemplate>
+                                                                    <Border Padding="10,6">
+                                                                        <StackPanel>
+                                                                            <StackPanel Orientation="Horizontal">
+                                                                                <TextBlock Text="{Binding ShortName}" FontWeight="SemiBold" FontSize="12.5" Foreground="#111827"/>
+                                                                                <Border Background="#EEF2FF" CornerRadius="3" Padding="5,1" Margin="8,0,0,0"
+                                                                                        Visibility="{Binding NipDisplay, Converter={StaticResource StrToVisConv}}"
+                                                                                        ToolTip="NIP w LibraNet">
+                                                                                    <TextBlock Text="{Binding NipDisplay}" FontSize="10.5" Foreground="#4338CA" FontFamily="Consolas"/>
+                                                                                </Border>
+                                                                            </StackPanel>
+                                                                            <TextBlock Text="{Binding ID, StringFormat='ID LibraNet: {0}'}" FontSize="10.5" Foreground="#6B7280" Margin="0,3,0,0"/>
+                                                                        </StackPanel>
+                                                                    </Border>
+                                                                </DataTemplate>
+                                                            </ListBox.ItemTemplate>
+                                                        </ListBox>
+                                                    </Border>
+                                                </Popup>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
+
+                    <!-- EMPTY STATE — gdy 0 orfanów (po imporcie wszystko zmapowane lub filtr nie pasuje) -->
+                    <Border x:Name="orfaniEmptyState" Background="#F9FAFB" CornerRadius="0,0,6,6"
+                            BorderBrush="#E5E7EB" BorderThickness="1,0,1,1" Visibility="Collapsed">
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="560">
+                            <TextBlock x:Name="orfaniEmptyText" Text="✅  Brawo! Wszyscy kontrahenci są zmapowani."
+                                       FontSize="15" FontWeight="SemiBold" Foreground="#374151"
+                                       TextAlignment="Center" TextWrapping="Wrap"/>
+                            <TextBlock Text="Zmień okres lub kryteria filtra, żeby zobaczyć innych."
+                                       Foreground="#9CA3AF" FontSize="12" Margin="0,8,0,0"
+                                       TextAlignment="Center" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+                    </Grid>
+                </Grid>
+            </TabItem>
+        </TabControl>
 
         <!-- FOOTER status bar -->
         <Border Grid.Row="2" Background="White" BorderBrush="#E5E7EB" BorderThickness="0,1,0,0" Padding="20,8">

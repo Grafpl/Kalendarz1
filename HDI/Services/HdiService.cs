@@ -352,6 +352,21 @@ namespace Kalendarz1.HDI.Services
             return r == null || r == DBNull.Value ? 1 : Convert.ToInt32(r);
         }
 
+        // Czy numer jest już zajęty w danym roku (przez inny dokument niż excludeId)?
+        public async Task<bool> IsNumberTakenAsync(int rok, int numer, int excludeId = 0)
+        {
+            await EnsureSchemaAsync();
+            await using var cn = new SqlConnection(ConnLibra);
+            await cn.OpenAsync();
+            await using var cmd = new SqlCommand(
+                "SELECT COUNT(*) FROM dbo.HDIDokumenty WHERE Rok = @rok AND Numer = @numer AND Id <> @ex", cn);
+            cmd.Parameters.AddWithValue("@rok", rok);
+            cmd.Parameters.AddWithValue("@numer", numer);
+            cmd.Parameters.AddWithValue("@ex", excludeId);
+            var r = await cmd.ExecuteScalarAsync();
+            return r != null && Convert.ToInt32(r) > 0;
+        }
+
         // Pobierz aktualny StartNumber dla roku (0 = nieustawiony)
         public async Task<int> GetStartNumberAsync(int rok)
         {

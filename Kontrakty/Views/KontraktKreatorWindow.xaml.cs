@@ -1,0 +1,507 @@
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
+using System.Windows.Threading;
+using Kalendarz1.Kontrakty.Models;
+using Kalendarz1.Kontrakty.Services;
+
+namespace Kalendarz1.Kontrakty.Views
+{
+    /// <summary>
+    /// Kreator kontraktu — JEDEN EKRAN: hodowca, producent, umowa+okres, warunki, cykle wstawień, skan.
+    /// Walidacja zbiorcza w stopce. Cykle przez przyjazny dialog (data + sztuki → auto +33/+42 dni, opcjonalne „co N dni × M razy").
+    /// </summary>
+    public partial class KontraktKreatorWindow : Window
+    {
+        private static readonly CultureInfo Pl = new("pl-PL");
+        private readonly KontraktyService _svc = new();
+        private readonly WordTemplateService _word = new();
+        private readonly DispatcherTimer _debounce;
+        private readonly ObservableCollection<HarmonogramCykl> _cykle = new();
+
+        private HodowcaPicker? _hod;
+        private int? _poprzedniId;
+        private string? _skanPath;
+        private bool _ready;
+        private readonly string? _prefillDostawcaId;
+        private readonly bool _trybSeryjny;
+        private WarunkiSugestia? _sugestia;
+        private int _zapisanychSeryjnie;
+
+        public bool Zapisano { get; private set; }
+
+        public KontraktKreatorWindow(string? prefillDostawcaId = null, bool trybSeryjny = false)
+        {
+            InitializeComponent();
+            _prefillDostawcaId = prefillDostawcaId;
+            _trybSeryjny = trybSeryjny;
+            _debounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
+            _debounce.Tick += async (_, _) => { _debounce.Stop(); await SzukajHodAsync(); };
+            icCykle.ItemsSource = _cykle;
+
+            // Defaulty: od = dziś, do = dziś + 1 rok
+            dpOd.SelectedDate = DateTime.Today;
+            dpDo.SelectedDate = DateTime.Today.AddYears(1);
+            dpPodpis.SelectedDate = DateTime.Today;
+
+            Loaded += async (_, _) => await InitAsync();
+        }
+
+        private async System.Threading.Tasks.Task InitAsync()
+        {
+            if (_trybSeryjny)
+            {
+                Title = "Nowe kontrakty — tryb seryjny";
+                txtTytulKrok.Text = "🔁 Tryb seryjny — po zapisie okno zostaje otwarte na kolejny kontrakt";
+                txtStopka.Text = "Tryb seryjny aktywny — zapisuj jeden po drugim. Zamknij okno (✕), gdy skończysz.";
+            }
+            OdswiezCykle();
+            await SzukajHodAsync();
+            if (!string.IsNullOrWhiteSpace(_prefillDostawcaId))
+            {
+                var dane = await _svc.GetHodowcyAsync(_prefillDostawcaId);
+                var match = dane.FirstOrDefault(h => h.DostawcaId == _prefillDostawcaId) ?? dane.FirstOrDefault();
+                if (match != null) { lstHodowcy.ItemsSource = dane; lstHodowcy.SelectedItem = match; }
+            }
+            _ready = true;
+        }
+
+        // ── Picker hodowcy ───────────────────────────────────────────────────
+        private void SzukajHod_Changed(object sender, TextChangedEventArgs e)
+        { _debounce.Stop(); _debounce.Start(); }
+
+        private async System.Threading.Tasks.Task SzukajHodAsync()
+        {
+            var dane = await _svc.GetHodowcyAsync(txtSzukaj.Text);
+            lstHodowcy.ItemsSource = dane;
+            txtCount.Text = dane.Count == 0
+                ? (string.IsNullOrWhiteSpace(txtSzukaj.Text) ? "Wpisz frazę, by wyszukać hodowcę…" : "Brak wyników")
+                : $"{dane.Count}{(dane.Count >= 60 ? " (pierwsze 60 — uściślij)" : "")} wyników";
+        }
+
+        private async void LstHodowcy_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            if (lstHodowcy.SelectedItem is not HodowcaPicker h) return;
+            _hod = h;
+            // prefill edytowalnych pól danymi z bazy (109)
+            txtNazwa.Text = h.Nazwa;
+            txtNip.Text = h.Nip;
+            txtPesel.Text = h.Pesel;
+            txtRegon.Text = h.Regon;
+            txtDowod.Text = h.NrDowodu;
+            txtTelefon.Text = h.Telefon;
+            txtEmail.Text = h.Email;
+            txtGosp.Text = h.NrGospodarstwa;
+            txtAdres.Text = h.Adres;
+
+            // banner wybranego
+            txtWybranyInicjal.Text = h.Inicjal;
+            txtWybranyNazwa.Text = h.Nazwa;
+            txtWybranyMeta.Text = h.Meta;
+            bannerWybrany.Visibility = Visibility.Visible;
+
+            PoleWalid_Changed(this, null!);
+
+            _poprzedniId = await _svc.GetOstatniKontraktIdHodowcyAsync(h.DostawcaId);
+            btnKopiuj.Visibility = _poprzedniId.HasValue ? Visibility.Visible : Visibility.Collapsed;
+
+            // sugestie warunków (FarmerCalc)
+            _sugestia = await _svc.GetSugestieWarunkowAsync(h.DostawcaId);
+            bool maCo = _sugestia.MaDane && _sugestia.UbytekSredniProc != null;
+            txtSugestia.Text = _sugestia.MaDane ? _sugestia.Opis : "";
+            panelSugestia.Visibility = maCo ? Visibility.Visible : Visibility.Collapsed;
+            btnZastosujSugestie.IsEnabled = maCo;
+        }
+
+        private void BtnZastosujSugestie_Click(object sender, RoutedEventArgs e)
+        {
+            if (_sugestia?.UbytekSredniProc is { } u) txtUbytek.Text = u.ToString("0.0", Pl);
+        }
+
+        private async void BtnKopiuj_Click(object sender, RoutedEventArgs e)
+        {
+            if (_poprzedniId is not int kid) return;
+            var det = await _svc.GetDetailAsync(kid);
+            var wersje = await _svc.GetWersjeAsync(kid);
+            var w = wersje.FirstOrDefault(x => x.IsAktualna) ?? wersje.FirstOrDefault();
+            if (det == null || w == null) return;
+
+            SelectByTag(cbTyp, det.TypKontraktu);
+            SelectByTag(cbPodmiot, det.Podmiot);
+            chkArimr.IsChecked = det.LiczySieDoArimr;
+            txtEmail.Text = det.EmailRODO ?? "";
+
+            SelectByTag(cbTypCeny, w.TypCeny);
+            SelectByTag(cbWaga, w.RozliczanaWaga);
+            txtDodatek.Text = Dec(w.DodatekZl);
+            txtUbytek.Text = Dec(w.ProcentUbytku);
+            txtTermin.Text = w.TerminPlatnosciDni.ToString();
+            txtBonus.Text = w.BonusOpis ?? "";
+            txtPasza.Text = w.DostawcaPaszyNazwa ?? "";
+            txtPisklak.Text = w.DostawcaPisklatNazwa ?? "";
+            chkKonfiskatyHodowca.IsChecked = w.KonfiskatyHodowca;
+
+            // nowy okres: od dnia po zakończeniu poprzedniego (lub dziś) → +1 rok
+            var od = w.ObowiazujeDo?.AddDays(1) ?? DateTime.Today;
+            dpOd.SelectedDate = od;
+            dpDo.SelectedDate = od.AddYears(1);
+            dpPodpis.SelectedDate = DateTime.Today;
+
+            // skopiuj harmonogram (przesunięty)
+            var stary = await _svc.GetHarmonogramAsync(w.Id);
+            _cykle.Clear();
+            var offset = od - (w.ObowiazujeOd);
+            foreach (var c in stary.OrderBy(x => x.NrCyklu))
+                _cykle.Add(new HarmonogramCykl
+                {
+                    NrCyklu = c.NrCyklu,
+                    DataWstawienia = c.DataWstawienia?.Add(offset),
+                    IloscWstawiona = c.IloscWstawiona,
+                    DzienUbiorki = c.DzienUbiorki ?? 33,
+                    DataUbojuKoncowego = c.DataUbojuKoncowego?.Add(offset),
+                    Status = "PLANOWANY"
+                });
+            OdswiezCykle();
+        }
+
+        // ── Cykle wstawień ──────────────────────────────────────────────────
+        private void BtnDodajCykl_Click(object sender, RoutedEventArgs e)
+        {
+            int nr = _cykle.Count == 0 ? 1 : _cykle.Max(c => c.NrCyklu) + 1;
+            var domyslna = _cykle.LastOrDefault()?.DataWstawienia ?? dpOd.SelectedDate ?? DateTime.Today;
+            // przy nowych dodaniach proponuj kolejną datę po ostatnim cyklu
+            if (_cykle.Count > 0) domyslna = domyslna.AddDays(67);
+            var dlg = new KontraktWstawienieDialog(null, nr, domyslna) { Owner = this };
+            if (dlg.ShowDialog() == true)
+            {
+                foreach (var c in dlg.Wynik) _cykle.Add(c);
+                Renumeruj();
+                OdswiezCykle();
+            }
+        }
+
+        private void BtnEdytujCykl_Click(object sender, RoutedEventArgs e)
+        {
+            if ((sender as FrameworkElement)?.Tag is not HarmonogramCykl c) return;
+            int idx = _cykle.IndexOf(c);
+            if (idx < 0) return;
+            var dlg = new KontraktWstawienieDialog(c, c.NrCyklu, c.DataWstawienia) { Owner = this };
+            if (dlg.ShowDialog() == true && dlg.Wynik.Count > 0)
+            {
+                _cykle[idx] = dlg.Wynik[0]; OdswiezCykle();
+            }
+        }
+
+        private void BtnUsunCyklJeden_Click(object sender, RoutedEventArgs e)
+        {
+            if ((sender as FrameworkElement)?.Tag is HarmonogramCykl c) { _cykle.Remove(c); Renumeruj(); OdswiezCykle(); }
+        }
+
+        private void BtnWyczyscCykle_Click(object sender, RoutedEventArgs e)
+        {
+            if (_cykle.Count == 0) return;
+            if (MessageBox.Show($"Usunąć wszystkie {_cykle.Count} cykli?", "Cykle wstawień",
+                MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK) return;
+            _cykle.Clear(); OdswiezCykle();
+        }
+
+        private void Renumeruj()
+        { for (int i = 0; i < _cykle.Count; i++) _cykle[i].NrCyklu = i + 1; }
+
+        private void OdswiezCykle()
+        {
+            icCykle.ItemsSource = null;
+            icCykle.ItemsSource = _cykle;
+            if (IsLoaded) boxCyklePusto.Visibility = _cykle.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            int sumaSzt = _cykle.Sum(c => c.IloscWstawiona ?? 0);
+            txtKpiCykle.Text = sumaSzt > 0
+                ? $"{_cykle.Count} {Odmiana(_cykle.Count, "wstawienie", "wstawienia", "wstawień")} · {sumaSzt:N0} szt. razem"
+                : $"{_cykle.Count} {Odmiana(_cykle.Count, "wstawienie", "wstawienia", "wstawień")}";
+        }
+
+        private void ChkBezterm_Click(object sender, RoutedEventArgs e)
+        {
+            bool bez = chkBezterm.IsChecked == true;
+            dpDo.IsEnabled = !bez;
+            if (bez) dpDo.SelectedDate = null;
+        }
+
+        private void BtnWybierzSkan_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            { Title = "Wybierz skan (PDF)", Filter = "PDF (*.pdf)|*.pdf|Wszystkie (*.*)|*.*" };
+            if (dlg.ShowDialog() == true) { _skanPath = dlg.FileName; txtSkanPlik.Text = Path.GetFileName(dlg.FileName); }
+        }
+
+        // ── Walidacja inline (NIP/PESEL/ARiMR) ──────────────────────────────
+        private static readonly Brush BrushErr  = new SolidColorBrush(Color.FromRgb(0xDC,0x26,0x26));
+        private static readonly Brush BrushOk   = new SolidColorBrush(Color.FromRgb(0x16,0xA3,0x4A));
+        private static readonly Brush BrushWarn = new SolidColorBrush(Color.FromRgb(0xB4,0x53,0x09));
+
+        private void PoleWalid_Changed(object sender, TextChangedEventArgs e)
+        {
+            if (!IsLoaded) return;
+            Oznacz(txtNip, hintNip,
+                string.IsNullOrWhiteSpace(txtNip.Text) ? (bool?)null : Walidatory.NipPoprawny(txtNip.Text),
+                "✓ NIP poprawny", "⛔ błędna suma kontrolna NIP", blokujace: true);
+            Oznacz(txtPesel, hintPesel,
+                string.IsNullOrWhiteSpace(txtPesel.Text) ? (bool?)null : Walidatory.PeselPoprawny(txtPesel.Text),
+                "✓ PESEL poprawny", "⛔ błędna suma kontrolna PESEL", blokujace: true);
+            Oznacz(txtGosp, hintGosp,
+                string.IsNullOrWhiteSpace(txtGosp.Text) ? (bool?)null : Walidatory.ArimrPoprawny(txtGosp.Text),
+                "✓ format ARiMR OK", "⚠ nie pasuje do PL+9 cyfr", blokujace: false);
+        }
+
+        private void Oznacz(TextBox tb, TextBlock hint, bool? ok, string okMsg, string errMsg, bool blokujace)
+        {
+            if (ok is null)
+            {
+                tb.ClearValue(BorderBrushProperty);
+                hint.Visibility = Visibility.Collapsed;
+                return;
+            }
+            if (ok == true)
+            {
+                tb.BorderBrush = BrushOk;
+                hint.Text = okMsg; hint.Foreground = BrushOk; hint.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                tb.BorderBrush = blokujace ? BrushErr : BrushWarn;
+                hint.Text = errMsg; hint.Foreground = blokujace ? BrushErr : BrushWarn; hint.Visibility = Visibility.Visible;
+            }
+        }
+
+        // ── Walidacja ZBIORCZA (jeden ekran, jeden komunikat) ────────────────
+        private bool Waliduj()
+        {
+            var bledy = new List<string>();
+            var ostrzezenia = new List<string>();
+
+            if (_hod == null) bledy.Add("wybierz hodowcę z listy");
+            if (string.IsNullOrWhiteSpace(txtNazwa.Text)) bledy.Add("podaj nazwę producenta");
+            if (!string.IsNullOrWhiteSpace(txtNip.Text) && !Walidatory.NipPoprawny(txtNip.Text))
+                bledy.Add("NIP — błędna suma kontrolna");
+            if (!string.IsNullOrWhiteSpace(txtPesel.Text) && !Walidatory.PeselPoprawny(txtPesel.Text))
+                bledy.Add("PESEL — błędna suma kontrolna");
+            if (!string.IsNullOrWhiteSpace(txtGosp.Text) && !Walidatory.ArimrPoprawny(txtGosp.Text))
+                ostrzezenia.Add("nr gospodarstwa nie pasuje do PL+9 cyfr");
+
+            if (dpOd.SelectedDate is null) bledy.Add("ustaw datę „od”");
+            bool bez = chkBezterm.IsChecked == true;
+            if (!bez && dpDo.SelectedDate is null) bledy.Add("ustaw datę „do” (lub bezterminowy)");
+            if (!bez && dpOd.SelectedDate is { } od && dpDo.SelectedDate is { } doo && doo < od)
+                bledy.Add("data „do” < „od”");
+
+            var harm = Walidatory.WalidujHarmonogram(_cykle);
+            if (Walidatory.MaBlad(harm)) bledy.AddRange(harm.Where(x => x.StartsWith("BŁĄD")));
+            foreach (var u in harm.Where(x => x.StartsWith("UWAGA"))) ostrzezenia.Add(u.Replace("UWAGA:", "").Trim());
+
+            if (bledy.Count > 0)
+            {
+                txtWalidacja.Text = "⛔ " + string.Join("  ·  ", bledy) +
+                    (ostrzezenia.Count > 0 ? "    ⚠ " + string.Join("  ·  ", ostrzezenia) : "");
+                boxWalidacja.Visibility = Visibility.Visible;
+                return false;
+            }
+            if (ostrzezenia.Count > 0)
+            {
+                txtWalidacja.Text = "⚠ " + string.Join("  ·  ", ostrzezenia);
+                boxWalidacja.Visibility = Visibility.Visible;
+            }
+            else boxWalidacja.Visibility = Visibility.Collapsed;
+            return true;
+        }
+
+        private static string Odmiana(int n, string f1, string f234, string f5)
+        {
+            if (n == 1) return f1;
+            int last = n % 10, last2 = n % 100;
+            if (last >= 2 && last <= 4 && (last2 < 12 || last2 > 14)) return f234;
+            return f5;
+        }
+
+        // ── Budowa modelu z formularza (reuse: zapis + podgląd) ──────────────
+        private (KontraktDetail h, KontraktWersja w, List<HarmonogramCykl> cykle) BudujModelZFormularza()
+        {
+            var h = new KontraktDetail
+            {
+                DostawcaId = _hod?.DostawcaId ?? "",
+                TypKontraktu = TagOf(cbTyp),
+                LiczySieDoArimr = chkArimr.IsChecked == true,
+                Podmiot = TagOf(cbPodmiot),
+                NazwaHodowcySnapshot = Nn(txtNazwa.Text),
+                NipSnapshot = Nn(txtNip.Text),
+                NrGospodarstwaSnapshot = Nn(txtGosp.Text),
+                AdresSnapshot = Nn(txtAdres.Text),
+                EmailRODO = Nn(txtEmail.Text),
+                PeselSnapshot = Nn(txtPesel.Text),
+                RegonSnapshot = Nn(txtRegon.Text),
+                NrDowoduSnapshot = Nn(txtDowod.Text),
+                TelefonSnapshot = Nn(txtTelefon.Text)
+            };
+            var w = new KontraktWersja
+            {
+                Status = "DRAFT",
+                ObowiazujeOd = dpOd.SelectedDate ?? DateTime.Today,
+                ObowiazujeDo = chkBezterm.IsChecked == true ? null : dpDo.SelectedDate,
+                DataPodpisania = dpPodpis.SelectedDate,
+                OkresWypowiedzeniaDni = ParseInt(txtWypow.Text) ?? 90,
+                TypCeny = TagOf(cbTypCeny),
+                RozliczanaWaga = TagOf(cbWaga),
+                Cena = null,                                       // Cena bazowa USUNIĘTA — zawsze null
+                DodatekZl = ParseDec(txtDodatek.Text),
+                ProcentUbytku = ParseDec(txtUbytek.Text),
+                TerminPlatnosciDni = ParseInt(txtTermin.Text) ?? 21,
+                BonusOpis = Nn(txtBonus.Text),
+                DostawcaPaszyNazwa = Nn(txtPasza.Text),
+                DostawcaPisklatNazwa = Nn(txtPisklak.Text),
+                KonfiskatyHodowca = chkKonfiskatyHodowca.IsChecked == true
+            };
+            var cykle = _cykle.ToList();
+            for (int i = 0; i < cykle.Count; i++) cykle[i].NrCyklu = i + 1;
+            return (h, w, cykle);
+        }
+
+        // ── Podgląd treści umowy (bez zapisu) ────────────────────────────────
+        private async void BtnPodglad_Click(object sender, RoutedEventArgs e)
+        {
+            if (_hod == null) { txtWalidacja.Text = "⛔ Wybierz hodowcę przed podglądem."; boxWalidacja.Visibility = Visibility.Visible; return; }
+            var (h, w, cykle) = BudujModelZFormularza();
+            string? szablon = await _svc.GetTemplatePathAsync(h.TypKontraktu);
+            if (string.IsNullOrWhiteSpace(szablon) || !File.Exists(szablon))
+            {
+                MessageBox.Show("Brak/niedostępny szablon Word dla typu „" + KontraktStatus.TypLabel(h.TypKontraktu) +
+                    "”. Podgląd wymaga szablonu w _SZABLON\\.", "Podgląd", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            string temp = Path.Combine(Path.GetTempPath(), $"podglad_{Guid.NewGuid():N}.docx");
+            try
+            {
+                var tokeny = WordTemplateService.BuildKontraktacjaTokens(h, w, "(numer nadany przy zapisie)");
+                _word.GenerujKontraktacja(szablon!, temp, tokeny, cykle);
+                new KontraktPodgladWindow(temp, $"Podgląd umowy — {h.NazwaHodowcySnapshot}") { Owner = this }.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Nie udało się przygotować podglądu: " + ex.Message, "Podgląd",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally { try { if (File.Exists(temp)) File.Delete(temp); } catch { } }
+        }
+
+        // ── Zapis ────────────────────────────────────────────────────────────
+        private async void BtnZapisz_Click(object sender, RoutedEventArgs e) => await ZapiszAsync(false);
+        private async void BtnZapiszWord_Click(object sender, RoutedEventArgs e) => await ZapiszAsync(true);
+        private void BtnAnuluj_Click(object sender, RoutedEventArgs e) { DialogResult = false; Close(); }
+
+        private async System.Threading.Tasks.Task ZapiszAsync(bool generujWord)
+        {
+            if (!Waliduj()) return;
+
+            string user = Kalendarz1.App.UserID ?? "";
+            var (h, w, cykle) = BudujModelZFormularza();
+
+            int kontraktId, wersjaId; string numer;
+            try
+            {
+                (kontraktId, wersjaId, numer) = await _svc.CreateKontraktZHarmonogramAsync(h, w, cykle, user);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Błąd zapisu kontraktu: " + ex.Message, "Kreator", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            var komunikaty = new List<string> { $"Utworzono kontrakt {numer}." };
+
+            if (!string.IsNullOrWhiteSpace(_skanPath))
+            {
+                try
+                {
+                    await ZalacznikiHelper.UploadAsync(_svc, kontraktId, wersjaId, numer, w.ObowiazujeOd.Year,
+                        TagOf(cbTypZal), _skanPath!, user);
+                    komunikaty.Add("Skan podpięty.");
+                }
+                catch (Exception ex) { komunikaty.Add("Skan NIE podpięty: " + ex.Message); }
+            }
+
+            if (generujWord)
+            {
+                try { await GenerujWordAsync(h, w, cykle, numer); komunikaty.Add("Word wygenerowany."); }
+                catch (Exception ex) { komunikaty.Add("Word NIE wygenerowany: " + ex.Message); }
+            }
+
+            Zapisano = true;
+            _zapisanychSeryjnie++;
+
+            if (_trybSeryjny)
+            {
+                txtStopka.Text = $"✔ Zapisano {numer}. Wprowadź następny kontrakt (w tej sesji: {_zapisanychSeryjnie}).";
+                ResetujFormularz();
+                return;
+            }
+
+            MessageBox.Show(string.Join("\n", komunikaty), "Kreator", MessageBoxButton.OK, MessageBoxImage.Information);
+            DialogResult = true;
+            Close();
+        }
+
+        /// <summary>Tryb seryjny — czyści formularz pod kolejny kontrakt.</summary>
+        private void ResetujFormularz()
+        {
+            _hod = null; _poprzedniId = null; _skanPath = null; _sugestia = null;
+            foreach (var tb in new[] { txtNazwa, txtNip, txtPesel, txtRegon, txtDowod, txtTelefon, txtEmail,
+                                       txtGosp, txtAdres, txtDodatek, txtBonus, txtPasza, txtPisklak, txtSkanPlik })
+                tb.Clear();
+            txtUbytek.Text = "3,0"; txtTermin.Text = "21"; txtWypow.Text = "90";
+            cbTyp.SelectedIndex = 0; cbPodmiot.SelectedIndex = 0; cbTypCeny.SelectedIndex = 0; cbWaga.SelectedIndex = 0; cbTypZal.SelectedIndex = 0;
+            chkArimr.IsChecked = false; chkBezterm.IsChecked = false; chkKonfiskatyHodowca.IsChecked = true;
+            _cykle.Clear(); OdswiezCykle();
+            dpOd.SelectedDate = DateTime.Today;
+            dpDo.SelectedDate = DateTime.Today.AddYears(1);
+            dpPodpis.SelectedDate = DateTime.Today;
+            hintNip.Visibility = hintPesel.Visibility = hintGosp.Visibility = Visibility.Collapsed;
+            txtNip.ClearValue(BorderBrushProperty); txtPesel.ClearValue(BorderBrushProperty); txtGosp.ClearValue(BorderBrushProperty);
+            panelSugestia.Visibility = Visibility.Collapsed; btnKopiuj.Visibility = Visibility.Collapsed;
+            bannerWybrany.Visibility = Visibility.Collapsed;
+            boxWalidacja.Visibility = Visibility.Collapsed;
+            lstHodowcy.SelectedItem = null; txtSzukaj.Clear();
+            txtSzukaj.Focus();
+        }
+
+        private async System.Threading.Tasks.Task GenerujWordAsync(KontraktDetail h, KontraktWersja w, List<HarmonogramCykl> cykle, string numer)
+        {
+            string? szablon = await _svc.GetTemplatePathAsync(h.TypKontraktu);
+            if (string.IsNullOrWhiteSpace(szablon) || !File.Exists(szablon))
+                throw new FileNotFoundException("Brak/niedostępny szablon Word dla typu " + h.TypLabel +
+                    ". Umieść .docx w _SZABLON\\ i uruchom AddBookmark.");
+
+            string folder = Path.Combine(ZalacznikiHelper.Root, w.ObowiazujeOd.Year.ToString());
+            string nazwa = $"Umowa_{ZalacznikiHelper.SanitizeNumer(numer)}_{Bezpieczne(h.NazwaHodowcySnapshot ?? "hodowca")}.docx";
+            string output = Path.Combine(folder, nazwa);
+
+            var tokeny = WordTemplateService.BuildKontraktacjaTokens(h, w, numer);
+            _word.GenerujKontraktacja(szablon!, output, tokeny, cykle);
+            try { Process.Start(new ProcessStartInfo(output) { UseShellExecute = true }); } catch { }
+        }
+
+        // ── Helpers ──────────────────────────────────────────────────────────
+        private static string TagOf(ComboBox cb) => (cb.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "";
+        private static void SelectByTag(ComboBox cb, string tag)
+        { foreach (var it in cb.Items.OfType<ComboBoxItem>()) if ((it.Tag?.ToString() ?? "") == tag) { cb.SelectedItem = it; return; } }
+        private static string? Nn(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+        private static string Dec(decimal? v) => v?.ToString("0.##", Pl) ?? "";
+        private static decimal? ParseDec(string? s)
+        { s = (s ?? "").Trim().Replace(',', '.'); return s.Length == 0 ? null : (decimal.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out var d) ? d : null); }
+        private static int? ParseInt(string? s) { s = (s ?? "").Trim(); return s.Length == 0 ? null : (int.TryParse(s, out var i) ? i : null); }
+        private static string Bezpieczne(string s) { foreach (var c in Path.GetInvalidFileNameChars()) s = s.Replace(c, '_'); return s.Replace('/', '-').Trim(); }
+    }
+}

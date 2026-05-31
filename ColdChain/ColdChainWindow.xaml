@@ -2,7 +2,8 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:svc="clr-namespace:Kalendarz1.AnalitykaPelna.Services"
-        Title="Cold Chain HACCP — monitoring CCP" Height="760" Width="1240"
+        xmlns:lvc="clr-namespace:LiveCharts.Wpf;assembly=LiveCharts.Wpf"
+        Title="Cold Chain HACCP — kontrola temperatur" Height="800" Width="1280"
         WindowStartupLocation="CenterScreen" Background="White"
         UseLayoutRounding="True" TextOptions.TextFormattingMode="Display">
     <Window.Resources>
@@ -12,126 +13,462 @@
         <SolidColorBrush x:Key="Surface" Color="#F8FAFC"/>
         <svc:HexToBrushConverter x:Key="HexToBrush"/>
         <svc:BoolToVisibilityConverter x:Key="BoolVis"/>
+        <Style x:Key="Lbl" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="{StaticResource TextMuted}"/>
+            <Setter Property="Margin" Value="0,8,0,2"/>
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Padding" Value="8,0"/>
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="BorderBrush" Value="#CBD5E1"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border CornerRadius="8" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1">
+                            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"
+                                          VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
 
-        <!-- Karta punktu CCP -->
-        <DataTemplate x:Key="CCPCardTemplate">
-            <Border Background="{Binding TloKolor, Converter={StaticResource HexToBrush}}"
-                    CornerRadius="10" Padding="14,12" Margin="5" Cursor="Hand"
-                    MouseLeftButtonUp="CCPCard_Click" Tag="{Binding}">
-                <StackPanel>
-                    <TextBlock Text="{Binding Nazwa}" FontWeight="Bold" FontSize="13"
-                               Foreground="{StaticResource TextPrimary}" TextTrimming="CharacterEllipsis"/>
-                    <TextBlock Text="{Binding OstatniaWartoscFormatted}" FontSize="22" FontWeight="Bold"
-                               Foreground="{Binding StatusKolor, Converter={StaticResource HexToBrush}}" Margin="0,4,0,0"/>
-                    <TextBlock FontSize="10.5" Foreground="{StaticResource TextMuted}">
-                        <Run Text="norma "/><Run Text="{Binding LimitFormatted}"/>
-                    </TextBlock>
-                    <TextBlock Text="{Binding Status}" FontSize="11.5" FontWeight="SemiBold"
-                               Foreground="{Binding StatusKolor, Converter={StaticResource HexToBrush}}" Margin="0,4,0,0"/>
-                    <TextBlock FontSize="9.5" Foreground="{StaticResource TextMuted}">
-                        <Run Text="ost. "/><Run Text="{Binding OstatniPomiarFormatted}"/>
-                    </TextBlock>
-                </StackPanel>
-            </Border>
-        </DataTemplate>
+        <!-- ═══ Nowoczesne zakładki (underline + akcent) ═══ -->
+        <Style TargetType="TabItem">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#64748B"/>
+            <Setter Property="Padding" Value="18,11"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="bd" Background="Transparent" BorderThickness="0,0,0,3"
+                                BorderBrush="Transparent" Padding="{TemplateBinding Padding}" Margin="0,0,2,0">
+                            <ContentPresenter ContentSource="Header" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="bd" Property="BorderBrush" Value="#2563EB"/>
+                                <Setter TargetName="bd" Property="Background" Value="#EFF6FF"/>
+                                <Setter Property="Foreground" Value="#1E3A8A"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Foreground" Value="#2563EB"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ═══ Nagłówki kolumn DataGrid (czyste) ═══ -->
+        <Style TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="#F8FAFC"/>
+            <Setter Property="Foreground" Value="#64748B"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="11.5"/>
+            <Setter Property="Padding" Value="10,9"/>
+            <Setter Property="BorderThickness" Value="0,0,0,2"/>
+            <Setter Property="BorderBrush" Value="#E2E8F0"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+        </Style>
+
+        <!-- ═══ Wiersze + komórki DataGrid (hover, bez focus-ramki) ═══ -->
+        <Style TargetType="DataGridRow">
+            <Setter Property="BorderThickness" Value="0"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#EFF6FF"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style TargetType="DataGridCell">
+            <Setter Property="Padding" Value="8,0"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DataGridCell">
+                        <Border Padding="{TemplateBinding Padding}" Background="Transparent">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Wiersz kolorowany statusem (dla pomiarów/incydentów) -->
+        <Style x:Key="StatusRow" TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+            <Setter Property="Background" Value="{Binding TloKolor, Converter={StaticResource HexToBrush}}"/>
+        </Style>
+
+        <!-- ═══ Płaski przycisk (zaokrąglony, hover) ═══ -->
+        <Style x:Key="BtnFlat" TargetType="Button">
+            <Setter Property="Background" Value="#EEF2F7"/>
+            <Setter Property="Foreground" Value="#0F172A"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="b" Background="{TemplateBinding Background}" CornerRadius="8"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="b" Property="Opacity" Value="0.86"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="b" Property="Opacity" Value="0.72"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="b" Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Cień kart -->
+        <DropShadowEffect x:Key="CardShadow" Color="#0F172A" BlurRadius="14" ShadowDepth="2" Opacity="0.10"/>
     </Window.Resources>
 
-    <Grid Margin="16">
+    <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- Header -->
-        <Grid Grid.Row="0" Margin="0,0,0,12">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <StackPanel Grid.Column="0">
-                <TextBlock Text="🛡 Cold Chain HACCP — punkty kontroli krytycznej" FontSize="20"
-                           FontWeight="Bold" Foreground="{StaticResource TextPrimary}"/>
-                <TextBlock Text="Tryb manualny działa od razu. Auto (sondy Modbus) po zakupie sprzętu — patrz pomysł #9/#19."
-                           FontSize="11" Foreground="{StaticResource TextMuted}" Margin="0,2,0,0"/>
-            </StackPanel>
-            <Button Grid.Column="1" x:Name="btnOdswiez" Content="↻ Odśwież" Padding="14,8"
-                    VerticalAlignment="Center" Click="BtnOdswiez_Click"/>
-        </Grid>
-
-        <!-- Karty CCP -->
-        <ItemsControl Grid.Row="1" x:Name="lstPunkty" ItemTemplate="{StaticResource CCPCardTemplate}" Margin="0,0,0,8">
-            <ItemsControl.ItemsPanel>
-                <ItemsPanelTemplate>
-                    <UniformGrid Rows="2" Columns="4"/>
-                </ItemsPanelTemplate>
-            </ItemsControl.ItemsPanel>
-        </ItemsControl>
-
-        <!-- Dół: wpis manualny + incydenty -->
-        <Grid Grid.Row="2" Margin="0,8,0,0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="340"/>
-                <ColumnDefinition Width="14"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
-
-            <!-- Wpis manualny -->
-            <Border Grid.Column="0" Background="{StaticResource Surface}" BorderBrush="{StaticResource BorderColor}"
-                    BorderThickness="1" CornerRadius="10" Padding="18">
-                <StackPanel>
-                    <TextBlock Text="📝 Wpis pomiaru (manualny)" FontWeight="Bold" FontSize="15"
-                               Foreground="{StaticResource TextPrimary}" Margin="0,0,0,14"/>
-
-                    <TextBlock Text="Punkt CCP" FontSize="11" Foreground="{StaticResource TextMuted}"/>
-                    <ComboBox x:Name="cbPunkt" Height="34" FontSize="13" DisplayMemberPath="Nazwa" Margin="0,2,0,12"/>
-
-                    <TextBlock Text="Wartość pomiaru" FontSize="11" Foreground="{StaticResource TextMuted}"/>
-                    <TextBox x:Name="txtWartosc" Height="34" FontSize="16" VerticalContentAlignment="Center"
-                             Padding="6,0" Margin="0,2,0,12"/>
-
-                    <TextBlock Text="Uwagi (opcjonalnie)" FontSize="11" Foreground="{StaticResource TextMuted}"/>
-                    <TextBox x:Name="txtUwagi" Height="50" TextWrapping="Wrap" AcceptsReturn="True"
-                             VerticalContentAlignment="Top" Padding="6,4" Margin="0,2,0,14"/>
-
-                    <Button x:Name="btnZapisz" Content="💾 Zapisz pomiar" Height="40" FontSize="14"
-                            FontWeight="SemiBold" Background="#2563EB" Foreground="White"
-                            BorderThickness="0" Cursor="Hand" Click="BtnZapisz_Click"/>
-                    <TextBlock x:Name="txtKomunikat" FontSize="12" Margin="0,10,0,0" TextWrapping="Wrap"/>
+        <!-- Pasek górny: tytuł + zakres dat -->
+        <Border Grid.Row="0" Background="{StaticResource Surface}" BorderBrush="{StaticResource BorderColor}"
+                BorderThickness="0,0,0,1" Padding="20,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="🛡 Cold Chain HACCP — kontrola temperatur" FontSize="20" FontWeight="Bold"
+                               Foreground="{StaticResource TextPrimary}"/>
+                    <TextBlock Text="Dane: TemperaturyMiejsca (rampa/chiller/tunel, 4 próbki) + normy QC_Normy."
+                               FontSize="11" Foreground="{StaticResource TextMuted}" Margin="0,2,0,0"/>
                 </StackPanel>
-            </Border>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Od:" VerticalAlignment="Center" Margin="0,0,4,0" Foreground="{StaticResource TextMuted}"/>
+                    <DatePicker x:Name="dpOd" Width="120"/>
+                    <TextBlock Text="Do:" VerticalAlignment="Center" Margin="10,0,4,0" Foreground="{StaticResource TextMuted}"/>
+                    <DatePicker x:Name="dpDo" Width="120"/>
+                    <Button x:Name="btnOdswiez" Content="↻ Odśwież" Margin="8,0,0,0"
+                            Style="{StaticResource BtnFlat}" Click="BtnOdswiez_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
 
-            <!-- Incydenty -->
-            <Border Grid.Column="2" BorderBrush="{StaticResource BorderColor}" BorderThickness="1" CornerRadius="10">
-                <DockPanel>
-                    <Grid DockPanel.Dock="Top" Margin="14,12,14,8">
-                        <TextBlock Text="🚨 Incydenty (przekroczenia limitu)" FontWeight="Bold" FontSize="14"
-                                   Foreground="{StaticResource TextPrimary}"/>
-                        <CheckBox x:Name="chkTylkoOtwarte" Content="tylko otwarte" HorizontalAlignment="Right"
-                                  IsChecked="True" VerticalAlignment="Center" Click="ChkTylkoOtwarte_Click"/>
-                    </Grid>
-                    <DataGrid x:Name="dgIncydenty" AutoGenerateColumns="False" IsReadOnly="True"
-                              HeadersVisibility="Column" GridLinesVisibility="Horizontal"
-                              BorderThickness="0" RowHeight="34" FontSize="12.5">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Start" Binding="{Binding StartFormatted}" Width="95"/>
-                            <DataGridTextColumn Header="Punkt" Binding="{Binding PunktNazwa}" Width="*"/>
-                            <DataGridTextColumn Header="Zakres" Binding="{Binding WartoscFormatted}" Width="90"/>
-                            <DataGridTextColumn Header="Czas" Binding="{Binding CzasTrwania}" Width="80"/>
-                            <DataGridTextColumn Header="Status" Binding="{Binding StatusFinal}" Width="90"/>
-                            <DataGridTemplateColumn Header="Akcja" Width="100">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <Button Content="Zamknij" Padding="8,3" Margin="2"
-                                                Click="BtnZamknijInc_Click" Tag="{Binding}"
-                                                Visibility="{Binding Otwarty, Converter={StaticResource BoolVis}}"/>
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
-                        </DataGrid.Columns>
-                    </DataGrid>
-                </DockPanel>
-            </Border>
-        </Grid>
+        <TabControl Grid.Row="1" BorderThickness="0" Margin="8">
+            <!-- ════ DASHBOARD ════ -->
+            <TabItem Header="📊 Dashboard">
+                <Grid Margin="12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- KPI compliance -->
+                    <Border Grid.Row="0" Background="White" CornerRadius="10" Padding="18,14" Margin="0,0,0,12"
+                            Effect="{StaticResource CardShadow}">
+                        <StackPanel Orientation="Horizontal">
+                            <StackPanel Margin="0,0,40,0">
+                                <TextBlock Text="ZGODNOŚĆ TEMPERATUR (okres)" FontSize="10.5" Foreground="#1E40AF" FontWeight="SemiBold"/>
+                                <TextBlock x:Name="kpiCompliance" Text="—" FontSize="26" FontWeight="Bold" Foreground="#1E3A8A"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,40,0">
+                                <TextBlock Text="POMIARÓW" FontSize="10.5" Foreground="#475569" FontWeight="SemiBold"/>
+                                <TextBlock x:Name="kpiPomiary" Text="—" FontSize="26" FontWeight="Bold" Foreground="{StaticResource TextPrimary}"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,40,0">
+                                <TextBlock Text="INCYDENTÓW (poza normą)" FontSize="10.5" Foreground="#991B1B" FontWeight="SemiBold"/>
+                                <TextBlock x:Name="kpiIncydenty" Text="—" FontSize="26" FontWeight="Bold" Foreground="#7F1D1D"/>
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Text="PARTIE BEZ KOMPLETU" FontSize="10.5" Foreground="#92400E" FontWeight="SemiBold"/>
+                                <TextBlock x:Name="kpiNiekompletne" Text="—" FontSize="26" FontWeight="Bold" Foreground="#78350F"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Kafelki miejsc -->
+                    <ItemsControl Grid.Row="1" x:Name="lstKafelki" Margin="0,0,0,12">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><UniformGrid Rows="1" Columns="3"/></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="{Binding TloKolor, Converter={StaticResource HexToBrush}}"
+                                        CornerRadius="12" Padding="18,14" Margin="6" Effect="{StaticResource CardShadow}">
+                                    <StackPanel>
+                                        <TextBlock FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextPrimary}">
+                                            <Run Text="{Binding Ikona, Mode=OneWay}"/><Run Text="  "/><Run Text="{Binding Miejsce, Mode=OneWay}"/>
+                                        </TextBlock>
+                                        <TextBlock Text="{Binding SredniaFormatted}" FontSize="30" FontWeight="Bold"
+                                                   Foreground="{Binding Kolor, Converter={StaticResource HexToBrush}}" Margin="0,4,0,0"/>
+                                        <TextBlock FontSize="11.5" Foreground="{StaticResource TextMuted}">
+                                            <Run Text="norma "/><Run Text="{Binding NormaText, Mode=OneWay}"/>
+                                        </TextBlock>
+                                        <TextBlock Text="{Binding ProcFormatted}" FontSize="13" FontWeight="SemiBold"
+                                                   Foreground="{Binding Kolor, Converter={StaticResource HexToBrush}}" Margin="0,6,0,0"/>
+                                        <TextBlock FontSize="11" Foreground="{StaticResource TextMuted}">
+                                            <Run Text="{Binding LiczbaPomiarow, Mode=OneWay}"/><Run Text=" pomiarów, "/>
+                                            <Run Text="{Binding LiczbaPoza, Mode=OneWay}"/><Run Text=" poza normą"/>
+                                        </TextBlock>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <!-- Grid pomiarów -->
+                    <Border Grid.Row="2" BorderBrush="{StaticResource BorderColor}" BorderThickness="1" CornerRadius="10">
+                        <DataGrid x:Name="dgPomiary" AutoGenerateColumns="False" IsReadOnly="True"
+                                  HeadersVisibility="Column" GridLinesVisibility="None"
+                                  BorderThickness="0" RowHeight="34" FontSize="12.5"
+                                  RowStyle="{StaticResource StatusRow}">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Data" Binding="{Binding DataFormatted}" Width="100"/>
+                                <DataGridTextColumn Header="Partia" Binding="{Binding PartiaId}" Width="90"/>
+                                <DataGridTextColumn Header="Hodowca" Binding="{Binding Hodowca}" Width="*"/>
+                                <DataGridTextColumn Header="Miejsce" Binding="{Binding MiejsceLabel}" Width="110"/>
+                                <DataGridTextColumn Header="Próbki" Binding="{Binding ProbyFormatted}" Width="130"/>
+                                <DataGridTextColumn Header="Średnia" Binding="{Binding SredniaFormatted}" Width="80"/>
+                                <DataGridTextColumn Header="Norma" Binding="{Binding NormaFormatted}" Width="90"/>
+                                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="180"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- ════ WPIS ════ -->
+            <TabItem Header="📝 Wpis pomiaru">
+                <Grid Margin="20" HorizontalAlignment="Center" VerticalAlignment="Top" Width="460">
+                    <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource BorderColor}"
+                            BorderThickness="1" CornerRadius="12" Padding="24">
+                        <StackPanel>
+                            <TextBlock Text="Nowy pomiar temperatury" FontSize="18" FontWeight="Bold"
+                                       Foreground="{StaticResource TextPrimary}" Margin="0,0,0,8"/>
+
+                            <TextBlock Style="{StaticResource Lbl}" Text="Partia"/>
+                            <ComboBox x:Name="cbPartia" Height="34" IsEditable="True" FontSize="14"
+                                      DisplayMemberPath="Wyswietl"/>
+
+                            <TextBlock Style="{StaticResource Lbl}" Text="Miejsce pomiaru"/>
+                            <ComboBox x:Name="cbMiejsce" Height="34" FontSize="14"
+                                      DisplayMemberPath="Display" SelectedValuePath="Kod"
+                                      SelectionChanged="CbMiejsce_SelectionChanged"/>
+                            <TextBlock x:Name="txtNormaInfo" FontSize="11" Foreground="{StaticResource TextMuted}" Margin="0,4,0,0"/>
+
+                            <TextBlock Style="{StaticResource Lbl}" Text="Próbki (°C) — wpisz ile masz, średnia liczy się sama"/>
+                            <UniformGrid Rows="1" Columns="4">
+                                <TextBox x:Name="txtP1" Margin="0,0,4,0" TextChanged="Proba_TextChanged"/>
+                                <TextBox x:Name="txtP2" Margin="2,0" TextChanged="Proba_TextChanged"/>
+                                <TextBox x:Name="txtP3" Margin="2,0" TextChanged="Proba_TextChanged"/>
+                                <TextBox x:Name="txtP4" Margin="4,0,0,0" TextChanged="Proba_TextChanged"/>
+                            </UniformGrid>
+
+                            <Border x:Name="boxPodglad" Background="#F1F5F9" CornerRadius="8" Padding="14,10" Margin="0,12,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="Średnia" FontSize="11" Foreground="{StaticResource TextMuted}"/>
+                                    <TextBlock x:Name="txtSrednia" Text="—" FontSize="28" FontWeight="Bold" Foreground="{StaticResource TextPrimary}"/>
+                                    <TextBlock x:Name="txtPodgladStatus" Text="" FontSize="12"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Button x:Name="btnZapisz" Content="💾 Zapisz pomiar" Height="44" FontSize="15"
+                                    Background="#2563EB" Foreground="White" Margin="0,16,0,0"
+                                    Style="{StaticResource BtnFlat}" Click="BtnZapisz_Click"/>
+                            <TextBlock x:Name="txtKomunikat" FontSize="12" Margin="0,10,0,0" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- ════ TRENDY ════ -->
+            <TabItem Header="📈 Trendy">
+                <Grid Margin="16">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
+                        <TextBlock Text="Miejsce:" VerticalAlignment="Center" Margin="0,0,8,0"
+                                   Foreground="{StaticResource TextPrimary}" FontWeight="SemiBold"/>
+                        <ComboBox x:Name="cbTrendMiejsce" Width="210" Height="32"
+                                  DisplayMemberPath="Display" SelectedValuePath="Kod"
+                                  SelectionChanged="CbTrendMiejsce_SelectionChanged"/>
+                        <TextBlock x:Name="txtTrendInfo" VerticalAlignment="Center" Margin="16,0,0,0"
+                                   Foreground="{StaticResource TextMuted}" FontSize="12"/>
+                    </StackPanel>
+                    <Border Grid.Row="1" BorderBrush="{StaticResource BorderColor}" BorderThickness="1" CornerRadius="10" Padding="8">
+                        <lvc:CartesianChart x:Name="chartTrend" LegendLocation="Top">
+                            <lvc:CartesianChart.AxisY>
+                                <lvc:Axis Title="Temperatura °C"/>
+                            </lvc:CartesianChart.AxisY>
+                            <lvc:CartesianChart.AxisX>
+                                <lvc:Axis x:Name="axisTrendX" Title="Pomiar (chronologicznie)"/>
+                            </lvc:CartesianChart.AxisX>
+                        </lvc:CartesianChart>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- ════ KRZYWA SCHŁADZANIA ════ -->
+            <TabItem Header="🌡 Krzywa schładzania">
+                <Grid Margin="16">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
+                        <TextBlock Text="Partia:" VerticalAlignment="Center" Margin="0,0,8,0"
+                                   Foreground="{StaticResource TextPrimary}" FontWeight="SemiBold"/>
+                        <ComboBox x:Name="cbKrzywaPartia" Width="280" Height="32" IsEditable="True"
+                                  DisplayMemberPath="Wyswietl"/>
+                        <Button Content="Pokaż krzywą" Margin="8,0,0,0" Background="#2563EB" Foreground="White"
+                                Style="{StaticResource BtnFlat}" Click="BtnKrzywa_Click"/>
+                        <TextBlock x:Name="txtKrzywaInfo" VerticalAlignment="Center" Margin="16,0,0,0"
+                                   Foreground="{StaticResource TextMuted}" FontSize="12"/>
+                    </StackPanel>
+                    <Border Grid.Row="1" BorderBrush="{StaticResource BorderColor}" BorderThickness="1" CornerRadius="10" Padding="8">
+                        <lvc:CartesianChart x:Name="chartKrzywa" LegendLocation="Top">
+                            <lvc:CartesianChart.AxisY>
+                                <lvc:Axis Title="Temperatura °C"/>
+                            </lvc:CartesianChart.AxisY>
+                            <lvc:CartesianChart.AxisX>
+                                <lvc:Axis x:Name="axisKrzywaX" Title="Etap chłodzenia"/>
+                            </lvc:CartesianChart.AxisX>
+                        </lvc:CartesianChart>
+                    </Border>
+                    <Border Grid.Row="2" Background="#EFF6FF" CornerRadius="8" Padding="14,8" Margin="0,10,0,0">
+                        <TextBlock x:Name="txtKrzywaOcena" FontSize="12.5" Foreground="#1E40AF" TextWrapping="Wrap"
+                                   Text="Wybierz partię aby zobaczyć krzywą schładzania (rampa → chiller → tunel)."/>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- ════ HODOWCY + BRAKI ════ -->
+            <TabItem Header="🏆 Hodowcy + braki">
+                <Grid Margin="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="12"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Border Grid.Column="0" BorderBrush="{StaticResource BorderColor}" BorderThickness="1" CornerRadius="10">
+                        <DockPanel>
+                            <TextBlock DockPanel.Dock="Top" Text="🏆 Ranking hodowców — najwięcej przekroczeń temp"
+                                       FontWeight="Bold" FontSize="13" Margin="14,12,14,8"
+                                       Foreground="{StaticResource TextPrimary}"/>
+                            <DataGrid x:Name="dgRankingHod" AutoGenerateColumns="False" IsReadOnly="True"
+                                      HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                      BorderThickness="0" RowHeight="32" FontSize="12.5">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="#" Binding="{Binding Pozycja}" Width="34"/>
+                                    <DataGridTextColumn Header="Hodowca" Binding="{Binding Hodowca}" Width="*"/>
+                                    <DataGridTextColumn Header="Poza/Razem" Binding="{Binding PozaFormatted}" Width="100"/>
+                                    <DataGridTextColumn Header="Zgodność" Binding="{Binding ZgodnoscFormatted}" Width="85"/>
+                                    <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="100"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </DockPanel>
+                    </Border>
+
+                    <Border Grid.Column="2" BorderBrush="{StaticResource BorderColor}" BorderThickness="1" CornerRadius="10">
+                        <DockPanel>
+                            <TextBlock DockPanel.Dock="Top" Text="⚠ Partie bez kompletu pomiarów (luka HACCP)"
+                                       FontWeight="Bold" FontSize="13" Margin="14,12,14,8"
+                                       Foreground="{StaticResource TextPrimary}"/>
+                            <DataGrid x:Name="dgNiekompletne" AutoGenerateColumns="False" IsReadOnly="True"
+                                      HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                      BorderThickness="0" RowHeight="32" FontSize="12.5">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Data" Binding="{Binding DataFormatted}" Width="85"/>
+                                    <DataGridTextColumn Header="Partia" Binding="{Binding Partia}" Width="90"/>
+                                    <DataGridTextColumn Header="Hodowca" Binding="{Binding Hodowca}" Width="*"/>
+                                    <DataGridTextColumn Header="Ma" Binding="{Binding MaFormatted}" Width="120"/>
+                                    <DataGridTextColumn Header="Brakuje" Binding="{Binding BrakFormatted}" Width="120"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </DockPanel>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- ════ INCYDENTY ════ -->
+            <TabItem Header="🚨 Incydenty">
+                <Grid Margin="16">
+                    <Border BorderBrush="{StaticResource BorderColor}" BorderThickness="1" CornerRadius="10">
+                        <DockPanel>
+                            <TextBlock DockPanel.Dock="Top" Text="Przekroczenia normy + działania naprawcze (HACCP)"
+                                       FontWeight="Bold" FontSize="14" Margin="14,12,14,8"
+                                       Foreground="{StaticResource TextPrimary}"/>
+                            <DataGrid x:Name="dgIncydenty" AutoGenerateColumns="False" IsReadOnly="True"
+                                      HeadersVisibility="Column" GridLinesVisibility="None"
+                                      BorderThickness="0" RowHeight="38" FontSize="12.5"
+                                      RowStyle="{StaticResource StatusRow}">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Data" Binding="{Binding DataFormatted}" Width="100"/>
+                                    <DataGridTextColumn Header="Partia" Binding="{Binding PartiaId}" Width="90"/>
+                                    <DataGridTextColumn Header="Hodowca" Binding="{Binding Hodowca}" Width="*"/>
+                                    <DataGridTextColumn Header="Miejsce" Binding="{Binding MiejsceLabel}" Width="110"/>
+                                    <DataGridTextColumn Header="Średnia" Binding="{Binding SredniaFormatted}" Width="80"/>
+                                    <DataGridTextColumn Header="Norma" Binding="{Binding NormaFormatted}" Width="90"/>
+                                    <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="190"/>
+                                    <DataGridTemplateColumn Header="Korekta" Width="110">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <Button Content="Korekta" Margin="2" Background="#DC2626" Foreground="White"
+                                                        Style="{StaticResource BtnFlat}" FontSize="11.5" Padding="10,4"
+                                                        Click="BtnKorekta_Click" Tag="{Binding}"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </DockPanel>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- ════ RAPORT ════ -->
+            <TabItem Header="📄 Raport HACCP">
+                <StackPanel Margin="24" HorizontalAlignment="Left" Width="560">
+                    <TextBlock Text="Raport zgodności temperatur (HACCP/BRC)" FontSize="18" FontWeight="Bold"
+                               Foreground="{StaticResource TextPrimary}"/>
+                    <TextBlock Margin="0,8,0,16" FontSize="13" Foreground="{StaticResource TextMuted}" TextWrapping="Wrap"
+                               Text="Eksport wszystkich pomiarów z wybranego okresu z oceną vs norma i statusem korekt. Format CSV (otwiera się w Excelu, gotowy dla audytora)."/>
+                    <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource BorderColor}"
+                            BorderThickness="1" CornerRadius="10" Padding="18">
+                        <StackPanel>
+                            <TextBlock x:Name="txtRaportPodsum" FontSize="13" Foreground="{StaticResource TextPrimary}" TextWrapping="Wrap"/>
+                            <Button x:Name="btnEksportCsv" Content="📥 Eksportuj raport CSV" Height="44" FontSize="14"
+                                    Background="#059669" Foreground="White" Margin="0,14,0,0"
+                                    Style="{StaticResource BtnFlat}" Click="BtnEksportCsv_Click"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </TabItem>
+        </TabControl>
     </Grid>
 </Window>

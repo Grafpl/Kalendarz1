@@ -138,6 +138,14 @@ namespace Kalendarz1
 
         // === BLOKADA: Zapobiega logowaniu zmian podczas ładowania danych ===
         private bool _isLoadingData = false;
+        // Guard: dopoki okno sie nie zainicjalizuje (Window_Loaded), event SelectedDateChanged
+        // nie odpala LoadData — inaczej zmiana SelectedDate w konstruktorze + XAML init wywoluja
+        // pelne ladowanie 2-3x (bottleneck ~2600ms zmarnowane). Window_Loaded robi 1 autorytatywne LoadData.
+        private bool _oknoZainicjalizowane = false;
+        // Data dla ktorej zaladowano dane karty Transport (lazy load). null = trzeba przeladowac.
+        private DateTime? _transportDataDate = null;
+        // Schemat (kolumny Symfonia/IdPosrednik/zdjecia) sprawdzany RAZ na sesje, nie per otwarcie okna.
+        private static bool _schematSprawdzony = false;
 
         // === AUTOCOMPLETE DOSTAWCY: TextBox + Popup + ListBox ===
         public ObservableCollection<DostawcaItem> SupplierSuggestions { get; set; } = new ObservableCollection<DostawcaItem>();
@@ -147,11 +155,18 @@ namespace Kalendarz1
 
         public WidokSpecyfikacje()
         {
-            InitializeComponent();
-            WindowIconHelper.SetIcon(this);
+            // START pomiaru calego otwarcia okna (konstruktor + Window_Loaded + LoadData).
+            // Raport pojawi sie automatycznie po pierwszym zaladowaniu (Dispatcher ApplicationIdle).
+            PerfProfiler.Reset();
+
+            using (PerfProfiler.Measure("InitializeComponent (parse XAML)", "WPF"))
+                InitializeComponent();
+            using (PerfProfiler.Measure("SetIcon", "WPF"))
+                WindowIconHelper.SetIcon(this);
 
             // Przenieś kartę Rozliczenia na koniec (po Płachta)
-            ReorderTabs();
+            using (PerfProfiler.Measure("ReorderTabs", "WPF"))
+                ReorderTabs();
 
             // Inicjalizuj timer debounce dla auto-zapisu
             _debounceTimer = new DispatcherTimer();
@@ -170,13 +185,16 @@ namespace Kalendarz1
 
             // WAŻNE: Załaduj listy PRZED ustawieniem DataContext
             // aby binding do ListaDostawcow i ListaTypowCen działał poprawnie
-            LoadDostawcyFromCache();
+            using (PerfProfiler.Measure("LoadDostawcyFromCache", "SQL"))
+                LoadDostawcyFromCache();
 
             // Ustaw DataContext na this - teraz ListaDostawcow jest już wypełniona
             DataContext = this;
 
             specyfikacjeData = new ObservableCollection<SpecyfikacjaRow>();
             dataGridView1.ItemsSource = specyfikacjeData;
+            // Karta "Wyliczenia" — te same dane co Specyfikacje, inne kolumny (1:1 z PDF)
+            dataGridWyliczenia.ItemsSource = specyfikacjeData;
 
             // Inicjalizuj dane transportowe
             transportData = new ObservableCollection<TransportRow>();
@@ -413,31 +431,50 @@ namespace Kalendarz1
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            // Upewnij się że kolumna Symfonia istnieje w bazie
-            EnsureSymfoniaColumnExists();
+            using (PerfProfiler.Measure("Window_Loaded — CALOSC", "WPF"))
+            {
+                // Ensure*Columns: sprawdzenie/utworzenie kolumn potrzebne TYLKO RAZ na sesje aplikacji
+                // (schemat sie nie zmienia miedzy otwarciami okna). Gatujemy flaga statyczna — oszczednosc SQL.
+                if (!_schematSprawdzony)
+                {
+                    using (PerfProfiler.Measure("EnsureSymfoniaColumnExists", "SQL"))
+                        EnsureSymfoniaColumnExists();
+                    using (PerfProfiler.Measure("EnsureIdPosrednikColumnExists", "SQL"))
+                        EnsureIdPosrednikColumnExists();
+                    using (PerfProfiler.Measure("EnsurePhotoColumnsExist", "SQL"))
+                        EnsurePhotoColumnsExist();
+                    _schematSprawdzony = true;
+                }
 
-            // Upewnij się że kolumna IdPosrednik istnieje w bazie + tabela Posrednicy
-            EnsureIdPosrednikColumnExists();
+                // Wczytaj ustawienia administracyjne
+                using (PerfProfiler.Measure("LoadAdminSettings", "SQL"))
+                    LoadAdminSettings();
 
-            // Upewnij się że kolumny dla zdjęć z ważenia istnieją w bazie
-            EnsurePhotoColumnsExist();
+                // Załaduj listę pośredników do ComboBox
+                using (PerfProfiler.Measure("LoadPosrednicy", "SQL"))
+                    LoadPosrednicy();
 
-            // Wczytaj ustawienia administracyjne
-            LoadAdminSettings();
+                using (PerfProfiler.Measure("LoadData — CALOSC", "MIX"))
+                    LoadData(dateTimePicker1.SelectedDate ?? DateTime.Today);
 
-            // Załaduj listę pośredników do ComboBox
-            LoadPosrednicy();
+                using (PerfProfiler.Measure("Etykiety dat + status", "WPF"))
+                {
+                    UpdateFullDateLabel();
+                    UpdateTransportDateLabel();
+                    UpdateStatus("Dane załadowane pomyślnie");
+                }
 
-            LoadData(dateTimePicker1.SelectedDate ?? DateTime.Today);
-            UpdateFullDateLabel();
-            UpdateTransportDateLabel();
-            UpdateStatus("Dane załadowane pomyślnie");
+                // Odśwież cache dostawców w tle (async) — nie blokuje
+                _ = LoadDostawcyAsync();
 
-            // Odśwież cache dostawców w tle (async)
-            _ = LoadDostawcyAsync();
+                using (PerfProfiler.Measure("InitializeMiniCalendar", "WPF"))
+                    InitializeMiniCalendar();
+            }
 
-            // Inicjalizuj mini kalendarz
-            InitializeMiniCalendar();
+            // Okno gotowe — od teraz SelectedDateChanged moze odpalac LoadData (zmiany daty przez usera).
+            _oknoZainicjalizowane = true;
+
+            // (Auto-popup debuggera wydajnosci usuniety — raport dostepny recznie pod F12.)
         }
 
         #region Mini Kalendarz
@@ -629,7 +666,94 @@ namespace Kalendarz1
                 {
                     LoadRozliczeniaData();
                 }
+                else if (tabHeader.Contains("Wyliczenia"))
+                {
+                    AktualizujSumyWyliczenia();
+                }
+                else if (tabHeader.Contains("Transport"))
+                {
+                    // Lazy load — laduj dane Transport tylko gdy user wejdzie na karte
+                    // i tylko jesli nie zaladowano juz dla biezacej daty.
+                    DateTime biezacaData = dateTimePicker1.SelectedDate ?? DateTime.Today;
+                    if (_transportDataDate != biezacaData)
+                    {
+                        LoadTransportData();
+                        _transportDataDate = biezacaData;
+                    }
+                }
             }
+        }
+
+        // === WYKRYWANIE ANOMALII ===
+        // Heurystyki (in-memory, bez SQL):
+        //   1. Ubytek niespojny w grupie dostawcy (1 wiersz ma ubytek, inny nie) — TEN blad naprawialismy.
+        //   2. Cena (Cena+Dodatek) niespojna w grupie dostawcy.
+        //   3. Srednia waga sztuki poza norma (1.0–4.5 kg/szt dla kurczaka).
+        private void WykryjAnomalie()
+        {
+            if (specyfikacjeData == null || specyfikacjeData.Count == 0) return;
+
+            // Reset
+            foreach (var r in specyfikacjeData) { r.MaAnomalie = false; r.AnomaliaOpis = ""; }
+
+            int liczbaAnomalii = 0;
+
+            // 1 + 2: niespojnosci w grupie dostawcy (po DostawcaGID)
+            foreach (var grupa in specyfikacjeData.GroupBy(r => r.DostawcaGID ?? ""))
+            {
+                var rows = grupa.Where(r => !string.IsNullOrEmpty(r.DostawcaGID)).ToList();
+                if (rows.Count < 2) continue;   // pojedynczy wiersz — nie ma z czym porownac
+
+                // 1. Ubytek niespojny — wiersze odstajace od dominujacego ubytku
+                var grupyUbytku = rows.GroupBy(r => r.Ubytek).ToList();
+                if (grupyUbytku.Count > 1)
+                {
+                    decimal dominujacyUbytek = grupyUbytku.OrderByDescending(g => g.Count()).First().Key;
+                    foreach (var r in rows.Where(r => r.Ubytek != dominujacyUbytek))
+                        DodajAnomalie(r, $"Ubytek {r.Ubytek:0.##}% ≠ reszta dostawcy ({dominujacyUbytek:0.##}%)");
+                }
+
+                // 2. Cena niespojna — wiersze odstajace od dominujacej ceny koncowej
+                var grupyCeny = rows.GroupBy(r => r.CenaKoncowa).ToList();
+                if (grupyCeny.Count > 1)
+                {
+                    decimal dominujacaCena = grupyCeny.OrderByDescending(g => g.Count()).First().Key;
+                    foreach (var r in rows.Where(r => r.CenaKoncowa != dominujacaCena))
+                        DodajAnomalie(r, $"Cena {r.CenaKoncowa:N2} ≠ reszta dostawcy ({dominujacaCena:N2})");
+                }
+            }
+
+            // 3. Srednia waga ekstremalna (per wiersz)
+            foreach (var r in specyfikacjeData)
+            {
+                if (r.SredniaWaga > 0 && (r.SredniaWaga < 1.0m || r.SredniaWaga > 4.5m))
+                    DodajAnomalie(r, $"Śr.waga {r.SredniaWaga:N2} kg poza normą (1.0–4.5 kg/szt)");
+            }
+
+            liczbaAnomalii = specyfikacjeData.Count(r => r.MaAnomalie);
+            if (liczbaAnomalii > 0)
+                UpdateStatus($"⚠ Wykryto {liczbaAnomalii} wierszy z anomaliami — sprawdź podświetlone (kolumna ⚠)");
+        }
+
+        private void DodajAnomalie(SpecyfikacjaRow r, string opis)
+        {
+            r.MaAnomalie = true;
+            r.AnomaliaOpis = string.IsNullOrEmpty(r.AnomaliaOpis) ? opis : r.AnomaliaOpis + "  ·  " + opis;
+        }
+
+        // Sumy w karcie "Wyliczenia" (te same dane co Specyfikacje, wyliczenia 1:1 z PDF)
+        private void AktualizujSumyWyliczenia()
+        {
+            try
+            {
+                if (specyfikacjeData == null) return;
+                dataGridWyliczenia.Items.Refresh();
+                lblWylSumaWierszy.Text = specyfikacjeData.Count.ToString();
+                lblWylSumaNetto.Text = specyfikacjeData.Sum(r => r.WagaNettoDoRozliczenia).ToString("N0");
+                lblWylSumaDoZapl.Text = specyfikacjeData.Sum(r => r.DoZaplaty).ToString("N0");
+                lblWylSumaWartosc.Text = specyfikacjeData.Sum(r => r.Wartosc).ToString("N2") + " zł";
+            }
+            catch { /* niekrytyczne */ }
         }
 
         private void UpdateTransportDateLabel()
@@ -1396,11 +1520,23 @@ namespace Kalendarz1
 
         private void DateTimePicker1_SelectedDateChanged(object sender, SelectionChangedEventArgs e)
         {
+            // Ignoruj zmiany podczas inicjalizacji okna (konstruktor + XAML init).
+            // Window_Loaded wykona jedno autorytatywne LoadData. Bez tego ladowanie odpala sie 3x.
+            if (!_oknoZainicjalizowane) return;
+
             if (dateTimePicker1.SelectedDate.HasValue)
             {
-                LoadData(dateTimePicker1.SelectedDate.Value);
+                LoadData(dateTimePicker1.SelectedDate.Value);   // resetuje _transportDataDate = null
                 UpdateFullDateLabel();
                 UpdateTransportDateLabel();
+
+                // Karta Transport: przeladuj tylko gdy jest aktualnie widoczna (inaczej lazy przy wejsciu).
+                var aktywnaKarta = mainTabControl.SelectedItem as TabItem;
+                if ((aktywnaKarta?.Header?.ToString() ?? "").Contains("Transport"))
+                {
+                    LoadTransportData();
+                    _transportDataDate = dateTimePicker1.SelectedDate.Value;
+                }
 
                 // Odśwież wszystkie karty przy zmianie daty
                 LoadRozliczeniaData();
@@ -1418,6 +1554,89 @@ namespace Kalendarz1
             }
         }
 
+        // F12 = pokaz raport wydajnosci ponownie (np. po zmianie daty)
+        private void WidokSpecyfikacje_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (e.Key == System.Windows.Input.Key.F12)
+            {
+                PokazRaportWydajnosci(automatyczny: false);
+                e.Handled = true;
+            }
+        }
+
+        private void PokazRaportWydajnosci(bool automatyczny)
+        {
+            string raport = Kalendarz1.Zywiec.WidokSpecyfikacji.PerfProfiler.GetReport();
+
+            string tytul = automatyczny
+                ? "⏱ Debugger wydajności — czas otwarcia okna Specyfikacji (F12 = pokaż ponownie)"
+                : "⏱ Raport wydajności (F12) — ostatnie ładowanie";
+
+            var win = new Window
+            {
+                Title = tytul,
+                Width = 860,
+                Height = 680,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                Background = System.Windows.Media.Brushes.White
+            };
+            var grid = new System.Windows.Controls.Grid();
+            grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = System.Windows.GridLength.Auto });
+            grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new System.Windows.GridLength(1, System.Windows.GridUnitType.Star) });
+            grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = System.Windows.GridLength.Auto });
+
+            var hdr = new System.Windows.Controls.TextBlock
+            {
+                Text = "⏱  Wąskie gardła — TOP najwolniejszych kroków na górze. SQL/IO = liczba zapytań/operacji dyskowych.",
+                FontWeight = System.Windows.FontWeights.SemiBold,
+                Margin = new Thickness(14, 12, 14, 8),
+                TextWrapping = TextWrapping.Wrap,
+                Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x1F, 0x2A, 0x36))
+            };
+            System.Windows.Controls.Grid.SetRow(hdr, 0);
+            grid.Children.Add(hdr);
+
+            var tb = new System.Windows.Controls.TextBox
+            {
+                Text = raport,
+                IsReadOnly = true,
+                FontFamily = new System.Windows.Media.FontFamily("Consolas"),
+                FontSize = 12,
+                VerticalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Auto,
+                TextWrapping = TextWrapping.NoWrap,
+                Margin = new Thickness(14, 0, 14, 8),
+                Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xFA, 0xFB, 0xFC))
+            };
+            System.Windows.Controls.Grid.SetRow(tb, 1);
+            grid.Children.Add(tb);
+
+            var panel = new System.Windows.Controls.StackPanel
+            {
+                Orientation = System.Windows.Controls.Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(14, 0, 14, 12)
+            };
+            var btnCopy = new System.Windows.Controls.Button
+            {
+                Content = "📋 Kopiuj", Padding = new Thickness(14, 6, 14, 6), Margin = new Thickness(0, 0, 8, 0), Cursor = System.Windows.Input.Cursors.Hand
+            };
+            btnCopy.Click += (_, __) => { try { Clipboard.SetText(raport); } catch { } };
+            var btnClose = new System.Windows.Controls.Button
+            {
+                Content = "Zamknij", Padding = new Thickness(14, 6, 14, 6), Cursor = System.Windows.Input.Cursors.Hand
+            };
+            btnClose.Click += (_, __) => win.Close();
+            panel.Children.Add(btnCopy);
+            panel.Children.Add(btnClose);
+            System.Windows.Controls.Grid.SetRow(panel, 2);
+            grid.Children.Add(panel);
+
+            win.Content = grid;
+            win.ShowDialog();
+        }
+
         private void LoadData(DateTime selectedDate)
         {
             _isLoadingData = true; // Blokuj logowanie zmian podczas ładowania
@@ -1425,6 +1644,7 @@ namespace Kalendarz1
             var stepStopwatch = new System.Diagnostics.Stopwatch();
             var debugLog = new System.Text.StringBuilder();
             debugLog.AppendLine($"=== LoadData DEBUG ({selectedDate:yyyy-MM-dd}) ===");
+            // NIE resetujemy tu — pomiar startuje w konstruktorze (cale otwarcie okna).
 
             try
             {
@@ -1468,12 +1688,17 @@ namespace Kalendarz1
 
                     SqlDataAdapter adapter = new SqlDataAdapter(command);
                     DataTable dataTable = new DataTable();
-                    adapter.Fill(dataTable);
+                    using (PerfProfiler.Measure("Glowne zapytanie FarmerCalc", "SQL"))
+                    {
+                        PerfProfiler.CountSql();
+                        adapter.Fill(dataTable);
+                    }
                     debugLog.AppendLine($"[{stepStopwatch.ElapsedMilliseconds}ms] Zapytanie SQL ({dataTable.Rows.Count} wierszy)");
 
                     if (dataTable.Rows.Count > 0)
                     {
                         stepStopwatch.Restart();
+                        using (PerfProfiler.Measure($"Tworzenie {dataTable.Rows.Count} obiektow SpecyfikacjaRow", "CALC"))
                         foreach (DataRow row in dataTable.Rows)
                         {
                             // WAŻNE: Trim() usuwa spacje z nchar(10) - bez tego ComboBox nie znajdzie dopasowania
@@ -1555,32 +1780,34 @@ namespace Kalendarz1
                         debugLog.AppendLine($"[{stepStopwatch.ElapsedMilliseconds}ms] Tworzenie obiektów SpecyfikacjaRow (foreach)");
 
                         stepStopwatch.Restart();
-                        UpdateStatistics();
+                        using (PerfProfiler.Measure("UpdateStatistics", "CALC")) UpdateStatistics();
                         debugLog.AppendLine($"[{stepStopwatch.ElapsedMilliseconds}ms] UpdateStatistics()");
 
-                        stepStopwatch.Restart();
-                        LoadTransportData(); // Załaduj dane transportowe
-                        debugLog.AppendLine($"[{stepStopwatch.ElapsedMilliseconds}ms] LoadTransportData()");
+                        // LoadTransportData NIE jest tu wolane — karta Transport laduje sie lazy
+                        // przy przelaczeniu na nia (MainTabControl_SelectionChanged). Oszczednosc ~250ms na starcie.
+                        _transportDataDate = null;  // invaliduj — przeladuje sie gdy user wejdzie na karte Transport
 
                         stepStopwatch.Restart();
-                        LoadHarmonogramData(); // Załaduj harmonogram dostaw
+                        using (PerfProfiler.Measure("LoadHarmonogramData", "SQL")) LoadHarmonogramData(); // Załaduj harmonogram dostaw
                         debugLog.AppendLine($"[{stepStopwatch.ElapsedMilliseconds}ms] LoadHarmonogramData()");
 
                         stepStopwatch.Restart();
-                        LoadPdfStatusForAllRows(); // Załaduj status PDF dla wszystkich wierszy
+                        using (PerfProfiler.Measure("LoadPdfStatusForAllRows", "IO")) LoadPdfStatusForAllRows(); // Załaduj status PDF dla wszystkich wierszy
                         debugLog.AppendLine($"[{stepStopwatch.ElapsedMilliseconds}ms] LoadPdfStatusForAllRows()");
 
                         stepStopwatch.Restart();
-                        AssignSupplierColorsAndGroups(); // Przypisz kolory dostawcom
+                        using (PerfProfiler.Measure("AssignSupplierColorsAndGroups", "CALC")) AssignSupplierColorsAndGroups(); // Przypisz kolory dostawcom
                         debugLog.AppendLine($"[{stepStopwatch.ElapsedMilliseconds}ms] AssignSupplierColorsAndGroups()");
 
                         stepStopwatch.Restart();
-                        AutoShowColumnsBasedOnData(); // Auto-pokaż kolumny jeśli dane zawierają wartości
+                        using (PerfProfiler.Measure("AutoShowColumnsBasedOnData", "WPF")) AutoShowColumnsBasedOnData(); // Auto-pokaż kolumny jeśli dane zawierają wartości
                         debugLog.AppendLine($"[{stepStopwatch.ElapsedMilliseconds}ms] AutoShowColumnsBasedOnData()");
 
                         stepStopwatch.Restart();
-                        LoadSpecyfikacjeZatwierdzenia(); // Załaduj status wprowadzenia/weryfikacji
+                        using (PerfProfiler.Measure("LoadSpecyfikacjeZatwierdzenia", "SQL")) LoadSpecyfikacjeZatwierdzenia(); // Załaduj status wprowadzenia/weryfikacji
                         debugLog.AppendLine($"[{stepStopwatch.ElapsedMilliseconds}ms] LoadSpecyfikacjeZatwierdzenia()");
+
+                        using (PerfProfiler.Measure("WykryjAnomalie", "CALC")) WykryjAnomalie(); // Podświetl wiersze odstające
 
                         UpdateStatus($"Załadowano {dataTable.Rows.Count} rekordów");
                     }
@@ -2934,10 +3161,11 @@ namespace Kalendarz1
                     int rowId = row.ID;
                     QueueRowForSave(rowId);
 
-                    // Statystyki na NAJNIŻSZYM priorytecie - nie blokują nawigacji
+                    // Statystyki + re-detekcja anomalii na NAJNIŻSZYM priorytecie - nie blokują nawigacji
                     Dispatcher.BeginInvoke(new Action(() =>
                     {
                         UpdateStatistics();
+                        WykryjAnomalie();   // odswiez ⚠ po edycji ceny/ubytku/wagi
                     }), DispatcherPriority.ApplicationIdle);
                 }
             }
@@ -8032,23 +8260,40 @@ namespace Kalendarz1
 
                 if (pdfRecords.Count == 0) return;
 
-                // Pobierz unikalne ścieżki PDF i sprawdź ich istnienie równolegle
-                var uniquePaths = pdfRecords.Select(r => r.PdfPath).Distinct().ToList();
+                // OPTYMALIZACJA: sprawdzamy File.Exists TYLKO dla PDF-ow dotyczacych
+                // aktualnie zaladowanych wierszy (a nie calej historii 400+ rekordow).
+                // Bez tego: 402 roundtripy do dysku sieciowego = ~640ms.
+                var aktualneIds = new HashSet<int>(specyfikacjeData.Select(r => r.ID));
+
+                // Pre-parsuj IDs kazdego rekordu raz; zachowaj tylko rekordy dotyczace aktualnych wierszy.
+                var relevantne = new List<(List<int> Ids, string PdfPath)>();
+                foreach (var record in pdfRecords)
+                {
+                    var idsList = record.IdsString.Split(',')
+                        .Select(s => int.TryParse(s, out int id) ? id : 0)
+                        .Where(id => id > 0)
+                        .ToList();
+                    if (idsList.Any(id => aktualneIds.Contains(id)))
+                        relevantne.Add((idsList, record.PdfPath));
+                }
+
+                if (relevantne.Count == 0) return;
+
+                var uniquePaths = relevantne.Select(r => r.PdfPath).Distinct().ToList();
                 var pathExistsDict = new System.Collections.Concurrent.ConcurrentDictionary<string, bool>();
 
-                // Sprawdź pliki równolegle (znacznie szybsze dla dysków sieciowych)
+                // Sprawdz pliki rownolegle — teraz tylko kilka-kilkanascie zamiast 400+.
+                PerfProfiler.CountIo(uniquePaths.Count);
                 System.Threading.Tasks.Parallel.ForEach(uniquePaths, new System.Threading.Tasks.ParallelOptions { MaxDegreeOfParallelism = 8 }, path =>
                 {
                     pathExistsDict[path] = File.Exists(path);
                 });
 
-                // Teraz przypisz statusy do wierszy (szybkie - tylko operacje w pamięci)
-                foreach (var record in pdfRecords)
+                // Przypisz statusy (operacje w pamieci)
+                foreach (var record in relevantne)
                 {
                     bool fileExists = pathExistsDict.TryGetValue(record.PdfPath, out bool exists) && exists;
-                    var idsList = record.IdsString.Split(',').Select(s => int.TryParse(s, out int id) ? id : 0).Where(id => id > 0).ToList();
-
-                    foreach (var row in specyfikacjeData.Where(r => idsList.Contains(r.ID)))
+                    foreach (var row in specyfikacjeData.Where(r => record.Ids.Contains(r.ID)))
                     {
                         row.HasPdf = fileExists;
                         row.PdfPath = record.PdfPath;
@@ -8866,8 +9111,16 @@ namespace Kalendarz1
                     conn.Open();
 
                     // Pola Symfonia: fc.SymfoniaNrFV (nr FV z eksportu AmBasic).
-                    // KLUCZOWE: Wartosc liczona z PayWgt (= DoZapl. z PDF, po potraceniach: padle, konf., ubytek, opas., klB)
-                    //           i Cena = Price + Addition. ROUND(..., 0) zgodnie z PDF Math.Round(..., 0).
+                    // KLUCZOWE: DoZaplaty + Wartosc liczone SWIEZO z pol surowych (CROSS APPLY),
+                    //   NIE z fc.PayWgt — bo PayWgt bywal zapisany niespojnie przez WPF (ubytek na jednym
+                    //   wierszu, na innym nie). Wzor 1:1 z PDF i AmBasic:
+                    //     netto    = COALESCE(NULLIF(NettoFarmWeight,0), NettoWeight)  [DECIMAL]
+                    //     srWaga   = netto / (LumQnt + DeclI2)
+                    //     padleKg  = PiK ? 0 : BANKOWO(DeclI2 × srWaga)              <- jak Math.Round w PDF (do parzystej)
+                    //     konfKg   = PiK ? 0 : BANKOWO((DeclI3+DeclI4+DeclI5) × srWaga)
+                    //     ubytekKg = BANKOWO(netto × Loss); opasKg=BANKOWO(Opasienie); klBKg=BANKOWO(KlasaB)
+                    //     DoZapl   = ROUND(netto - padleKg - konfKg - ubytekKg - opasKg - klBKg, 0)  <- jak .ToString("N0")
+                    //   UWAGA: skladniki zaokraglane BANKOWO (half-to-even) + liczone w DECIMAL — 1:1 z PDF i AmBasic.
                     string query = @"
                         SELECT
                             fc.ID,
@@ -8876,12 +9129,12 @@ namespace Kalendarz1
                             COALESCE(k.ShortName, 'Nieznany') as Dostawca,
                             ISNULL(fc.DeclI1, 0) as SztukiDek,
                             ISNULL(fc.NettoWeight, 0) as NettoKg,
-                            ISNULL(fc.PayWgt, 0) as DoZaplaty,
+                            calc.DoZapl as DoZaplaty,
                             ISNULL(fc.Price, 0) as Cena,
                             ISNULL(fc.Addition, 0) as Dodatek,
                             pt.Name as TypCeny,
                             ISNULL(fc.TerminDni, 0) as TerminDni,
-                            CAST(ROUND(ISNULL(fc.PayWgt, 0) * (ISNULL(fc.Price, 0) + ISNULL(fc.Addition, 0)), 0) AS DECIMAL(18, 2)) as Wartosc,
+                            CAST(ROUND(calc.DoZapl * (ISNULL(fc.Price, 0) + ISNULL(fc.Addition, 0)), 0) AS DECIMAL(18, 2)) as Wartosc,
                             ISNULL(fc.Symfonia, 0) as Symfonia,
                             ISNULL(k.IdSymf, 0) as IdSymf,
                             ISNULL(CAST(fc.CustomerGID AS NVARCHAR(50)), '') as CustomerGID,
@@ -8890,6 +9143,23 @@ namespace Kalendarz1
                         FROM dbo.FarmerCalc fc
                         LEFT JOIN dbo.Dostawcy k ON fc.CustomerGID = k.ID
                         LEFT JOIN dbo.PriceType pt ON fc.PriceTypeID = pt.ID
+                        CROSS APPLY (SELECT netto = CAST(COALESCE(NULLIF(fc.NettoFarmWeight,0), fc.NettoWeight) AS DECIMAL(28,8))) v1
+                        CROSS APPLY (SELECT cnt = (ISNULL(fc.LumQnt,0)+ISNULL(fc.DeclI2,0))) vc
+                        CROSS APPLY (SELECT srw = CASE WHEN vc.cnt > 0
+                                                        THEN v1.netto / CAST(vc.cnt AS DECIMAL(28,8)) ELSE CAST(0 AS DECIMAL(28,8)) END) v2
+                        CROSS APPLY (SELECT
+                            padR = CASE WHEN ISNULL(fc.IncDeadConf,0)=1 THEN CAST(0 AS DECIMAL(28,8)) ELSE CAST(ISNULL(fc.DeclI2,0) AS DECIMAL(28,8))*v2.srw END,
+                            konR = CASE WHEN ISNULL(fc.IncDeadConf,0)=1 THEN CAST(0 AS DECIMAL(28,8)) ELSE CAST(ISNULL(fc.DeclI3,0)+ISNULL(fc.DeclI4,0)+ISNULL(fc.DeclI5,0) AS DECIMAL(28,8))*v2.srw END,
+                            ubyR = v1.netto*CAST(ISNULL(fc.Loss,0) AS DECIMAL(28,10)),
+                            opaR = CAST(ISNULL(fc.Opasienie,0) AS DECIMAL(28,8)),
+                            klbR = CAST(ISNULL(fc.KlasaB,0) AS DECIMAL(28,8))) vr
+                        CROSS APPLY (SELECT
+                            pad = (CASE WHEN vr.padR-FLOOR(vr.padR)<0.5 THEN FLOOR(vr.padR) WHEN vr.padR-FLOOR(vr.padR)>0.5 THEN FLOOR(vr.padR)+1 ELSE (CASE WHEN CAST(FLOOR(vr.padR) AS BIGINT)%2=0 THEN FLOOR(vr.padR) ELSE FLOOR(vr.padR)+1 END) END),
+                            kon = (CASE WHEN vr.konR-FLOOR(vr.konR)<0.5 THEN FLOOR(vr.konR) WHEN vr.konR-FLOOR(vr.konR)>0.5 THEN FLOOR(vr.konR)+1 ELSE (CASE WHEN CAST(FLOOR(vr.konR) AS BIGINT)%2=0 THEN FLOOR(vr.konR) ELSE FLOOR(vr.konR)+1 END) END),
+                            uby = (CASE WHEN vr.ubyR-FLOOR(vr.ubyR)<0.5 THEN FLOOR(vr.ubyR) WHEN vr.ubyR-FLOOR(vr.ubyR)>0.5 THEN FLOOR(vr.ubyR)+1 ELSE (CASE WHEN CAST(FLOOR(vr.ubyR) AS BIGINT)%2=0 THEN FLOOR(vr.ubyR) ELSE FLOOR(vr.ubyR)+1 END) END),
+                            opa = (CASE WHEN vr.opaR-FLOOR(vr.opaR)<0.5 THEN FLOOR(vr.opaR) WHEN vr.opaR-FLOOR(vr.opaR)>0.5 THEN FLOOR(vr.opaR)+1 ELSE (CASE WHEN CAST(FLOOR(vr.opaR) AS BIGINT)%2=0 THEN FLOOR(vr.opaR) ELSE FLOOR(vr.opaR)+1 END) END),
+                            klb = (CASE WHEN vr.klbR-FLOOR(vr.klbR)<0.5 THEN FLOOR(vr.klbR) WHEN vr.klbR-FLOOR(vr.klbR)>0.5 THEN FLOOR(vr.klbR)+1 ELSE (CASE WHEN CAST(FLOOR(vr.klbR) AS BIGINT)%2=0 THEN FLOOR(vr.klbR) ELSE FLOOR(vr.klbR)+1 END) END)) v3
+                        CROSS APPLY (SELECT DoZapl = CAST(ROUND(v1.netto - v3.pad - v3.kon - v3.uby - v3.opa - v3.klb, 0) AS DECIMAL(18,0))) calc
                         WHERE fc.CalcDate = @CalcDate
                         ORDER BY
                             -- Najpierw wiersze z FV (grupowane po nr), potem bez FV.
@@ -14516,6 +14786,59 @@ public class SpecyfikacjaRow : INotifyPropertyChanged
         }
     }
 
+    // =====================================================================
+    // === KOLUMNY ROZLICZENIOWE 1:1 Z PDF SPECYFIKACJI (nowa karta "Wyliczenia") ===
+    // Wzory skopiowane z petli generujacej PDF (GenerateShortPDFReport):
+    //   Dostarczono = LUMEL + Padle
+    //   Zdatne      = LUMEL - Konfiskaty          (UWAGA: inne niz Zdatne wyzej!)
+    //   SrWaga      = WagaNettoDoRozliczenia / Dostarczono
+    //   PadleKg/KonfKg = 0 gdy PiK, inaczej round(szt × SrWaga)
+    //   UbytekKg    = round(Netto × Ubytek%)
+    //   CenaKoncowa = Cena + Dodatek
+    // =====================================================================
+
+    /// <summary>Dostarczono [szt] = LUMEL + Padłe (jak PDF kolumna "Dostarcz.")</summary>
+    public int RozlDostarczono => LUMEL + Padle;
+
+    /// <summary>Zdatne [szt] = LUMEL − Konfiskaty (wzór PDF; LUMEL już bez padłych)</summary>
+    public int RozlZdatne => LUMEL - Konfiskaty;
+
+    /// <summary>Padłe [kg] z uwzględnieniem PiK (PiK=true → 0, bo wliczone w cenę)</summary>
+    public decimal RozlPadleKg => PiK ? 0 : PadleKg;
+
+    /// <summary>Konfiskaty [kg] z uwzględnieniem PiK</summary>
+    public decimal RozlKonfiskatyKg => PiK ? 0 : KonfiskatyKg;
+
+    /// <summary>Ubytek [kg] = round(WagaNettoDoRozliczenia × Ubytek%, 0)</summary>
+    public decimal RozlUbytekKg => Math.Round(WagaNettoDoRozliczenia * (Ubytek / 100), 0);
+
+    /// <summary>Cena końcowa = Cena + Dodatek (cena jednostkowa na fakturze)</summary>
+    public decimal CenaKoncowa => Cena + Dodatek;
+
+    // === WYKRYWANIE ANOMALII (read-only, podświetlenie wierszy odstających) ===
+    private bool _maAnomalie;
+    /// <summary>True gdy wiersz ma wykryte odchylenie (cena/ubytek/waga) — patrz AnomaliaOpis.</summary>
+    public bool MaAnomalie
+    {
+        get => _maAnomalie;
+        set { _maAnomalie = value; OnPropertyChanged(nameof(MaAnomalie)); OnPropertyChanged(nameof(AnomaliaIkona)); }
+    }
+    private string _anomaliaOpis = "";
+    /// <summary>Opis wykrytych anomalii (tooltip). Pusty = brak.</summary>
+    public string AnomaliaOpis
+    {
+        get => _anomaliaOpis;
+        set { _anomaliaOpis = value; OnPropertyChanged(nameof(AnomaliaOpis)); }
+    }
+    /// <summary>Ikona ⚠ gdy anomalia, inaczej pusty.</summary>
+    public string AnomaliaIkona => MaAnomalie ? "⚠" : "";
+
+    /// <summary>Brutto do rozliczenia (string, źródło zgodne z WagaNettoDoRozliczenia)</summary>
+    public string BruttoDoRozliczenia => NettoHodowcyValue > 0 ? BruttoHodowcy : BruttoUbojni;
+
+    /// <summary>Tara do rozliczenia (string, źródło zgodne z WagaNettoDoRozliczenia)</summary>
+    public string TaraDoRozliczenia => NettoHodowcyValue > 0 ? TaraHodowcy : TaraUbojni;
+
     /// <summary>
     /// Termin płatności (data)
     /// </summary>
@@ -14544,6 +14867,16 @@ public class SpecyfikacjaRow : INotifyPropertyChanged
         OnPropertyChanged(nameof(KonfiskatyKg));
         OnPropertyChanged(nameof(DoZaplaty));
         OnPropertyChanged(nameof(Wartosc));
+        // Kolumny nowej karty "Wyliczenia" (1:1 z PDF)
+        OnPropertyChanged(nameof(RozlDostarczono));
+        OnPropertyChanged(nameof(RozlZdatne));
+        OnPropertyChanged(nameof(RozlPadleKg));
+        OnPropertyChanged(nameof(RozlKonfiskatyKg));
+        OnPropertyChanged(nameof(RozlUbytekKg));
+        OnPropertyChanged(nameof(CenaKoncowa));
+        OnPropertyChanged(nameof(BruttoDoRozliczenia));
+        OnPropertyChanged(nameof(TaraDoRozliczenia));
+        OnPropertyChanged(nameof(WagaNettoDoRozliczenia));
     }
 
     // === PDF STATUS ===

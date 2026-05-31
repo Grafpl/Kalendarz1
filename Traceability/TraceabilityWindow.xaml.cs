@@ -28,9 +28,53 @@ namespace Kalendarz1.Traceability
             Loaded += async (_, _) =>
             {
                 await ZaladujPartieAsync();
+                await ZaladujPartieReverseAsync();
                 await OdswiezRecalleAsync();
                 await GenerujLotAsync();
             };
+        }
+
+        // ─── TAB 0: Reverse trace na istniejących danych ───────────────────
+        private async Task ZaladujPartieReverseAsync()
+        {
+            try { cbTracePartia.ItemsSource = await _service.GetPartieReverseAsync(); }
+            catch { /* In0E zawsze jest, ale defensywnie */ }
+        }
+
+        private async void BtnTrace_Click(object sender, RoutedEventArgs e)
+        {
+            string partia = (cbTracePartia.SelectedItem as string)
+                            ?? cbTracePartia.Text?.Trim() ?? "";
+            if (string.IsNullOrWhiteSpace(partia)) { txtTraceInfo.Text = "Podaj numer partii."; return; }
+
+            try
+            {
+                Mouse.OverrideCursor = Cursors.Wait;
+                var res = await _service.ReverseTraceExistingAsync(partia);
+
+                boxTraceHead.Visibility = Visibility.Visible;
+                if (!res.Znaleziono)
+                {
+                    txtTraceHodowca.Text = "❌ " + (res.Blad ?? "Nie znaleziono");
+                    txtTracePodsum.Text = "";
+                    dgTracePrzyjecia.ItemsSource = null;
+                    dgTracePrzeplywy.ItemsSource = null;
+                    dgTraceWyjscia.ItemsSource = null;
+                    return;
+                }
+
+                txtTraceHodowca.Text = $"🐔 Partia {res.Partia}  —  hodowca: {res.Hodowca ?? "(brak w PartiaDostawca)"}";
+                txtTracePodsum.Text = res.PodsumowanieFormatted;
+                dgTracePrzyjecia.ItemsSource = res.Przyjecia;
+                dgTracePrzeplywy.ItemsSource = res.Przeplywy;
+                dgTraceWyjscia.ItemsSource = res.Wyjscia;
+                txtTraceInfo.Text = "";
+            }
+            catch (Exception ex)
+            {
+                txtTraceInfo.Text = "Błąd: " + ex.Message;
+            }
+            finally { Mouse.OverrideCursor = null; }
         }
 
         // ─── TAB 1: Rejestracja ────────────────────────────────────────────

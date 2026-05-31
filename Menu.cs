@@ -1388,6 +1388,8 @@ namespace Kalendarz1
             /* 76 */ "Traceability",
             /* 77 */ "TransportWPF",
             /* 78 */ "KontraktyHodowcow",
+            /* 79 */ "MapowanieDostawcow",
+            /* 80 */ "KameryPanelJola",
         };
 
         private void ParseAccessString(string accessString)
@@ -1533,6 +1535,11 @@ namespace Kalendarz1
                         "Definiowanie parametrów jakościowych surowca od poszczególnych dostawców żywca",
                         Color.FromArgb(46, 125, 50), // #2E7D32
                         () => new WidokSpecyfikacje(), "📋", "Specyfikacje"),
+
+                    new MenuItemConfig("MapowanieDostawcow", "Mapowanie Dostawców",
+                        "Dopasowanie dostawców z LibraNet do kontrahentów Symfonii — auto-match po NIP, ręczne korekty (Halal/eksport/itp.)",
+                        Color.FromArgb(0, 131, 143), // #00838F (teal — narzędzie wiążące)
+                        () => new Kalendarz1.Zywiec.WidokSpecyfikacji.MapowanieDostawcowWindow(), "🔗", "Mapowanie"),
 
                     new MenuItemConfig("RozliczeniaAvilog", "Rozliczenia Avilog",
                         "Tygodniowe zestawienia transportu żywca dla firmy Avilog - kalkulacja kosztów usługi transportowej",
@@ -1688,7 +1695,12 @@ namespace Kalendarz1
                     new MenuItemConfig("CentrumNagranAI", "Centrum nagrań AI",
                         "Wyszukiwanie zdarzeń w nagraniach CCTV po polskim opisie - kamery NVR + Claude AI",
                         Color.FromArgb(127, 29, 29), // Najciemniejszy czerwony #7F1D1D
-                        () => new Kalendarz1.CentrumNagranAI.Views.CentrumNagranAIWindow(), "🎥", "CNA")
+                        () => new Kalendarz1.CentrumNagranAI.Views.CentrumNagranAIWindow(), "🎥", "CNA"),
+
+                    new MenuItemConfig("KameryPanelJola", "Kamery Panelu Joli",
+                        "Konfiguracja 2 kanałów NVR widocznych na Panelu Pani Joli (admin) - Jola nie ma dostępu do zmiany",
+                        Color.FromArgb(136, 14, 14), // ciemny czerwony #880E0E
+                        () => new WPF.PanelJolaKameryConfigWindow(), "📹", "Kam.Jola")
                 }
             };
 

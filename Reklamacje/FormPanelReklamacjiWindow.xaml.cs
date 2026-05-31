@@ -25,6 +25,10 @@ namespace Kalendarz1.Reklamacje
         private bool isJakosc = false;
         private DispatcherTimer searchDebounceTimer;
 
+        // Cleanup lifecycle: anuluje background taski (sync, avatary, miniatury) gdy okno zamykane.
+        // Sprawdzane w petlach + przed Dispatcher.BeginInvoke zeby nie tickowac na zamknietym oknie.
+        private readonly System.Threading.CancellationTokenSource _cts = new System.Threading.CancellationTokenSource();
+
         private const string HandelConnString = ReklamacjeConnectionStrings.Handel;
 
         // Mapowanie handlowiec name -> UserID (ladowane raz)
@@ -39,11 +43,22 @@ namespace Kalendarz1.Reklamacje
             connectionString = connString;
             userId = user;
 
-            InitializeComponent();
+            StartupProfiler.Begin(user);
+            // Probe sieci wykonujemy ASYNC zeby nie blokowac konstruktora
+            _ = StartupProfiler.ProbeAllAsync(
+                (connString, "LibraNet"),
+                (ReklamacjeConnectionStrings.Handel, "HANDEL"));
+            using (StartupProfiler.Phase("ctor: InitializeComponent (XAML parse + visual tree)"))
+            {
+                InitializeComponent();
+            }
             WindowIconHelper.SetIcon(this);
 
             // Sprawdz uprawnienia
-            SprawdzUprawnieniaJakosc();
+            using (StartupProfiler.Phase("ctor: SprawdzUprawnieniaJakosc (1 SQL LibraNet)"))
+            {
+                SprawdzUprawnieniaJakosc();
+            }
 
             // Ustaw domyslne daty
             dpDataOd.SelectedDate = DateTime.Now.AddMonths(-1);
@@ -71,6 +86,23 @@ namespace Kalendarz1.Reklamacje
 
             isInitialized = true;
             Loaded += Window_Loaded;
+            ContentRendered += (s, e) =>
+            {
+                StartupProfiler.CaptureWpfStats(this);
+                StartupProfiler.End();
+                // Snapshot bazy w tle — nie blokuje UI
+                System.Threading.Tasks.Task.Run(() =>
+                {
+                    try { StartupProfiler.CaptureDbSnapshot(connectionString, ReklamacjeConnectionStrings.Handel); } catch { }
+                });
+            };
+
+            // Lifecycle: anuluj wszystkie pending background taski przy zamknieciu okna
+            Closed += (s, e) =>
+            {
+                try { _cts.Cancel(); } catch { }
+                try { _cts.Dispose(); } catch { }
+            };
         }
 
         private void SprawdzUprawnieniaJakosc()
@@ -81,9 +113,11 @@ namespace Kalendarz1.Reklamacje
                 {
                     conn.Open();
                     using (SqlCommand cmd = new SqlCommand("SELECT Access FROM operators WHERE ID = @UserId", conn))
+                    using (StartupProfiler.Sql("operators.Access (uprawnienia jakosc)", "SELECT Access FROM operators WHERE ID=@UserId", "LibraNet"))
                     {
                         cmd.Parameters.AddWithValue("@UserId", userId);
                         var result = cmd.ExecuteScalar();
+                        StartupProfiler.NoteRows(result != null ? 1 : 0);
                         if (result != null)
                         {
                             string accessString = result.ToString();
@@ -111,10 +145,11 @@ namespace Kalendarz1.Reklamacje
             // Statystyki - tylko dla jakosci
             if (btnStatystyki != null) btnStatystyki.Visibility = isJakosc ? Visibility.Visible : Visibility.Collapsed;
 
-            // Usuwanie + debug + ustawienia sync - tylko admin (UserID 11111)
+            // Usuwanie + debug + ustawienia sync + profiler - tylko admin (UserID 11111)
             if (btnUsun != null) btnUsun.Visibility = isAdmin ? Visibility.Visible : Visibility.Collapsed;
             if (btnDebugSync != null) btnDebugSync.Visibility = isAdmin ? Visibility.Visible : Visibility.Collapsed;
             if (btnUstawieniaSync != null) btnUstawieniaSync.Visibility = isAdmin ? Visibility.Visible : Visibility.Collapsed;
+            if (btnProfiler != null) btnProfiler.Visibility = isAdmin ? Visibility.Visible : Visibility.Collapsed;
 
             // Panel jakosci - ZAWSZE widoczny dla wszystkich (bez ograniczen rolowych)
             if (panelJakosci != null) panelJakosci.Visibility = Visibility.Visible;
@@ -122,43 +157,194 @@ namespace Kalendarz1.Reklamacje
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            MigracjaBazy();
-            WczytajMapowanieHandlowcow();
-            WczytajHandlowcow();
-            try { SyncFakturyKorygujace(); } catch { }
-            WczytajReklamacje();
-            WczytajStatystyki();
-            PrzelaczZakladke("DO_AKCJI");
+            using (StartupProfiler.Phase("Loaded: MigracjaBazy (ALTER TABLE + migracja statusow + sync handlowcow)"))
+            {
+                try { MigracjaBazy(); }
+                catch (Exception ex) { StartupProfiler.RecordError("Loaded: MigracjaBazy (ALTER TABLE + migracja statusow + sync handlowcow)", ex); throw; }
+            }
+            // FIX: WczytajMapowanieHandlowcow MUSI byc sync PRZED WczytajReklamacje, bo
+            // PopulujAvataryAsyncBatch (w tle) uzywa _handlowiecMapowanie do GetHandlowiecAvatar.
+            // Race condition: jezeli mapowanie ladowane async w innym Task.Run, avatary handlowca
+            // pojawialy sie puste. ~5ms SQL = pomijalny narzut na startup.
+            using (StartupProfiler.Phase("Loaded: WczytajMapowanieHandlowcow (UserHandlowcy, sync dla avatar race fix)"))
+            {
+                WczytajMapowanieHandlowcow();
+            }
+            // WczytajHandlowcow (combobox filtra) zostaje async — nie wplywa na avatary.
+
+            // Fix F3: Sync wykonuje sie ASYNC w tle PO renderze (patrz koniec metody).
+            using (StartupProfiler.Phase("Loaded: WczytajReklamacje (main grid query + avatary; miniatury w tle)"))
+            {
+                WczytajReklamacje();
+            }
+            // Fix M: WczytajStatystyki przeniesione do tla — KPI pokaza sie z ~40ms opoznieniem (poprzednio sync 38ms).
+            using (StartupProfiler.Phase("Loaded: PrzelaczZakladke DO_AKCJI (refresh filter)"))
+            {
+                PrzelaczZakladke("DO_AKCJI");
+            }
 
             // Footer collapse - schowaj panele akcji bez zaznaczenia
             if (paneleAkcji != null) paneleAkcji.Visibility = Visibility.Collapsed;
+
+            // Fix L: WczytajHandlowcow (combobox filtra) w tle. Mapowanie zostalo zaladowane sync wyzej (avatar race fix).
+            System.Threading.Tasks.Task.Run(() =>
+            {
+                try
+                {
+                    var handlowcy = LoadHandlowcy();
+                    if (_cts.IsCancellationRequested) return;
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        if (_cts.IsCancellationRequested) return;
+                        foreach (var h in handlowcy)
+                            cmbHandlowiec.Items.Add(new ComboBoxItem { Content = h });
+                    }), System.Windows.Threading.DispatcherPriority.Background);
+                }
+                catch { }
+            });
+
+            // Fix M: Statystyki w tle — sync SQL, update KPI w Dispatcher
+            System.Threading.Tasks.Task.Run(() =>
+            {
+                try
+                {
+                    var stat = LoadStatystyki();
+                    if (_cts.IsCancellationRequested || stat == null) return;
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        if (_cts.IsCancellationRequested) return;
+                        txtStatNowe.Text = stat.Value.doAkcji.ToString();
+                        txtStatWTrakcie.Text = stat.Value.wToku.ToString();
+                        txtStatZaakceptowane.Text = stat.Value.zamkniete.ToString();
+                    }), System.Windows.Threading.DispatcherPriority.Background);
+                }
+                catch { }
+            });
+
+            // Fix F3: Sync HANDEL→LibraNet w tle. Okno otwiera sie natychmiast,
+            // korekty pojawia sie po ~1-2s (jezeli cache wygasl). Toast w Title okna.
+            StartSyncWTle();
         }
 
-        private void WczytajMapowanieHandlowcow()
+        // Fix F3: async wrapper dla SyncFakturyKorygujace + odswiezenie listy po zakonczeniu
+        private bool _syncWToku = false;
+        private void StartSyncWTle()
         {
-            _handlowiecMapowanie = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (_syncWToku) return;
+            _syncWToku = true;
+            string originalTitle = this.Title;
+            this.Title = originalTitle + "  —  🔄 sync korekt w toku…";
+
+            System.Threading.Tasks.Task.Run(() =>
+            {
+                bool ok = false;
+                string errMsg = null;
+                int nowych = 0;
+                try
+                {
+                    // Snapshot liczby korekt PRZED sync, zeby pokazac ile dodano
+                    int przed = LiczbaKorektLokalna();
+                    SyncFakturyKorygujace(false);
+                    int po = LiczbaKorektLokalna();
+                    nowych = Math.Max(0, po - przed);
+                    ok = true;
+                }
+                catch (Exception ex) { errMsg = ex.Message; }
+
+                if (_cts.IsCancellationRequested) return;
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    if (_cts.IsCancellationRequested) return;
+                    _syncWToku = false;
+                    if (ok)
+                    {
+                        if (nowych > 0)
+                        {
+                            this.Title = $"{originalTitle}  —  ✅ +{nowych} nowych korekt";
+                            try { WczytajReklamacje(); WczytajStatystyki(); } catch { }
+                            // Przywroc tytul po 4s
+                            var t = new DispatcherTimer { Interval = TimeSpan.FromSeconds(4) };
+                            t.Tick += (s, a) => { this.Title = originalTitle; t.Stop(); };
+                            t.Start();
+                        }
+                        else
+                        {
+                            this.Title = originalTitle;
+                        }
+                    }
+                    else
+                    {
+                        this.Title = originalTitle + "  —  ⚠ sync failed";
+                        System.Diagnostics.Debug.WriteLine("Async sync error: " + errMsg);
+                        var t = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+                        t.Tick += (s, a) => { this.Title = originalTitle; t.Stop(); };
+                        t.Start();
+                    }
+                }));
+            });
+        }
+
+        private int LiczbaKorektLokalna()
+        {
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    using (var cmd = new SqlCommand("SELECT COUNT(*) FROM [dbo].[Reklamacje] WHERE TypReklamacji='Faktura korygujaca'", conn))
+                        return Convert.ToInt32(cmd.ExecuteScalar());
+                }
+            }
+            catch { return 0; }
+        }
+
+        // Fix L: pure data load — wykonywalne w tle (Task.Run). Nie modyfikuje UI ani instance state.
+        private Dictionary<string, string> LoadMapowanieHandlowcow()
+        {
+            var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             try
             {
                 using (var conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
                     using (var cmd = new SqlCommand("SELECT HandlowiecName, UserID FROM [dbo].[UserHandlowcy]", conn))
+                    using (StartupProfiler.Sql("UserHandlowcy mapowanie name→uid (async)", "SELECT HandlowiecName, UserID FROM UserHandlowcy", "LibraNet"))
                     using (var r = cmd.ExecuteReader())
                     {
-                        while (r.Read())
-                        {
-                            string name = r.GetString(0);
-                            string uid = r.GetString(1);
-                            _handlowiecMapowanie[name] = uid;
-                        }
+                        while (r.Read()) map[r.GetString(0)] = r.GetString(1);
+                        StartupProfiler.NoteRows(map.Count);
                     }
                 }
             }
             catch { }
+            return map;
         }
 
-        private void WczytajHandlowcow()
+        // Compatibility — pozostawione dla potencjalnych refresh-ów w kodzie. Synchroniczne.
+        private void WczytajMapowanieHandlowcow()
         {
+            _handlowiecMapowanie = LoadMapowanieHandlowcow();
+        }
+
+        // Cache static — handlowcy z HANDEL rzadko sie zmieniaja (~336 mapowan, ~30 unikalnych).
+        // Pierwsze otwarcie okna w sesji = SQL na HANDEL (~45ms). Kolejne = cache hit (~0ms).
+        // Cache jest na poziomie aplikacji (static), nie na poziomie okna.
+        private static List<string> _handlowcyCache;
+        private static readonly object _handlowcyCacheLock = new object();
+
+        // Fix L: pure data load — wykonywalne w tle (Task.Run). Nie modyfikuje UI.
+        private List<string> LoadHandlowcy()
+        {
+            lock (_handlowcyCacheLock)
+            {
+                if (_handlowcyCache != null)
+                {
+                    StartupProfiler.Note("HANDEL handlowcy", "cache hit (" + _handlowcyCache.Count + ")");
+                    return new List<string>(_handlowcyCache);
+                }
+            }
+
+            var lista = new List<string>();
             try
             {
                 using (var conn = new SqlConnection(HandelConnString))
@@ -169,22 +355,36 @@ namespace Kalendarz1.Reklamacje
                         FROM [HANDEL].[SSCommon].[ContractorClassification]
                         WHERE CDim_Handlowiec_Val IS NOT NULL AND CDim_Handlowiec_Val <> '' AND CDim_Handlowiec_Val <> '-'
                         ORDER BY CDim_Handlowiec_Val", conn))
+                    using (StartupProfiler.Sql("HANDEL handlowcy DISTINCT (combobox filtra, async) — cache miss", "SELECT DISTINCT CDim_Handlowiec_Val FROM ContractorClassification", "HANDEL"))
                     using (var r = cmd.ExecuteReader())
                     {
-                        while (r.Read())
-                        {
-                            cmbHandlowiec.Items.Add(new ComboBoxItem { Content = r.GetString(0) });
-                        }
+                        while (r.Read()) lista.Add(r.GetString(0));
+                        StartupProfiler.NoteRows(lista.Count);
                     }
                 }
+                lock (_handlowcyCacheLock) _handlowcyCache = lista;
             }
             catch { }
+            return lista;
+        }
+
+        // Compatibility — synchroniczne, dla istniejacych calls. Sync ladowanie + UI fill.
+        private void WczytajHandlowcow()
+        {
+            var lista = LoadHandlowcy();
+            foreach (var h in lista)
+                cmbHandlowiec.Items.Add(new ComboBoxItem { Content = h });
         }
 
         private void CmbHandlowiec_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (IsLoaded) WczytajReklamacje();
         }
+
+        // Fix C: cache wykonanej migracji. Klucz "ReklamacjeStartup_v1" wpisywany po pomyslnym wykonaniu.
+        // Skip jezeli wykonana w ciagu ostatnich 24h. Przy zmianie schematu — zmienic numer wersji.
+        private const string MIGRATION_CACHE_KEY = "ReklamacjeStartup_v1";
+        private const int MIGRATION_CACHE_HOURS = 24;
 
         private void MigracjaBazy()
         {
@@ -194,10 +394,36 @@ namespace Kalendarz1.Reklamacje
                 {
                     conn.Open();
 
+                    // Fix C: utwórz cache table + sprawdz czy migracja juz wykonana
+                    using (StartupProfiler.Sql("Migracja: cache check (MigracjeStartupCache)", null, "LibraNet"))
+                    using (var cmd = new SqlCommand(@"
+                        IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'MigracjeStartupCache')
+                        BEGIN
+                            CREATE TABLE [dbo].[MigracjeStartupCache] (
+                                [Klucz] NVARCHAR(100) PRIMARY KEY,
+                                [DataWykonania] DATETIME NOT NULL DEFAULT GETDATE()
+                            );
+                        END
+                        SELECT DataWykonania FROM [dbo].[MigracjeStartupCache] WHERE Klucz = @Klucz", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Klucz", MIGRATION_CACHE_KEY);
+                        var v = cmd.ExecuteScalar();
+                        if (v != null && v != DBNull.Value)
+                        {
+                            var lastRun = Convert.ToDateTime(v);
+                            if ((DateTime.Now - lastRun).TotalHours < MIGRATION_CACHE_HOURS)
+                            {
+                                StartupProfiler.Note("Migracja: SKIPPED (cache hit)", lastRun.ToString("yyyy-MM-dd HH:mm:ss"));
+                                return;
+                            }
+                        }
+                    }
+
                     // Etap 0: PowiazanaReklamacjaId (stara migracja)
                     using (var cmd = new SqlCommand(@"
                         IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Reklamacje') AND name = 'PowiazanaReklamacjaId')
                             ALTER TABLE [dbo].[Reklamacje] ADD [PowiazanaReklamacjaId] INT NULL", conn))
+                    using (StartupProfiler.Sql("Migracja: ALTER PowiazanaReklamacjaId", null, "LibraNet"))
                     {
                         cmd.ExecuteNonQuery();
                     }
@@ -210,6 +436,7 @@ namespace Kalendarz1.Reklamacje
                         DELETE FROM [dbo].[ReklamacjeTowary] WHERE IdReklamacji IN (SELECT Id FROM @ids);
                         DELETE FROM [dbo].[ReklamacjeHistoria] WHERE IdReklamacji IN (SELECT Id FROM @ids);
                         DELETE FROM [dbo].[Reklamacje] WHERE Id IN (SELECT Id FROM @ids);", conn))
+                    using (StartupProfiler.Sql("Migracja: DELETE korekt SD/* (wewnetrzne)", null, "LibraNet"))
                     {
                         cmd.ExecuteNonQuery();
                     }
@@ -240,19 +467,23 @@ namespace Kalendarz1.Reklamacje
                         "UserZakonczenia NVARCHAR(50) NULL"
                     };
 
-                    foreach (var def in kolumnyDoDodania)
+                    using (StartupProfiler.Sql($"Migracja: ALTER {kolumnyDoDodania.Length} kolumn V2 (loop)", "ALTER TABLE Reklamacje ADD ... × " + kolumnyDoDodania.Length, "LibraNet"))
                     {
-                        string nazwa = def.Split(' ')[0];
-                        string sql = $@"
-                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Reklamacje') AND name = '{nazwa}')
-                                ALTER TABLE [dbo].[Reklamacje] ADD [{nazwa}] {def.Substring(nazwa.Length + 1)}";
-                        using (var cmd = new SqlCommand(sql, conn))
+                        foreach (var def in kolumnyDoDodania)
                         {
-                            cmd.ExecuteNonQuery();
+                            string nazwa = def.Split(' ')[0];
+                            string sql = $@"
+                                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Reklamacje') AND name = '{nazwa}')
+                                    ALTER TABLE [dbo].[Reklamacje] ADD [{nazwa}] {def.Substring(nazwa.Length + 1)}";
+                            using (var cmd = new SqlCommand(sql, conn))
+                            {
+                                cmd.ExecuteNonQuery();
+                            }
                         }
                     }
 
                     // Mapowanie starych statusow na StatusV2 (tylko dla rekordow bez StatusV2)
+                    // UWAGA: TEN BLOK to ~10 UPDATE-ow w jednym roundtrip, czesto najwolniejsza migracja
                     // Stare -> Nowe:
                     //   Nowa                   -> ZGLOSZONA
                     //   Przyjeta               -> W_ANALIZIE
@@ -400,6 +631,7 @@ namespace Kalendarz1.Reklamacje
                             ELSE 'Handlowiec'
                         END
                         WHERE ZrodloZgloszenia IS NULL;", conn))
+                    using (StartupProfiler.Sql("Migracja: 10× UPDATE statusow V2 + sync (batch)", "UPDATE Reklamacje SET StatusV2=... + 9 dalszych UPDATE", "LibraNet"))
                     {
                         cmd.ExecuteNonQuery();
                     }
@@ -416,27 +648,33 @@ namespace Kalendarz1.Reklamacje
                                 SELECT ElementId, CDim_Handlowiec_Val
                                 FROM [HANDEL].[SSCommon].[ContractorClassification]
                                 WHERE CDim_Handlowiec_Val IS NOT NULL AND CDim_Handlowiec_Val <> '' AND CDim_Handlowiec_Val <> '-'", connH))
+                            using (StartupProfiler.Sql("Migracja: HANDEL khid→handlowiec map", "SELECT ElementId, CDim_Handlowiec_Val FROM ContractorClassification", "HANDEL"))
                             using (var rdr = cmdH.ExecuteReader())
                             {
                                 while (rdr.Read())
                                     mapa[rdr.GetInt32(0)] = rdr.GetString(1);
+                                StartupProfiler.NoteRows(mapa.Count);
                             }
 
                             // Zaktualizuj reklamacje bez handlowca
+                            var doAktualizacji = new List<(int id, string handl)>();
                             using (var cmdR = new SqlCommand(@"
                                 SELECT Id, IdKontrahenta FROM [dbo].[Reklamacje]
                                 WHERE Handlowiec IS NULL AND IdKontrahenta IS NOT NULL AND IdKontrahenta > 0", conn))
+                            using (StartupProfiler.Sql("Migracja: Reklamacje bez handlowca (SELECT)", null, "LibraNet"))
                             using (var rdr = cmdR.ExecuteReader())
                             {
-                                var doAktualizacji = new List<(int id, string handl)>();
                                 while (rdr.Read())
                                 {
                                     int khid = rdr.IsDBNull(1) ? 0 : rdr.GetInt32(1);
                                     if (khid > 0 && mapa.TryGetValue(khid, out string handl))
                                         doAktualizacji.Add((rdr.GetInt32(0), handl));
                                 }
-                                rdr.Close();
+                                StartupProfiler.NoteRows(doAktualizacji.Count);
+                            }
 
+                            using (StartupProfiler.Sql($"Migracja: UPDATE Handlowiec ×{doAktualizacji.Count} (loop)", "UPDATE Reklamacje SET Handlowiec=@H WHERE Id=@Id", "LibraNet"))
+                            {
                                 foreach (var (id, handl) in doAktualizacji)
                                 {
                                     using (var cmdU = new SqlCommand("UPDATE [dbo].[Reklamacje] SET Handlowiec = @H WHERE Id = @Id", conn))
@@ -446,6 +684,7 @@ namespace Kalendarz1.Reklamacje
                                         cmdU.ExecuteNonQuery();
                                     }
                                 }
+                                StartupProfiler.NoteRows(doAktualizacji.Count);
                             }
                         }
                     }
@@ -466,28 +705,34 @@ namespace Kalendarz1.Reklamacje
                                   AND K.anulowany = 0
                                   AND K.iddokkoryg IS NOT NULL
                                   AND K.iddokkoryg > 0", connH))
+                            using (StartupProfiler.Sql("Migracja: HANDEL DK self-join iddokkoryg", "SELECT K.id, F.id, F.kod FROM DK K INNER JOIN DK F ON K.iddokkoryg=F.id", "HANDEL"))
                             using (var rdr = cmdH.ExecuteReader())
                             {
                                 while (rdr.Read())
                                     mapaKorekt[rdr.GetInt32(0)] = (rdr.GetInt32(1), rdr.GetString(2));
+                                StartupProfiler.NoteRows(mapaKorekt.Count);
                             }
 
+                            var doUp = new List<(int idRekl, int idFakt, string nrFakt)>();
                             using (var cmdR = new SqlCommand(@"
                                 SELECT Id, IdDokumentu FROM [dbo].[Reklamacje]
                                 WHERE TypReklamacji = 'Faktura korygujaca'
                                   AND (IdFakturyOryginalnej IS NULL OR IdFakturyOryginalnej = 0)
                                   AND IdDokumentu IS NOT NULL AND IdDokumentu > 0", conn))
+                            using (StartupProfiler.Sql("Migracja: korekty bez IdFakturyOryginalnej (SELECT)", null, "LibraNet"))
                             using (var rdr = cmdR.ExecuteReader())
                             {
-                                var doUp = new List<(int idRekl, int idFakt, string nrFakt)>();
                                 while (rdr.Read())
                                 {
                                     int idKor = rdr.GetInt32(1);
                                     if (mapaKorekt.TryGetValue(idKor, out var fakt))
                                         doUp.Add((rdr.GetInt32(0), fakt.idFakt, fakt.nrFakt));
                                 }
-                                rdr.Close();
+                                StartupProfiler.NoteRows(doUp.Count);
+                            }
 
+                            using (StartupProfiler.Sql($"Migracja: UPDATE IdFakturyOryginalnej ×{doUp.Count} (loop)", null, "LibraNet"))
+                            {
                                 foreach (var (idRekl, idFakt, nrFakt) in doUp)
                                 {
                                     using (var cmdU = new SqlCommand(@"
@@ -501,6 +746,7 @@ namespace Kalendarz1.Reklamacje
                                         cmdU.ExecuteNonQuery();
                                     }
                                 }
+                                StartupProfiler.NoteRows(doUp.Count);
                             }
                         }
                     }
@@ -512,6 +758,7 @@ namespace Kalendarz1.Reklamacje
                     // ======================================================
                     // Tabela zalacznikow (zdjecia, pdf, skany)
                     // ======================================================
+                    using (StartupProfiler.Sql("Migracja: CREATE TABLE ReklamacjeZalaczniki (IF NOT EXISTS)", null, "LibraNet"))
                     using (var cmd = new SqlCommand(@"
                         IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'ReklamacjeZalaczniki')
                         BEGIN
@@ -534,6 +781,7 @@ namespace Kalendarz1.Reklamacje
                     }
 
                     // Tabela komentarzy wewnetrznych
+                    using (StartupProfiler.Sql("Migracja: CREATE TABLE ReklamacjeKomentarze (IF NOT EXISTS)", null, "LibraNet"))
                     using (var cmd = new SqlCommand(@"
                         IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'ReklamacjeKomentarze')
                         BEGIN
@@ -548,6 +796,17 @@ namespace Kalendarz1.Reklamacje
                                 ON [dbo].[ReklamacjeKomentarze]([IdReklamacji]);
                         END", conn))
                     {
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    // Fix C: zapisz pomyslne wykonanie migracji do cache
+                    using (var cmd = new SqlCommand(@"
+                        MERGE [dbo].[MigracjeStartupCache] AS T
+                        USING (SELECT @Klucz AS Klucz) AS S ON T.Klucz = S.Klucz
+                        WHEN MATCHED THEN UPDATE SET DataWykonania = GETDATE()
+                        WHEN NOT MATCHED THEN INSERT (Klucz, DataWykonania) VALUES (@Klucz, GETDATE());", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Klucz", MIGRATION_CACHE_KEY);
                         cmd.ExecuteNonQuery();
                     }
                 }
@@ -565,13 +824,17 @@ namespace Kalendarz1.Reklamacje
 
             try
             {
+                // Fix I: odepnij ItemsSource zeby pojedyncze Add() nie triggerowalo
+                // CollectionChanged event × 154 wierszy (kazdy event = filter pass + invalidate DataGrid).
+                // To bylo ~500-700ms ukrytego overheadu w fazie WczytajReklamacje.
+                dgReklamacje.ItemsSource = null;
                 reklamacje.Clear();
 
                 using (SqlConnection conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
 
-                    // Pobierz date od korekt (admin moze ja zmienic)
+                    // Pobierz date od korekt (admin moze ja zmienic) — Fix K: cached
                     DateTime dataOdKorekt = PobierzDataOdKorekt();
 
                     string query = @"
@@ -609,8 +872,12 @@ namespace Kalendarz1.Reklamacje
                         LEFT JOIN [dbo].[operators] o2 ON r.OsobaRozpatrujaca = o2.ID
                         LEFT JOIN [dbo].[operators] o3 ON r.UserZakonczenia = o3.ID
                         LEFT JOIN [dbo].[Reklamacje] kor ON kor.Id = r.PowiazanaReklamacjaId AND kor.TypReklamacji = 'Faktura korygujaca'
+                        -- Filtr daty na korektach: pokazujemy korekty Symfonii tylko od @DataOdKorekt (admin ustawia).
+                        -- Wyjatki:
+                        --   - non-korekty (handlowiec) — pokazujemy zawsze (bez filtra daty)
+                        --   - korekty ze statusem nie-ZGLOSZONA (juz obrabiane) — pokazujemy zawsze
+                        --   - korekty POWIAZANA (z partnerem handlowca) — UKRYWAMY (duplikat)
                         WHERE (r.TypReklamacji <> 'Faktura korygujaca' OR r.DataZgloszenia >= @DataOdKorekt OR ISNULL(r.StatusV2,'ZGLOSZONA') NOT IN ('ZGLOSZONA'))
-                          -- Ukryj korekty z Symfonii ze statusem POWIAZANA — sprawa jest u handlowca, nie potrzeba duplikatu
                           AND NOT (r.TypReklamacji = 'Faktura korygujaca' AND ISNULL(r.StatusV2,'') = 'POWIAZANA')";
 
                     string statusFilter = (cmbStatus.SelectedItem as ComboBoxItem)?.Content?.ToString();
@@ -660,7 +927,6 @@ namespace Kalendarz1.Reklamacje
                     using (SqlCommand cmd = new SqlCommand(query, conn))
                     {
                         cmd.Parameters.AddWithValue("@DataOdKorekt", dataOdKorekt);
-
                         if (!string.IsNullOrEmpty(statusV2Filter))
                         {
                             cmd.Parameters.AddWithValue("@StatusV2", statusV2Filter);
@@ -683,10 +949,14 @@ namespace Kalendarz1.Reklamacje
                             cmd.Parameters.AddWithValue("@Handlowiec", $"%{handlowiecFilter}%");
                         }
 
+                        var sqlScope = StartupProfiler.Sql("WczytajReklamacje: main grid query (JOIN 3× operators + self-JOIN korekty)", "SELECT r.Id,... FROM Reklamacje r LEFT JOIN operators o ... ORDER BY DataZgloszenia DESC", "LibraNet");
+                        int _rowsMain = 0;
+                        using (sqlScope)
                         using (SqlDataReader reader = cmd.ExecuteReader())
                         {
                             while (reader.Read())
                             {
+                                _rowsMain++;
                                 var item2 = new ReklamacjaItem
                                 {
                                     Id = reader.GetInt32(0),
@@ -717,21 +987,30 @@ namespace Kalendarz1.Reklamacje
                                     NumerKorektyPowiazanej = reader.IsDBNull(25) ? null : reader.GetString(25),
                                     DataKorektyPowiazanej = reader.IsDBNull(26) ? (DateTime?)null : reader.GetDateTime(26)
                                 };
-                                item2.ZglaszajacyAvatar = GetCachedAvatar(item2.ZglaszajacyId, item2.Zglaszajacy);
-                                item2.RozpatrujacyAvatar = GetCachedAvatar(item2.RozpatrujacyId, item2.OsobaRozpatrujaca);
-                                item2.ZakonczylAvatar = GetCachedAvatar(item2.UserZakonczeniaId, item2.UserZakonczenia);
-                                if (!string.IsNullOrEmpty(item2.Handlowiec) && item2.Handlowiec != "-")
-                                {
-                                    item2.HandlowiecAvatar = GetHandlowiecAvatar(item2.Handlowiec);
-                                }
+                                // Fix G: NIE pobieramy avatarów w pętli readera (avatar disk I/O blokowałoby connection).
+                                // Avatary populowane po zakończeniu readera (Fix G) + część w tle (Fix H).
                                 reklamacje.Add(item2);
                             }
                         }
+                        StartupProfiler.NoteRows(_rowsMain);
+                        StartupProfiler.Note("WczytajReklamacje rows", _rowsMain);
                     }
                 }
 
-                // Zaladuj miniatury zdjec batchem
-                ZaladujMiniaturyDoListy();
+                // Fix I: przywroc ItemsSource — JEDEN event zamiast 154
+                dgReklamacje.ItemsSource = reklamacjeView;
+
+                // Fix A: Lazy-load miniatur (BLOB-y w tle).
+                // Fix J: WSZYSTKIE avatary async (grid pokazuje inicjały+brush jako placeholder, avatary wjedza w tle).
+                var snapshot = reklamacje.ToList();
+                System.Threading.Tasks.Task.Run(() =>
+                {
+                    try { ZaladujMiniaturyDoListyAsync(snapshot); } catch { }
+                });
+                System.Threading.Tasks.Task.Run(() =>
+                {
+                    try { PopulujAvataryAsyncBatch(snapshot, 30); } catch { }
+                });
 
                 reklamacjeView?.Refresh();
                 AktualizujLicznikiZakladek();
@@ -743,17 +1022,50 @@ namespace Kalendarz1.Reklamacje
             }
         }
 
-        // Pobiera 3 najnowsze zdjecia + licznik dla kazdej reklamacji jednym zapytaniem
-        private void ZaladujMiniaturyDoListy()
+        // Fix H: async batch populate. Działa w Task.Run, dekoduje avatary w tle
+        // (avatary to ImageSource z Freeze() — bezpieczne cross-thread).
+        // Po kazdym batchu — Dispatcher.BeginInvoke z Items.Refresh() zeby grid odswiezyl wiersze.
+        // Cleanup: sprawdza _cts.IsCancellationRequested przed kazdym batchem — wyjscie gdy okno zamkniete.
+        private void PopulujAvataryAsyncBatch(List<ReklamacjaItem> items, int batchSize)
         {
-            if (reklamacje == null || reklamacje.Count == 0) return;
+            if (items == null || items.Count == 0) return;
+            for (int i = 0; i < items.Count; i += batchSize)
+            {
+                if (_cts.IsCancellationRequested) return;
+                var batch = items.Skip(i).Take(batchSize).ToList();
+                foreach (var it in batch)
+                {
+                    try
+                    {
+                        it.ZglaszajacyAvatar = GetCachedAvatar(it.ZglaszajacyId, it.Zglaszajacy);
+                        it.RozpatrujacyAvatar = GetCachedAvatar(it.RozpatrujacyId, it.OsobaRozpatrujaca);
+                        it.ZakonczylAvatar = GetCachedAvatar(it.UserZakonczeniaId, it.UserZakonczenia);
+                        if (!string.IsNullOrEmpty(it.Handlowiec) && it.Handlowiec != "-")
+                            it.HandlowiecAvatar = GetHandlowiecAvatar(it.Handlowiec);
+                    }
+                    catch { }
+                }
+                // Refresh po kazdym batchu — uzytkownik widzi avatary "wjezdzajace" stopniowo
+                if (_cts.IsCancellationRequested) return;
+                try { Dispatcher.BeginInvoke(new Action(() => { try { dgReklamacje?.Items.Refresh(); } catch { } })); } catch { }
+            }
+        }
+
+        // Fix A: Async wariant — wykonywany w tle po renderze grida.
+        // Dekoduje BLOB-y poza UI threadem (BitmapImage.Freeze() pozwala na cross-thread).
+        // Set property + Items.Refresh() w Dispatcher.BeginInvoke.
+        private void ZaladujMiniaturyDoListyAsync(List<ReklamacjaItem> items)
+        {
+            if (items == null || items.Count == 0) return;
+
+            var liczniki = new Dictionary<int, int>();
+            var miniatury = new Dictionary<int, (ImageSource m1, ImageSource m2, ImageSource m3)>();
             try
             {
                 using (var conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
 
-                    // Sprawdz czy DaneZdjecia istnieje
                     bool maBlob = false;
                     using (var cmd = new SqlCommand(
                         "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='ReklamacjeZdjecia' AND COLUMN_NAME='DaneZdjecia'", conn))
@@ -761,20 +1073,15 @@ namespace Kalendarz1.Reklamacje
                         maBlob = Convert.ToInt32(cmd.ExecuteScalar()) > 0;
                     }
 
-                    // 1) Liczniki zdjec per reklamacja
                     using (var cmd = new SqlCommand(@"
                         SELECT IdReklamacji, COUNT(*) AS Liczba
                         FROM [dbo].[ReklamacjeZdjecia]
                         GROUP BY IdReklamacji", conn))
                     using (var r = cmd.ExecuteReader())
                     {
-                        var dict = new Dictionary<int, int>();
-                        while (r.Read()) dict[r.GetInt32(0)] = r.GetInt32(1);
-                        foreach (var item in reklamacje)
-                            if (dict.TryGetValue(item.Id, out int n)) item.LiczbaZdjec = n;
+                        while (r.Read()) liczniki[r.GetInt32(0)] = r.GetInt32(1);
                     }
 
-                    // 2) Top 3 najnowsze zdjecia per reklamacja (jako blob lub sciezka)
                     string sql = maBlob
                         ? @"WITH Z AS (
                                 SELECT Id, IdReklamacji, NazwaPliku, SciezkaPliku, DaneZdjecia,
@@ -792,27 +1099,48 @@ namespace Kalendarz1.Reklamacje
                     using (var cmd = new SqlCommand(sql, conn))
                     using (var r = cmd.ExecuteReader())
                     {
-                        var lookup = reklamacje.ToDictionary(x => x.Id);
                         while (r.Read())
                         {
                             int idRekl = r.GetInt32(0);
                             int rn = r.GetInt32(1);
-                            if (!lookup.TryGetValue(idRekl, out var item)) continue;
                             ImageSource img = null;
                             byte[] blob = maBlob && !r.IsDBNull(4) ? (byte[])r["DaneZdjecia"] : null;
                             string sciezka = !r.IsDBNull(3) ? r.GetString(3) : null;
                             try { img = ZbudujMiniaturke(blob, sciezka, 36); } catch { img = null; }
-                            if (img != null)
-                            {
-                                if (rn == 1) item.Miniatura1 = img;
-                                else if (rn == 2) item.Miniatura2 = img;
-                                else if (rn == 3) item.Miniatura3 = img;
-                            }
+                            if (img == null) continue;
+
+                            miniatury.TryGetValue(idRekl, out var trio);
+                            if (rn == 1) trio.m1 = img;
+                            else if (rn == 2) trio.m2 = img;
+                            else if (rn == 3) trio.m3 = img;
+                            miniatury[idRekl] = trio;
                         }
                     }
                 }
             }
-            catch { /* nie blokuj listy gdy zdjec nie da sie zaladowac */ }
+            catch { return; }
+
+            // Apply na UI thread + refresh (cleanup: pomin jezeli okno juz zamkniete)
+            if (_cts.IsCancellationRequested) return;
+            try
+            {
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    if (_cts.IsCancellationRequested) return;
+                    foreach (var item in items)
+                    {
+                        if (liczniki.TryGetValue(item.Id, out int n)) item.LiczbaZdjec = n;
+                        if (miniatury.TryGetValue(item.Id, out var trio))
+                        {
+                            item.Miniatura1 = trio.m1;
+                            item.Miniatura2 = trio.m2;
+                            item.Miniatura3 = trio.m3;
+                        }
+                    }
+                    try { dgReklamacje?.Items.Refresh(); } catch { }
+                }));
+            }
+            catch { }
         }
 
         // Buduje miniaturke z blob lub sciezki, decoduje do zadanego rozmiaru
@@ -836,22 +1164,17 @@ namespace Kalendarz1.Reklamacje
             catch { return null; }
         }
 
-        private void WczytajStatystyki()
+        // Fix M: pure data load — bez UI. Wywolywany z Task.Run.
+        // Filtr daty na korektach @DataOdKorekt — taki sam jak w WczytajReklamacje
+        private (int doAkcji, int wToku, int zamkniete)? LoadStatystyki()
         {
-            if (!isInitialized || string.IsNullOrEmpty(connectionString)) return;
-
+            if (string.IsNullOrEmpty(connectionString)) return null;
             try
             {
-                using (SqlConnection conn = new SqlConnection(connectionString))
+                DateTime dataOdKorekt = PobierzDataOdKorekt();
+                using (var conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
-
-                    DateTime dataOdKorekt = PobierzDataOdKorekt();
-
-                    // Licz wg KategoriaZakladki — logika zsynchronizowana ze StatusyV2.KategoriaZakladki:
-                    //  ZAMKNIETE: ktos zakonczyl LUB status finalny
-                    //  W_TOKU:    ktos rozpatruje LUB W_ANALIZIE
-                    //  DO_AKCJI:  pozostale
                     string query = @"
                         SELECT
                             CASE
@@ -873,11 +1196,11 @@ namespace Kalendarz1.Reklamacje
                                 WHEN ISNULL(StatusV2,'ZGLOSZONA') = 'W_ANALIZIE' THEN 'W_TOKU'
                                 ELSE 'DO_AKCJI'
                             END";
-
-                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    using (var cmd = new SqlCommand(query, conn))
+                    using (StartupProfiler.Sql("Statystyki: GROUP BY kategoria (async)", "SELECT kategoria, COUNT(*) FROM Reklamacje GROUP BY kategoria", "LibraNet"))
                     {
                         cmd.Parameters.AddWithValue("@DataOdKorekt", dataOdKorekt);
-                        using (SqlDataReader reader = cmd.ExecuteReader())
+                        using (var reader = cmd.ExecuteReader())
                         {
                             int doAkcji = 0, wToku = 0, zamkniete = 0;
                             while (reader.Read())
@@ -891,18 +1214,24 @@ namespace Kalendarz1.Reklamacje
                                     case "ZAMKNIETE": zamkniete = liczba; break;
                                 }
                             }
-
-                            txtStatNowe.Text = doAkcji.ToString();
-                            txtStatWTrakcie.Text = wToku.ToString();
-                            txtStatZaakceptowane.Text = zamkniete.ToString();
+                            return (doAkcji, wToku, zamkniete);
                         }
                     }
                 }
             }
-            catch
-            {
-                // Ignoruj bledy statystyk
-            }
+            catch { return null; }
+        }
+
+        // Sync wariant — uzywany przez BtnOdswiez i StartSyncWTle po refresh.
+        // Deleguje do LoadStatystyki (z filtrem @DataOdKorekt) + UI fill.
+        private void WczytajStatystyki()
+        {
+            if (!isInitialized || string.IsNullOrEmpty(connectionString)) return;
+            var stat = LoadStatystyki();
+            if (stat == null) return;
+            txtStatNowe.Text = stat.Value.doAkcji.ToString();
+            txtStatWTrakcie.Text = stat.Value.wToku.ToString();
+            txtStatZaakceptowane.Text = stat.Value.zamkniete.ToString();
         }
 
         private void BtnOdswiez_Click(object sender, RoutedEventArgs e)
@@ -3432,25 +3761,35 @@ namespace Kalendarz1.Reklamacje
             }
         }
 
+        // Fix K: cache wynik — wczesniej kazde wywolanie otwieralo nowa connection + dwa SQL,
+        // a metoda byla wolana 3× per otwarcie okna (WczytajReklamacje + WczytajStatystyki + Sync).
+        // Inwalidacja cache nastepuje przy zapisie nowej wartosci (ZapiszDataOdKorekt).
+        private DateTime? _cachedDataOdKorekt;
+
         private DateTime PobierzDataOdKorekt()
         {
+            if (_cachedDataOdKorekt.HasValue) return _cachedDataOdKorekt.Value;
+
+            DateTime result = DateTime.Now.AddMonths(-6);
             try
             {
                 using (var conn = new SqlConnection(connectionString))
+                using (StartupProfiler.Sql("PobierzDataOdKorekt (ustawienia + cache miss)", "SELECT Wartosc FROM ReklamacjeUstawienia WHERE Klucz='DataOdKorekt'", "LibraNet"))
                 {
                     conn.Open();
                     UpewnijSieZeTabeUstawienIstnieje(conn);
                     using (var cmd = new SqlCommand(
                         "SELECT Wartosc FROM [dbo].[ReklamacjeUstawienia] WHERE Klucz = 'DataOdKorekt'", conn))
                     {
-                        var result = cmd.ExecuteScalar();
-                        if (result != null && result != DBNull.Value && DateTime.TryParse(result.ToString(), out DateTime dt))
-                            return dt;
+                        var v = cmd.ExecuteScalar();
+                        if (v != null && v != DBNull.Value && DateTime.TryParse(v.ToString(), out DateTime dt))
+                            result = dt;
                     }
                 }
             }
             catch { }
-            return DateTime.Now.AddMonths(-6);
+            _cachedDataOdKorekt = result;
+            return result;
         }
 
         private void ZapiszDataOdKorekt(DateTime data)
@@ -3474,6 +3813,8 @@ namespace Kalendarz1.Reklamacje
                         cmd.ExecuteNonQuery();
                     }
                 }
+                // Fix K: inwalidacja cache
+                _cachedDataOdKorekt = null;
             }
             catch (Exception ex)
             {
@@ -5637,11 +5978,11 @@ namespace Kalendarz1.Reklamacje
                 log.AppendLine($"    BLAD: {ex.Message}");
             }
 
-            // KROK 6: Probuj sync
-            log.AppendLine("\n[6] Uruchamiam SyncFakturyKorygujace()...");
+            // KROK 6: Probuj sync (force full — debug sync ignoruje cache)
+            log.AppendLine("\n[6] Uruchamiam SyncFakturyKorygujace(forceFullSync=true)...");
             try
             {
-                SyncFakturyKorygujace();
+                SyncFakturyKorygujace(true);
                 log.AppendLine("    OK - Sync zakonczony bez bledu");
             }
             catch (Exception ex)
@@ -5680,12 +6021,68 @@ namespace Kalendarz1.Reklamacje
         // SYNC FAKTUR KORYGUJACYCH Z HANDEL
         // ========================================
 
-        private void SyncFakturyKorygujace()
+        // Fix F1+F2: cache 5min + inkrementalny (tylko nowe korekty po @LastSync z 2h overlap)
+        // forceFullSync=true ignoruje cache i robi pelny zakres (z PobierzDataOdKorekt) — uzywane przez Debug Sync i Re-run Profiler
+        private const string SYNC_CACHE_KEY = "ReklamacjeSync_Last";
+        private const int SYNC_CACHE_MINUTES = 5;
+        private const int SYNC_OVERLAP_HOURS = 2;
+
+        private void SyncFakturyKorygujace() => SyncFakturyKorygujace(false);
+        private void SyncFakturyKorygujace(bool forceFullSync)
         {
             try
             {
                 // Pobierz date poczatkowa z ustawien (admin moze ja zmienic)
                 DateTime dataOdKorekt = PobierzDataOdKorekt();
+                DateTime? lastSync = null;
+
+                // F2: cache check — skip jezeli sync wykonany <5min temu
+                if (!forceFullSync)
+                {
+                    try
+                    {
+                        using (var conn = new SqlConnection(connectionString))
+                        {
+                            conn.Open();
+                            using (StartupProfiler.Sql("Sync: cache check (5min TTL)", null, "LibraNet"))
+                            using (var cmd = new SqlCommand(@"
+                                IF OBJECT_ID('dbo.MigracjeStartupCache') IS NOT NULL
+                                    SELECT DataWykonania FROM [dbo].[MigracjeStartupCache] WHERE Klucz = @Klucz
+                                ELSE
+                                    SELECT NULL", conn))
+                            {
+                                cmd.Parameters.AddWithValue("@Klucz", SYNC_CACHE_KEY);
+                                var v = cmd.ExecuteScalar();
+                                if (v != null && v != DBNull.Value)
+                                {
+                                    lastSync = Convert.ToDateTime(v);
+                                    if ((DateTime.Now - lastSync.Value).TotalMinutes < SYNC_CACHE_MINUTES)
+                                    {
+                                        StartupProfiler.Note("Sync: SKIPPED (cache <5min)", lastSync.Value.ToString("HH:mm:ss"));
+                                        return;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    catch { /* cache table moze nie istniec — kontynuuj normalnie */ }
+                }
+
+                // F1: inkrementalny zakres — od ostatniego sync minus overlap (zeby zlapac backdated wpisy)
+                DateTime dataOdSync = dataOdKorekt;
+                if (lastSync.HasValue && !forceFullSync)
+                {
+                    DateTime incremental = lastSync.Value.AddHours(-SYNC_OVERLAP_HOURS);
+                    if (incremental > dataOdSync)
+                    {
+                        dataOdSync = incremental;
+                        StartupProfiler.Note("Sync: incremental from", dataOdSync.ToString("yyyy-MM-dd HH:mm:ss"));
+                    }
+                }
+                else
+                {
+                    StartupProfiler.Note("Sync: FULL range from", dataOdSync.ToString("yyyy-MM-dd"));
+                }
 
                 // Pobierz faktury korygujace z HANDEL + JOIN do faktury bazowej przez iddokkoryg
                 var korygujace = new List<(int id, string kod, DateTime data, decimal wartosc, int khid, string kontrahent, string handlowiec, decimal sumaKg, int? idFaktBazowej, string nrFaktBazowej)>();
@@ -5693,25 +6090,40 @@ namespace Kalendarz1.Reklamacje
                 using (var connHandel = new SqlConnection(HandelConnString))
                 {
                     connHandel.Open();
+                    // Fix D: scalar subquery `SUM(DP.ilosc) WHERE DP.super = DK.id` per wiersz
+                    // wykonywal sie 623× (raz per wiersz korekty). Teraz CTE pre-agreguje DP raz
+                    // i robi LEFT JOIN — jeden execution plan zamiast N.
                     using (var cmd = new SqlCommand(@"
+                        WITH DPSum AS (
+                            SELECT DP.super AS DokId, ABS(SUM(DP.ilosc)) AS SumaKg
+                            FROM [HANDEL].[HM].[DP] DP
+                            INNER JOIN [HANDEL].[HM].[DK] DKf ON DP.super = DKf.id
+                            WHERE DKf.seria IN ('sFKS','sFKSB','sFWK')
+                              AND DKf.anulowany = 0
+                              AND DKf.data >= @DataOd
+                            GROUP BY DP.super
+                        )
                         SELECT DK.id, DK.kod, DK.data,
                                ABS(DK.walNetto) AS Wartosc,
                                DK.khid,
                                C.shortcut AS NazwaKontrahenta,
                                ISNULL(WYM.CDim_Handlowiec_Val, '-') AS Handlowiec,
-                               ABS(ISNULL((SELECT SUM(DP.ilosc) FROM [HANDEL].[HM].[DP] DP WHERE DP.super = DK.id), 0)) AS SumaKg,
+                               ISNULL(DPS.SumaKg, 0) AS SumaKg,
                                DK.iddokkoryg AS IdFaktBazowej,
                                F.kod AS NrFaktBazowej
                         FROM [HANDEL].[HM].[DK] DK
                         INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
                         LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
                         LEFT JOIN [HANDEL].[HM].[DK] F ON DK.iddokkoryg = F.id
+                        LEFT JOIN DPSum DPS ON DPS.DokId = DK.id
                         WHERE DK.seria IN ('sFKS', 'sFKSB', 'sFWK')
                           AND DK.anulowany = 0
                           AND DK.data >= @DataOd
                           AND C.shortcut NOT LIKE 'SD/%'", connHandel))
+                    using (StartupProfiler.Sql($"Sync: HANDEL korekty (CTE-preagregat DP + 3× JOIN) — from {dataOdSync:yyyy-MM-dd}", "WITH DPSum AS (SELECT super, SUM(ilosc) FROM DP GROUP BY super) SELECT ... LEFT JOIN DPSum (jeden plan zamiast N scalar)", "HANDEL"))
                     {
-                        cmd.Parameters.AddWithValue("@DataOd", dataOdKorekt);
+                        cmd.CommandTimeout = 60;
+                        cmd.Parameters.AddWithValue("@DataOd", dataOdSync);
                         using (var reader = cmd.ExecuteReader())
                         {
                             while (reader.Read())
@@ -5733,22 +6145,35 @@ namespace Kalendarz1.Reklamacje
                     }
                 }
 
+                StartupProfiler.NoteRows(korygujace.Count);
+                StartupProfiler.Note("Sync: korekt z HANDEL", korygujace.Count);
                 if (korygujace.Count == 0) return;
 
                 // Wstaw do LibraNet te, ktorych jeszcze nie ma
+                int nowych = 0, pominietych = 0;
                 using (var conn = new SqlConnection(connectionString))
+                using (StartupProfiler.Sql($"Sync: petla {korygujace.Count} korekt × [HashSet check + ew. INSERT + auto-match + INSERT towary] (cross-DB)", $"foreach({korygujace.Count}) {{ HashSet.Contains (O(1)) + ew. INSERT Reklamacje + ProbujAutoMatch + HANDEL.SELECT DP + N×INSERT Towary }}", "LibraNet+HANDEL"))
                 {
                     conn.Open();
 
+                    // Fix B: zamiast SELECT COUNT(*) per korekta (N+1), zaladuj raz wszystkie istniejace IdDokumentu
+                    var istniejaceIdDok = new HashSet<int>();
+                    using (var cmdLoad = new SqlCommand(
+                        "SELECT IdDokumentu FROM [dbo].[Reklamacje] WHERE TypReklamacji = 'Faktura korygujaca' AND IdDokumentu IS NOT NULL", conn))
+                    using (var rdr = cmdLoad.ExecuteReader())
+                    {
+                        while (rdr.Read())
+                        {
+                            if (!rdr.IsDBNull(0)) istniejaceIdDok.Add(rdr.GetInt32(0));
+                        }
+                    }
+                    StartupProfiler.Note("Sync: istniejacych korekt w cache HashSet", istniejaceIdDok.Count);
+
                     foreach (var fk in korygujace)
                     {
-                        // Sprawdz czy juz istnieje
-                        using (var cmdCheck = new SqlCommand(
-                            "SELECT COUNT(*) FROM [dbo].[Reklamacje] WHERE IdDokumentu = @IdDok AND TypReklamacji = 'Faktura korygujaca'", conn))
-                        {
-                            cmdCheck.Parameters.AddWithValue("@IdDok", fk.id);
-                            if (Convert.ToInt32(cmdCheck.ExecuteScalar()) > 0) continue;
-                        }
+                        // Sprawdz w HashSet (O(1) zamiast roundtrip SQL)
+                        if (istniejaceIdDok.Contains(fk.id)) { pominietych++; continue; }
+                        nowych++;
 
                         // Wstaw nowa reklamacje (z polami Workflow V2 + faktura bazowa)
                         int noweIdReklamacji = 0;
@@ -5851,7 +6276,35 @@ namespace Kalendarz1.Reklamacje
                             catch { }
                         }
                     }
+                    StartupProfiler.NoteRows(nowych);
                 }
+                StartupProfiler.Note("Sync: nowych INSERT", nowych);
+                StartupProfiler.Note("Sync: pominietych (duplikat)", pominietych);
+
+                // F1/F2: UPSERT timestamp ostatniego udanego sync
+                try
+                {
+                    using (var conn = new SqlConnection(connectionString))
+                    {
+                        conn.Open();
+                        using (var cmd = new SqlCommand(@"
+                            IF OBJECT_ID('dbo.MigracjeStartupCache') IS NULL
+                                CREATE TABLE [dbo].[MigracjeStartupCache] (
+                                    [Klucz] NVARCHAR(100) PRIMARY KEY,
+                                    [DataWykonania] DATETIME NOT NULL DEFAULT GETDATE()
+                                );
+
+                            MERGE [dbo].[MigracjeStartupCache] AS T
+                            USING (SELECT @Klucz AS Klucz) AS S ON T.Klucz = S.Klucz
+                            WHEN MATCHED THEN UPDATE SET DataWykonania = GETDATE()
+                            WHEN NOT MATCHED THEN INSERT (Klucz, DataWykonania) VALUES (@Klucz, GETDATE());", conn))
+                        {
+                            cmd.Parameters.AddWithValue("@Klucz", SYNC_CACHE_KEY);
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+                }
+                catch { /* cache niekrytyczne */ }
             }
             catch (Exception ex)
             {
@@ -6158,6 +6611,305 @@ namespace Kalendarz1.Reklamacje
             if (rowHeight == 28 && btnDensityCompact != null) { btnDensityCompact.Background = active; ((TextBlock)btnDensityCompact.Content).Foreground = activeFg; }
             else if (rowHeight == 40 && btnDensityNormal != null) { btnDensityNormal.Background = active; ((TextBlock)btnDensityNormal.Content).Foreground = activeFg; }
             else if (rowHeight == 52 && btnDensitySpacious != null) { btnDensitySpacious.Background = active; ((TextBlock)btnDensitySpacious.Content).Foreground = activeFg; }
+        }
+
+        // ========================================
+        // STARTUP PROFILER — zaawansowane okno z 6 zakladkami
+        // ========================================
+        private void BtnProfiler_Click(object sender, RoutedEventArgs e)
+        {
+            var win = new Window
+            {
+                Title = "📊 Startup Profiler — Reklamacje (advanced — copy & paste do Claude)",
+                Width = 1300,
+                Height = 850,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                Background = new SolidColorBrush(Color.FromRgb(0x2C, 0x3E, 0x50))
+            };
+
+            var rootGrid = new Grid();
+            rootGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            rootGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            rootGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            // Header — KPI bar
+            var headerBg = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(0x1A, 0x25, 0x2F)),
+                Padding = new Thickness(14, 10, 14, 10)
+            };
+            var headerSp = new StackPanel();
+            headerSp.Children.Add(new TextBlock
+            {
+                Text = "📊 ADVANCED STARTUP PROFILER — Panel Reklamacji",
+                Foreground = Brushes.White, FontSize = 17, FontWeight = FontWeights.Bold
+            });
+            var kpiPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0) };
+            var phases = StartupProfiler.Phases;
+            var sqls = StartupProfiler.Sqls;
+            double wall = StartupProfiler.WallMs;
+            double sqlTotal = sqls.Sum(s => s.Ms);
+            kpiPanel.Children.Add(MakeKpiChip("⏱ Wall", $"{wall:F0} ms", wall > 2500 ? "#E74C3C" : wall > 1000 ? "#F39C12" : "#27AE60"));
+            kpiPanel.Children.Add(MakeKpiChip("📊 Fazy", phases.Count.ToString(), "#3498DB"));
+            kpiPanel.Children.Add(MakeKpiChip("🗄 SQL", $"{sqls.Count} ({sqlTotal:F0}ms)", sqlTotal > wall * 0.6 ? "#E74C3C" : "#16A085"));
+            kpiPanel.Children.Add(MakeKpiChip("🐢 Slow", sqls.Count(s => s.Ms > 200).ToString(), sqls.Count(s => s.Ms > 200) > 5 ? "#E74C3C" : "#7F8C8D"));
+            var recs = StartupProfiler.GenerateRecommendations();
+            int crit = recs.Count(r => r.Severity == "CRIT");
+            int warn = recs.Count(r => r.Severity == "WARN");
+            kpiPanel.Children.Add(MakeKpiChip("🎯 Rekom.", $"{crit} CRIT / {warn} WARN", crit > 0 ? "#E74C3C" : warn > 0 ? "#F39C12" : "#27AE60"));
+            if (StartupProfiler.AutoSavedPath != null)
+                kpiPanel.Children.Add(MakeKpiChip("💾 Auto-save", "TAK", "#16A085"));
+            headerSp.Children.Add(kpiPanel);
+            headerBg.Child = headerSp;
+            Grid.SetRow(headerBg, 0);
+            rootGrid.Children.Add(headerBg);
+
+            // TabControl
+            var tabs = new TabControl
+            {
+                Margin = new Thickness(8, 8, 8, 4),
+                Background = new SolidColorBrush(Color.FromRgb(0x34, 0x49, 0x5E))
+            };
+
+            // Wszystkie sekcje markdown
+            string fullMd = StartupProfiler.BuildFullReport();
+
+            tabs.Items.Add(MakeTab("🎯 Rekomendacje", StartupProfiler.BuildHeaderSection() + "\n\n" + StartupProfiler.BuildRecommendationsSection()));
+            tabs.Items.Add(MakeTab("📊 Fazy", StartupProfiler.BuildPhasesSection() + "\n\n" + StartupProfiler.BuildHistogramSection()));
+            tabs.Items.Add(MakeTab("🗄 SQL", StartupProfiler.BuildSqlSection()));
+            tabs.Items.Add(MakeTab("🔍 Drill-down", StartupProfiler.BuildPhaseDrillDown()));
+            tabs.Items.Add(MakeTab("🌐 Sieć + WPF", StartupProfiler.BuildNetworkSection() + "\n\n" + StartupProfiler.BuildWpfSection() + "\n\n" + StartupProfiler.BuildNotesSection()));
+            tabs.Items.Add(MakeTab("🗃 Snapshot DB", StartupProfiler.BuildDbSnapshotSection()));
+            tabs.Items.Add(MakeTab("📄 Pełny raport (markdown)", fullMd));
+
+            Grid.SetRow(tabs, 1);
+            rootGrid.Children.Add(tabs);
+
+            // Buttons toolbar
+            var btns = new WrapPanel
+            {
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(12, 6, 12, 12)
+            };
+
+            var btnCopyTab = MakeProfilerButton("📋 Kopiuj AKTUALNĄ zakładkę", "#16A085");
+            btnCopyTab.Click += (s, args) =>
+            {
+                if (tabs.SelectedItem is TabItem ti && ti.Content is Grid g && g.Children.OfType<TextBox>().FirstOrDefault() is TextBox tb)
+                {
+                    Clipboard.SetText(tb.Text);
+                    FlashButton(btnCopyTab, "✅ Skopiowane!", "📋 Kopiuj AKTUALNĄ zakładkę");
+                }
+            };
+            btns.Children.Add(btnCopyTab);
+
+            var btnCopyAll = MakeProfilerButton("📋 Kopiuj CAŁOŚĆ (md)", "#16A085");
+            btnCopyAll.Click += (s, args) =>
+            {
+                Clipboard.SetText(StartupProfiler.BuildFullReport());
+                FlashButton(btnCopyAll, "✅ Cały raport skopiowany!", "📋 Kopiuj CAŁOŚĆ (md)");
+            };
+            btns.Children.Add(btnCopyAll);
+
+            var btnExport = MakeProfilerButton("💾 Eksport (md+csv+json)", "#3498DB");
+            btnExport.Click += (s, args) =>
+            {
+                var dlg = new Microsoft.Win32.SaveFileDialog
+                {
+                    Filter = "Markdown (*.md)|*.md",
+                    FileName = $"reklamacje-profile-{DateTime.Now:yyyyMMdd-HHmm}.md"
+                };
+                if (dlg.ShowDialog() == true)
+                {
+                    string mdPath = dlg.FileName;
+                    string csvPath = System.IO.Path.ChangeExtension(mdPath, ".sql.csv");
+                    string jsonPath = System.IO.Path.ChangeExtension(mdPath, ".json");
+                    System.IO.File.WriteAllText(mdPath, StartupProfiler.BuildFullReport(), System.Text.Encoding.UTF8);
+                    System.IO.File.WriteAllText(csvPath, StartupProfiler.BuildCsvSql(), System.Text.Encoding.UTF8);
+                    System.IO.File.WriteAllText(jsonPath, StartupProfiler.BuildJson(), System.Text.Encoding.UTF8);
+                    MessageBox.Show($"Zapisano 3 pliki:\n{mdPath}\n{csvPath}\n{jsonPath}", "Profiler",
+                        MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            };
+            btns.Children.Add(btnExport);
+
+            var btnOpenFolder = MakeProfilerButton("📁 Otwórz folder auto-save", "#9B59B6");
+            btnOpenFolder.Click += (s, args) =>
+            {
+                try
+                {
+                    string dir = System.IO.Path.GetDirectoryName(StartupProfiler.AutoSavedPath ?? System.IO.Path.Combine(System.IO.Path.GetTempPath(), "Kalendarz1-Profiler"));
+                    System.Diagnostics.Process.Start("explorer.exe", dir);
+                }
+                catch (Exception ex) { MessageBox.Show(ex.Message); }
+            };
+            btns.Children.Add(btnOpenFolder);
+
+            var btnSnap = MakeProfilerButton("🗃 Snapshot DB teraz", "#F39C12");
+            btnSnap.Click += (s, args) =>
+            {
+                btnSnap.IsEnabled = false; btnSnap.Content = "⏳ Snapshot...";
+                System.Threading.Tasks.Task.Run(() =>
+                {
+                    try { StartupProfiler.CaptureDbSnapshot(connectionString, ReklamacjeConnectionStrings.Handel); }
+                    catch (Exception ex) { Dispatcher.Invoke(() => MessageBox.Show(ex.Message)); }
+                    Dispatcher.Invoke(() =>
+                    {
+                        btnSnap.IsEnabled = true; btnSnap.Content = "🗃 Snapshot DB teraz";
+                        // Odswiez zakladke Snapshot
+                        if (tabs.Items.Count >= 6 && tabs.Items[5] is TabItem ti && ti.Content is Grid g && g.Children.OfType<TextBox>().FirstOrDefault() is TextBox tb)
+                            tb.Text = StartupProfiler.BuildDbSnapshotSection();
+                    });
+                });
+            };
+            btns.Children.Add(btnSnap);
+
+            var btnProbe = MakeProfilerButton("🌐 Probe sieci", "#1ABC9C");
+            btnProbe.Click += (s, args) =>
+            {
+                btnProbe.IsEnabled = false; btnProbe.Content = "⏳ Probe...";
+                System.Threading.Tasks.Task.Run(async () =>
+                {
+                    await StartupProfiler.ProbeAllAsync(
+                        (connectionString, "LibraNet"),
+                        (ReklamacjeConnectionStrings.Handel, "HANDEL"));
+                    Dispatcher.Invoke(() =>
+                    {
+                        btnProbe.IsEnabled = true; btnProbe.Content = "🌐 Probe sieci";
+                        // Odswiez zakladke Siec
+                        if (tabs.Items.Count >= 5 && tabs.Items[4] is TabItem ti && ti.Content is Grid g && g.Children.OfType<TextBox>().FirstOrDefault() is TextBox tb)
+                            tb.Text = StartupProfiler.BuildNetworkSection() + "\n\n" + StartupProfiler.BuildWpfSection() + "\n\n" + StartupProfiler.BuildNotesSection();
+                    });
+                });
+            };
+            btns.Children.Add(btnProbe);
+
+            var btnRerun = MakeProfilerButton("🔄 Re-run całość", "#F39C12");
+            btnRerun.Click += (s, args) =>
+            {
+                win.Close();
+                StartupProfiler.Begin(userId);
+                _ = StartupProfiler.ProbeAllAsync((connectionString, "LibraNet"), (ReklamacjeConnectionStrings.Handel, "HANDEL"));
+                using (StartupProfiler.Phase("Re-run: MigracjaBazy")) { try { MigracjaBazy(); } catch { } }
+                using (StartupProfiler.Phase("Re-run: WczytajMapowanieHandlowcow")) { WczytajMapowanieHandlowcow(); }
+                using (StartupProfiler.Phase("Re-run: WczytajHandlowcow")) { WczytajHandlowcow(); }
+                using (StartupProfiler.Phase("Re-run: SyncFakturyKorygujace")) { try { SyncFakturyKorygujace(); } catch { } }
+                using (StartupProfiler.Phase("Re-run: WczytajReklamacje")) { WczytajReklamacje(); }
+                using (StartupProfiler.Phase("Re-run: WczytajStatystyki")) { WczytajStatystyki(); }
+                StartupProfiler.CaptureWpfStats(this);
+                StartupProfiler.End();
+                System.Threading.Tasks.Task.Run(() => { try { StartupProfiler.CaptureDbSnapshot(connectionString, ReklamacjeConnectionStrings.Handel); } catch { } });
+                BtnProfiler_Click(s, args);
+            };
+            btns.Children.Add(btnRerun);
+
+            var btnRerunSync = MakeProfilerButton("⚡ Re-run TYLKO Sync", "#E67E22");
+            btnRerunSync.Click += (s, args) =>
+            {
+                StartupProfiler.Begin(userId);
+                using (StartupProfiler.Phase("Sync-only: SyncFakturyKorygujace")) { try { SyncFakturyKorygujace(); } catch { } }
+                StartupProfiler.End();
+                win.Close();
+                BtnProfiler_Click(s, args);
+            };
+            btns.Children.Add(btnRerunSync);
+
+            var btnClose = MakeProfilerButton("Zamknij", "#7F8C8D");
+            btnClose.Click += (s, args) => win.Close();
+            btns.Children.Add(btnClose);
+
+            Grid.SetRow(btns, 2);
+            rootGrid.Children.Add(btns);
+
+            win.Content = rootGrid;
+            win.ShowDialog();
+        }
+
+        private static TabItem MakeTab(string header, string content)
+        {
+            var tab = new TabItem
+            {
+                Header = header,
+                Background = new SolidColorBrush(Color.FromRgb(0x34, 0x49, 0x5E)),
+                Foreground = Brushes.White,
+                FontWeight = FontWeights.SemiBold,
+                FontSize = 13
+            };
+            var g = new Grid();
+            var tb = new TextBox
+            {
+                Text = content,
+                IsReadOnly = true,
+                FontFamily = new FontFamily("Cascadia Mono, Consolas"),
+                FontSize = 12,
+                AcceptsReturn = true,
+                TextWrapping = TextWrapping.NoWrap,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+                Background = new SolidColorBrush(Color.FromRgb(0x1E, 0x28, 0x35)),
+                Foreground = new SolidColorBrush(Color.FromRgb(0xEC, 0xF0, 0xF1)),
+                Padding = new Thickness(10),
+                BorderThickness = new Thickness(0)
+            };
+            g.Children.Add(tb);
+            tab.Content = g;
+            return tab;
+        }
+
+        private static Border MakeKpiChip(string label, string value, string colorHex)
+        {
+            var b = new Border
+            {
+                Background = (SolidColorBrush)new BrushConverter().ConvertFromString(colorHex),
+                CornerRadius = new CornerRadius(5),
+                Padding = new Thickness(10, 4, 10, 4),
+                Margin = new Thickness(0, 0, 6, 0)
+            };
+            var sp = new StackPanel { Orientation = Orientation.Horizontal };
+            sp.Children.Add(new TextBlock { Text = label + " ", Foreground = Brushes.White, FontSize = 11, Opacity = 0.85, VerticalAlignment = VerticalAlignment.Center });
+            sp.Children.Add(new TextBlock { Text = value, Foreground = Brushes.White, FontSize = 13, FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center });
+            b.Child = sp;
+            return b;
+        }
+
+        private static void FlashButton(Button btn, string flashText, string originalText)
+        {
+            object original = btn.Content;
+            btn.Content = flashText;
+            var t = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1.5) };
+            t.Tick += (ss, aa) => { btn.Content = originalText; t.Stop(); };
+            t.Start();
+        }
+
+        private static Button MakeProfilerButton(string text, string bgHex)
+        {
+            var btn = new Button
+            {
+                Content = text,
+                MinWidth = 130,
+                Height = 36,
+                Padding = new Thickness(10, 0, 10, 0),
+                Margin = new Thickness(4, 2, 4, 2),
+                Background = (SolidColorBrush)new BrushConverter().ConvertFromString(bgHex),
+                Foreground = Brushes.White,
+                FontWeight = FontWeights.SemiBold,
+                FontSize = 11,
+                BorderThickness = new Thickness(0),
+                Cursor = Cursors.Hand
+            };
+            var template = new ControlTemplate(typeof(Button));
+            var borderFactory = new System.Windows.FrameworkElementFactory(typeof(Border));
+            borderFactory.SetValue(Border.BackgroundProperty, new TemplateBindingExtension(Button.BackgroundProperty));
+            borderFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(6));
+            borderFactory.SetValue(Border.PaddingProperty, new Thickness(8, 4, 8, 4));
+            var contentFactory = new System.Windows.FrameworkElementFactory(typeof(ContentPresenter));
+            contentFactory.SetValue(ContentPresenter.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+            contentFactory.SetValue(ContentPresenter.VerticalAlignmentProperty, VerticalAlignment.Center);
+            borderFactory.AppendChild(contentFactory);
+            template.VisualTree = borderFactory;
+            btn.Template = template;
+            return btn;
         }
     }
 

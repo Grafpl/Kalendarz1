@@ -8,8 +8,10 @@ claude  --dangerously-skip-permissions
 cd C:\Users\PC\source\repos\Grafpl\Kalendarz1
 Claude --resume  --dangerously-skip-permissions
  DEPLOY\deploy.bat
-
+ DEPLOY\build-launcher.bat
 DEPLOY\build-launcher.bat
 
 120 zł w kosztach, 20 % amortyzacji * 20 % idzie w koszty rocznie, 19 % o tyle płaci mniej podatek bo ma na stanie i amortyzuje to i płąci się mniejszy podatek
  
+
+

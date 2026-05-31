@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Windows.Media;
 
 namespace Kalendarz1.DashboardPrzychodu.Models
 {
@@ -14,6 +15,13 @@ namespace Kalendarz1.DashboardPrzychodu.Models
         private const decimal WspolczynnikKlasaA = 0.80m;    // 80% tuszek → klasa A
         private const decimal WspolczynnikKlasaB = 0.20m;    // 20% tuszek → klasa B (krojenie)
 
+        /// <summary>
+        /// Domyslne okno dnia roboczego (dla #7 pace vs plan).
+        /// Mozna nadpisac przez ustawienia uzytkownika (DashboardSettings, #9).
+        /// </summary>
+        public static TimeSpan WorkdayStart { get; set; } = new TimeSpan(6, 0, 0);
+        public static TimeSpan WorkdayEnd   { get; set; } = new TimeSpan(14, 0, 0);
+
         private int _sztukiPlanSuma;
         private decimal _kgPlanSuma;
         private decimal? _srWagaPlanSrednia;      // Średnia waga plan z harmonogramu
@@ -26,6 +34,8 @@ namespace Kalendarz1.DashboardPrzychodu.Models
         private int _liczbaCzekaNaTare;
         private int _liczbaOczekujacych;
         private decimal _odchylenieKgSuma;
+        private DateTime? _pierwszeWazenie;
+        private DateTime? _ostatnieWazenie;
 
         #region Properties - Plan (deklarowane)
 
@@ -352,6 +362,189 @@ namespace Kalendarz1.DashboardPrzychodu.Models
         /// Wyświetlany procent realizacji
         /// </summary>
         public string ProcentRealizacjiDisplay => $"{ProcentRealizacjiKg}%";
+
+        #endregion
+
+        #region Properties - Tempo / ETA / Pace (#6 + #7)
+
+        /// <summary>
+        /// Pierwsze wazenie dnia (SlaughterWeightDate najmniejsze z FullWeight+EmptyWeight > 0).
+        /// Sluzy do liczenia faktycznego tempa ubojni.
+        /// </summary>
+        public DateTime? PierwszeWazenie
+        {
+            get => _pierwszeWazenie;
+            set
+            {
+                _pierwszeWazenie = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(TempoKgPerMin));
+                OnPropertyChanged(nameof(EtaZakonczenia));
+                OnPropertyChanged(nameof(EtaDisplay));
+                OnPropertyChanged(nameof(EtaTooltip));
+            }
+        }
+
+        /// <summary>
+        /// Ostatnie wazenie dnia.
+        /// </summary>
+        public DateTime? OstatnieWazenie
+        {
+            get => _ostatnieWazenie;
+            set
+            {
+                _ostatnieWazenie = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(EtaTooltip));
+            }
+        }
+
+        /// <summary>
+        /// Tempo ubojni [kg/min] od pierwszego wazenia do teraz.
+        /// Null jesli mniej niz 5 min minelo lub brak danych (zbyt malo do estymacji).
+        /// </summary>
+        public decimal? TempoKgPerMin
+        {
+            get
+            {
+                if (!PierwszeWazenie.HasValue || KgZwazoneSuma <= 0) return null;
+                var minuty = (DateTime.Now - PierwszeWazenie.Value).TotalMinutes;
+                if (minuty < 5) return null; // za malo danych do sensownej estymacji
+                return Math.Round(KgZwazoneSuma / (decimal)minuty, 1);
+            }
+        }
+
+        /// <summary>
+        /// ETA zakonczenia ubojni: teraz + (pozostalo / tempo).
+        /// Null gdy brak tempa lub nic juz nie pozostalo.
+        /// </summary>
+        public DateTime? EtaZakonczenia
+        {
+            get
+            {
+                var tempo = TempoKgPerMin;
+                if (!tempo.HasValue || tempo.Value <= 0) return null;
+                if (KgPozostalo <= 0) return null;
+                double minutyDoKonca = (double)(KgPozostalo / tempo.Value);
+                if (minutyDoKonca > 24 * 60) return null; // sanity check: >1 dzien = bzdura
+                return DateTime.Now.AddMinutes(minutyDoKonca);
+            }
+        }
+
+        /// <summary>
+        /// Display "13:42" lub "—" jak nie da sie policzyc.
+        /// </summary>
+        public string EtaDisplay => EtaZakonczenia?.ToString("HH:mm") ?? "—";
+
+        /// <summary>
+        /// Tooltip rozszerzony dla kafelka ETA: tempo + okno czasowe.
+        /// </summary>
+        public string EtaTooltip
+        {
+            get
+            {
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine("Szacowany koniec dnia (na podstawie tempa).");
+                sb.AppendLine();
+                if (TempoKgPerMin.HasValue)
+                    sb.AppendLine($"Tempo: {TempoKgPerMin:N1} kg/min");
+                else
+                    sb.AppendLine("Tempo: brak danych (potrzeba >=5 min od pierwszego wazenia)");
+                if (PierwszeWazenie.HasValue)
+                    sb.AppendLine($"Pierwsze wazenie: {PierwszeWazenie:HH:mm}");
+                if (OstatnieWazenie.HasValue)
+                    sb.AppendLine($"Ostatnie wazenie: {OstatnieWazenie:HH:mm}");
+                sb.Append($"Pozostalo: {KgPozostalo:N0} kg");
+                return sb.ToString();
+            }
+        }
+
+        /// <summary>
+        /// Oczekiwana realizacja [%] dla aktualnej pory dnia, liniowa od WorkdayStart do WorkdayEnd.
+        /// Przed startem = 0%, po koncu = 100%.
+        /// </summary>
+        public decimal OczekiwanaRealizacjaProc
+        {
+            get
+            {
+                var now = DateTime.Now.TimeOfDay;
+                if (now <= WorkdayStart) return 0;
+                if (now >= WorkdayEnd) return 100;
+                var totalSec = (WorkdayEnd - WorkdayStart).TotalSeconds;
+                var elapsedSec = (now - WorkdayStart).TotalSeconds;
+                return (decimal)Math.Round(elapsedSec / totalSec * 100, 1);
+            }
+        }
+
+        /// <summary>
+        /// Roznica miedzy aktualna a oczekiwana realizacja [pp].
+        /// Dodatnia = wyprzedzenie, ujemna = opoznienie.
+        /// </summary>
+        public decimal PaceDiffProc => ProcentRealizacjiKg - OczekiwanaRealizacjaProc;
+
+        /// <summary>
+        /// Opoznienie/wyprzedzenie w minutach, ekstrapolowane z tempa dnia roboczego.
+        /// </summary>
+        public int? PaceDiffMinuty
+        {
+            get
+            {
+                var workdaySec = (WorkdayEnd - WorkdayStart).TotalSeconds;
+                if (workdaySec <= 0) return null;
+                // Roznica % * dlugosc dnia w minutach / 100
+                return (int)Math.Round((double)PaceDiffProc * workdaySec / 60.0 / 100.0);
+            }
+        }
+
+        /// <summary>
+        /// Display pace: "+12 min wyprzedzasz" / "-24 min opoznienie" / "wg planu" / "—".
+        /// </summary>
+        public string PaceDisplay
+        {
+            get
+            {
+                var now = DateTime.Now.TimeOfDay;
+                if (now < WorkdayStart || now > WorkdayEnd) return "—";
+                if (KgPlanSuma <= 0) return "—";
+                var min = PaceDiffMinuty;
+                if (!min.HasValue) return "—";
+                if (Math.Abs(min.Value) < 2) return "wg planu";
+                return min > 0
+                    ? $"+{min} min wyprzedzasz"
+                    : $"{min} min opoznienie";
+            }
+        }
+
+        /// <summary>
+        /// Krotki badge: "+12 min" / "-24 min" / "OK" / "—".
+        /// </summary>
+        public string PaceBadge
+        {
+            get
+            {
+                var now = DateTime.Now.TimeOfDay;
+                if (now < WorkdayStart || now > WorkdayEnd) return "";
+                if (KgPlanSuma <= 0) return "";
+                var min = PaceDiffMinuty;
+                if (!min.HasValue) return "";
+                if (Math.Abs(min.Value) < 2) return "OK";
+                return min > 0 ? $"+{min} min" : $"{min} min";
+            }
+        }
+
+        /// <summary>
+        /// Kolor pace badge - zielony jak wyprzedzasz, czerwony jak opoznienie, szary OK.
+        /// </summary>
+        public Brush PaceBrush
+        {
+            get
+            {
+                var min = PaceDiffMinuty ?? 0;
+                if (min >= 2) return new SolidColorBrush(Color.FromRgb(34, 197, 94));   // green
+                if (min <= -2) return new SolidColorBrush(Color.FromRgb(239, 68, 68));  // red
+                return new SolidColorBrush(Color.FromRgb(168, 162, 158));               // muted
+            }
+        }
 
         #endregion
 

@@ -186,6 +186,26 @@
                     </StackPanel>
 
                     <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button x:Name="btnAudyt" Style="{StaticResource InfoButton}"
+                                Height="28" FontSize="10" Click="BtnAudyt_Click"
+                                ToolTip="Ponów pomiar czasu ładowania (audyt) i pokaż raport"
+                                Background="#8E44AD" Margin="0,0,10,0">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="🔍" FontSize="12" Margin="0,0,4,0"/>
+                                <TextBlock Text="Audyt" FontSize="10" FontWeight="SemiBold"/>
+                            </StackPanel>
+                        </Button>
+
+                        <Button x:Name="btnOstatnieWstawienia" Style="{StaticResource InfoButton}"
+                                Height="28" FontSize="10" Click="BtnOstatnieWstawienia_Click"
+                                ToolTip="Ostatnie wstawienia hodowców — pogrupowane wg statusu (Aktywni / Do wykupienia / Anulowane)"
+                                Background="#27AE60" Margin="0,0,10,0">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="🐣" FontSize="12" Margin="0,0,4,0"/>
+                                <TextBlock Text="Ostatnie wstawienia" FontSize="10" FontWeight="SemiBold"/>
+                            </StackPanel>
+                        </Button>
+
                         <Button x:Name="btnStatystyki" Style="{StaticResource InfoButton}"
                                 Width="120" Height="28" FontSize="10" Click="BtnStatystyki_Click"
                                 ToolTip="Statystyki pracowników" Margin="0,0,10,0">

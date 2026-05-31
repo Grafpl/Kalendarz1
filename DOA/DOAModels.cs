@@ -32,6 +32,11 @@ namespace Kalendarz1.DOA
             SztukiDek <= 0 ? "#94A3B8" :
             ProcentDOA <= 0.20m ? "#10B981" :
             ProcentDOA <= 0.50m ? "#F59E0B" : "#DC2626";
+
+        public string TloKolor =>
+            SztukiDek <= 0 ? "#FFFFFF" :
+            ProcentDOA <= 0.20m ? "#F0FDF4" :
+            ProcentDOA <= 0.50m ? "#FFFBEB" : "#FEF2F2";
     }
 
     /// <summary>Pozycja rankingu hodowców po średnim DOA (z FarmerCalc).</summary>
@@ -56,5 +61,35 @@ namespace Kalendarz1.DOA
         public string StatusKolor =>
             SredniProcDOA <= 0.20m ? "#10B981" :
             SredniProcDOA <= 0.50m ? "#F59E0B" : "#DC2626";
+
+        public string TloKolor =>
+            SredniProcDOA <= 0.20m ? "#F0FDF4" :
+            SredniProcDOA <= 0.50m ? "#FFFBEB" : "#FEF2F2";
+
+        /// <summary>Zmiana DOA% vs poprzedni okres (w punktach procentowych). Null = brak danych poprzednich.</summary>
+        public decimal? TrendDOAPP { get; set; }
+
+        public string TrendFormatted
+        {
+            get
+            {
+                if (!TrendDOAPP.HasValue) return "—";
+                var v = TrendDOAPP.Value;
+                if (v > 0.01m) return $"▲ +{v:N2}";
+                if (v < -0.01m) return $"▼ {v:N2}";
+                return "▬ 0";
+            }
+        }
+
+        public string TrendKolor
+        {
+            get
+            {
+                if (!TrendDOAPP.HasValue) return "#94A3B8";
+                if (TrendDOAPP.Value > 0.01m) return "#DC2626";   // gorzej = czerwony
+                if (TrendDOAPP.Value < -0.01m) return "#10B981";  // lepiej = zielony
+                return "#94A3B8";
+            }
+        }
     }
 }
