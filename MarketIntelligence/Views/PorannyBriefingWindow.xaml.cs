@@ -37,10 +37,10 @@ namespace Kalendarz1.MarketIntelligence.Views
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "Kalendarz1", "MarketIntelligence", "autofetch-state.json");
 
-        // ── Chat ──
+        // ── Chat (Faza C — sesyjny z pamięcią) ──
         private readonly ObservableCollection<ChatMessage> _chatHistory = new();
-        private Services.AI.ClaudeAnalysisService _claude;
-        private string _chatSystemPrompt;
+        private Services.AI.SmartChatService _smartChat;
+        private int _currentSessionId;
 
         public PorannyBriefingWindow()
         {
@@ -164,6 +164,13 @@ namespace Kalendarz1.MarketIntelligence.Views
         private void PorannyBriefingWindow_Closed(object sender, EventArgs e)
         {
             _autoFetchTimer?.Stop();
+            // Faza C: zamknij aktywną sesję chatu (Haiku wygeneruje summary do pamięci międzysesyjnej)
+            if (_currentSessionId > 0 && _smartChat != null)
+            {
+                var sid = _currentSessionId;
+                _currentSessionId = 0;
+                _ = _smartChat.EndSessionAsync(sid);
+            }
         }
 
         #region Auto-fetch 06:00
@@ -365,7 +372,7 @@ namespace Kalendarz1.MarketIntelligence.Views
         }
 
         /// <summary>Pokazuje/chowa boczny panel chatu (domyślnie schowany — czyste czytanie newsów).</summary>
-        private void BtnChatToggle_Click(object sender, RoutedEventArgs e)
+        private async void BtnChatToggle_Click(object sender, RoutedEventArgs e)
         {
             bool show = chatPanel.Visibility != Visibility.Visible;
             chatPanel.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
@@ -373,8 +380,28 @@ namespace Kalendarz1.MarketIntelligence.Views
             chatGap.Width = show ? new GridLength(14) : new GridLength(0);
             if (show)
             {
+                // Faza C: startuj sesję przy pierwszym otwarciu chatu
+                if (_currentSessionId == 0)
+                {
+                    try
+                    {
+                        _smartChat ??= new Services.AI.SmartChatService();
+                        _currentSessionId = await _smartChat.StartSessionAsync();
+                    }
+                    catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[Chat] start session: {ex.Message}"); }
+                }
                 if (_chatHistory.Count == 0) AddSystemHello();
                 txtChatInput.Focus();
+            }
+            else
+            {
+                // Zamknięcie chatu = koniec sesji (Haiku wygeneruje summary do pamięci)
+                if (_currentSessionId > 0 && _smartChat != null)
+                {
+                    var sid = _currentSessionId;
+                    _currentSessionId = 0;
+                    _ = _smartChat.EndSessionAsync(sid);  // fire-and-forget
+                }
             }
         }
 
@@ -404,7 +431,7 @@ namespace Kalendarz1.MarketIntelligence.Views
                 Author = "🤖 Asystent AI",
                 AuthorColor = new SolidColorBrush(Color.FromRgb(201, 169, 110)),
                 BgColor = new SolidColorBrush(Color.FromRgb(31, 26, 20)),
-                Content = "Cześć Sergiusz. Znam profil firmy + ostatnie 30 dni z drobiarstwa. Pytaj swobodnie albo użyj szybkich pytań powyżej."
+                Content = "Cześć Sergiusz. Znam profil firmy + wątki + trendy + pamiętam poprzednie nasze rozmowy. Pytaj swobodnie albo użyj szybkich pytań powyżej."
             });
         }
 
@@ -448,14 +475,11 @@ namespace Kalendarz1.MarketIntelligence.Views
 
             try
             {
-                _claude ??= new Services.AI.ClaudeAnalysisService();
-                if (_chatSystemPrompt == null)
-                {
-                    var builder = new Services.BriefingChatContextBuilder();
-                    _chatSystemPrompt = await builder.BuildSystemPromptAsync(App.UserID ?? Environment.UserName);
-                }
+                _smartChat ??= new Services.AI.SmartChatService();
+                if (_currentSessionId == 0) _currentSessionId = await _smartChat.StartSessionAsync();
 
-                var answer = await _claude.ChatAsync(_chatSystemPrompt, q);
+                // SmartChat persistuje user+assistant w intel_ChatMessages i zwraca tekst odpowiedzi
+                var answer = await _smartChat.SendMessageAsync(_currentSessionId, q);
 
                 _chatHistory.Add(new ChatMessage
                 {
