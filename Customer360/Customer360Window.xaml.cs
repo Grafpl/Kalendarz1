@@ -50,6 +50,14 @@ namespace Kalendarz1.Customer360
         private static readonly string[] MiesSkrot = { "sty", "lut", "mar", "kwi", "maj", "cze", "lip", "sie", "wrz", "paź", "lis", "gru" };
         private static readonly string[] MiesPelny = { "Styczeń", "Luty", "Marzec", "Kwiecień", "Maj", "Czerwiec", "Lipiec", "Sierpień", "Wrzesień", "Październik", "Listopad", "Grudzień" };
 
+        // Jeden konwerter hex->Brush dla calego okna — eliminuje 9 lokalnych kopii i ryzyko driftu fallbacku.
+        private static readonly BrushConverter _bc = new();
+        private static Brush B(string hex)
+        {
+            try { return (Brush)_bc.ConvertFromString(hex)!; }
+            catch { return Brushes.Gray; }
+        }
+
         public Customer360Window() : this(null, null) { }
         public Customer360Window(int? preselectKlientId) : this(preselectKlientId, null) { }
         public Customer360Window(int? preselectKlientId, List<int>? nawigacja)
@@ -626,14 +634,9 @@ namespace Kalendarz1.Customer360
                     "D" => ("#FEE2E2", "#FCA5A5", "#991B1B"),
                     _ => ("#F1F5F9", "#CBD5E1", "#475569")
                 };
-                try
-                {
-                    var bc = new BrushConverter();
-                    ChipKategoria.Background = (Brush)bc.ConvertFromString(bg)!;
-                    ChipKategoria.BorderBrush = (Brush)bc.ConvertFromString(brd)!;
-                    LblKategoria.Foreground = (Brush)bc.ConvertFromString(fg)!;
-                }
-                catch { }
+                ChipKategoria.Background = B(bg);
+                ChipKategoria.BorderBrush = B(brd);
+                LblKategoria.Foreground = B(fg);
             }
 
             // Churn risk badge
@@ -648,21 +651,14 @@ namespace Kalendarz1.Customer360
             };
             LblChurnIcon.Text = icon;
             LblChurnLevel.Text = text;
-            try
-            {
-                var bc = new BrushConverter();
-                ChipChurn.Background = (Brush)bc.ConvertFromString(churnBg)!;
-                ChipChurn.BorderBrush = (Brush)bc.ConvertFromString(churnBrd)!;
-                LblChurnLevel.Foreground = (Brush)bc.ConvertFromString(churnFg)!;
-            }
-            catch { }
+            ChipChurn.Background = B(churnBg);
+            ChipChurn.BorderBrush = B(churnBrd);
+            LblChurnLevel.Foreground = B(churnFg);
             ChipChurn.ToolTip = kpi.ChurnRiskReason;
         }
 
         private void RenderKpi(KlientKpi kpi)
         {
-            var bc = new BrushConverter();
-            Brush B(string hex) { try { return (Brush)bc.ConvertFromString(hex)!; } catch { return Brushes.Gray; } }
 
             // ── KPI finansowe ──
             KpiObrot.Text = $"{kpi.Obrot12M:N0} zł";
@@ -734,8 +730,6 @@ namespace Kalendarz1.Customer360
         {
             ChartPorownanie.Children.Clear();
             ChartPorownanie.ColumnDefinitions.Clear();
-            var bc = new BrushConverter();
-            Brush B(string hex) { try { return (Brush)bc.ConvertFromString(hex)!; } catch { return Brushes.Gray; } }
             string Fmt(decimal v) => v >= 1_000_000m ? $"{v / 1_000_000m:N1}M" : v >= 1000m ? $"{v / 1000m:N0}t" : $"{v:N0}";
 
             if (data == null || data.Count == 0)
@@ -863,8 +857,6 @@ namespace Kalendarz1.Customer360
         private void RenderScoring(Customer360Score? sc)
         {
             ScoringBary.Children.Clear();
-            var bc = new BrushConverter();
-            Brush B(string hex) { try { return (Brush)bc.ConvertFromString(hex)!; } catch { return Brushes.Gray; } }
 
             if (sc == null)
             {
@@ -929,8 +921,6 @@ namespace Kalendarz1.Customer360
         private void RenderAlerty(KlientKpi kpi, Kalendarz1.Customer360.Models.WeryfikacjaSumarum wer, Customer360Score? sc)
         {
             AlertyPanel.Children.Clear();
-            var bc = new BrushConverter();
-            Brush B(string hex) { try { return (Brush)bc.ConvertFromString(hex)!; } catch { return Brushes.Gray; } }
 
             void Alert(string ikona, string tekst, string kolor)
             {
@@ -1100,11 +1090,11 @@ namespace Kalendarz1.Customer360
 
             void Row(StackPanel host, string glowny, string detal, int kursy)
             {
-                var b = new Border { Background = (Brush)new BrushConverter().ConvertFromString("#F8FAFC")!, CornerRadius = new CornerRadius(6), Padding = new Thickness(8, 6, 8, 6), Margin = new Thickness(0, 0, 0, 5) };
+                var b = new Border { Background = B("#F8FAFC"), CornerRadius = new CornerRadius(6), Padding = new Thickness(8, 6, 8, 6), Margin = new Thickness(0, 0, 0, 5) };
                 var sp = new StackPanel();
                 sp.Children.Add(new TextBlock { Text = glowny, FontWeight = FontWeights.SemiBold, FontSize = 12, TextTrimming = TextTrimming.CharacterEllipsis });
-                if (!string.IsNullOrWhiteSpace(detal)) sp.Children.Add(new TextBlock { Text = detal, FontSize = 10, Foreground = (Brush)new BrushConverter().ConvertFromString("#64748B")! });
-                sp.Children.Add(new TextBlock { Text = $"{kursy} kursów", FontSize = 10, Foreground = (Brush)new BrushConverter().ConvertFromString("#2563EB")!, FontWeight = FontWeights.SemiBold });
+                if (!string.IsNullOrWhiteSpace(detal)) sp.Children.Add(new TextBlock { Text = detal, FontSize = 10, Foreground = B("#64748B") });
+                sp.Children.Add(new TextBlock { Text = $"{kursy} kursów", FontSize = 10, Foreground = B("#2563EB"), FontWeight = FontWeights.SemiBold });
                 b.Child = sp;
                 host.Children.Add(b);
             }
@@ -1123,8 +1113,6 @@ namespace Kalendarz1.Customer360
         private void RenderScoringDetal(Customer360Score? sc)
         {
             ScoringDetalPanel.Children.Clear();
-            var bc = new BrushConverter();
-            Brush B(string hex) { try { return (Brush)bc.ConvertFromString(hex)!; } catch { return Brushes.Gray; } }
 
             if (sc == null)
             {
@@ -1313,8 +1301,6 @@ namespace Kalendarz1.Customer360
         {
             _werSummaCache = s;
             _werTowary = towary;
-            var bc = new BrushConverter();
-            Brush B(string hex) { try { return (Brush)bc.ConvertFromString(hex)!; } catch { return Brushes.Gray; } }
 
             // ── Werdykt: kółko realizacji + kolor + tekst ──
             decimal real = s.ZgodnoscProc;  // zafakturowane / zamówione * 100
@@ -1386,8 +1372,6 @@ namespace Kalendarz1.Customer360
 
         private void DodajChip(string label, int liczba, string filtr, string fg, string bg)
         {
-            var bc = new BrushConverter();
-            Brush B(string hex) { try { return (Brush)bc.ConvertFromString(hex)!; } catch { return Brushes.Gray; } }
             bool aktywny = _werFiltr == filtr;
             var chip = new Border
             {
@@ -1414,8 +1398,6 @@ namespace Kalendarz1.Customer360
         private void RenderWeryfikacjaLista()
         {
             WeryfikacjaLista.Children.Clear();
-            var bc = new BrushConverter();
-            Brush B(string hex) { try { return (Brush)bc.ConvertFromString(hex)!; } catch { return Brushes.Gray; } }
 
             // Filtruj wg statusu
             IEnumerable<Models.WeryfikacjaTowar> lista = _werTowary;
@@ -1487,8 +1469,6 @@ namespace Kalendarz1.Customer360
 
         private Border Pasek(decimal v, decimal max, string kolor, string label)
         {
-            var bc = new BrushConverter();
-            Brush B(string hex) { try { return (Brush)bc.ConvertFromString(hex)!; } catch { return Brushes.Gray; } }
             double proc = (double)(v / max);
             var track = new Border { Height = 16, CornerRadius = new CornerRadius(4), Background = B("#EEF2F7") };
             var fg = new Grid();
@@ -1544,7 +1524,7 @@ namespace Kalendarz1.Customer360
                         string strzalka = zmiana >= 5 ? "▲ rośnie" : zmiana <= -5 ? "▼ spada" : "▬ stabilnie";
                         string kolor = zmiana >= 5 ? "#16A34A" : zmiana <= -5 ? "#DC2626" : "#64748B";
                         TrendKierunek.Text = $"{strzalka}  {(zmiana >= 0 ? "+" : "")}{zmiana:N0}%";
-                        try { TrendKierunek.Foreground = (Brush)new BrushConverter().ConvertFromString(kolor)!; } catch { }
+                        TrendKierunek.Foreground = B(kolor);
                     }
                     else TrendKierunek.Text = "";
                 }
