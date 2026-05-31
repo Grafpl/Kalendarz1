@@ -41,15 +41,20 @@ namespace Kalendarz1.Transport.WPF.Models
             _najstarszaData = lista[0].DataZgloszenia;
         }
 
-        /// <summary>Grupuje surowe zmiany po (ZamowienieId, TypZmiany) → karty z deltą najstarsza→najnowsza.
-        /// Filtruje "ZmianaStatusu" (wewnętrzny typ, nie edycja handlowca).</summary>
+        /// <summary>Typy zmian filtrowane (szum):
+        /// — "ZmianaStatusu" (wewnętrzny — przy przypisywaniu kursów),
+        /// — "ZmianaUwag" (zmiana notatek — niska wartość dla logistyka).</summary>
+        private static readonly HashSet<string> TypyDoUkrycia = new() { "ZmianaStatusu", "ZmianaUwag" };
+
+        /// <summary>Grupuje surowe zmiany po (ZamowienieId, TypZmiany) → karty z deltą najstarsza→najnowsza.</summary>
         public static List<ZmianaCard> ScalListe(IEnumerable<TransportZmiana> raw)
         {
             return raw
-                .Where(z => z.TypZmiany != "ZmianaStatusu")
+                .Where(z => !TypyDoUkrycia.Contains(z.TypZmiany))
                 .GroupBy(z => (z.ZamowienieId, z.TypZmiany))
                 .Select(g => new ZmianaCard(g))
-                .OrderByDescending(c => c.Source.DataZgloszenia)
+                .OrderBy(c => c.KlientNazwa)
+                .ThenByDescending(c => c.Source.DataZgloszenia)
                 .ToList();
         }
 
@@ -83,18 +88,22 @@ namespace Kalendarz1.Transport.WPF.Models
         /// <summary>Najnowsza wartość w grupie.</summary>
         public string Nowa => string.IsNullOrEmpty(Source.NowaWartosc) ? "—" : Source.NowaWartosc;
 
+        // Ikony dobrane tak, żeby na pierwszy rzut oka rozróżniać typy:
+        //   🆕 nowe  |  🟫 palety (brązowy = drewno)  |  📦 pojemniki E2
+        //   ⚖ waga   |  ⏰ awizacja (godzina)         |  📅 termin (data)
+        //   🚫 anulowanie (mocniej niż ❌)             |  🏠 odbiorca
+        //   🏭 data produkcji (fabryka, nie 🔧ślusarstwo)
         public string TypEmoji => Source.TypZmiany switch
         {
-            "NoweZamowienie" => "✨",
-            "ZmianaIlosci" => "📦",
+            "NoweZamowienie" => "🆕",
+            "ZmianaIlosci" => "🟫",
             "ZmianaPojemnikow" => "📦",
             "ZmianaKg" => "⚖",
             "ZmianaAwizacji" => "⏰",
             "ZmianaTerminu" => "📅",
-            "Anulowanie" => "❌",
-            "ZmianaUwag" => "📝",
+            "Anulowanie" => "🚫",
             "ZmianaOdbiorcy" => "🏠",
-            "ZmianaDataProdukcji" => "🔧",
+            "ZmianaDataProdukcji" => "🏭",
             _ => "🔔"
         };
 

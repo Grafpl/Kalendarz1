@@ -54,6 +54,9 @@ namespace Kalendarz1.Transport.WPF
             try { WindowIconHelper.SetIcon(this); } catch { }
             WolneGrid.ItemsSource = _wolne;
             DetalListaZmian.ItemsSource = _detalZmiany;
+            // grupowanie kart po kliencie — nagłówek sekcji raz, klient nie powtarza się
+            var widokDetal = System.Windows.Data.CollectionViewSource.GetDefaultView(_detalZmiany);
+            widokDetal.GroupDescriptions.Add(new System.Windows.Data.PropertyGroupDescription(nameof(ZmianaCard.KlientNazwa)));
             WpfDragHelper.GrupujKolekcje(_wolne, nameof(WolneZamowienieWpf.DzienOdbioru),
                 nameof(WolneZamowienieWpf.DzienOdbioru), nameof(WolneZamowienieWpf.DataPrzyjazdu));
             WolneGrid.SelectionChanged += (_, _) => UpdateDodajButton();
@@ -305,8 +308,8 @@ namespace Kalendarz1.Transport.WPF
                 KursyGrid.Items.Refresh();
                 AktualizujDetalNaglowek(row);
                 StatusText.Text = card.IloscScalonych > 1
-                    ? $"✓ Zaakceptowano {card.IloscScalonych} kolejnych zmian: {card.KlientNazwa} · {card.TypLabel}"
-                    : $"✓ Zaakceptowano: {card.KlientNazwa} · {card.TypLabel}";
+                    ? $"✓ Zaakceptowano {card.IloscScalonych} kolejnych edycji: {card.TypLabel} ({card.KlientNazwa})"
+                    : $"✓ Zaakceptowano: {card.TypLabel} ({card.KlientNazwa})";
             }
             catch (Exception ex) { MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error); b.IsEnabled = true; }
         }

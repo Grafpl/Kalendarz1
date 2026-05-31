@@ -61,6 +61,9 @@ namespace Kalendarz1.Transport.WPF
             LadunkiGrid.ItemsSource = _ladunki;
             WolneGrid.ItemsSource = _wolne;
             ListaZmian.ItemsSource = _zmiany;
+            // grupowanie kart po kliencie — nagłówek sekcji, klient nie powtarza się w wierszach
+            var widokZmian = System.Windows.Data.CollectionViewSource.GetDefaultView(_zmiany);
+            widokZmian.GroupDescriptions.Add(new System.Windows.Data.PropertyGroupDescription(nameof(ZmianaCard.KlientNazwa)));
             WpfDragHelper.GrupujKolekcje(_wolne, nameof(WolneZamowienieWpf.DzienOdbioru),
                 nameof(WolneZamowienieWpf.DzienOdbioru), nameof(WolneZamowienieWpf.DataPrzyjazdu));
             DataKursu.SelectedDate = data.Date;
