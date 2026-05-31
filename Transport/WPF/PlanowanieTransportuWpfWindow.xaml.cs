@@ -276,8 +276,8 @@ namespace Kalendarz1.Transport.WPF
             }
             try
             {
-                var lista = await _svc.PobierzZmianyDlaKursuAsync(row.KursID);
-                foreach (var z in lista) _detalZmiany.Add(new ZmianaCard(z));
+                var raw = await _svc.PobierzZmianyDlaKursuAsync(row.KursID);
+                foreach (var c in ZmianaCard.ScalListe(raw)) _detalZmiany.Add(c);
 
                 if (_detalZmiany.Count == 0)
                 {
@@ -299,12 +299,14 @@ namespace Kalendarz1.Transport.WPF
             b.IsEnabled = false;
             try
             {
-                await _svc.AkceptujZmianeIPrzeliczAsync(card.Id, row.KursID, card.ZamowienieId, card.Source.TypZmiany, _user);
+                await _svc.AkceptujGrupeIPrzeliczAsync(card.Ids, row.KursID, card.ZamowienieId, card.Source.TypZmiany, _user);
                 _detalZmiany.Remove(card);
-                row.LiczbaZmianOczekujacych = Math.Max(0, row.LiczbaZmianOczekujacych - 1);
+                row.LiczbaZmianOczekujacych = Math.Max(0, row.LiczbaZmianOczekujacych - card.IloscScalonych);
                 KursyGrid.Items.Refresh();
                 AktualizujDetalNaglowek(row);
-                StatusText.Text = $"✓ Zaakceptowano: {card.KlientNazwa} · {card.TypLabel}";
+                StatusText.Text = card.IloscScalonych > 1
+                    ? $"✓ Zaakceptowano {card.IloscScalonych} kolejnych zmian: {card.KlientNazwa} · {card.TypLabel}"
+                    : $"✓ Zaakceptowano: {card.KlientNazwa} · {card.TypLabel}";
             }
             catch (Exception ex) { MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error); b.IsEnabled = true; }
         }
@@ -313,15 +315,16 @@ namespace Kalendarz1.Transport.WPF
         {
             if (sender is not Button b || b.Tag is not ZmianaCard card) return;
             if (KursyGrid?.SelectedItem is not KursRow row) return;
-            var kontekst = $"{card.TypLabel} · {card.KlientNazwa}   {card.Stare} → {card.Nowa}";
+            var iloscTxt = card.IloscScalonych > 1 ? $" ({card.IloscScalonych} kolejnych edycji)" : "";
+            var kontekst = $"{card.TypLabel} · {card.KlientNazwa}{iloscTxt}   {card.Stare} → {card.Nowa}";
             var dlg = new Dialogs.OdrzucPowodDialog(kontekst) { Owner = this };
             if (dlg.ShowDialog() != true) return;
             b.IsEnabled = false;
             try
             {
-                await _svc.OdrzucZmianeAsync(card.Id, _user, dlg.Powod);
+                await _svc.OdrzucGrupeAsync(card.Ids, _user, dlg.Powod);
                 _detalZmiany.Remove(card);
-                row.LiczbaZmianOczekujacych = Math.Max(0, row.LiczbaZmianOczekujacych - 1);
+                row.LiczbaZmianOczekujacych = Math.Max(0, row.LiczbaZmianOczekujacych - card.IloscScalonych);
                 KursyGrid.Items.Refresh();
                 AktualizujDetalNaglowek(row);
                 StatusText.Text = $"✗ Odrzucono: {card.KlientNazwa} · {card.TypLabel}";
@@ -407,8 +410,8 @@ namespace Kalendarz1.Transport.WPF
                 var userNames = await _svc.PobierzNazwyUzytkownikowAsync(allUserIds);
                 await _svc.EnsureHandlowiecMapAsync();
 
-                // pending zmiany (TransportZmiany) — jedno query globalne, lokalne mapowanie
-                var pendingZamIds = await _svc.PobierzOczekujaceZamIdAsync();
+                // pending zmiany — mapa ZamId→typy (filtr ZmianaStatusu, cache 30 s)
+                var pendingMap = await _svc.PobierzOczekujaceMapaAsync();
 
                 foreach (var row in _rowsAll)
                 {
@@ -428,7 +431,7 @@ namespace Kalendarz1.Transport.WPF
                                     if (!string.IsNullOrWhiteSpace(zi.Handlowiec) && !handl.Contains(zi.Handlowiec))
                                         handl.Add(zi.Handlowiec);
                                 }
-                                if (pendingZamIds.Contains(id)) pending++;
+                                if (pendingMap.TryGetValue(id, out var typy)) pending += typy.Count;
                             }
                         }
                     }

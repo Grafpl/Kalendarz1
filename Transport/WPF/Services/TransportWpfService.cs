@@ -249,30 +249,36 @@ namespace Kalendarz1.Transport.WPF.Services
         // SYSTEM AKCEPTACJI ZMIAN — proxy do TransportZmianyService (static).
         // Reuse całej detekcji/zapisu starego systemu, tylko nowe UI w WPF.
         // Cache pendingów 30 s, żeby przełączanie Lista↔Timeline nie powielało query.
+        // Mapa ZamId → zbiór typów zmian: licznik per (zam × typ), nie sam zam —
+        // dlatego badge 🔔 zgadza się z liczbą widocznych (scalonych) kart.
+        // Filtrujemy "ZmianaStatusu" (wewnętrzny typ, nie edycja handlowca).
         // ════════════════════════════════════════════════════════════════════
-        private static HashSet<int>? _pendingCache;
+        private static Dictionary<int, HashSet<string>>? _pendingMap;
         private static DateTime _pendingCacheUtc = DateTime.MinValue;
         private static readonly TimeSpan PendingTtl = TimeSpan.FromSeconds(30);
 
-        /// <summary>Wszystkie oczekujące ZamowienieId (zbiorczo, cache 30 s). Tańsze niż N×per-kurs.</summary>
-        public async Task<HashSet<int>> PobierzOczekujaceZamIdAsync()
+        /// <summary>Mapa ZamowienieId → zbiór typów oczekujących zmian (z filtrem ZmianaStatusu, cache 30 s).</summary>
+        public async Task<Dictionary<int, HashSet<string>>> PobierzOczekujaceMapaAsync()
         {
-            if (_pendingCache != null && DateTime.UtcNow - _pendingCacheUtc < PendingTtl)
-                return new HashSet<int>(_pendingCache);
+            if (_pendingMap != null && DateTime.UtcNow - _pendingCacheUtc < PendingTtl)
+                return _pendingMap.ToDictionary(p => p.Key, p => new HashSet<string>(p.Value));
             try
             {
                 var lista = await TransportZmianyService.GetPendingAsync();
-                var set = lista.Select(z => z.ZamowienieId).ToHashSet();
-                _pendingCache = set;
+                var mapa = lista
+                    .Where(z => z.TypZmiany != "ZmianaStatusu")
+                    .GroupBy(z => z.ZamowienieId)
+                    .ToDictionary(g => g.Key, g => g.Select(z => z.TypZmiany).ToHashSet());
+                _pendingMap = mapa;
                 _pendingCacheUtc = DateTime.UtcNow;
-                return new HashSet<int>(set);
+                return mapa.ToDictionary(p => p.Key, p => new HashSet<string>(p.Value));
             }
-            catch { return _pendingCache != null ? new HashSet<int>(_pendingCache) : new HashSet<int>(); }
+            catch { return _pendingMap != null ? _pendingMap.ToDictionary(p => p.Key, p => new HashSet<string>(p.Value)) : new(); }
         }
 
         public void InwalidujCacheZmian()
         {
-            _pendingCache = null;
+            _pendingMap = null;
             _pendingCacheUtc = DateTime.MinValue;
         }
 
@@ -284,13 +290,15 @@ namespace Kalendarz1.Transport.WPF.Services
         }
 
         /// <summary>
-        /// Akceptuje jedną zmianę. Dla typu „ZmianaPojemnikow" dodatkowo synchronizuje
-        /// pojedynczy `Ladunek.PojemnikiE2` w danym kursie z aktualną wartością LibraNet
-        /// (`LiczbaPojemnikow`) — żeby akceptacja faktycznie propagowała, nie tylko „odhaczała".
+        /// Akceptuje GRUPĘ zmian (np. 7 kolejnych edycji tego samego pola).
+        /// AcceptAsync per każde Id, potem (jeśli ZmianaPojemnikow) synchronizuje
+        /// Ladunek.PojemnikiE2 raz na koniec z aktualną wartością LibraNet — żeby
+        /// akceptacja faktycznie propagowała, nie tylko „odhaczała".
         /// </summary>
-        public async Task AkceptujZmianeIPrzeliczAsync(int zmianaId, long? kursId, int? zamowienieId, string? typ, string user, string? komentarz = null)
+        public async Task AkceptujGrupeIPrzeliczAsync(IList<int> ids, long? kursId, int? zamowienieId, string? typ, string user, string? komentarz = null)
         {
-            await TransportZmianyService.AcceptAsync(zmianaId, user, komentarz);
+            foreach (var id in ids)
+                await TransportZmianyService.AcceptAsync(id, user, komentarz);
             InwalidujCacheZmian();
 
             if (kursId.HasValue && zamowienieId.HasValue && typ == "ZmianaPojemnikow")
@@ -305,8 +313,7 @@ namespace Kalendarz1.Transport.WPF.Services
                     var v = await cmdL.ExecuteScalarAsync();
                     if (v != null && v != DBNull.Value) aktualna = Convert.ToInt32(v);
                 }
-                catch { /* sieć — pomiń propagację, akceptacja sama poszła */ }
-
+                catch { }
                 if (aktualna.HasValue)
                 {
                     try
@@ -325,9 +332,10 @@ namespace Kalendarz1.Transport.WPF.Services
             }
         }
 
-        public async Task OdrzucZmianeAsync(int id, string user, string? komentarz = null)
+        public async Task OdrzucGrupeAsync(IList<int> ids, string user, string? komentarz = null)
         {
-            await TransportZmianyService.RejectAsync(id, user, komentarz);
+            foreach (var id in ids)
+                await TransportZmianyService.RejectAsync(id, user, komentarz);
             InwalidujCacheZmian();
         }
 
@@ -457,7 +465,7 @@ namespace Kalendarz1.Transport.WPF.Services
             var kierowcy = await Repo.PobierzKierowcowAsync(true);
             var kursy = await Repo.PobierzKursyPoDacieAsync(data);
             var ladunki = await Repo.PobierzLadunkiDlaKursowAsync(kursy.Select(k => k.KursID));
-            var pendingZamIds = await PobierzOczekujaceZamIdAsync();   // TransportZmiany: jedno query, mapowanie offline
+            var pendingMap = await PobierzOczekujaceMapaAsync();   // ZamId → typy (filtr ZmianaStatusu, cache 30 s)
 
             var bary = new List<KursBar>();
             foreach (var k in kursy)
@@ -484,10 +492,10 @@ namespace Kalendarz1.Transport.WPF.Services
                     ZmienilName = k.Zmienil ?? "",
                     ZmienilData = k.ZmienionoUTC.HasValue ? k.ZmienionoUTC.Value.ToLocalTime().ToString("dd.MM HH:mm") : "",
                     BrakGodzin = !k.GodzWyjazdu.HasValue,
-                    LiczbaZmianOczekujacych = ladunki.TryGetValue(k.KursID, out var lk) ? lk.Count(x =>
+                    LiczbaZmianOczekujacych = ladunki.TryGetValue(k.KursID, out var lk) ? lk.Sum(x =>
                         x.KodKlienta != null && x.KodKlienta.StartsWith("ZAM_")
                         && int.TryParse(x.KodKlienta.Substring(4), out var zid)
-                        && pendingZamIds.Contains(zid)) : 0
+                        && pendingMap.TryGetValue(zid, out var typy) ? typy.Count : 0) : 0
                 });
             }
 

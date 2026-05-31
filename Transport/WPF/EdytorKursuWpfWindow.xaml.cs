@@ -135,8 +135,8 @@ namespace Kalendarz1.Transport.WPF
             if (!_kursId.HasValue) { AlertZmianyBar.Visibility = Visibility.Collapsed; PanelZmiany.Visibility = Visibility.Collapsed; return; }
             try
             {
-                var lista = await _svc.PobierzZmianyDlaKursuAsync(_kursId.Value);
-                foreach (var z in lista) _zmiany.Add(new ZmianaCard(z));
+                var raw = await _svc.PobierzZmianyDlaKursuAsync(_kursId.Value);
+                foreach (var c in ZmianaCard.ScalListe(raw)) _zmiany.Add(c);
 
                 if (_zmiany.Count == 0)
                 {
@@ -169,8 +169,7 @@ namespace Kalendarz1.Transport.WPF
             b.IsEnabled = false;
             try
             {
-                // Dla "ZmianaPojemnikow" — serwis synchronizuje 1 ładunek z aktualną wartością LibraNet.
-                await _svc.AkceptujZmianeIPrzeliczAsync(card.Id, _kursId, card.ZamowienieId, card.Source.TypZmiany, _user);
+                await _svc.AkceptujGrupeIPrzeliczAsync(card.Ids, _kursId, card.ZamowienieId, card.Source.TypZmiany, _user);
                 _zmiany.Remove(card);
 
                 if (card.Source.TypZmiany == "ZmianaPojemnikow")
@@ -179,7 +178,9 @@ namespace Kalendarz1.Transport.WPF
                     PrzeliczPakowanie();
                 }
                 AktualizujLicznikZmian();
-                StatusText.Text = $"✓ Zaakceptowano: {card.KlientNazwa} · {card.TypLabel}";
+                StatusText.Text = card.IloscScalonych > 1
+                    ? $"✓ Zaakceptowano {card.IloscScalonych} kolejnych zmian: {card.KlientNazwa} · {card.TypLabel}"
+                    : $"✓ Zaakceptowano: {card.KlientNazwa} · {card.TypLabel}";
             }
             catch (Exception ex) { MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error); b.IsEnabled = true; }
         }
@@ -187,13 +188,14 @@ namespace Kalendarz1.Transport.WPF
         private async void BtnOdrzucJedno_Click(object sender, RoutedEventArgs e)
         {
             if (sender is not Button b || b.Tag is not ZmianaCard card) return;
-            var kontekst = $"{card.TypLabel} · {card.KlientNazwa}   {card.Stare} → {card.Nowa}";
+            var iloscTxt = card.IloscScalonych > 1 ? $" ({card.IloscScalonych} kolejnych edycji)" : "";
+            var kontekst = $"{card.TypLabel} · {card.KlientNazwa}{iloscTxt}   {card.Stare} → {card.Nowa}";
             var dlg = new OdrzucPowodDialog(kontekst) { Owner = this };
             if (dlg.ShowDialog() != true) return;
             b.IsEnabled = false;
             try
             {
-                await _svc.OdrzucZmianeAsync(card.Id, _user, dlg.Powod);
+                await _svc.OdrzucGrupeAsync(card.Ids, _user, dlg.Powod);
                 _zmiany.Remove(card);
                 AktualizujLicznikZmian();
                 StatusText.Text = $"✗ Odrzucono: {card.KlientNazwa} · {card.TypLabel}";

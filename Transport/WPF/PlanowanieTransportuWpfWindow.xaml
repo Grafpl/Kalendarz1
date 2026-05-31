@@ -366,7 +366,14 @@
                                                            ToolTip="{Binding TypLabel}"/>
                                                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="2,0,8,0">
                                                     <TextBlock Text="{Binding KlientNazwa}" FontWeight="SemiBold" Foreground="#26323c"
-                                                               FontSize="11.5" TextTrimming="CharacterEllipsis" MaxWidth="170" VerticalAlignment="Center"/>
+                                                               FontSize="11.5" TextTrimming="CharacterEllipsis" MaxWidth="130" VerticalAlignment="Center"/>
+                                                    <TextBlock Text=" · " Foreground="#9aa0b0" FontSize="11.5" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="{Binding TypLabel}" Foreground="{Binding AkcentBrush}"
+                                                               FontWeight="SemiBold" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="120"/>
+                                                    <Border Background="{Binding AkcentSoft}" CornerRadius="8" Padding="6,1" Margin="6,0,0,0"
+                                                            Visibility="{Binding ScaloneVis}" ToolTip="{Binding ScaloneTooltip}" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding ScaloneText}" Foreground="{Binding AkcentBrush}" FontSize="10" FontWeight="Bold"/>
+                                                    </Border>
                                                     <Border Background="#F4F6F8" CornerRadius="3" Padding="5,1" Margin="10,0,0,0">
                                                         <TextBlock Text="{Binding Stare}" Foreground="#5b6776" FontSize="10.5" FontFamily="Consolas"/>
                                                     </Border>
