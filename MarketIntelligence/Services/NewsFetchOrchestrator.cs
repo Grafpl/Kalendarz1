@@ -547,6 +547,16 @@ namespace Kalendarz1.MarketIntelligence.Services
                             timeoutSec: 120,
                             fallback: 0,
                             ct);
+
+                        // Faza A.5: digesty dla top 5 wątków (Sonnet) — wątki bez digestu lub przestarzałe
+                        progress?.Report(new FetchProgress { Stage = "Digesty", Percent = 99, Message = "Generuję streszczenia wątków..." });
+                        await RunWithTimeoutAsync(
+                            "Story Digests (Sonnet)",
+                            stageCt => new StoryDigestService(_connectionString, _claudeAnalysisService)
+                                        .GenerateDigestsAsync(topN: 5, ct: stageCt),
+                            timeoutSec: 300,
+                            fallback: 0,
+                            ct);
                     }
                 }
 
