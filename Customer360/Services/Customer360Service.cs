@@ -632,6 +632,7 @@ namespace Kalendarz1.Customer360.Services
                     INNER JOIN dbo.ZamowieniaMiesoTowar zt ON zt.ZamowienieId = z.Id
                     WHERE z.KlientId = @kid
                       AND (@months <= 0 OR z.DataPrzyjazdu >= DATEADD(MONTH, -@months, GETDATE()))
+                      AND CAST(z.DataPrzyjazdu AS DATE) <= CAST(GETDATE() AS DATE)   -- bez przyszlosci: zam. ktore jeszcze nie wyjechaly
                       AND ISNULL(z.Status,'') NOT IN ('Anulowane','Anulowano')
                     GROUP BY YEAR(z.DataPrzyjazdu), MONTH(z.DataPrzyjazdu)";
                 await using var cmd = new SqlCommand(sql, cn) { CommandTimeout = 15 };

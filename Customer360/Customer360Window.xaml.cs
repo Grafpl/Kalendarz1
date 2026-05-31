@@ -494,7 +494,7 @@ namespace Kalendarz1.Customer360
                 var tFakDet = _service.GetFakturyDetailAsync(klientId, OKRES);
                 var tWer = _service.GetWeryfikacjaAsync(klientId, OKRES);
                 var tAnul = _service.GetAnulowaneZamowieniaAsync(klientId, OKRES);
-                var tPorownanie = _service.GetPorownanieMiesiaceAsync(klientId, 12);
+                var tPorownanie = _service.GetPorownanieMiesiaceAsync(klientId, OKRES);
 
                 await Task.WhenAll(tHdr, tKpi, tHist, tMonthly, tTop, tFakDet, tWer, tAnul, tPorownanie);
 
@@ -759,8 +759,32 @@ namespace Kalendarz1.Customer360
                 : "Brak miesięcy z pozycjami zamówień (dane od ~10/2025).";
 
             var wrap = new Grid();
-            wrap.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-            wrap.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            wrap.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });                       // procenty realizacji
+            wrap.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });  // slupki
+            wrap.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });                       // nazwy miesiecy
+
+            // procenty nad para slupkow — kolor zielony >=95%, zolty >=80%, czerwony nizej
+            var procLabels = new Grid();
+            for (int i = 0; i < data.Count; i++) procLabels.ColumnDefinitions.Add(new ColumnDefinition());
+            for (int i = 0; i < data.Count; i++)
+            {
+                var d = data[i];
+                if (d.ZamowioneKg <= 0) continue;
+                decimal p = d.RealizacjaProc;
+                string kolor = p >= 95m ? "#16A34A" : p >= 80m ? "#EAB308" : "#DC2626";
+                var tb = new TextBlock
+                {
+                    Text = $"{p:N0}%",
+                    FontSize = 10, FontWeight = FontWeights.SemiBold,
+                    Foreground = B(kolor),
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Margin = new Thickness(0, 0, 0, 2)
+                };
+                Grid.SetColumn(tb, i);
+                procLabels.Children.Add(tb);
+            }
+            Grid.SetRow(procLabels, 0);
+            wrap.Children.Add(procLabels);
 
             var plot = new Grid();
             for (int i = 0; i < data.Count; i++) plot.ColumnDefinitions.Add(new ColumnDefinition());
@@ -793,7 +817,7 @@ namespace Kalendarz1.Customer360
                 Grid.SetColumn(para, i);
                 plot.Children.Add(para);
             }
-            Grid.SetRow(plot, 0);
+            Grid.SetRow(plot, 1);
             wrap.Children.Add(plot);
 
             var labels = new Grid();
@@ -813,7 +837,7 @@ namespace Kalendarz1.Customer360
                 Grid.SetColumn(tb, i);
                 labels.Children.Add(tb);
             }
-            Grid.SetRow(labels, 1);
+            Grid.SetRow(labels, 2);
             wrap.Children.Add(labels);
 
             ChartPorownanie.Children.Add(wrap);
