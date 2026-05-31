@@ -572,7 +572,7 @@ namespace Kalendarz1.Customer360
                 try { RenderPorownanieChart(porownanie); } catch (Exception ex) { System.Diagnostics.Debug.WriteLine("[C360 RenderPorownanie] " + ex.Message); }
                 try { RenderAnulowaneHeader(anulowane); } catch (Exception ex) { System.Diagnostics.Debug.WriteLine("[C360 RenderAnul] " + ex.Message); }
                 try { RenderAlerty(kpi, werSumma, scoring); } catch (Exception ex) { System.Diagnostics.Debug.WriteLine("[C360 RenderAlerty] " + ex.Message); }
-                try { RenderScoringDetal(scoring); } catch (Exception ex) { System.Diagnostics.Debug.WriteLine("[C360 RenderScoringDetal] " + ex.Message); }
+                try { RenderScoringDetal(scoring, kpi); } catch (Exception ex) { System.Diagnostics.Debug.WriteLine("[C360 RenderScoringDetal] " + ex.Message); }
 
                 // Klient (Dane+Kontakty) — eager (lekkie, potrzebne do szybkich akcji telefon/email)
                 try { await LoadKlientTabAsync(klientId, hdr); } catch (Exception ex) { System.Diagnostics.Debug.WriteLine("[C360 KlientTab] " + ex.Message); }
@@ -1110,7 +1110,9 @@ namespace Kalendarz1.Customer360
         }
 
         // ── Scoring — szczegółowa zakładka ──
-        private void RenderScoringDetal(Customer360Score? sc)
+        // sc = punkty/wagi/litera (z cache, do 7 dni temu)
+        // kpi = aktualne KPI (zawsze swieze) — uzywane do opisow zeby zgadzaly sie z hero KPI tile
+        private void RenderScoringDetal(Customer360Score? sc, KlientKpi? kpi)
         {
             ScoringDetalPanel.Children.Clear();
 
@@ -1167,8 +1169,12 @@ namespace Kalendarz1.Customer360
                 Grid.SetColumn(val, 2); g.Children.Add(val);
                 csp.Children.Add(g);
             }
-            Skladnik("Obrót 12M", sc.ObrotPkt, sc.WagaObrot, "#2563EB", $"{sc.Obrot12M:N0} zł w ostatnich 12 mies (z faktur)");
-            Skladnik("Częstotliwość zamówień", sc.CzestotliwoscPkt, sc.WagaCzestotliwosc, "#10B981", $"Średni odstęp: {sc.SrOdstepDni:N0} dni między zamówieniami");
+            // Opisy: bierzemy AKTUALNE wartosci z kpi (zeby zgadzaly sie z hero KPI tile);
+            // punkty/wagi pozostaja z sc (snapshot — sa policzone razem z kategoria).
+            decimal obrotOpis = kpi?.Obrot12M ?? sc.Obrot12M;
+            decimal odstepOpis = kpi?.SredniCzasMiedzyZamowieniami ?? sc.SrOdstepDni;
+            Skladnik("Obrót 12M", sc.ObrotPkt, sc.WagaObrot, "#2563EB", $"{obrotOpis:N0} zł w ostatnich 12 mies (z faktur)");
+            Skladnik("Częstotliwość zamówień", sc.CzestotliwoscPkt, sc.WagaCzestotliwosc, "#10B981", $"Średni odstęp: {odstepOpis:N0} dni między zamówieniami");
             Skladnik("Terminowość płatności", sc.TerminowoscPkt, sc.WagaTerminowosc, "#3B82F6", $"{sc.TerminowoscProc:N0}% salda w terminie");
             Skladnik("Długość relacji", sc.DlugoscPkt, sc.WagaDlugosc, "#8B5CF6", $"Współpraca od {sc.LataRelacji:N1} lat");
             card.Child = csp;
