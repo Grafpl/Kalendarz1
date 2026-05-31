@@ -519,6 +519,21 @@ namespace Kalendarz1.Transport.WPF.Services
                 var wyj = k.GodzWyjazdu ?? new TimeSpan(6, 0, 0);
                 var pow = k.GodzPowrotu ?? wyj.Add(TimeSpan.FromHours(8));
                 if (pow <= wyj) pow = wyj.Add(TimeSpan.FromHours(1));
+
+                // licznik zmian: dedupowanie ZamId żeby zgadzało się z liczbą kart (ScalListe grupuje po Zam×Typ)
+                int liczbaPending = 0;
+                if (ladunki.TryGetValue(k.KursID, out var lk))
+                {
+                    var seen = new HashSet<int>();
+                    foreach (var x in lk)
+                    {
+                        if (x.KodKlienta != null && x.KodKlienta.StartsWith("ZAM_")
+                            && int.TryParse(x.KodKlienta.Substring(4), out var zid)
+                            && seen.Add(zid) && pendingMap.TryGetValue(zid, out var typy))
+                            liczbaPending += typy.Count;
+                    }
+                }
+
                 bary.Add(new KursBar
                 {
                     KursID = k.KursID,
@@ -538,10 +553,7 @@ namespace Kalendarz1.Transport.WPF.Services
                     ZmienilName = k.Zmienil ?? "",
                     ZmienilData = k.ZmienionoUTC.HasValue ? k.ZmienionoUTC.Value.ToLocalTime().ToString("dd.MM HH:mm") : "",
                     BrakGodzin = !k.GodzWyjazdu.HasValue,
-                    LiczbaZmianOczekujacych = ladunki.TryGetValue(k.KursID, out var lk) ? lk.Sum(x =>
-                        x.KodKlienta != null && x.KodKlienta.StartsWith("ZAM_")
-                        && int.TryParse(x.KodKlienta.Substring(4), out var zid)
-                        && pendingMap.TryGetValue(zid, out var typy) ? typy.Count : 0) : 0
+                    LiczbaZmianOczekujacych = liczbaPending
                 });
             }
 

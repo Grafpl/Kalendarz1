@@ -84,7 +84,11 @@ namespace Kalendarz1.Transport.WPF
         private void BtnNext_Click(object s, RoutedEventArgs e) => DataKursu.SelectedDate = (DataKursu.SelectedDate ?? DateTime.Today).AddDays(1);
         private void BtnDzis_Click(object s, RoutedEventArgs e) => DataKursu.SelectedDate = DateTime.Today;
         private async void DataKursu_Changed(object s, SelectionChangedEventArgs e) { if (!_ladowanie) await LoadWszystkoAsync(); }
-        private async void BtnRefresh_Click(object s, RoutedEventArgs e) => await LoadWszystkoAsync();
+        private async void BtnRefresh_Click(object s, RoutedEventArgs e)
+        {
+            _svc.InwalidujCacheZmian();   // F5 / klik Odśwież = zawsze pobierz świeże pendingi
+            await LoadWszystkoAsync();
+        }
 
         private async Task LoadWszystkoAsync()
         {
@@ -272,6 +276,14 @@ namespace Kalendarz1.Transport.WPF
                 var raw = await _svc.PobierzZmianyDlaKursuAsync(row.KursID);
                 foreach (var c in ZmianaCard.ScalListe(raw)) _detalZmiany.Add(c);
 
+                // Bezpiecznik desync — gdy badge mówi co innego niż faktyczna liczba kart,
+                // skoryguj badge na faktyczną wartość (źródło prawdy = panel, nie cache).
+                if (row.LiczbaZmianOczekujacych != _detalZmiany.Count)
+                {
+                    row.LiczbaZmianOczekujacych = _detalZmiany.Count;
+                    KursyGrid.Items.Refresh();
+                }
+
                 if (_detalZmiany.Count == 0)
                 {
                     PanelZmianyDlaKursu.Visibility = Visibility.Collapsed;
@@ -448,6 +460,7 @@ namespace Kalendarz1.Transport.WPF
                 {
                     decimal kg = 0;
                     var handl = new List<string>();
+                    var seenZamIdy = new HashSet<int>();   // dedupowanie: ten sam zam może być w 2 ładunkach
                     int pending = 0;
                     if (ladunki.TryGetValue(row.KursID, out var lad))
                     {
@@ -462,7 +475,9 @@ namespace Kalendarz1.Transport.WPF
                                     if (!string.IsNullOrWhiteSpace(zi.Handlowiec) && !handl.Contains(zi.Handlowiec))
                                         handl.Add(zi.Handlowiec);
                                 }
-                                if (pendingMap.TryGetValue(id, out var typy)) pending += typy.Count;
+                                // licz typy tylko RAZ na unikalne zamówienie — żeby badge zgadzał się z liczbą kart
+                                if (seenZamIdy.Add(id) && pendingMap.TryGetValue(id, out var typy))
+                                    pending += typy.Count;
                             }
                         }
                     }

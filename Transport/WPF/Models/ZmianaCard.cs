@@ -43,10 +43,12 @@ namespace Kalendarz1.Transport.WPF.Models
 
         /// <summary>Typy zmian filtrowane (szum) — JEDNO źródło prawdy dla licznika 🔔 i listy kart:
         /// — "ZmianaStatusu" (wewnętrzny — przy przypisywaniu kursów),
-        /// — "ZmianaUwag" (zmiana notatek — niska wartość dla logistyka).
-        /// PUBLIC — żeby serwis (mapa pendingów) i UI (karty) używały tego samego filtra.
-        /// Inaczej: badge mówi "1", panel pokazuje pustkę → click bez efektu.</summary>
-        public static readonly HashSet<string> TypyDoUkrycia = new() { "ZmianaStatusu", "ZmianaUwag" };
+        /// — "ZmianaUwag" (zmiana notatek — niska wartość dla logistyka),
+        /// — "NoweZamowienie" (widoczne jako WOLNE — nie potrzebuje osobnej akceptacji;
+        ///                     stary GetPendingForKursAsync filtruje to w SQL, więc dla
+        ///                     spójności globalny licznik też musi).
+        /// PUBLIC — wszystkie miejsca używają TEJ SAMEJ listy. Inaczej: badge "3", karty 2.</summary>
+        public static readonly HashSet<string> TypyDoUkrycia = new() { "ZmianaStatusu", "ZmianaUwag", "NoweZamowienie" };
 
         /// <summary>Grupuje surowe zmiany po (ZamowienieId, TypZmiany) → karty z deltą najstarsza→najnowsza.</summary>
         public static List<ZmianaCard> ScalListe(IEnumerable<TransportZmiana> raw)
