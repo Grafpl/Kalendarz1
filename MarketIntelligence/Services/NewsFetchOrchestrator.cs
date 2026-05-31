@@ -558,6 +558,16 @@ namespace Kalendarz1.MarketIntelligence.Services
                             fallback: 0,
                             ct);
 
+                        // Faza B: ekstrakcja konkretnych cen/wartości z artykułów (Haiku) → intel_TrendDataPoints
+                        progress?.Report(new FetchProgress { Stage = "Ceny", Percent = 99, Message = "Wyciągam konkretne ceny..." });
+                        await RunWithTimeoutAsync(
+                            "Price Extraction (Haiku)",
+                            stageCt => new PriceExtractionService(_connectionString, _claudeAnalysisService)
+                                        .ExtractRecentMetricsAsync(result.StartTime, stageCt),
+                            timeoutSec: 60,
+                            fallback: 0,
+                            ct);
+
                         // Faza B: trendy kalkulowane (bez AI) — mentions/week, hpai/week → intel_TrendDataPoints
                         progress?.Report(new FetchProgress { Stage = "Trendy", Percent = 100, Message = "Liczę trendy..." });
                         await RunWithTimeoutAsync(
