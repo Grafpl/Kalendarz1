@@ -42,6 +42,7 @@ namespace Kalendarz1.Customer360.Services
                         @"SELECT DISTINCT KlientId FROM dbo.ZamowieniaMieso
                           WHERE KlientId IS NOT NULL
                             AND DataPrzyjazdu >= DATEADD(MONTH, -12, GETDATE())
+                            AND CAST(DataPrzyjazdu AS DATE) <= CAST(GETDATE() AS DATE)   -- aktywny = zrealizowany, nie zaplanowany
                             AND ISNULL(Status,'') NOT IN ('Anulowane','Anulowano')", cn) { CommandTimeout = 8 };
                     await using var rd = await cmd.ExecuteReaderAsync();
                     while (await rd.ReadAsync()) set.Add(rd.GetInt32(0));
@@ -378,7 +379,7 @@ namespace Kalendarz1.Customer360.Services
                 await using var cn = new SqlConnection(ConnLibra);
                 await cn.OpenAsync();
 
-                // Summary: liczba zamówień, suma kg, suma wartości
+                // Summary: liczba zamówień, suma kg, suma wartości — stan na DZIS (bez przyszlosci)
                 const string sqlAgg = @"
                     SELECT COUNT(DISTINCT z.Id) AS Liczba,
                            ISNULL(SUM(zt.Ilosc), 0) AS SumaKg,
@@ -388,6 +389,7 @@ namespace Kalendarz1.Customer360.Services
                     INNER JOIN dbo.ZamowieniaMiesoTowar zt ON zt.ZamowienieId = z.Id
                     WHERE z.KlientId = @kid
                       AND z.DataPrzyjazdu >= DATEADD(MONTH, -12, GETDATE())
+                      AND CAST(z.DataPrzyjazdu AS DATE) <= CAST(GETDATE() AS DATE)
                       AND ISNULL(z.Status,'') NOT IN ('Anulowane','Anulowano')";
                 await using (var cmd = new SqlCommand(sqlAgg, cn) { CommandTimeout = 8 })
                 {
@@ -402,12 +404,13 @@ namespace Kalendarz1.Customer360.Services
                     }
                 }
 
-                // Daty zamówień — do liczenia średniego odstępu
+                // Daty zamówień — do liczenia średniego odstępu (bez przyszlosci)
                 const string sqlDni = @"
                     SELECT DISTINCT CAST(z.DataPrzyjazdu AS DATE) AS Data
                     FROM dbo.ZamowieniaMieso z
                     WHERE z.KlientId = @kid
                       AND z.DataPrzyjazdu >= DATEADD(MONTH, -12, GETDATE())
+                      AND CAST(z.DataPrzyjazdu AS DATE) <= CAST(GETDATE() AS DATE)
                       AND ISNULL(z.Status,'') NOT IN ('Anulowane','Anulowano')
                     ORDER BY Data";
                 await using (var cmd = new SqlCommand(sqlDni, cn) { CommandTimeout = 5 })
@@ -543,6 +546,7 @@ namespace Kalendarz1.Customer360.Services
                     LEFT JOIN dbo.ZamowieniaMiesoTowar zt ON zt.ZamowienieId = z.Id
                     WHERE z.KlientId = @kid
                       AND (@months <= 0 OR z.DataPrzyjazdu >= DATEADD(MONTH, -@months, GETDATE()))
+                      AND CAST(z.DataPrzyjazdu AS DATE) <= CAST(GETDATE() AS DATE)   -- historia = co bylo, nie co zaplanowane
                       AND ISNULL(z.Status,'') NOT IN ('Anulowane','Anulowano')   -- bez anulowanych (są w zakładce Anulowane)
                     GROUP BY z.Id, z.DataZamowienia, z.DataPrzyjazdu, z.DataUboju, z.DataWydania, z.Status, z.IdUser
                     ORDER BY z.DataPrzyjazdu DESC, z.Id DESC";
@@ -774,6 +778,7 @@ namespace Kalendarz1.Customer360.Services
                     INNER JOIN dbo.ZamowieniaMiesoTowar zt ON zt.ZamowienieId = z.Id
                     WHERE z.KlientId = @kid
                       AND (@months <= 0 OR z.DataPrzyjazdu >= DATEADD(MONTH, -@months, GETDATE()))
+                      AND CAST(z.DataPrzyjazdu AS DATE) <= CAST(GETDATE() AS DATE)   -- top towary z historii, nie z planu
                       AND ISNULL(z.Status,'') NOT IN ('Anulowane','Anulowano')
                     GROUP BY zt.KodTowaru
                     ORDER BY SumaKg DESC";
