@@ -83,6 +83,8 @@ namespace Kalendarz1.Customer360
             if (c.SumaWag != 100) { LblStatus.Text = "Suma wag musi wynosić 100%."; return; }
             if (c.ObrotNaMaxPkt <= 0) { LblStatus.Text = "Kwota obrotu na 100 pkt musi być > 0."; return; }
             if (!(c.ProgA > c.ProgB && c.ProgB > c.ProgC && c.ProgC > c.ProgD && c.ProgD > 0)) { LblStatus.Text = "Progi liter muszą maleć: A > B > C > D > 0."; return; }
+            // Total scoringu jest w [0,100]. ProgA > 100 = nikt nigdy nie dostanie A. Zapobiega cichej katastrofie "wszyscy F".
+            if (c.ProgA > 100) { LblStatus.Text = "Próg A nie może być > 100 (Total scoringu mieści się w 0–100)."; return; }
 
             BtnZapisz.IsEnabled = false;
             LblStatus.Foreground = System.Windows.Media.Brushes.Gray;
