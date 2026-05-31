@@ -165,32 +165,38 @@ namespace Kalendarz1.Transport.WPF
 
         private async void BtnAkceptujJedno_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is not Button b || b.Tag is not int id) return;
+            if (sender is not Button b || b.Tag is not ZmianaCard card) return;
             b.IsEnabled = false;
             try
             {
-                await _svc.AkceptujZmianeAsync(id, _user);
-                var kart = _zmiany.FirstOrDefault(c => c.Id == id);
-                if (kart != null) _zmiany.Remove(kart);
+                // Dla "ZmianaPojemnikow" — serwis synchronizuje 1 ładunek z aktualną wartością LibraNet.
+                await _svc.AkceptujZmianeIPrzeliczAsync(card.Id, _kursId, card.ZamowienieId, card.Source.TypZmiany, _user);
+                _zmiany.Remove(card);
+
+                if (card.Source.TypZmiany == "ZmianaPojemnikow")
+                {
+                    await LoadLadunkiAsync();
+                    PrzeliczPakowanie();
+                }
                 AktualizujLicznikZmian();
-                StatusText.Text = $"Zaakceptowano zmianę #{id}";
+                StatusText.Text = $"✓ Zaakceptowano: {card.KlientNazwa} · {card.TypLabel}";
             }
             catch (Exception ex) { MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error); b.IsEnabled = true; }
         }
 
         private async void BtnOdrzucJedno_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is not Button b || b.Tag is not int id) return;
-            var dlg = new TekstPromptDialog("Odrzucenie zmiany", "Powód odrzucenia (opcjonalnie):", "") { Owner = this };
+            if (sender is not Button b || b.Tag is not ZmianaCard card) return;
+            var kontekst = $"{card.TypLabel} · {card.KlientNazwa}   {card.Stare} → {card.Nowa}";
+            var dlg = new OdrzucPowodDialog(kontekst) { Owner = this };
             if (dlg.ShowDialog() != true) return;
             b.IsEnabled = false;
             try
             {
-                await _svc.OdrzucZmianeAsync(id, _user, string.IsNullOrWhiteSpace(dlg.Wartosc) ? null : dlg.Wartosc.Trim());
-                var kart = _zmiany.FirstOrDefault(c => c.Id == id);
-                if (kart != null) _zmiany.Remove(kart);
+                await _svc.OdrzucZmianeAsync(card.Id, _user, dlg.Powod);
+                _zmiany.Remove(card);
                 AktualizujLicznikZmian();
-                StatusText.Text = $"Odrzucono zmianę #{id}";
+                StatusText.Text = $"✗ Odrzucono: {card.KlientNazwa} · {card.TypLabel}";
             }
             catch (Exception ex) { MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error); b.IsEnabled = true; }
         }

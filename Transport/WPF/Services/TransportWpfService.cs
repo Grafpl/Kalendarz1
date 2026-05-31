@@ -248,17 +248,32 @@ namespace Kalendarz1.Transport.WPF.Services
         // ════════════════════════════════════════════════════════════════════
         // SYSTEM AKCEPTACJI ZMIAN — proxy do TransportZmianyService (static).
         // Reuse całej detekcji/zapisu starego systemu, tylko nowe UI w WPF.
+        // Cache pendingów 30 s, żeby przełączanie Lista↔Timeline nie powielało query.
         // ════════════════════════════════════════════════════════════════════
+        private static HashSet<int>? _pendingCache;
+        private static DateTime _pendingCacheUtc = DateTime.MinValue;
+        private static readonly TimeSpan PendingTtl = TimeSpan.FromSeconds(30);
 
-        /// <summary>Wszystkie oczekujące zmiany (zbiorczo) → zbiór ZamowienieId. Tańsze niż N×per-kurs.</summary>
+        /// <summary>Wszystkie oczekujące ZamowienieId (zbiorczo, cache 30 s). Tańsze niż N×per-kurs.</summary>
         public async Task<HashSet<int>> PobierzOczekujaceZamIdAsync()
         {
+            if (_pendingCache != null && DateTime.UtcNow - _pendingCacheUtc < PendingTtl)
+                return new HashSet<int>(_pendingCache);
             try
             {
                 var lista = await TransportZmianyService.GetPendingAsync();
-                return lista.Select(z => z.ZamowienieId).ToHashSet();
+                var set = lista.Select(z => z.ZamowienieId).ToHashSet();
+                _pendingCache = set;
+                _pendingCacheUtc = DateTime.UtcNow;
+                return new HashSet<int>(set);
             }
-            catch { return new HashSet<int>(); }
+            catch { return _pendingCache != null ? new HashSet<int>(_pendingCache) : new HashSet<int>(); }
+        }
+
+        public void InwalidujCacheZmian()
+        {
+            _pendingCache = null;
+            _pendingCacheUtc = DateTime.MinValue;
         }
 
         /// <summary>Pełna lista oczekujących zmian dla konkretnego kursu (przez Ladunek.KodKlienta='ZAM_xxx').</summary>
@@ -268,15 +283,60 @@ namespace Kalendarz1.Transport.WPF.Services
             catch { return new List<TransportZmiana>(); }
         }
 
-        public async Task AkceptujZmianeAsync(int id, string user, string? komentarz = null)
-            => await TransportZmianyService.AcceptAsync(id, user, komentarz);
+        /// <summary>
+        /// Akceptuje jedną zmianę. Dla typu „ZmianaPojemnikow" dodatkowo synchronizuje
+        /// pojedynczy `Ladunek.PojemnikiE2` w danym kursie z aktualną wartością LibraNet
+        /// (`LiczbaPojemnikow`) — żeby akceptacja faktycznie propagowała, nie tylko „odhaczała".
+        /// </summary>
+        public async Task AkceptujZmianeIPrzeliczAsync(int zmianaId, long? kursId, int? zamowienieId, string? typ, string user, string? komentarz = null)
+        {
+            await TransportZmianyService.AcceptAsync(zmianaId, user, komentarz);
+            InwalidujCacheZmian();
+
+            if (kursId.HasValue && zamowienieId.HasValue && typ == "ZmianaPojemnikow")
+            {
+                int? aktualna = null;
+                try
+                {
+                    await using var cnL = new SqlConnection(ConnLibra);
+                    await cnL.OpenAsync();
+                    using var cmdL = new SqlCommand("SELECT LiczbaPojemnikow FROM dbo.ZamowieniaMieso WHERE Id=@z", cnL);
+                    cmdL.Parameters.AddWithValue("@z", zamowienieId.Value);
+                    var v = await cmdL.ExecuteScalarAsync();
+                    if (v != null && v != DBNull.Value) aktualna = Convert.ToInt32(v);
+                }
+                catch { /* sieć — pomiń propagację, akceptacja sama poszła */ }
+
+                if (aktualna.HasValue)
+                {
+                    try
+                    {
+                        await using var cn = new SqlConnection(ConnTransport);
+                        await cn.OpenAsync();
+                        using var cmd = new SqlCommand(
+                            "UPDATE dbo.Ladunek SET PojemnikiE2=@p WHERE KursID=@k AND KodKlienta=@kk", cn);
+                        cmd.Parameters.AddWithValue("@p", aktualna.Value);
+                        cmd.Parameters.AddWithValue("@k", kursId.Value);
+                        cmd.Parameters.AddWithValue("@kk", $"ZAM_{zamowienieId.Value}");
+                        await cmd.ExecuteNonQueryAsync();
+                    }
+                    catch { }
+                }
+            }
+        }
 
         public async Task OdrzucZmianeAsync(int id, string user, string? komentarz = null)
-            => await TransportZmianyService.RejectAsync(id, user, komentarz);
+        {
+            await TransportZmianyService.RejectAsync(id, user, komentarz);
+            InwalidujCacheZmian();
+        }
 
         /// <summary>Hurtowo: akceptuje wszystkie zmiany dla kursu + synchronizuje Ladunek.PojemnikiE2.</summary>
         public async Task AkceptujWszystkieDlaKursuAsync(long kursId, string user)
-            => await TransportZmianyService.AcceptChangesForKursAsync(kursId, user);
+        {
+            await TransportZmianyService.AcceptChangesForKursAsync(kursId, user);
+            InwalidujCacheZmian();
+        }
 
         // Nazwy użytkowników (LibraNet.operators) — do podpisu „Utworzył" + avatar.
         private readonly Dictionary<string, string> _userCache = new();

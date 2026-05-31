@@ -49,21 +49,21 @@
                     <RowDefinition Height="Auto"/>   <!-- przyciski -->
                 </Grid.RowDefinitions>
 
-                <!-- ── ALERT: zmiany zamówień do akceptacji ── -->
+                <!-- ── ALERT: zmiany zamówień do akceptacji (kompakt) ── -->
                 <Border x:Name="AlertZmianyBar" Grid.Row="0" Visibility="Collapsed"
-                        Background="#FFF7E0" BorderBrush="#F59E0B" BorderThickness="0,0,0,2" Padding="14,9"
+                        Background="#FFF7E0" BorderBrush="#F59E0B" BorderThickness="0,0,0,2" Padding="14,6"
                         CornerRadius="10,10,0,0">
                     <DockPanel>
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <TextBlock Text="🔔" FontSize="16" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                            <TextBlock x:Name="AlertText" FontWeight="SemiBold" Foreground="#8A4A00" VerticalAlignment="Center" FontSize="13"/>
+                            <TextBlock Text="🔔" FontSize="14" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="AlertText" FontWeight="SemiBold" Foreground="#8A4A00" VerticalAlignment="Center" FontSize="12.5"/>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right">
-                            <Button x:Name="BtnPokazZmiany" Content="Pokaż ▼" Style="{StaticResource BtnGhost}" Height="30" Margin="0,0,8,0"
-                                    Click="BtnPokazZmiany_Click"/>
-                            <Button x:Name="BtnAkceptujWszystkie" Style="{StaticResource BtnPrimary}" Height="30" Padding="12,4" Click="BtnAkceptujWszystkie_Click">
+                            <Button x:Name="BtnPokazZmiany" Content="Pokaż ▼" Style="{StaticResource BtnGhost}" Height="26" Margin="0,0,6,0"
+                                    Padding="10,3" Click="BtnPokazZmiany_Click"/>
+                            <Button x:Name="BtnAkceptujWszystkie" Style="{StaticResource BtnPrimary}" Height="26" Padding="10,3" Click="BtnAkceptujWszystkie_Click">
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="✓" Foreground="White" FontWeight="Bold" Margin="0,0,6,0"/>
+                                    <TextBlock Text="✓" Foreground="White" FontWeight="Bold" Margin="0,0,5,0"/>
                                     <TextBlock x:Name="BtnAkceptujWszystkieText" Text="Akceptuj wszystkie" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
@@ -71,55 +71,47 @@
                     </DockPanel>
                 </Border>
 
-                <!-- ── PANEL ZMIAN (inline, rozwijany) ── -->
+                <!-- ── PANEL ZMIAN (kompaktowe karty jednoliniowe) ── -->
                 <Border x:Name="PanelZmiany" Grid.Row="1" Visibility="Collapsed"
-                        Background="#FFFCF2" BorderBrush="#F0E0B0" BorderThickness="0,0,0,1" Padding="10,10">
+                        Background="#FFFCF2" BorderBrush="#F0E0B0" BorderThickness="0,0,0,1" Padding="8,8">
                     <ItemsControl x:Name="ListaZmian">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Border Background="White" BorderBrush="{Binding AkcentBrush}" BorderThickness="4,1,1,1"
-                                        CornerRadius="6" Margin="0,0,0,7" Padding="11,9">
-                                    <Grid>
+                                <Border Background="White" BorderBrush="#E5E8EB" BorderThickness="1" CornerRadius="5" Margin="0,0,0,4">
+                                    <Grid Height="38">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="3"/>
+                                            <ColumnDefinition Width="32"/>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
-
-                                        <!-- ikona typu -->
-                                        <Border Grid.Column="0" Background="{Binding AkcentSoft}" CornerRadius="6" Width="40" Height="40" Margin="0,0,11,0">
-                                            <TextBlock Text="{Binding TypEmoji}" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                        </Border>
-
-                                        <!-- treść -->
-                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="{Binding TypLabel}" FontWeight="SemiBold" Foreground="{Binding AkcentBrush}" FontSize="11.5"/>
-                                                <TextBlock Text=" · " Foreground="#9aa0b0" FontSize="11.5"/>
-                                                <TextBlock Text="{Binding KlientNazwa}" FontWeight="SemiBold" Foreground="#26323c" FontSize="11.5" TextTrimming="CharacterEllipsis" MaxWidth="220"/>
-                                            </StackPanel>
-                                            <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
-                                                <Border Background="#F4F6F8" CornerRadius="3" Padding="6,1">
-                                                    <TextBlock Text="{Binding Stare}" Foreground="#5b6776" FontSize="11" FontFamily="Consolas"/>
-                                                </Border>
-                                                <TextBlock Text="→" Foreground="#9aa0b0" Margin="6,0" VerticalAlignment="Center" FontSize="13"/>
-                                                <Border Background="#E0F2F1" CornerRadius="3" Padding="6,1">
-                                                    <TextBlock Text="{Binding Nowa}" Foreground="#00695C" FontSize="11" FontFamily="Consolas" FontWeight="SemiBold"/>
-                                                </Border>
-                                                <TextBlock Text="{Binding DeltaText}" Foreground="{Binding DeltaBrush}"
-                                                           FontWeight="Bold" FontSize="11.5" Margin="9,0,0,0" VerticalAlignment="Center"/>
-                                            </StackPanel>
-                                            <TextBlock Text="{Binding ZglosilDisplay}" Foreground="#8893a0" FontSize="10.5" Margin="0,4,0,0"/>
+                                        <Rectangle Grid.Column="0" Fill="{Binding AkcentBrush}"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding TypEmoji}" FontSize="15"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                   ToolTip="{Binding TypLabel}"/>
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="2,0,8,0">
+                                            <TextBlock Text="{Binding KlientNazwa}" FontWeight="SemiBold" Foreground="#26323c"
+                                                       FontSize="11.5" TextTrimming="CharacterEllipsis" MaxWidth="170" VerticalAlignment="Center"/>
+                                            <Border Background="#F4F6F8" CornerRadius="3" Padding="5,1" Margin="10,0,0,0">
+                                                <TextBlock Text="{Binding Stare}" Foreground="#5b6776" FontSize="10.5" FontFamily="Consolas"/>
+                                            </Border>
+                                            <TextBlock Text="→" Foreground="#9aa0b0" Margin="4,0" VerticalAlignment="Center" FontSize="11"/>
+                                            <Border Background="#E0F2F1" CornerRadius="3" Padding="5,1">
+                                                <TextBlock Text="{Binding Nowa}" Foreground="#00695C" FontSize="10.5" FontFamily="Consolas" FontWeight="SemiBold"/>
+                                            </Border>
+                                            <TextBlock Text="{Binding DeltaText}" Foreground="{Binding DeltaBrush}"
+                                                       FontWeight="Bold" FontSize="11" Margin="6,0,0,0" VerticalAlignment="Center"/>
                                         </StackPanel>
-
-                                        <!-- akcje -->
-                                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                                            <Button Content="✓ Akceptuj" Tag="{Binding Id}" Click="BtnAkceptujJedno_Click"
-                                                    Background="#E7F4E8" Foreground="#2E7D32" BorderBrush="#2E7D32" BorderThickness="1"
-                                                    Padding="10,5" Margin="0,0,5,0" FontWeight="SemiBold" FontSize="11" Cursor="Hand"/>
-                                            <Button Content="✗ Odrzuć" Tag="{Binding Id}" Click="BtnOdrzucJedno_Click"
-                                                    Background="#FDECEC" Foreground="#C62828" BorderBrush="#C62828" BorderThickness="1"
-                                                    Padding="10,5" FontWeight="SemiBold" FontSize="11" Cursor="Hand"/>
+                                        <TextBlock Grid.Column="3" Text="{Binding ZglosilDisplay}" Foreground="#8893a0"
+                                                   FontSize="10.5" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                        <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,6,0">
+                                            <Button Content="✓" Tag="{Binding}" Click="BtnAkceptujJedno_Click" ToolTip="Akceptuj zmianę"
+                                                    Background="#E7F4E8" BorderBrush="#9ECAA0" BorderThickness="1" Foreground="#2E7D32"
+                                                    Width="28" Height="24" Margin="0,0,4,0" FontWeight="Bold" FontSize="13" Cursor="Hand"/>
+                                            <Button Content="✗" Tag="{Binding}" Click="BtnOdrzucJedno_Click" ToolTip="Odrzuć zmianę"
+                                                    Background="#FDECEC" BorderBrush="#E5A0A0" BorderThickness="1" Foreground="#C62828"
+                                                    Width="28" Height="24" FontWeight="Bold" FontSize="13" Cursor="Hand"/>
                                         </StackPanel>
                                     </Grid>
                                 </Border>
