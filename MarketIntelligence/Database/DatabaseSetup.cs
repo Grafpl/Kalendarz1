@@ -54,6 +54,10 @@ namespace Kalendarz1.MarketIntelligence.Database
                 // ── Faza B: Trendy w czasie ──
                 await ExecuteNonQueryAsync(conn, CreateTrendDataPointsTableSql);
 
+                // ── Faza C: Chat sesyjny z pamięcią ──
+                await ExecuteNonQueryAsync(conn, CreateChatSessionsTableSql);
+                await ExecuteNonQueryAsync(conn, CreateChatMessagesTableSql);
+
                 // MIGRACJA: stare instalacje miały intel_Articles + intel_Prices z innym schematem
                 // (bez FetchedAt, PriceDate itd.). Dodaj brakujące kolumny zanim spróbujemy
                 // utworzyć indeksy na nich.
@@ -614,6 +618,44 @@ WHERE TABLE_NAME = @t AND COLUMN_NAME = @c", conn);
                     Notes NVARCHAR(500) NULL,
                     CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
                     INDEX IX_Trend_MetricDate (MetricKey, SnapshotDate DESC)
+                );
+            END";
+
+        // ════════════════════════════════════════════════════════════════════════
+        // FAZA C — Chat sesyjny z pamięcią między dniami (2026-05-31)
+        // ════════════════════════════════════════════════════════════════════════
+
+        private const string CreateChatSessionsTableSql = @"
+            IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'intel_ChatSessions')
+            BEGIN
+                CREATE TABLE intel_ChatSessions (
+                    Id INT IDENTITY(1,1) PRIMARY KEY,
+                    StartedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+                    EndedAt DATETIME2 NULL,
+                    Summary NVARCHAR(2000) NULL,           -- AI 5-7 zdań po EndSession
+                    KeyTopics NVARCHAR(500) NULL,          -- JSON array
+                    OpenQuestions NVARCHAR(1000) NULL,     -- niedokończone wątki rozmowy
+                    MessageCount INT NOT NULL DEFAULT 0,
+                    INDEX IX_Sessions_Started (StartedAt DESC)
+                );
+            END";
+
+        private const string CreateChatMessagesTableSql = @"
+            IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'intel_ChatMessages')
+            BEGIN
+                CREATE TABLE intel_ChatMessages (
+                    Id INT IDENTITY(1,1) PRIMARY KEY,
+                    SessionId INT NOT NULL,
+                    Role VARCHAR(20) NOT NULL,             -- user | assistant
+                    Content NVARCHAR(MAX) NOT NULL,
+                    SentAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+                    ReferencedStoryIds NVARCHAR(500) NULL, -- JSON array
+                    ReferencedArticleIds NVARCHAR(500) NULL,
+                    InputTokens INT NULL,
+                    OutputTokens INT NULL,
+                    CacheReadTokens INT NULL,
+                    FOREIGN KEY (SessionId) REFERENCES intel_ChatSessions(Id) ON DELETE CASCADE,
+                    INDEX IX_Messages_Session (SessionId, SentAt)
                 );
             END";
 

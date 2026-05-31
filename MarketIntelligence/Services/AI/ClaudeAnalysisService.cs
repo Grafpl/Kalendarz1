@@ -801,6 +801,110 @@ Odpowiedz w formacie JSON:
             }
         }
 
+        /// <summary>Wynik wielowarstwowego chatu (tekst + statystyki tokenów do zapisu w intel_ChatMessages).</summary>
+        public sealed record LayeredChatResult(string Text, int InputTokens, int OutputTokens, int CacheReadTokens, int CacheCreateTokens);
+
+        /// <summary>
+        /// Faza C: chat sesyjny Sonnet z 3-warstwowym system promptem i osobnymi cache breakpointami.
+        /// - Warstwa A (cached ephemeral): profil firmy + tracked entities + klienci HANDEL — STAŁA w ramach dnia.
+        /// - Warstwa B (cached ephemeral): top stories + trendy — STAŁA w ramach dnia, osobny breakpoint.
+        /// - Warstwa C (non-cached): session summaries + open questions + bieżąca rozmowa.
+        /// + historia wiadomości (List role/content).
+        /// Zwraca tekst + statystyki tokenów (do zapisu w intel_ChatMessages.CacheReadTokens itp.).
+        /// </summary>
+        public async Task<LayeredChatResult> ChatLayeredAsync(
+            string layerA, string layerB, string layerC,
+            List<(string Role, string Content)> messages,
+            CancellationToken ct = default)
+        {
+            if (!IsConfigured) return new LayeredChatResult("[Brak klucza Claude API]", 0, 0, 0, 0);
+            if (_creditDepleted) return new LayeredChatResult("[Konto Anthropic puste — doładuj]", 0, 0, 0, 0);
+            if (messages == null || messages.Count == 0) return new LayeredChatResult("", 0, 0, 0, 0);
+
+            await _rateLimiter.WaitAsync(ct);
+            try
+            {
+                var elapsed = DateTime.Now - _lastRequestTime;
+                if (elapsed < _minRequestInterval) await Task.Delay(_minRequestInterval - elapsed, ct);
+
+                // System: A i B z cache_control, C bez (każda warstwa = osobny content block).
+                // Pomiń warstwę jeśli pusta (Anthropic nie lubi pustych bloków).
+                var systemBlocks = new List<object>();
+                if (!string.IsNullOrWhiteSpace(layerA))
+                    systemBlocks.Add(new { type = "text", text = layerA, cache_control = new { type = "ephemeral" } });
+                if (!string.IsNullOrWhiteSpace(layerB))
+                    systemBlocks.Add(new { type = "text", text = layerB, cache_control = new { type = "ephemeral" } });
+                if (!string.IsNullOrWhiteSpace(layerC))
+                    systemBlocks.Add(new { type = "text", text = layerC });
+
+                var apiMessages = messages.Select(m => new { role = m.Role, content = m.Content }).ToArray();
+
+                var request = new
+                {
+                    model = SonnetModel,
+                    max_tokens = 4000,
+                    temperature = 0.5,
+                    system = systemBlocks.ToArray(),
+                    messages = apiMessages
+                };
+
+                var json = JsonSerializer.Serialize(request);
+                for (int attempt = 0; attempt < MaxRetryAttempts; attempt++)
+                {
+                    try
+                    {
+                        using var content = new StringContent(json, Encoding.UTF8, "application/json");
+                        var response = await _httpClient.PostAsync(ClaudeApiUrl, content, ct);
+                        _lastRequestTime = DateTime.Now;
+
+                        if (response.IsSuccessStatusCode)
+                        {
+                            var responseJson = await response.Content.ReadAsStringAsync(ct);
+                            var responseObj = JsonSerializer.Deserialize<ClaudeResponse>(responseJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                            if (responseObj?.Usage != null)
+                            {
+                                Debug.WriteLine($"[Claude/Layered] in:{responseObj.Usage.InputTokens} out:{responseObj.Usage.OutputTokens} cache_read:{responseObj.Usage.CacheReadInputTokens} cache_create:{responseObj.Usage.CacheCreationInputTokens}");
+                                UsageTracker.TrackClaude(SonnetModel,
+                                    responseObj.Usage.InputTokens, responseObj.Usage.OutputTokens,
+                                    responseObj.Usage.CacheReadInputTokens, responseObj.Usage.CacheCreationInputTokens);
+                            }
+
+                            var text = responseObj?.Content?.FirstOrDefault()?.Text ?? "";
+                            return new LayeredChatResult(
+                                text,
+                                responseObj?.Usage?.InputTokens ?? 0,
+                                responseObj?.Usage?.OutputTokens ?? 0,
+                                responseObj?.Usage?.CacheReadInputTokens ?? 0,
+                                responseObj?.Usage?.CacheCreationInputTokens ?? 0);
+                        }
+
+                        var statusCode = (int)response.StatusCode;
+                        var error = await response.Content.ReadAsStringAsync(ct);
+                        if ((statusCode == 429 || statusCode >= 500) && attempt < MaxRetryAttempts - 1)
+                        {
+                            await Task.Delay((int)(500 * Math.Pow(2, attempt)), ct);
+                            continue;
+                        }
+                        if (statusCode == 400 && error.Contains("credit balance is too low", StringComparison.OrdinalIgnoreCase))
+                        {
+                            _creditDepleted = true;
+                            return new LayeredChatResult("[Konto Anthropic puste]", 0, 0, 0, 0);
+                        }
+                        Debug.WriteLine($"[Claude/Layered] API error {statusCode}: {error}");
+                        return new LayeredChatResult($"[Błąd API {statusCode}]", 0, 0, 0, 0);
+                    }
+                    catch (Exception ex) when (attempt < MaxRetryAttempts - 1)
+                    {
+                        Debug.WriteLine($"[Claude/Layered] retry {attempt + 1}: {ex.Message}");
+                        await Task.Delay((int)(500 * Math.Pow(2, attempt)), ct);
+                    }
+                }
+                return new LayeredChatResult("[Błąd po retriesach]", 0, 0, 0, 0);
+            }
+            finally { _rateLimiter.Release(); }
+        }
+
         /// <summary>
         /// Generyczne wywołanie completion (Faza A — clustering / entity extraction).
         /// useHaiku=true → tani Haiku 4.5; false → Sonnet 4.6. Zwraca surowy tekst odpowiedzi
