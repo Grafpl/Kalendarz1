@@ -178,22 +178,14 @@
                         <WrapPanel Grid.Row="1">
                             <StackPanel Margin="0,0,26,12">
                                 <TextBlock Text="KIEROWCA" Style="{StaticResource T.Section}" Margin="0,0,0,4"/>
-                                <StackPanel Orientation="Horizontal">
-                                    <ComboBox x:Name="CmbKierowca" Width="210" Height="32" DisplayMemberPath="PelneNazwisko"
-                                              IsEditable="True" IsTextSearchEnabled="True"/>
-                                    <Button Style="{StaticResource BtnIcon}" Tag="&#xE710;" Foreground="{StaticResource Accent}"
-                                            Width="32" Height="32" Margin="6,0,0,0" Click="BtnNowyKierowca_Click" ToolTip="Nowy kierowca"/>
-                                </StackPanel>
+                                <ComboBox x:Name="CmbKierowca" Width="248" Height="32" DisplayMemberPath="PelneNazwisko"
+                                          IsEditable="True" IsTextSearchEnabled="True"/>
                             </StackPanel>
                             <StackPanel Margin="0,0,26,12">
                                 <TextBlock Text="POJAZD" Style="{StaticResource T.Section}" Margin="0,0,0,4"/>
-                                <StackPanel Orientation="Horizontal">
-                                    <ComboBox x:Name="CmbPojazd" Width="180" Height="32" DisplayMemberPath="Opis"
-                                              IsEditable="True" IsTextSearchEnabled="True"
-                                              SelectionChanged="CmbPojazd_SelectionChanged"/>
-                                    <Button Style="{StaticResource BtnIcon}" Tag="&#xE710;" Foreground="{StaticResource Accent}"
-                                            Width="32" Height="32" Margin="6,0,0,0" Click="BtnNowyPojazd_Click" ToolTip="Nowy pojazd"/>
-                                </StackPanel>
+                                <ComboBox x:Name="CmbPojazd" Width="218" Height="32" DisplayMemberPath="Opis"
+                                          IsEditable="True" IsTextSearchEnabled="True"
+                                          SelectionChanged="CmbPojazd_SelectionChanged"/>
                             </StackPanel>
                             <StackPanel Margin="0,0,26,12">
                                 <TextBlock Text="DATA" Style="{StaticResource T.Section}" Margin="0,0,0,4"/>

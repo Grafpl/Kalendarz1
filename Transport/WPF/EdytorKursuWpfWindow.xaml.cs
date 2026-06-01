@@ -684,48 +684,6 @@ namespace Kalendarz1.Transport.WPF
         }
 
         // ════════════════════════════════════════════════════════════════════
-        // Nowy kierowca / pojazd
-        // ════════════════════════════════════════════════════════════════════
-        private async void BtnNowyKierowca_Click(object sender, RoutedEventArgs e)
-        {
-            var dlg = new NowyKierowcaWpfDialog { Owner = this };
-            if (dlg.ShowDialog() == true && dlg.Wynik != null)
-            {
-                try
-                {
-                    var id = await _svc.Repo.DodajKierowceAsync(dlg.Wynik);
-                    _kierowcy = await _svc.Repo.PobierzKierowcowAsync(true);
-                    CmbKierowca.ItemsSource = _kierowcy;
-                    CmbKierowca.SelectedItem = _kierowcy.FirstOrDefault(k => k.KierowcaID == id);
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Błąd dodawania kierowcy:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
-            }
-        }
-
-        private async void BtnNowyPojazd_Click(object sender, RoutedEventArgs e)
-        {
-            var dlg = new NowyPojazdWpfDialog { Owner = this };
-            if (dlg.ShowDialog() == true && dlg.Wynik != null)
-            {
-                try
-                {
-                    var id = await _svc.Repo.DodajPojazdAsync(dlg.Wynik);
-                    _pojazdy = await _svc.Repo.PobierzPojazdyAsync(true);
-                    CmbPojazd.ItemsSource = _pojazdy;
-                    CmbPojazd.SelectedItem = _pojazdy.FirstOrDefault(p => p.PojazdID == id);
-                    PrzeliczPakowanie();
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Błąd dodawania pojazdu:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
-            }
-        }
-
-        // ════════════════════════════════════════════════════════════════════
         // ZAPIS
         // ════════════════════════════════════════════════════════════════════
         private async void BtnZapisz_Click(object sender, RoutedEventArgs e)
