@@ -97,7 +97,8 @@ namespace Kalendarz1.Transport.WPF.Services
                         TrybE2 = r.GetBoolean(6),
                         TransportStatus = r.GetString(7),
                         DataUboju = r.IsDBNull(8) ? null : r.GetDateTime(8),
-                        IloscKg = r.GetDecimal(9)
+                        // Bezpiecznie — SUM() może zwracać różny typ (decimal/int) zależnie od kolumny w tabeli
+                        IloscKg = r.IsDBNull(9) ? 0m : System.Convert.ToDecimal(r.GetValue(9))
                     });
                 }
             }

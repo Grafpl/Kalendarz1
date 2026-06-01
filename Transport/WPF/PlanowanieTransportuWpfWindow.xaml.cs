@@ -474,14 +474,15 @@ namespace Kalendarz1.Transport.WPF
                             .Distinct()   // ten sam klient z kilku ładunków = 1 stop
                             .ToList();
 
+                        // Pełna trasa po kolei (po Distinct nazwy): Cezar → Trzepałka → PUBLIMAR.
+                        // Dla bardzo długich (>5 stopów) skracamy: K1 → K2 → … → KN-1 → KN (N stopów).
                         row.TrasaAuto = nazwyKlientow.Count switch
                         {
                             0 => string.IsNullOrWhiteSpace(row.Trasa) ? "—" : row.Trasa!,
-                            1 => nazwyKlientow[0],
-                            2 => $"{nazwyKlientow[0]} → {nazwyKlientow[1]}",
-                            _ => $"{nazwyKlientow.First()} → {nazwyKlientow.Last()}"
+                            <= 5 => string.Join(" → ", nazwyKlientow),
+                            _ => $"{nazwyKlientow[0]} → {nazwyKlientow[1]} → … → {nazwyKlientow[^2]} → {nazwyKlientow[^1]} ({nazwyKlientow.Count} stopów)"
                         };
-                        row.TrasaAutoTooltip = nazwyKlientow.Count > 2
+                        row.TrasaAutoTooltip = nazwyKlientow.Count > 5
                             ? $"Trasa ({nazwyKlientow.Count} stopów):\n" + string.Join(" → ", nazwyKlientow)
                             : null;
                     }
