@@ -184,21 +184,17 @@ namespace Kalendarz1.Transport.WPF
         private void FiltrujKursy()
         {
             var q = TxtFiltrKursy.Text?.Trim().ToLowerInvariant() ?? "";
-            bool tylkoWymaga = ChkWymaga.IsChecked == true;
 
             IEnumerable<KursRow> src = _rowsAll;
             if (!string.IsNullOrEmpty(q))
-                src = src.Where(r => ((r.Trasa ?? "") + " " + (r.KierowcaNazwa ?? "") + " " + (r.PojazdRejestracja ?? ""))
+                src = src.Where(r => ((r.TrasaAuto ?? "") + " " + (r.KierowcaNazwa ?? "") + " " + (r.PojazdRejestracja ?? ""))
                     .ToLowerInvariant().Contains(q));
-            if (tylkoWymaga)
-                src = src.Where(r => r.LiczbaLadunkow == 0 || string.IsNullOrEmpty(r.KierowcaNazwa) || string.IsNullOrEmpty(r.PojazdRejestracja));
 
             _rows = src.ToList();
             KursyGrid.ItemsSource = _rows;
             KursyEmpty.Visibility = _rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         }
 
-        private void FiltrKursy_Changed(object s, RoutedEventArgs e) { if (!_ladowanie) FiltrujKursy(); }
         private void FiltrKursyTekst_Changed(object s, TextChangedEventArgs e) { if (!_ladowanie) FiltrujKursy(); }
 
         private async void Skroty_KeyDown(object sender, KeyEventArgs e)
@@ -459,6 +455,40 @@ namespace Kalendarz1.Transport.WPF
                     }
                     row.Kg = kg;
                     row.LiczbaZmianOczekujacych = pending;
+
+                    // Auto-trasa: pierwszy → ostatni klient z ładunków (po Kolejność), unikalni.
+                    // Logistyk nie musi ręcznie wpisywać — program sam zczytuje kolejność.
+                    if (ladunki.TryGetValue(row.KursID, out var ladList))
+                    {
+                        var nazwyKlientow = ladList
+                            .OrderBy(x => x.Kolejnosc)
+                            .Where(x => x.KodKlienta != null && x.KodKlienta.StartsWith("ZAM_")
+                                        && int.TryParse(x.KodKlienta.Substring(4), out _))
+                            .Select(x =>
+                            {
+                                var zid = int.Parse(x.KodKlienta!.Substring(4));
+                                return info.TryGetValue(zid, out var zi) ? zi.Nazwa : null;
+                            })
+                            .Where(s => !string.IsNullOrEmpty(s))
+                            .Cast<string>()
+                            .Distinct()   // ten sam klient z kilku ładunków = 1 stop
+                            .ToList();
+
+                        row.TrasaAuto = nazwyKlientow.Count switch
+                        {
+                            0 => string.IsNullOrWhiteSpace(row.Trasa) ? "—" : row.Trasa!,
+                            1 => nazwyKlientow[0],
+                            2 => $"{nazwyKlientow[0]} → {nazwyKlientow[1]}",
+                            _ => $"{nazwyKlientow.First()} → {nazwyKlientow.Last()}"
+                        };
+                        row.TrasaAutoTooltip = nazwyKlientow.Count > 2
+                            ? $"Trasa ({nazwyKlientow.Count} stopów):\n" + string.Join(" → ", nazwyKlientow)
+                            : null;
+                    }
+                    else
+                    {
+                        row.TrasaAuto = string.IsNullOrWhiteSpace(row.Trasa) ? "—" : row.Trasa!;
+                    }
                     row.UtworzylName = userNames.TryGetValue(row.UtworzylId, out var n) ? n : row.UtworzylId;
                     row.ZmienilName = !string.IsNullOrEmpty(row.ZmienilId) && userNames.TryGetValue(row.ZmienilId, out var nz)
                         ? nz : row.ZmienilId;
@@ -794,6 +824,11 @@ namespace Kalendarz1.Transport.WPF
 
             public long KursID => Source.KursID;
             public string? Trasa => Source.Trasa;
+
+            // Auto-trasa wyliczana z ładunków: pierwszy → ostatni klient (po Kolejność).
+            // Wypełniana w UzupelnijAgregatyAsync. Fallback gdy puste: ręczna Source.Trasa, potem "—".
+            public string TrasaAuto { get; set; } = "—";
+            public string? TrasaAutoTooltip { get; set; }   // pełna lista klientów gdy więcej niż 2
             public string? KierowcaNazwa => Source.KierowcaNazwa;
             public string? PojazdRejestracja => Source.PojazdRejestracja;
             public string Status => Source.Status ?? "Planowany";

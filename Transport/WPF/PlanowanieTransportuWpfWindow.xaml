@@ -79,8 +79,6 @@
                                              VerticalContentAlignment="Center" TextChanged="FiltrKursyTekst_Changed" ToolTip="Filtruj: trasa / kierowca / pojazd"/>
                                 </StackPanel>
                             </Border>
-                            <CheckBox x:Name="ChkWymaga" Content="tylko wymagające uwagi" Margin="12,0,0,0"
-                                      VerticalAlignment="Center" Foreground="{StaticResource WarnFg}" Click="FiltrKursy_Changed"/>
                         </StackPanel>
                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                             <Button Style="{StaticResource BtnPrimary}" Click="BtnNowy_Click">
@@ -208,11 +206,15 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTextColumn Header="Trasa" Binding="{Binding Trasa}" Width="*">
-                                <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock"><Setter Property="TextTrimming" Value="CharacterEllipsis"/><Setter Property="FontSize" Value="12.5"/><Setter Property="Foreground" Value="#1F2733"/></Style>
-                                </DataGridTextColumn.ElementStyle>
-                            </DataGridTextColumn>
+                            <DataGridTemplateColumn Header="Trasa" Width="*">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding TrasaAuto}" ToolTip="{Binding TrasaAutoTooltip}"
+                                                   TextTrimming="CharacterEllipsis" FontSize="12.5" Foreground="#1F2733"
+                                                   VerticalAlignment="Center"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
                             <DataGridTemplateColumn Header="Ładunek" Width="160">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
