@@ -412,6 +412,8 @@ namespace Kalendarz1.Transport.WPF
                 Kolejnosc = _ladunki.Count + 1
             });
             _wolneAll.RemoveAll(x => x.ZamowienieId == z.ZamowienieId);
+            // przelicz "🤝 razem" — nowy klient w kursie zmienia podpowiedzi
+            _ = OdswiezPodpowiedziParAsync().ContinueWith(_ => Dispatcher.Invoke(FiltrujWolne));
             FiltrujWolne();
             PrzeliczPakowanie();
         }
@@ -436,6 +438,8 @@ namespace Kalendarz1.Transport.WPF
                 });
                 FiltrujWolne();
             }
+            // przelicz "🤝 razem" — usunięty klient zmienia podpowiedzi
+            _ = OdswiezPodpowiedziParAsync().ContinueWith(_ => Dispatcher.Invoke(FiltrujWolne));
             PrzeliczPakowanie();
         }
 

@@ -139,7 +139,11 @@ namespace Kalendarz1.Transport.WPF
             {
                 var data = DataKursu.SelectedDate ?? DateTime.Today;
                 var ed = new EdytorKursuWpfWindow(_svc, _user, data, kursId) { Owner = this };
-                if (ed.ShowDialog() == true) _ = LoadWszystkoAsync();
+                if (ed.ShowDialog() == true)
+                {
+                    _svc.InwalidujCacheZmian();   // po edycji pendingi mogły się zmienić
+                    _ = LoadWszystkoAsync();
+                }
             }
             catch (Exception ex)
             {
@@ -153,6 +157,8 @@ namespace Kalendarz1.Transport.WPF
         // ════════════════════════════════════════════════════════════════════
         private async Task LoadKursyAsync()
         {
+            if (_ladowanie) return;   // re-entrancy guard — chroni przed podwójnym wywołaniem
+            _ladowanie = true;
             try
             {
                 var data = DataKursu.SelectedDate ?? DateTime.Today;
@@ -178,6 +184,7 @@ namespace Kalendarz1.Transport.WPF
                 MessageBox.Show($"Błąd ładowania kursów:\n{ex.Message}", "Błąd",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
+            finally { _ladowanie = false; }
         }
 
         // filtr listy kursów: szukaj (trasa/kierowca/pojazd) + „tylko wymagające uwagi"
@@ -286,16 +293,22 @@ namespace Kalendarz1.Transport.WPF
                 PanelZmianyDlaKursu.Visibility = Visibility.Collapsed;
                 return;
             }
+            var requestedKursId = row.KursID;   // snapshot — chronimy się przed race przy szybkim klikaniu
             try
             {
-                var raw = await _svc.PobierzZmianyDlaKursuAsync(row.KursID);
+                var raw = await _svc.PobierzZmianyDlaKursuAsync(requestedKursId);
+
+                // Po awaicie sprawdź czy user dalej jest na tym samym wierszu — inaczej zignoruj wynik
+                if (KursyGrid?.SelectedItem is not KursRow current || current.KursID != requestedKursId)
+                    return;
+
+                _detalZmiany.Clear();   // wyczyść jeszcze raz na wypadek gdyby ktoś dorzucił między await
                 foreach (var c in ZmianaCard.ScalListe(raw)) _detalZmiany.Add(c);
 
-                // Bezpiecznik desync — gdy badge mówi co innego niż faktyczna liczba kart,
-                // skoryguj badge na faktyczną wartość (źródło prawdy = panel, nie cache).
-                if (row.LiczbaZmianOczekujacych != _detalZmiany.Count)
+                // Bezpiecznik desync — badge ≠ faktyczna liczba kart → panel jest źródłem prawdy
+                if (current.LiczbaZmianOczekujacych != _detalZmiany.Count)
                 {
-                    row.LiczbaZmianOczekujacych = _detalZmiany.Count;
+                    current.LiczbaZmianOczekujacych = _detalZmiany.Count;
                     KursyGrid.Items.Refresh();
                 }
 
@@ -304,7 +317,7 @@ namespace Kalendarz1.Transport.WPF
                     PanelZmianyDlaKursu.Visibility = Visibility.Collapsed;
                     return;
                 }
-                DetalNaglowek.Text = $"{_detalZmiany.Count} {(_detalZmiany.Count == 1 ? "zmiana" : "zmian")} do akceptacji  ·  kurs #{row.KursID}";
+                DetalNaglowek.Text = $"{_detalZmiany.Count} {(_detalZmiany.Count == 1 ? "zmiana" : "zmian")} do akceptacji  ·  kurs #{current.KursID}";
                 BtnDetalAkceptujText.Text = $"Akceptuj wszystkie ({_detalZmiany.Count}) — Enter";
                 PanelZmianyDlaKursu.Visibility = Visibility.Visible;
             }
@@ -530,7 +543,11 @@ namespace Kalendarz1.Transport.WPF
             {
                 var data = DataKursu.SelectedDate ?? DateTime.Today;
                 var ed = new EdytorKursuWpfWindow(_svc, _user, data, kursId: null, preselect: new[] { z }) { Owner = this };
-                if (ed.ShowDialog() == true) _ = LoadWszystkoAsync();
+                if (ed.ShowDialog() == true)
+                {
+                    _svc.InwalidujCacheZmian();
+                    _ = LoadWszystkoAsync();
+                }
             }
             catch (Exception ex)
             {
@@ -700,7 +717,11 @@ namespace Kalendarz1.Transport.WPF
                     kursId = row.KursID;
                 }
                 var ed = new EdytorKursuWpfWindow(_svc, _user, data, kursId) { Owner = this };
-                if (ed.ShowDialog() == true) _ = LoadWszystkoAsync();
+                if (ed.ShowDialog() == true)
+                {
+                    _svc.InwalidujCacheZmian();   // po edycji świeże pendingi
+                    _ = LoadWszystkoAsync();
+                }
             }
             catch (Exception ex)
             {
