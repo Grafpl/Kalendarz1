@@ -74,6 +74,41 @@
                 <Setter Property="Margin" Value="0,0,6,0"/>
             </Style>
 
+            <!-- ═════ Radio "card" — wybór z kropką i podświetleniem (do konfiskat) ═════ -->
+            <Style x:Key="RadioCard" TargetType="RadioButton">
+                <Setter Property="Padding" Value="10,8"/>
+                <Setter Property="Margin" Value="0"/>
+                <Setter Property="Background" Value="Transparent"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="RadioButton">
+                            <Border x:Name="b" Background="{TemplateBinding Background}" CornerRadius="8"
+                                    Padding="{TemplateBinding Padding}" BorderThickness="1" BorderBrush="Transparent"
+                                    SnapsToDevicePixels="True">
+                                <StackPanel Orientation="Horizontal">
+                                    <Grid Width="18" Height="18" Margin="0,0,10,0" VerticalAlignment="Center">
+                                        <Ellipse Stroke="#B45309" StrokeThickness="2" Fill="White"/>
+                                        <Ellipse x:Name="dot" Width="9" Height="9" Fill="#B45309" Visibility="Collapsed"/>
+                                    </Grid>
+                                    <ContentPresenter VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="b" Property="Background" Value="#FCF1DA"/>
+                                </Trigger>
+                                <Trigger Property="IsChecked" Value="True">
+                                    <Setter TargetName="b" Property="Background" Value="#FBE9C6"/>
+                                    <Setter TargetName="b" Property="BorderBrush" Value="#D9A050"/>
+                                    <Setter TargetName="dot" Property="Visibility" Value="Visible"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
             <!-- ═════ Karta z podniesieniem (subtelny cień) ═════ -->
             <Style x:Key="CardElev" TargetType="Border" BasedOn="{StaticResource Card}">
                 <Setter Property="Effect">
@@ -496,12 +531,16 @@
                                     </StackPanel>
                                 </Grid>
 
+                                <!-- Row 2: Rozliczana waga (lewa) + Konfiskaty/Padłe (prawa) — side-by-side -->
                                 <Grid Margin="0,4,0,0">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/><ColumnDefinition Width="10"/>
                                         <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="14"/>
+                                        <ColumnDefinition Width="2*"/>
                                     </Grid.ColumnDefinitions>
-                                    <StackPanel Grid.Column="0">
+
+                                    <!-- LEWA: Rozliczana waga -->
+                                    <StackPanel Grid.Column="0" VerticalAlignment="Top">
                                         <TextBlock Text="⚖ Rozliczana waga" Style="{StaticResource LblBig}"/>
                                         <ComboBox x:Name="cbWaga"
                                                   ToolTip="Czyja waga jest podstawą rozliczenia: netto hodowcy (po jego stronie) lub netto ubojni (po naszej)">
@@ -509,22 +548,54 @@
                                             <ComboBoxItem Content="netto ubojni" Tag="NETTO_UBOJNI"/>
                                         </ComboBox>
                                     </StackPanel>
-                                </Grid>
 
-                                <!-- ☑ KONFISKATY (bursztynowy box) -->
-                                <Border Background="#FEF6E7" CornerRadius="10" Padding="16,13" Margin="0,16,0,0"
-                                        BorderBrush="#F2DDB0" BorderThickness="1">
-                                    <StackPanel>
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Style="{StaticResource Ico}" Text="&#xE7BA;" Foreground="#B45309"/>
-                                            <TextBlock Text="KONFISKATY I PADŁE — KTO PONOSI KOSZTY"
-                                                       FontSize="13" FontWeight="Bold" Foreground="#B45309"/>
+                                    <!-- PRAWA: Konfiskaty i padłe (bursztyn) -->
+                                    <Border Grid.Column="2" Background="#FEF6E7" CornerRadius="10" Padding="14,11"
+                                            BorderBrush="#F2DDB0" BorderThickness="1" Margin="0,16,0,0">
+                                        <StackPanel>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Style="{StaticResource Ico}" Text="&#xE7BA;" Foreground="#B45309"/>
+                                                <TextBlock Text="KONFISKATY I PADŁE"
+                                                           FontSize="11.5" FontWeight="Bold" Foreground="#B45309"
+                                                           VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                            <TextBlock Text="Kto bierze koszt na siebie?"
+                                                       FontSize="11.5" Foreground="#92400E" Margin="0,5,0,7"/>
+
+                                            <!-- Hodowca (default) -->
+                                            <RadioButton x:Name="chkKonfiskatyHodowca" GroupName="KonfPokrywa"
+                                                         IsChecked="True" Style="{StaticResource RadioCard}"
+                                                         ToolTip="Hodowca bierze koszty konfiskat i padłych na siebie — kwota potrącana z rozliczenia za dostawę">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Style="{StaticResource Ico}" Text="&#xE77B;"
+                                                               FontSize="17" Foreground="#B45309" Margin="0,0,10,0"/>
+                                                    <StackPanel>
+                                                        <TextBlock Text="Hodowca na siebie" FontWeight="SemiBold"
+                                                                   FontSize="13.5" Foreground="#B45309"/>
+                                                        <TextBlock Text="potrącane od rozliczenia"
+                                                                   FontSize="11" Foreground="#92400E" Opacity="0.85"/>
+                                                    </StackPanel>
+                                                </StackPanel>
+                                            </RadioButton>
+
+                                            <!-- Ubojnia -->
+                                            <RadioButton GroupName="KonfPokrywa" Style="{StaticResource RadioCard}"
+                                                         Margin="0,4,0,0"
+                                                         ToolTip="Ubojnia bierze koszty konfiskat i padłych na siebie — nie potrącamy hodowcy">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Style="{StaticResource Ico}" Text="&#xE7E6;"
+                                                               FontSize="17" Foreground="#B45309" Margin="0,0,10,0"/>
+                                                    <StackPanel>
+                                                        <TextBlock Text="Ubojnia na siebie" FontWeight="SemiBold"
+                                                                   FontSize="13.5" Foreground="#B45309"/>
+                                                        <TextBlock Text="koszt po naszej stronie"
+                                                                   FontSize="11" Foreground="#92400E" Opacity="0.85"/>
+                                                    </StackPanel>
+                                                </StackPanel>
+                                            </RadioButton>
                                         </StackPanel>
-                                        <CheckBox x:Name="chkKonfiskatyHodowca" IsChecked="True" Margin="0,9,0,0"
-                                                  Content="Hodowca pokrywa (potrącane od rozliczenia) — odznacz, jeśli pokrywa Ubojnia"
-                                                  ToolTip="Zaznaczone (domyślnie): hodowca pokrywa koszty konfiskat i padłych. Odznacz, jeśli koszt ponosi ubojnia."/>
-                                    </StackPanel>
-                                </Border>
+                                    </Border>
+                                </Grid>
                             </StackPanel>
                         </Grid>
                     </Border>
