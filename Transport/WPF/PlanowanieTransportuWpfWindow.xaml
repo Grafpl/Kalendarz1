@@ -184,24 +184,26 @@
                                     <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="FontSize" Value="13"/><Setter Property="Foreground" Value="#1F2733"/></Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
-                            <DataGridTemplateColumn Header="Kierowca / pojazd" Width="168">
+                            <DataGridTemplateColumn Header="Kierowca" Width="150">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <StackPanel VerticalAlignment="Center">
-                                            <!-- Kierowca z indywidualną kropką koloru (deterministyczna z KierowcaID) -->
-                                            <StackPanel Orientation="Horizontal">
-                                                <Ellipse Width="8" Height="8" Fill="{Binding KolorKierowcy}" Margin="0,0,6,0" VerticalAlignment="Center"
-                                                         ToolTip="Indywidualny kolor kierowcy"/>
-                                                <TextBlock Style="{StaticResource Icon}" Text="&#xE77B;" FontSize="11.5" Foreground="{Binding KierowcaFg}" Margin="0,0,5,0"/>
-                                                <TextBlock Text="{Binding KierowcaDisplay}" Foreground="{Binding KierowcaFg}" FontWeight="{Binding KierowcaWaga}" FontSize="12" TextTrimming="CharacterEllipsis"/>
-                                            </StackPanel>
-                                            <!-- Pojazd z niezależną kropką (deterministyczna z PojazdID) -->
-                                            <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
-                                                <Ellipse Width="8" Height="8" Fill="{Binding KolorPojazdu}" Margin="0,0,6,0" VerticalAlignment="Center"
-                                                         ToolTip="Indywidualny kolor pojazdu (niezależny od kierowcy)"/>
-                                                <TextBlock Style="{StaticResource Icon}" Text="&#xE804;" FontSize="11.5" Foreground="{Binding PojazdFg}" Margin="0,0,5,0"/>
-                                                <TextBlock Text="{Binding PojazdDisplay}" Foreground="{Binding PojazdFg}" FontWeight="{Binding PojazdWaga}" FontSize="11.5" TextTrimming="CharacterEllipsis"/>
-                                            </StackPanel>
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Ellipse Width="8" Height="8" Fill="{Binding KolorKierowcy}" Margin="0,0,6,0" VerticalAlignment="Center"
+                                                     ToolTip="Indywidualny kolor kierowcy"/>
+                                            <TextBlock Style="{StaticResource Icon}" Text="&#xE77B;" FontSize="11.5" Foreground="{Binding KierowcaFg}" Margin="0,0,5,0"/>
+                                            <TextBlock Text="{Binding KierowcaDisplay}" Foreground="{Binding KierowcaFg}" FontWeight="{Binding KierowcaWaga}" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Pojazd" Width="115">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Ellipse Width="8" Height="8" Fill="{Binding KolorPojazdu}" Margin="0,0,6,0" VerticalAlignment="Center"
+                                                     ToolTip="Indywidualny kolor pojazdu (niezależny od kierowcy)"/>
+                                            <TextBlock Style="{StaticResource Icon}" Text="&#xE804;" FontSize="11.5" Foreground="{Binding PojazdFg}" Margin="0,0,5,0"/>
+                                            <TextBlock Text="{Binding PojazdDisplay}" Foreground="{Binding PojazdFg}" FontWeight="{Binding PojazdWaga}" FontSize="11.5" TextTrimming="CharacterEllipsis"/>
                                         </StackPanel>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
