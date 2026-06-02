@@ -217,6 +217,12 @@ namespace Kalendarz1.Transport.WPF
                     e.Handled = true;
                 }
             }
+            else if (e.Key == Key.Escape && PanelZmianyDlaKursu.Visibility == Visibility.Visible)
+            {
+                // Esc — zwija panel zmian (odznacza wiersz kursu)
+                KursyGrid.SelectedItem = null;
+                e.Handled = true;
+            }
         }
 
         // ════════════════════════════════════════════════════════════════════
@@ -298,9 +304,8 @@ namespace Kalendarz1.Transport.WPF
                     PanelZmianyDlaKursu.Visibility = Visibility.Collapsed;
                     return;
                 }
-                var trasa = string.IsNullOrEmpty(row.Trasa) ? "—" : row.Trasa;
-                DetalNaglowek.Text = $"{_detalZmiany.Count} {(_detalZmiany.Count == 1 ? "zmiana" : "zmian")} dla kursu #{row.KursID} ({trasa}) — Co było → co jest";
-                BtnDetalAkceptujText.Text = $"Akceptuj wszystkie ({_detalZmiany.Count})";
+                DetalNaglowek.Text = $"{_detalZmiany.Count} {(_detalZmiany.Count == 1 ? "zmiana" : "zmian")} do akceptacji  ·  kurs #{row.KursID}";
+                BtnDetalAkceptujText.Text = $"Akceptuj wszystkie ({_detalZmiany.Count}) — Enter";
                 PanelZmianyDlaKursu.Visibility = Visibility.Visible;
             }
             catch { PanelZmianyDlaKursu.Visibility = Visibility.Collapsed; }
@@ -391,9 +396,8 @@ namespace Kalendarz1.Transport.WPF
                 PanelZmianyDlaKursu.Visibility = Visibility.Collapsed;
                 return;
             }
-            var trasa = string.IsNullOrEmpty(row.Trasa) ? "—" : row.Trasa;
-            DetalNaglowek.Text = $"{_detalZmiany.Count} {(_detalZmiany.Count == 1 ? "zmiana" : "zmian")} dla kursu #{row.KursID} ({trasa}) — Co było → co jest";
-            BtnDetalAkceptujText.Text = $"Akceptuj wszystkie ({_detalZmiany.Count})";
+            DetalNaglowek.Text = $"{_detalZmiany.Count} {(_detalZmiany.Count == 1 ? "zmiana" : "zmian")} do akceptacji  ·  kurs #{row.KursID}";
+            BtnDetalAkceptujText.Text = $"Akceptuj wszystkie ({_detalZmiany.Count}) — Enter";
         }
 
         private void UpdateButtons()

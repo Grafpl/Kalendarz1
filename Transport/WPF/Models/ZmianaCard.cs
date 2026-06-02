@@ -162,8 +162,8 @@ namespace Kalendarz1.Transport.WPF.Models
             }
         }
 
-        // Badge "×N" — pokazywany tylko gdy scalonych > 1
-        public string ScaloneText => IloscScalonych > 1 ? $"×{IloscScalonych}" : "";
+        // Badge "×N edycji" — pokazywany tylko gdy scalonych > 1 (zwarte, ale jasne)
+        public string ScaloneText => IloscScalonych > 1 ? $"×{IloscScalonych} edycji" : "";
         public Visibility ScaloneVis => IloscScalonych > 1 ? Visibility.Visible : Visibility.Collapsed;
         public string? ScaloneTooltip => IloscScalonych > 1
             ? $"{IloscScalonych} kolejnych edycji tego pola — pokazujemy pełną deltę od najstarszej ({_najstarszaData:dd.MM HH:mm}) do najnowszej ({Source.DataZgloszenia:dd.MM HH:mm})."

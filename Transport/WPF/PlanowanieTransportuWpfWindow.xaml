@@ -327,7 +327,7 @@
                                             Click="BtnDetalAkceptujWszystkie_Click" ToolTip="Skrót: Enter">
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Text="✓" Foreground="White" FontWeight="Bold" Margin="0,0,4,0"/>
-                                            <TextBlock x:Name="BtnDetalAkceptujText" Text="Akceptuj wszystkie (Enter)" VerticalAlignment="Center" FontSize="11.5"/>
+                                            <TextBlock x:Name="BtnDetalAkceptujText" Text="Akceptuj wszystkie — Enter" VerticalAlignment="Center" FontSize="11.5"/>
                                         </StackPanel>
                                     </Button>
                                 </StackPanel>
