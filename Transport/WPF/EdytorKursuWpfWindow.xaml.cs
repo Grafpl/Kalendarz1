@@ -729,12 +729,16 @@ namespace Kalendarz1.Transport.WPF
             {
                 kursId = _kursId.Value;
                 kurs.KursID = kursId;
+                // Audit log — diff per pole względem _kurs (oryginał z LoadAsync)
+                await LogujRoznicowoAsync(kursId, _kurs, kurs);
                 await _svc.Repo.AktualizujNaglowekKursuAsync(kurs, _user);
             }
             else
             {
                 kursId = await _svc.Repo.DodajKursAsync(kurs, _user);
                 _kursId = kursId;
+                // Pierwszy wpis — utworzenie kursu
+                await _svc.ZapiszAuditAsync(kursId, "Status", null, "Utworzony", _user);
             }
 
             foreach (var id in _ladunkiDoUsuniecia)
@@ -768,6 +772,39 @@ namespace Kalendarz1.Transport.WPF
             await _svc.SyncStatusyKursuAsync(kursId, zamIdyWKursie, _user);
 
             return kursId;
+        }
+
+        /// <summary>Porównuje stary kurs z nowym, dla każdego zmienionego pola loguje wpis KursAuditLog.
+        /// Wpisy zostają w bazie nawet jeśli AktualizujNaglowekKursuAsync rzuci wyjątkiem — to OK, audit łapie tylko intencję.</summary>
+        private async Task LogujRoznicowoAsync(long kursId, Kurs? stary, Kurs nowy)
+        {
+            if (stary == null) return;
+
+            // Nazwy zamiast ID — żeby audit był czytelny ("Kowalski" zamiast "12")
+            string? StaryKierowca() => stary.KierowcaID.HasValue
+                ? _kierowcy.FirstOrDefault(k => k.KierowcaID == stary.KierowcaID)?.PelneNazwisko ?? stary.KierowcaID.ToString()
+                : null;
+            string? NowyKierowca() => nowy.KierowcaID.HasValue
+                ? _kierowcy.FirstOrDefault(k => k.KierowcaID == nowy.KierowcaID)?.PelneNazwisko ?? nowy.KierowcaID.ToString()
+                : null;
+            string? StaryPojazd() => stary.PojazdID.HasValue
+                ? _pojazdy.FirstOrDefault(p => p.PojazdID == stary.PojazdID)?.Opis ?? stary.PojazdID.ToString()
+                : null;
+            string? NowyPojazd() => nowy.PojazdID.HasValue
+                ? _pojazdy.FirstOrDefault(p => p.PojazdID == nowy.PojazdID)?.Opis ?? nowy.PojazdID.ToString()
+                : null;
+
+            await _svc.ZapiszAuditAsync(kursId, "Kierowca", StaryKierowca(), NowyKierowca(), _user);
+            await _svc.ZapiszAuditAsync(kursId, "Pojazd", StaryPojazd(), NowyPojazd(), _user);
+            if (stary.DataKursu.Date != nowy.DataKursu.Date)
+                await _svc.ZapiszAuditAsync(kursId, "DataKursu",
+                    stary.DataKursu.ToString("yyyy-MM-dd"), nowy.DataKursu.ToString("yyyy-MM-dd"), _user);
+            await _svc.ZapiszAuditAsync(kursId, "GodzWyjazdu",
+                stary.GodzWyjazdu?.ToString(@"hh\:mm"), nowy.GodzWyjazdu?.ToString(@"hh\:mm"), _user);
+            await _svc.ZapiszAuditAsync(kursId, "GodzPowrotu",
+                stary.GodzPowrotu?.ToString(@"hh\:mm"), nowy.GodzPowrotu?.ToString(@"hh\:mm"), _user);
+            await _svc.ZapiszAuditAsync(kursId, "Trasa", stary.Trasa, nowy.Trasa, _user);
+            await _svc.ZapiszAuditAsync(kursId, "Status", stary.Status, nowy.Status, _user);
         }
 
         private static TimeSpan? ParseGodz(string s)

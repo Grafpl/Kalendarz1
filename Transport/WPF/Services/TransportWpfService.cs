@@ -393,6 +393,61 @@ namespace Kalendarz1.Transport.WPF.Services
             InwalidujCacheZmian();
         }
 
+        // ════════════════════════════════════════════════════════════════════
+        // AUDIT LOG KURSU — diff per pole nagłówka, KursAuditLog (TransportPL).
+        // Wpis idzie z edytora PRZED AktualizujNaglowekKursuAsync.
+        // ════════════════════════════════════════════════════════════════════
+
+        public async Task ZapiszAuditAsync(long kursId, string pole, string? stare, string? nowa, string user)
+        {
+            if (stare == nowa) return;   // bez różnicy = bez wpisu
+            try
+            {
+                await using var cn = new SqlConnection(ConnTransport);
+                await cn.OpenAsync();
+                using var cmd = new SqlCommand(
+                    @"INSERT INTO dbo.KursAuditLog (KursID, Pole, StareWartosc, NowaWartosc, KtoZmienil)
+                      VALUES (@K, @P, @S, @N, @U)", cn);
+                cmd.Parameters.AddWithValue("@K", kursId);
+                cmd.Parameters.AddWithValue("@P", pole);
+                cmd.Parameters.AddWithValue("@S", (object?)stare ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@N", (object?)nowa ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@U", user);
+                await cmd.ExecuteNonQueryAsync();
+            }
+            catch { /* audit log nie blokuje akcji */ }
+        }
+
+        public async Task<List<Models.KursAuditEntry>> PobierzAuditAsync(long kursId)
+        {
+            var wynik = new List<Models.KursAuditEntry>();
+            try
+            {
+                await using var cn = new SqlConnection(ConnTransport);
+                await cn.OpenAsync();
+                using var cmd = new SqlCommand(
+                    @"SELECT Id, KursID, Pole, StareWartosc, NowaWartosc, KtoZmienil, KiedyUTC
+                      FROM dbo.KursAuditLog WHERE KursID=@K ORDER BY KiedyUTC DESC", cn);
+                cmd.Parameters.AddWithValue("@K", kursId);
+                using var r = await cmd.ExecuteReaderAsync();
+                while (await r.ReadAsync())
+                {
+                    wynik.Add(new Models.KursAuditEntry
+                    {
+                        Id = r.GetInt64(0),
+                        KursID = r.GetInt64(1),
+                        Pole = r.GetString(2),
+                        StareWartosc = r.IsDBNull(3) ? null : r.GetString(3),
+                        NowaWartosc = r.IsDBNull(4) ? null : r.GetString(4),
+                        KtoZmienil = r.GetString(5),
+                        KiedyUTC = r.GetDateTime(6)
+                    });
+                }
+            }
+            catch { }
+            return wynik;
+        }
+
         // Nazwy użytkowników (LibraNet.operators) — do podpisu „Utworzył" + avatar.
         private readonly Dictionary<string, string> _userCache = new();
         public async Task<Dictionary<string, string>> PobierzNazwyUzytkownikowAsync(IEnumerable<string> userIds)

@@ -633,16 +633,32 @@ namespace Kalendarz1.Transport.WPF
         {
             ResetHover();
             if (!e.Data.GetDataPresent(FmtWolne)) return;
-            if (WpfDragHelper.GetItemAtPoint(KursyGrid, e.GetPosition(KursyGrid)) is not KursRow target)
-            {
-                MessageBox.Show("Upuść zamówienie na konkretny kurs.", "Brak kursu",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
-            if (e.Data.GetData(FmtWolne) is List<WolneZamowienieWpf> items)
+            if (e.Data.GetData(FmtWolne) is not List<WolneZamowienieWpf> items || items.Count == 0) return;
+
+            // Upadek NA WIERSZ kursu → dodaj do istniejącego.
+            // Upadek na PUSTY OBSZAR listy → otwórz edytor NOWEGO kursu z tymi N odbiorcami od razu jako ładunki.
+            if (WpfDragHelper.GetItemAtPoint(KursyGrid, e.GetPosition(KursyGrid)) is KursRow target)
             {
                 KursyGrid.SelectedItem = target;
                 _ = DodajDoKursuAsync(items, target);
+            }
+            else
+            {
+                try
+                {
+                    var data = DataKursu.SelectedDate ?? DateTime.Today;
+                    var ed = new EdytorKursuWpfWindow(_svc, _user, data, kursId: null, preselect: items) { Owner = this };
+                    if (ed.ShowDialog() == true)
+                    {
+                        _svc.InwalidujCacheZmian();
+                        _ = LoadWszystkoAsync();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Błąd otwierania edytora:\n{ex.Message}", "Błąd",
+                        MessageBoxButton.OK, MessageBoxImage.Error);
+                }
             }
             e.Handled = true;
         }

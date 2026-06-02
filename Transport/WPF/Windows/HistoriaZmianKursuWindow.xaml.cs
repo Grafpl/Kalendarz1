@@ -16,6 +16,7 @@ using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Media;
 using Kalendarz1.Transport;
+using Kalendarz1.Transport.WPF.Models;
 using Kalendarz1.Transport.WPF.Services;
 
 namespace Kalendarz1.Transport.WPF.Windows
@@ -27,6 +28,7 @@ namespace Kalendarz1.Transport.WPF.Windows
         private readonly string _trasa;
         private List<HistoriaZmianyCard> _wszystkie = new();
         private readonly ObservableCollection<HistoriaZmianyCard> _widok = new();
+        private readonly ObservableCollection<KursAuditEntry> _audit = new();
 
         public HistoriaZmianKursuWindow(TransportWpfService svc, long kursId, string trasa)
         {
@@ -36,9 +38,35 @@ namespace Kalendarz1.Transport.WPF.Windows
             _trasa = trasa ?? "";
             TxtKursMeta.Text = $"Kurs #{_kursId}" + (string.IsNullOrEmpty(_trasa) ? "" : $"  ·  {_trasa}");
             ListaHistorii.ItemsSource = _widok;
+            ListaAudit.ItemsSource = _audit;
             var view = CollectionViewSource.GetDefaultView(_widok);
             view.GroupDescriptions.Add(new PropertyGroupDescription(nameof(HistoriaZmianyCard.KlientNazwa)));
             Loaded += async (_, _) => await LoadAsync();
+        }
+
+        private void WidokZam_Click(object sender, RoutedEventArgs e)
+        {
+            TglWidokZam.IsChecked = true; TglWidokKurs.IsChecked = false;
+            ScrollZam.Visibility = Visibility.Visible;
+            ScrollKurs.Visibility = Visibility.Collapsed;
+            PanelFiltrowStatus.Visibility = Visibility.Visible;
+            AktualizujLicznik();
+        }
+
+        private void WidokKurs_Click(object sender, RoutedEventArgs e)
+        {
+            TglWidokZam.IsChecked = false; TglWidokKurs.IsChecked = true;
+            ScrollZam.Visibility = Visibility.Collapsed;
+            ScrollKurs.Visibility = Visibility.Visible;
+            PanelFiltrowStatus.Visibility = Visibility.Collapsed;
+            AktualizujLicznik();
+        }
+
+        private void AktualizujLicznik()
+        {
+            TxtLicznik.Text = TglWidokKurs.IsChecked == true
+                ? $"·  {_audit.Count} {(_audit.Count == 1 ? "zmiana" : "zmian")} nagłówka kursu"
+                : $"·  pokazano {_widok.Count} / {_wszystkie.Count} zmian zamówień";
         }
 
         private async System.Threading.Tasks.Task LoadAsync()
@@ -66,7 +94,14 @@ namespace Kalendarz1.Transport.WPF.Windows
                     .ThenByDescending(c => c.Source.DataZgloszenia)
                     .ToList();
                 Przefiltruj();
-                TxtStatus.Text = $"Wczytano {_wszystkie.Count} zmian dla {zamIds.Count} zamówień.";
+
+                // Wczytaj też zmiany nagłówka kursu (KursAuditLog)
+                var audit = await _svc.PobierzAuditAsync(_kursId);
+                _audit.Clear();
+                foreach (var a in audit) _audit.Add(a);
+
+                AktualizujLicznik();
+                TxtStatus.Text = $"Wczytano {_wszystkie.Count} zmian zamówień + {_audit.Count} zmian nagłówka kursu.";
             }
             catch (Exception ex)
             {
@@ -86,7 +121,7 @@ namespace Kalendarz1.Transport.WPF.Windows
             IEnumerable<HistoriaZmianyCard> src = _wszystkie;
             if (statusFiltr != null) src = src.Where(c => c.Source.StatusZmiany == statusFiltr);
             foreach (var c in src) _widok.Add(c);
-            TxtLicznik.Text = $"·  pokazano {_widok.Count} / {_wszystkie.Count}";
+            AktualizujLicznik();
         }
 
         private void BtnZamknij_Click(object sender, RoutedEventArgs e) => Close();
