@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Nowy kontrakt z hodowcą" Height="940" Width="1620" MinWidth="1300" MinHeight="720"
-        WindowState="Maximized" WindowStartupLocation="CenterOwner" Background="#F1F5F9"
+        WindowState="Maximized" WindowStartupLocation="CenterOwner" Background="#F3F6F4"
         UseLayoutRounding="True" TextOptions.TextFormattingMode="Display">
     <Window.Resources>
         <ResourceDictionary>
@@ -10,23 +10,23 @@
                 <ResourceDictionary Source="/Kontrakty/Views/KontraktyTheme.xaml"/>
             </ResourceDictionary.MergedDictionaries>
 
-            <!-- Lokalne nadpisania: BARDZO duże kontrolki w kolumnach 1 i 2 -->
+            <!-- ═════ UJEDNOLICONE KONTROLKI: jeden rozmiar w całym oknie ═════ -->
             <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
-                <Setter Property="Height" Value="50"/>
-                <Setter Property="FontSize" Value="17"/>
-                <Setter Property="Padding" Value="16,0"/>
+                <Setter Property="Height" Value="44"/>
+                <Setter Property="FontSize" Value="15"/>
+                <Setter Property="Padding" Value="14,0"/>
                 <Setter Property="VerticalContentAlignment" Value="Center"/>
             </Style>
             <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
-                <Setter Property="Height" Value="50"/>
-                <Setter Property="FontSize" Value="17"/>
+                <Setter Property="Height" Value="44"/>
+                <Setter Property="FontSize" Value="15"/>
                 <Setter Property="VerticalContentAlignment" Value="Center"/>
                 <Setter Property="HorizontalContentAlignment" Value="Left"/>
                 <Setter Property="Padding" Value="14,0"/>
             </Style>
             <Style TargetType="ComboBoxItem">
                 <Setter Property="Padding" Value="14,10"/>
-                <Setter Property="FontSize" Value="15"/>
+                <Setter Property="FontSize" Value="14"/>
                 <Setter Property="MinHeight" Value="40"/>
                 <Setter Property="VerticalContentAlignment" Value="Center"/>
                 <Setter Property="Background" Value="White"/>
@@ -50,21 +50,51 @@
                 </Setter>
             </Style>
             <Style TargetType="DatePicker" BasedOn="{StaticResource {x:Type DatePicker}}">
-                <Setter Property="Height" Value="50"/>
-                <Setter Property="FontSize" Value="17"/>
+                <Setter Property="Height" Value="44"/>
+                <Setter Property="FontSize" Value="15"/>
                 <Setter Property="VerticalContentAlignment" Value="Center"/>
             </Style>
             <Style TargetType="TextBlock" x:Key="LblBig" BasedOn="{StaticResource Lbl}">
-                <Setter Property="FontSize" Value="14.5"/>
-                <Setter Property="Margin" Value="0,16,0,7"/>
+                <Setter Property="FontSize" Value="13"/>
+                <Setter Property="Margin" Value="0,12,0,5"/>
             </Style>
             <Style TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
-                <Setter Property="FontSize" Value="15.5"/>
-            </Style>
-            <Style TargetType="Button" BasedOn="{StaticResource Btn}" x:Key="BtnBig">
-                <Setter Property="Height" Value="42"/>
                 <Setter Property="FontSize" Value="14"/>
-                <Setter Property="Padding" Value="18,0"/>
+            </Style>
+
+            <!-- ═════ IKONY (Segoe Fluent Icons / Segoe MDL2 Assets) ═════ -->
+            <Style x:Key="Ico" TargetType="TextBlock">
+                <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets"/>
+                <Setter Property="FontSize" Value="14"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+                <Setter Property="Margin" Value="0,0,8,0"/>
+            </Style>
+            <Style x:Key="IcoBtn" TargetType="TextBlock" BasedOn="{StaticResource Ico}">
+                <Setter Property="FontSize" Value="13"/>
+                <Setter Property="Margin" Value="0,0,6,0"/>
+            </Style>
+
+            <!-- ═════ Przycisk teal dla cykli (Dodaj wstawienie) ═════ -->
+            <Style x:Key="BtnTeal" TargetType="Button" BasedOn="{StaticResource Btn}">
+                <Setter Property="Foreground" Value="White"/>
+                <Setter Property="Background" Value="#0D9488"/>
+                <Setter Property="BorderBrush" Value="#0F766E"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="bd" CornerRadius="9" Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"
+                                    Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
+                                <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="bd" Property="Background" Value="#0F766E"/></Trigger>
+                                <Trigger Property="IsPressed" Value="True"><Setter TargetName="bd" Property="Background" Value="#0B5F57"/></Trigger>
+                                <Trigger Property="IsEnabled" Value="False"><Setter TargetName="bd" Property="Opacity" Value="0.45"/></Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
             </Style>
         </ResourceDictionary>
     </Window.Resources>
@@ -85,312 +115,367 @@
             </Grid>
         </Border>
 
-        <!-- ════ 3-kolumnowy układ ════ -->
+        <!-- ════ 3 równe kolumny gwiazdkowe ════ -->
         <Grid Grid.Row="1" Margin="16,12,16,4">
-            <Grid HorizontalAlignment="Center" MaxWidth="1820">
+            <Grid HorizontalAlignment="Center" MaxWidth="1900">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="640"/>
-                    <ColumnDefinition Width="18"/>
-                    <ColumnDefinition Width="600"/>
-                    <ColumnDefinition Width="18"/>
-                    <ColumnDefinition Width="520"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="16"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="16"/>
+                    <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
                 <!-- ═══ COL 1: HODOWCA + PRODUCENT ═══ -->
                 <StackPanel x:Name="col1Panel" Grid.Column="0">
-                    <!-- 🔎 Hodowca -->
-                    <Border Style="{StaticResource Card}" Padding="26,22">
-                        <StackPanel>
-                            <Grid>
-                                <TextBlock Text="🔎  ZNAJDŹ HODOWCĘ" Style="{StaticResource CardTitle}"/>
-                                <Button x:Name="btnKopiuj" Content="📋 Kopiuj" Style="{StaticResource BtnLink}"
-                                        HorizontalAlignment="Right" Visibility="Collapsed" Click="BtnKopiuj_Click"
-                                        ToolTip="Kopiuj warunki z poprzedniego kontraktu"/>
-                            </Grid>
-                            <Border Background="{StaticResource Surface}" CornerRadius="10" BorderBrush="{StaticResource FieldBorder}"
-                                    BorderThickness="1" Padding="13,0" Height="48">
-                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Text="🔍" FontSize="17" VerticalAlignment="Center" Margin="2,0,10,0" Opacity="0.6"/>
-                                    <TextBox x:Name="txtSzukaj" Width="500" BorderThickness="0" Background="Transparent" FontSize="16.5"
-                                             VerticalContentAlignment="Center" TextChanged="SzukajHod_Changed"
-                                             ToolTip="Wpisz nazwę, NIP lub ID" Height="48"/>
-                                </StackPanel>
-                            </Border>
-                            <TextBlock x:Name="txtCount" FontSize="12" Foreground="{StaticResource Muted}" Margin="2,7,0,4"/>
 
-                            <ListBox x:Name="lstHodowcy" Height="180" SelectionChanged="LstHodowcy_Changed"
-                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                                <ListBox.ItemTemplate>
-                                    <DataTemplate>
-                                        <Grid Margin="2,5">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="*"/>
-                                            </Grid.ColumnDefinitions>
-                                            <Border Grid.Column="0" Width="44" Height="44" CornerRadius="22"
-                                                    Background="{StaticResource GreenSoft}" Margin="0,0,13,0">
-                                                <TextBlock Text="{Binding Inicjal}" FontSize="19" FontWeight="Bold"
-                                                           Foreground="{StaticResource GreenDark}"
-                                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                            </Border>
-                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding Nazwa}" FontWeight="SemiBold" FontSize="15"
-                                                           Foreground="{StaticResource Ink}" TextTrimming="CharacterEllipsis"/>
-                                                <TextBlock Text="{Binding Meta}" FontSize="12.5" Foreground="{StaticResource Muted}"
-                                                           TextTrimming="CharacterEllipsis"/>
-                                            </StackPanel>
-                                        </Grid>
-                                    </DataTemplate>
-                                </ListBox.ItemTemplate>
-                            </ListBox>
-
-                            <!-- Banner wybranego -->
-                            <Border x:Name="bannerWybrany" Visibility="Collapsed" Margin="0,12,0,0"
-                                    Background="{StaticResource GreenSoft}" CornerRadius="11" Padding="16,12"
-                                    BorderBrush="{StaticResource Green}" BorderThickness="1">
+                    <!-- 🔎 ZNAJDŹ HODOWCĘ (pasek #2E7D32) -->
+                    <Border Style="{StaticResource Card}" Padding="0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="6"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.Column="0" Background="#2E7D32" CornerRadius="13,0,0,13"/>
+                            <StackPanel Grid.Column="1" Margin="16,16,18,16">
                                 <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <Border Grid.Column="0" Width="42" Height="42" CornerRadius="21" Background="{StaticResource Green}" Margin="0,0,14,0">
-                                        <TextBlock x:Name="txtWybranyInicjal" FontSize="18" FontWeight="Bold" Foreground="White"
-                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                    </Border>
-                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                        <TextBlock x:Name="txtWybranyNazwa" FontSize="15.5" FontWeight="Bold" Foreground="{StaticResource GreenDark}" TextTrimming="CharacterEllipsis"/>
-                                        <TextBlock x:Name="txtWybranyMeta" FontSize="13" Foreground="{StaticResource GreenDark}" Opacity="0.85" TextTrimming="CharacterEllipsis"/>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Style="{StaticResource Ico}" Text="&#xE721;" Foreground="#1B5E20"/>
+                                        <TextBlock Text="ZNAJDŹ HODOWCĘ" Style="{StaticResource CardTitle}" Foreground="#1B5E20"/>
                                     </StackPanel>
+                                    <Button x:Name="btnKopiuj" Style="{StaticResource BtnLink}"
+                                            HorizontalAlignment="Right" Visibility="Collapsed" Click="BtnKopiuj_Click"
+                                            ToolTip="Kopiuj warunki z poprzedniego kontraktu">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Style="{StaticResource IcoBtn}" Text="&#xE8C8;"/>
+                                            <TextBlock Text="Kopiuj" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
                                 </Grid>
-                            </Border>
-                        </StackPanel>
+
+                                <Border Background="{StaticResource Surface}" CornerRadius="10" BorderBrush="{StaticResource FieldBorder}"
+                                        BorderThickness="1" Padding="13,0" Height="44">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Style="{StaticResource Ico}" Text="&#xE721;" Foreground="{StaticResource Muted}"/>
+                                        <TextBox x:Name="txtSzukaj" Width="500" BorderThickness="0" Background="Transparent" FontSize="15"
+                                                 VerticalContentAlignment="Center" TextChanged="SzukajHod_Changed"
+                                                 ToolTip="Wpisz nazwę, NIP lub ID" Height="44"/>
+                                    </StackPanel>
+                                </Border>
+                                <TextBlock x:Name="txtCount" FontSize="12" Foreground="{StaticResource Muted}" Margin="2,7,0,4"/>
+
+                                <ListBox x:Name="lstHodowcy" Height="180" SelectionChanged="LstHodowcy_Changed"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid Margin="2,5">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Border Grid.Column="0" Width="44" Height="44" CornerRadius="22"
+                                                        Background="{StaticResource GreenSoft}" Margin="0,0,13,0">
+                                                    <TextBlock Text="{Binding Inicjal}" FontSize="19" FontWeight="Bold"
+                                                               Foreground="{StaticResource GreenDark}"
+                                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Nazwa}" FontWeight="SemiBold" FontSize="15"
+                                                               Foreground="{StaticResource Ink}" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Text="{Binding Meta}" FontSize="12.5" Foreground="{StaticResource Muted}"
+                                                               TextTrimming="CharacterEllipsis"/>
+                                                </StackPanel>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+
+                                <!-- Banner wybranego -->
+                                <Border x:Name="bannerWybrany" Visibility="Collapsed" Margin="0,12,0,0"
+                                        Background="{StaticResource GreenSoft}" CornerRadius="11" Padding="16,12"
+                                        BorderBrush="{StaticResource Green}" BorderThickness="1">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Border Grid.Column="0" Width="46" Height="46" CornerRadius="23" Background="{StaticResource Green}" Margin="0,0,14,0" VerticalAlignment="Top">
+                                            <TextBlock x:Name="txtWybranyInicjal" FontSize="19" FontWeight="Bold" Foreground="White"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <TextBlock x:Name="txtWybranyNazwa" FontSize="15.5" FontWeight="Bold"
+                                                       Foreground="{StaticResource GreenDark}" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock x:Name="txtWybranyMeta" FontSize="12.5" Foreground="{StaticResource GreenDark}"
+                                                       Opacity="0.85" TextTrimming="CharacterEllipsis" Margin="0,1,0,0"/>
+                                            <Border x:Name="boxHistoria" Background="#FFFFFF" CornerRadius="7" Padding="9,4" Margin="0,5,0,0"
+                                                    BorderBrush="{StaticResource Green}" BorderThickness="1" Visibility="Collapsed"
+                                                    HorizontalAlignment="Left">
+                                                <TextBlock x:Name="txtWybranyHistoria" FontSize="11.5" FontWeight="SemiBold"
+                                                           Foreground="{StaticResource GreenDark}"/>
+                                            </Border>
+                                        </StackPanel>
+                                        <Button Grid.Column="2" x:Name="btnSprawdzalka"
+                                                Click="BtnSprawdzalka_Click" VerticalAlignment="Center"
+                                                Style="{StaticResource BtnPrimary}" Height="38" Padding="14,0"
+                                                ToolTip="Otwórz Sprawdzalkę umów z prefilowanym hodowcą — pełna historia dostaw">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Style="{StaticResource IcoBtn}" Text="&#xE9D9;"/>
+                                                <TextBlock Text="Sprawdzalka" VerticalAlignment="Center" FontSize="12.5"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                        </Grid>
                     </Border>
 
-                    <!-- 🧑‍🌾 Producent -->
-                    <Border Style="{StaticResource Card}" Padding="26,22" Margin="0,10,0,0">
-                        <StackPanel>
-                            <TextBlock Text="🧑‍🌾  DANE PRODUCENTA" Style="{StaticResource CardTitle}"/>
+                    <!-- 🧑‍🌾 DANE PRODUCENTA (pasek #2E7D32) -->
+                    <Border Style="{StaticResource Card}" Padding="0" Margin="0,12,0,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="6"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.Column="0" Background="#2E7D32" CornerRadius="13,0,0,13"/>
+                            <StackPanel Grid.Column="1" Margin="16,16,18,16">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Style="{StaticResource Ico}" Text="&#xE77B;" Foreground="#1B5E20"/>
+                                    <TextBlock Text="DANE PRODUCENTA" Style="{StaticResource CardTitle}" Foreground="#1B5E20"/>
+                                </StackPanel>
 
-                            <TextBlock Text="🧑 Nazwa / imię i nazwisko" Style="{StaticResource LblBig}"/>
-                            <TextBox x:Name="txtNazwa"/>
+                                <TextBlock Text="🧑 Nazwa / imię i nazwisko" Style="{StaticResource LblBig}"/>
+                                <TextBox x:Name="txtNazwa"/>
 
-                            <Grid Margin="0,2,0,0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/><ColumnDefinition Width="10"/>
-                                    <ColumnDefinition Width="*"/><ColumnDefinition Width="10"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0">
-                                    <TextBlock Text="🔖 NIP" Style="{StaticResource LblBig}"/>
-                                    <TextBox x:Name="txtNip" TextChanged="PoleWalid_Changed"/>
-                                    <TextBlock x:Name="hintNip" FontSize="12" Margin="2,3,0,0" Visibility="Collapsed"/>
-                                </StackPanel>
-                                <StackPanel Grid.Column="2">
-                                    <TextBlock Text="🆔 PESEL" Style="{StaticResource LblBig}"/>
-                                    <TextBox x:Name="txtPesel" TextChanged="PoleWalid_Changed"/>
-                                    <TextBlock x:Name="hintPesel" FontSize="12" Margin="2,3,0,0" Visibility="Collapsed"/>
-                                </StackPanel>
-                                <StackPanel Grid.Column="4">
-                                    <TextBlock Text="🏢 REGON" Style="{StaticResource LblBig}"/>
-                                    <TextBox x:Name="txtRegon"/>
-                                </StackPanel>
-                            </Grid>
+                                <Grid Margin="0,2,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/><ColumnDefinition Width="10"/>
+                                        <ColumnDefinition Width="*"/><ColumnDefinition Width="10"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="🔖 NIP" Style="{StaticResource LblBig}"/>
+                                        <TextBox x:Name="txtNip" TextChanged="PoleWalid_Changed"/>
+                                        <TextBlock x:Name="hintNip" FontSize="12" Margin="2,3,0,0" Visibility="Collapsed"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="🆔 PESEL" Style="{StaticResource LblBig}"/>
+                                        <TextBox x:Name="txtPesel" TextChanged="PoleWalid_Changed"/>
+                                        <TextBlock x:Name="hintPesel" FontSize="12" Margin="2,3,0,0" Visibility="Collapsed"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="4">
+                                        <TextBlock Text="🏢 REGON" Style="{StaticResource LblBig}"/>
+                                        <TextBox x:Name="txtRegon"/>
+                                    </StackPanel>
+                                </Grid>
 
-                            <Grid Margin="0,2,0,0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/><ColumnDefinition Width="10"/>
-                                    <ColumnDefinition Width="*"/><ColumnDefinition Width="10"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0"><TextBlock Text="🪪 Dowód" Style="{StaticResource LblBig}"/><TextBox x:Name="txtDowod"/></StackPanel>
-                                <StackPanel Grid.Column="2"><TextBlock Text="📞 Telefon" Style="{StaticResource LblBig}"/><TextBox x:Name="txtTelefon"/></StackPanel>
-                                <StackPanel Grid.Column="4"><TextBlock Text="✉ E-mail" Style="{StaticResource LblBig}"/><TextBox x:Name="txtEmail"/></StackPanel>
-                            </Grid>
+                                <Grid Margin="0,2,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/><ColumnDefinition Width="10"/>
+                                        <ColumnDefinition Width="*"/><ColumnDefinition Width="10"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0"><TextBlock Text="🪪 Dowód" Style="{StaticResource LblBig}"/><TextBox x:Name="txtDowod"/></StackPanel>
+                                    <StackPanel Grid.Column="2"><TextBlock Text="📞 Telefon" Style="{StaticResource LblBig}"/><TextBox x:Name="txtTelefon"/></StackPanel>
+                                    <StackPanel Grid.Column="4"><TextBlock Text="✉ E-mail" Style="{StaticResource LblBig}"/><TextBox x:Name="txtEmail"/></StackPanel>
+                                </Grid>
 
-                            <Grid Margin="0,2,0,0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/><ColumnDefinition Width="10"/>
-                                    <ColumnDefinition Width="2*"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0">
-                                    <TextBlock Text="🏷 Nr gosp. ARiMR" Style="{StaticResource LblBig}"/>
-                                    <TextBox x:Name="txtGosp" TextChanged="PoleWalid_Changed"/>
-                                    <TextBlock x:Name="hintGosp" FontSize="12" Margin="2,3,0,0" Visibility="Collapsed"/>
-                                </StackPanel>
-                                <StackPanel Grid.Column="2">
-                                    <TextBlock Text="📍 Adres" Style="{StaticResource LblBig}"/>
-                                    <TextBox x:Name="txtAdres"/>
-                                </StackPanel>
-                            </Grid>
-                        </StackPanel>
+                                <Grid Margin="0,2,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/><ColumnDefinition Width="10"/>
+                                        <ColumnDefinition Width="2*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="🏷 Nr gosp. ARiMR" Style="{StaticResource LblBig}"/>
+                                        <TextBox x:Name="txtGosp" TextChanged="PoleWalid_Changed"/>
+                                        <TextBlock x:Name="hintGosp" FontSize="12" Margin="2,3,0,0" Visibility="Collapsed"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="📍 Adres" Style="{StaticResource LblBig}"/>
+                                        <TextBox x:Name="txtAdres"/>
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+                        </Grid>
                     </Border>
                 </StackPanel>
 
-                <!-- ═══ COL 2: UMOWA + OKRES + WARUNKI (mniejsze kontrolki) ═══ -->
+                <!-- ═══ COL 2: UMOWA + OKRES + WARUNKI ═══ -->
                 <StackPanel x:Name="col2Panel" Grid.Column="2">
-                    <StackPanel.Resources>
-                        <!-- kontrolki w col 2 nieco mniejsze niż globalne -->
-                        <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
-                            <Setter Property="Height" Value="42"/>
-                            <Setter Property="FontSize" Value="14.5"/>
-                            <Setter Property="Padding" Value="13,0"/>
-                        </Style>
-                        <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
-                            <Setter Property="Height" Value="42"/>
-                            <Setter Property="FontSize" Value="14.5"/>
-                            <Setter Property="Padding" Value="12,0"/>
-                        </Style>
-                        <Style TargetType="DatePicker" BasedOn="{StaticResource {x:Type DatePicker}}">
-                            <Setter Property="Height" Value="42"/>
-                            <Setter Property="FontSize" Value="14.5"/>
-                        </Style>
-                        <Style TargetType="TextBlock" x:Key="LblBig" BasedOn="{StaticResource Lbl}">
-                            <Setter Property="FontSize" Value="12.5"/>
-                            <Setter Property="Margin" Value="0,12,0,5"/>
-                        </Style>
-                        <Style TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
-                            <Setter Property="FontSize" Value="13.5"/>
-                        </Style>
-                    </StackPanel.Resources>
-                    <!-- 📄 Umowa + 📅 Okres -->
-                    <Border Style="{StaticResource Card}" Padding="26,22">
-                        <StackPanel>
-                            <TextBlock Text="📄  UMOWA I OKRES" Style="{StaticResource CardTitle}"/>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/><ColumnDefinition Width="12"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0">
-                                    <TextBlock Text="📋 Typ kontraktu" Style="{StaticResource LblBig}"/>
-                                    <ComboBox x:Name="cbTyp">
-                                        <ComboBoxItem Content="Roczny" Tag="ROCZNY" IsSelected="True"/>
-                                        <ComboBoxItem Content="3-letni" Tag="ARIMR_3LAT"/>
-                                        <ComboBoxItem Content="Sezonowy" Tag="SEZONOWY"/>
-                                        <ComboBoxItem Content="Wieczny" Tag="WIECZNY"/>
-                                        <ComboBoxItem Content="Spot" Tag="SPOT"/>
-                                    </ComboBox>
-                                </StackPanel>
-                                <StackPanel Grid.Column="2">
-                                    <TextBlock Text="🏛 Podmiot (my)" Style="{StaticResource LblBig}"/>
-                                    <ComboBox x:Name="cbPodmiot">
-                                        <ComboBoxItem Content="Piórkowscy s.c." Tag="PIORKOWSCY_SC" IsSelected="True"/>
-                                        <ComboBoxItem Content="Piórkowscy sp. z o.o." Tag="PIORKOWSCY_SPZOO"/>
-                                    </ComboBox>
-                                </StackPanel>
-                            </Grid>
-                            <CheckBox x:Name="chkArimr" Content="🎯 Liczy się do dotacji ARiMR (≥50% surowca)" Margin="0,12,0,0"/>
 
-                            <Grid Margin="0,10,0,0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/><ColumnDefinition Width="12"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0">
-                                    <TextBlock Text="📅 Obowiązuje od" Style="{StaticResource LblBig}"/>
-                                    <DatePicker x:Name="dpOd"/>
+                    <!-- 📄 UMOWA I OKRES (pasek #2563EB) -->
+                    <Border Style="{StaticResource Card}" Padding="0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="6"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.Column="0" Background="#2563EB" CornerRadius="13,0,0,13"/>
+                            <StackPanel Grid.Column="1" Margin="16,16,18,16">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Style="{StaticResource Ico}" Text="&#xE8A5;" Foreground="#1D4ED8"/>
+                                    <TextBlock Text="UMOWA I OKRES" Style="{StaticResource CardTitle}" Foreground="#1D4ED8"/>
                                 </StackPanel>
-                                <StackPanel Grid.Column="2">
-                                    <TextBlock Text="📅 Obowiązuje do" Style="{StaticResource LblBig}"/>
-                                    <DatePicker x:Name="dpDo"/>
-                                </StackPanel>
-                            </Grid>
-                            <CheckBox x:Name="chkBezterm" Content="∞ Bezterminowy" Margin="0,8,0,0" Click="ChkBezterm_Click"/>
-
-                            <Grid Margin="0,8,0,0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/><ColumnDefinition Width="12"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0">
-                                    <TextBlock Text="✍ Data podpisu" Style="{StaticResource LblBig}"/>
-                                    <DatePicker x:Name="dpPodpis"/>
-                                </StackPanel>
-                                <StackPanel Grid.Column="2">
-                                    <TextBlock Text="⏳ Wypowiedzenie (dni)" Style="{StaticResource LblBig}"/>
-                                    <TextBox x:Name="txtWypow" Text="90"/>
-                                </StackPanel>
-                            </Grid>
-                        </StackPanel>
-                    </Border>
-
-                    <!-- 💰 Warunki handlowe + ☑ Konfiskaty -->
-                    <Border Style="{StaticResource Card}" Padding="26,22" Margin="0,10,0,0">
-                        <StackPanel>
-                            <TextBlock Text="💰  WARUNKI HANDLOWE" Style="{StaticResource CardTitle}"/>
-                            <Border x:Name="panelSugestia" Visibility="Collapsed" Margin="0,0,0,8"
-                                    Background="{StaticResource StatusInfoBg}" CornerRadius="9" Padding="12,9">
                                 <Grid>
-                                    <TextBlock x:Name="txtSugestia" VerticalAlignment="Center" TextWrapping="Wrap"
-                                               Foreground="{StaticResource StatusInfoFg}" FontSize="12" FontWeight="SemiBold"
-                                               Margin="0,0,110,0"/>
-                                    <Button x:Name="btnZastosujSugestie" Content="↧ Zastosuj" Style="{StaticResource Btn}"
-                                            HorizontalAlignment="Right" VerticalAlignment="Center" Click="BtnZastosujSugestie_Click"/>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/><ColumnDefinition Width="12"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="📋 Typ kontraktu" Style="{StaticResource LblBig}"/>
+                                        <ComboBox x:Name="cbTyp">
+                                            <ComboBoxItem Content="Roczny" Tag="ROCZNY" IsSelected="True"/>
+                                            <ComboBoxItem Content="3-letni" Tag="ARIMR_3LAT"/>
+                                            <ComboBoxItem Content="Sezonowy" Tag="SEZONOWY"/>
+                                            <ComboBoxItem Content="Wieczny" Tag="WIECZNY"/>
+                                            <ComboBoxItem Content="Spot" Tag="SPOT"/>
+                                        </ComboBox>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="🏛 Podmiot (my)" Style="{StaticResource LblBig}"/>
+                                        <ComboBox x:Name="cbPodmiot">
+                                            <ComboBoxItem Content="Piórkowscy s.c." Tag="PIORKOWSCY_SC" IsSelected="True"/>
+                                            <ComboBoxItem Content="Piórkowscy sp. z o.o." Tag="PIORKOWSCY_SPZOO"/>
+                                        </ComboBox>
+                                    </StackPanel>
                                 </Grid>
-                            </Border>
+                                <Grid Margin="0,12,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/><ColumnDefinition Width="12"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="📅 Obowiązuje od" Style="{StaticResource LblBig}"/>
+                                        <DatePicker x:Name="dpOd" ToolTip="Domyślnie dziś. Typ kontraktu określa minimalny okres."/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="📅 Obowiązuje do" Style="{StaticResource LblBig}"/>
+                                        <DatePicker x:Name="dpDo" ToolTip="Standardowo +1 rok od dziś. Pomiń, gdy bezterminowy."/>
+                                    </StackPanel>
+                                </Grid>
+                                <CheckBox x:Name="chkBezterm" Content="∞ Bezterminowy" Margin="0,8,0,0" Click="ChkBezterm_Click"
+                                          ToolTip="Zaznacz aby kontrakt nie miał daty końca (pole „do&#x201D; zostanie wyłączone)"/>
 
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/><ColumnDefinition Width="10"/>
-                                    <ColumnDefinition Width="*"/><ColumnDefinition Width="10"/>
-                                    <ColumnDefinition Width="*"/><ColumnDefinition Width="10"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0">
-                                    <TextBlock Text="💱 Typ ceny" Style="{StaticResource LblBig}"/>
-                                    <ComboBox x:Name="cbTypCeny">
-                                        <ComboBoxItem Content="wolnorynkowa" Tag="wolnorynkowa" IsSelected="True"/>
-                                        <ComboBoxItem Content="rolnicza" Tag="rolnicza"/>
-                                        <ComboBoxItem Content="ministerialna" Tag="ministerialna"/>
-                                        <ComboBoxItem Content="łączona" Tag="laczona"/>
-                                    </ComboBox>
-                                </StackPanel>
-                                <StackPanel Grid.Column="2"><TextBlock Text="➕ Dodatek (zł/kg)" Style="{StaticResource LblBig}"/><TextBox x:Name="txtDodatek"/></StackPanel>
-                                <StackPanel Grid.Column="4"><TextBlock Text="📉 Ubytek (%)" Style="{StaticResource LblBig}"/><TextBox x:Name="txtUbytek" Text="3,0"/></StackPanel>
-                                <StackPanel Grid.Column="6"><TextBlock Text="💳 Płatność (dni)" Style="{StaticResource LblBig}"/><TextBox x:Name="txtTermin" Text="21"/></StackPanel>
-                            </Grid>
-
-                            <Grid Margin="0,4,0,0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/><ColumnDefinition Width="10"/>
-                                    <ColumnDefinition Width="*"/><ColumnDefinition Width="10"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0">
-                                    <TextBlock Text="⚖ Rozliczana waga" Style="{StaticResource LblBig}"/>
-                                    <ComboBox x:Name="cbWaga">
-                                        <ComboBoxItem Content="netto hodowcy" Tag="NETTO_HODOWCY" IsSelected="True"/>
-                                        <ComboBoxItem Content="netto ubojni" Tag="NETTO_UBOJNI"/>
-                                    </ComboBox>
-                                </StackPanel>
-                                <StackPanel Grid.Column="2"><TextBlock Text="🌾 Dostawca paszy" Style="{StaticResource LblBig}"/><TextBox x:Name="txtPasza"/></StackPanel>
-                                <StackPanel Grid.Column="4"><TextBlock Text="🐣 Dostawca piskląt" Style="{StaticResource LblBig}"/><TextBox x:Name="txtPisklak"/></StackPanel>
-                            </Grid>
-
-                            <TextBlock Text="🎁 Bonus (opis warunku)" Style="{StaticResource LblBig}"/>
-                            <TextBox x:Name="txtBonus" Height="76" AcceptsReturn="True" TextWrapping="Wrap"
-                                     VerticalContentAlignment="Top" VerticalScrollBarVisibility="Auto" Padding="14,10"
-                                     ToolTip="np. 3 gr/kg pod warunkiem zakupu paszy i piskląt"/>
-
-                            <!-- ☑ Konfiskaty i padłe -->
-                            <Border Background="{StaticResource Surface}" CornerRadius="10" Padding="16,13" Margin="0,16,0,0"
-                                    BorderBrush="{StaticResource FieldBorder}" BorderThickness="1">
-                                <StackPanel>
-                                    <TextBlock Text="🐔 KONFISKATY I PADŁE — KTO PONOSI KOSZTY" FontSize="13.5" FontWeight="Bold" Foreground="{StaticResource Ink}"/>
-                                    <CheckBox x:Name="chkKonfiskatyHodowca" IsChecked="True" Margin="0,9,0,0" FontSize="15"
-                                              Content="✓ Potrącane od hodowcy (domyślnie — odznacz, jeśli pokrywa ubojnia)"
-                                              ToolTip="Zaznaczone (domyślnie): hodowca pokrywa koszty konfiskat i padłych. Odznacz, jeśli koszt ponosi ubojnia."/>
-                                </StackPanel>
-                            </Border>
-                        </StackPanel>
+                                <Grid Margin="0,8,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/><ColumnDefinition Width="12"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="✍ Data podpisu" Style="{StaticResource LblBig}"/>
+                                        <DatePicker x:Name="dpPodpis"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="⏳ Wypowiedzenie (dni)" Style="{StaticResource LblBig}"/>
+                                        <TextBox x:Name="txtWypow" Text="90"
+                                                 ToolTip="Ile dni wypowiedzenia (typowo 30/60/90)"/>
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+                        </Grid>
                     </Border>
 
-                    <!-- 📎 Skan -->
+                    <!-- 💰 WARUNKI HANDLOWE + ☑ KONFISKATY (pasek #D97706) -->
+                    <Border Style="{StaticResource Card}" Padding="0" Margin="0,12,0,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="6"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.Column="0" Background="#D97706" CornerRadius="13,0,0,13"/>
+                            <StackPanel Grid.Column="1" Margin="16,16,18,16">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Style="{StaticResource Ico}" Text="&#xE1D0;" Foreground="#B45309"/>
+                                    <TextBlock Text="WARUNKI HANDLOWE" Style="{StaticResource CardTitle}" Foreground="#B45309"/>
+                                </StackPanel>
+                                <Border x:Name="panelSugestia" Visibility="Collapsed" Margin="0,0,0,8"
+                                        Background="{StaticResource StatusInfoBg}" CornerRadius="9" Padding="12,9">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Style="{StaticResource Ico}" Text="&#xE946;" Foreground="{StaticResource StatusInfoFg}"/>
+                                        <TextBlock Grid.Column="1" x:Name="txtSugestia" VerticalAlignment="Center" TextWrapping="Wrap"
+                                                   Foreground="{StaticResource StatusInfoFg}" FontSize="12" FontWeight="SemiBold"/>
+                                        <Button Grid.Column="2" x:Name="btnZastosujSugestie" Style="{StaticResource Btn}"
+                                                VerticalAlignment="Center" Click="BtnZastosujSugestie_Click" Padding="12,0" Height="34">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Style="{StaticResource IcoBtn}" Text="&#xE74B;"/>
+                                                <TextBlock Text="Zastosuj" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </Grid>
+                                </Border>
+
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/><ColumnDefinition Width="10"/>
+                                        <ColumnDefinition Width="*"/><ColumnDefinition Width="10"/>
+                                        <ColumnDefinition Width="*"/><ColumnDefinition Width="10"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="💱 Typ ceny" Style="{StaticResource LblBig}"/>
+                                        <ComboBox x:Name="cbTypCeny">
+                                            <ComboBoxItem Content="wolnorynkowa" Tag="wolnorynkowa" IsSelected="True"/>
+                                            <ComboBoxItem Content="rolnicza" Tag="rolnicza"/>
+                                            <ComboBoxItem Content="ministerialna" Tag="ministerialna"/>
+                                            <ComboBoxItem Content="łączona" Tag="laczona"/>
+                                        </ComboBox>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2"><TextBlock Text="➕ Dodatek (zł/kg)" Style="{StaticResource LblBig}"/><TextBox x:Name="txtDodatek"/></StackPanel>
+                                    <StackPanel Grid.Column="4">
+                                        <TextBlock Text="📉 Ubytek (%)" Style="{StaticResource LblBig}"/>
+                                        <TextBox x:Name="txtUbytek" Text="3,0"
+                                                 ToolTip="Procent ubytku wagi w transporcie (typowo 2–4%)"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="6">
+                                        <TextBlock Text="💳 Płatność (dni)" Style="{StaticResource LblBig}"/>
+                                        <TextBox x:Name="txtTermin" Text="21"
+                                                 ToolTip="Ile dni od dostawy do zapłaty (typowo 14/21/30)"/>
+                                    </StackPanel>
+                                </Grid>
+
+                                <Grid Margin="0,4,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/><ColumnDefinition Width="10"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="⚖ Rozliczana waga" Style="{StaticResource LblBig}"/>
+                                        <ComboBox x:Name="cbWaga"
+                                                  ToolTip="Czyja waga jest podstawą rozliczenia: netto hodowcy (po jego stronie) lub netto ubojni (po naszej)">
+                                            <ComboBoxItem Content="netto hodowcy" Tag="NETTO_HODOWCY" IsSelected="True"/>
+                                            <ComboBoxItem Content="netto ubojni" Tag="NETTO_UBOJNI"/>
+                                        </ComboBox>
+                                    </StackPanel>
+                                </Grid>
+
+                                <!-- ☑ KONFISKATY (bursztynowy box) -->
+                                <Border Background="#FEF6E7" CornerRadius="10" Padding="16,13" Margin="0,16,0,0"
+                                        BorderBrush="#F2DDB0" BorderThickness="1">
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Style="{StaticResource Ico}" Text="&#xE7BA;" Foreground="#B45309"/>
+                                            <TextBlock Text="KONFISKATY I PADŁE — KTO PONOSI KOSZTY"
+                                                       FontSize="13" FontWeight="Bold" Foreground="#B45309"/>
+                                        </StackPanel>
+                                        <CheckBox x:Name="chkKonfiskatyHodowca" IsChecked="True" Margin="0,9,0,0"
+                                                  Content="Hodowca pokrywa (potrącane od rozliczenia) — odznacz, jeśli pokrywa Ubojnia"
+                                                  ToolTip="Zaznaczone (domyślnie): hodowca pokrywa koszty konfiskat i padłych. Odznacz, jeśli koszt ponosi ubojnia."/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
                 </StackPanel>
 
                 <!-- ═══ COL 3: CYKLE + SKAN + WALIDACJA + PRZYCISKI — wysokość zsynchronizowana z col 2 ═══ -->
                 <Grid Grid.Column="4" VerticalAlignment="Top"
-                      Height="{Binding ActualHeight, ElementName=col1Panel}">
+                      Height="{Binding ActualHeight, ElementName=col2Panel}">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
@@ -398,175 +483,236 @@
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
-                <Border Grid.Row="0" Style="{StaticResource Card}" Padding="14,12">
-                    <DockPanel>
-                        <Grid DockPanel.Dock="Top">
-                            <TextBlock Text="🐔  CYKLE WSTAWIEŃ" Style="{StaticResource CardTitle}"/>
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                <Border Background="{StaticResource GreenSoft}" CornerRadius="12" Padding="12,5" Margin="0,0,8,0" VerticalAlignment="Center">
-                                    <TextBlock x:Name="txtKpiCykle" FontSize="12.5" FontWeight="Bold" Foreground="{StaticResource GreenDark}"
-                                               Text="0 wstawień"/>
+                    <!-- 🐔 CYKLE WSTAWIEŃ (pasek #0D9488 teal) -->
+                    <Border Grid.Row="0" Style="{StaticResource Card}" Padding="0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="6"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.Column="0" Background="#0D9488" CornerRadius="13,0,0,13"/>
+                            <DockPanel Grid.Column="1" Margin="16,16,18,16">
+                                <Grid DockPanel.Dock="Top">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Style="{StaticResource Ico}" Text="&#xE787;" Foreground="#0F766E"/>
+                                        <TextBlock Text="CYKLE WSTAWIEŃ" Style="{StaticResource CardTitle}" Foreground="#0F766E"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <Border Background="#E0F2F0" CornerRadius="12" Padding="12,5" Margin="0,0,8,0" VerticalAlignment="Center">
+                                            <TextBlock x:Name="txtKpiCykle" FontSize="12.5" FontWeight="Bold" Foreground="#0F766E"
+                                                       Text="0 wstawień"/>
+                                        </Border>
+                                        <Button Style="{StaticResource BtnTeal}" Click="BtnDodajCykl_Click"
+                                                Height="38" Padding="14,0">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Style="{StaticResource IcoBtn}" Text="&#xE710;" Foreground="White"/>
+                                                <TextBlock Text="Dodaj wstawienie" VerticalAlignment="Center" FontSize="13.5"/>
+                                            </StackPanel>
+                                        </Button>
+                                        <Button Style="{StaticResource Btn}" Click="BtnWyczyscCykle_Click"
+                                                ToolTip="Wyczyść wszystkie wstawienia" Padding="11,0" Height="38" Margin="6,0,0,0">
+                                            <TextBlock Style="{StaticResource IcoBtn}" Text="&#xE74D;" Margin="0"/>
+                                        </Button>
+                                    </StackPanel>
+                                </Grid>
+                                <TextBlock DockPanel.Dock="Top" FontSize="12.5" Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,-2,0,10">
+                                    Data + sztuki → ubiórka i pełny ubój policzą się same. W dialogu możesz dodać kilka cykli co N dni.
+                                </TextBlock>
+
+                                <Border x:Name="boxCyklePusto" Background="{StaticResource Surface}" CornerRadius="10" Padding="14,22"
+                                        BorderBrush="{StaticResource FieldBorder}" BorderThickness="1">
+                                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <TextBlock Style="{StaticResource Ico}" Text="&#xE787;" FontSize="32" Foreground="#0F766E" Opacity="0.55" Margin="0,0,0,6"/>
+                                        <TextBlock Text="Brak wstawień" FontSize="12.5" FontWeight="SemiBold" Foreground="{StaticResource Muted}"
+                                                   HorizontalAlignment="Center" Margin="0,6,0,3"/>
+                                        <TextBlock Text="Kliknij „Dodaj wstawienie&quot;, aby utworzyć cykl."
+                                                   FontSize="11" Foreground="{StaticResource Muted}" HorizontalAlignment="Center" TextWrapping="Wrap"/>
+                                    </StackPanel>
                                 </Border>
-                                <Button Content="➕ Dodaj wstawienie" Style="{StaticResource BtnPrimary}" Click="BtnDodajCykl_Click"
-                                        Height="38" FontSize="13.5" Padding="16,0"/>
-                                <Button Content="🗑" Style="{StaticResource Btn}" Click="BtnWyczyscCykle_Click"
-                                        ToolTip="Wyczyść wszystkie wstawienia" FontSize="15" Padding="11,0" Height="38"/>
+
+                                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,0,4,0">
+                                    <ItemsControl x:Name="icCykle">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Background="White" CornerRadius="12" Margin="0,0,0,10" Padding="16,13"
+                                                        BorderBrush="{StaticResource Line}" BorderThickness="1">
+                                                    <StackPanel>
+                                                        <Grid>
+                                                            <Border Background="#E0F2F0" CornerRadius="8" Padding="11,5" HorizontalAlignment="Left">
+                                                                <StackPanel Orientation="Horizontal">
+                                                                    <TextBlock Style="{StaticResource IcoBtn}" Text="&#xE787;" Foreground="#0F766E"/>
+                                                                    <TextBlock Text="CYKL " FontSize="11.5" FontWeight="Bold" Foreground="#0F766E"/>
+                                                                    <TextBlock Text="{Binding NrCyklu}" FontSize="13.5" FontWeight="Bold" Foreground="#0F766E"/>
+                                                                </StackPanel>
+                                                            </Border>
+                                                            <TextBlock Text="{Binding IloscWstawionaLabel}" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                                       FontSize="13.5" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
+                                                        </Grid>
+
+                                                        <Grid Margin="0,12,0,0">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="28"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <Grid.RowDefinitions>
+                                                                <RowDefinition Height="Auto"/>
+                                                                <RowDefinition Height="Auto"/>
+                                                                <RowDefinition Height="Auto"/>
+                                                            </Grid.RowDefinitions>
+
+                                                            <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource Ico}" Text="&#xE787;" Foreground="#0F766E" Margin="0"/>
+                                                            <TextBlock Grid.Row="0" Grid.Column="1" Text="Wstawienie" FontSize="12.5"
+                                                                       Foreground="{StaticResource Muted}" VerticalAlignment="Center"/>
+                                                            <TextBlock Grid.Row="0" Grid.Column="2" Text="{Binding DataWstawieniaLabel}"
+                                                                       FontSize="13.5" FontWeight="SemiBold" Foreground="{StaticResource Ink}" VerticalAlignment="Center"/>
+
+                                                            <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource Ico}" Text="&#xF158;" Foreground="#0F766E" Margin="0,6,0,0"/>
+                                                            <TextBlock Grid.Row="1" Grid.Column="1" Text="Ubiórka (+33 dni)" FontSize="12.5"
+                                                                       Foreground="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,6,0,0"/>
+                                                            <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding DataUbiorkaLabel}"
+                                                                       FontSize="13.5" Foreground="{StaticResource Ink}" VerticalAlignment="Center" Margin="0,6,0,0"/>
+
+                                                            <TextBlock Grid.Row="2" Grid.Column="0" Style="{StaticResource Ico}" Text="&#xE73E;" Foreground="#0F766E" Margin="0,6,0,0"/>
+                                                            <TextBlock Grid.Row="2" Grid.Column="1" Text="Pełny ubój (+42 dni)" FontSize="12.5"
+                                                                       Foreground="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,6,0,0"/>
+                                                            <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding DataUbojuLabel}"
+                                                                       FontSize="13.5" FontWeight="Bold" Foreground="#0F766E" VerticalAlignment="Center" Margin="0,6,0,0"/>
+                                                        </Grid>
+
+                                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,13,0,0">
+                                                            <Button Style="{StaticResource Btn}" Tag="{Binding}" Click="BtnEdytujCykl_Click"
+                                                                    Padding="13,4" Height="34" ToolTip="Edytuj wstawienie">
+                                                                <StackPanel Orientation="Horizontal">
+                                                                    <TextBlock Style="{StaticResource IcoBtn}" Text="&#xE70F;"/>
+                                                                    <TextBlock Text="Edytuj" VerticalAlignment="Center" FontSize="12.5"/>
+                                                                </StackPanel>
+                                                            </Button>
+                                                            <Button Style="{StaticResource Btn}" Tag="{Binding}" Click="BtnUsunCyklJeden_Click"
+                                                                    Padding="13,4" Height="34" ToolTip="Usuń wstawienie">
+                                                                <StackPanel Orientation="Horizontal">
+                                                                    <TextBlock Style="{StaticResource IcoBtn}" Text="&#xE74D;"/>
+                                                                    <TextBlock Text="Usuń" VerticalAlignment="Center" FontSize="12.5"/>
+                                                                </StackPanel>
+                                                            </Button>
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </DockPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- 📎 SKAN / ZAŁĄCZNIK (pasek #94A3B8) -->
+                    <Border Grid.Row="1" Style="{StaticResource Card}" Padding="0" Margin="0,12,0,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="6"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.Column="0" Background="#94A3B8" CornerRadius="13,0,0,13"/>
+                            <StackPanel Grid.Column="1" Margin="16,16,18,16">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Style="{StaticResource Ico}" Text="&#xE723;" Foreground="#475569"/>
+                                    <TextBlock Text="SKAN / ZAŁĄCZNIK (opcjonalnie)" Style="{StaticResource CardTitle}" Foreground="#475569"/>
+                                </StackPanel>
+                                <Grid Margin="0,2,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="180"/><ColumnDefinition Width="10"/>
+                                        <ColumnDefinition Width="*"/><ColumnDefinition Width="10"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="📋 Typ" Style="{StaticResource LblBig}"/>
+                                        <ComboBox x:Name="cbTypZal">
+                                            <ComboBoxItem Content="Skan podpisany" Tag="SKAN_PODPISANY" IsSelected="True"/>
+                                            <ComboBoxItem Content="Aneks" Tag="ANEKS"/>
+                                            <ComboBoxItem Content="Oświadczenie" Tag="OSWIADCZENIE"/>
+                                            <ComboBoxItem Content="Korespondencja" Tag="KORESPONDENCJA"/>
+                                            <ComboBoxItem Content="Inny" Tag="INNE"/>
+                                        </ComboBox>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="📂 Plik" Style="{StaticResource LblBig}"/>
+                                        <TextBox x:Name="txtSkanPlik" IsReadOnly="True"/>
+                                    </StackPanel>
+                                    <Button Grid.Column="4" Style="{StaticResource Btn}"
+                                            VerticalAlignment="Bottom" Click="BtnWybierzSkan_Click"
+                                            Height="44" Padding="14,0">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Style="{StaticResource IcoBtn}" Text="&#xE723;"/>
+                                            <TextBlock Text="Wybierz" VerticalAlignment="Center" FontSize="13"/>
+                                        </StackPanel>
+                                    </Button>
+                                </Grid>
                             </StackPanel>
                         </Grid>
-                        <TextBlock DockPanel.Dock="Top" FontSize="12.5" Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,-2,0,10">
-                            Data + sztuki → ubiórka i pełny ubój policzą się same. W dialogu możesz dodać kilka cykli co N dni.
-                        </TextBlock>
+                    </Border>
 
-                        <Border x:Name="boxCyklePusto" Background="{StaticResource Surface}" CornerRadius="10" Padding="14,22"
-                                BorderBrush="{StaticResource FieldBorder}" BorderThickness="1">
-                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <TextBlock Text="🐣" FontSize="36" HorizontalAlignment="Center" Opacity="0.55"/>
-                                <TextBlock Text="Brak wstawień" FontSize="12.5" FontWeight="SemiBold" Foreground="{StaticResource Muted}"
-                                           HorizontalAlignment="Center" Margin="0,6,0,3"/>
-                                <TextBlock Text="Kliknij „➕ Dodaj&quot;, aby utworzyć cykl."
-                                           FontSize="11" Foreground="{StaticResource Muted}" HorizontalAlignment="Center" TextWrapping="Wrap"/>
-                            </StackPanel>
-                        </Border>
-
-                        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,0,4,0">
-                            <ItemsControl x:Name="icCykle">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border Background="White" CornerRadius="12" Margin="0,0,0,10" Padding="16,13"
-                                                BorderBrush="{StaticResource Line}" BorderThickness="1">
-                                            <StackPanel>
-                                                <!-- Header: badge CYKL N + sztuki po prawej -->
-                                                <Grid>
-                                                    <Border Background="{StaticResource GreenSoft}" CornerRadius="8" Padding="11,5" HorizontalAlignment="Left">
-                                                        <StackPanel Orientation="Horizontal">
-                                                            <TextBlock Text="🐔 CYKL " FontSize="11.5" FontWeight="Bold" Foreground="{StaticResource GreenDark}"/>
-                                                            <TextBlock Text="{Binding NrCyklu}" FontSize="13.5" FontWeight="Bold" Foreground="{StaticResource GreenDark}"/>
-                                                        </StackPanel>
-                                                    </Border>
-                                                    <TextBlock Text="{Binding IloscWstawionaLabel}" HorizontalAlignment="Right" VerticalAlignment="Center"
-                                                               FontSize="13.5" FontWeight="SemiBold" Foreground="{StaticResource Ink}"/>
-                                                </Grid>
-
-                                                <!-- 3 etykietowane wiersze: wstawienie / ubiórka / ubój -->
-                                                <Grid Margin="0,12,0,0">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="28"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <Grid.RowDefinitions>
-                                                        <RowDefinition Height="Auto"/>
-                                                        <RowDefinition Height="Auto"/>
-                                                        <RowDefinition Height="Auto"/>
-                                                    </Grid.RowDefinitions>
-
-                                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="📅" FontSize="15" VerticalAlignment="Center"/>
-                                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="Wstawienie" FontSize="12.5"
-                                                               Foreground="{StaticResource Muted}" VerticalAlignment="Center"/>
-                                                    <TextBlock Grid.Row="0" Grid.Column="2" Text="{Binding DataWstawieniaLabel}"
-                                                               FontSize="13.5" FontWeight="SemiBold" Foreground="{StaticResource Ink}" VerticalAlignment="Center"/>
-
-                                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="📦" FontSize="14" VerticalAlignment="Center" Margin="0,6,0,0"/>
-                                                    <TextBlock Grid.Row="1" Grid.Column="1" Text="Ubiórka (+33 dni)" FontSize="12.5"
-                                                               Foreground="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,6,0,0"/>
-                                                    <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding DataUbiorkaLabel}"
-                                                               FontSize="13.5" Foreground="{StaticResource Ink}" VerticalAlignment="Center" Margin="0,6,0,0"/>
-
-                                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="🔪" FontSize="14" VerticalAlignment="Center" Margin="0,6,0,0"/>
-                                                    <TextBlock Grid.Row="2" Grid.Column="1" Text="Pełny ubój (+42 dni)" FontSize="12.5"
-                                                               Foreground="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,6,0,0"/>
-                                                    <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding DataUbojuLabel}"
-                                                               FontSize="13.5" FontWeight="Bold" Foreground="{StaticResource GreenDark}" VerticalAlignment="Center" Margin="0,6,0,0"/>
-                                                </Grid>
-
-                                                <!-- Akcje -->
-                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,13,0,0">
-                                                    <Button Content="✏ Edytuj" Style="{StaticResource Btn}" Tag="{Binding}" Click="BtnEdytujCykl_Click"
-                                                            FontSize="12.5" Padding="13,4" Height="34" ToolTip="Edytuj wstawienie"/>
-                                                    <Button Content="🗑 Usuń" Style="{StaticResource Btn}" Tag="{Binding}" Click="BtnUsunCyklJeden_Click"
-                                                            FontSize="12.5" Padding="13,4" Height="34" ToolTip="Usuń wstawienie"/>
-                                                </StackPanel>
-                                            </StackPanel>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </ScrollViewer>
-                    </DockPanel>
-                </Border>
-
-                <!-- SKAN / ZAŁĄCZNIK (pomiędzy cyklami a przyciskami) -->
-                <Border Grid.Row="1" Style="{StaticResource Card}" Padding="16,13" Margin="0,10,0,0">
-                    <StackPanel>
-                        <TextBlock Text="📎  SKAN / ZAŁĄCZNIK (opcjonalnie)" Style="{StaticResource CardTitle}"/>
-                        <Grid Margin="0,2,0,0">
+                    <!-- STATUS WALIDACJI (1-linia, kolor wg stanu) -->
+                    <Border Grid.Row="2" x:Name="boxWalidacja" Background="#FEE2E2" CornerRadius="10" Padding="14,11" Margin="0,10,0,0"
+                            BorderBrush="#FCA5A5" BorderThickness="1" Visibility="Collapsed">
+                        <Grid>
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="170"/><ColumnDefinition Width="8"/>
-                                <ColumnDefinition Width="*"/><ColumnDefinition Width="8"/>
                                 <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-                            <StackPanel Grid.Column="0">
-                                <TextBlock Text="📋 Typ" FontSize="12" Foreground="{StaticResource Muted}" Margin="0,2,0,3"/>
-                                <ComboBox x:Name="cbTypZal" Height="40" FontSize="13.5">
-                                    <ComboBoxItem Content="Skan podpisany" Tag="SKAN_PODPISANY" IsSelected="True"/>
-                                    <ComboBoxItem Content="Aneks" Tag="ANEKS"/>
-                                    <ComboBoxItem Content="Oświadczenie" Tag="OSWIADCZENIE"/>
-                                    <ComboBoxItem Content="Korespondencja" Tag="KORESPONDENCJA"/>
-                                    <ComboBoxItem Content="Inny" Tag="INNE"/>
-                                </ComboBox>
+                            <TextBlock Grid.Column="0" Style="{StaticResource Ico}" Text="&#xE7BA;" FontSize="18" Foreground="#991B1B"
+                                       VerticalAlignment="Top" Margin="0,0,10,0"/>
+                            <TextBlock Grid.Column="1" x:Name="txtWalidacja" Foreground="#991B1B" FontSize="12.5"
+                                       FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- PRZYCISKI (pionowo, pod walidacją) -->
+                    <StackPanel Grid.Row="3" Margin="0,12,0,0">
+                        <Button x:Name="btnZapiszWord"
+                                Style="{StaticResource BtnPrimary}" Click="BtnZapiszWord_Click"
+                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                Height="48" Padding="14,0">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource IcoBtn}" Text="&#xE74E;" FontSize="15" Foreground="White"/>
+                                <TextBlock Text="Zapisz i generuj Word" VerticalAlignment="Center" FontSize="15"/>
                             </StackPanel>
-                            <StackPanel Grid.Column="2">
-                                <TextBlock Text="📂 Plik" FontSize="12" Foreground="{StaticResource Muted}" Margin="0,2,0,3"/>
-                                <TextBox x:Name="txtSkanPlik" IsReadOnly="True" Height="40" FontSize="13.5"/>
+                        </Button>
+                        <Button x:Name="btnZapisz"
+                                Style="{StaticResource Btn}" Click="BtnZapisz_Click"
+                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                Height="44" Margin="0,8,0,0" Padding="14,0">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource IcoBtn}" Text="&#xE74E;"/>
+                                <TextBlock Text="Zapisz (bez generowania)" VerticalAlignment="Center" FontSize="13.5"/>
                             </StackPanel>
-                            <Button Grid.Column="4" Content="📎 Wybierz" Style="{StaticResource Btn}"
-                                    VerticalAlignment="Bottom" Click="BtnWybierzSkan_Click"
-                                    Height="40" FontSize="13" Padding="14,0"/>
+                        </Button>
+                        <Grid Margin="0,8,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="8"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Button Grid.Column="0" x:Name="btnPodglad"
+                                    Style="{StaticResource Btn}" Click="BtnPodglad_Click"
+                                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                    Height="44" Padding="10,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Style="{StaticResource IcoBtn}" Text="&#xE7B3;"/>
+                                    <TextBlock Text="Podgląd" VerticalAlignment="Center" FontSize="13"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Grid.Column="2"
+                                    Style="{StaticResource Btn}" Click="BtnAnuluj_Click"
+                                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                    Height="44" Padding="10,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Style="{StaticResource IcoBtn}" Text="&#xE711;"/>
+                                    <TextBlock Text="Anuluj" VerticalAlignment="Center" FontSize="13"/>
+                                </StackPanel>
+                            </Button>
                         </Grid>
                     </StackPanel>
-                </Border>
-
-                <!-- WALIDACJA -->
-                <Border Grid.Row="2" x:Name="boxWalidacja" Background="#FEE2E2" CornerRadius="10" Padding="14,11" Margin="0,10,0,0"
-                        BorderBrush="#FCA5A5" BorderThickness="1" Visibility="Collapsed">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="⚠" FontSize="20" Foreground="#991B1B"
-                                   VerticalAlignment="Top" Margin="0,0,10,0"/>
-                        <TextBlock Grid.Column="1" x:Name="txtWalidacja" Foreground="#991B1B" FontSize="12.5"
-                                   FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Center"/>
-                    </Grid>
-                </Border>
-
-                <!-- PRZYCISKI (pionowo, pod walidacją) -->
-                <StackPanel Grid.Row="3" Margin="0,12,0,0">
-                    <Button x:Name="btnZapiszWord" Content="💾 Zapisz i generuj Word"
-                            Style="{StaticResource BtnPrimary}" Click="BtnZapiszWord_Click"
-                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-                            Height="50" FontSize="15" Padding="14,0"/>
-                    <Button x:Name="btnZapisz" Content="💾 Zapisz (bez generowania)"
-                            Style="{StaticResource Btn}" Click="BtnZapisz_Click"
-                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-                            Height="42" FontSize="13.5" Margin="0,7,0,0" Padding="14,0"/>
-                    <Grid Margin="0,7,0,0">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="8"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <Button Grid.Column="0" x:Name="btnPodglad" Content="👁 Podgląd"
-                                Style="{StaticResource Btn}" Click="BtnPodglad_Click"
-                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-                                Height="40" FontSize="13" Padding="10,0"/>
-                        <Button Grid.Column="2" Content="✕ Anuluj"
-                                Style="{StaticResource Btn}" Click="BtnAnuluj_Click"
-                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-                                Height="40" FontSize="13" Padding="10,0"/>
-                    </Grid>
-                </StackPanel>
                 </Grid>
             </Grid>
         </Grid>
