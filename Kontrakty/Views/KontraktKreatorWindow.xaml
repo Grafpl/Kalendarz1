@@ -733,8 +733,10 @@
                         </Grid>
                     </Border>
 
-                    <!-- 📎 SKAN / ZAŁĄCZNIK (pasek #94A3B8) -->
-                    <Border Grid.Row="1" Style="{StaticResource CardElev}" Padding="0" Margin="0,12,0,0">
+                    <!-- 📎 SKAN / ZAŁĄCZNIK (pasek #94A3B8, drag&drop PDF) -->
+                    <Border Grid.Row="1" Style="{StaticResource CardElev}" Padding="0" Margin="0,12,0,0"
+                            AllowDrop="True" PreviewDragOver="SkanBorder_DragOver" Drop="SkanBorder_Drop"
+                            ToolTip="Przeciągnij plik PDF tutaj lub kliknij „Wybierz&#x201D;">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="6"/>

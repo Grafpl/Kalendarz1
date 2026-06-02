@@ -5,8 +5,10 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 using Kalendarz1.Kontrakty.Models;
@@ -34,6 +36,15 @@ namespace Kalendarz1.Kontrakty.Views
         private readonly bool _trybSeryjny;
         private WarunkiSugestia? _sugestia;
         private int _zapisanychSeryjnie;
+
+        // Smart „Obowiązuje do" — auto z typu kontraktu, dopóki user nie zmieni ręcznie
+        private bool _recznaDataDo;
+        private bool _ustawiamDoAuto;
+
+        // Auto-zapis draft do %TEMP%
+        private DispatcherTimer? _autoSave;
+        private static readonly string DraftPath =
+            Path.Combine(Path.GetTempPath(), "Kalendarz1", "kreator_draft.json");
 
         public bool Zapisano { get; private set; }
 
@@ -70,7 +81,27 @@ namespace Kalendarz1.Kontrakty.Views
                 var match = dane.FirstOrDefault(h => h.DostawcaId == _prefillDostawcaId) ?? dane.FirstOrDefault();
                 if (match != null) { lstHodowcy.ItemsSource = dane; lstHodowcy.SelectedItem = match; }
             }
+
+            // #4 Smart „Obowiązuje do" — eventy na od/typ/do
+            dpOd.SelectedDateChanged += DpOd_SelectedDateChanged;
+            cbTyp.SelectionChanged += CbTyp_SelectionChanged;
+            dpDo.SelectedDateChanged += DpDo_SelectedDateChanged;
+
+            // #14 Auto-zapis draft co 2 min
+            _autoSave = new DispatcherTimer { Interval = TimeSpan.FromMinutes(2) };
+            _autoSave.Tick += (_, _) => ZapiszDraft();
+            _autoSave.Start();
+            Closed += (_, _) => _autoSave?.Stop();
+
             _ready = true;
+
+            // #14 Sprawdź czy jest draft do przywrócenia (po _ready=true, by eventy działały)
+            if (string.IsNullOrWhiteSpace(_prefillDostawcaId) && !_trybSeryjny)
+                await SprawdzDraftAsync();
+
+            // #1 Auto-focus na polu szukania (Asia od razu pisze)
+            txtSzukaj.Focus();
+            Keyboard.Focus(txtSzukaj);
         }
 
         // ── Picker hodowcy ───────────────────────────────────────────────────
@@ -118,11 +149,50 @@ namespace Kalendarz1.Kontrakty.Views
             txtSugestia.Text = _sugestia.MaDane ? _sugestia.Opis : "";
             panelSugestia.Visibility = maCo ? Visibility.Visible : Visibility.Collapsed;
             btnZastosujSugestie.IsEnabled = maCo;
+
+            // historia dostaw w bannerze — kluczowe info inline
+            if (_sugestia.MaDane)
+            {
+                var parts = new List<string> { $"📊 {_sugestia.Dostaw} dostaw 12 mies." };
+                if (_sugestia.WagaSrednia is { } waga && _sugestia.Dostaw > 0)
+                {
+                    // szacunek wolumenu: śr. waga × ilość dostaw (orientacyjnie)
+                    // właściwie WagaSrednia to średnia waga ptaka, nie dostawy — bezpieczniej pokazać sztuki/dostawę
+                    parts.Add($"~{waga:0.0} kg/ptak");
+                }
+                if (_sugestia.OstatniaDostawa is { } ost)
+                    parts.Add($"ost. {ost:dd.MM.yyyy}");
+                txtWybranyHistoria.Text = string.Join("  ·  ", parts);
+                boxHistoria.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                txtWybranyHistoria.Text = "📊 Brak historii dostaw";
+                boxHistoria.Visibility = Visibility.Visible;
+            }
         }
 
         private void BtnZastosujSugestie_Click(object sender, RoutedEventArgs e)
         {
             if (_sugestia?.UbytekSredniProc is { } u) txtUbytek.Text = u.ToString("0.0", Pl);
+        }
+
+        // Otwarcie Sprawdzalki Umów z prefilowanym hodowcą — szybki podgląd historii dostaw
+        private void BtnSprawdzalka_Click(object sender, RoutedEventArgs e)
+        {
+            if (_hod == null) return;
+            try
+            {
+                var w = new Kalendarz1.WPF.SprawdzalkaUmowWindow(Kalendarz1.App.UserID ?? "") { Owner = this };
+                // pole szukania w Sprawdzalce — pre-fill na nazwę hodowcy (internal x:Name field)
+                w.txtSearch.Text = _hod.Nazwa;
+                w.Show(); // non-modal, by user mógł flippować z kreatorem
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Nie udało się otworzyć Sprawdzalki: " + ex.Message, "Sprawdzalka",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
         }
 
         private async void BtnKopiuj_Click(object sender, RoutedEventArgs e)
@@ -135,7 +205,6 @@ namespace Kalendarz1.Kontrakty.Views
 
             SelectByTag(cbTyp, det.TypKontraktu);
             SelectByTag(cbPodmiot, det.Podmiot);
-            chkArimr.IsChecked = det.LiczySieDoArimr;
             txtEmail.Text = det.EmailRODO ?? "";
 
             SelectByTag(cbTypCeny, w.TypCeny);
@@ -143,15 +212,15 @@ namespace Kalendarz1.Kontrakty.Views
             txtDodatek.Text = Dec(w.DodatekZl);
             txtUbytek.Text = Dec(w.ProcentUbytku);
             txtTermin.Text = w.TerminPlatnosciDni.ToString();
-            txtBonus.Text = w.BonusOpis ?? "";
-            txtPasza.Text = w.DostawcaPaszyNazwa ?? "";
-            txtPisklak.Text = w.DostawcaPisklatNazwa ?? "";
             chkKonfiskatyHodowca.IsChecked = w.KonfiskatyHodowca;
 
             // nowy okres: od dnia po zakończeniu poprzedniego (lub dziś) → +1 rok
             var od = w.ObowiazujeDo?.AddDays(1) ?? DateTime.Today;
+            _ustawiamDoAuto = true;
             dpOd.SelectedDate = od;
             dpDo.SelectedDate = od.AddYears(1);
+            _ustawiamDoAuto = false;
+            _recznaDataDo = true;       // skopiowane „do" — nie nadpisujemy potem auto
             dpPodpis.SelectedDate = DateTime.Today;
 
             // skopiuj harmonogram (przesunięty)
@@ -335,7 +404,7 @@ namespace Kalendarz1.Kontrakty.Views
             {
                 DostawcaId = _hod?.DostawcaId ?? "",
                 TypKontraktu = TagOf(cbTyp),
-                LiczySieDoArimr = chkArimr.IsChecked == true,
+                LiczySieDoArimr = false,                                  // ARiMR checkbox USUNIĘTY — zawsze false
                 Podmiot = TagOf(cbPodmiot),
                 NazwaHodowcySnapshot = Nn(txtNazwa.Text),
                 NipSnapshot = Nn(txtNip.Text),
@@ -360,9 +429,9 @@ namespace Kalendarz1.Kontrakty.Views
                 DodatekZl = ParseDec(txtDodatek.Text),
                 ProcentUbytku = ParseDec(txtUbytek.Text),
                 TerminPlatnosciDni = ParseInt(txtTermin.Text) ?? 21,
-                BonusOpis = Nn(txtBonus.Text),
-                DostawcaPaszyNazwa = Nn(txtPasza.Text),
-                DostawcaPisklatNazwa = Nn(txtPisklak.Text),
+                BonusOpis = null,                                         // Bonus USUNIĘTY — zawsze null
+                DostawcaPaszyNazwa = null,                                // Pasza USUNIĘTA — zawsze null
+                DostawcaPisklatNazwa = null,                              // Pisklak USUNIĘTY — zawsze null
                 KonfiskatyHodowca = chkKonfiskatyHodowca.IsChecked == true
             };
             var cykle = _cykle.ToList();
@@ -441,6 +510,7 @@ namespace Kalendarz1.Kontrakty.Views
 
             Zapisano = true;
             _zapisanychSeryjnie++;
+            UsunDraft();    // #14 zapisany realnie → draft niepotrzebny
 
             if (_trybSeryjny)
             {
@@ -459,19 +529,22 @@ namespace Kalendarz1.Kontrakty.Views
         {
             _hod = null; _poprzedniId = null; _skanPath = null; _sugestia = null;
             foreach (var tb in new[] { txtNazwa, txtNip, txtPesel, txtRegon, txtDowod, txtTelefon, txtEmail,
-                                       txtGosp, txtAdres, txtDodatek, txtBonus, txtPasza, txtPisklak, txtSkanPlik })
+                                       txtGosp, txtAdres, txtDodatek, txtSkanPlik })
                 tb.Clear();
             txtUbytek.Text = "3,0"; txtTermin.Text = "21"; txtWypow.Text = "90";
             cbTyp.SelectedIndex = 0; cbPodmiot.SelectedIndex = 0; cbTypCeny.SelectedIndex = 0; cbWaga.SelectedIndex = 0; cbTypZal.SelectedIndex = 0;
-            chkArimr.IsChecked = false; chkBezterm.IsChecked = false; chkKonfiskatyHodowca.IsChecked = true;
+            chkBezterm.IsChecked = false; chkKonfiskatyHodowca.IsChecked = true;
             _cykle.Clear(); OdswiezCykle();
+            _recznaDataDo = false;          // reset trybu auto „do"
+            _ustawiamDoAuto = true;
             dpOd.SelectedDate = DateTime.Today;
             dpDo.SelectedDate = DateTime.Today.AddYears(1);
+            _ustawiamDoAuto = false;
             dpPodpis.SelectedDate = DateTime.Today;
             hintNip.Visibility = hintPesel.Visibility = hintGosp.Visibility = Visibility.Collapsed;
             txtNip.ClearValue(BorderBrushProperty); txtPesel.ClearValue(BorderBrushProperty); txtGosp.ClearValue(BorderBrushProperty);
             panelSugestia.Visibility = Visibility.Collapsed; btnKopiuj.Visibility = Visibility.Collapsed;
-            bannerWybrany.Visibility = Visibility.Collapsed;
+            bannerWybrany.Visibility = Visibility.Collapsed; boxHistoria.Visibility = Visibility.Collapsed;
             boxWalidacja.Visibility = Visibility.Collapsed;
             lstHodowcy.SelectedItem = null; txtSzukaj.Clear();
             txtSzukaj.Focus();
@@ -491,6 +564,252 @@ namespace Kalendarz1.Kontrakty.Views
             var tokeny = WordTemplateService.BuildKontraktacjaTokens(h, w, numer);
             _word.GenerujKontraktacja(szablon!, output, tokeny, cykle);
             try { Process.Start(new ProcessStartInfo(output) { UseShellExecute = true }); } catch { }
+        }
+
+        // ── #4 Smart „Obowiązuje do" ─────────────────────────────────────────
+        private void DpOd_SelectedDateChanged(object? s, SelectionChangedEventArgs e)
+        {
+            if (!_ready || _ustawiamDoAuto || _recznaDataDo) return;
+            AktualizujDoAuto();
+        }
+
+        private void CbTyp_SelectionChanged(object? s, SelectionChangedEventArgs e)
+        {
+            if (!_ready || _ustawiamDoAuto || _recznaDataDo) return;
+            AktualizujDoAuto();
+        }
+
+        private void DpDo_SelectedDateChanged(object? s, SelectionChangedEventArgs e)
+        {
+            if (!_ready || _ustawiamDoAuto) return;
+            _recznaDataDo = true;   // user zmienił sam → przestajemy auto-aktualizować
+        }
+
+        private void AktualizujDoAuto()
+        {
+            if (dpOd.SelectedDate is not { } od) return;
+            if (chkBezterm.IsChecked == true) return;
+
+            DateTime nowaDo = TagOf(cbTyp) switch
+            {
+                "ARIMR_3LAT" => od.AddYears(3),
+                "SEZONOWY"   => od.AddMonths(6),
+                "ROCZNY"     => od.AddYears(1),
+                _            => od.AddYears(1),    // WIECZNY/SPOT — i tak rzadko z datą do, +1 rok jako placeholder
+            };
+            _ustawiamDoAuto = true;
+            dpDo.SelectedDate = nowaDo;
+            _ustawiamDoAuto = false;
+        }
+
+        // ── #12 Drag&drop PDF na karcie SKAN ─────────────────────────────────
+        private void SkanBorder_DragOver(object sender, DragEventArgs e)
+        {
+            e.Effects = DragDropEffects.None;
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                var files = (string[])e.Data.GetData(DataFormats.FileDrop);
+                if (files.Length > 0 && files[0].EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+                    e.Effects = DragDropEffects.Copy;
+            }
+            e.Handled = true;
+        }
+
+        private void SkanBorder_Drop(object sender, DragEventArgs e)
+        {
+            if (!e.Data.GetDataPresent(DataFormats.FileDrop)) return;
+            var files = (string[])e.Data.GetData(DataFormats.FileDrop);
+            if (files.Length == 0) return;
+            string plik = files[0];
+            if (!plik.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+            {
+                MessageBox.Show("Tylko pliki PDF są akceptowane.", "Skan",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            _skanPath = plik;
+            txtSkanPlik.Text = Path.GetFileName(plik);
+            e.Handled = true;
+        }
+
+        // ── #14 Auto-zapis draft i przywracanie ──────────────────────────────
+        private class DraftDto
+        {
+            public string? HodowcaDostawcaId { get; set; }
+            public string? Nazwa { get; set; }
+            public string? Nip { get; set; }
+            public string? Pesel { get; set; }
+            public string? Regon { get; set; }
+            public string? Dowod { get; set; }
+            public string? Telefon { get; set; }
+            public string? Email { get; set; }
+            public string? Gosp { get; set; }
+            public string? Adres { get; set; }
+            public string? TypTag { get; set; }
+            public string? PodmiotTag { get; set; }
+            public DateTime? DataOd { get; set; }
+            public DateTime? DataDo { get; set; }
+            public DateTime? DataPodpis { get; set; }
+            public bool Bezterm { get; set; }
+            public string? Wypow { get; set; }
+            public string? TypCenyTag { get; set; }
+            public string? WagaTag { get; set; }
+            public string? Ubytek { get; set; }
+            public string? Termin { get; set; }
+            public string? Dodatek { get; set; }
+            public bool KonfHodowca { get; set; }
+            public string? TypZalTag { get; set; }
+            public string? SkanPath { get; set; }
+            public List<DraftCykl> Cykle { get; set; } = new();
+            public DateTime Zapisano { get; set; }
+        }
+
+        private class DraftCykl
+        {
+            public int NrCyklu { get; set; }
+            public DateTime? DataWstawienia { get; set; }
+            public int? IloscWstawiona { get; set; }
+            public int? DzienUbiorki { get; set; }
+            public DateTime? DataUbojuKoncowego { get; set; }
+            public int? IloscUboju { get; set; }
+        }
+
+        private bool MaJakieŚDane()
+            => _hod != null
+            || !string.IsNullOrWhiteSpace(txtNazwa.Text)
+            || !string.IsNullOrWhiteSpace(txtNip.Text)
+            || _cykle.Count > 0;
+
+        private void ZapiszDraft()
+        {
+            if (!_ready || !MaJakieŚDane()) return;
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(DraftPath)!);
+                var d = new DraftDto
+                {
+                    HodowcaDostawcaId = _hod?.DostawcaId,
+                    Nazwa = Nn(txtNazwa.Text), Nip = Nn(txtNip.Text), Pesel = Nn(txtPesel.Text),
+                    Regon = Nn(txtRegon.Text), Dowod = Nn(txtDowod.Text), Telefon = Nn(txtTelefon.Text),
+                    Email = Nn(txtEmail.Text), Gosp = Nn(txtGosp.Text), Adres = Nn(txtAdres.Text),
+                    TypTag = TagOf(cbTyp), PodmiotTag = TagOf(cbPodmiot),
+                    DataOd = dpOd.SelectedDate, DataDo = dpDo.SelectedDate, DataPodpis = dpPodpis.SelectedDate,
+                    Bezterm = chkBezterm.IsChecked == true,
+                    Wypow = txtWypow.Text,
+                    TypCenyTag = TagOf(cbTypCeny), WagaTag = TagOf(cbWaga),
+                    Ubytek = txtUbytek.Text, Termin = txtTermin.Text, Dodatek = Nn(txtDodatek.Text),
+                    KonfHodowca = chkKonfiskatyHodowca.IsChecked == true,
+                    TypZalTag = TagOf(cbTypZal), SkanPath = _skanPath,
+                    Cykle = _cykle.Select(c => new DraftCykl
+                    {
+                        NrCyklu = c.NrCyklu,
+                        DataWstawienia = c.DataWstawienia,
+                        IloscWstawiona = c.IloscWstawiona,
+                        DzienUbiorki = c.DzienUbiorki,
+                        DataUbojuKoncowego = c.DataUbojuKoncowego,
+                        IloscUboju = c.IloscUboju
+                    }).ToList(),
+                    Zapisano = DateTime.Now
+                };
+                File.WriteAllText(DraftPath, JsonSerializer.Serialize(d));
+            }
+            catch { /* draft to luksus — nie psuj user-flow */ }
+        }
+
+        private void UsunDraft()
+        {
+            try { if (File.Exists(DraftPath)) File.Delete(DraftPath); } catch { }
+        }
+
+        private async System.Threading.Tasks.Task SprawdzDraftAsync()
+        {
+            if (!File.Exists(DraftPath)) return;
+            DraftDto? d;
+            try
+            {
+                var json = await File.ReadAllTextAsync(DraftPath);
+                d = JsonSerializer.Deserialize<DraftDto>(json);
+            }
+            catch { UsunDraft(); return; }
+            if (d == null) return;
+
+            // Stary draft (>24h) → wyrzuć cicho
+            if ((DateTime.Now - d.Zapisano).TotalHours > 24) { UsunDraft(); return; }
+
+            int min = Math.Max(1, (int)(DateTime.Now - d.Zapisano).TotalMinutes);
+            string czas = min < 60 ? $"{min} min temu" : $"{min / 60} godz. temu";
+            var r = MessageBox.Show(
+                $"Znaleziono niezapisany kontrakt sprzed {czas}.\nPrzywrócić?",
+                "Niezapisany kreator",
+                MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (r != MessageBoxResult.Yes) { UsunDraft(); return; }
+
+            await PrzywrocDraftAsync(d);
+        }
+
+        private async System.Threading.Tasks.Task PrzywrocDraftAsync(DraftDto d)
+        {
+            _ustawiamDoAuto = true;
+            try
+            {
+                // Hodowca z bazy
+                if (!string.IsNullOrEmpty(d.HodowcaDostawcaId))
+                {
+                    var dane = await _svc.GetHodowcyAsync(d.HodowcaDostawcaId);
+                    var h = dane.FirstOrDefault(x => x.DostawcaId == d.HodowcaDostawcaId);
+                    if (h != null)
+                    {
+                        lstHodowcy.ItemsSource = dane;
+                        lstHodowcy.SelectedItem = h;   // wywoła LstHodowcy_Changed → wypełni z 109
+                    }
+                }
+
+                // Pola producenta — nadpisujemy po prefillu (user mógł zmienić)
+                txtNazwa.Text = d.Nazwa ?? ""; txtNip.Text = d.Nip ?? ""; txtPesel.Text = d.Pesel ?? "";
+                txtRegon.Text = d.Regon ?? ""; txtDowod.Text = d.Dowod ?? ""; txtTelefon.Text = d.Telefon ?? "";
+                txtEmail.Text = d.Email ?? ""; txtGosp.Text = d.Gosp ?? ""; txtAdres.Text = d.Adres ?? "";
+
+                SelectByTag(cbTyp, d.TypTag ?? "ROCZNY");
+                SelectByTag(cbPodmiot, d.PodmiotTag ?? "PIORKOWSCY_SC");
+
+                dpOd.SelectedDate = d.DataOd;
+                dpDo.SelectedDate = d.DataDo;
+                dpPodpis.SelectedDate = d.DataPodpis;
+                chkBezterm.IsChecked = d.Bezterm;
+                if (!string.IsNullOrEmpty(d.Wypow)) txtWypow.Text = d.Wypow;
+
+                SelectByTag(cbTypCeny, d.TypCenyTag ?? "wolnorynkowa");
+                SelectByTag(cbWaga, d.WagaTag ?? "NETTO_HODOWCY");
+                if (!string.IsNullOrEmpty(d.Ubytek)) txtUbytek.Text = d.Ubytek;
+                if (!string.IsNullOrEmpty(d.Termin)) txtTermin.Text = d.Termin;
+                txtDodatek.Text = d.Dodatek ?? "";
+                chkKonfiskatyHodowca.IsChecked = d.KonfHodowca;
+
+                SelectByTag(cbTypZal, d.TypZalTag ?? "SKAN_PODPISANY");
+                _skanPath = d.SkanPath;
+                if (!string.IsNullOrEmpty(_skanPath) && File.Exists(_skanPath))
+                    txtSkanPlik.Text = Path.GetFileName(_skanPath);
+
+                _cykle.Clear();
+                foreach (var c in d.Cykle)
+                    _cykle.Add(new HarmonogramCykl
+                    {
+                        NrCyklu = c.NrCyklu,
+                        DataWstawienia = c.DataWstawienia,
+                        IloscWstawiona = c.IloscWstawiona,
+                        DzienUbiorki = c.DzienUbiorki ?? 33,
+                        DataUbojuKoncowego = c.DataUbojuKoncowego,
+                        IloscUboju = c.IloscUboju,
+                        Status = "PLANOWANY"
+                    });
+                OdswiezCykle();
+
+                _recznaDataDo = true; // przywrócone „do" traktujemy jak ustawione ręcznie (nie nadpisujemy)
+            }
+            finally
+            {
+                _ustawiamDoAuto = false;
+            }
         }
 
         // ── Helpers ──────────────────────────────────────────────────────────
