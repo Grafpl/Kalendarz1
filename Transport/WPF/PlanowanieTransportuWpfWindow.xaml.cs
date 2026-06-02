@@ -203,7 +203,20 @@ namespace Kalendarz1.Transport.WPF
             if (Keyboard.FocusedElement is TextBox) return;   // nie przejmuj skrótów podczas pisania
             if (e.Key == Key.Insert) { OtworzEdytor(true); e.Handled = true; }
             else if (e.Key == Key.Delete && KursyGrid.SelectedItem is KursRow) { BtnUsun_Click(this, new RoutedEventArgs()); e.Handled = true; }
-            else if (e.Key == Key.Enter && KursyGrid.SelectedItem is KursRow) { OtworzEdytor(false); e.Handled = true; }
+            else if (e.Key == Key.Enter)
+            {
+                // Enter przy widocznym panelu zmian → Akceptuj wszystkie (priorytet nad edytorem)
+                if (PanelZmianyDlaKursu.Visibility == Visibility.Visible && _detalZmiany.Count > 0)
+                {
+                    BtnDetalAkceptujWszystkie_Click(this, new RoutedEventArgs());
+                    e.Handled = true;
+                }
+                else if (KursyGrid.SelectedItem is KursRow)
+                {
+                    OtworzEdytor(false);
+                    e.Handled = true;
+                }
+            }
         }
 
         // ════════════════════════════════════════════════════════════════════

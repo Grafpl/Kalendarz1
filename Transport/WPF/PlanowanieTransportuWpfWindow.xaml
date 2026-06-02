@@ -305,36 +305,36 @@
 
                 <!-- ═══════ PANEL DETALI ZMIAN dla zaznaczonego kursu (auto-show gdy 🔔 > 0) ═══════ -->
                 <Border Grid.Row="1" x:Name="PanelZmianyDlaKursu" Visibility="Collapsed"
-                        Background="#FFFCF2" BorderBrush="#F0E0B0" BorderThickness="1" CornerRadius="8"
-                        Margin="0,8,0,0" MaxHeight="320">
+                        Background="#FFFCF2" BorderBrush="#F0E0B0" BorderThickness="1" CornerRadius="6"
+                        Margin="0,6,0,0" MaxHeight="220">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
-                        <Border Grid.Row="0" Background="#FFF7E0" BorderBrush="#F0E0B0" BorderThickness="0,0,0,1" Padding="14,8" CornerRadius="7,7,0,0">
+                        <Border Grid.Row="0" Background="#FFF7E0" BorderBrush="#F0E0B0" BorderThickness="0,0,0,1" Padding="12,5" CornerRadius="5,5,0,0">
                             <DockPanel>
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Text="🔔" FontSize="14" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                    <TextBlock x:Name="DetalNaglowek" FontWeight="SemiBold" Foreground="#8A4A00" VerticalAlignment="Center" FontSize="12.5"/>
+                                    <TextBlock Text="🔔" FontSize="13" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="DetalNaglowek" FontWeight="SemiBold" Foreground="#8A4A00" VerticalAlignment="Center" FontSize="12"/>
                                 </StackPanel>
                                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right">
-                                    <Button x:Name="BtnDetalHistoria" Content="📜 Historia" Style="{StaticResource BtnGhost}" Height="26" Margin="0,0,6,0" Padding="10,3"
+                                    <Button x:Name="BtnDetalHistoria" Content="📜 Historia" Style="{StaticResource BtnGhost}" Height="24" Margin="0,0,5,0" Padding="8,2"
                                             Click="BtnDetalHistoria_Click" ToolTip="Pokaż wszystkie zmiany dla kursu (zaakceptowane + odrzucone + oczekujące)"/>
-                                    <Button x:Name="BtnDetalEdytor" Content="📝 Otwórz edytor" Style="{StaticResource BtnGhost}" Height="26" Margin="0,0,6,0" Padding="10,3"
+                                    <Button x:Name="BtnDetalEdytor" Content="📝 Edytor" Style="{StaticResource BtnGhost}" Height="24" Margin="0,0,5,0" Padding="8,2"
                                             Click="BtnDetalEdytor_Click" ToolTip="Otwórz pełny edytor kursu z kartami zmian"/>
-                                    <Button x:Name="BtnDetalAkceptujWszystkie" Style="{StaticResource BtnPrimary}" Height="26" Padding="10,3"
-                                            Click="BtnDetalAkceptujWszystkie_Click">
+                                    <Button x:Name="BtnDetalAkceptujWszystkie" Style="{StaticResource BtnPrimary}" Height="24" Padding="9,2"
+                                            Click="BtnDetalAkceptujWszystkie_Click" ToolTip="Skrót: Enter">
                                         <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="✓" Foreground="White" FontWeight="Bold" Margin="0,0,5,0"/>
-                                            <TextBlock x:Name="BtnDetalAkceptujText" Text="Akceptuj wszystkie" VerticalAlignment="Center"/>
+                                            <TextBlock Text="✓" Foreground="White" FontWeight="Bold" Margin="0,0,4,0"/>
+                                            <TextBlock x:Name="BtnDetalAkceptujText" Text="Akceptuj wszystkie (Enter)" VerticalAlignment="Center" FontSize="11.5"/>
                                         </StackPanel>
                                     </Button>
                                 </StackPanel>
                             </DockPanel>
                         </Border>
                         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                            <ItemsControl x:Name="DetalListaZmian" Padding="8,8">
+                            <ItemsControl x:Name="DetalListaZmian" Padding="5,5">
                                 <ItemsControl.GroupStyle>
                                     <GroupStyle>
                                         <GroupStyle.Panel>
@@ -360,50 +360,48 @@
                                 </ItemsControl.GroupStyle>
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Border Background="White" BorderBrush="#E5E8EB" BorderThickness="1" CornerRadius="5" Margin="0,0,5,5">
-                                            <Grid MinHeight="50">
+                                        <Border Background="White" BorderBrush="#E5E8EB" BorderThickness="1" CornerRadius="4" Margin="0,0,4,3">
+                                            <Grid MinHeight="36">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="3"/>
-                                                    <ColumnDefinition Width="38"/>
+                                                    <ColumnDefinition Width="30"/>
                                                     <ColumnDefinition Width="Auto"/>
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="Auto"/>
                                                     <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
                                                 <Rectangle Grid.Column="0" Fill="{Binding AkcentBrush}"/>
-                                                <TextBlock Grid.Column="1" Text="{Binding TypEmoji}" FontSize="18"
+                                                <TextBlock Grid.Column="1" Text="{Binding TypEmoji}" FontSize="15"
                                                            HorizontalAlignment="Center" VerticalAlignment="Center"
                                                            ToolTip="{Binding TypLabel}"/>
-                                                <!-- TYP — drugorzędny -->
-                                                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="2,0,12,0">
+                                                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="2,0,10,0">
                                                     <TextBlock Text="{Binding TypLabel}" Foreground="{Binding AkcentBrush}"
-                                                               FontWeight="SemiBold" FontSize="12" TextTrimming="CharacterEllipsis" MaxWidth="140"/>
-                                                    <Border Background="{Binding AkcentSoft}" CornerRadius="8" Padding="5,0" Margin="5,0,0,0"
+                                                               FontWeight="SemiBold" FontSize="11" TextTrimming="CharacterEllipsis" MaxWidth="120"/>
+                                                    <Border Background="{Binding AkcentSoft}" CornerRadius="7" Padding="4,0" Margin="4,0,0,0"
                                                             Visibility="{Binding ScaloneVis}" ToolTip="{Binding ScaloneTooltip}" VerticalAlignment="Center">
-                                                        <TextBlock Text="{Binding ScaloneText}" Foreground="{Binding AkcentBrush}" FontSize="10" FontWeight="Bold"/>
+                                                        <TextBlock Text="{Binding ScaloneText}" Foreground="{Binding AkcentBrush}" FontSize="9.5" FontWeight="Bold"/>
                                                     </Border>
                                                 </StackPanel>
-                                                <!-- WARTOŚCI — DOMINUJĄCE, obok siebie, duża czcionka -->
                                                 <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
-                                                    <Border Background="#F4F6F8" CornerRadius="4" Padding="8,2">
-                                                        <TextBlock Text="{Binding Stare}" Foreground="#5b6776" FontSize="14" FontFamily="Consolas" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxWidth="90"/>
+                                                    <Border Background="#F4F6F8" CornerRadius="3" Padding="6,1">
+                                                        <TextBlock Text="{Binding Stare}" Foreground="#5b6776" FontSize="13" FontFamily="Consolas" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxWidth="80"/>
                                                     </Border>
-                                                    <TextBlock Text="→" Foreground="#9aa0b0" Margin="6,0" VerticalAlignment="Center" FontSize="15" FontWeight="Bold"/>
-                                                    <Border Background="#E0F2F1" CornerRadius="4" Padding="8,2">
-                                                        <TextBlock Text="{Binding Nowa}" Foreground="#00695C" FontSize="14" FontFamily="Consolas" FontWeight="Bold" TextTrimming="CharacterEllipsis" MaxWidth="90"/>
+                                                    <TextBlock Text="→" Foreground="#9aa0b0" Margin="5,0" VerticalAlignment="Center" FontSize="13" FontWeight="Bold"/>
+                                                    <Border Background="#E0F2F1" CornerRadius="3" Padding="6,1">
+                                                        <TextBlock Text="{Binding Nowa}" Foreground="#00695C" FontSize="13" FontFamily="Consolas" FontWeight="Bold" TextTrimming="CharacterEllipsis" MaxWidth="80"/>
                                                     </Border>
                                                     <TextBlock Text="{Binding DeltaText}" Foreground="{Binding DeltaBrush}"
-                                                               FontWeight="Bold" FontSize="14" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                                               FontWeight="Bold" FontSize="13" Margin="6,0,0,0" VerticalAlignment="Center"/>
                                                 </StackPanel>
                                                 <TextBlock Grid.Column="4" Text="{Binding ZglosilDisplay}" Foreground="#8893a0"
-                                                           FontSize="10.5" VerticalAlignment="Center" Margin="10,0,10,0" TextTrimming="CharacterEllipsis" MaxWidth="120"/>
-                                                <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,6,0">
+                                                           FontSize="10" VerticalAlignment="Center" Margin="8,0,8,0" TextTrimming="CharacterEllipsis" MaxWidth="110"/>
+                                                <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,5,0">
                                                     <Button Content="✓" Tag="{Binding}" Click="BtnDetalAkceptujJedno_Click" ToolTip="Akceptuj zmianę"
                                                             Background="#E7F4E8" BorderBrush="#9ECAA0" BorderThickness="1" Foreground="#2E7D32"
-                                                            Width="30" Height="28" Margin="0,0,4,0" FontWeight="Bold" FontSize="14" Cursor="Hand"/>
+                                                            Width="26" Height="22" Margin="0,0,3,0" FontWeight="Bold" FontSize="12" Cursor="Hand"/>
                                                     <Button Content="✗" Tag="{Binding}" Click="BtnDetalOdrzucJedno_Click" ToolTip="Odrzuć zmianę"
                                                             Background="#FDECEC" BorderBrush="#E5A0A0" BorderThickness="1" Foreground="#C62828"
-                                                            Width="30" Height="28" FontWeight="Bold" FontSize="14" Cursor="Hand"/>
+                                                            Width="26" Height="22" FontWeight="Bold" FontSize="12" Cursor="Hand"/>
                                                 </StackPanel>
                                             </Grid>
                                         </Border>
