@@ -74,6 +74,60 @@
                 <Setter Property="Margin" Value="0,0,6,0"/>
             </Style>
 
+            <!-- ═════ Karta z podniesieniem (subtelny cień) ═════ -->
+            <Style x:Key="CardElev" TargetType="Border" BasedOn="{StaticResource Card}">
+                <Setter Property="Effect">
+                    <Setter.Value>
+                        <DropShadowEffect BlurRadius="14" ShadowDepth="2" Direction="270"
+                                          Color="#94A3B8" Opacity="0.16"/>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- ═════ Kafelek cyklu z hover (subtelna interakcja) ═════ -->
+            <Style x:Key="CycleTile" TargetType="Border">
+                <Setter Property="Background" Value="White"/>
+                <Setter Property="CornerRadius" Value="12"/>
+                <Setter Property="Margin" Value="0,0,0,10"/>
+                <Setter Property="Padding" Value="16,13"/>
+                <Setter Property="BorderBrush" Value="{StaticResource Line}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Style.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="BorderBrush" Value="#0D9488"/>
+                        <Setter Property="Background" Value="#F0FAF9"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+
+            <!-- ═════ ListBoxItem z hover/selected akcentem (lista hodowców) ═════ -->
+            <Style TargetType="ListBoxItem">
+                <Setter Property="Padding" Value="6,4"/>
+                <Setter Property="Background" Value="Transparent"/>
+                <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                <Setter Property="BorderBrush" Value="#F1F5F9"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ListBoxItem">
+                            <Border x:Name="b" Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                                    Padding="{TemplateBinding Padding}" CornerRadius="6">
+                                <ContentPresenter/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="b" Property="Background" Value="#F0FDF4"/>
+                                </Trigger>
+                                <Trigger Property="IsSelected" Value="True">
+                                    <Setter TargetName="b" Property="Background" Value="#DCFCE7"/>
+                                    <Setter TargetName="b" Property="BorderBrush" Value="#86EFAC"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
             <!-- ═════ Przycisk teal dla cykli (Dodaj wstawienie) ═════ -->
             <Style x:Key="BtnTeal" TargetType="Button" BasedOn="{StaticResource Btn}">
                 <Setter Property="Foreground" Value="White"/>
@@ -105,8 +159,11 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- ════ Header (kompaktowy, 1 linia) ════ -->
+        <!-- ════ Header (kompaktowy, 1 linia, z subtelnym cieniem) ════ -->
         <Border Grid.Row="0" Background="{StaticResource HeaderBrush}" Padding="22,7">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="8" ShadowDepth="1" Direction="270" Color="#0F172A" Opacity="0.18"/>
+            </Border.Effect>
             <Grid>
                 <TextBlock x:Name="txtTytulKrok" Text="➕ Nowy kontrakt z hodowcą"
                            Foreground="White" FontSize="15" FontWeight="Bold" VerticalAlignment="Center"/>
@@ -130,7 +187,7 @@
                 <StackPanel x:Name="col1Panel" Grid.Column="0">
 
                     <!-- 🔎 ZNAJDŹ HODOWCĘ (pasek #2E7D32) -->
-                    <Border Style="{StaticResource Card}" Padding="0">
+                    <Border Style="{StaticResource CardElev}" Padding="0">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="6"/>
@@ -232,7 +289,7 @@
                     </Border>
 
                     <!-- 🧑‍🌾 DANE PRODUCENTA (pasek #2E7D32) -->
-                    <Border Style="{StaticResource Card}" Padding="0" Margin="0,12,0,0">
+                    <Border Style="{StaticResource CardElev}" Padding="0" Margin="0,12,0,0">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="6"/>
@@ -305,7 +362,7 @@
                 <StackPanel x:Name="col2Panel" Grid.Column="2">
 
                     <!-- 📄 UMOWA I OKRES (pasek #2563EB) -->
-                    <Border Style="{StaticResource Card}" Padding="0">
+                    <Border Style="{StaticResource CardElev}" Padding="0">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="6"/>
@@ -377,7 +434,7 @@
                     </Border>
 
                     <!-- 💰 WARUNKI HANDLOWE + ☑ KONFISKATY (pasek #D97706) -->
-                    <Border Style="{StaticResource Card}" Padding="0" Margin="0,12,0,0">
+                    <Border Style="{StaticResource CardElev}" Padding="0" Margin="0,12,0,0">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="6"/>
@@ -484,7 +541,7 @@
                     </Grid.RowDefinitions>
 
                     <!-- 🐔 CYKLE WSTAWIEŃ (pasek #0D9488 teal) -->
-                    <Border Grid.Row="0" Style="{StaticResource Card}" Padding="0">
+                    <Border Grid.Row="0" Style="{StaticResource CardElev}" Padding="0">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="6"/>
@@ -534,8 +591,7 @@
                                     <ItemsControl x:Name="icCykle">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <Border Background="White" CornerRadius="12" Margin="0,0,0,10" Padding="16,13"
-                                                        BorderBrush="{StaticResource Line}" BorderThickness="1">
+                                                <Border Style="{StaticResource CycleTile}">
                                                     <StackPanel>
                                                         <Grid>
                                                             <Border Background="#E0F2F0" CornerRadius="8" Padding="11,5" HorizontalAlignment="Left">
@@ -585,14 +641,14 @@
                                                                     Padding="13,4" Height="34" ToolTip="Edytuj wstawienie">
                                                                 <StackPanel Orientation="Horizontal">
                                                                     <TextBlock Style="{StaticResource IcoBtn}" Text="&#xE70F;"/>
-                                                                    <TextBlock Text="Edytuj" VerticalAlignment="Center" FontSize="12.5"/>
+                                                                    <TextBlock Text="Edytuj" VerticalAlignment="Center" FontSize="13"/>
                                                                 </StackPanel>
                                                             </Button>
                                                             <Button Style="{StaticResource Btn}" Tag="{Binding}" Click="BtnUsunCyklJeden_Click"
                                                                     Padding="13,4" Height="34" ToolTip="Usuń wstawienie">
                                                                 <StackPanel Orientation="Horizontal">
                                                                     <TextBlock Style="{StaticResource IcoBtn}" Text="&#xE74D;"/>
-                                                                    <TextBlock Text="Usuń" VerticalAlignment="Center" FontSize="12.5"/>
+                                                                    <TextBlock Text="Usuń" VerticalAlignment="Center" FontSize="13"/>
                                                                 </StackPanel>
                                                             </Button>
                                                         </StackPanel>
@@ -607,7 +663,7 @@
                     </Border>
 
                     <!-- 📎 SKAN / ZAŁĄCZNIK (pasek #94A3B8) -->
-                    <Border Grid.Row="1" Style="{StaticResource Card}" Padding="0" Margin="0,12,0,0">
+                    <Border Grid.Row="1" Style="{StaticResource CardElev}" Padding="0" Margin="0,12,0,0">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="6"/>
