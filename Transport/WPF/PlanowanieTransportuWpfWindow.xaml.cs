@@ -67,7 +67,9 @@ namespace Kalendarz1.Transport.WPF
             KursyGrid.DragLeave += (_, _) => ResetHover();
             DataKursu.SelectedDate = DateTime.Today;
             Loaded += async (_, _) => await LoadWszystkoAsync();
-            KeyDown += Skroty_KeyDown;
+            // PreviewKeyDown (tunneling) — dostajemy Enter PRZED DataGridem.
+            // Inaczej DataGrid przejmuje Enter i przewija na następny wiersz.
+            PreviewKeyDown += Skroty_KeyDown;
             Closed += (_, _) => _autoTimer?.Stop();
         }
 
@@ -212,17 +214,12 @@ namespace Kalendarz1.Transport.WPF
             else if (e.Key == Key.Delete && KursyGrid.SelectedItem is KursRow) { BtnUsun_Click(this, new RoutedEventArgs()); e.Handled = true; }
             else if (e.Key == Key.Enter)
             {
-                // Enter przy widocznym panelu zmian → Akceptuj wszystkie (priorytet nad edytorem)
+                // Enter SŁUŻY WYŁĄCZNIE do akceptacji zmian (preferencja użytkownika).
+                // Zawsze e.Handled = true → blokuje domyślne przewijanie wiersza DataGrid w dół.
                 if (PanelZmianyDlaKursu.Visibility == Visibility.Visible && _detalZmiany.Count > 0)
-                {
                     BtnDetalAkceptujWszystkie_Click(this, new RoutedEventArgs());
-                    e.Handled = true;
-                }
-                else if (KursyGrid.SelectedItem is KursRow)
-                {
-                    OtworzEdytor(false);
-                    e.Handled = true;
-                }
+                e.Handled = true;
+                // Edytor otwierany dwuklikiem na wierszu lub przyciskiem "Edytuj" — NIE Enterem.
             }
             else if (e.Key == Key.Escape && PanelZmianyDlaKursu.Visibility == Visibility.Visible)
             {
