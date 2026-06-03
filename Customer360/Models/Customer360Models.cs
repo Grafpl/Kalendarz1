@@ -78,6 +78,18 @@ namespace Kalendarz1.Customer360.Models
         public Kalendarz1.Customer360.Services.Customer360Score? Score { get; set; }
     }
 
+    /// <summary>Notatka handlowca per klient — "dziennik klienta" w C360.</summary>
+    public class NotatkaC360
+    {
+        public int Id { get; set; }
+        public string Tresc { get; set; } = "";
+        public string AutorId { get; set; } = "";
+        public DateTime CreatedAt { get; set; }
+
+        public string CreatedAtPl => CreatedAt.ToString("dd.MM.yyyy HH:mm");
+        public string TrescSkrocona => Tresc.Length > 80 ? Tresc.Substring(0, 77) + "..." : Tresc;
+    }
+
     /// <summary>Wiersz historii zamówień (tabela).</summary>
     public class OrderHistoryItem
     {

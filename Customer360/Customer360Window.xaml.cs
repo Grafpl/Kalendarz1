@@ -1059,6 +1059,10 @@ namespace Kalendarz1.Customer360
                 EmptyKontakty.Visibility = kontakty.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
             }
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine("[C360 kontakty] " + ex.Message); }
+
+            // Notatki handlowca (dziennik klienta) — w tej samej grupie zakladek "Klient"
+            try { await OdswiezNotatki(); }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine("[C360 notatki] " + ex.Message); }
         }
 
         private async Task LoadAnalizaTabAsync(int klientId)
@@ -1347,6 +1351,40 @@ namespace Kalendarz1.Customer360
                 EmptyKontakty.Visibility = kontakty.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
             }
             catch { }
+        }
+
+        // ── Notatki handlowca (dziennik klienta) ──
+
+        private async void BtnDodajNotatke_Click(object sender, RoutedEventArgs e)
+        {
+            if (!_selectedKlientId.HasValue) return;
+            string tresc = TxtNowaNotatka.Text?.Trim() ?? "";
+            if (tresc.Length == 0) return;
+            bool ok = await Customer360NotatkiService.DodajAsync(_selectedKlientId.Value, tresc, App.UserID ?? "?");
+            if (ok)
+            {
+                TxtNowaNotatka.Clear();
+                await OdswiezNotatki();
+            }
+            else MessageBox.Show(this, "Nie udało się zapisać notatki.", "Notatki", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+
+        private async void BtnUsunNotatke_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not Button btn || btn.Tag is not int id) return;
+            if (MessageBox.Show(this, "Usunąć notatkę?", "Notatki", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+            await Customer360NotatkiService.UsunAsync(id);
+            await OdswiezNotatki();
+        }
+
+        private async Task OdswiezNotatki()
+        {
+            if (!_selectedKlientId.HasValue) return;
+            var notatki = await Customer360NotatkiService.GetNotatkiAsync(_selectedKlientId.Value);
+            ListNotatki.ItemsSource = notatki;
+            LblNotatkiCount.Text = notatki.Count == 0
+                ? "Brak notatek — dodaj pierwszą po rozmowie/spotkaniu."
+                : $"{notatki.Count} notatek · ostatnia: {notatki[0].CreatedAtPl}";
         }
 
         #endregion

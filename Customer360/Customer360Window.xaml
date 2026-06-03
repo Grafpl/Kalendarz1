@@ -737,6 +737,66 @@
                 </Border>
             </TabItem>
 
+            <!-- Tab: NOTATKI handlowca — dziennik klienta -->
+            <TabItem Header="📝 Notatki">
+                <Grid Margin="20,16">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Pasek dodawania -->
+                    <Border Grid.Row="0" Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                        <DockPanel>
+                            <Button x:Name="BtnDodajNotatke" Content="➕ Dodaj"
+                                    DockPanel.Dock="Right" Click="BtnDodajNotatke_Click"
+                                    Padding="14,7" Margin="10,0,0,0" Cursor="Hand"
+                                    Background="#2563EB" Foreground="White" BorderThickness="0"
+                                    FontWeight="SemiBold"/>
+                            <TextBox x:Name="TxtNowaNotatka"
+                                     MinHeight="64" MaxHeight="120" AcceptsReturn="True"
+                                     TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
+                                     FontSize="13" Padding="10,8"
+                                     ToolTip="Notatka z rozmowy/spotkania (Ctrl+Enter = zapisz)"/>
+                        </DockPanel>
+                    </Border>
+
+                    <TextBlock Grid.Row="1" x:Name="LblNotatkiCount" Text="" FontSize="11"
+                               Foreground="#64748B" Margin="0,0,0,8"/>
+
+                    <!-- Lista notatek -->
+                    <ItemsControl Grid.Row="2" x:Name="ListNotatki">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1"
+                                        CornerRadius="6" Padding="12,10" Margin="0,0,0,8">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="{Binding Tresc}" TextWrapping="Wrap" FontSize="13"
+                                                       Foreground="#0F172A"/>
+                                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                                <TextBlock Text="{Binding CreatedAtPl}" FontSize="11" Foreground="#64748B"/>
+                                                <TextBlock Text=" · " FontSize="11" Foreground="#94A3B8"/>
+                                                <TextBlock Text="{Binding AutorId}" FontSize="11" Foreground="#64748B" FontWeight="SemiBold"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                        <Button Grid.Column="1" Content="🗑" Tag="{Binding Id}" Click="BtnUsunNotatke_Click"
+                                                Background="Transparent" BorderThickness="0" Cursor="Hand"
+                                                VerticalAlignment="Top" Padding="6,2"
+                                                ToolTip="Usuń notatkę"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Grid>
+            </TabItem>
+
               </TabControl>
             </TabItem>
             <!-- ═══ GRUPA: ANALIZA ═══ -->
