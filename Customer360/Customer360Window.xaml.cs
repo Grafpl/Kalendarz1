@@ -696,6 +696,8 @@ namespace Kalendarz1.Customer360
 
             // ── KPI finansowe — wartosci z OKRESU wybranego w UI ──
             KpiObrot.Text = $"{kpi.ObrotOkres:N0} zł";
+            // Trend-color tla tile: zielony gdy YoY >+5%, czerwony gdy <-10%, neutralny posrodku
+            string tloObrot = "#FFFFFF";
             if (kpi.ObrotOkresPrev > 0)
             {
                 decimal yoy = (kpi.ObrotOkres - kpi.ObrotOkresPrev) / kpi.ObrotOkresPrev * 100m;
@@ -703,8 +705,10 @@ namespace Kalendarz1.Customer360
                 string yoyLabel = kpi.OkresMiesiacy == 12 ? "YoY" : $"vs poprzedni {kpi.OkresLabel}";
                 KpiObrotYoY.Text = $"{arrow} {Math.Abs(yoy):N1}% {yoyLabel}";
                 KpiObrotYoY.Foreground = B(yoy >= 0 ? "#16A34A" : "#DC2626");
+                tloObrot = yoy >= 5m ? "#ECFDF5" : yoy <= -10m ? "#FEF2F2" : "#FFFFFF";
             }
             else KpiObrotYoY.Text = kpi.OkresMiesiacy == 0 ? "Cała historia (brak okresu odniesienia)" : "Brak danych do porównania";
+            TileObrot.Background = B(tloObrot);
 
             // Śr. wartość faktury = obrot okresu / liczba faktur okresu
             decimal srFaktura = kpi.LiczbaFakturOkres > 0 ? kpi.ObrotOkres / kpi.LiczbaFakturOkres : 0m;
@@ -716,6 +720,13 @@ namespace Kalendarz1.Customer360
 
             KpiLimit.Text = $"{kpi.LimitKredytowy:N0} zł";
             KpiDoZap.Text = $"Do zapłaty: {kpi.DoZaplaty:N0} zł · {kpi.LiczbaFaktur} fakt.";
+            // Trend-color tile limitu: czerwony gdy przekroczony, blade-amber gdy >80%, neutralny ponizej
+            decimal wykLim = kpi.WykorzystanieLimitProc;
+            string tloLimit = kpi.LimitKredytowy <= 0 ? "#FFFFFF"
+                            : wykLim > 100m ? "#FEF2F2"
+                            : wykLim >= 80m ? "#FFFBEB"
+                            : "#FFFFFF";
+            TileLimit.Background = B(tloLimit);
 
             // ── Chip: wykorzystanie limitu (kolor wg progu) ──
             decimal wyk = kpi.WykorzystanieLimitProc;
@@ -745,6 +756,11 @@ namespace Kalendarz1.Customer360
             // ── Chip: reklamacje ──
             KpiReklamacje.Text = kpi.LiczbaReklamacji12M.ToString();
             KpiReklamacjeProc.Text = kpi.LiczbaReklamacji12M > 0 ? $"{kpi.RelativeReklamacjeProc:N2}% obrotu" : "Brak reklamacji ✓";
+            // Tile reklamacji: czerwony gdy >0.5% obrotu (uznane za nadmierne), blade-amber gdy >0, biale gdy brak
+            string tloRek = kpi.LiczbaReklamacji12M == 0 ? "#FFFFFF"
+                          : kpi.RelativeReklamacjeProc > 0.5m ? "#FEF2F2"
+                          : "#FFFBEB";
+            ChipReklamacje.Background = B(tloRek);
 
             // ── Churn (hero) ──
             string churnBg = kpi.ChurnRiskLevel switch

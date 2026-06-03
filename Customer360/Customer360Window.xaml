@@ -351,28 +351,28 @@
 
                         <!-- ════ KPI FINANSOWE ════ -->
                         <UniformGrid Columns="4" Rows="1" Margin="0,0,0,12">
-                            <Border Style="{StaticResource KpiCard}" Margin="0,0,8,0">
+                            <Border x:Name="TileObrot" Style="{StaticResource KpiCard}" Margin="0,0,8,0">
                                 <StackPanel>
                                     <TextBlock x:Name="KpiObrotLabel" Text="OBRÓT 12 MIES" Style="{StaticResource KpiLabel}"/>
                                     <TextBlock x:Name="KpiObrot" Text="—" Style="{StaticResource KpiValue}" Foreground="#1E40AF" Margin="0,4,0,0"/>
                                     <TextBlock x:Name="KpiObrotYoY" Text="—" Style="{StaticResource KpiSubvalue}" Margin="0,2,0,0"/>
                                 </StackPanel>
                             </Border>
-                            <Border Style="{StaticResource KpiCard}" Margin="4,0">
+                            <Border x:Name="TileSrFaktura" Style="{StaticResource KpiCard}" Margin="4,0">
                                 <StackPanel>
                                     <TextBlock Text="ŚR. WARTOŚĆ FAKTURY" Style="{StaticResource KpiLabel}"/>
                                     <TextBlock x:Name="KpiSrFaktura" Text="—" Style="{StaticResource KpiValue}" Foreground="{StaticResource Success}" Margin="0,4,0,0"/>
                                     <TextBlock x:Name="KpiSrFakturaSub" Text="—" Style="{StaticResource KpiSubvalue}" Margin="0,2,0,0"/>
                                 </StackPanel>
                             </Border>
-                            <Border Style="{StaticResource KpiCard}" Margin="4,0">
+                            <Border x:Name="TileLiczbaZam" Style="{StaticResource KpiCard}" Margin="4,0">
                                 <StackPanel>
                                     <TextBlock x:Name="KpiLiczbaZamLabel" Text="ZAMÓWIENIA 12 MIES" Style="{StaticResource KpiLabel}"/>
                                     <TextBlock x:Name="KpiLiczbaZam" Text="—" Style="{StaticResource KpiValue}" Margin="0,4,0,0"/>
                                     <TextBlock x:Name="KpiSumaKg" Text="—" Style="{StaticResource KpiSubvalue}" Margin="0,2,0,0"/>
                                 </StackPanel>
                             </Border>
-                            <Border Style="{StaticResource KpiCard}" Margin="8,0,0,0">
+                            <Border x:Name="TileLimit" Style="{StaticResource KpiCard}" Margin="8,0,0,0">
                                 <StackPanel>
                                     <TextBlock Text="LIMIT / DO ZAPŁATY" Style="{StaticResource KpiLabel}"/>
                                     <TextBlock x:Name="KpiLimit" Text="—" Style="{StaticResource KpiValue}" Margin="0,4,0,0"/>
