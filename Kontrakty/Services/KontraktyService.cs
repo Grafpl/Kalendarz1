@@ -118,6 +118,28 @@ ORDER BY (CASE WHEN k.DniDoWygasniecia IS NULL THEN 1 ELSE 0 END),
             _ => "1 = 1"
         };
 
+        // ─── Wszystkie kontrakty danego hodowcy (dla „skopiuj z istniejącego") ─
+        public async Task<List<KontraktListItem>> GetKontraktyHodowcyAsync(string dostawcaId)
+        {
+            var lista = new List<KontraktListItem>();
+            string sql = $@"
+{KolumnyListy}
+{ZrodloListy}
+WHERE k.DostawcaId = @d
+ORDER BY k.Rok DESC, k.LpRoku DESC;";
+            try
+            {
+                using var cn = new SqlConnection(_conn);
+                await cn.OpenAsync();
+                using var cmd = new SqlCommand(sql, cn) { CommandTimeout = Timeout };
+                cmd.Parameters.AddWithValue("@d", dostawcaId);
+                using var r = await cmd.ExecuteReaderAsync();
+                while (await r.ReadAsync()) lista.Add(MapItem(r));
+            }
+            catch (SqlException) { }
+            return lista;
+        }
+
         // ─── Aktywne kontrakty danego hodowcy (wejście ze Sprawdzalki) ────────
         public async Task<List<KontraktListItem>> GetAktywneKontraktyHodowcyAsync(string dostawcaId)
         {

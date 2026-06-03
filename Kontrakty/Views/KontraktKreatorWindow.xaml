@@ -235,14 +235,24 @@
                                         <TextBlock Style="{StaticResource Ico}" Text="&#xE721;" Foreground="#1B5E20"/>
                                         <TextBlock Text="ZNAJDŹ HODOWCĘ" Style="{StaticResource CardTitle}" Foreground="#1B5E20"/>
                                     </StackPanel>
-                                    <Button x:Name="btnKopiuj" Style="{StaticResource BtnLink}"
-                                            HorizontalAlignment="Right" Visibility="Collapsed" Click="BtnKopiuj_Click"
-                                            ToolTip="Kopiuj warunki z poprzedniego kontraktu">
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Style="{StaticResource IcoBtn}" Text="&#xE8C8;"/>
-                                            <TextBlock Text="Kopiuj" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                    </Button>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <Button x:Name="btnZIstniejacego" Style="{StaticResource BtnLink}"
+                                                Visibility="Collapsed" Click="BtnZIstniejacego_Click"
+                                                ToolTip="Wybierz z listy kontraktów tego hodowcy (aneks/przedłużenie)">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Style="{StaticResource IcoBtn}" Text="&#xE71D;"/>
+                                                <TextBlock Text="Z istniejącego…" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Button>
+                                        <Button x:Name="btnKopiuj" Style="{StaticResource BtnLink}"
+                                                Visibility="Collapsed" Click="BtnKopiuj_Click" Margin="6,0,0,0"
+                                                ToolTip="Kopiuj warunki z ostatniego kontraktu hodowcy">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Style="{StaticResource IcoBtn}" Text="&#xE8C8;"/>
+                                                <TextBlock Text="Kopiuj ostatni" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </StackPanel>
                                 </Grid>
 
                                 <Border Background="{StaticResource Surface}" CornerRadius="10" BorderBrush="{StaticResource FieldBorder}"
@@ -319,6 +329,33 @@
                                         </Button>
                                     </Grid>
                                 </Border>
+
+                                <!-- #3 Banner: hodowca ma już aktywny kontrakt -->
+                                <Border x:Name="boxAktywneKontrakty" Visibility="Collapsed" Margin="0,8,0,0"
+                                        Background="#FEF3C7" CornerRadius="11" Padding="14,10"
+                                        BorderBrush="#F59E0B" BorderThickness="1">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="⚠" FontSize="22" Foreground="#92400E"
+                                                   VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <TextBlock x:Name="txtAktywneTytul" Text="Hodowca ma aktywny kontrakt"
+                                                       FontSize="13.5" FontWeight="Bold" Foreground="#92400E"/>
+                                            <TextBlock x:Name="txtAktywneSzczegoly" FontSize="12" Foreground="#92400E"
+                                                       Opacity="0.9" Margin="0,2,0,0" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                        <Button Grid.Column="2" x:Name="btnZobaczAktywny"
+                                                Style="{StaticResource BtnLink}" Click="BtnZIstniejacego_Click"
+                                                VerticalAlignment="Center" Margin="10,0,0,0"
+                                                ToolTip="Otwórz listę kontraktów hodowcy">
+                                            <TextBlock Text="📋  Zobacz/skopiuj" Foreground="#92400E" FontWeight="SemiBold"/>
+                                        </Button>
+                                    </Grid>
+                                </Border>
                             </StackPanel>
                         </Grid>
                     </Border>
@@ -348,7 +385,24 @@
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0">
                                         <TextBlock Text="🔖 NIP" Style="{StaticResource LblBig}"/>
-                                        <TextBox x:Name="txtNip" TextChanged="PoleWalid_Changed"/>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBox Grid.Column="0" x:Name="txtNip" TextChanged="PoleWalid_Changed"/>
+                                            <Button Grid.Column="1" x:Name="btnGus" Click="BtnGus_Click"
+                                                    Margin="6,0,0,0" Height="44" Padding="12,0" FontSize="13"
+                                                    Background="#2563EB" Foreground="White" BorderThickness="0"
+                                                    Cursor="Hand" IsEnabled="False"
+                                                    ToolTip="Pobierz nazwę, REGON i adres z Białej Listy MF (po NIP)">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="🌐" FontSize="14" VerticalAlignment="Center"/>
+                                                    <TextBlock x:Name="txtGusLabel" Text="GUS" Margin="6,0,0,0"
+                                                               VerticalAlignment="Center" FontWeight="SemiBold"/>
+                                                </StackPanel>
+                                            </Button>
+                                        </Grid>
                                         <TextBlock x:Name="hintNip" FontSize="12" Margin="2,3,0,0" Visibility="Collapsed"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="2">

@@ -142,6 +142,10 @@ namespace Kalendarz1.Kontrakty.Views
 
             _poprzedniId = await _svc.GetOstatniKontraktIdHodowcyAsync(h.DostawcaId);
             btnKopiuj.Visibility = _poprzedniId.HasValue ? Visibility.Visible : Visibility.Collapsed;
+            btnZIstniejacego.Visibility = _poprzedniId.HasValue ? Visibility.Visible : Visibility.Collapsed;
+
+            // #3 Detektor aktywnego kontraktu — wczytaj listę aktywnych i pokaż banner
+            await PokazAktywneKontraktyAsync(h.DostawcaId);
 
             // sugestie warunków (FarmerCalc)
             _sugestia = await _svc.GetSugestieWarunkowAsync(h.DostawcaId);
@@ -177,6 +181,31 @@ namespace Kalendarz1.Kontrakty.Views
             if (_sugestia?.UbytekSredniProc is { } u) txtUbytek.Text = u.ToString("0.0", Pl);
         }
 
+        // #3 — banner "hodowca ma aktywny kontrakt"
+        private async System.Threading.Tasks.Task PokazAktywneKontraktyAsync(string dostawcaId)
+        {
+            try
+            {
+                var akt = await _svc.GetAktywneKontraktyHodowcyAsync(dostawcaId);
+                if (akt.Count == 0)
+                {
+                    boxAktywneKontrakty.Visibility = Visibility.Collapsed;
+                    return;
+                }
+                var pierwszy = akt[0];
+                txtAktywneTytul.Text = akt.Count == 1
+                    ? $"⚠ Hodowca ma aktywny kontrakt {pierwszy.NumerKontraktu}"
+                    : $"⚠ Hodowca ma {akt.Count} aktywne kontrakty (najbliżej wygasa {pierwszy.NumerKontraktu})";
+                txtAktywneSzczegoly.Text =
+                    $"{pierwszy.TypLabel} · {pierwszy.OkresLabel}. Tworzysz aneks/przedłużenie? Kliknij „Zobacz/skopiuj”.";
+                boxAktywneKontrakty.Visibility = Visibility.Visible;
+            }
+            catch
+            {
+                boxAktywneKontrakty.Visibility = Visibility.Collapsed;
+            }
+        }
+
         // Otwarcie Sprawdzalki Umów z prefilowanym hodowcą — szybki podgląd historii dostaw
         private void BtnSprawdzalka_Click(object sender, RoutedEventArgs e)
         {
@@ -198,10 +227,43 @@ namespace Kalendarz1.Kontrakty.Views
         private async void BtnKopiuj_Click(object sender, RoutedEventArgs e)
         {
             if (_poprzedniId is not int kid) return;
-            var det = await _svc.GetDetailAsync(kid);
-            var wersje = await _svc.GetWersjeAsync(kid);
+            await KopiujZKontraktuAsync(kid);
+        }
+
+        // #4 — wybierz z listy wszystkich kontraktów hodowcy
+        private async void BtnZIstniejacego_Click(object sender, RoutedEventArgs e)
+        {
+            if (_hod == null) return;
+            List<Models.KontraktListItem> lista;
+            try { lista = await _svc.GetKontraktyHodowcyAsync(_hod.DostawcaId); }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Nie udało się wczytać listy kontraktów: " + ex.Message, "Z istniejącego",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            if (lista.Count == 0)
+            {
+                MessageBox.Show("Ten hodowca nie ma jeszcze żadnych kontraktów do skopiowania.",
+                    "Z istniejącego", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            var dlg = new WybierzKontraktDialog($"Hodowca: {_hod.Nazwa}", lista) { Owner = this };
+            if (dlg.ShowDialog() == true && dlg.WybranyId is int kid)
+                await KopiujZKontraktuAsync(kid);
+        }
+
+        private async System.Threading.Tasks.Task KopiujZKontraktuAsync(int kontraktId)
+        {
+            var det = await _svc.GetDetailAsync(kontraktId);
+            var wersje = await _svc.GetWersjeAsync(kontraktId);
             var w = wersje.FirstOrDefault(x => x.IsAktualna) ?? wersje.FirstOrDefault();
-            if (det == null || w == null) return;
+            if (det == null || w == null)
+            {
+                MessageBox.Show("Nie udało się wczytać szczegółów kontraktu.", "Z istniejącego",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
 
             SelectByTag(cbTyp, det.TypKontraktu);
             SelectByTag(cbPodmiot, det.Podmiot);
@@ -214,16 +276,15 @@ namespace Kalendarz1.Kontrakty.Views
             txtTermin.Text = w.TerminPlatnosciDni.ToString();
             chkKonfiskatyHodowca.IsChecked = w.KonfiskatyHodowca;
 
-            // nowy okres: od dnia po zakończeniu poprzedniego (lub dziś) → +1 rok
+            // nowy okres: od dnia po zakończeniu źródłowego (lub dziś) → +1 rok
             var od = w.ObowiazujeDo?.AddDays(1) ?? DateTime.Today;
             _ustawiamDoAuto = true;
             dpOd.SelectedDate = od;
             dpDo.SelectedDate = od.AddYears(1);
             _ustawiamDoAuto = false;
-            _recznaDataDo = true;       // skopiowane „do" — nie nadpisujemy potem auto
+            _recznaDataDo = true;
             dpPodpis.SelectedDate = DateTime.Today;
 
-            // skopiuj harmonogram (przesunięty)
             var stary = await _svc.GetHarmonogramAsync(w.Id);
             _cykle.Clear();
             var offset = od - (w.ObowiazujeOd);
@@ -238,6 +299,46 @@ namespace Kalendarz1.Kontrakty.Views
                     Status = "PLANOWANY"
                 });
             OdswiezCykle();
+            txtStopka.Text = $"✔ Skopiowano warunki i {_cykle.Count} cykli z {det.NumerKontraktu}.";
+        }
+
+        // #1 — GUS / Biała Lista MF: pobierz nazwę + REGON + adres po NIP
+        private async void BtnGus_Click(object sender, RoutedEventArgs e)
+        {
+            string nip = (txtNip.Text ?? "").Trim();
+            if (!Walidatory.NipPoprawny(nip))
+            {
+                MessageBox.Show("NIP nieprawidłowy (suma kontrolna). Sprawdź cyfry.",
+                    "GUS / Biała Lista MF", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            btnGus.IsEnabled = false;
+            string staryLabel = txtGusLabel.Text;
+            txtGusLabel.Text = "Pobieram…";
+            try
+            {
+                var r = await GusApiService.PobierzPoNipAsync(nip);
+                if (!r.Znaleziono)
+                {
+                    MessageBox.Show(r.Komunikat ?? "Nie znaleziono podmiotu w MF.",
+                        "GUS / Biała Lista MF", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+                // nadpisuj tylko puste pola — szanujemy ręczne wpisy
+                int zmian = 0;
+                if (string.IsNullOrWhiteSpace(txtNazwa.Text) && !string.IsNullOrWhiteSpace(r.Nazwa)) { txtNazwa.Text = r.Nazwa; zmian++; }
+                if (string.IsNullOrWhiteSpace(txtRegon.Text) && !string.IsNullOrWhiteSpace(r.Regon)) { txtRegon.Text = r.Regon; zmian++; }
+                if (string.IsNullOrWhiteSpace(txtAdres.Text) && !string.IsNullOrWhiteSpace(r.Adres)) { txtAdres.Text = r.Adres; zmian++; }
+                string statusInfo = string.IsNullOrEmpty(r.StatusVat) ? "" : $" · VAT: {r.StatusVat}";
+                txtStopka.Text = zmian > 0
+                    ? $"✔ Pobrano z MF: {r.Nazwa}{statusInfo} (uzupełniono {zmian} {Odmiana(zmian, "pole", "pola", "pól")})."
+                    : $"ℹ MF zwrócił dane, ale wszystkie pola były już wypełnione.{statusInfo}";
+            }
+            finally
+            {
+                txtGusLabel.Text = staryLabel;
+                btnGus.IsEnabled = Walidatory.NipPoprawny(txtNip.Text);
+            }
         }
 
         // ── Cykle wstawień ──────────────────────────────────────────────────
@@ -317,9 +418,10 @@ namespace Kalendarz1.Kontrakty.Views
         private void PoleWalid_Changed(object sender, TextChangedEventArgs e)
         {
             if (!IsLoaded) return;
-            Oznacz(txtNip, hintNip,
-                string.IsNullOrWhiteSpace(txtNip.Text) ? (bool?)null : Walidatory.NipPoprawny(txtNip.Text),
+            bool? nipOk = string.IsNullOrWhiteSpace(txtNip.Text) ? (bool?)null : Walidatory.NipPoprawny(txtNip.Text);
+            Oznacz(txtNip, hintNip, nipOk,
                 "✓ NIP poprawny", "⛔ błędna suma kontrolna NIP", blokujace: true);
+            btnGus.IsEnabled = nipOk == true;
             Oznacz(txtPesel, hintPesel,
                 string.IsNullOrWhiteSpace(txtPesel.Text) ? (bool?)null : Walidatory.PeselPoprawny(txtPesel.Text),
                 "✓ PESEL poprawny", "⛔ błędna suma kontrolna PESEL", blokujace: true);
@@ -543,7 +645,11 @@ namespace Kalendarz1.Kontrakty.Views
             dpPodpis.SelectedDate = DateTime.Today;
             hintNip.Visibility = hintPesel.Visibility = hintGosp.Visibility = Visibility.Collapsed;
             txtNip.ClearValue(BorderBrushProperty); txtPesel.ClearValue(BorderBrushProperty); txtGosp.ClearValue(BorderBrushProperty);
-            panelSugestia.Visibility = Visibility.Collapsed; btnKopiuj.Visibility = Visibility.Collapsed;
+            panelSugestia.Visibility = Visibility.Collapsed;
+            btnKopiuj.Visibility = Visibility.Collapsed;
+            btnZIstniejacego.Visibility = Visibility.Collapsed;
+            boxAktywneKontrakty.Visibility = Visibility.Collapsed;
+            btnGus.IsEnabled = false;
             bannerWybrany.Visibility = Visibility.Collapsed; boxHistoria.Visibility = Visibility.Collapsed;
             boxWalidacja.Visibility = Visibility.Collapsed;
             lstHodowcy.SelectedItem = null; txtSzukaj.Clear();
