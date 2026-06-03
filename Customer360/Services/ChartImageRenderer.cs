@@ -79,7 +79,6 @@ namespace Kalendarz1.Customer360.Services
             return data.ToArray();
         }
 
-        private static string Fmt(decimal v) =>
-            v >= 1_000_000m ? $"{v / 1_000_000m:N1}M" : v >= 1000m ? $"{v / 1000m:N0}k" : $"{v:N0}";
+        private static string Fmt(decimal v) => Customer360Format.FmtZl(v);
     }
 }

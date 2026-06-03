@@ -730,7 +730,6 @@ namespace Kalendarz1.Customer360
         {
             ChartPorownanie.Children.Clear();
             ChartPorownanie.ColumnDefinitions.Clear();
-            string Fmt(decimal v) => v >= 1_000_000m ? $"{v / 1_000_000m:N1}M" : v >= 1000m ? $"{v / 1000m:N0}t" : $"{v:N0}";
 
             if (data == null || data.Count == 0)
             {
@@ -1514,7 +1513,7 @@ namespace Kalendarz1.Customer360
         private void RenderMonthlyChart(List<MonthlyStats> data)
         {
             _monthlyData = data ?? new List<MonthlyStats>();
-            string Fmt(decimal v) => v >= 1_000_000m ? $"{v / 1_000_000m:N1}M" : v >= 1000m ? $"{v / 1000m:N0}k" : $"{v:N0}";
+            string Fmt(decimal v) => Customer360Format.FmtZl(v);
 
             // Wskaźnik kierunku trendu (zostaje — średnia pierwszej połowy vs drugiej)
             try
