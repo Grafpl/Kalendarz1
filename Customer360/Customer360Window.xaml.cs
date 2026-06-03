@@ -466,6 +466,12 @@ namespace Kalendarz1.Customer360
             if (_selectedKlientId.HasValue) await LoadKlientAsync(_selectedKlientId.Value);
         }
 
+        private async void BtnRetry_Click(object sender, RoutedEventArgs e)
+        {
+            // Spróbuj ponownie ten sam klient — po przejściowym bledzie sieciowym/SQL.
+            if (_selectedKlientId.HasValue) await LoadKlientAsync(_selectedKlientId.Value);
+        }
+
         private void BtnDebug_Click(object sender, RoutedEventArgs e)
         {
             if (!_selectedKlientId.HasValue)
@@ -563,19 +569,42 @@ namespace Kalendarz1.Customer360
                     FakturyDiag.Text = $"📅 {fakturyDet.Count} faktur+korekt · {min:dd.MM.yyyy} – {max:dd.MM.yyyy} · [{string.Join("  ", lata)}]";
                 }
 
-                // ── KROK 2: rendery — każdy w osobnym try/catch (jeden błąd nie psuje reszty) ──
-                try { RenderHeader(hdr, kpi); } catch (Exception ex) { System.Diagnostics.Debug.WriteLine("[C360 RenderHeader] " + ex.Message); }
-                try { RenderKpi(kpi); } catch (Exception ex) { System.Diagnostics.Debug.WriteLine("[C360 RenderKpi] " + ex.Message); }
-                try { RenderScoring(scoring); } catch (Exception ex) { System.Diagnostics.Debug.WriteLine("[C360 RenderScoring] " + ex.Message); }
-                try { RenderMonthlyChart(monthly); } catch (Exception ex) { System.Diagnostics.Debug.WriteLine("[C360 RenderMonthlyChart] " + ex.Message); }
-                try { RenderWeryfikacja(werSumma, werTowary); } catch (Exception ex) { System.Diagnostics.Debug.WriteLine("[C360 RenderWer] " + ex.Message); }
-                try { RenderPorownanieChart(porownanie); } catch (Exception ex) { System.Diagnostics.Debug.WriteLine("[C360 RenderPorownanie] " + ex.Message); }
-                try { RenderAnulowaneHeader(anulowane); } catch (Exception ex) { System.Diagnostics.Debug.WriteLine("[C360 RenderAnul] " + ex.Message); }
-                try { RenderAlerty(kpi, werSumma, scoring); } catch (Exception ex) { System.Diagnostics.Debug.WriteLine("[C360 RenderAlerty] " + ex.Message); }
-                try { RenderScoringDetal(scoring, kpi); } catch (Exception ex) { System.Diagnostics.Debug.WriteLine("[C360 RenderScoringDetal] " + ex.Message); }
+                // ── KROK 2: rendery — kazdy w osobnym try/catch + zbieramy lity bledow do banneru ──
+                var bledy = new List<string>();
+                void Try(string nazwa, Action akcja)
+                {
+                    try { akcja(); }
+                    catch (Exception ex)
+                    {
+                        bledy.Add(nazwa);
+                        System.Diagnostics.Debug.WriteLine($"[C360 {nazwa}] " + ex);
+                    }
+                }
+                Try("KPI nagłówek", () => RenderHeader(hdr, kpi));
+                Try("KPI hero", () => RenderKpi(kpi));
+                Try("Scoring", () => RenderScoring(scoring));
+                Try("Wykres miesięczny", () => RenderMonthlyChart(monthly));
+                Try("Weryfikacja", () => RenderWeryfikacja(werSumma, werTowary));
+                Try("Porównanie miesięczne", () => RenderPorownanieChart(porownanie));
+                Try("Anulowane", () => RenderAnulowaneHeader(anulowane));
+                Try("Alerty", () => RenderAlerty(kpi, werSumma, scoring));
+                Try("Detal scoringu", () => RenderScoringDetal(scoring, kpi));
 
                 // Klient (Dane+Kontakty) — eager (lekkie, potrzebne do szybkich akcji telefon/email)
-                try { await LoadKlientTabAsync(klientId, hdr); } catch (Exception ex) { System.Diagnostics.Debug.WriteLine("[C360 KlientTab] " + ex.Message); }
+                try { await LoadKlientTabAsync(klientId, hdr); }
+                catch (Exception ex) { bledy.Add("Zakładka Klient"); System.Diagnostics.Debug.WriteLine("[C360 KlientTab] " + ex); }
+
+                // Banner bledow — pokaz/ukryj na podstawie zebranej listy
+                if (bledy.Count > 0)
+                {
+                    ErrorBannerText.Text = $"⚠ Nie udało się załadować: {string.Join(", ", bledy)}. " +
+                                           "Pozostała część karty została wczytana — możesz spróbować ponownie.";
+                    ErrorBanner.Visibility = Visibility.Visible;
+                }
+                else
+                {
+                    ErrorBanner.Visibility = Visibility.Collapsed;
+                }
 
                 // Analiza (Historia+Transport+Asortyment) — LAZY, ładowana przy wejściu w zakładkę Analiza
                 _analizaTabLoaded = false;

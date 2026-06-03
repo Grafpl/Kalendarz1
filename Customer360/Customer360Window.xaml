@@ -254,6 +254,20 @@
             <TabItem Header="📊 Przegląd">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20,16">
                     <StackPanel>
+                        <!-- Banner bledow ladowania — widoczny gdy rendery rzucily wyjatki -->
+                        <Border x:Name="ErrorBanner" Visibility="Collapsed"
+                                Background="#FEF3C7" BorderBrush="#F59E0B" BorderThickness="1"
+                                CornerRadius="6" Padding="12,8" Margin="0,0,0,10">
+                            <DockPanel>
+                                <Button x:Name="BtnRetry" Content="🔄 Spróbuj ponownie" DockPanel.Dock="Right"
+                                        Click="BtnRetry_Click" Padding="10,4" Margin="10,0,0,0"
+                                        Cursor="Hand" Background="#FBBF24" Foreground="#78350F" BorderThickness="0"
+                                        FontWeight="SemiBold"/>
+                                <TextBlock x:Name="ErrorBannerText" Foreground="#92400E" FontSize="12" TextWrapping="Wrap"
+                                           VerticalAlignment="Center"/>
+                            </DockPanel>
+                        </Border>
+
                         <!-- ════ HERO: Scoring + składniki + churn + rekomendacja ════ -->
                         <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
                             <Grid>
