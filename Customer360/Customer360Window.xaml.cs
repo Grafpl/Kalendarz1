@@ -494,7 +494,7 @@ namespace Kalendarz1.Customer360
                 // Okres wg selektora (_okres): 0 = cała historia, inaczej N miesięcy wstecz
                 int OKRES = _okres;
                 var tHdr = _service.GetKlientHeaderAsync(klientId);
-                var tKpi = _service.GetKpiAsync(klientId, forceScore);
+                var tKpi = _service.GetKpiAsync(klientId, forceScore, OKRES);   // KPI canonical 12M + tile dla wybranego okresu (0=cala historia)
                 var tHist = _service.GetOrderHistoryAsync(klientId, OKRES);
                 // Wykres obrotu miesięcznego = FAKTURY (pełna historia). Zamówienia mają pozycje dopiero od ~10/2025.
                 var tMonthly = _service.GetMonthlyObrotFakturyAsync(klientId, OKRES);
@@ -659,25 +659,31 @@ namespace Kalendarz1.Customer360
 
         private void RenderKpi(KlientKpi kpi)
         {
+            // Labele dynamiczne — pokazuja wybrany okres (CmbOkres) zeby liczby zgadzaly sie z filtrem.
+            // Reklamacje pozostaja zawsze 12M canonical (LoadReklamacjeSummary tylko 12M).
+            string okresUpper = kpi.OkresLabel.ToUpperInvariant();
+            KpiObrotLabel.Text = $"OBRÓT {okresUpper}";
+            KpiLiczbaZamLabel.Text = $"ZAMÓWIENIA {okresUpper}";
 
-            // ── KPI finansowe ──
-            KpiObrot.Text = $"{kpi.Obrot12M:N0} zł";
-            if (kpi.Obrot12MPrev > 0)
+            // ── KPI finansowe — wartosci z OKRESU wybranego w UI ──
+            KpiObrot.Text = $"{kpi.ObrotOkres:N0} zł";
+            if (kpi.ObrotOkresPrev > 0)
             {
-                decimal yoy = (kpi.Obrot12M - kpi.Obrot12MPrev) / kpi.Obrot12MPrev * 100m;
+                decimal yoy = (kpi.ObrotOkres - kpi.ObrotOkresPrev) / kpi.ObrotOkresPrev * 100m;
                 string arrow = yoy >= 0 ? "▲" : "▼";
-                KpiObrotYoY.Text = $"{arrow} {Math.Abs(yoy):N1}% YoY";
+                string yoyLabel = kpi.OkresMiesiacy == 12 ? "YoY" : $"vs poprzedni {kpi.OkresLabel}";
+                KpiObrotYoY.Text = $"{arrow} {Math.Abs(yoy):N1}% {yoyLabel}";
                 KpiObrotYoY.Foreground = B(yoy >= 0 ? "#16A34A" : "#DC2626");
             }
-            else KpiObrotYoY.Text = "Brak danych YoY";
+            else KpiObrotYoY.Text = kpi.OkresMiesiacy == 0 ? "Cała historia (brak okresu odniesienia)" : "Brak danych do porównania";
 
-            // Śr. wartość faktury = obrót 12M / liczba faktur 12M (z faktur — wiarygodne, zastąpiło zmyśloną marżę)
-            decimal srFaktura = kpi.LiczbaFaktur12M > 0 ? kpi.Obrot12M / kpi.LiczbaFaktur12M : 0m;
+            // Śr. wartość faktury = obrot okresu / liczba faktur okresu
+            decimal srFaktura = kpi.LiczbaFakturOkres > 0 ? kpi.ObrotOkres / kpi.LiczbaFakturOkres : 0m;
             KpiSrFaktura.Text = $"{srFaktura:N0} zł";
-            KpiSrFakturaSub.Text = $"z {kpi.LiczbaFaktur12M} faktur (12M)";
+            KpiSrFakturaSub.Text = $"z {kpi.LiczbaFakturOkres} faktur ({kpi.OkresLabel})";
 
-            KpiLiczbaZam.Text = kpi.LiczbaZamowien12M.ToString("N0");
-            KpiSumaKg.Text = $"{kpi.SumaKg12M:N0} kg łącznie";
+            KpiLiczbaZam.Text = kpi.LiczbaZamowienOkres.ToString("N0");
+            KpiSumaKg.Text = $"{kpi.SumaKgOkres:N0} kg łącznie";
 
             KpiLimit.Text = $"{kpi.LimitKredytowy:N0} zł";
             KpiDoZap.Text = $"Do zapłaty: {kpi.DoZaplaty:N0} zł · {kpi.LiczbaFaktur} fakt.";
@@ -1497,14 +1503,15 @@ namespace Kalendarz1.Customer360
             decimal sumaKg = anul.Sum(a => a.SumaKg);
             decimal sumaWart = anul.Sum(a => a.Wartosc);
 
+            string okresOpis = _okres == 0 ? "całej historii" : $"ostatnich {_okres} mies";
             if (liczba == 0)
             {
-                AnulHeader.Text = "✅ Brak anulowanych zamówień w ostatnich 12 mies";
+                AnulHeader.Text = $"✅ Brak anulowanych zamówień w {okresOpis}";
                 AnulSummary.Text = "Świetna relacja z klientem — nic nie anulowano.";
             }
             else
             {
-                AnulHeader.Text = $"❌ {liczba} anulowanych zamówień w ostatnich 12 mies";
+                AnulHeader.Text = $"❌ {liczba} anulowanych zamówień w {okresOpis}";
                 AnulSummary.Text = $"Łącznie {sumaKg:N0} kg / {sumaWart:N0} zł utraconego obrotu. Sprawdź powody.";
             }
         }

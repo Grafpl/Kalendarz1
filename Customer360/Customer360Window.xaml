@@ -320,7 +320,7 @@
                             </Border>
                             <Border x:Name="ChipReklamacje" Style="{StaticResource KpiCard}" Margin="8,0,0,0">
                                 <StackPanel>
-                                    <TextBlock Text="REKLAMACJE 12 MIES" Style="{StaticResource KpiLabel}"/>
+                                    <TextBlock x:Name="KpiReklamacjeLabel" Text="REKLAMACJE 12 MIES" Style="{StaticResource KpiLabel}"/>
                                     <TextBlock x:Name="KpiReklamacje" Text="—" Style="{StaticResource KpiValue}" Margin="0,4,0,0"/>
                                     <TextBlock x:Name="KpiReklamacjeProc" Text="—" Style="{StaticResource KpiSubvalue}" Margin="0,2,0,0"/>
                                 </StackPanel>
@@ -331,7 +331,7 @@
                         <UniformGrid Columns="4" Rows="1" Margin="0,0,0,12">
                             <Border Style="{StaticResource KpiCard}" Margin="0,0,8,0">
                                 <StackPanel>
-                                    <TextBlock Text="OBRÓT 12 MIES" Style="{StaticResource KpiLabel}"/>
+                                    <TextBlock x:Name="KpiObrotLabel" Text="OBRÓT 12 MIES" Style="{StaticResource KpiLabel}"/>
                                     <TextBlock x:Name="KpiObrot" Text="—" Style="{StaticResource KpiValue}" Foreground="#1E40AF" Margin="0,4,0,0"/>
                                     <TextBlock x:Name="KpiObrotYoY" Text="—" Style="{StaticResource KpiSubvalue}" Margin="0,2,0,0"/>
                                 </StackPanel>
@@ -345,7 +345,7 @@
                             </Border>
                             <Border Style="{StaticResource KpiCard}" Margin="4,0">
                                 <StackPanel>
-                                    <TextBlock Text="ZAMÓWIENIA 12 MIES" Style="{StaticResource KpiLabel}"/>
+                                    <TextBlock x:Name="KpiLiczbaZamLabel" Text="ZAMÓWIENIA 12 MIES" Style="{StaticResource KpiLabel}"/>
                                     <TextBlock x:Name="KpiLiczbaZam" Text="—" Style="{StaticResource KpiValue}" Margin="0,4,0,0"/>
                                     <TextBlock x:Name="KpiSumaKg" Text="—" Style="{StaticResource KpiSubvalue}" Margin="0,2,0,0"/>
                                 </StackPanel>

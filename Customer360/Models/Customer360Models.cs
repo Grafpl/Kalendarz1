@@ -36,11 +36,21 @@ namespace Kalendarz1.Customer360.Models
     /// <summary>Główne KPI klienta (na cards nagłówka).</summary>
     public class KlientKpi
     {
+        // KANONICZNE 12M — uzywane przez scoring, churn, PDF, porownanie miedzy klientami (stable anchor)
         public decimal Obrot12M { get; set; }             // Obrót brutto z faktur, ostatnie 12 mies
         public decimal Obrot12MPrev { get; set; }         // 12-24 mies temu (porównanie YoY)
         public int LiczbaFaktur12M { get; set; }          // liczba faktur sprzedaży w 12 mies (do śr. wartości faktury)
         public int LiczbaZamowien12M { get; set; }
         public decimal SumaKg12M { get; set; }
+
+        // OKRES WYBRANY w CmbOkres (0/3/6/12) — uzywane wylacznie przez hero KPI w karcie 360 zeby tile zgadzaly sie z filtrem
+        public int OkresMiesiacy { get; set; } = 12;      // 0 = cala historia, >0 = N miesiecy
+        public decimal ObrotOkres { get; set; }
+        public decimal ObrotOkresPrev { get; set; }       // poprzedni okres tej samej dlugosci, brak dla OkresMiesiacy=0
+        public int LiczbaFakturOkres { get; set; }
+        public int LiczbaZamowienOkres { get; set; }
+        public decimal SumaKgOkres { get; set; }
+        public string OkresLabel => OkresMiesiacy == 0 ? "cała historia" : $"{OkresMiesiacy} mies";
         public DateTime? OstatnieZamowienie { get; set; }
         public int DniOdOstatniegoZamowienia => OstatnieZamowienie.HasValue
             ? (int)(DateTime.Today - OstatnieZamowienie.Value.Date).TotalDays

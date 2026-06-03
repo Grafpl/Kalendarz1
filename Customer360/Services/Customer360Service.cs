@@ -290,19 +290,21 @@ namespace Kalendarz1.Customer360.Services
             return hdr;
         }
 
-        // ── KPI klienta — agregat za ostatnie 12 miesięcy ──
-        public async Task<KlientKpi> GetKpiAsync(int klientId, bool forceScoreRefresh = false)
+        // ── KPI klienta — agregat za ostatnie 12 mies (canonical) + opcjonalnie inny okres dla UI ──
+        // monthsBack: 12 (default) = tylko 12M, 0/3/6 = dodatkowo policz wartosci dla wybranego okresu.
+        // 12M sluzy scoringowi/churnowi/PDF/porownaniu — stabilna kotwica. ObrotOkres etc. tylko dla hero tile.
+        public async Task<KlientKpi> GetKpiAsync(int klientId, bool forceScoreRefresh = false, int monthsBack = 12)
         {
-            var kpi = new KlientKpi();
+            var kpi = new KlientKpi { OkresMiesiacy = monthsBack };
             try
             {
-                // Paralelnie: zamówienia (LibraNet) + finanse (HANDEL) + reklamacje (LibraNet)
-                var taskZam = LoadZamowieniaSummaryAsync(klientId);
+                // Paralelnie: zamówienia 12M (LibraNet) + finanse (HANDEL) + reklamacje (LibraNet)
+                var taskZam12 = LoadZamowieniaSummaryAsync(klientId, 12);
                 var taskFin = LoadFinanseSummaryAsync(klientId);
                 var taskRek = LoadReklamacjeSummaryAsync(klientId);
-                await Task.WhenAll(taskZam, taskFin, taskRek);
+                await Task.WhenAll(taskZam12, taskFin, taskRek);
 
-                var (obrot, liczba, sumaKg, ostatnie, sredniDni) = await taskZam;
+                var (obrot, liczba, sumaKg, ostatnie, sredniDni) = await taskZam12;
                 var (limit, doZap, term, przeterm, maxDni, faktur) = await taskFin;
                 var (liczbaRek, wartoscRek) = await taskRek;
 
@@ -322,12 +324,37 @@ namespace Kalendarz1.Customer360.Services
                 kpi.WartoscReklamacji12M = wartoscRek;
 
                 // Obrót 12M + YoY + liczba faktur 12M = Z FAKTUR (zamówienia×cena mają pozycje dopiero od ~10/2025)
-                var (obrotFak12, obrotFakPrev, faktur12) = await GetObrotFakturyAsync(klientId);
+                var (obrotFak12, obrotFakPrev, faktur12) = await GetObrotFakturyAsync(klientId, 12);
                 kpi.Obrot12M = obrotFak12 > 0 ? obrotFak12 : obrot;       // fallback na zamówienia gdy brak faktur
-                kpi.Obrot12MPrev = obrotFakPrev > 0 ? obrotFakPrev : await LoadObrotPrevYearAsync(klientId);
+                kpi.Obrot12MPrev = obrotFakPrev > 0 ? obrotFakPrev : await LoadObrotPrevYearAsync(klientId, 12);
                 kpi.LiczbaFaktur12M = faktur12;
 
-                // Churn risk
+                // Okres wybrany w UI — dolicz wartosci dla tile hero (jesli ten sam okres co 12M, reuse).
+                if (monthsBack == 12)
+                {
+                    kpi.ObrotOkres = kpi.Obrot12M;
+                    kpi.ObrotOkresPrev = kpi.Obrot12MPrev;
+                    kpi.LiczbaFakturOkres = kpi.LiczbaFaktur12M;
+                    kpi.LiczbaZamowienOkres = kpi.LiczbaZamowien12M;
+                    kpi.SumaKgOkres = kpi.SumaKg12M;
+                }
+                else
+                {
+                    var taskZamN = LoadZamowieniaSummaryAsync(klientId, monthsBack);
+                    var taskFakN = GetObrotFakturyAsync(klientId, monthsBack);
+                    await Task.WhenAll(taskZamN, taskFakN);
+                    var (obrotN, liczbaN, sumaKgN, _, _) = await taskZamN;
+                    var (obrotFakN, obrotFakPrevN, fakturN) = await taskFakN;
+                    kpi.ObrotOkres = obrotFakN > 0 ? obrotFakN : obrotN;
+                    kpi.ObrotOkresPrev = monthsBack > 0
+                        ? (obrotFakPrevN > 0 ? obrotFakPrevN : await LoadObrotPrevYearAsync(klientId, monthsBack))
+                        : 0m;
+                    kpi.LiczbaFakturOkres = fakturN;
+                    kpi.LiczbaZamowienOkres = liczbaN;
+                    kpi.SumaKgOkres = sumaKgN;
+                }
+
+                // Churn risk — z 12M canonical (stabilny niezaleznie od UI)
                 var (level, reason) = Customer360KpiCalculator.ObliczChurn(kpi);
                 kpi.ChurnRiskLevel = level;
                 kpi.ChurnRiskReason = reason;
@@ -367,7 +394,8 @@ namespace Kalendarz1.Customer360.Services
             return kpi.Score;
         }
 
-        private async Task<(decimal obrot, int liczba, decimal sumaKg, DateTime? ostatnie, decimal sredniDni)> LoadZamowieniaSummaryAsync(int klientId)
+        // monthsBack: 0 = cala historia, >0 = N miesiecy wstecz
+        private async Task<(decimal obrot, int liczba, decimal sumaKg, DateTime? ostatnie, decimal sredniDni)> LoadZamowieniaSummaryAsync(int klientId, int monthsBack)
         {
             decimal obrot = 0, sumaKg = 0;
             int liczba = 0;
@@ -388,12 +416,13 @@ namespace Kalendarz1.Customer360.Services
                     FROM dbo.ZamowieniaMieso z
                     INNER JOIN dbo.ZamowieniaMiesoTowar zt ON zt.ZamowienieId = z.Id
                     WHERE z.KlientId = @kid
-                      AND z.DataPrzyjazdu >= DATEADD(MONTH, -12, GETDATE())
+                      AND (@months <= 0 OR z.DataPrzyjazdu >= DATEADD(MONTH, -@months, GETDATE()))
                       AND CAST(z.DataPrzyjazdu AS DATE) <= CAST(GETDATE() AS DATE)
                       AND ISNULL(z.Status,'') NOT IN ('Anulowane','Anulowano')";
                 await using (var cmd = new SqlCommand(sqlAgg, cn) { CommandTimeout = 8 })
                 {
                     cmd.Parameters.AddWithValue("@kid", klientId);
+                    cmd.Parameters.AddWithValue("@months", monthsBack);
                     await using var rd = await cmd.ExecuteReaderAsync();
                     if (await rd.ReadAsync())
                     {
@@ -409,13 +438,14 @@ namespace Kalendarz1.Customer360.Services
                     SELECT DISTINCT CAST(z.DataPrzyjazdu AS DATE) AS Data
                     FROM dbo.ZamowieniaMieso z
                     WHERE z.KlientId = @kid
-                      AND z.DataPrzyjazdu >= DATEADD(MONTH, -12, GETDATE())
+                      AND (@months <= 0 OR z.DataPrzyjazdu >= DATEADD(MONTH, -@months, GETDATE()))
                       AND CAST(z.DataPrzyjazdu AS DATE) <= CAST(GETDATE() AS DATE)
                       AND ISNULL(z.Status,'') NOT IN ('Anulowane','Anulowano')
                     ORDER BY Data";
                 await using (var cmd = new SqlCommand(sqlDni, cn) { CommandTimeout = 5 })
                 {
                     cmd.Parameters.AddWithValue("@kid", klientId);
+                    cmd.Parameters.AddWithValue("@months", monthsBack);
                     await using var rd = await cmd.ExecuteReaderAsync();
                     while (await rd.ReadAsync()) daty.Add(rd.GetDateTime(0));
                 }
@@ -435,8 +465,10 @@ namespace Kalendarz1.Customer360.Services
             return (obrot, liczba, sumaKg, ostatnie, sredniDni);
         }
 
-        private async Task<decimal> LoadObrotPrevYearAsync(int klientId)
+        // Poprzedni okres tej samej dlugosci: [-2N..-N) miesiecy. Brak dla monthsBack<=0.
+        private async Task<decimal> LoadObrotPrevYearAsync(int klientId, int monthsBack)
         {
+            if (monthsBack <= 0) return 0m;
             try
             {
                 await using var cn = new SqlConnection(ConnLibra);
@@ -446,10 +478,11 @@ namespace Kalendarz1.Customer360.Services
                     FROM dbo.ZamowieniaMieso z
                     INNER JOIN dbo.ZamowieniaMiesoTowar zt ON zt.ZamowienieId = z.Id
                     WHERE z.KlientId = @kid
-                      AND z.DataPrzyjazdu >= DATEADD(MONTH, -24, GETDATE())
-                      AND z.DataPrzyjazdu < DATEADD(MONTH, -12, GETDATE())
+                      AND z.DataPrzyjazdu >= DATEADD(MONTH, -(@months*2), GETDATE())
+                      AND z.DataPrzyjazdu <  DATEADD(MONTH, -@months,    GETDATE())
                       AND ISNULL(z.Status,'') NOT IN ('Anulowane','Anulowano')", cn) { CommandTimeout = 5 };
                 cmd.Parameters.AddWithValue("@kid", klientId);
+                cmd.Parameters.AddWithValue("@months", monthsBack);
                 var r = await cmd.ExecuteScalarAsync();
                 return r == null || r == DBNull.Value ? 0m : Convert.ToDecimal(r);
             }
@@ -674,36 +707,38 @@ namespace Kalendarz1.Customer360.Services
             return mapa.Values.OrderBy(p => p.Year).ThenBy(p => p.Month).ToList();
         }
 
-        // ── Obrót z FAKTUR: ostatnie 12M + poprzednie 12M (YoY) + liczba faktur ──
-        public async Task<(decimal obrot12, decimal obrotPrev12, int faktur12)> GetObrotFakturyAsync(int klientId)
+        // ── Obrót z FAKTUR: okres + poprzedni okres (YoY) + liczba faktur ──
+        // monthsBack: 0 = cala historia (oPrev=0, f12 = wszystkie); >0 = [-N..0) + [-2N..-N) na YoY.
+        public async Task<(decimal obrotOkres, decimal obrotPrev, int fakturOkres)> GetObrotFakturyAsync(int klientId, int monthsBack = 12)
         {
-            decimal o12 = 0, oPrev = 0; int f12 = 0;
+            decimal oOkres = 0, oPrev = 0; int fOkres = 0;
             try
             {
                 await using var cn = new SqlConnection(ConnHandel);
                 await cn.OpenAsync();
                 const string sql = @"
                     SELECT
-                      ISNULL(SUM(CASE WHEN DK.data >= DATEADD(MONTH,-12,GETDATE()) THEN DK.walbrutto ELSE 0 END),0) AS O12,
-                      ISNULL(SUM(CASE WHEN DK.data >= DATEADD(MONTH,-24,GETDATE()) AND DK.data < DATEADD(MONTH,-12,GETDATE()) THEN DK.walbrutto ELSE 0 END),0) AS OPrev,
-                      SUM(CASE WHEN DK.data >= DATEADD(MONTH,-12,GETDATE()) THEN 1 ELSE 0 END) AS F12
+                      ISNULL(SUM(CASE WHEN (@months <= 0 OR DK.data >= DATEADD(MONTH,-@months,GETDATE())) THEN DK.walbrutto ELSE 0 END),0) AS OOkres,
+                      ISNULL(SUM(CASE WHEN @months > 0 AND DK.data >= DATEADD(MONTH,-(@months*2),GETDATE()) AND DK.data < DATEADD(MONTH,-@months,GETDATE()) THEN DK.walbrutto ELSE 0 END),0) AS OPrev,
+                      SUM(CASE WHEN (@months <= 0 OR DK.data >= DATEADD(MONTH,-@months,GETDATE())) THEN 1 ELSE 0 END) AS FOkres
                     FROM [HANDEL].[HM].[DK] DK
                     WHERE DK.khid = @kid AND DK.anulowany = 0
-                      AND DK.data >= DATEADD(MONTH,-24,GETDATE())
+                      AND (@months <= 0 OR DK.data >= DATEADD(MONTH,-(@months*2),GETDATE()))
                       AND (DK.typ_dk IN ('FVS','FVR','FVZ')
                            OR EXISTS (SELECT 1 FROM [HANDEL].[HM].[DK] o WHERE o.id = DK.iddokkoryg AND o.typ_dk IN ('FVS','FVR','FVZ')))";
                 await using var cmd = new SqlCommand(sql, cn) { CommandTimeout = 30 };
                 cmd.Parameters.AddWithValue("@kid", klientId);
+                cmd.Parameters.AddWithValue("@months", monthsBack);
                 await using var rd = await cmd.ExecuteReaderAsync();
                 if (await rd.ReadAsync())
                 {
-                    o12 = rd.IsDBNull(0) ? 0m : Convert.ToDecimal(rd.GetValue(0));
+                    oOkres = rd.IsDBNull(0) ? 0m : Convert.ToDecimal(rd.GetValue(0));
                     oPrev = rd.IsDBNull(1) ? 0m : Convert.ToDecimal(rd.GetValue(1));
-                    f12 = rd.IsDBNull(2) ? 0 : Convert.ToInt32(rd.GetValue(2));
+                    fOkres = rd.IsDBNull(2) ? 0 : Convert.ToInt32(rd.GetValue(2));
                 }
             }
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[C360 obrot faktury] {ex.Message}"); }
-            return (o12, oPrev, f12);
+            return (oOkres, oPrev, fOkres);
         }
 
         // ── Obrót miesięczny Z FAKTUR (HANDEL) — realny obrót, PEŁNA historia ──
