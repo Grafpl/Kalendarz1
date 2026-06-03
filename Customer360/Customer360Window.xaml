@@ -196,6 +196,14 @@
                             <Border x:Name="ChipScoring" CornerRadius="6" Padding="8,3" Margin="8,8,0,0" VerticalAlignment="Center" Background="#6B7280" Visibility="Collapsed">
                                 <TextBlock x:Name="LblScoringChip" Text="⭐ —" FontSize="11" FontWeight="Bold" Foreground="White"/>
                             </Border>
+                            <!-- Sparkline 6 ostatnich miesiecy obrotu (z faktur) — szybki sygnal trendu w toolbarze -->
+                            <Border x:Name="ChipSparkline" CornerRadius="4" Padding="6,4" Margin="8,8,0,0"
+                                    VerticalAlignment="Center" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1"
+                                    Visibility="Collapsed">
+                                <Canvas Width="90" Height="22" ClipToBounds="True">
+                                    <Polyline x:Name="SparklineLine" Stroke="#2563EB" StrokeThickness="1.5"/>
+                                </Canvas>
+                            </Border>
                         </StackPanel>
                         <Grid Margin="0,6,0,0">
                             <Grid.ColumnDefinitions>

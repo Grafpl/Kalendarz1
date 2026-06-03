@@ -1549,6 +1549,7 @@ namespace Kalendarz1.Customer360
         private void RenderMonthlyChart(List<MonthlyStats> data)
         {
             _monthlyData = data ?? new List<MonthlyStats>();
+            RenderSparkline(_monthlyData);
             string Fmt(decimal v) => Customer360Format.FmtZl(v);
 
             // Wskaźnik kierunku trendu (zostaje — średnia pierwszej połowy vs drugiej)
@@ -1637,6 +1638,46 @@ namespace Kalendarz1.Customer360
                 };
                 _chartMonthlyWired = true;
             }
+        }
+
+        // Mini-sparkline 6 ostatnich miesiecy w toolbarze hero — szybki sygnal trendu
+        // (Sergiusz wchodzi na karte → od razu wie czy klient rosnie/spada przed naklikaniem zakladek)
+        private void RenderSparkline(System.Collections.Generic.List<MonthlyStats> data)
+        {
+            if (SparklineLine == null) return;
+            var ostatnie = data?.TakeLast(6).ToList() ?? new System.Collections.Generic.List<MonthlyStats>();
+            if (ostatnie.Count < 2)
+            {
+                ChipSparkline.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            const double W = 90, H = 22;
+            decimal max = ostatnie.Max(d => d.Wartosc);
+            decimal min = ostatnie.Min(d => d.Wartosc);
+            decimal range = max - min;
+            if (range <= 0) range = 1;
+
+            var pts = new System.Windows.Media.PointCollection();
+            for (int i = 0; i < ostatnie.Count; i++)
+            {
+                double x = i * (W / (ostatnie.Count - 1));
+                double y = H - (double)((ostatnie[i].Wartosc - min) / range) * H;
+                pts.Add(new System.Windows.Point(x, y));
+            }
+            SparklineLine.Points = pts;
+
+            // Kolor: zielony gdy ostatni > pierwszy, czerwony gdy < pierwszy, szary plasko
+            decimal pierwszy = ostatnie.First().Wartosc;
+            decimal ostatni = ostatnie.Last().Wartosc;
+            string kolor = ostatni > pierwszy * 1.05m ? "#16A34A"
+                         : ostatni < pierwszy * 0.95m ? "#DC2626"
+                         : "#64748B";
+            SparklineLine.Stroke = B(kolor);
+
+            ChipSparkline.ToolTip = $"6 ostatnich mies: " + string.Join(" · ",
+                ostatnie.Select(d => $"{(d.Month >= 1 && d.Month <= 12 ? MiesSkrot[d.Month - 1] : d.Month.ToString())} {Customer360Format.FmtZl(d.Wartosc)}"));
+            ChipSparkline.Visibility = Visibility.Visible;
         }
 
         #endregion
