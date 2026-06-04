@@ -68,6 +68,11 @@
 28. [Sergiusz strategicznie — portfel z lotu ptaka](#28-sergiusz-strategicznie--portfel-z-lotu-ptaka)
 29. [Q&A — najczęstsze pytania użytkowników](#29-qa--najczęstsze-pytania-użytkowników)
 30. [Filozofia C360 — czemu tak zaprojektowane](#30-filozofia-c360--czemu-tak-zaprojektowane)
+31. [Plan szkoleniowy — 5 dni do pełnej kompetencji](#31-plan-szkoleniowy--5-dni-do-pełnej-kompetencji)
+32. [Skorowidz alfabetyczny](#32-skorowidz-alfabetyczny)
+33. [Słownik branżowy drobiarski](#33-słownik-branżowy-drobiarski-w-kontekście-c360)
+34. [Mapa wszystkich pól w karcie](#34-mapa-wszystkich-pól-w-karcie-referencyjna)
+35. [Mapy myśli — kluczowe koncepty wizualnie](#35-mapy-myśli--kluczowe-koncepty-wizualnie)
 
 ---
 
@@ -1998,6 +2003,504 @@ Chipy są zaokrąglone, mają padding 8/3, mają cień. **Wszędzie tak samo**. 
 Scoring konfigurowalny (13 parametrów) — wolność. Ale walidacja: suma wag = 100, ProgA ≤ 100, progi malejące. **Wolność z bezpiecznikami**.
 
 **Analogia**: samochód ma kierownicę (wolność), ale też ABS i poduszki (bezpieczniki). Konfiguracja scoringu = tak samo.
+
+---
+
+## 31. Plan szkoleniowy — 5 dni do pełnej kompetencji
+
+> **Po co**: nowa osoba (Asia po Mai, ktoś po Paulinie, nowy stażysta) potrzebuje **uporządkowanej ścieżki**, nie „rzuć się w wodę". 5 dni × 2-3h dziennie = działająca kompetencja.
+
+### Dzień 1: Orientacja (2h)
+**Cel**: zrozumieć po co istnieje karta i co tam jest.
+
+**Materiał**:
+- Sekcje 0, 1 instrukcji (preambuła + „Po co")
+- Sekcja 30 (Filozofia C360) — bo dlaczego stoi za jak
+- Sekcja 22 (Słowniczek terminów) — żeby nie potykać się o słowa
+
+**Ćwiczenia praktyczne**:
+1. Otwórz menu → znajdź kafelek C360 (jeśli widzisz — masz uprawnienia).
+2. Otwórz pustą kartę → 🔍 Wybierz klienta → wybierz dowolnego z listy.
+3. **Bez czytania liczb** odpowiedz: ile zakładek głównych? Ile sub-zakładek pod „Sprzedaż"? Ile chipów obok nazwy?
+4. **Pierwsza interpretacja**: spójrz na sparkline + chip churn + scoring tego klienta. Powiedz sobie głośno „ten klient wygląda na X (rosnący/spadający/stabilny)".
+5. Zamknij. Otwórz innego. Powtórz interpretację bez patrzenia na liczby.
+
+**Sprawdzenie kompetencji** (zapisz odpowiedzi):
+- W którym miejscu jest „limit kredytowy"?
+- Jak nazywa się chip ze strzałką w górę/dół?
+- Po co istnieje `CmbOkres`?
+- Co to scoring?
+
+### Dzień 2: KPI i sygnały (2h)
+**Cel**: rozumieć każdy tile, chip, kolor.
+
+**Materiał**:
+- Sekcje 4 (Chipy), 5 (Sparkline), 7.2 (KPI tile), 15 (Kolory)
+- Pułapki 1-7 z sekcji 16.99
+
+**Ćwiczenia**:
+1. Otwórz 5 klientów po kolei. Dla każdego notuj: kategoria / churn / scoring / sparkline kolor.
+2. Znajdź klienta z **zielonym sparkline'em + czerwonym chipem przeterminowanego** — co to znaczy? (kupuje regularnie, ale nie płaci)
+3. Znajdź klienta ze **scoringiem A + czerwonym tile Limit** — anomalia. Dlaczego scoring nie pokazuje problemu? (bo Limit nie jest w 4 składnikach scoringu)
+4. **CmbOkres**: dla tego samego klienta zobacz wartości przy 12M, 6M, 3M, „cała historia". Co się zmienia? Co zostaje?
+5. **F5 vs Ctrl+R**: kliknij oba, zmierz różnicę czasu (Ctrl+R wolniejszy o ~1-2 sek bo przelicza scoring).
+
+**Sprawdzenie**:
+- Co znaczy żółte tło tile Limit?
+- Sparkline szary — co mówi?
+- Kategoria handlowca a scoring — czym się różnią?
+- Czemu reklamacje zawsze są „12 MIES" niezależnie od combo?
+
+### Dzień 3: Zakładki i drill-down (3h)
+**Cel**: wiedzieć w której zakładce znaleźć każdą odpowiedź.
+
+**Materiał**:
+- Sekcje 7-10 (4 main tab × N sub-tabs)
+
+**Ćwiczenia**:
+1. Wymyśl 10 pytań które klient mógłby zadać. Dla każdego znajdź **zakładkę gdzie jest odpowiedź**. Np.:
+   - „Jaki był obrót w lutym?" → Sprzedaż → Porównanie miesięczne (klik słupek lutego)
+   - „Czemu zamówiłem 100, a dostałem 92?" → Sprzedaż → Weryfikacja → filter Ucięte
+   - „Ile mi jeszcze do limitu?" → Przegląd → tile Limit
+2. **Drill-down**: w wykresie miesięcznym klik dowolny słupek → dialog ze szczegółami. Powtórz dla 3 miesięcy.
+3. **Weryfikacja**: znajdź klienta z >0 ucięć. Klik chip „Ucięte" → wyświetli się tylko ta lista. Dwuklik na pozycję → szczegóły.
+4. **Klient → Notatki**: dodaj testową notatkę „SZKOLENIE Dzień 3 — testuję dodawanie" → Dodaj → Usuń.
+
+**Sprawdzenie**:
+- Wymień wszystkie zakładki w „Sprzedaż"
+- Gdzie znajdziesz adres dostawy klienta?
+- Gdzie historia transportu?
+- Co to lazy-load i której zakładki dotyczy?
+
+### Dzień 4: Notatki i komunikacja (2h)
+**Cel**: opanować dziennik klienta jako rdzeń pracy zespołowej.
+
+**Materiał**:
+- Sekcja 9.3 (Notatki — pełna)
+- Sekcja 27 (Wzorce notatek — dobre vs złe)
+- Sekcja 25 (Antypatterns)
+
+**Ćwiczenia**:
+1. Dla 3 klientów: przeczytaj wszystkie notatki istniejące. Zapisz dla każdego: „o czym najczęściej rozmawiamy", „czy są decyzje strategiczne", „kto najczęściej pisze".
+2. Wybierz klienta bez notatek. **Dodaj pierwszą** używając schematu z sekcji 27:
+   ```
+   [Twoje imię], [dzisiejsza data godzina]: SZKOLENIE D4.
+   Klient w portfelu od [data faktury pierwszej].
+   Dotychczas brak notatek. Plan: pierwszy telefon w ciągu tygodnia.
+   ```
+3. **Dialog symulowany**: wyobraź sobie że klient dzwoni i mówi „nie pamiętacie ze nam obiecaliście rabat na czerwiec". Napisz dwie wersje odpowiedzi:
+   - **Bez notatki w karcie**: jak byś odpowiedziała?
+   - **Z notatką w karcie**: jak byś odpowiedziała?
+4. **Antypatterns**: przeczytaj 10 antypatternów. Czy któreś robisz mimowolnie? Zapisz refleksję.
+
+**Sprawdzenie**:
+- Schemat 4-elementowy dobrej notatki to: ___ / ___ / ___ / ___
+- Czemu NIE usuwać starych notatek?
+- Po co schemat „[KTO], [KIEDY]" na początku każdej notatki?
+
+### Dzień 5: Scenariusze rzeczywiste (3h)
+**Cel**: wyprowadzić wszystko co poznałaś na praktykę.
+
+**Materiał**:
+- Sekcja 16 (Scenariusze A-O + pierwszy dzień)
+- Sekcja 23 (Case Studies 1-4)
+- Sekcja 20 (Mapa decyzji)
+
+**Ćwiczenia rolepay**:
+1. **Wciel się w Maję** — Sergiusz mówi „klient X zalega 80k, jaki jest twój plan?" Otwórz kartę X i odpowiedz pełnym uzasadnieniem (notatki + dane finansowe + plan).
+2. **Wciel się w klienta** który dzwoni i pyta „dlaczego mniejsza dostawa". Pracuj z prawdziwą kartą jakąś z portfela. Drugi handlowiec (lub ty sama) gra Mai. Czy w 60 sek odpowiada konkretnie?
+3. **Wciel się w Sergiusza** — przegląd portfela rano. Otwórz Pulpit Portfela, sortuj po Przeterminowane DESC. Wskaż top 3 do interwencji i powiedz dlaczego.
+4. **Case Study 1** z sekcji 23 — przeczytaj, potem zamknij plik. Z pamięci powiedz: jaki błąd zrobiła Asia? Jak by się tego uniknąć?
+5. **Notatka stażowa**: na koniec dnia dodaj notatkę do jednego z klientów którego sama wybierzesz: „[Twoje imię], [data]: Skończyłam szkolenie 5-dniowe z C360. Pierwszy aktywny klient pod moją opieką. Plan: telefon w przyszłym tygodniu."
+
+**Końcowe sprawdzenie kompetencji**:
+- Otwórz 1 dowolnego klienta. Bez instrukcji w ręku → w 60 sek powiedz głośno: kim jest, jakie ryzyko, ostatnie wydarzenie, co bym chciała mu zaproponować przy następnym kontakcie.
+- Wymień 3 antypatterny których będziesz unikać.
+- Wymień 3 chipy z toolbara i co oznaczają.
+- Wymień różnicę między „Kategorią handlowca" a „Scoringiem".
+
+**Po 5 dniach** powinnaś:
+- Otwierać kartę bez patrzenia w instrukcję
+- Pisać notatki w schemacie 4-elementowym odruchowo
+- Decydować z C360 (limit, blokada, rabat) zamiast eskalować do Sergiusza
+- Rozróżniać sygnał (czerwone tło tile) od szumu (sparkline szary stabilny)
+- Mieć rytuał poranny z Pulpitem Portfela (sekcja 26)
+
+---
+
+## 32. Skorowidz alfabetyczny
+
+> **Po co**: jak szukasz konkretnego terminu, nie czytaj całości. Tu znajdziesz numer sekcji.
+
+| Termin / pojęcie | Gdzie szukać |
+|---|---|
+| Alerty | 7.5 |
+| Anulowane zamówienia | 8.4 |
+| Antypatterns | 25 |
+| Asortyment (zakładka) | 10.4 |
+| Banner błędu | 6, scenariusz K |
+| Brief PDF | 13, scenariusz J |
+| Case studies | 23 |
+| Categoria handlowca | 4.1 |
+| Cache scoringu | 14, filozofia 30 zasada 3 |
+| Cheat sheet A4 | 21 |
+| Chip Churn | 4.2 |
+| Chip Kategoria | 4.1 |
+| Chip Scoring | 4.3 |
+| Chipy ogólnie | 4 |
+| Churn risk | 4.2, scenariusz D |
+| CmbOkres | 11 |
+| Color konwencje | 15 |
+| Ctrl+E | 12, 13 |
+| Ctrl+R | 12, scoring config 14 |
+| Ctrl+← / Ctrl+→ | 12 |
+| Dane klienta (zakładka) | 9.1 |
+| Debug | 3, 6 |
+| Dialogi z klientem | 24 |
+| Drill-down | 7.3, 8.5, słownik 22 |
+| Edge cases | 18 |
+| Eksport CSV | 3 |
+| Eksport PDF | 13 |
+| Esc | 12 |
+| FAQ techniczne | 19 |
+| Faktury (zakładka) | 8.2 |
+| Filozofia C360 | 30 |
+| Filter chipy weryfikacji | 8.3 |
+| Flowcharty decyzji | 20 |
+| F5 | 12 |
+| GetKpiAsync | technical FAQ 19 |
+| HANDEL baza | 1 |
+| Hero scoring | 7.1 |
+| Historia (zakładka) | 10.2 |
+| Kategoria handlowca | 4.1, scenariusz L |
+| Klient (zakładka) | 9 |
+| Kolor sparkline | 5 |
+| Konfiguracja scoringu | 14 |
+| Kontakty (zakładka) | 9.2 |
+| KPI tile | 7.2 |
+| LibraNet baza | 1 |
+| Limit chip | 7.1 |
+| Litera scoring | 4.3, 14 |
+| Lupa nad mapą (analogia CmbOkres) | 11 |
+| Mapa decyzji | 20 |
+| Marża (usunięta) | 7.2 Tile 2 |
+| Nawigacja ◀ ▶ | 3 |
+| Niebieski (kolor) | 15 |
+| Notatki | 9.3, 27 (wzorce) |
+| Onboarding nowego handlowca | 16.16, 31 (plan 5 dni) |
+| Pasek toolbar | 3 |
+| Pełna ścieżka pliku | koniec dokumentu |
+| Picker klienta | 2, 3 |
+| Plan szkoleniowy | 31 |
+| Pokaż wszystkie chipy | 4 |
+| Polityka karty Customer360 | 30 (filozofia) |
+| Pomyłki interpretacyjne | 16.99 |
+| Porównaj klientów | 3, scenariusz I |
+| Porównanie miesięczne | 8.5, scenariusz C |
+| Pożyteczne dla Mai/Pauliny | wszędzie, szczególnie 16, 24, 27 |
+| Przeterminowane chip | 7.1, scenariusz F |
+| Pułapki | 16.99 |
+| Pulpit Portfela | 2, 26 (checklist) |
+| Q&A | 29 |
+| Reklamacje KPI | 7.1, scenariusz G |
+| Render | 6, słownik 22 |
+| Rozmowa telefoniczna | 24 |
+| Scoring | 4.3, 14 (config), 23 case 3 |
+| Scoring detal | 10.1 |
+| Sergiusz strategicznie | 28 |
+| Skorowidz | TUTAJ — sekcja 32 |
+| Skróty klawiszowe | 12 |
+| Słownik branżowy | 33 |
+| Słowniczek techniczny | 22 |
+| Sparkline | 5 |
+| Sprzedaż (zakładka) | 8 |
+| Top 5 towarów | 7.4 |
+| Tooltip churn | 4.2 |
+| Transport (zakładka) | 10.3 |
+| TransportPL baza | 1 |
+| Trend kierunek | 7.3 |
+| Wartość średnia faktury | 7.2 Tile 2 |
+| Weryfikacja faktur | 8.3, scenariusz C |
+| Wykres miesięczny | 7.3 |
+| Wzorce notatek | 27 |
+| YoY | 7.2 Tile 1, 11 |
+| Zakładka Analiza | 10 |
+| Zakładka Klient | 9 |
+| Zakładka Przegląd | 7 |
+| Zakładka Sprzedaż | 8 |
+| Zamówienia (zakładka) | 8.1 |
+| Zaplanowane zamówienia (brak w widokach) | 1, scenariusz B |
+| Zielony (kolor) | 15 |
+| Żółty (kolor) | 15 |
+
+---
+
+## 33. Słownik branżowy drobiarski w kontekście C360
+
+> **Po co**: terminy z branży drobiarskiej i jak C360 je odzwierciedla. Dla nowych osób nie z branży poultry.
+
+| Termin branżowy | Co znaczy | Gdzie w C360 |
+|---|---|---|
+| **Żywiec** | Ptak żywy przed ubojem | Magazyn 65555 = M.UBOJ. Nie wyświetlane w C360 (to dla dostawców, nie odbiorców) |
+| **Tuszka** | Cały ptak po uboju, bez wnętrzności | Top 5 towarów może zawierać |
+| **Ćwiartka** | Część tuszki podzielona na 4 | Częsty top towar |
+| **Pałka / Udziec / Skrzydełko** | Części pierwsze | Top 5 |
+| **Filety** | Mięso bez kości i skóry | Drogi towar — wysokie kg = bogaty klient |
+| **E2 / Skrzynka** | Standardowe opakowanie 25kg drobiu | Suma kg / 25 ≈ liczba skrzynek dostarczonych |
+| **Paleta** | 36 skrzynek E2 = 900 kg drobiu na palecie | Zakładka Transport może liczyć palety |
+| **Halal** | Mięso z uboju rytualnego | Niektórzy klienci wymagają — preferencja w Klient → Dane |
+| **Mrożone** | Towar z magazynu M.MROŹ (65552) | Top 5 może zawierać towary z prefixem MR/MRZ |
+| **Konfiskata** | Towar wycofany przez weterynarza | Nie pokazane bezpośrednio w C360 — wpływa na Suma kg (mniejsza) |
+| **Hodowca** | Dostawca żywca (rolnicy) | NIE pokazane w C360 — C360 to odbiorcy. Hodowcy w osobnym module |
+| **Rzeźnia / Linia** | Część zakładu gdzie ubój | Nie w C360 |
+| **Magazyn 67095 = Świeże** | Główny magazyn świeżego | Niektóre top 5 |
+| **Magazyn 65554 = M.PROD** | Magazyn produkcji | — |
+| **Magazyn 65556 = M.DYST** | Magazyn dystrybucji | Towar przed wydaniem do klienta |
+| **Magazyn 65559 = Mag.opak.** | Magazyn opakowań (E2, palety) | Klient zwraca → tu trafiają |
+| **Partia** | Numer identyfikujący ubój danego dnia | Reklamacje często powołują się na partię |
+| **HACCP** | Standard bezpieczeństwa żywności | Nie w C360, ale wpływa na podejmowanie reklamacji |
+| **HPAI (ptasia grypa)** | Choroba prowadząca do likwidacji stada | Klient kategorii „lock" / „katastrofa" — wstrzymanie dostaw na okres |
+
+---
+
+## 34. Mapa wszystkich pól w karcie (referencyjna)
+
+> **Po co**: czasem potrzebujesz wiedzieć skąd dokładnie się bierze konkretna liczba. Tu jest mapa źródła każdego pola.
+
+### Hero — nagłówek
+| Pole UI | Źródło danych | Tabela |
+|---|---|---|
+| `LblNazwa` | nazwa klienta | HANDEL.SSCommon.STContractors.Name |
+| `LblHandlowiec` | przypisany handlowiec | HANDEL.SSCommon.ContractorClassification.CDim_Handlowiec_Val |
+| `LblKategoria` (chip) | kategoria A/B/C/D | LibraNet.KartotekaOdbiorcyDane.KategoriaHandlowca |
+| `LblChurnIcon` + `LblChurnLevel` | ryzyko odejścia | obliczane w `Customer360KpiCalculator.ObliczChurn` z kpi |
+| `LblScoringChip` (chip) | scoring litera + pkt | cache LibraNet.Customer360_ScoreCache lub świeże z `Customer360Scorer.BudujScore` |
+| `SparklineLine` | 6 ostatnich mies obrotu | obliczane z `GetMonthlyObrotFakturyAsync(klientId)` |
+
+### KPI hero (4 tile + 5 chipów)
+| Pole UI | Skąd liczba | Funkcja |
+|---|---|---|
+| `KpiObrot` | obrót faktur okresu | `GetObrotFakturyAsync(klientId, monthsBack)` |
+| `KpiObrotYoY` | obrót okresu prev | `LoadObrotPrevYearAsync(klientId, monthsBack)` |
+| `KpiSrFaktura` | obrót / liczba faktur | obliczane |
+| `KpiLiczbaZam` | liczba zamówień okresu | `LoadZamowieniaSummaryAsync(klientId, monthsBack)` |
+| `KpiSumaKg` | suma kg z zamówień | jw. |
+| `KpiLimit` | limit kredytowy | HANDEL.SSCommon.STContractors.LimitAmount |
+| `KpiDoZap` | suma do zapłaty | `LoadFinanseSummaryAsync` (DK - PN) |
+| `KpiReklamacje` + `KpiReklamacjeProc` | liczba reklamacji 12M + % obrotu | `LoadReklamacjeSummaryAsync(klientId)` |
+| `ChipLimitVal` + `ChipLimitBar` | % wykorzystania | kpi.DoZaplaty / kpi.LimitKredytowy * 100 |
+| `ChipPrzetermVal` + `ChipPrzetermSub` | przeterminowane | kpi.Przeterminowane + kpi.MaxDniOpoznienia |
+| `ChipOstatnieVal` + `ChipOstatnieSub` | dni od ostatniego zam. | obliczane z `kpi.OstatnieZamowienie` |
+
+### Sprzedaż → Faktury
+| Kolumna grid | Źródło |
+|---|---|
+| `Numer faktury` | HANDEL.HM.DK.numer |
+| `Data wystawienia` | HANDEL.HM.DK.data |
+| `Typ` | HANDEL.HM.DK.typ_dk (FVS/FVR/FVZ/FKS/FKR) |
+| `Brutto` | HANDEL.HM.DK.walbrutto |
+| `Wartość netto` | HANDEL.HM.DK.walnetto |
+| `SumaKg` | SUM HANDEL.HM.DP.ilosc dla danego dokumentu |
+| `Idkoryg` | HANDEL.HM.DK.iddokkoryg (powiązanie korekty z oryginałem) |
+
+### Sprzedaż → Weryfikacja
+| Pole | Źródło |
+|---|---|
+| `ZamowioneKg` per towar | SUM LibraNet.ZamowieniaMiesoTowar.Ilosc |
+| `ZafakturowaneKg` per towar | SUM HANDEL.HM.DP.ilosc (BEZ korekt) |
+| `RoznicaKg` | `ZafakturowaneKg - ZamowioneKg` |
+| Werdykt | obliczany z RealizacjaProc |
+
+### Klient → Dane
+| Pole | Tabela |
+|---|---|
+| `EdNazwa` | HANDEL.SSCommon.STContractors.Name |
+| `EdNip` | HANDEL.SSCommon.STContractors.Nip |
+| `EdAdres` | HANDEL.SSCommon.STContractors.Adres |
+| `EdOsoba` | LibraNet.KartotekaOdbiorcyDane.OsobaKontaktowa |
+| `EdTelefon` | LibraNet.KartotekaOdbiorcyDane.TelefonKontakt |
+| `EdEmail` | LibraNet.KartotekaOdbiorcyDane.EmailKontakt |
+| `EdTrasa` | LibraNet.KartotekaOdbiorcyDane.Trasa |
+| `EdDzien` | LibraNet.KartotekaOdbiorcyDane.PreferowanyDzienDostawy |
+| `EdGodzina` | LibraNet.KartotekaOdbiorcyDane.PreferowanaGodzinaDostawy |
+| `EdAdresDostawy` | LibraNet.KartotekaOdbiorcyDane.AdresDostawyInny |
+| `EdPrefPakowanie` | LibraNet.KartotekaOdbiorcyDane.PreferencjePakowania |
+| `EdPrefJakosc` | LibraNet.KartotekaOdbiorcyDane.PreferencjeJakosci |
+| `EdNotatki` | LibraNet.KartotekaOdbiorcyDane.Notatki (stare pole, NIE myl z zakładką Notatki) |
+| `EdKategoria` | LibraNet.KartotekaOdbiorcyDane.KategoriaHandlowca |
+
+### Klient → Notatki (nowa zakładka)
+| Pole | Tabela |
+|---|---|
+| `TxtNowaNotatka` | TextBox input (NIE w bazie) |
+| Lista notatek | LibraNet.Customer360_Notatki |
+| `Id` | Customer360_Notatki.Id (auto increment) |
+| `Tresc` | Customer360_Notatki.Tresc (NVARCHAR MAX) |
+| `AutorId` | App.UserID (zalogowany użytkownik) → Customer360_Notatki.AutorId |
+| `CreatedAt` | Customer360_Notatki.CreatedAt (GETDATE() przy INSERT) |
+
+### Analiza → Scoring (4 składniki)
+| Pole | Skąd |
+|---|---|
+| `ObrotPkt` | obliczane z kpi.Obrot12M / cfg.ObrotNaMaxPkt × 100 |
+| `CzestotliwoscPkt` | z kpi.SredniCzasMiedzyZamowieniami + config |
+| `TerminowoscPkt` | z kpi.Terminowe / kpi.DoZaplaty + config |
+| `DlugoscPkt` | z PobierzPierwszaFakturaAsync + config |
+| `Total` | weighted average |
+| `Litera` | progi z config (ProgA/B/C/D) |
+| `Kategoria` (opis) | „Doskonały / Solidny / Akceptowalny / Wątpliwy / Krytyczny" |
+| `KategoriaKolor` | hex z mapowania litery na kolor |
+| `RekomendacjaLimitu` | obliczana z obrotu × współczynnik wg litery |
+
+---
+
+## 35. Mapy myśli — kluczowe koncepty wizualnie
+
+> **Po co**: niektórzy uczą się patrząc, nie czytając. ASCII mindmapy zbierają główne pojęcia w jednej grafice.
+
+### Mapa 1: Co to jest „klient" w C360
+```
+                              KLIENT (1 rekord)
+                                    |
+            +-----------------+-----+-----+-----------------+
+            |                 |           |                 |
+         HEAD                CASH       NEED              HISTORY
+       (kim jest)         (pieniądze)  (czego chce)     (co się działo)
+            |                 |           |                 |
+   +---+----+----+    +-------+----+   +--+-------+    +----+---------+
+   |   |    |    |    |       |    |   |          |    |              |
+ Nazwa NIP Kat  Adres Limit DoZap Przet Top5     Pref  Trans Fak   Reklam Notat
+ (HANDEL)        (HANDEL)             towary    (Klient (LibraNet+
+                                      (12M)     →Dane)  HANDEL)
+
+   3 bazy danych zlewają się w jeden ekran:
+   - HANDEL → finansowy
+   - LibraNet → operacyjny
+   - TransportPL → logistyczny
+```
+
+### Mapa 2: Drzewo decyzji „co zrobić z klientem"
+
+```
+                    KLIENT przed tobą
+                          |
+              +-----------+-----------+
+              |                       |
+        DANE OGÓLNE            STAN CHWILI
+        (sparkline,            (chipy,
+        kategoria, scoring)     tile, banner)
+              |                       |
+       trend rośnie?            problem widoczny?
+         /         \             /        \
+       TAK          NIE         TAK         NIE
+        |            |           |           |
+    wzmacniaj     ratuj      reaguj      kontynuuj
+     relację      relację     teraz       rutynę
+        |            |           |           |
+    dodatk.       telefon    notatka+      notatka
+    oferta        dziś       akcja         standard
+```
+
+### Mapa 3: Cykle Sergiusza vs handlowca
+
+```
+SERGIUSZ                          HANDLOWIEC
+  |                                  |
+  +-- codziennie 5 min               +-- rano 15 min
+  |   • przeterminowane              |   • alerty
+  |   • reklamacje top               |   • churn lista
+  |   • limit wykorzystanie          |   • TOP klienci
+  |                                  |
+  +-- co tydzień 30 min              +-- przed każdą rozmową 30 sek
+  |   • kategoria A scoring          |   • sparkline
+  |   • kategoria D rewizja          |   • chip churn
+  |   • churn CRITICAL               |   • CmbOkres 3M
+  |                                  |   • notatki ostatnie
+  +-- miesięcznie 1h                 |
+  |   • progi scoringu               +-- po każdej rozmowie 30 sek
+  |   • wagi scoringu                |   • nowa notatka
+  |   • klastry branżowe             |
+  |                                  +-- na koniec dnia 10 min
+  +-- rocznie 4h                     |   • zaktualizowane notatki
+      • top/bottom 20                |   • plan jutro
+      • config audit                 |
+      • rozmowa zespołowa
+```
+
+### Mapa 4: Hierarchia danych
+
+```
+   ŚWIEŻE (zawsze)                            CACHE (do 7 dni)
+        |                                            |
+    KPI tile                                     Scoring
+        |                                            |
+    KPI hero                                  Detal scoringu
+        |                                            |
+    GetKpiAsync()                          Customer360_ScoreCache
+        |                                            |
+    Każde otwarcie karty                  Customer360ScoringService
+    = nowe zapytanie SQL                        |
+                                              Bypass: Ctrl+R
+                                              forceScore=true
+```
+
+### Mapa 5: Cykl życia notatki
+
+```
+        Powstanie                              Ewolucja
+            |                                      |
+        Rozmowa                              Czytanie przed
+        z klientem                           następnym kontaktem
+            |                                      |
+        +---+---+                          +-------+-------+
+        |       |                          |               |
+   WAŻNE      NIEISTOTNE              dalej aktualne   stała
+        |       |                          |               |
+   NOTATKA   pomijam                  kontekst dla    część HISTORII
+   schemat                             nowej akcji    NIE USUWAM
+   4-element                                |
+        |                              +----+----+
+    DODAJ                              |         |
+        |                          DECYZJE   FACTS
+        |                          ZMIANY    LEKCJE
+        |                                |
+        |                            archiwum
+        |                            zbiorcze
+   PRZECZYTANE              decyzje historyczne
+   PRZEZ                    osadzone w karcie
+   3-5 OSÓB                 do wglądu wszystkich
+   w portfelu               którzy obsługują
+```
+
+### Mapa 6: Mapa „bez C360 vs z C360"
+
+```
+ZADANIE                BEZ C360           Z C360
+====================   ============       ============
+Telefon do klienta     5-10 min           30 sek
+(kontekst)             grzebania w        sparkline + chip
+                       Sage+Excel         + notatki
+
+Saldo klienta          telefon do         5 sek
+                       księgowej          tile Limit
+                       (10 min)
+
+Brief na spotkanie     30 min             5 sek
+                       kopiowania         Ctrl+E
+
+Decyzja kredytu        eskalacja          30 sek
+                       Sergiusza          4 sygnały na ekranie
+
+Po reklamacji          chaos              kontekst pełen
+                       sprawdzanie        chip Reklamacje
+                       3 systemów         + Notatki
+
+Onboarding             miesiąc            3-5 dni
+nowego handlowca       chaosu             szkolenie planowe
+
+Pamięć kontaktu        z głowy            Notatki
+                       (zawodzi)          (zawsze dostępne)
+```
 
 ---
 
