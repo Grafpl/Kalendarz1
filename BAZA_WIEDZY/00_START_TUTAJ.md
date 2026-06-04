@@ -58,6 +58,7 @@
 | 25 | **Analityka_Pelna_v2_StanMagazynow.md** | **Sub-tab "Stan magazynów"** w Bilansie — flow chain + towary z zdjęciami + Sankey MM- |
 | 26 | **Modul_Zamowien_v2.md** | **Pełen refactor modułu zamówień (2026-05-09)** — NoweZamowienieTestWindow, UserAvatarManager, ContractorClassification triggery, smart suggestions notatek, NotatkiSzablony+NotatkiUzycia |
 | 27 | **WidokCenWszystkich_modul.md** | **Moduł "Pokaż ceny" — 11 zakładek analityki cen żywca** (Dane/Wykresy/YoY/Kontrakty/Pasze/Klienci). Pełny SQL Kontrakty, definicja TypCeny, kolumny HarmonogramDostaw, dialog dostaw |
+| 32 | **Customer360_Instrukcja_Uzytkownika.md** | **Pełna instrukcja użytkownika C360** — toolbar, chipy, sparkline, 4 zakładki + sub-zakładki, CmbOkres mechanika, scoring, PDF, 13 scenariuszy codziennych, "dlaczego liczby się nie zgadzają", FAQ techniczne |
 | _ | zrodla.md | Lista oryginalnych dokumentów (docx, pdf) |
 | _ | AUDYT_KODU_SQL.md | Audyt zapytań SQL w kodzie ZPSP |
 | _ | **SELECTY/** | **Folder z 20+ plikami `.sql`** + `WYNIKI.md` na wklejki — eksploracja LibraNet/HANDEL |
