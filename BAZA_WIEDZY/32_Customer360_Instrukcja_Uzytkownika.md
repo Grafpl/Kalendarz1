@@ -60,6 +60,14 @@
 20. [Mapa decyzji — flowcharty](#20-mapa-decyzji--krótkie-flowcharty)
 21. [Cheat sheet A4 do druku](#21-cheat-sheet-a4--wydruk-nad-biurko)
 22. [Słowniczek terminów technicznych](#22-słowniczek-terminów-technicznych-dla-nie-programistów)
+23. [Case studies — 4 realne sytuacje](#23-case-studies--4-realne-sytuacje-krok-po-kroku)
+24. [Dialogi z klientem](#24-dialogi-z-klientem--jak-c360-wzbogaca-rozmowy)
+25. [Antypatterns — czego NIE robić](#25-antypatterns--czego-nie-robić-z-c360)
+26. [Checklist dnia handlowca](#26-checklist-dnia-handlowca)
+27. [Wzorce notatek — dobrych vs złych](#27-wzorce-notatek--dobrych-vs-złych)
+28. [Sergiusz strategicznie — portfel z lotu ptaka](#28-sergiusz-strategicznie--portfel-z-lotu-ptaka)
+29. [Q&A — najczęstsze pytania użytkowników](#29-qa--najczęstsze-pytania-użytkowników)
+30. [Filozofia C360 — czemu tak zaprojektowane](#30-filozofia-c360--czemu-tak-zaprojektowane)
 
 ---
 
@@ -1462,6 +1470,534 @@ A:
 | **Toolbar** | Pasek narzędzi (przyciski na górze) | Tablica narzędzi w warsztacie |
 | **Commit** | Zapis zmian w kodzie | „Stempel w księdze handlowej" — formalny zapis czego dotyczyła zmiana |
 | **Build zielony** | Aplikacja kompiluje się bez błędów | Sprawdziłam, że auto pali zanim wyjadę |
+
+---
+
+## 23. Case studies — 4 realne sytuacje krok po kroku
+
+> **Po co**: konkretne przykłady z fikcyjnymi (ale realistycznymi) klientami i liczbami. Każdy pokazuje jak C360 zmienia decyzję / rozmowę / rozwiązanie.
+
+### Case Study 1: „MASARNIA U JANA" — klient sezonowy, fałszywy alarm churn
+
+**Tło**: małopolska masarnia przetwórstwa, kupuje 80% rocznego obrotu w okresie X-XII (sezon kiełbas/wędzonek na zimę i święta). Współpraca od 2019, dyrektor masarni to brat szwagra Sergiusza.
+
+**Stan w C360 (5 czerwca)**:
+- Obrót 12M: 280 000 zł
+- Sparkline: ostatnie 6 mies = 0/0/0/0/0/0 → szary płaski
+- Chip Churn: 🚨 CRITICAL — „Brak zamówienia 187 dni"
+- Scoring: D (62/100) — bo Częstotliwość = 12 pkt (rzadko)
+- Notatka ostatnia: brak
+
+**Problem**: nowa handlowczyni Asia widzi czerwony 🚨, dzwoni do dyrektora masarni:
+> „Dzień dobry, jestem Asia, nowa osoba u Piórkowskich. Widzę że dawno nic pan u nas nie zamawiał, zdarzyło się coś?"
+
+Dyrektor (lekko zdenerwowany): „A skąd? Zawsze tak jest, przecież co roku zaczynam w październiku. Maja wiedziała."
+
+Asia: „Aaa, oczywiście, przepraszam..."
+
+**Dlaczego źle**: Asia straciła punkt zaufania. Wyszła na osobę która nie ma kontekstu. Klient się czuje jak liczba w systemie.
+
+**Jak powinno wyglądać z notatką**:
+Gdyby Maja przed odejściem zostawiła:
+> `Maja, 2025-09-15: Klient sezonowy X-XII. Reszta roku 0 zam. NIE alarmować na churn. Dyrektor Jan Kowalski, +48 600 ..., wynajduje próbki kontaktowo w sierpniu na sezon.`
+
+Asia zobaczyła by notatkę PRZED odebraniem telefonu. Zamiast nieudanego telefonu — w sierpniu sama by zadzwoniła z pytaniem o specyfikację na sezon, klient czuje że jest pamiętany.
+
+**Lekcja**: **C360 sam nie wie kontekstu biznesowego**. Notatki są kompasem dla algorytmów które tylko patrzą na liczby.
+
+---
+
+### Case Study 2: „MIESNIK CENTRUM" — klient toksyczny ze scoringiem B
+
+**Tło**: hurtownia mięsa w centrum miasta, kupuje regularnie co tydzień, 1.2M obrotu rocznie. Scoring B (74/100). Pozornie idealny klient.
+
+**Stan w C360 (8 czerwca)**:
+- Obrót 12M: 1 240 000 zł, YoY +8% ▲
+- Sparkline: zielony, równo rosnący
+- Chip Churn: ✅ OK „Aktywny (4 dni od ostatniego, norma 7)"
+- Scoring: B (74/100)
+- Tile Limit: 200 000 zł, Do zapłaty: 220 000 zł → **tło czerwone, >100% wykorzystania**
+- Chip Przeterminowane: 85 000 zł, max 67 dni → **czerwone**
+- Reklamacje 12M: 14 — czerwony chip
+- Notatki: 8 wpisów, w tym 3 z różnymi konfliktami: „spór o cenę", „zwrot palety", „opóźniona zapłata"
+
+**Co robi Sergiusz**:
+1. Otwiera kartę, scoring B sugeruje „super klient", ale...
+2. Patrzy na **tile Limit** — czerwone tło (>100%).
+3. Czyta **Notatki** — co tydzień jakiś konflikt.
+4. **Wykres reklamacji** — 14 w 12M to skandalicznie dużo (przeciętnie 0.5-2).
+5. Decyzja: **klient toksyczny pod ścianą scoringu**. Generuje obrót, ale za cenę zaległości + reklamacji + nerwów księgowej.
+
+**Działanie**:
+- **👤 Klient → Dane → Kategoria handlowca → C** (zapisz). *Z perspektywy strategicznej, mimo wysokiego obrotu, klient nie wart utrzymania.*
+- **📝 Notatki**: „2026-06-08 Sergiusz: scoring wysoki, ale klient toksyczny. 14 reklamacji + chronicznie zalega + co tydzień konflikt. Kategoria → C. Plan: zwiększyć limit nie wcześniej niż po 6 mies zerowych reklamacji + terminowych płatności."
+- Telefon do Mai z notatką w ręku.
+
+**Lekcja**: **scoring jest CZĘŚCIĄ obrazu, nie całością**. Liczby mówią „dobrze". Notatki + chipy + tile mówią „nie tak szybko". C360 daje ci 4 wymiary patrzenia jednocześnie — używaj wszystkich.
+
+---
+
+### Case Study 3: „DROBEX MAZOWSZE" — nowy klient z ogromnym potencjałem
+
+**Tło**: dystrybutor mięsa dla restauracji w Warszawie, podpisał umowę 2 tygodnie temu, pierwsza dostawa 10 dni temu.
+
+**Stan w C360 (4 czerwca)**:
+- Obrót 12M: 38 000 zł (jedna faktura)
+- YoY: „Brak danych do porównania"
+- Sparkline: ukryty (<2 punkty)
+- Chip Churn: ❓ UNKNOWN
+- Scoring: F (38/100) — Długość relacji 10 pkt (floor), Obrót 25 pkt, Częstotliwość 0 pkt, Terminowość 60 pkt (brak danych)
+- Tile Limit: 50 000 zł, Do zapłaty: 38 000 zł — białe tło, w normie
+- Kategoria handlowca: B (ustawiona ręcznie przez Sergiusza po podpisaniu umowy)
+- Notatka jedyna: „Sergiusz, 2026-05-25: podpisana umowa. Potencjał: 300k-500k rocznie wg deklaracji. Pierwsza dostawa 25.05. Asia obsługuje."
+
+**Sytuacja**: Asia patrzy na scoring „F" i czuje że klient jest słaby. **Pomyłka interpretacyjna** — F wynika z braku historii, nie z faktycznych słabych wyników.
+
+**Co Asia powinna zrobić**:
+1. Spojrzeć na **kategorię handlowca B** (ustawioną ręcznie przez Sergiusza) — to **strategiczna intencja**.
+2. Przeczytać **notatkę** — „potencjał 300-500k rocznie" + „pierwsza dostawa 25.05".
+3. Zignorować scoring F (znany floor dla nowych — pułapka 2 z sekcji 16.99).
+4. Zaplanować **proaktywny follow-up** w czerwcu — telefon „jak pierwsza dostawa, czy wszystko OK?".
+5. Po telefonie: notatka z opiniami klienta na dostawę.
+
+**Po 6 miesiącach**:
+- Klient zamawia 1× tygodniowo, średnio 30k zł
+- Obrót 12M (po pełnym roku): ~360k
+- Scoring naturalnie wzrasta do B/C wraz z budową historii
+- Kategoria handlowca: utrzymana B (potwierdzenie strategii)
+
+**Lekcja**: **kategoria handlowca (ręczna) vs scoring (auto)** — jedno mówi „dokąd zmierzamy", drugie „gdzie jesteśmy". Klient kategorii B ze scoringiem F = potencjał, nie problem. Klient kategorii D ze scoringiem A = ryzyko mimo dobrych liczb (Case Study 2).
+
+---
+
+### Case Study 4: „GASTRO PARTNER" — klient odzyskany po zmianie handlowca
+
+**Tło**: hurtownia gastronomiczna, była na portfelu Pauliny. W ostatnich 6 mies obrót spadł z 90k/mies do 25k/mies. Klient mówił „jakość gorsza, transport opóźnia". Sergiusz przeniósł na Maję 2 mies temu.
+
+**Stan w C360 (5 czerwca, na portfelu Mai)**:
+- Obrót 12M: 670 000 zł, YoY -42% ▼
+- Sparkline: czerwony stromy spadek przez 6 mies, ostatni miesiąc lekki wzrost
+- Chip Churn: ⚠ WARNING (poprawiło się z 🚨 CRITICAL miesiąc temu)
+- Scoring: C (58/100), był D (43) dwa miesiące temu
+- Tile Obrót: jasno-czerwone tło (YoY < -10%)
+- Notatki — 5 wpisów chronologicznie:
+  ```
+  Paulina, 2025-12-10: klient niezadowolony z dostawy 08.12,
+  zwrot 60kg konfiskat. Reklamacja R/2025/345.
+
+  Sergiusz, 2026-04-15: rozmowa z dyrektorem GP. Obrót spadł
+  3-krotnie. Wątpliwości co do Pauliny. Decyzja: przenoszę na
+  Maję od 16.04, dam klientowi nową twarz.
+
+  Maja, 2026-04-20: pierwsze spotkanie. Klient zaskoczony pozytywnie,
+  obiecałam jakość + termin. Ustaliłam: cotygodniowy follow-up,
+  drobne ustępstwa cenowe.
+
+  Maja, 2026-05-01: telefon, klient pochwalił wczorajszą dostawę.
+  Obiecał wzrost zam. od czerwca.
+
+  Maja, 2026-06-03: zamówienie 45kg (+80% vs zeszły tydz). Mówi że
+  „odzyskaliście" go. Możemy iść do 60k/mies w sierpniu.
+  ```
+
+**Co Maja widzi i robi**:
+1. **Sparkline** ostatni segment zielony → potwierdza że trend się odwraca.
+2. **Tile Obrót** jeszcze czerwony (12M YoY -42%) ale to "rana z przeszłości".
+3. **Scoring** ruszył z D do C — algorytmy potwierdzają subiektywne odczucie.
+4. **Notatki** to historia odzyskania — pokazuje co działa.
+5. **Plan na czerwiec**: kontynuować cotygodniowe follow-upy, mierzyć obrót, w sierpniu Sergiusz zdecyduje czy kategoria handlowca z C → B.
+
+**Lekcja**: **C360 dokumentuje historię odzyskiwania klienta** w sposób którego nie da się zrobić pamięcią. Każda decyzja (zmiana handlowca, ustępstwa cenowe, follow-up) ma datę i autora. Gdyby Maja jutro odeszła, kolejna osoba mogłaby zobaczyć kompletną historię i kontynuować strategię.
+
+---
+
+## 24. Dialogi z klientem — jak C360 wzbogaca rozmowy
+
+> **Po co**: rozmowa telefoniczna jest miejscem gdzie dane z C360 zamieniają się w wartość. Tu są wzorce „bez C360 / z C360" w formie transkryptów.
+
+### Dialog A: Klient prosi o rabat
+
+**Bez C360**:
+> **Klient**: „Czy dostanę 5% rabatu na to zamówienie?"
+> **Handlowiec**: „Hmm, muszę sprawdzić... oddzwonię"
+> *[handlowiec szuka, dzwoni do Sergiusza, klient czeka 30 min]*
+> **Handlowiec** (po 30 min): „Sergiusz powiedział nie."
+
+**Z C360**:
+> **Klient**: „Czy dostanę 5% rabatu na to zamówienie?"
+> **Handlowiec (otwiera kartę 3 sek)**: „Pana firma w ostatnich 12 miesiącach zrobiła u nas 1.8 mln obrotu, plus 200k w poprzednim roku — to nasz top 10. Standardowo dajemy 3%, ale przy takim wolumenie mogę zaproponować 4.5%. Czy to przekona?"
+> **Klient**: „Hmm, a może 5%? Konkurencja oferuje..."
+> **Handlowiec**: „Rozumiem. Pozwolę sobie jutro do południa wrócić z odpowiedzią po konsultacji. Czy mogę o jedną rzecz zapytać — w lutym i marcu zamówienia spadły o 30% — coś się stało?"
+> **Klient**: „Aaa, nasz dyrektor miał wypadek, byliśmy w zawieszeniu. Już wracamy do normy."
+> **Handlowiec** (zapisuje notatkę): „Doskonale rozumiem, w takim razie 5% za maj-czerwiec na powitanie. Następne ustalimy w lipcu."
+
+**Co się stało**: handlowiec użył tile Obrót (1.8M) + wykres trendu (spadek I-III) + chip churn (wraca do normy). Dane przekształciły rabat w **rozmowę o relacji** zamiast targowanie na cyfry.
+
+### Dialog B: Klient narzeka na reklamację
+
+**Bez C360**:
+> **Klient**: „Wczorajsza dostawa była fatalna, 30kg do wyrzucenia!"
+> **Handlowiec**: „Naprawdę przepraszam, zaraz sprawdzę co się stało..."
+> *[3 dni cisza, klient wkurzony]*
+
+**Z C360**:
+> **Klient**: „Wczorajsza dostawa była fatalna, 30kg do wyrzucenia!"
+> **Handlowiec (otwiera kartę 3 sek, sprawdza chip Reklamacje)**: „Bardzo przepraszam. Widzę że to pierwsza reklamacja od pana w tym roku — to dla nas sygnał że coś poważnie nie zagrało. Zanim sprawdzimy konkretną partię, czy mogę pana zapytać: która partia, którego kursu, jaki towar?"
+> **Klient**: „Ćwiartka, partia z 3 czerwca, kurs 14:30"
+> **Handlowiec** (sprawdza Sprzedaż → Faktury): „Mam — FVS/2026/4567, 200kg ćwiartki. Załóżmy reklamację R, zgłoszę produkcji, jutro dam panu informację zwrotną. W ramach przeprosin następna dostawa z 5% rabatem na cały kurs. Pasuje?"
+
+**Co się stało**: chip Reklamacje pokazał „to pierwsza" — handlowiec użył tego jako oznaki uwagi („dla nas sygnał"). Drill-down w fakturze dostał numer. Plan działania w 60 sekund.
+
+### Dialog C: Telefon z księgowej Piórkowskich
+
+**Bez C360**:
+> **Księgowa**: „Słuchaj, klient X dzwoni że nie wydaliśmy jego towaru, dlaczego?"
+> **Handlowiec**: „Sprawdzę, oddzwonię"
+> *[dzwoni do Sergiusza, Sergiusz nie odbiera, klient w bramie]*
+
+**Z C360**:
+> **Księgowa**: „Słuchaj, klient X dzwoni że nie wydaliśmy jego towaru, dlaczego?"
+> **Handlowiec (otwiera kartę 3 sek, czyta notatkę)**: „Tak, mam — Sergiusz zablokował dziewiątego maja. Faktura FVS/2026/3210 z marca, 45 tys. zł, przeterminowana 67 dni. Czekamy na płatność. Powiedz że muszę wiedzieć kiedy zapłaci żeby odblokować."
+> **Księgowa**: „OK, dzięki, zaraz mu powtórzę"
+
+**Co się stało**: notatka z 5 dni temu rozwiązała problem w 30 sek. Handlowiec wie kontekst od pierwszej sekundy.
+
+### Dialog D: Klient pyta o promocję
+
+**Bez C360**:
+> **Klient**: „Macie jakieś promocje w tym tygodniu?"
+> **Handlowiec**: „Yyy, chwilę, zaraz sprawdzę..." *(brak struktury, przewija strony)*
+
+**Z C360**:
+> **Klient**: „Macie jakieś promocje w tym tygodniu?"
+> **Handlowiec (otwiera kartę, sprawdza Top 5 towarów)**: „W tym tygodniu mamy 5% na ćwiartkę i filety. Widzę że pana firma głównie bierze ćwiartkę — może chciałby pan zwiększyć regularne 80kg do 100kg na promocji?"
+> **Klient**: „A jakbym zamówił 120kg?"
+> **Handlowiec**: „120kg to byłaby zwiększenie o 50% — sprawdzimy czy mamy w magazynie i dam znać do południa, OK?"
+
+**Co się stało**: Top 5 towarów wzkupowanych pokazał czego klient zwykle bierze. Promocja została **dostosowana do klienta**, nie zaprezentowana ogólnie. Wzrost zamówienia o 50% w jednym wzbogaconym telefonie.
+
+---
+
+## 25. Antypatterns — czego NIE robić z C360
+
+> **Po co**: są rzeczy, które wyglądają naturalnie, ale szkodzą. Te antypatterns oszczędzą ci konkretnych pomyłek.
+
+### Antypattern 1: „Polegaj wyłącznie na scoringu"
+**Co źle**: scoring B → automatycznie ufam klientowi i daję większy kredyt.
+**Czemu źle**: scoring widzi 4 wymiary (Obrót, Częstotliwość, Terminowość, Długość). NIE widzi: reklamacji, konfliktów, sygnałów z notatek (Case Study 2).
+**Jak dobrze**: scoring + chip Reklamacje + chip Limit + Notatki = pełen obraz. Wszystkie 4 zgadzają się dopiero wtedy ufaj.
+
+### Antypattern 2: „Usuwaj stare notatki bo zaśmiecają"
+**Co źle**: notatki sprzed 2 lat → kasować, „nieaktualne".
+**Czemu źle**: stara notatka może być KONTEKSTEM dla aktualnej sytuacji. „W 2024 ustaliliśmy że klient nie chce kurierów po 14:00" — to nadal obowiązuje.
+**Jak dobrze**: NIGDY nie usuwaj historycznych notatek. Notatka bezdyskusyjnie złośliwa (np. emocjonalna obelga) → tak, usuń. Cała reszta → niech zostanie.
+
+### Antypattern 3: „Nie pisz notatek jeśli nic ważnego się nie wydarzyło"
+**Co źle**: „rozmawiałem z klientem, wszystko OK, nic warto zapisywać".
+**Czemu źle**: za 3 miesiące będziesz pamiętać że rozmawiałeś, ale nie kiedy. Brak notatki = brak dowodu kontaktu.
+**Jak dobrze**: wpis 2-zdaniowy zawsze. „Maja, 04.06 14:30: telefon z klientem, omówiliśmy nadchodzące zam., wszystko OK." To 30 sek, a daje historię ciągłą.
+
+### Antypattern 4: „Zmieniaj kategorię handlowca codziennie wg nastroju"
+**Co źle**: klient się zezłościł → kategoria z B na D. Następnego dnia przeprosił → z D na B.
+**Czemu źle**: kategoria handlowca to **strategiczna intencja firmy**, nie reaktywna ocena. Skoki są szumem.
+**Jak dobrze**: zmiana kategorii to **decyzja na 3+ miesiące**, najlepiej z udziałem Sergiusza. Co potwierdza zmianę: pisemny powód w notatce + plan.
+
+### Antypattern 5: „Otwieraj 15 kart klienta jednocześnie"
+**Co źle**: 15 okien C360 równolegle, próbujesz objąć cały portfel.
+**Czemu źle**: poznawcze przeciążenie. Każdą kartę przegapisz coś. Plus aplikacja wolno chodzi.
+**Jak dobrze**: 1-3 karty naraz. Pulpit Portfela dla widoku ogólnego, Customer360 dla szczegółowego patrzenia.
+
+### Antypattern 6: „Eksportuj PDF każdej karty na koniec dnia"
+**Co źle**: codziennie 50 kart, 50 PDF na Pulpicie.
+**Czemu źle**: nikt nie czyta tych PDF. To zaśmiecanie + brak nawyku patrzenia na żyjące dane.
+**Jak dobrze**: PDF tylko na konkretne spotkanie albo do archiwum decyzji ważnej. Nie pamiątka.
+
+### Antypattern 7: „Nie zmieniaj CmbOkres bo działa default"
+**Co źle**: zawsze patrzysz na 12M, nawet jak klient pyta o ostatni kwartał.
+**Czemu źle**: różne pytania → różne skale. 12M nie odpowiada na „co ostatnio".
+**Jak dobrze**: ćwicz CmbOkres przy każdym scenariuszu. Po tygodniu staje się odruchem.
+
+### Antypattern 8: „Patrz tylko na hero, omijaj zakładki Sprzedaż / Klient / Analiza"
+**Co źle**: hero pokazuje wszystko czego potrzebuję.
+**Czemu źle**: hero to **podsumowanie**. Szczegóły (które naprawdę odpowiadają na konkretne pytania klienta) są w zakładkach.
+**Jak dobrze**: hero = pierwsze 5 sek. Konkretne pytanie → odpowiednia zakładka.
+
+### Antypattern 9: „Ufaj cache scoringu, nie używaj Ctrl+R"
+**Co źle**: scoring zacachowany 7 dni, dawno nieaktualny.
+**Czemu źle**: po większych zmianach (faktura, korekta, reklamacja) scoring powinien być świeży.
+**Jak dobrze**: Ctrl+R **przed kluczową decyzją** (limit, blokada, eskalacja). Reszta czasu F5 wystarczy.
+
+### Antypattern 10: „Zgłaszaj bug bez 🐛 Debug raportu"
+**Co źle**: „Sergiuszu, C360 mi się sypie!" — bez kontekstu.
+**Czemu źle**: Sergiusz/Claude potrzebują wiedzieć WHAT. Pusty bug report = długie zgadywanki.
+**Jak dobrze**: zawsze 🐛 Debug → Zapisz raport → wyślij z konkretną sytuacją „otworzyłam klienta X, zakładka Y rzuciła błąd, oto raport".
+
+---
+
+## 26. Checklist dnia handlowca
+
+> **Po co**: rytuały dnia z C360 jako podstawa. Mózg potrzebuje powtarzalności żeby narzędzie stało się drugą naturą.
+
+### Poranny (8:00-9:00) — 15 minut
+
+```
+□ 1. Otwórz Pulpit Portfela
+□ 2. Lista alertów (czerwone wiersze) → notuj na kartce
+     □ Czerwone z powodu długiej ciszy → priorytet kontakt
+     □ Czerwone z powodu przeterminowanych → priorytet księgowy
+     □ Czerwone z powodu reklamacji → priorytet jakościowy
+□ 3. Lista churn (sortuj po DniOdOstatniej DESC)
+     □ Top 3 → DZIŚ telefon
+□ 4. Lista TOP klientów (sortuj po Obrót 12M)
+     □ Sprawdź czy sparkline czerwony — jeśli tak: DZIŚ telefon
+□ 5. Sprawdź nowe Reklamacje w module Reklamacje
+     □ Klient z reklamacją? Otwórz jego C360 dla kontekstu
+```
+
+### Południowy (12:00-13:00) — 5 minut
+
+```
+□ 1. Przejrzyj swój kalendarz — kto dzwoni / przyjeżdża po obiedzie?
+□ 2. Otwórz kartę każdego planowanego klienta — kontekst 30 sek
+□ 3. CmbOkres → 3 mies — ostatnie wydarzenia
+□ 4. Notatki — co ostatnio ustaliliśmy
+□ 5. Wracaj do pracy
+```
+
+### Popołudniowy (15:00-16:00) — 10 minut
+
+```
+□ 1. Wszystkie dzisiejsze rozmowy z klientami → notatki w C360
+     (NIE zostawiaj na jutro — zapomnisz)
+□ 2. Sprawdź zamówienia dziś przyjęte z Twoich klientów
+□ 3. Jeśli była zmiana ustaleń → aktualizuj Dane (preferencje, kategorię)
+□ 4. Eksportuj briefingPDF dla jutrzejszych planowanych spotkań
+```
+
+### Końcowy (16:00-17:00) — 5 minut
+
+```
+□ 1. Pulpit Portfela → szybki przegląd „co zostało na jutro"
+□ 2. Notatka „plan na jutro" dla 1-2 priorytetowych klientów
+□ 3. Zamknij wszystkie okna C360 (alt+F4)
+□ 4. Sergiuszowi update jeśli było coś krytycznego
+```
+
+---
+
+## 27. Wzorce notatek — dobrych vs złych
+
+### Notatki ZŁE — czego unikać
+
+```
+❌ "rozmawiałem, OK"
+   (Co OK? Co ustalono? Następny krok?)
+
+❌ "Klient niezadowolony"
+   (Z czego? Jaki jest plan?)
+
+❌ "Trzeba sprawdzić sprawę"
+   (Jaką sprawę? Kto sprawdza? Do kiedy?)
+
+❌ "Daniel mówił coś o cenie"
+   (Co konkretnie? Z kiedy? Decyzja?)
+
+❌ "Nie lubię tego klienta lol"
+   (To NIE jest profesjonalna notatka. Plus widzą wszyscy.)
+
+❌ "FVS/12345 = 50000 zł netto, brutto 61500 zł, termin 30 dni..."
+   (To NIE jest notatka — to powtórzenie faktury która jest
+    w innym miejscu C360. Bezużyteczne, mózg ignoruje.)
+```
+
+### Notatki DOBRE — schemat
+
+**Wzorzec 1: Po telefonie / spotkaniu**
+```
+✓ "Maja, 04.06 14:30: telefon w sprawie FVS/12345.
+   Klient prosi o przedłużenie terminu o 14 dni do 18.06.
+   Powód: chwilowe opóźnienie ze strony ich klienta.
+   USTALENIE: zgodziłem się, fakturę poprawić.
+   Następny kontakt: 19.06 sprawdzić czy zapłacił."
+```
+
+**Wzorzec 2: Decyzja strategiczna**
+```
+✓ "Sergiusz, 28.05 09:00: BLOKADA kredytu kupieckiego.
+   Powód: 80k zalega 67 dni, 3 telefony bez efektu.
+   Plan: do uregulowania zerowe wydania, po wpłacie
+   3-miesięczny okres próbny.
+   Komunikacja: poinformować klienta przy następnym kontakcie."
+```
+
+**Wzorzec 3: Sygnał handlowy do śledzenia**
+```
+✓ "Asia, 12.05 11:30: dyrektor firmy pytał o filety mrożone.
+   Obecnie nie produkujemy, ale popyt wzrasta.
+   Sergiuszowi: czy uruchomić ofertę testową w III kwartale?
+   Klient czeka na sygnał z mojej strony do 30.06."
+```
+
+**Wzorzec 4: Personalia — kto, jak**
+```
+✓ "Maja, 15.04: nowy kontakt — księgowa Anna Kowalska,
+   tel +48 600 123 456. Dzwoni rano przed 9:00 (jest milsza
+   przed kawą — żart, ale serio).
+   Email: anna.k@firma.pl, woli mail nad telefon."
+```
+
+**Wzorzec 5: Kontekst sezonowy / branżowy**
+```
+✓ "Sergiusz, 01.03: KLIENT SEZONOWY (Wielkanoc). Aktywny
+   styczeń-kwiecień, reszta roku 0 zam. NIE alarmować
+   na churn po sezonie. Plan: telefon w listopadzie z
+   ofertą wstępną na nadchodzący sezon."
+```
+
+### Schemat dobrej notatki — 4 elementy
+```
+[KTO], [KIEDY] [GODZINA]: [KONTEKST W 1 ZDANIU].
+[CO USTALONO / CO ZAOBSERWOWANO].
+[NASTĘPNY KROK + DEADLINE].
+```
+
+---
+
+## 28. Sergiusz strategicznie — portfel z lotu ptaka
+
+> **Po co**: właściciel patrzy inaczej niż handlowiec. Te użycia są przeznaczone dla Sergiusza (lub osoby pełniącej rolę portfela).
+
+### Codzienne (5 min rano)
+- **Pulpit Portfela**: sortuj po **„Przeterminowane zł"** DESC → top 5 do interwencji z Maja/Paulina
+- Sortuj po **„Liczba reklamacji"** DESC → kto generuje najwięcej szumu produkcyjnego
+- Sortuj po **„Limit wykorzystanie %"** DESC → kto blisko granicy kredytowej
+
+### Cotygodniowe (30 min, np. piątek po południu)
+- Lista **klientów z kategorii A** → wszyscy powinni mieć scoring ≥ B. Jeśli ktoś ma D/F → coś się dzieje, spojrzyj
+- Lista **klientów z kategorii D** → potencjalne porzucenia / blokady → czy notatki uzasadniają jeszcze utrzymanie
+- Lista **klientów z Churn CRITICAL** → wybierz top 3 do osobistej interwencji
+
+### Miesięczne (1h, np. ostatni piątek miesiąca)
+- **Analiza scoringu**: czy progi (ProgA/B/C/D) odzwierciedlają rzeczywistość? Jeśli wszyscy klienci mają A — zbyt łatwe progi, podnieś. Jeśli wszyscy F — zbyt trudne, obniż
+- **Analiza wag scoringu**: czy Obrót dominuje za bardzo? Może podkręcić Terminowość jeśli w portfelu rośnie zaległości
+- **Analiza branżowych klastrów**: top 20 wg obrotu, czy są podobni (np. wszyscy hurtownie, wszyscy gastronomia)?
+
+### Kwartalne (2h, koniec kwartału)
+- **YoY portfela**: suma Obrotu 12M wszystkich klientów + sparkline-y zbiorcze
+- **Rotacja klientów**: kto był rok temu kategorii A, dziś jest D → co poszło źle, co naprawić
+- **Nowi klienci**: ile dodanych w kwartale, jaki średni obrót w 90 dniach od dodania
+- **Reklamacje totalnie**: czy spadają? Top 10 klientów z reklamacjami → wzorzec?
+
+### Roczne (4h, koniec roku)
+- **Top 20 klientów portfela**: pełen przegląd, decyzje strategiczne (limity, kategorie)
+- **Bottom 20 klientów portfela**: kto nie zarabia? Stop współpracy?
+- **Konfiguracja scoringu**: refleksja czy parametry wagowe są odpowiednie po roku doświadczenia
+- **Rozmowa z handlowcami**: pokaż im scoring/kategoria zmiany rok-do-roku w ich obszarze
+
+---
+
+## 29. Q&A — najczęstsze pytania użytkowników
+
+> **Po co**: pytania które padają w ciągu pierwszych 3 miesięcy korzystania. Odpowiedzi w jednym miejscu.
+
+**Q1: Otworzyłam kartę, ale wszystko jest „—". Czemu?**
+A: 99% przypadków = kartę otwartą bez wybranego klienta. Kliknij 🔍 Wybierz klienta lub ◀ ▶ jeśli okno otwarte z listy.
+
+**Q2: Sparkline nie pokazuje się.**
+A: Klient ma <2 punkty miesięczne (zbyt świeży / brak faktur w okresie). Naturalnie.
+
+**Q3: Notatkę pisałam wczoraj, dziś jej nie ma.**
+A: Ktoś inny mógł ją usunąć (z potwierdzeniem). Brak undo. Napisz ponownie z notatką „Re-przywracam treść z 03.06 usuniętą przypadkowo".
+
+**Q4: Scoring „F" u klienta którego znam jako bardzo dobrego.**
+A: Sprawdź **Długość relacji** w Analiza → Scoring. Klient nowy = floor F mimo wszystko. To pułapka 2 z sekcji 16.99.
+
+**Q5: Klient pyta dlaczego mu wstrzymujemy towar, a ja nie wiem.**
+A: Otwórz jego kartę → Notatki → szukaj wpisu z słowem „blokada" lub „wstrzymanie". Jeśli nie ma — zadzwoń do Sergiusza. Po rozmowie DODAJ notatkę żeby kolejna osoba nie pytała.
+
+**Q6: Eksport PDF nie chce się otworzyć.**
+A: PDF zapisany na Pulpicie. Otwórz ręcznie. Jeśli nie ma — sprawdź Debug Output (`[C360 PDF]`).
+
+**Q7: Sparkline zielony, scoring spada. Co?**
+A: Sparkline = 6 mies, scoring = 12 mies + 4 składniki. Klient mógł odżyć w 6 mies (sparkline zielony) po długim ssaniu (scoring spada bo Częstotliwość roczna niska). Patrz pułapka 7 z 16.99.
+
+**Q8: Co zrobić jeśli klient ma 2 numerki w `ContractorClassification`?**
+A: To rzadkie — w Sage zwykle 1 wpis na klienta. Jeśli jest 2 — Sergiusz może wyczyścić w Sage. C360 pokazuje deterministycznie (alfabetycznie ostatniego handlowca) po fixie `213e685`.
+
+**Q9: Liczba zamówień w hero ≠ liczba w gridzie Zamówienia.**
+A: F5 (refresh). Jeśli dalej rozbieżność — 🐛 Debug + raport. To raczej bug, nie norma.
+
+**Q10: Czy moje notatki widzą inni handlowcy?**
+A: Tak. Notatki są **wspólne** dla klienta, nie prywatne. Pisz tak żebyś za tydzień się ich nie wstydziła.
+
+**Q11: Czemu KPI „Reklamacje 12 MIES" nie zmienia się gdy ustawiam 6M?**
+A: Reklamacje są zawsze 12M canonical (techniczne ograniczenie LoadReklamacjeSummaryAsync). Pozostałe KPI respektują okres.
+
+**Q12: Mogę dodać własne pole do karty klienta?**
+A: Tak, ale wymaga zmian kodu — zgłoś Sergiuszowi z konkretnym opisem co i po co.
+
+**Q13: Klient prosi pokazać mu kartę. Czy mogę?**
+A: NIE — karta zawiera wewnętrzne dane (scoring, churn, kategoria handlowca, notatki). Pokazuj tylko wybrane wycinki (np. listę faktur z zakładki Sprzedaż → Faktury) i tylko z głową.
+
+**Q14: Aplikacja chodzi wolno przy otwarciu klienta.**
+A: 99% to sieć do HANDEL albo LibraNet. Normalnie 2-3 sek. Jeśli >10 sek → 🐛 Debug → sprawdź sekcję Wydajność w raporcie.
+
+**Q15: Mam 200 klientów w portfelu. Jak ogarnąć przegląd?**
+A: Pulpit Portfela ma filtry — najpierw sortuj po Obrót DESC, weź top 20, ich znaj na pamięć. Pozostałych przeglądaj raz na 2 tygodnie tylko na chip Churn.
+
+---
+
+## 30. Filozofia C360 — czemu tak zaprojektowane
+
+> **Po co**: zrozumieć DLACZEGO karta wygląda jak wygląda, ułatwia używanie. Te zasady projektowe stoją za każdym chipem, tile, kolorem.
+
+### Zasada 1: „Hero zawsze pierwsze"
+Pierwsze co widzisz w karcie = najważniejsze. Hero scoringu + 4 KPI tile + chipy w toolbarze. **Jeden rzut oka = pełen obraz**. Wszystko inne (zakładki) to drążenie szczegółu na konkretne pytanie.
+
+**Analogia**: pierwsza strona gazety. Nagłówki + zdjęcie + lead. Reszta artykułu w środku.
+
+### Zasada 2: „Kolor jest funkcją, nie ozdobą"
+Zielony nie jest „bo ładnie". Czerwony nie jest „dramatyczny". Każdy kolor coś znaczy (sekcja 15). Mózg po tygodniu używania **czyta kolory szybciej niż liczby**.
+
+**Analogia**: znaki drogowe. Kierowca patrzy na żółty trójkąt → uwaga, nie czyta tekstu. C360 robi to samo.
+
+### Zasada 3: „Świeże tam gdzie patrzysz, cache tam gdzie wolno"
+KPI tile = zawsze świeże z bazy (każde otwarcie = nowe SQL). Scoring = cache 7 dni (bo liczenie drogie). **Optymalizacja kosztu vs aktualności**.
+
+**Analogia**: zegar w salonie — aktualizuje sekundy (świeże). Kalendarz na ścianie — zmieniasz raz w miesiącu (cache). Oba potrzebne, w innym tempie.
+
+### Zasada 4: „Wierność zakresom danych"
+Wybierasz 6M w combo → cała karta to 6M. Nie ma „niespodzianek" gdzie jedno mówi 12M a drugie 6M. **Spójność intencji użytkownika**.
+
+**Wyjątek**: scoring i churn liczone z 12M canonical, bo to całościowa ocena klienta. **Lupa nie zmienia kompasu**.
+
+### Zasada 5: „Bez przyszłości w historycznych widokach"
+Zamówienia z DataPrzyjazdu > dziś = niezrealizowane. Nie wpływają na „historię". Logiczne — kalendarz nie pokazuje jutra jako wczoraj.
+
+### Zasada 6: „Notatki są kompasem dla algorytmów"
+Algorytm widzi liczby. Człowiek widzi kontekst. Notatki łączą te dwa światy — Sergiusz pisze „klient sezonowy", algorytm dalej krzyczy CRITICAL ale Asia widzi notatkę i wie że nie reagować.
+
+**Analogia**: GPS pokazuje najkrótszą drogę, ale ty znasz lokalne zatory. Notatka = lokalna wiedza która koryguje GPS.
+
+### Zasada 7: „Banner zamiast cichego zjedzenia"
+Stary kod łykał błędy do Debug.WriteLine. Nowy pokazuje banner — bo lepsze widoczne ostrzeżenie niż ciche fałszowanie obrazu.
+
+**Analogia**: kontrolka „check engine" — auto jedzie dalej, ale ostrzega że nie udawaj że wszystko OK.
+
+### Zasada 8: „Drill-down zamiast wszystko na raz"
+Wykres pokazuje miesiące, klik → dialog ze szczegółami miesiąca. Lista pokazuje towary, dwuklik → szczegóły towaru. **Hierarchia szczegółowości**.
+
+**Analogia**: mapa Polski → klik na województwo → mapa województwa → klik na miasto → mapa ulic. Nie cała Polska w skali 1:1 naraz.
+
+### Zasada 9: „Spójność wzorów wizualnych"
+Chipy są zaokrąglone, mają padding 8/3, mają cień. **Wszędzie tak samo**. Mózg uczy się raz, czyta wszędzie.
+
+**Analogia**: ikony aplikacji w iPhone są kwadratowe z zaokrągleniami. Spójny wzorzec = szybsze rozpoznawanie.
+
+### Zasada 10: „Konfigurowalne ale z bezpiecznikami"
+Scoring konfigurowalny (13 parametrów) — wolność. Ale walidacja: suma wag = 100, ProgA ≤ 100, progi malejące. **Wolność z bezpiecznikami**.
+
+**Analogia**: samochód ma kierownicę (wolność), ale też ABS i poduszki (bezpieczniki). Konfiguracja scoringu = tak samo.
 
 ---
 
