@@ -6,7 +6,7 @@
 
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="280"/>
+            <ColumnDefinition Width="320"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
@@ -35,9 +35,11 @@
 
                     <!-- Filtr handlowca -->
                     <TextBlock Text="Handlowiec" FontWeight="SemiBold" FontSize="12" Foreground="#374151" Margin="0,0,0,6"/>
-                    <ComboBox x:Name="cmbHandlowiec" FontSize="12" Margin="0,0,0,10" SelectionChanged="CmbHandlowiec_Changed">
+                    <ComboBox x:Name="cmbHandlowiec" FontSize="12" Margin="0,0,0,4" SelectionChanged="CmbHandlowiec_Changed">
                         <ComboBoxItem Content="Wszyscy" IsSelected="True"/>
                     </ComboBox>
+                    <TextBlock x:Name="txtHandlowiecStats" FontSize="11" Foreground="#059669"
+                               FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,0,10"/>
 
                     <Separator Margin="0,4,0,10"/>
 
@@ -71,9 +73,18 @@
                     <Separator Margin="0,10,0,10"/>
 
                     <!-- Lista widocznych klientów -->
-                    <TextBlock Text="Klienci na mapie" FontWeight="SemiBold" FontSize="12" Foreground="#374151" Margin="0,0,0,6"/>
-                    <ListBox x:Name="lstKlienci" MaxHeight="300" FontSize="11" BorderThickness="0"
-                             SelectionChanged="LstKlienci_SelectionChanged"/>
+                    <DockPanel Margin="0,0,0,4">
+                        <TextBlock Text="Klienci" FontWeight="SemiBold" FontSize="12" Foreground="#374151" DockPanel.Dock="Left"/>
+                        <TextBlock x:Name="txtListaInfo" FontSize="11" Foreground="#6B7280" HorizontalAlignment="Right"/>
+                    </DockPanel>
+                    <TextBox x:Name="txtSzukajKlient" FontSize="11" Padding="6,4" Margin="0,0,0,4"
+                             TextChanged="TxtSzukajKlient_Changed"
+                             ToolTip="Filtruj po nazwie, skrócie lub mieście"/>
+                    <ListBox x:Name="lstKlienci" MaxHeight="380" FontSize="11" BorderThickness="1" BorderBrush="#E5E7EB"
+                             SelectionChanged="LstKlienci_SelectionChanged"
+                             MouseDoubleClick="LstKlienci_DoubleClick"/>
+                    <TextBlock FontSize="10" Foreground="#9CA3AF" Margin="0,4,0,0" TextWrapping="Wrap"
+                               Text="💡 Dwuklik = ręcznie ustaw GPS (gdy adres Sage jest błędny)"/>
                 </StackPanel>
             </ScrollViewer>
         </Border>

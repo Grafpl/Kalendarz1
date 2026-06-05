@@ -184,17 +184,99 @@ namespace Kalendarz1.Kartoteka.Features.Mapa
 
         private void UpdateClientList()
         {
-            lstKlienci.Items.Clear();
-            foreach (var k in _filtrKlienci.OrderBy(k => k.NazwaFirmy).Take(200))
+            string szukaj = (txtSzukajKlient?.Text ?? "").Trim().ToLowerInvariant();
+
+            IEnumerable<KlientMapa> pokazani = _filtrKlienci;
+            if (!string.IsNullOrEmpty(szukaj))
             {
+                pokazani = pokazani.Where(k =>
+                    (k.NazwaFirmy ?? "").ToLowerInvariant().Contains(szukaj) ||
+                    (k.Skrot ?? "").ToLowerInvariant().Contains(szukaj) ||
+                    (k.Miasto ?? "").ToLowerInvariant().Contains(szukaj));
+            }
+
+            var lista = pokazani.OrderBy(k => !k.MaWspolrzedne).ThenBy(k => k.NazwaFirmy).Take(500).ToList();
+
+            lstKlienci.Items.Clear();
+            foreach (var k in lista)
+            {
+                string status = k.MaWspolrzedne ? "✅" : "❌";
+                string gps = k.MaWspolrzedne
+                    ? $"GPS: {k.Latitude:0.000000}, {k.Longitude:0.000000}"
+                    : "Brak GPS — dwuklik aby ustawić";
+
                 var item = new ListBoxItem
                 {
-                    Content = $"[{k.Kategoria ?? "?"}] {k.Skrot ?? k.NazwaFirmy} — {k.Miasto}",
+                    Content = $"{status} [{k.Kategoria ?? "?"}] {(string.IsNullOrEmpty(k.Skrot) ? k.NazwaFirmy : k.Skrot)} — {k.Miasto}",
                     Tag = k,
-                    FontSize = 11
+                    FontSize = 11,
+                    ToolTip = $"{k.NazwaFirmy}\n{k.Ulica}, {k.KodPocztowy} {k.Miasto}\nHandlowiec: {k.Handlowiec}\n{gps}"
                 };
+                if (!k.MaWspolrzedne)
+                    item.Foreground = System.Windows.Media.Brushes.IndianRed;
                 lstKlienci.Items.Add(item);
             }
+
+            if (_filtrKlienci.Count > lista.Count)
+                txtListaInfo.Text = $"{lista.Count}/{_filtrKlienci.Count}";
+            else
+                txtListaInfo.Text = $"{lista.Count}";
+
+            UpdateHandlowiecStats();
+        }
+
+        private void UpdateHandlowiecStats()
+        {
+            if (cmbHandlowiec.SelectedItem is ComboBoxItem item && item.Content?.ToString() is string nazwa && nazwa != "Wszyscy")
+            {
+                int total = _filtrKlienci.Count;
+                int zGps = _filtrKlienci.Count(k => k.MaWspolrzedne);
+                int bezGps = total - zGps;
+                txtHandlowiecStats.Text = bezGps > 0
+                    ? $"📊 {total} klientów · {zGps} ✅ · {bezGps} ❌ wymaga GPS"
+                    : $"📊 {total} klientów · wszyscy z GPS ✅";
+            }
+            else
+            {
+                txtHandlowiecStats.Text = "";
+            }
+        }
+
+        private void TxtSzukajKlient_Changed(object sender, System.Windows.Controls.TextChangedEventArgs e)
+        {
+            UpdateClientList();
+        }
+
+        private async void LstKlienci_DoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (lstKlienci.SelectedItem is not ListBoxItem item) return;
+            if (item.Tag is not KlientMapa k) return;
+
+            var dlg = new EdytorGpsKlientaWindow(k, _geoService) { Owner = this };
+            bool? wynik = dlg.ShowDialog();
+            if (wynik != true) return;
+
+            if (dlg.Zapisano)
+            {
+                k.Latitude = dlg.NowaLatitude;
+                k.Longitude = dlg.NowaLongitude;
+            }
+            else if (dlg.Usunieto)
+            {
+                k.Latitude = null;
+                k.Longitude = null;
+            }
+
+            ApplyFilters();
+
+            // wyśrodkuj mapę na nowej pozycji
+            if (k.MaWspolrzedne)
+            {
+                _gmap.Position = new PointLatLng(k.Latitude.Value, k.Longitude.Value);
+                _gmap.Zoom = 14;
+            }
+
+            await System.Threading.Tasks.Task.CompletedTask;
         }
 
         private void UpdateStatistics()

@@ -1,0 +1,133 @@
+<Window x:Class="Kalendarz1.Kartoteka.Features.Mapa.EdytorGpsKlientaWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Ustaw GPS klienta"
+        Width="940" Height="620"
+        MinWidth="820" MinHeight="560"
+        WindowStartupLocation="CenterOwner"
+        Background="#F3F4F6">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- HEADER -->
+        <Border Grid.Row="0" Background="#166534" Padding="18,14">
+            <StackPanel>
+                <TextBlock x:Name="txtNazwa" FontSize="18" FontWeight="Bold" Foreground="White"/>
+                <TextBlock x:Name="txtPodtytul" FontSize="12" Foreground="#A7F3D0" Margin="0,3,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- BODY -->
+        <Grid Grid.Row="1" Margin="16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="330"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- LEWA: dane Sage + Google Maps -->
+            <Border Grid.Column="0" Background="White" CornerRadius="6" Padding="16" BorderBrush="#E5E7EB" BorderThickness="1">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <TextBlock Text="📋 Dane z Sage (HANDEL)" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,12" Foreground="#374151"/>
+
+                        <TextBlock Text="Ulica" FontSize="11" Foreground="#6B7280" Margin="0,0,0,2"/>
+                        <TextBlock x:Name="txtUlica" FontSize="13" Margin="0,0,0,10" TextWrapping="Wrap"/>
+
+                        <TextBlock Text="Miasto" FontSize="11" Foreground="#6B7280" Margin="0,0,0,2"/>
+                        <TextBlock x:Name="txtMiasto" FontSize="13" Margin="0,0,0,10"/>
+
+                        <TextBlock Text="Kod pocztowy" FontSize="11" Foreground="#6B7280" Margin="0,0,0,2"/>
+                        <TextBlock x:Name="txtKodPocztowy" FontSize="13" Margin="0,0,0,10"/>
+
+                        <TextBlock Text="NIP" FontSize="11" Foreground="#6B7280" Margin="0,0,0,2"/>
+                        <TextBlock x:Name="txtNip" FontSize="13" Margin="0,0,0,10"/>
+
+                        <TextBlock Text="Handlowiec" FontSize="11" Foreground="#6B7280" Margin="0,0,0,2"/>
+                        <TextBlock x:Name="txtHandlowiec" FontSize="13" Margin="0,0,0,14"/>
+
+                        <Separator Margin="0,4,0,12"/>
+
+                        <TextBlock Text="Aktualne GPS" FontSize="11" Foreground="#6B7280" Margin="0,0,0,2"/>
+                        <TextBlock x:Name="txtAktualneGps" FontSize="13" FontFamily="Consolas" Margin="0,0,0,14"/>
+
+                        <Button x:Name="btnOtworzGoogleMaps" Content="🌐 Otwórz adres w Google Maps"
+                                Click="BtnOtworzGoogleMaps_Click"
+                                Padding="10,10" Margin="0,0,0,6"
+                                Background="#1D4ED8" Foreground="White"
+                                BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"/>
+                        <TextBlock FontSize="10" Foreground="#9CA3AF" TextWrapping="Wrap"
+                                   Text="W Google Maps prawy klik na pinezce → kliknij współrzędne (skopiują się) → wklej w prawej kolumnie."/>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+
+            <!-- PRAWA: akcje -->
+            <Grid Grid.Column="1" Margin="14,0,0,0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- 1. Wklej lat,lng -->
+                <Border Grid.Row="0" Background="White" CornerRadius="6" Padding="16" BorderBrush="#E5E7EB" BorderThickness="1" Margin="0,0,0,6">
+                    <StackPanel>
+                        <TextBlock Text="📍 Wklej współrzędne z Google Maps" FontWeight="SemiBold" FontSize="13" Foreground="#374151" Margin="0,0,0,6"/>
+                        <TextBlock FontSize="11" Foreground="#6B7280" TextWrapping="Wrap" Margin="0,0,0,10"
+                                   Text="Format: 52.234567, 21.012345  (akceptuje też 52,234567 21,012345 i Lat: 52.23 Lng: 21.01)"/>
+                        <TextBox x:Name="txtWklejCoords" FontSize="14" FontFamily="Consolas"
+                                 Padding="10" Height="40" TextChanged="TxtWklejCoords_Changed"/>
+                        <TextBlock x:Name="txtWklejStatus" FontSize="12" Margin="0,8,0,0" Foreground="#6B7280" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- 2. Geokoduj alternatywnym tekstem -->
+                <Border Grid.Row="1" Background="White" CornerRadius="6" Padding="16" BorderBrush="#E5E7EB" BorderThickness="1">
+                    <StackPanel>
+                        <TextBlock Text="🔄 Geokoduj inny opis adresu" FontWeight="SemiBold" FontSize="13" Foreground="#374151" Margin="0,0,0,6"/>
+                        <TextBlock FontSize="11" Foreground="#6B7280" TextWrapping="Wrap" Margin="0,0,0,10"
+                                   Text="Gdy adres Sage jest błędny — wpisz inny opis: np. Auchan Komorniki, poprawioną ulicę, miejscowość pomocniczą, nazwę zakładu klienta."/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox Grid.Column="0" x:Name="txtAltAdres" FontSize="14" Padding="10" Height="40"
+                                     KeyDown="TxtAltAdres_KeyDown"/>
+                            <Button Grid.Column="1" x:Name="btnGeokodujAlt" Content="🔍 Szukaj"
+                                    Padding="14,0" Margin="6,0,0,0" Height="40"
+                                    Click="BtnGeokodujAlt_Click"
+                                    Background="#059669" Foreground="White"
+                                    BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"/>
+                        </Grid>
+                        <TextBlock x:Name="txtAltStatus" FontSize="12" Margin="0,8,0,0" Foreground="#6B7280" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Grid>
+
+        <!-- FOOTER -->
+        <Border Grid.Row="2" Background="White" BorderBrush="#E5E7EB" BorderThickness="0,1,0,0" Padding="18,12">
+            <DockPanel>
+                <TextBlock x:Name="txtPodglad" DockPanel.Dock="Left" VerticalAlignment="Center"
+                           FontSize="13" Foreground="#374151" TextWrapping="Wrap"/>
+                <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right">
+                    <Button x:Name="btnUsunGps" Content="🗑 Usuń GPS" Click="BtnUsunGps_Click"
+                            Padding="12,8" Margin="0,0,8,0"
+                            Background="White" Foreground="#B91C1C" BorderBrush="#FCA5A5" BorderThickness="1"
+                            Cursor="Hand" Visibility="Collapsed"/>
+                    <Button x:Name="btnZapisz" Content="💾 Zapisz GPS" Click="BtnZapisz_Click"
+                            Padding="16,8" Margin="0,0,8,0"
+                            Background="#10B981" Foreground="White" BorderThickness="0"
+                            Cursor="Hand" FontWeight="SemiBold" IsEnabled="False"/>
+                    <Button x:Name="btnAnuluj" Content="Anuluj" Click="BtnAnuluj_Click"
+                            Padding="14,8"
+                            Background="#E5E7EB" Foreground="#374151" BorderThickness="0" Cursor="Hand"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+    </Grid>
+</Window>

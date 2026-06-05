@@ -117,6 +117,55 @@ namespace Kalendarz1.Kartoteka.Features.Mapa
             catch (Exception ex) { Debug.WriteLine($"[Geokodowanie.Zapisz id={idSymfonia}] {ex.Message}"); }
         }
 
+        /// <summary>
+        /// Geokoduje dowolny opis lokalizacji (gdy adres Sage jest nawalony i potrzeba alternatywy).
+        /// Np. "Auchan Komorniki", "obok stacji Orlen w Komornikach", poprawiona ulica bez literówki.
+        /// </summary>
+        public async Task<(double Lat, double Lng)?> GeokodujTekstemAsync(string fullText)
+        {
+            if (string.IsNullOrWhiteSpace(fullText)) return null;
+
+            var elapsed = DateTime.Now - _lastRequest;
+            if (elapsed.TotalMilliseconds < 1100)
+                await Task.Delay(1100 - (int)elapsed.TotalMilliseconds);
+
+            string url = $"https://nominatim.openstreetmap.org/search?q={Uri.EscapeDataString(fullText)}&format=json&limit=1&countrycodes=pl";
+
+            try
+            {
+                _lastRequest = DateTime.Now;
+                var response = await _http.GetStringAsync(url);
+                var array = JArray.Parse(response);
+                if (array.Count > 0)
+                {
+                    double lat = array[0]["lat"].Value<double>();
+                    double lng = array[0]["lon"].Value<double>();
+                    return (lat, lng);
+                }
+            }
+            catch (Exception ex) { Debug.WriteLine($"[GeokodTekstem] {ex.GetType().Name}: {ex.Message}"); }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Usuwa współrzędne klienta (NULL) — używane gdy ręcznie ustawione współrzędne okazały się błędne.
+        /// </summary>
+        public async Task UsunWspolrzedneAsync(int idSymfonia)
+        {
+            const string sql = @"
+                IF EXISTS (SELECT 1 FROM dbo.KartotekaOdbiorcyDane WHERE IdSymfonia = @Id)
+                    UPDATE dbo.KartotekaOdbiorcyDane
+                    SET Latitude = NULL, Longitude = NULL, GeokodowanieData = GETDATE(), GeokodowanieStatus = 'Cleared'
+                    WHERE IdSymfonia = @Id;";
+
+            await using var cn = new SqlConnection(_connLibra);
+            await cn.OpenAsync();
+            await using var cmd = new SqlCommand(sql, cn);
+            cmd.Parameters.AddWithValue("@Id", idSymfonia);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
         public async Task ZapiszBladGeokodowaniaAsync(int idSymfonia, string status)
         {
             const string sql = @"
