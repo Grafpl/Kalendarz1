@@ -92,12 +92,12 @@ namespace Kalendarz1.Transport.WPF.Services
                         ZamowienieId = r.GetInt32(0),
                         KlientId = r.GetInt32(1),
                         DataPrzyjazdu = r.GetDateTime(2),
-                        Palety = r.GetDecimal(4),
+                        // Bezpiecznie dla decimal/float/int — SQL Server zwraca różne typy zależnie od kolumny
+                        Palety = r.IsDBNull(4) ? 0m : System.Convert.ToDecimal(r.GetValue(4)),
                         Pojemniki = r.GetInt32(5),
                         TrybE2 = r.GetBoolean(6),
                         TransportStatus = r.GetString(7),
                         DataUboju = r.IsDBNull(8) ? null : r.GetDateTime(8),
-                        // Bezpiecznie — SUM() może zwracać różny typ (decimal/int) zależnie od kolumny w tabeli
                         IloscKg = r.IsDBNull(9) ? 0m : System.Convert.ToDecimal(r.GetValue(9))
                     });
                 }
@@ -229,7 +229,8 @@ namespace Kalendarz1.Transport.WPF.Services
                         KlientId = r.GetInt32(1),
                         Awizacja = r.IsDBNull(2) ? null : r.GetDateTime(2),
                         Pojemniki = r.GetInt32(3),
-                        IloscKg = r.IsDBNull(4) ? 0 : r.GetDecimal(4)
+                        // SUM() w SQL może zwracać decimal/float/int — bezpieczny cast przez GetValue
+                        IloscKg = r.IsDBNull(4) ? 0m : System.Convert.ToDecimal(r.GetValue(4))
                     };
                 }
             }
