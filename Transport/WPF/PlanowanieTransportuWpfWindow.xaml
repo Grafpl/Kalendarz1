@@ -449,25 +449,12 @@
                         </DockPanel>
                     </Border>
 
-                    <Border Grid.Row="1" Background="{StaticResource SurfaceAlt}" Padding="10,8" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1">
-                        <StackPanel>
-                            <StackPanel Orientation="Horizontal">
-                                <Border Background="{StaticResource Surface}" CornerRadius="6" BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="8,0">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Style="{StaticResource Icon}" Text="&#xE721;" FontSize="13" Foreground="{StaticResource InkMuted}" Margin="0,0,5,0"/>
-                                        <TextBox x:Name="TxtSzukaj" Width="138" Height="26" BorderThickness="0" Background="Transparent"
-                                                 VerticalContentAlignment="Center" TextChanged="TxtSzukaj_TextChanged" ToolTip="Szukaj klient / handlowiec"/>
-                                    </StackPanel>
-                                </Border>
-                                <RadioButton x:Name="RbUboj" Content="Ubój" IsChecked="True" Margin="12,0,8,0"
-                                             VerticalAlignment="Center" GroupName="DataTyp" Checked="DataTyp_Changed"/>
-                                <RadioButton x:Name="RbOdbior" Content="Odbiór" VerticalAlignment="Center"
-                                             GroupName="DataTyp" Checked="DataTyp_Changed"/>
-                                <Button Style="{StaticResource BtnIcon}" Tag="&#xE72C;" Width="30" Height="28"
-                                        Margin="8,0,0,0" Click="BtnOdswiezWolne_Click" ToolTip="Odśwież wolne"/>
-                            </StackPanel>
-                            <TextBlock x:Name="WolneSuma" Text="" Foreground="{StaticResource InkMuted}" FontSize="11" Margin="2,6,0,0"/>
-                        </StackPanel>
+                    <Border Grid.Row="1" Background="{StaticResource SurfaceAlt}" Padding="10,6" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1">
+                        <DockPanel>
+                            <Button DockPanel.Dock="Right" Style="{StaticResource BtnIcon}" Tag="&#xE72C;" Width="28" Height="26"
+                                    Click="BtnOdswiezWolne_Click" ToolTip="Odśwież wolne"/>
+                            <TextBlock x:Name="WolneSuma" Text="" Foreground="{StaticResource InkMuted}" FontSize="11" VerticalAlignment="Center"/>
+                        </DockPanel>
                     </Border>
 
                     <ListBox x:Name="WolneGrid" Grid.Row="2" Margin="4" BorderThickness="0"

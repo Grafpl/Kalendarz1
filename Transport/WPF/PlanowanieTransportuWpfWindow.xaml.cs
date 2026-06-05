@@ -237,8 +237,8 @@ namespace Kalendarz1.Transport.WPF
             try
             {
                 var data = DataKursu.SelectedDate ?? DateTime.Today;
-                bool poUboju = RbUboj.IsChecked == true;
-                _wolneAll = await _svc.LoadWolneZamowieniaAsync(data, poUboju);
+                // Wolne zawsze wg daty UBOJU (preferencja użytkownika, brak przełącznika UI).
+                _wolneAll = await _svc.LoadWolneZamowieniaAsync(data, poUboju: true);
                 FiltrujWolne();
             }
             catch (Exception ex)
@@ -249,13 +249,8 @@ namespace Kalendarz1.Transport.WPF
 
         private void FiltrujWolne()
         {
-            var q = TxtSzukaj.Text?.Trim().ToLowerInvariant() ?? "";
             _wolne.Clear();
-            IEnumerable<WolneZamowienieWpf> src = _wolneAll;
-            if (!string.IsNullOrEmpty(q))
-                src = src.Where(z => (z.KlientNazwa ?? "").ToLowerInvariant().Contains(q)
-                                  || (z.Handlowiec ?? "").ToLowerInvariant().Contains(q));
-            var lista = src.OrderBy(z => z.DataPrzyjazdu).ToList();
+            var lista = _wolneAll.OrderBy(z => z.DataPrzyjazdu).ToList();
             foreach (var z in lista) _wolne.Add(z);
 
             WolneCountText.Text = _wolne.Count.ToString();
@@ -265,8 +260,6 @@ namespace Kalendarz1.Transport.WPF
             UpdateDodajButton();
         }
 
-        private void TxtSzukaj_TextChanged(object s, TextChangedEventArgs e) { if (!_ladowanie) FiltrujWolne(); }
-        private async void DataTyp_Changed(object s, RoutedEventArgs e) { if (!_ladowanie) await OdswiezWolneAsync(); }
         private async void BtnOdswiezWolne_Click(object s, RoutedEventArgs e) => await OdswiezWolneAsync();
 
         // ════════════════════════════════════════════════════════════════════
@@ -804,18 +797,14 @@ namespace Kalendarz1.Transport.WPF
         {
             var wybrane = WolneGrid.SelectedItems.Cast<WolneZamowienieWpf>().ToList();
             if (wybrane.Count == 0) return;
-            if (MessageBox.Show($"Oznaczyć {wybrane.Count} zam. jako ODBIÓR WŁASNY?\nZnikną z puli wolnych (transport po stronie klienta).",
-                "Odbiór własny", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+            // Bez potwierdzenia — klik = wykonaj. Status w pasku informuje.
             try
             {
                 foreach (var z in wybrane) await _svc.WlasnyOdbiorAsync(z.ZamowienieId, _user);
                 await OdswiezWolneAsync();
-                StatusText.Text = $"Oznaczono {wybrane.Count} jako odbiór własny.";
+                StatusText.Text = $"✓ Oznaczono {wybrane.Count} jako odbiór własny.";
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+            catch (Exception ex) { StatusText.Text = $"Błąd: {ex.Message}"; }
         }
 
         private void TglAuto_Click(object sender, RoutedEventArgs e)
