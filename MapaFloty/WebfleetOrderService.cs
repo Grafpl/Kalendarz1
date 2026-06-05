@@ -163,8 +163,15 @@ namespace Kalendarz1.MapaFloty
                     };
                 }
             }
+            // Wpisy ZAM_ bez GPS (Lat=0) też traktujemy jako brakujące — fallback w pkt 2
+            // dociągnie świeży GPS z KartotekaOdbiorcyDane i zaktualizuje cache KlientAdres.
+            // Bez tego: klient bez GPS w dniu zapisu KlientAdres pozostaje bez GPS już zawsze,
+            // mimo że później został zgeokodowany przez Mapę Klientów.
             foreach (var kod in kodyList)
+            {
                 if (!result.ContainsKey(kod)) brakujace.Add(kod);
+                else if (result[kod].Lat == 0 || result[kod].Lon == 0) brakujace.Add(kod);
+            }
             if (brakujace.Count == 0) return result;
 
             // 2) Batch z Handel — BEZ Nominatim
