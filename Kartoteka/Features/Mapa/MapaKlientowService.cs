@@ -54,8 +54,7 @@ namespace Kalendarz1.Kartoteka.Features.Mapa
                     ON POA.ContactGuid = C.ContactGuid
                     AND POA.AddressName = N'adres domyślny'
                 LEFT JOIN [SSCommon].[ContractorClassification] WYM
-                    ON C.Id = WYM.ElementId
-                WHERE POA.Place IS NOT NULL AND POA.Place != ''";
+                    ON C.Id = WYM.ElementId";
 
             // Nie łapiemy wyjątku — niech propaguje do LoadDataAsync,
             // gdzie pokaże się w MessageBox z pełnym komunikatem błędu
@@ -104,12 +103,36 @@ namespace Kalendarz1.Kartoteka.Features.Mapa
                 while (await rd.ReadAsync())
                 {
                     int id = rd.GetInt32(0);
+                    string kat = rd.IsDBNull(1) ? "C" : rd.GetString(1).Trim();
+                    // Bezpiecznie dla decimal/float/double — kolumna może być różnego typu między schemami
+                    double? lat = rd.IsDBNull(2) ? (double?)null : System.Convert.ToDouble(rd.GetValue(2));
+                    double? lng = rd.IsDBNull(3) ? (double?)null : System.Convert.ToDouble(rd.GetValue(3));
+
                     if (kontrahenci.TryGetValue(id, out var k))
                     {
-                        k.Kategoria = rd.IsDBNull(1) ? "C" : rd.GetString(1).Trim();
-                        // Bezpiecznie dla decimal/float/double — kolumna może być różnego typu między schemami
-                        k.Latitude = rd.IsDBNull(2) ? null : System.Convert.ToDouble(rd.GetValue(2));
-                        k.Longitude = rd.IsDBNull(3) ? null : System.Convert.ToDouble(rd.GetValue(3));
+                        k.Kategoria = kat;
+                        k.Latitude = lat;
+                        k.Longitude = lng;
+                    }
+                    else if (lat.HasValue && lng.HasValue)
+                    {
+                        // Sierota — klient ma GPS w LibraNet ale został usunięty/zarchiwizowany ze Sage.
+                        // Pokazujemy żeby user wiedział że pinezka istnieje (i nie zgubił danych).
+                        kontrahenci[id] = new KlientMapa
+                        {
+                            Id = id,
+                            NazwaFirmy = $"(ID {id} — usunięty ze Sage)",
+                            Skrot = $"ID{id}",
+                            Miasto = "",
+                            Ulica = "",
+                            KodPocztowy = "",
+                            NIP = "",
+                            Handlowiec = "(brak — Sage)",
+                            Kategoria = kat,
+                            Latitude = lat,
+                            Longitude = lng,
+                            IsActive = false
+                        };
                     }
                 }
             }
