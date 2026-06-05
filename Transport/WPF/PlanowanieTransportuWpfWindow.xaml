@@ -222,7 +222,7 @@
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
                             <!-- Kolumna ETA → następny przystanek. Default Collapsed, toggle 🎯 ETA w toolbarze włącza. -->
-                            <DataGridTemplateColumn x:Name="KolEta" Header="🎯 ETA → następny" Width="200" Visibility="Collapsed" CanUserSort="False">
+                            <DataGridTemplateColumn x:Name="KolEta" Header="🎯 ETA (GPS → klient)" Width="220" Visibility="Collapsed" CanUserSort="False">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <StackPanel VerticalAlignment="Center">
