@@ -80,8 +80,9 @@ namespace Kalendarz1.Kartoteka.Features.Mapa
                         Handlowiec = rd.IsDBNull(8) ? "" : rd.GetString(8)
                     };
 
-                    decimal limit = rd.GetDecimal(7);
-                    decimal naleznosci = rd.GetDecimal(9);
+                    // Bezpiecznie — Sage może zwracać float/decimal dla LimitAmount i SUM(walbrutto)
+                    decimal limit = rd.IsDBNull(7) ? 0m : System.Convert.ToDecimal(rd.GetValue(7));
+                    decimal naleznosci = rd.IsDBNull(9) ? 0m : System.Convert.ToDecimal(rd.GetValue(9));
                     k.MaAlert = limit > 0 && naleznosci > limit * 0.8m;
 
                     kontrahenci[k.Id] = k;
@@ -106,8 +107,9 @@ namespace Kalendarz1.Kartoteka.Features.Mapa
                     if (kontrahenci.TryGetValue(id, out var k))
                     {
                         k.Kategoria = rd.IsDBNull(1) ? "C" : rd.GetString(1).Trim();
-                        k.Latitude = rd.IsDBNull(2) ? null : (double)rd.GetDecimal(2);
-                        k.Longitude = rd.IsDBNull(3) ? null : (double)rd.GetDecimal(3);
+                        // Bezpiecznie dla decimal/float/double — kolumna może być różnego typu między schemami
+                        k.Latitude = rd.IsDBNull(2) ? null : System.Convert.ToDouble(rd.GetValue(2));
+                        k.Longitude = rd.IsDBNull(3) ? null : System.Convert.ToDouble(rd.GetValue(3));
                     }
                 }
             }

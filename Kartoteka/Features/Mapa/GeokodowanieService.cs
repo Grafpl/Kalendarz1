@@ -154,8 +154,9 @@ namespace Kalendarz1.Kartoteka.Features.Mapa
                 while (await rd.ReadAsync())
                 {
                     int id = rd.GetInt32(0);
-                    double lat = (double)rd.GetDecimal(1);
-                    double lng = (double)rd.GetDecimal(2);
+                    // Bezpiecznie dla decimal/float — kolumna Latitude/Longitude bywała różnych typów
+                    double lat = System.Convert.ToDouble(rd.GetValue(1));
+                    double lng = System.Convert.ToDouble(rd.GetValue(2));
                     wynik[id] = (lat, lng);
                 }
             }
