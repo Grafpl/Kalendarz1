@@ -240,10 +240,10 @@
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
                             <!-- Kolumna ETA → następny przystanek. Default Collapsed, toggle 🎯 ETA w toolbarze włącza. -->
-                            <DataGridTemplateColumn x:Name="KolEta" Header="🎯 ETA (GPS → klient)" Width="220" Visibility="Collapsed" CanUserSort="False">
+                            <DataGridTemplateColumn x:Name="KolEta" Header="🎯 ETA (GPS → klient)" Width="260" Visibility="Collapsed" CanUserSort="False">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <StackPanel VerticalAlignment="Center">
+                                        <StackPanel VerticalAlignment="Center" ToolTip="{Binding EtaTooltip}">
                                             <TextBlock Text="{Binding EtaCzas}" FontWeight="Bold" FontSize="12" Foreground="{Binding EtaKolor}" TextTrimming="CharacterEllipsis"/>
                                             <TextBlock Text="{Binding EtaKlient}" FontSize="11" Foreground="#5b6776" TextTrimming="CharacterEllipsis"/>
                                         </StackPanel>

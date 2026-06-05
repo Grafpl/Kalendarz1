@@ -34,6 +34,11 @@ namespace Kalendarz1.Transport.WPF.Services
             public TimeSpan Czas { get; set; }
             public bool MaDane { get; set; }      // false → brak GPS pojazdu / brak współrzędnych klienta / brak następnego
             public string Powod { get; set; } = "";   // diagnostyka gdy MaDane=false
+            public string SkadAdres { get; set; } = "";    // pełny adres GPS pojazdu z Webfleet (postext)
+            public string SkadMiasto { get; set; } = "";   // krótki skrót — miasto z adresu (do UI)
+            public int Predkosc { get; set; }              // km/h z Webfleet
+            public double? PojazdLat { get; set; }         // do mapy / Google Maps link
+            public double? PojazdLon { get; set; }
         }
 
         private const double AvgKmh = 60.0;
@@ -113,6 +118,13 @@ namespace Kalendarz1.Transport.WPF.Services
             var gps = await PobierzPozycjeAsync(objectNo);
             if (gps == null) { wynik.Powod = "brak pozycji GPS"; return wynik; }
 
+            // Już teraz wypełniamy „skąd jest pojazd" — wartościowe dla planisty nawet jeśli ETA dalej się nie uda
+            wynik.SkadAdres = gps.Address ?? "";
+            wynik.SkadMiasto = SkrocAdresDoMiasta(gps.Address);
+            wynik.Predkosc = gps.Speed;
+            wynik.PojazdLat = gps.Lat;
+            wynik.PojazdLon = gps.Lon;
+
             // Lista (Klient, KodKlienta) po Kolejnosc, tylko z dostępnymi nazwami
             var stops = new List<(string Kod, string Klient)>();
             foreach (var l in ladunki.OrderBy(x => x.Kolejnosc))
@@ -152,6 +164,24 @@ namespace Kalendarz1.Transport.WPF.Services
                     : $"0/{stops.Count} klientów ma GPS — uruchom Kartoteka → Mapa klientów → 📍 Geokoduj adresy";
             }
             return wynik;
+        }
+
+        /// <summary>
+        /// Wyciąga miasto z pełnego adresu Webfleet ("ul. Piotrkowska 15, 90-001 Łódź, Polska" → "Łódź").
+        /// Heuristic: ostatnia część po przecinku, bez „Polska/Poland", bez kodu pocztowego.
+        /// </summary>
+        public static string SkrocAdresDoMiasta(string? adres)
+        {
+            if (string.IsNullOrWhiteSpace(adres)) return "";
+            var parts = adres.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Where(p => !p.Equals("Polska", StringComparison.OrdinalIgnoreCase)
+                         && !p.Equals("Poland", StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+            if (parts.Length == 0) return adres.Trim();
+            var last = parts[^1];
+            // „90-001 Łódź" → „Łódź"
+            var m = System.Text.RegularExpressions.Regex.Match(last, @"^\d{2}-?\d{3}\s+(.+)$");
+            return m.Success ? m.Groups[1].Value : last;
         }
 
         public static double HaversineKm(double lat1, double lon1, double lat2, double lon2)

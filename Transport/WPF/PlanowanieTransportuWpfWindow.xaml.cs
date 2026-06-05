@@ -331,19 +331,45 @@ namespace Kalendarz1.Transport.WPF
             row.EtaCzas = "";
             row.EtaKlient = "—";
             row.EtaKolor = EtaSzary;
+            row.EtaTooltip = null;
 
             if (!ladunki.TryGetValue(row.KursID, out var lad) || lad.Count == 0) return;
             var wynik = await _etaSvc.WyliczDlaKursuAsync(row.Source.PojazdID, lad, info);
+
+            // Tooltip: pełny adres GPS + prędkość (gdy znamy pozycję pojazdu)
+            if (!string.IsNullOrEmpty(wynik.SkadAdres))
+            {
+                string predkosc = wynik.Predkosc > 0 ? $" · {wynik.Predkosc} km/h" : " · stoi";
+                row.EtaTooltip = $"📍 Pojazd: {wynik.SkadAdres}{predkosc}";
+            }
+
             if (!wynik.MaDane)
             {
-                row.EtaCzas = wynik.Powod;   // diagnostyka w komórce (np. „brak GPS")
+                // ETA się nie udała, ale jeśli WIEMY gdzie pojazd jest — pokaż to (cenne dla planisty)
+                if (!string.IsNullOrEmpty(wynik.SkadMiasto))
+                {
+                    row.EtaCzas = wynik.Powod;   // diagnostyka („0/N klientów ma GPS")
+                    row.EtaKlient = wynik.Predkosc > 0
+                        ? $"🚛 jedzie · {wynik.SkadMiasto} ({wynik.Predkosc} km/h)"
+                        : $"🛰 stoi · {wynik.SkadMiasto}";
+                }
+                else
+                {
+                    row.EtaCzas = wynik.Powod;   // brak GPS pojazdu w ogóle
+                }
                 return;
             }
-            row.EtaKlient = wynik.KlientNazwa;
+
+            // Mamy ETA + skąd → „za 25 min · 12 km" / „Z Łódź → Damak"
             var min = (int)Math.Ceiling(wynik.Czas.TotalMinutes);
             row.EtaCzas = min < 60
                 ? $"za {min} min  ·  {wynik.DystansKm:F1} km"
                 : $"za {wynik.Czas.Hours}h {wynik.Czas.Minutes:00}min  ·  {wynik.DystansKm:F1} km";
+
+            row.EtaKlient = !string.IsNullOrEmpty(wynik.SkadMiasto)
+                ? $"{wynik.SkadMiasto} → {wynik.KlientNazwa}"
+                : $"→ {wynik.KlientNazwa}";
+
             row.EtaKolor = min < 30 ? EtaAmber : EtaZielony;
         }
 
@@ -986,9 +1012,10 @@ namespace Kalendarz1.Transport.WPF
 
             // ETA do następnego przystanku — toggle button w toolbarze pokazuje/ukrywa kolumnę.
             // Wypełniane w UzupelnijAgregatyAsync na podstawie awizacji ładunków + DateTime.Now.
-            public string EtaCzas { get; set; } = "";       // "za 23 min", "14:30", "→ baza 16:45", "po czasie"
-            public string EtaKlient { get; set; } = "";     // nazwa klienta lub "→ baza"
+            public string EtaCzas { get; set; } = "";       // "za 23 min · 12 km" lub diagnostyka („brak GPS pojazdu")
+            public string EtaKlient { get; set; } = "";     // „Z Łódź → Damak" / „🛰 Łódź (pojazd stoi)"
             public Brush EtaKolor { get; set; } = Brushes.Gray;   // czerwony=opóźniony, amber=za <30min, zielony=OK, szary=brak/po wszystkim
+            public string? EtaTooltip { get; set; }   // pełny adres GPS pojazdu (postext z Webfleet) + prędkość
             public string? KierowcaNazwa => Source.KierowcaNazwa;
             public string? PojazdRejestracja => Source.PojazdRejestracja;
             public string Status => Source.Status ?? "Planowany";
