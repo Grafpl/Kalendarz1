@@ -362,8 +362,7 @@
                         </Button>
                         <Button DockPanel.Dock="Right" Style="{StaticResource BtnIcon}" Tag="&#xE72C;" Width="28" Height="26"
                                 Margin="0,0,6,0" Click="BtnOdswiezWolne_Click" ToolTip="Pobierz wolne ponownie (z bieżącą datą)"/>
-                        <TextBlock x:Name="WolneSumaEdytor" Text="" Foreground="{StaticResource InkMuted}" FontSize="11" VerticalAlignment="Center"
-                                   ToolTip="Wolne na dziś (zawsze wg daty uboju)"/>
+                        <TextBlock Text="Dzień uboju" Foreground="{StaticResource InkMuted}" FontSize="11" VerticalAlignment="Center"/>
                     </DockPanel>
                 </Border>
                 <ListBox x:Name="WolneGrid" Grid.Row="2" Margin="4" BorderThickness="0"

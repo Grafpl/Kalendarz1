@@ -115,6 +115,23 @@ namespace Kalendarz1.Transport.WPF
             PanelTimeline.Visibility = Visibility.Collapsed;
         }
 
+        private void TglEta_Click(object s, RoutedEventArgs e)
+        {
+            // Toggle widoczność kolumny "🎯 ETA → następny" w liście kursów.
+            if (KolEta != null) KolEta.Visibility = TglEta.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+            // Highlight: gdy włączone — akcent turkus
+            if (TglEta.IsChecked == true)
+            {
+                TglEta.Background = (Brush)FindResource("AccentSoft");
+                TglEta.Foreground = (Brush)FindResource("AccentDark");
+            }
+            else
+            {
+                TglEta.Background = Brushes.Transparent;
+                TglEta.Foreground = (Brush)FindResource("InkSecondary");
+            }
+        }
+
         private async void WidokTimeline_Click(object s, RoutedEventArgs e)
         {
             TglWidokLista.IsChecked = false;
@@ -255,8 +272,6 @@ namespace Kalendarz1.Transport.WPF
             foreach (var z in lista) _wolne.Add(z);
 
             WolneCountText.Text = _wolne.Count.ToString();
-            int sumaPoj = lista.Sum(z => z.Pojemniki);
-            WolneSuma.Text = $"Σ {lista.Count} zam.  ·  {sumaPoj} pojemników  ·  ~{(sumaPoj == 0 ? 0 : (int)Math.Ceiling(sumaPoj / 36.0))} palet";
             WolneEmpty.Visibility = _wolne.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
             UpdateDodajButton();
         }
@@ -271,6 +286,69 @@ namespace Kalendarz1.Transport.WPF
             UpdateButtons();
             UpdateDodajButton();
             await OdswiezDetalZmianAsync();
+        }
+
+        /// <summary>Wylicza dla kursu „następny przystanek + ETA" — pierwszy klient z awizacją po teraz.
+        /// Jeśli wszystkie minęły → "→ baza" + GodzPowrotu. Kolor: amber gdy <30 min, czerwony gdy minął, szary gdy brak.</summary>
+        private static void WypelnijEtaNastepny(KursRow row, Dictionary<long, List<Ladunek>> ladunki, Dictionary<int, ZamowienieNazwaInfo> info)
+        {
+            row.EtaCzas = "";
+            row.EtaKlient = "—";
+            row.EtaKolor = new SolidColorBrush(Color.FromRgb(0xBD, 0xBD, 0xBD));   // szary
+            if (!ladunki.TryGetValue(row.KursID, out var lad) || lad.Count == 0) return;
+
+            var teraz = DateTime.Now;
+            // Lista (klient, awizacja) — tylko ZAM_ z awizacją
+            var stops = new List<(string Klient, DateTime Awizacja)>();
+            foreach (var l in lad.OrderBy(x => x.Kolejnosc))
+            {
+                if (l.KodKlienta != null && l.KodKlienta.StartsWith("ZAM_")
+                    && int.TryParse(l.KodKlienta.Substring(4), out var zid)
+                    && info.TryGetValue(zid, out var zi)
+                    && zi.Awizacja.HasValue
+                    && !string.IsNullOrEmpty(zi.Nazwa))
+                    stops.Add((zi.Nazwa, zi.Awizacja.Value));
+            }
+            if (stops.Count == 0) return;
+
+            // Najbliższy przystanek po teraz
+            var nastepny = stops.Where(s => s.Awizacja > teraz).OrderBy(s => s.Awizacja).FirstOrDefault();
+            if (nastepny.Klient != null)
+            {
+                row.EtaKlient = nastepny.Klient;
+                var diff = nastepny.Awizacja - teraz;
+                if (diff.TotalMinutes < 60)
+                    row.EtaCzas = $"za {(int)Math.Ceiling(diff.TotalMinutes)} min  ({nastepny.Awizacja:HH:mm})";
+                else if (diff.TotalHours < 12)
+                    row.EtaCzas = $"za {(int)diff.TotalHours}h {diff.Minutes:00}min  ({nastepny.Awizacja:HH:mm})";
+                else
+                    row.EtaCzas = nastepny.Awizacja.ToString("dd.MM HH:mm");
+                // kolor wg pilności
+                row.EtaKolor = diff.TotalMinutes < 30
+                    ? new SolidColorBrush(Color.FromRgb(0xB2, 0x6A, 0x00))   // amber: blisko
+                    : new SolidColorBrush(Color.FromRgb(0x2E, 0x7D, 0x32));  // zielony: OK
+                return;
+            }
+
+            // Wszystkie awizacje minęły → powrót do bazy
+            row.EtaKlient = "→ baza";
+            if (row.Source.GodzPowrotu.HasValue)
+            {
+                var dzis = teraz.Date.Add(row.Source.GodzPowrotu.Value);
+                if (dzis > teraz)
+                {
+                    var diff = dzis - teraz;
+                    row.EtaCzas = diff.TotalMinutes < 60
+                        ? $"za {(int)Math.Ceiling(diff.TotalMinutes)} min  ({dzis:HH:mm})"
+                        : $"za {(int)diff.TotalHours}h {diff.Minutes:00}min  ({dzis:HH:mm})";
+                    row.EtaKolor = new SolidColorBrush(Color.FromRgb(0x19, 0x76, 0xD2));   // niebieski: wraca
+                }
+                else
+                {
+                    row.EtaCzas = $"powrót zaplanowany {dzis:HH:mm}";
+                    row.EtaKolor = new SolidColorBrush(Color.FromRgb(0xC6, 0x28, 0x28));   // czerwony: po czasie
+                }
+            }
         }
 
         /// <summary>Wpisuje tymczasowy komunikat w status bar i czyści go po 5 s.
@@ -530,6 +608,7 @@ namespace Kalendarz1.Transport.WPF
                     row.ZmienilName = !string.IsNullOrEmpty(row.ZmienilId) && userNames.TryGetValue(row.ZmienilId, out var nz)
                         ? nz : row.ZmienilId;
                     row.UstawHandlowcow(handl, _svc.HandlowiecUserId);
+                    WypelnijEtaNastepny(row, ladunki, info);
                 }
             }
             catch (Exception ex)
@@ -887,6 +966,12 @@ namespace Kalendarz1.Transport.WPF
             // Wypełniana w UzupelnijAgregatyAsync. Fallback gdy puste: ręczna Source.Trasa, potem "—".
             public string TrasaAuto { get; set; } = "—";
             public string? TrasaAutoTooltip { get; set; }   // pełna lista klientów gdy więcej niż 2
+
+            // ETA do następnego przystanku — toggle button w toolbarze pokazuje/ukrywa kolumnę.
+            // Wypełniane w UzupelnijAgregatyAsync na podstawie awizacji ładunków + DateTime.Now.
+            public string EtaCzas { get; set; } = "";       // "za 23 min", "14:30", "→ baza 16:45", "po czasie"
+            public string EtaKlient { get; set; } = "";     // nazwa klienta lub "→ baza"
+            public Brush EtaKolor { get; set; } = Brushes.Gray;   // czerwony=opóźniony, amber=za <30min, zielony=OK, szary=brak/po wszystkim
             public string? KierowcaNazwa => Source.KierowcaNazwa;
             public string? PojazdRejestracja => Source.PojazdRejestracja;
             public string Status => Source.Status ?? "Planowany";

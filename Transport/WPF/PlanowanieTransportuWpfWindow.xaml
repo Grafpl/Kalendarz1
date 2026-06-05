@@ -71,6 +71,10 @@
                                     <ToggleButton x:Name="TglWidokTimeline" Content="Timeline" Click="WidokTimeline_Click" Style="{StaticResource SegToggle}"/>
                                 </StackPanel>
                             </Border>
+                            <ToggleButton x:Name="TglEta" Content="🎯 ETA" Margin="10,0,0,0" Padding="10,5" VerticalAlignment="Center"
+                                          Click="TglEta_Click" Background="Transparent" BorderBrush="{StaticResource Line}" BorderThickness="1"
+                                          Cursor="Hand" FontSize="12" Foreground="{StaticResource InkSecondary}"
+                                          ToolTip="Pokaż kolumnę &quot;ETA → następny przystanek&quot; (kto jest następny i za ile)"/>
                             <!-- Szukaj kursów (filtruje: trasa / kierowca / pojazd) -->
                             <Border Background="{StaticResource SurfaceAlt}" CornerRadius="6" BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="8,0" Margin="16,0,0,0" VerticalAlignment="Center">
                                 <StackPanel Orientation="Horizontal">
@@ -214,6 +218,17 @@
                                         <TextBlock Text="{Binding TrasaAuto}" ToolTip="{Binding TrasaAutoTooltip}"
                                                    TextTrimming="CharacterEllipsis" FontSize="12.5" Foreground="#1F2733"
                                                    VerticalAlignment="Center"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <!-- Kolumna ETA → następny przystanek. Default Collapsed, toggle 🎯 ETA w toolbarze włącza. -->
+                            <DataGridTemplateColumn x:Name="KolEta" Header="🎯 ETA → następny" Width="200" Visibility="Collapsed" CanUserSort="False">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding EtaCzas}" FontWeight="Bold" FontSize="12" Foreground="{Binding EtaKolor}" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding EtaKlient}" FontSize="11" Foreground="#5b6776" TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
@@ -449,12 +464,12 @@
                         </DockPanel>
                     </Border>
 
-                    <Border Grid.Row="1" Background="{StaticResource SurfaceAlt}" Padding="10,6" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1">
+                    <Border Grid.Row="1" Background="{StaticResource SurfaceAlt}" Padding="10,4" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1"
+                            ToolTip="Wolne na dziś wg daty uboju · Ctrl+klik = wiele, przeciągnij na kurs lub na puste miejsce listy = nowy kurs">
                         <DockPanel>
                             <Button DockPanel.Dock="Right" Style="{StaticResource BtnIcon}" Tag="&#xE72C;" Width="28" Height="26"
                                     Click="BtnOdswiezWolne_Click" ToolTip="Pobierz wolne ponownie (F5 odświeża wszystko)"/>
-                            <TextBlock x:Name="WolneSuma" Text="" Foreground="{StaticResource InkMuted}" FontSize="11" VerticalAlignment="Center"
-                                       ToolTip="Wolne na dziś wg daty uboju · zaznacz Ctrl+klik = wiele, przeciągnij na kurs lub na puste miejsce listy = nowy kurs"/>
+                            <TextBlock Text="Dzień uboju" Foreground="{StaticResource InkMuted}" FontSize="11" VerticalAlignment="Center"/>
                         </DockPanel>
                     </Border>
 
