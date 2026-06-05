@@ -43,6 +43,7 @@ namespace Kalendarz1.Transport.WPF
         private const string FmtWolne = "ZPSP_wolne";
         private DataGridRow? _hoverRow;
         private System.Windows.Threading.DispatcherTimer? _autoTimer;
+        private System.Windows.Threading.DispatcherTimer? _statusClearTimer;
         private DragGhostAdorner? _ghost;
         private System.Windows.Documents.AdornerLayer? _ghostLayer;
         private TimelineDniaView? _timeline;   // lazy-init przy 1. przełączeniu na Timeline
@@ -70,7 +71,7 @@ namespace Kalendarz1.Transport.WPF
             // PreviewKeyDown (tunneling) — dostajemy Enter PRZED DataGridem.
             // Inaczej DataGrid przejmuje Enter i przewija na następny wiersz.
             PreviewKeyDown += Skroty_KeyDown;
-            Closed += (_, _) => _autoTimer?.Stop();
+            Closed += (_, _) => { _autoTimer?.Stop(); _statusClearTimer?.Stop(); };
         }
 
         private async Task EnsureSlownikiAsync()
@@ -272,6 +273,21 @@ namespace Kalendarz1.Transport.WPF
             await OdswiezDetalZmianAsync();
         }
 
+        /// <summary>Wpisuje tymczasowy komunikat w status bar i czyści go po 5 s.
+        /// Dla komunikatów akcji typu „✓ Zaakceptowano N zmian" — nie blokuje miejsca dla nowych info.</summary>
+        private void StatusTymczasowy(string text)
+        {
+            StatusText.Text = text;
+            _statusClearTimer?.Stop();
+            _statusClearTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+            _statusClearTimer.Tick += (_, _) =>
+            {
+                if (StatusText.Text == text) StatusText.Text = "";   // czyść tylko jeśli nikt nie nadpisał
+                _statusClearTimer?.Stop();
+            };
+            _statusClearTimer.Start();
+        }
+
         // ════════════════════════════════════════════════════════════════════
         // PANEL DETALI ZMIAN dla zaznaczonego kursu (auto-show)
         // ════════════════════════════════════════════════════════════════════
@@ -326,9 +342,9 @@ namespace Kalendarz1.Transport.WPF
                 row.LiczbaZmianOczekujacych = Math.Max(0, row.LiczbaZmianOczekujacych - card.IloscScalonych);
                 KursyGrid.Items.Refresh();
                 AktualizujDetalNaglowek(row);
-                StatusText.Text = card.IloscScalonych > 1
+                StatusTymczasowy(card.IloscScalonych > 1
                     ? $"✓ Zaakceptowano {card.IloscScalonych} kolejnych edycji: {card.TypLabel} ({card.KlientNazwa})"
-                    : $"✓ Zaakceptowano: {card.TypLabel} ({card.KlientNazwa})";
+                    : $"✓ Zaakceptowano: {card.TypLabel} ({card.KlientNazwa})");
             }
             catch (Exception ex) { MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error); b.IsEnabled = true; }
         }
@@ -349,7 +365,7 @@ namespace Kalendarz1.Transport.WPF
                 row.LiczbaZmianOczekujacych = Math.Max(0, row.LiczbaZmianOczekujacych - card.IloscScalonych);
                 KursyGrid.Items.Refresh();
                 AktualizujDetalNaglowek(row);
-                StatusText.Text = $"✗ Odrzucono: {card.KlientNazwa} · {card.TypLabel}";
+                StatusTymczasowy($"✗ Odrzucono: {card.KlientNazwa} · {card.TypLabel}");
             }
             catch (Exception ex) { MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error); b.IsEnabled = true; }
         }
@@ -370,7 +386,7 @@ namespace Kalendarz1.Transport.WPF
                 await LoadKursyAsync();      // przelicz wypełnienie/ładunki po sync PojemnikiE2
                 var again = _rows.FirstOrDefault(r => r.KursID == keep);
                 if (again != null) { KursyGrid.SelectedItem = again; KursyGrid.ScrollIntoView(again); }
-                StatusText.Text = $"✓ Zaakceptowano {liczbaKart} zmian ({liczbaIds} wpisów) dla kursu #{keep}.";
+                StatusTymczasowy($"✓ Zaakceptowano {liczbaKart} zmian ({liczbaIds} wpisów) dla kursu #{keep}.");
             }
             catch (Exception ex) { StatusText.Text = $"Błąd akceptacji: {ex.Message}"; }
             finally { BtnDetalAkceptujWszystkie.IsEnabled = true; }
@@ -691,7 +707,8 @@ namespace Kalendarz1.Transport.WPF
                 await OdswiezWolneAsync();
                 var again = _rows.FirstOrDefault(r => r.KursID == keepId);
                 if (again != null) { KursyGrid.SelectedItem = again; KursyGrid.ScrollIntoView(again); }
-                StatusText.Text = $"Dodano {zamowienia.Count} zam. do kursu #{keepId}.";
+                WolneGrid.UnselectAll();   // czyste pole pod kolejne klikanie
+                StatusTymczasowy($"✓ Dodano {zamowienia.Count} zam. do kursu #{keepId}");
             }
             catch (Exception ex)
             {
@@ -802,7 +819,7 @@ namespace Kalendarz1.Transport.WPF
             {
                 foreach (var z in wybrane) await _svc.WlasnyOdbiorAsync(z.ZamowienieId, _user);
                 await OdswiezWolneAsync();
-                StatusText.Text = $"✓ Oznaczono {wybrane.Count} jako odbiór własny.";
+                StatusTymczasowy($"✓ Oznaczono {wybrane.Count} jako odbiór własny.");
             }
             catch (Exception ex) { StatusText.Text = $"Błąd: {ex.Message}"; }
         }

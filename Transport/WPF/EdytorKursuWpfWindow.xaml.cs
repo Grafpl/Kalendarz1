@@ -344,6 +344,10 @@ namespace Kalendarz1.Transport.WPF
             _wolne.Clear();
             foreach (var z in _wolneAll.OrderBy(z => z.DataPrzyjazdu)) _wolne.Add(z);
             WolneCountText.Text = _wolne.Count.ToString();
+            int sumaPoj = _wolne.Sum(z => z.Pojemniki);
+            WolneSumaEdytor.Text = _wolne.Count == 0
+                ? "Brak wolnych zamówień"
+                : $"Σ {_wolne.Count} zam.  ·  {sumaPoj} poj.  ·  ~{(int)Math.Ceiling(sumaPoj / 36.0)} pal.";
         }
 
         // ════════════════════════════════════════════════════════════════════

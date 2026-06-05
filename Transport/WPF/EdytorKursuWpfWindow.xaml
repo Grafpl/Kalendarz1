@@ -353,15 +353,17 @@
                 </Border>
                 <Border Grid.Row="1" Background="{StaticResource SurfaceAlt}" Padding="10,6" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1">
                     <DockPanel>
-                        <Button DockPanel.Dock="Right" Style="{StaticResource BtnPrimary}" Padding="10,4" Click="BtnDodajWolne_Click" ToolTip="Dodaj zaznaczone do kursu">
+                        <Button DockPanel.Dock="Right" Style="{StaticResource BtnPrimary}" Padding="10,4" Click="BtnDodajWolne_Click"
+                                ToolTip="Dodaj zaznaczone (Ctrl+klik = wiele) do tego kursu">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Style="{StaticResource Icon}" Text="&#xE710;" Foreground="White" FontSize="13" Margin="0,0,5,0"/>
                                 <TextBlock Text="Dodaj" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Button>
                         <Button DockPanel.Dock="Right" Style="{StaticResource BtnIcon}" Tag="&#xE72C;" Width="28" Height="26"
-                                Margin="0,0,6,0" Click="BtnOdswiezWolne_Click" ToolTip="Odśwież"/>
-                        <TextBlock Text="Dzień uboju" Foreground="{StaticResource InkMuted}" FontSize="11" VerticalAlignment="Center"/>
+                                Margin="0,0,6,0" Click="BtnOdswiezWolne_Click" ToolTip="Pobierz wolne ponownie (z bieżącą datą)"/>
+                        <TextBlock x:Name="WolneSumaEdytor" Text="" Foreground="{StaticResource InkMuted}" FontSize="11" VerticalAlignment="Center"
+                                   ToolTip="Wolne na dziś (zawsze wg daty uboju)"/>
                     </DockPanel>
                 </Border>
                 <ListBox x:Name="WolneGrid" Grid.Row="2" Margin="4" BorderThickness="0"

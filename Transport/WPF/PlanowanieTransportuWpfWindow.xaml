@@ -452,8 +452,9 @@
                     <Border Grid.Row="1" Background="{StaticResource SurfaceAlt}" Padding="10,6" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1">
                         <DockPanel>
                             <Button DockPanel.Dock="Right" Style="{StaticResource BtnIcon}" Tag="&#xE72C;" Width="28" Height="26"
-                                    Click="BtnOdswiezWolne_Click" ToolTip="Odśwież wolne"/>
-                            <TextBlock x:Name="WolneSuma" Text="" Foreground="{StaticResource InkMuted}" FontSize="11" VerticalAlignment="Center"/>
+                                    Click="BtnOdswiezWolne_Click" ToolTip="Pobierz wolne ponownie (F5 odświeża wszystko)"/>
+                            <TextBlock x:Name="WolneSuma" Text="" Foreground="{StaticResource InkMuted}" FontSize="11" VerticalAlignment="Center"
+                                       ToolTip="Wolne na dziś wg daty uboju · zaznacz Ctrl+klik = wiele, przeciągnij na kurs lub na puste miejsce listy = nowy kurs"/>
                         </DockPanel>
                     </Border>
 
