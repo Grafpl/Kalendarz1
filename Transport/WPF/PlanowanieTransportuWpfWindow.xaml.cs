@@ -116,6 +116,24 @@ namespace Kalendarz1.Transport.WPF
             PanelTimeline.Visibility = Visibility.Collapsed;
         }
 
+        private void BtnGeokoduj_Click(object s, RoutedEventArgs e)
+        {
+            // Skrót: otwiera Mapa Klientów (Kartoteka.Features.Mapa.MapaKlientowWindow).
+            // User klika tam "📍 Geokoduj adresy" - leci Nominatim + UPSERT do
+            // KartotekaOdbiorcyDane. Po tym ETA dziala dla zgeokodowanych klientow.
+            try
+            {
+                var win = new Kalendarz1.Kartoteka.Features.Mapa.MapaKlientowWindow { Owner = this };
+                win.Show();
+                StatusTymczasowy("📍 Otwarto Mapa Klientów — kliknij tam „📍 Geokoduj adresy\"");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Nie udało się otworzyć Mapy Klientów:\n{ex.Message}\n\nMożesz przejść ręcznie: Menu główne → Sprzedaż i CRM → 🗺️ Mapa.",
+                    "Mapa Klientów", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
         private async void TglEta_Click(object s, RoutedEventArgs e)
         {
             // Toggle widoczność kolumny "🎯 ETA → następny" + dolicz live z Webfleet
