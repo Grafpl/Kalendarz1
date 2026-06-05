@@ -129,23 +129,28 @@ namespace Kalendarz1.Transport.WPF.Services
             var ws = new WebfleetOrderService();
             var adresy = await ws.PobierzAdresySzybkoAsync(stops.Select(s => s.Kod));
 
-            // Znajdź pierwszy klient z dostępnym GPS, którego pojazd JESZCZE nie odwiedził (>500 m od jego punktu)
-            const double PROG_ODWIEDZONY_KM = 0.5;
+            // Pierwszy klient po Kolejnosc z dostępnymi współrzędnymi — bez filtra "<500 m"
+            // (filtr powodował omijanie bliskich klientów, np. pojazd 400 m od cel = pomijany)
+            int zGps = 0;
             foreach (var s in stops)
             {
                 if (!adresy.TryGetValue(s.Kod, out var a) || a.Lat == 0 || a.Lon == 0) continue;
+                zGps++;
+                if (wynik.MaDane) continue;   // już wzięliśmy pierwszego, dalej tylko liczymy zGps
                 double dystans = HaversineKm(gps.Lat, gps.Lon, a.Lat, a.Lon) * RoadFactor;
-                if (dystans < PROG_ODWIEDZONY_KM) continue;   // pojazd jest u tego klienta → bierz następnego
-                // To jest nasz cel — pierwszy nieodwiedzony klient po kolejności
                 var minuty = dystans / AvgKmh * 60.0;
                 wynik.KlientNazwa = s.Klient;
                 wynik.DystansKm = dystans;
                 wynik.Czas = TimeSpan.FromMinutes(minuty);
                 wynik.MaDane = true;
-                return wynik;
             }
 
-            wynik.Powod = "brak współrzędnych klientów lub wszyscy w pobliżu";
+            if (!wynik.MaDane)
+            {
+                wynik.Powod = stops.Count == 1
+                    ? $"klient {stops[0].Klient} bez GPS — geokoduj w Kartoteka → Mapa klientów"
+                    : $"0/{stops.Count} klientów ma GPS — uruchom Kartoteka → Mapa klientów → 📍 Geokoduj adresy";
+            }
             return wynik;
         }
 
