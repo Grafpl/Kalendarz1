@@ -112,6 +112,39 @@ namespace Kalendarz1.Transport
             catch { return 0; }
         }
 
+        /// <summary>
+        /// Zlicza kursy na dzisiaj (DataKursu = today) z rozbiciem na status.
+        /// Pomija anulowane. Używane do badge'a na kafelku „Planowanie Transportu".
+        /// </summary>
+        public static (int Total, int Planowane, int WTrasie, int Zakonczone) GetTodayKursyCounts()
+        {
+            try
+            {
+                using var conn = new SqlConnection(_connTransport);
+                conn.Open();
+                using var cmd = new SqlCommand(@"
+                    SELECT
+                        COUNT(*) AS Total,
+                        SUM(CASE WHEN ISNULL(Status, 'Planowany') IN ('Planowany', 'Akceptowany') THEN 1 ELSE 0 END) AS Planowane,
+                        SUM(CASE WHEN Status = 'WTrasie' THEN 1 ELSE 0 END) AS WTrasie,
+                        SUM(CASE WHEN Status = 'Zakonczony' THEN 1 ELSE 0 END) AS Zakonczone
+                    FROM dbo.Kurs
+                    WHERE DataKursu = CAST(GETDATE() AS date)
+                      AND ISNULL(Status, '') != 'Anulowany'", conn);
+                using var r = cmd.ExecuteReader();
+                if (r.Read())
+                {
+                    return (
+                        r.IsDBNull(0) ? 0 : r.GetInt32(0),
+                        r.IsDBNull(1) ? 0 : r.GetInt32(1),
+                        r.IsDBNull(2) ? 0 : r.GetInt32(2),
+                        r.IsDBNull(3) ? 0 : r.GetInt32(3));
+                }
+            }
+            catch { }
+            return (0, 0, 0, 0);
+        }
+
         public static int GetFreeOrdersCount()
         {
             try

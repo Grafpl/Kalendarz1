@@ -43,6 +43,8 @@ namespace Kalendarz1
         private Label _crBadgeLabel;
         private Label _transportPendingBadge;
         private Label _transportFreeBadge;
+        private Label _transportKursyBadge;        // dolny — liczba dzisiejszych kursów
+        private ToolTip _transportKursyTooltip;    // rozbicie statusu (plan/trasa/zakończ.)
         private Label _zamowieniaUnreadBadge;
         private Label _reklamacjeBadgeLabel;
         private Label _reklamacjeOczekBadgeLabel;
@@ -436,7 +438,7 @@ namespace Kalendarz1
 
         private async Task RefreshTransportBadgeAsync()
         {
-            if (_transportPendingBadge == null && _transportFreeBadge == null) return;
+            if (_transportPendingBadge == null && _transportFreeBadge == null && _transportKursyBadge == null) return;
 
             // Faza 9-C — najpierw consume queue (triggery DB na ZamowieniaMieso powodują
             // wpisy do LibraNet.TransportZmianyQueue, my je tu konsumujemy → generuje
@@ -449,19 +451,42 @@ namespace Kalendarz1
             }
             catch { /* badge refresh nadal działa */ }
 
-            // Dwa zapytania (różne bazy) równolegle, każde z hard timeoutem 5s.
+            // Trzy zapytania równolegle, każde z hard timeoutem 5s.
             var pendingTask = RunWithTimeoutAsync(() => Transport.TransportZmianyService.GetPendingCount(), 0);
             var freeTask = RunWithTimeoutAsync(() => Transport.TransportZmianyService.GetFreeOrdersCount(), 0);
-            await Task.WhenAll(pendingTask, freeTask);
+            var kursyTask = RunWithTimeoutAsync(() => Transport.TransportZmianyService.GetTodayKursyCounts(), (0, 0, 0, 0));
+            await Task.WhenAll(pendingTask, freeTask, kursyTask);
             if (IsDisposed) return;
 
             int pendingCount = pendingTask.Result;
             int freeCount = freeTask.Result;
+            var (kursyTotal, plan, wTrasie, zak) = kursyTask.Result;
 
             SetSimpleBadge(_transportPendingBadge, pendingCount, n => $"{n} do akc.");
             // Wolne zamówienia tylko gdy są też oczekujące zmiany — gdy dispatcher zaakceptował wszystko,
             // oba dymki znikają (wolne i tak są widoczne w samym panelu Transport).
             SetSimpleBadge(_transportFreeBadge, pendingCount > 0 ? freeCount : 0);
+
+            // Badge dzisiejszych kursów — zawsze widoczny gdy są >0
+            if (_transportKursyBadge != null)
+            {
+                if (kursyTotal > 0)
+                {
+                    _transportKursyBadge.Text = $"{kursyTotal} dz.";
+                    _transportKursyBadge.Visible = true;
+                    _transportKursyTooltip?.SetToolTip(_transportKursyBadge,
+                        $"Dzisiejsze kursy: {kursyTotal}" +
+                        $"\n• Planowane: {plan}" +
+                        $"\n• W trasie: {wTrasie}" +
+                        $"\n• Zakończone: {zak}" +
+                        (freeCount > 0 ? $"\n\nWolne zamówienia: {freeCount}" : "") +
+                        (pendingCount > 0 ? $"\nZmiany do akceptacji: {pendingCount}" : ""));
+                }
+                else
+                {
+                    _transportKursyBadge.Visible = false;
+                }
+            }
         }
 
         private async Task RefreshWstawieniaBadgeAsync()
@@ -2198,20 +2223,29 @@ namespace Kalendarz1
                     break;
 
                 case "UstalanieTranportu":
-                    // Lewa strona — oczekujące zmiany (amber, prostokąt zaokrąglony)
+                    // Lewa góra — oczekujące zmiany (amber, prostokąt zaokrąglony)
                     _transportPendingBadge = AttachTileBadge(tile, "0 do akc.",
                         background: Color.FromArgb(245, 158, 11),
                         size: new Size(76, 18),
                         location: new Point(6, 6),
                         shape: BadgeShape.Rounded,
                         font: new Font("Segoe UI", 7.5f, FontStyle.Bold));
-                    // Prawa strona — wolne zamówienia (teal, koło)
+                    // Prawa góra — wolne zamówienia (teal, koło)
                     _transportFreeBadge = AttachTileBadge(tile, "0",
                         background: Color.FromArgb(0, 131, 143),
                         size: new Size(26, 26),
                         location: new Point(tile.Width - 38, 8),
                         shape: BadgeShape.Ellipse,
                         font: new Font("Segoe UI", 8, FontStyle.Bold));
+                    // Dół — dzisiejsze kursy (indygo, prostokąt, tooltip z rozbiciem)
+                    _transportKursyBadge = AttachTileBadge(tile, "0 dz.",
+                        background: Color.FromArgb(30, 64, 175),
+                        size: new Size(72, 18),
+                        location: new Point(6, tile.Height - 26),
+                        shape: BadgeShape.Rounded,
+                        font: new Font("Segoe UI", 7.5f, FontStyle.Bold),
+                        anchor: AnchorStyles.Bottom | AnchorStyles.Left);
+                    _transportKursyTooltip = new ToolTip { ShowAlways = true, InitialDelay = 300 };
                     break;
 
                 case "PanelReklamacji":
