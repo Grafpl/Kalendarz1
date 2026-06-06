@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Kalendarz1.AnalitykaPelna.Services;
 using Kalendarz1.Kontrakty.Models;
@@ -280,14 +281,16 @@ WHERE LTRIM(RTRIM(CustomerGID))=@id AND CalcDate >= DATEADD(MONTH, -12, CAST(GET
             return s;
         }
 
-        // ─── Ostatnie N dostaw z warunkami (do mini-kart w Warunkach handlowych) ─
-        // Pokazuje cena, dodatek, ubytek, typ ceny i czyja waga (heurystyka jak w UmowyForm).
-        public async Task<List<DostawaSugestia>> GetOstatnieDostawyDoSugestiiAsync(string dostawcaId, int top = 4)
+        // ─── Ostatnie dostawy scalone w grupy 10-dniowe (mini-karty w Warunkach handlowych) ─
+        // Pobiera surowe dostawy z ostatnich 12 mies., scala w okna ≤10 dni, zwraca TOP N grup.
+        // Każda grupa: średnia cena/dodatek/ubytek, najczęstszy typ ceny i rozliczana waga.
+        public async Task<List<DostawaSugestia>> GetOstatnieDostawyDoSugestiiAsync(string dostawcaId, int topGrup = 3)
         {
-            var lista = new List<DostawaSugestia>();
-            if (string.IsNullOrWhiteSpace(dostawcaId)) return lista;
-            string sql = $@"
-SELECT TOP ({Math.Max(1, top)})
+            var wynik = new List<DostawaSugestia>();
+            if (string.IsNullOrWhiteSpace(dostawcaId)) return wynik;
+
+            const string sql = @"
+SELECT
     fc.CalcDate,
     fc.Price,
     fc.Addition,
@@ -299,6 +302,9 @@ WHERE LTRIM(RTRIM(fc.CustomerGID)) = @id
   AND fc.CalcDate >= DATEADD(MONTH, -12, CAST(GETDATE() AS DATE))
   AND ISNULL(fc.Deleted, 0) = 0
 ORDER BY fc.CalcDate DESC;";
+
+            // Surowe wiersze
+            var surowe = new List<(DateTime Data, decimal? Cena, decimal? Dodatek, decimal? Loss, string TypCeny)>();
             try
             {
                 using var cn = new SqlConnection(_conn);
@@ -308,22 +314,70 @@ ORDER BY fc.CalcDate DESC;";
                 using var r = await cmd.ExecuteReaderAsync();
                 while (await r.ReadAsync())
                 {
-                    decimal? loss = r.IsDBNull(3) ? (decimal?)null : r.GetDecimal(3);
-                    // Heurystyka jak w UmowyForm: Loss > 0 → rozliczane wg wagi hodowcy, =0 → ubojni
-                    string czyja = loss is { } l && l > 0 ? "Hodowca" : "Ubojnia";
-                    lista.Add(new DostawaSugestia
-                    {
-                        Data = r.IsDBNull(0) ? DateTime.MinValue : r.GetDateTime(0),
-                        Cena = r.IsDBNull(1) ? null : Math.Round(r.GetDecimal(1), 2),
-                        Dodatek = r.IsDBNull(2) ? null : Math.Round(r.GetDecimal(2), 2),
-                        UbytekProc = loss is { } ll ? Math.Round(ll * 100m, 1) : null,
-                        TypCeny = r.IsDBNull(4) ? "" : r.GetString(4),
-                        CzyjaWaga = czyja
-                    });
+                    surowe.Add((
+                        r.IsDBNull(0) ? DateTime.MinValue : r.GetDateTime(0),
+                        r.IsDBNull(1) ? null : (decimal?)r.GetDecimal(1),
+                        r.IsDBNull(2) ? null : (decimal?)r.GetDecimal(2),
+                        r.IsDBNull(3) ? null : (decimal?)r.GetDecimal(3),
+                        r.IsDBNull(4) ? "" : r.GetString(4)
+                    ));
                 }
             }
-            catch (SqlException) { }
-            return lista;
+            catch (SqlException) { return wynik; }
+            if (surowe.Count == 0) return wynik;
+
+            // Scalanie 10-dniowe — najnowsza zaczyna grupę, dodajemy starsze gdy w oknie ≤10 dni
+            // licząc od NAJNOWSZEJ dostawy w grupie.
+            var grupy = new List<List<(DateTime Data, decimal? Cena, decimal? Dodatek, decimal? Loss, string TypCeny)>>();
+            DateTime? glowaGrupy = null;
+            foreach (var d in surowe)  // już posortowane DESC po CalcDate
+            {
+                if (glowaGrupy is null || (glowaGrupy.Value - d.Data).TotalDays > 10)
+                {
+                    grupy.Add(new());
+                    glowaGrupy = d.Data;
+                    if (grupy.Count > topGrup) break;
+                }
+                grupy[^1].Add(d);
+            }
+            // Mogliśmy dorzucić 1 nadmiarową grupę przy break — utnij
+            if (grupy.Count > topGrup) grupy.RemoveAt(grupy.Count - 1);
+
+            // Agregacja per grupa
+            foreach (var g in grupy)
+            {
+                if (g.Count == 0) continue;
+                decimal? cenaSr = AvgOrNull(g.Select(x => x.Cena));
+                decimal? dodSr = AvgOrNull(g.Select(x => x.Dodatek));
+                decimal? lossSr = AvgOrNull(g.Select(x => x.Loss));
+                string typCeny = g.Where(x => !string.IsNullOrWhiteSpace(x.TypCeny))
+                                  .GroupBy(x => x.TypCeny)
+                                  .OrderByDescending(x => x.Count())
+                                  .Select(x => x.Key).FirstOrDefault() ?? "";
+                // Czyja waga — heurystyka per dostawa, potem mode
+                string czyja = g.Select(x => x.Loss is { } l && l > 0 ? "Hodowca" : "Ubojnia")
+                                .GroupBy(x => x).OrderByDescending(x => x.Count())
+                                .Select(x => x.Key).FirstOrDefault() ?? "Ubojnia";
+
+                wynik.Add(new DostawaSugestia
+                {
+                    Data = g.Max(x => x.Data),
+                    DataDo = g.Min(x => x.Data),
+                    LiczbaDostaw = g.Count,
+                    Cena = cenaSr is { } cs ? Math.Round(cs, 2) : null,
+                    Dodatek = dodSr is { } ds ? Math.Round(ds, 2) : null,
+                    UbytekProc = lossSr is { } ls ? Math.Round(ls * 100m, 1) : null,
+                    TypCeny = typCeny,
+                    CzyjaWaga = czyja
+                });
+            }
+            return wynik;
+
+            static decimal? AvgOrNull(IEnumerable<decimal?> seq)
+            {
+                var vals = seq.Where(v => v.HasValue).Select(v => v!.Value).ToList();
+                return vals.Count == 0 ? (decimal?)null : vals.Average();
+            }
         }
 
         // ─── Snapshot zgodności ARiMR (trend) — idempotentny per dzień ────────

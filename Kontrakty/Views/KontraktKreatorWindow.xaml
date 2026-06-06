@@ -485,61 +485,49 @@
                                     <TextBlock Style="{StaticResource Ico}" Text="&#xE8A5;" Foreground="#1D4ED8"/>
                                     <TextBlock Text="UMOWA I OKRES" Style="{StaticResource CardTitle}" Foreground="#1D4ED8"/>
                                 </StackPanel>
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/><ColumnDefinition Width="12"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel Grid.Column="0">
-                                        <TextBlock Text="📋 Typ kontraktu" Style="{StaticResource LblBig}"/>
-                                        <ComboBox x:Name="cbTyp">
-                                            <ComboBoxItem Content="Roczny" Tag="ROCZNY" IsSelected="True"/>
-                                            <ComboBoxItem Content="3-letni" Tag="ARIMR_3LAT"/>
-                                            <ComboBoxItem Content="Sezonowy" Tag="SEZONOWY"/>
-                                            <ComboBoxItem Content="Wieczny" Tag="WIECZNY"/>
-                                            <ComboBoxItem Content="Spot" Tag="SPOT"/>
-                                        </ComboBox>
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="2">
-                                        <TextBlock Text="🏛 Podmiot (my)" Style="{StaticResource LblBig}"/>
-                                        <ComboBox x:Name="cbPodmiot">
-                                            <ComboBoxItem Content="Piórkowscy s.c." Tag="PIORKOWSCY_SC" IsSelected="True"/>
-                                            <ComboBoxItem Content="Piórkowscy sp. z o.o." Tag="PIORKOWSCY_SPZOO"/>
-                                        </ComboBox>
-                                    </StackPanel>
+                                <!-- UKRYTE: Typ kontraktu + Podmiot (defaultowane na ROCZNY / PIORKOWSCY_SC) -->
+                                <Grid Visibility="Collapsed">
+                                    <ComboBox x:Name="cbTyp">
+                                        <ComboBoxItem Content="Roczny" Tag="ROCZNY" IsSelected="True"/>
+                                        <ComboBoxItem Content="3-letni" Tag="ARIMR_3LAT"/>
+                                        <ComboBoxItem Content="Sezonowy" Tag="SEZONOWY"/>
+                                        <ComboBoxItem Content="Wieczny" Tag="WIECZNY"/>
+                                        <ComboBoxItem Content="Spot" Tag="SPOT"/>
+                                    </ComboBox>
+                                    <ComboBox x:Name="cbPodmiot">
+                                        <ComboBoxItem Content="Piórkowscy s.c." Tag="PIORKOWSCY_SC" IsSelected="True"/>
+                                        <ComboBoxItem Content="Piórkowscy sp. z o.o." Tag="PIORKOWSCY_SPZOO"/>
+                                    </ComboBox>
                                 </Grid>
-                                <Grid Margin="0,12,0,0">
+
+                                <!-- DATY + WYPOWIEDZENIE — wszystko w jednej linii (4 kolumny) -->
+                                <Grid Margin="0,4,0,0">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/><ColumnDefinition Width="12"/>
+                                        <ColumnDefinition Width="*"/><ColumnDefinition Width="10"/>
+                                        <ColumnDefinition Width="*"/><ColumnDefinition Width="10"/>
+                                        <ColumnDefinition Width="*"/><ColumnDefinition Width="10"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0">
                                         <TextBlock Text="📅 Obowiązuje od" Style="{StaticResource LblBig}"/>
-                                        <DatePicker x:Name="dpOd" ToolTip="Domyślnie dziś. Typ kontraktu określa minimalny okres."/>
+                                        <DatePicker x:Name="dpOd" ToolTip="Domyślnie dziś"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="2">
                                         <TextBlock Text="📅 Obowiązuje do" Style="{StaticResource LblBig}"/>
-                                        <DatePicker x:Name="dpDo" ToolTip="Standardowo +1 rok od dziś. Pomiń, gdy bezterminowy."/>
+                                        <DatePicker x:Name="dpDo" ToolTip="Standardowo +1 rok. Pomiń, gdy bezterminowy."/>
                                     </StackPanel>
-                                </Grid>
-                                <CheckBox x:Name="chkBezterm" Content="∞ Bezterminowy" Margin="0,8,0,0" Click="ChkBezterm_Click"
-                                          ToolTip="Zaznacz aby kontrakt nie miał daty końca (pole „do&#x201D; zostanie wyłączone)"/>
-
-                                <Grid Margin="0,8,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/><ColumnDefinition Width="12"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel Grid.Column="0">
+                                    <StackPanel Grid.Column="4">
                                         <TextBlock Text="✍ Data podpisu" Style="{StaticResource LblBig}"/>
                                         <DatePicker x:Name="dpPodpis"/>
                                     </StackPanel>
-                                    <StackPanel Grid.Column="2">
+                                    <StackPanel Grid.Column="6">
                                         <TextBlock Text="⏳ Wypowiedzenie (dni)" Style="{StaticResource LblBig}"/>
                                         <TextBox x:Name="txtWypow" Text="90"
                                                  ToolTip="Ile dni wypowiedzenia (typowo 30/60/90)"/>
                                     </StackPanel>
                                 </Grid>
+                                <CheckBox x:Name="chkBezterm" Content="∞ Bezterminowy" Margin="0,8,0,0" Click="ChkBezterm_Click"
+                                          ToolTip="Zaznacz aby kontrakt nie miał daty końca (pole „do&#x201D; zostanie wyłączone)"/>
                             </StackPanel>
                         </Grid>
                     </Border>
@@ -565,9 +553,9 @@
                                         <Grid Margin="0,0,0,8">
                                             <StackPanel Orientation="Horizontal">
                                                 <TextBlock Style="{StaticResource Ico}" Text="&#xE9D5;" Foreground="#475569"/>
-                                                <TextBlock Text="OSTATNIE DOSTAWY" FontSize="11.5" FontWeight="Bold"
+                                                <TextBlock Text="OSTATNIE DOSTAWY (scalone w 10-dniowe okna)" FontSize="11.5" FontWeight="Bold"
                                                            Foreground="#475569" VerticalAlignment="Center"/>
-                                                <TextBlock x:Name="txtSugestiaHint" Text="— klik na karcie zastosuje ubytek z tej dostawy"
+                                                <TextBlock x:Name="txtSugestiaHint" Text="— klik karty zastosuje wszystkie warunki"
                                                            FontSize="11" Foreground="#94A3B8" VerticalAlignment="Center"
                                                            Margin="8,0,0,0"/>
                                             </StackPanel>
@@ -584,14 +572,14 @@
                                         <ItemsControl x:Name="icDostawy">
                                             <ItemsControl.ItemsPanel>
                                                 <ItemsPanelTemplate>
-                                                    <UniformGrid Rows="1"/>
+                                                    <UniformGrid Columns="3"/>
                                                 </ItemsPanelTemplate>
                                             </ItemsControl.ItemsPanel>
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
-                                                    <Border Background="White" CornerRadius="8" Padding="10,8" Margin="3,0"
+                                                    <Border Background="White" CornerRadius="9" Padding="12,10" Margin="4,0"
                                                             BorderBrush="#E2E8F0" BorderThickness="1" Cursor="Hand"
-                                                            ToolTip="Klik = zastosuj ubytek z tej dostawy"
+                                                            ToolTip="Klik = zastosuj ubytek/dodatek/typ ceny/wagę z tej grupy"
                                                             MouseLeftButtonUp="DostawaCard_Click"
                                                             Tag="{Binding}">
                                                         <Border.Style>
@@ -605,63 +593,74 @@
                                                                 </Style.Triggers>
                                                             </Style>
                                                         </Border.Style>
-                                                        <Grid>
-                                                            <Grid.RowDefinitions>
-                                                                <RowDefinition Height="Auto"/>
-                                                                <RowDefinition Height="Auto"/>
-                                                                <RowDefinition Height="Auto"/>
-                                                                <RowDefinition Height="Auto"/>
-                                                            </Grid.RowDefinitions>
-                                                            <!-- Header: Data + Typ ceny -->
-                                                            <Grid Grid.Row="0">
+                                                        <StackPanel>
+                                                            <!-- Header: zakres dat + liczba dostaw -->
+                                                            <Grid>
+                                                                <TextBlock Text="{Binding DataLabel}" FontSize="13" FontWeight="Bold"
+                                                                           Foreground="#0F172A" HorizontalAlignment="Left"/>
+                                                                <Border Background="#F1F5F9" CornerRadius="10" Padding="7,2"
+                                                                        HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                                    <TextBlock Text="{Binding LiczbaLabel}" FontSize="10.5"
+                                                                               FontWeight="SemiBold" Foreground="#475569"/>
+                                                                </Border>
+                                                            </Grid>
+
+                                                            <!-- TYP CENY — najważniejszy, eksponowany -->
+                                                            <Border Background="#EEF2FF" CornerRadius="7" Padding="9,7" Margin="0,8,0,8"
+                                                                    BorderBrush="#C7D2FE" BorderThickness="1">
+                                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                                    <TextBlock Text="💰 " FontSize="14" VerticalAlignment="Center"/>
+                                                                    <TextBlock Text="{Binding TypCenyLabel}" FontSize="14" FontWeight="Bold"
+                                                                               Foreground="#3730A3" VerticalAlignment="Center"
+                                                                               TextTrimming="CharacterEllipsis"/>
+                                                                </StackPanel>
+                                                            </Border>
+
+                                                            <!-- Cena (zielony) -->
+                                                            <Grid>
                                                                 <Grid.ColumnDefinitions>
                                                                     <ColumnDefinition Width="Auto"/>
                                                                     <ColumnDefinition Width="*"/>
                                                                 </Grid.ColumnDefinitions>
-                                                                <TextBlock Grid.Column="0" Text="{Binding DataLabel}" FontSize="13"
-                                                                           FontWeight="Bold" Foreground="#0F172A"/>
-                                                                <Border Grid.Column="1" Background="#EEF2FF" CornerRadius="4" Padding="6,2"
-                                                                        HorizontalAlignment="Right" VerticalAlignment="Center">
-                                                                    <TextBlock Text="{Binding TypCenyLabel}" FontSize="10" FontWeight="SemiBold"
-                                                                               Foreground="#4338CA" TextTrimming="CharacterEllipsis" MaxWidth="80"/>
-                                                                </Border>
+                                                                <TextBlock Grid.Column="0" Text="💱 Cena" FontSize="11.5" Foreground="#475569"
+                                                                           VerticalAlignment="Center"/>
+                                                                <TextBlock Grid.Column="1" Text="{Binding CenaLabel}" FontSize="13" FontWeight="Bold"
+                                                                           Foreground="#047857" HorizontalAlignment="Right"/>
                                                             </Grid>
-                                                            <Border Grid.Row="1" Background="#F1F5F9" Height="1" Margin="0,6"/>
-                                                            <!-- Row 1: Cena | Dodatek -->
-                                                            <Grid Grid.Row="2">
+                                                            <!-- Dodatek (granat) -->
+                                                            <Grid Margin="0,3,0,0">
                                                                 <Grid.ColumnDefinitions>
-                                                                    <ColumnDefinition Width="*"/>
+                                                                    <ColumnDefinition Width="Auto"/>
                                                                     <ColumnDefinition Width="*"/>
                                                                 </Grid.ColumnDefinitions>
-                                                                <StackPanel Grid.Column="0" Orientation="Horizontal">
-                                                                    <TextBlock Text="💱" FontSize="11" VerticalAlignment="Center" Margin="0,0,3,0"/>
-                                                                    <TextBlock Text="{Binding CenaLabel}" FontSize="11.5" FontWeight="SemiBold"
-                                                                               Foreground="#047857"/>
-                                                                </StackPanel>
-                                                                <StackPanel Grid.Column="1" Orientation="Horizontal">
-                                                                    <TextBlock Text="➕" FontSize="11" VerticalAlignment="Center" Margin="0,0,3,0"/>
-                                                                    <TextBlock Text="{Binding DodatekLabel}" FontSize="11.5" FontWeight="SemiBold"
-                                                                               Foreground="#1E40AF"/>
-                                                                </StackPanel>
+                                                                <TextBlock Grid.Column="0" Text="➕ Dodatek" FontSize="11.5" Foreground="#475569"
+                                                                           VerticalAlignment="Center"/>
+                                                                <TextBlock Grid.Column="1" Text="{Binding DodatekLabel}" FontSize="13" FontWeight="Bold"
+                                                                           Foreground="#1E40AF" HorizontalAlignment="Right"/>
                                                             </Grid>
-                                                            <!-- Row 2: Ubytek | Waga -->
-                                                            <Grid Grid.Row="3" Margin="0,4,0,0">
+                                                            <!-- Ubytek (czerwony) -->
+                                                            <Grid Margin="0,3,0,0">
                                                                 <Grid.ColumnDefinitions>
-                                                                    <ColumnDefinition Width="*"/>
+                                                                    <ColumnDefinition Width="Auto"/>
                                                                     <ColumnDefinition Width="*"/>
                                                                 </Grid.ColumnDefinitions>
-                                                                <StackPanel Grid.Column="0" Orientation="Horizontal">
-                                                                    <TextBlock Text="🚛" FontSize="11" VerticalAlignment="Center" Margin="0,0,3,0"/>
-                                                                    <TextBlock Text="{Binding UbytekLabel}" FontSize="11.5" FontWeight="SemiBold"
-                                                                               Foreground="#B91C1C"/>
-                                                                </StackPanel>
-                                                                <StackPanel Grid.Column="1" Orientation="Horizontal">
-                                                                    <TextBlock Text="⚖" FontSize="11" VerticalAlignment="Center" Margin="0,0,3,0"/>
-                                                                    <TextBlock Text="{Binding CzyjaWagaLabel}" FontSize="11" FontWeight="SemiBold"
-                                                                               Foreground="#6B21A8"/>
-                                                                </StackPanel>
+                                                                <TextBlock Grid.Column="0" Text="🚛 Ubytek" FontSize="11.5" Foreground="#475569"
+                                                                           VerticalAlignment="Center"/>
+                                                                <TextBlock Grid.Column="1" Text="{Binding UbytekLabel}" FontSize="13" FontWeight="Bold"
+                                                                           Foreground="#B91C1C" HorizontalAlignment="Right"/>
                                                             </Grid>
-                                                        </Grid>
+                                                            <!-- Czyja waga (fiolet) -->
+                                                            <Grid Margin="0,3,0,0">
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="Auto"/>
+                                                                    <ColumnDefinition Width="*"/>
+                                                                </Grid.ColumnDefinitions>
+                                                                <TextBlock Grid.Column="0" Text="⚖ Waga" FontSize="11.5" Foreground="#475569"
+                                                                           VerticalAlignment="Center"/>
+                                                                <TextBlock Grid.Column="1" Text="{Binding CzyjaWagaLabel}" FontSize="13" FontWeight="Bold"
+                                                                           Foreground="#6B21A8" HorizontalAlignment="Right"/>
+                                                            </Grid>
+                                                        </StackPanel>
                                                     </Border>
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>

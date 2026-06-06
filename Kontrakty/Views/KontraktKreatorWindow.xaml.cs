@@ -166,7 +166,7 @@ namespace Kalendarz1.Kontrakty.Views
 
             // sugestie warunków (FarmerCalc) + lista ostatnich 4 dostaw do mini-kart
             _sugestia = await _svc.GetSugestieWarunkowAsync(h.DostawcaId);
-            var ostatnie = await _svc.GetOstatnieDostawyDoSugestiiAsync(h.DostawcaId, 4);
+            var ostatnie = await _svc.GetOstatnieDostawyDoSugestiiAsync(h.DostawcaId, 3);
             icDostawy.ItemsSource = ostatnie;
             bool maCo = _sugestia.MaDane && _sugestia.UbytekSredniProc != null;
             txtSugestia.Text = _sugestia.MaDane ? _sugestia.Opis : "";
@@ -380,7 +380,7 @@ namespace Kalendarz1.Kontrakty.Views
             try
             {
                 _sugestia = await _svc.GetSugestieWarunkowAsync(_hod.DostawcaId);
-                var ostatnie = await _svc.GetOstatnieDostawyDoSugestiiAsync(_hod.DostawcaId, 4);
+                var ostatnie = await _svc.GetOstatnieDostawyDoSugestiiAsync(_hod.DostawcaId, 3);
                 icDostawy.ItemsSource = ostatnie;
                 bool maCo = _sugestia.MaDane && _sugestia.UbytekSredniProc != null;
                 txtSugestia.Text = _sugestia.MaDane ? _sugestia.Opis : "";

@@ -154,17 +154,26 @@ namespace Kalendarz1.Kontrakty.Models
         }
     }
 
-    /// <summary>Pojedyncza dostawa do sugerowania warunków (ostatnie N z FarmerCalc).</summary>
+    /// <summary>Grupa dostaw scalona w 10-dniowym oknie (do mini-kart sugestii warunków).</summary>
     public class DostawaSugestia
     {
-        public DateTime Data { get; set; }
-        public decimal? Cena { get; set; }            // zł/kg (FarmerCalc.Price)
-        public decimal? Dodatek { get; set; }         // zł/kg (FarmerCalc.Addition)
-        public decimal? UbytekProc { get; set; }      // % (Loss*100)
-        public string TypCeny { get; set; } = "";     // z PriceType.Name (Wolnorynkowa/Rolnicza/…)
-        public string CzyjaWaga { get; set; } = "";   // „Hodowca" / „Ubojnia" — heurystyka z Ubytek
+        public DateTime Data { get; set; }            // najnowsza data w grupie
+        public DateTime DataDo { get; set; }          // najstarsza data w grupie (zakres)
+        public int LiczbaDostaw { get; set; } = 1;
+        public decimal? Cena { get; set; }            // średnia z grupy (FarmerCalc.Price)
+        public decimal? Dodatek { get; set; }         // średnia z grupy (FarmerCalc.Addition)
+        public decimal? UbytekProc { get; set; }      // średnia % z grupy (Loss*100)
+        public string TypCeny { get; set; } = "";     // najczęstszy w grupie (PriceType.Name)
+        public string CzyjaWaga { get; set; } = "";   // najczęstsza (heurystyka)
 
-        public string DataLabel => Data.ToString("dd.MM");
+        public string DataLabel =>
+            DataDo == default || Data.Date == DataDo.Date
+                ? Data.ToString("dd.MM")
+                : $"{DataDo:dd.MM} – {Data:dd.MM}";
+        public string LiczbaLabel =>
+            LiczbaDostaw == 1 ? "1 dostawa"
+            : LiczbaDostaw is >= 2 and <= 4 ? $"{LiczbaDostaw} dostawy"
+            : $"{LiczbaDostaw} dostaw";
         public string CenaLabel => Cena is { } c ? $"{c:0.00} zł" : "—";
         public string DodatekLabel => Dodatek is { } d ? $"{d:0.00} zł" : "—";
         public string UbytekLabel => UbytekProc is { } u ? $"{u:0.0}%" : "—";
