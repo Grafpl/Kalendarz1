@@ -557,54 +557,174 @@
                                     <TextBlock Style="{StaticResource Ico}" Text="&#xE1D0;" Foreground="#B45309"/>
                                     <TextBlock Text="WARUNKI HANDLOWE" Style="{StaticResource CardTitle}" Foreground="#B45309"/>
                                 </StackPanel>
-                                <Border x:Name="panelSugestia" Visibility="Collapsed" Margin="0,0,0,8"
-                                        Background="{StaticResource StatusInfoBg}" CornerRadius="9" Padding="12,9">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Style="{StaticResource Ico}" Text="&#xE946;" Foreground="{StaticResource StatusInfoFg}"/>
-                                        <TextBlock Grid.Column="1" x:Name="txtSugestia" VerticalAlignment="Center" TextWrapping="Wrap"
-                                                   Foreground="{StaticResource StatusInfoFg}" FontSize="12" FontWeight="SemiBold"/>
-                                        <Button Grid.Column="2" x:Name="btnZastosujSugestie" Style="{StaticResource Btn}"
-                                                VerticalAlignment="Center" Click="BtnZastosujSugestie_Click" Padding="12,0" Height="34">
+                                <!-- 📊 OSTATNIE DOSTAWY — sugerowane warunki z FarmerCalc -->
+                                <Border x:Name="panelSugestia" Visibility="Collapsed" Margin="0,4,0,10"
+                                        Background="#F8FAFC" CornerRadius="11" Padding="14,11"
+                                        BorderBrush="#CBD5E1" BorderThickness="1">
+                                    <StackPanel>
+                                        <Grid Margin="0,0,0,8">
                                             <StackPanel Orientation="Horizontal">
-                                                <TextBlock Style="{StaticResource IcoBtn}" Text="&#xE74B;"/>
-                                                <TextBlock Text="Zastosuj" VerticalAlignment="Center"/>
+                                                <TextBlock Style="{StaticResource Ico}" Text="&#xE9D5;" Foreground="#475569"/>
+                                                <TextBlock Text="OSTATNIE DOSTAWY" FontSize="11.5" FontWeight="Bold"
+                                                           Foreground="#475569" VerticalAlignment="Center"/>
+                                                <TextBlock x:Name="txtSugestiaHint" Text="— klik na karcie zastosuje ubytek z tej dostawy"
+                                                           FontSize="11" Foreground="#94A3B8" VerticalAlignment="Center"
+                                                           Margin="8,0,0,0"/>
                                             </StackPanel>
-                                        </Button>
-                                    </Grid>
+                                            <Button x:Name="btnZastosujSugestie" Style="{StaticResource Btn}"
+                                                    HorizontalAlignment="Right" Click="BtnZastosujSugestie_Click"
+                                                    Padding="12,0" Height="32" FontSize="12"
+                                                    ToolTip="Zastosuj średni ubytek z 12 miesięcy">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Style="{StaticResource IcoBtn}" Text="&#xE74B;"/>
+                                                    <TextBlock Text="Średnia" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Button>
+                                        </Grid>
+                                        <ItemsControl x:Name="icDostawy">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <UniformGrid Rows="1"/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Background="White" CornerRadius="8" Padding="10,8" Margin="3,0"
+                                                            BorderBrush="#E2E8F0" BorderThickness="1" Cursor="Hand"
+                                                            ToolTip="Klik = zastosuj ubytek z tej dostawy"
+                                                            MouseLeftButtonUp="DostawaCard_Click"
+                                                            Tag="{Binding}">
+                                                        <Border.Style>
+                                                            <Style TargetType="Border">
+                                                                <Setter Property="Background" Value="White"/>
+                                                                <Style.Triggers>
+                                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                                        <Setter Property="Background" Value="#EFF6FF"/>
+                                                                        <Setter Property="BorderBrush" Value="#3B82F6"/>
+                                                                    </Trigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Border.Style>
+                                                        <StackPanel>
+                                                            <TextBlock Text="{Binding DataLabel}" FontSize="12" FontWeight="Bold"
+                                                                       Foreground="#0F172A" HorizontalAlignment="Center"/>
+                                                            <Border Background="#F1F5F9" Height="1" Margin="0,5"/>
+                                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                                <TextBlock Text="💱 " FontSize="11" VerticalAlignment="Center"/>
+                                                                <TextBlock Text="{Binding CenaLabel}" FontSize="11.5" FontWeight="SemiBold"
+                                                                           Foreground="#047857"/>
+                                                            </StackPanel>
+                                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,2,0,0">
+                                                                <TextBlock Text="🚛 " FontSize="11" VerticalAlignment="Center"/>
+                                                                <TextBlock Text="{Binding UbytekLabel}" FontSize="11.5" FontWeight="SemiBold"
+                                                                           Foreground="#B91C1C"/>
+                                                            </StackPanel>
+                                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,2,0,0">
+                                                                <TextBlock Text="⚖ " FontSize="11" VerticalAlignment="Center"/>
+                                                                <TextBlock Text="{Binding WagaLabel}" FontSize="11.5" FontWeight="SemiBold"
+                                                                           Foreground="#1E40AF"/>
+                                                            </StackPanel>
+                                                        </StackPanel>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <TextBlock x:Name="txtSugestia" FontSize="11.5" Foreground="#64748B"
+                                                   Margin="2,8,0,0" TextWrapping="Wrap" FontStyle="Italic"/>
+                                    </StackPanel>
                                 </Border>
 
+                                <!-- 💼 Pola warunków: każde w kolorowej miniaturce z paskiem akcentu -->
                                 <Grid>
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/><ColumnDefinition Width="10"/>
-                                        <ColumnDefinition Width="*"/><ColumnDefinition Width="10"/>
-                                        <ColumnDefinition Width="*"/><ColumnDefinition Width="10"/>
+                                        <ColumnDefinition Width="*"/><ColumnDefinition Width="8"/>
+                                        <ColumnDefinition Width="*"/><ColumnDefinition Width="8"/>
+                                        <ColumnDefinition Width="*"/><ColumnDefinition Width="8"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
-                                    <StackPanel Grid.Column="0">
-                                        <TextBlock Text="💱 Typ ceny" Style="{StaticResource LblBig}"/>
-                                        <ComboBox x:Name="cbTypCeny">
-                                            <ComboBoxItem Content="wolnorynkowa" Tag="wolnorynkowa" IsSelected="True"/>
-                                            <ComboBoxItem Content="rolnicza" Tag="rolnicza"/>
-                                            <ComboBoxItem Content="ministerialna" Tag="ministerialna"/>
-                                            <ComboBoxItem Content="łączona" Tag="laczona"/>
-                                        </ComboBox>
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="2"><TextBlock Text="➕ Dodatek (zł/kg)" Style="{StaticResource LblBig}"/><TextBox x:Name="txtDodatek"/></StackPanel>
-                                    <StackPanel Grid.Column="4">
-                                        <TextBlock Text="📉 Ubytek (%)" Style="{StaticResource LblBig}"/>
-                                        <TextBox x:Name="txtUbytek" Text="3,0"
-                                                 ToolTip="Procent ubytku wagi w transporcie (typowo 2–4%)"/>
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="6">
-                                        <TextBlock Text="💳 Płatność (dni)" Style="{StaticResource LblBig}"/>
-                                        <TextBox x:Name="txtTermin" Text="21"
-                                                 ToolTip="Ile dni od dostawy do zapłaty (typowo 14/21/30)"/>
-                                    </StackPanel>
+
+                                    <!-- Typ ceny — indygo -->
+                                    <Border Grid.Column="0" CornerRadius="9" Background="White"
+                                            BorderBrush="#E2E8F0" BorderThickness="1" Padding="0">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="4"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Border Grid.Column="0" Background="#4338CA" CornerRadius="9,0,0,9"/>
+                                            <StackPanel Grid.Column="1" Margin="10,4,10,10">
+                                                <TextBlock FontSize="13" Margin="0,4,0,5">
+                                                    <Run Text="💱  " FontSize="14"/>
+                                                    <Run Text="Typ ceny" Foreground="#4338CA" FontWeight="SemiBold"/>
+                                                </TextBlock>
+                                                <ComboBox x:Name="cbTypCeny">
+                                                    <ComboBoxItem Content="wolnorynkowa" Tag="wolnorynkowa" IsSelected="True"/>
+                                                    <ComboBoxItem Content="rolnicza" Tag="rolnicza"/>
+                                                    <ComboBoxItem Content="ministerialna" Tag="ministerialna"/>
+                                                    <ComboBoxItem Content="łączona" Tag="laczona"/>
+                                                </ComboBox>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+
+                                    <!-- Dodatek — szmaragd -->
+                                    <Border Grid.Column="2" CornerRadius="9" Background="White"
+                                            BorderBrush="#E2E8F0" BorderThickness="1" Padding="0">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="4"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Border Grid.Column="0" Background="#047857" CornerRadius="9,0,0,9"/>
+                                            <StackPanel Grid.Column="1" Margin="10,4,10,10">
+                                                <TextBlock FontSize="13" Margin="0,4,0,5">
+                                                    <Run Text="➕  " FontSize="14"/>
+                                                    <Run Text="Dodatek (zł/kg)" Foreground="#047857" FontWeight="SemiBold"/>
+                                                </TextBlock>
+                                                <TextBox x:Name="txtDodatek"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+
+                                    <!-- Ubytek — czerwień + ikona AUTA 🚛 -->
+                                    <Border Grid.Column="4" CornerRadius="9" Background="White"
+                                            BorderBrush="#E2E8F0" BorderThickness="1" Padding="0">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="4"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Border Grid.Column="0" Background="#B91C1C" CornerRadius="9,0,0,9"/>
+                                            <StackPanel Grid.Column="1" Margin="10,4,10,10">
+                                                <TextBlock FontSize="13" Margin="0,4,0,5">
+                                                    <Run Text="🚛  " FontSize="14"/>
+                                                    <Run Text="Ubytek (%)" Foreground="#B91C1C" FontWeight="SemiBold"/>
+                                                </TextBlock>
+                                                <TextBox x:Name="txtUbytek" Text="3,0"
+                                                         ToolTip="Procent ubytku wagi w transporcie (typowo 2–4%)"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+
+                                    <!-- Płatność — fiolet -->
+                                    <Border Grid.Column="6" CornerRadius="9" Background="White"
+                                            BorderBrush="#E2E8F0" BorderThickness="1" Padding="0">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="4"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Border Grid.Column="0" Background="#6B21A8" CornerRadius="9,0,0,9"/>
+                                            <StackPanel Grid.Column="1" Margin="10,4,10,10">
+                                                <TextBlock FontSize="13" Margin="0,4,0,5">
+                                                    <Run Text="💳  " FontSize="14"/>
+                                                    <Run Text="Płatność (dni)" Foreground="#6B21A8" FontWeight="SemiBold"/>
+                                                </TextBlock>
+                                                <TextBox x:Name="txtTermin" Text="21"
+                                                         ToolTip="Ile dni od dostawy do zapłaty (typowo 14/21/30)"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
                                 </Grid>
 
                                 <!-- Row 2: Rozliczana waga (lewa) + Konfiskaty/Padłe (prawa) — side-by-side -->

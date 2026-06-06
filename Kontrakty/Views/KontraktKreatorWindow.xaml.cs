@@ -164,11 +164,13 @@ namespace Kalendarz1.Kontrakty.Views
             // Smart przycisk Umowa zakupu — wczytaj ostatnią + ustaw label
             await PokazOstatniaUmoweAsync();
 
-            // sugestie warunków (FarmerCalc)
+            // sugestie warunków (FarmerCalc) + lista ostatnich 4 dostaw do mini-kart
             _sugestia = await _svc.GetSugestieWarunkowAsync(h.DostawcaId);
+            var ostatnie = await _svc.GetOstatnieDostawyDoSugestiiAsync(h.DostawcaId, 4);
+            icDostawy.ItemsSource = ostatnie;
             bool maCo = _sugestia.MaDane && _sugestia.UbytekSredniProc != null;
             txtSugestia.Text = _sugestia.MaDane ? _sugestia.Opis : "";
-            panelSugestia.Visibility = maCo ? Visibility.Visible : Visibility.Collapsed;
+            panelSugestia.Visibility = (ostatnie.Count > 0 || maCo) ? Visibility.Visible : Visibility.Collapsed;
             btnZastosujSugestie.IsEnabled = maCo;
 
             // historia dostaw w bannerze — kluczowe info inline
@@ -196,6 +198,17 @@ namespace Kalendarz1.Kontrakty.Views
         private void BtnZastosujSugestie_Click(object sender, RoutedEventArgs e)
         {
             if (_sugestia?.UbytekSredniProc is { } u) txtUbytek.Text = u.ToString("0.0", Pl);
+        }
+
+        // Klik mini-karty dostawy → zastosuj ubytek z tej konkretnej dostawy
+        private void DostawaCard_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if ((sender as FrameworkElement)?.Tag is not DostawaSugestia d) return;
+            if (d.UbytekProc is { } u)
+            {
+                txtUbytek.Text = u.ToString("0.0", Pl);
+                txtStopka.Text = $"✔ Zastosowano ubytek {u:0.0}% z dostawy {d.Data:dd.MM.yyyy}";
+            }
         }
 
         // #3 — banner "hodowca ma aktywny kontrakt"
@@ -328,9 +341,11 @@ namespace Kalendarz1.Kontrakty.Views
             try
             {
                 _sugestia = await _svc.GetSugestieWarunkowAsync(_hod.DostawcaId);
+                var ostatnie = await _svc.GetOstatnieDostawyDoSugestiiAsync(_hod.DostawcaId, 4);
+                icDostawy.ItemsSource = ostatnie;
                 bool maCo = _sugestia.MaDane && _sugestia.UbytekSredniProc != null;
                 txtSugestia.Text = _sugestia.MaDane ? _sugestia.Opis : "";
-                panelSugestia.Visibility = maCo ? Visibility.Visible : Visibility.Collapsed;
+                panelSugestia.Visibility = (ostatnie.Count > 0 || maCo) ? Visibility.Visible : Visibility.Collapsed;
                 btnZastosujSugestie.IsEnabled = maCo;
             }
             catch { /* refresh to luksus */ }
@@ -767,6 +782,7 @@ namespace Kalendarz1.Kontrakty.Views
             hintNip.Visibility = hintPesel.Visibility = hintGosp.Visibility = Visibility.Collapsed;
             txtNip.ClearValue(BorderBrushProperty); txtPesel.ClearValue(BorderBrushProperty); txtGosp.ClearValue(BorderBrushProperty);
             panelSugestia.Visibility = Visibility.Collapsed;
+            icDostawy.ItemsSource = null;
             btnKopiuj.Visibility = Visibility.Collapsed;
             btnZIstniejacego.Visibility = Visibility.Collapsed;
             boxAktywneKontrakty.Visibility = Visibility.Collapsed;
