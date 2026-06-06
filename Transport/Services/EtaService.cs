@@ -37,6 +37,10 @@ namespace Kalendarz1.Transport.Services
             public string NazwaKlienta { get; set; } = "";
             public double Latitude { get; set; }
             public double Longitude { get; set; }
+            /// <summary>ID klienta z Sage (do lookupu czasu rozładunku per klient).</summary>
+            public int? KlientId { get; set; }
+            /// <summary>Override czasu rozładunku [min]. null → użyj globalnego UnloadMinutes.</summary>
+            public int? RozladunekMin { get; set; }
         }
 
         /// <summary>Wynik ETA dla jednego przystanku</summary>
@@ -59,6 +63,9 @@ namespace Kalendarz1.Transport.Services
 
             /// <summary>Czy mamy współrzędne GPS dla tego punktu</summary>
             public bool HasCoordinates { get; set; }
+
+            /// <summary>Faktyczny czas rozładunku użyty w obliczeniach [min].</summary>
+            public int UnloadMin { get; set; }
         }
 
         /// <summary>Pełny wynik obliczeń trasy</summary>
@@ -119,7 +126,9 @@ namespace Kalendarz1.Transport.Services
                 }
 
                 var eta = currentTime.Add(driveTime);
-                var departure = eta.Add(TimeSpan.FromMinutes(UnloadMinutes));
+                // Czas rozładunku: per-stop override > globalny default
+                int unloadMin = stop.RozladunekMin ?? UnloadMinutes;
+                var departure = eta.Add(TimeSpan.FromMinutes(unloadMin));
 
                 result.Stops.Add(new StopEta
                 {
@@ -129,7 +138,8 @@ namespace Kalendarz1.Transport.Services
                     DriveTime = driveTime,
                     Eta = eta,
                     DepartureAfterUnload = departure,
-                    HasCoordinates = hasCoords
+                    HasCoordinates = hasCoords,
+                    UnloadMin = unloadMin
                 });
 
                 totalDistKm += distKm;

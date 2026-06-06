@@ -637,15 +637,40 @@ namespace Kalendarz1.Transport.WPF
                 try { adresy = await new WebfleetOrderService().PobierzAdresySzybkoAsync(kody); }
                 catch { adresy = new Dictionary<string, WebfleetOrderService.KlientAdresInfo>(); } // brak bazy adresów → szacunek płaski
 
+                // Czasy rozładunku per klient (z karty odbiorcy) — ZAM_id → (klientId, minuty)
+                var zamIds = _ladunki
+                    .Select(l => l.KodKlienta ?? "")
+                    .Where(k => k.StartsWith("ZAM_"))
+                    .Select(k => int.TryParse(k.Substring(4), out var id) ? id : 0)
+                    .Where(id => id > 0)
+                    .Distinct()
+                    .ToList();
+                Dictionary<int, (int KlientId, int RozladunekMin)> czasy;
+                try { czasy = await new Kalendarz1.Transport.Services.CzasRozladunkuService().PobierzCzasyDlaZamowienAsync(zamIds); }
+                catch { czasy = new Dictionary<int, (int, int)>(); }
+
                 var stops = _ladunki.OrderBy(l => l.Kolejnosc).Select((l, i) =>
                 {
                     adresy.TryGetValue(l.KodKlienta ?? "", out var a);
+
+                    int? klientId = null;
+                    int? rozMin = null;
+                    if (l.KodKlienta?.StartsWith("ZAM_") == true
+                        && int.TryParse(l.KodKlienta.Substring(4), out var zid)
+                        && czasy.TryGetValue(zid, out var info))
+                    {
+                        klientId = info.KlientId;
+                        rozMin = info.RozladunekMin;
+                    }
+
                     return new EtaService.StopInput
                     {
                         Kolejnosc = l.Kolejnosc > 0 ? l.Kolejnosc : i + 1,
                         NazwaKlienta = l.NazwaDisplay,
                         Latitude = a?.Lat ?? 0,
-                        Longitude = a?.Lon ?? 0
+                        Longitude = a?.Lon ?? 0,
+                        KlientId = klientId,
+                        RozladunekMin = rozMin
                     };
                 }).ToList();
 
@@ -656,9 +681,17 @@ namespace Kalendarz1.Transport.WPF
                 int bezGps = stops.Count(s => s.Latitude == 0 || s.Longitude == 0);
                 double km = wynik.TotalDistanceKm + wynik.ReturnDistanceKm;
                 var dur = wynik.TotalDuration;
-                SzacunekHint.Text =
-                    $"🔮 Szac. powrót ~{powrot:hh\\:mm}  ·  {stops.Count} przyst.  ·  ~{km:F0} km  ·  czas ~{(int)dur.TotalHours}h {dur.Minutes:00}min"
-                    + (bezGps > 0 ? $"  ·  ⚠ {bezGps} bez GPS (przyjęto 30 min/szt.)" : "");
+                int sumaRozladunku = wynik.Stops.Sum(s => s.UnloadMin);
+                int przystSpecjalne = wynik.Stops.Count(s => s.UnloadMin != Kalendarz1.Transport.Services.EtaService.UnloadMinutes);
+
+                var hint = new System.Text.StringBuilder();
+                hint.Append($"🔮 Szac. powrót ~{powrot:hh\\:mm}  ·  {stops.Count} przyst.  ·  ~{km:F0} km  ·  trasa ~{(int)dur.TotalHours}h {dur.Minutes:00}min");
+                hint.Append($"  ·  rozładunek ~{sumaRozladunku} min");
+                if (przystSpecjalne > 0)
+                    hint.Append($" (z karty klienta dla {przystSpecjalne})");
+                if (bezGps > 0)
+                    hint.Append($"  ·  ⚠ {bezGps} bez GPS (przyjęto 30 min jazdy/szt.)");
+                SzacunekHint.Text = hint.ToString();
                 StatusText.Text = "Oszacowano powrót — w razie potrzeby nadpisz ręcznie.";
             }
             catch (Exception ex)
