@@ -194,10 +194,22 @@
                             <StackPanel Margin="0,0,0,12">
                                 <TextBlock Text="GODZINY  (wyjazd → powrót)" Style="{StaticResource T.Section}" Margin="0,0,0,4"/>
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBox x:Name="TxtWyjazd" Style="{StaticResource Input}" Width="66" Text="06:00" TextAlignment="Center"/>
-                                    <TextBlock Text="→" Foreground="{StaticResource InkMuted}" VerticalAlignment="Center" Margin="8,0,8,0" FontSize="15"/>
-                                    <TextBox x:Name="TxtPowrot" Style="{StaticResource Input}" Width="66" Text="18:00" TextAlignment="Center"/>
-                                    <Button x:Name="BtnSzacujPowrot" Content="🔮 Szacuj" Style="{StaticResource BtnGhost}" Height="32" Margin="8,0,0,0"
+                                    <TextBox x:Name="TxtWyjazd" Style="{StaticResource Input}" Width="110" Height="40"
+                                             Text="06:00" TextAlignment="Center"
+                                             FontSize="20" FontWeight="SemiBold" FontFamily="Consolas"
+                                             MaxLength="5"
+                                             LostFocus="TxtGodzina_LostFocus"
+                                             PreviewTextInput="TxtGodzina_PreviewTextInput"
+                                             ToolTip="Wpisz godzinę: 06:00, 6:00, 600, 6 — sformatuje się do HH:mm"/>
+                                    <TextBlock Text="→" Foreground="{StaticResource InkMuted}" VerticalAlignment="Center" Margin="10,0,10,0" FontSize="18"/>
+                                    <TextBox x:Name="TxtPowrot" Style="{StaticResource Input}" Width="110" Height="40"
+                                             Text="18:00" TextAlignment="Center"
+                                             FontSize="20" FontWeight="SemiBold" FontFamily="Consolas"
+                                             MaxLength="5"
+                                             LostFocus="TxtGodzina_LostFocus"
+                                             PreviewTextInput="TxtGodzina_PreviewTextInput"
+                                             ToolTip="Wpisz godzinę: 18:00, 18, 1830 — sformatuje się do HH:mm"/>
+                                    <Button x:Name="BtnSzacujPowrot" Content="🔮 Szacuj" Style="{StaticResource BtnGhost}" Height="40" Margin="10,0,0,0"
                                             Click="BtnSzacujPowrot_Click"
                                             ToolTip="Oszacuj godzinę powrotu z adresów przystanków (Haversine + czas rozładunku). Możesz nadpisać ręcznie."/>
                                 </StackPanel>

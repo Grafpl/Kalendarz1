@@ -802,6 +802,50 @@ namespace Kalendarz1.Transport.WPF
             return TimeSpan.TryParse(s.Trim(), out var ts) ? ts : (TimeSpan?)null;
         }
 
+        /// <summary>
+        /// Akceptuje wpisy: „6" → 06:00, „630" → 06:30, „1430" → 14:30, „6:00", „06.00".
+        /// Sformatuje pole do HH:mm po LostFocus.
+        /// </summary>
+        private void TxtGodzina_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (sender is not TextBox tb) return;
+            string txt = (tb.Text ?? "").Trim().Replace('.', ':').Replace(',', ':');
+            if (string.IsNullOrEmpty(txt)) return;
+
+            int? h = null, m = null;
+            if (txt.Contains(':'))
+            {
+                var parts = txt.Split(':');
+                if (parts.Length >= 1 && int.TryParse(parts[0], out var hh)) h = hh;
+                if (parts.Length >= 2 && int.TryParse(parts[1], out var mm)) m = mm;
+            }
+            else if (int.TryParse(txt, out var n))
+            {
+                // „6" → 6:00, „630" → 6:30, „1430" → 14:30, „900" → 9:00
+                if (txt.Length <= 2) { h = n; m = 0; }
+                else if (txt.Length == 3) { h = n / 100; m = n % 100; }
+                else if (txt.Length == 4) { h = n / 100; m = n % 100; }
+            }
+            if (h is null) return;
+            if (m is null) m = 0;
+            if (h is < 0 or > 23) return;
+            if (m is < 0 or > 59) return;
+            tb.Text = $"{h:00}:{m:00}";
+        }
+
+        /// <summary>Pozwala wpisywać tylko cyfry i znak dwukropka/kropki/przecinka.</summary>
+        private void TxtGodzina_PreviewTextInput(object sender, System.Windows.Input.TextCompositionEventArgs e)
+        {
+            foreach (char c in e.Text)
+            {
+                if (!(char.IsDigit(c) || c == ':' || c == '.' || c == ','))
+                {
+                    e.Handled = true;
+                    return;
+                }
+            }
+        }
+
         private void BtnAnuluj_Click(object sender, RoutedEventArgs e) => DialogResult = false;
     }
 }
