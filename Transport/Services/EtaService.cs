@@ -37,11 +37,18 @@ namespace Kalendarz1.Transport.Services
             public string NazwaKlienta { get; set; } = "";
             public double Latitude { get; set; }
             public double Longitude { get; set; }
-            /// <summary>ID klienta z Sage (do lookupu czasu rozładunku per klient).</summary>
+            /// <summary>ID klienta z Sage (do lookupu czasu rozładunku per klient + odcinka jazdy).</summary>
             public int? KlientId { get; set; }
             /// <summary>Override czasu rozładunku [min]. null → użyj globalnego UnloadMinutes.</summary>
             public int? RozladunekMin { get; set; }
         }
+
+        /// <summary>
+        /// Słownik czasów jazdy między lokalizacjami (B2: uczone z Webfleet history).
+        /// Klucz: (lokalizacjaA, lokalizacjaB) gdzie 0 = baza, inne = KlientId.
+        /// Wartość: minuty mediany jazdy. Gdy klucz brak → fallback Haversine.
+        /// </summary>
+        public const int BazaLokId = 0;
 
         /// <summary>Wynik ETA dla jednego przystanku</summary>
         public class StopEta
@@ -91,7 +98,8 @@ namespace Kalendarz1.Transport.Services
         /// </summary>
         /// <param name="departureTime">Godzina wyjazdu z bazy</param>
         /// <param name="stops">Przystanki w kolejności Kolejnosc</param>
-        public RouteEtaResult Calculate(TimeSpan departureTime, IEnumerable<StopInput> stops)
+        /// <param name="odcinki">B2: opcjonalne czasy jazdy z historii Webfleet. null = fallback Haversine.</param>
+        public RouteEtaResult Calculate(TimeSpan departureTime, IEnumerable<StopInput> stops, Dictionary<(int, int), int>? odcinki = null)
         {
             var result = new RouteEtaResult();
             var sorted = stops.OrderBy(s => s.Kolejnosc).ToList();
@@ -102,6 +110,7 @@ namespace Kalendarz1.Transport.Services
             // Punkt startowy — baza + czas załadunku
             double prevLat = BaseLat;
             double prevLng = BaseLng;
+            int prevLokId = BazaLokId;   // 0 = baza
             var currentTime = departureTime.Add(TimeSpan.FromMinutes(LoadMinutes));
 
             double totalDistKm = 0;
@@ -113,7 +122,16 @@ namespace Kalendarz1.Transport.Services
                 double distKm;
                 TimeSpan driveTime;
 
-                if (hasCoords)
+                // B2: priorytet — czas z historii Webfleet (gdy znamy oba klientId i odcinek istnieje)
+                bool zHistorii = false;
+                if (odcinki != null && stop.KlientId.HasValue
+                    && odcinki.TryGetValue((prevLokId, stop.KlientId.Value), out var minHist))
+                {
+                    driveTime = TimeSpan.FromMinutes(minHist);
+                    distKm = minHist * (AvgSpeedKmh / 60.0);   // dystans szacowany z czasu
+                    zHistorii = true;
+                }
+                else if (hasCoords)
                 {
                     distKm = HaversineKm(prevLat, prevLng, stop.Latitude, stop.Longitude) * RoadFactor;
                     driveTime = TimeSpan.FromHours(distKm / AvgSpeedKmh);
@@ -124,6 +142,7 @@ namespace Kalendarz1.Transport.Services
                     distKm = 30;
                     driveTime = TimeSpan.FromMinutes(30);
                 }
+                _ = zHistorii;   // flag może być wystawiona na UI w przyszłości
 
                 var eta = currentTime.Add(driveTime);
                 // Czas rozładunku: per-stop override > globalny default
@@ -149,24 +168,37 @@ namespace Kalendarz1.Transport.Services
                     prevLat = stop.Latitude;
                     prevLng = stop.Longitude;
                 }
+                if (stop.KlientId.HasValue) prevLokId = stop.KlientId.Value;
 
                 currentTime = departure;
             }
 
             result.TotalDistanceKm = Math.Round(totalDistKm, 1);
 
-            // Powrót do bazy z ostatniego punktu z koordynatami
-            var lastWithCoords = sorted.LastOrDefault(s => s.Latitude != 0 && s.Longitude != 0);
-            if (lastWithCoords != null)
+            // Powrót do bazy: priorytet historii (klient → 0), fallback Haversine
+            var lastStop = sorted.Last();
+            int lastLokId = lastStop.KlientId ?? BazaLokId;
+
+            if (odcinki != null && odcinki.TryGetValue((lastLokId, BazaLokId), out var retMinHist))
             {
-                double retDist = HaversineKm(lastWithCoords.Latitude, lastWithCoords.Longitude, BaseLat, BaseLng) * RoadFactor;
+                double retDist = retMinHist * (AvgSpeedKmh / 60.0);
                 result.ReturnDistanceKm = Math.Round(retDist, 1);
-                result.EstimatedReturnTime = currentTime.Add(TimeSpan.FromHours(retDist / AvgSpeedKmh));
+                result.EstimatedReturnTime = currentTime.Add(TimeSpan.FromMinutes(retMinHist));
             }
             else
             {
-                result.ReturnDistanceKm = 0;
-                result.EstimatedReturnTime = currentTime.Add(TimeSpan.FromMinutes(30));
+                var lastWithCoords = sorted.LastOrDefault(s => s.Latitude != 0 && s.Longitude != 0);
+                if (lastWithCoords != null)
+                {
+                    double retDist = HaversineKm(lastWithCoords.Latitude, lastWithCoords.Longitude, BaseLat, BaseLng) * RoadFactor;
+                    result.ReturnDistanceKm = Math.Round(retDist, 1);
+                    result.EstimatedReturnTime = currentTime.Add(TimeSpan.FromHours(retDist / AvgSpeedKmh));
+                }
+                else
+                {
+                    result.ReturnDistanceKm = 0;
+                    result.EstimatedReturnTime = currentTime.Add(TimeSpan.FromMinutes(30));
+                }
             }
 
             result.TotalDuration = result.EstimatedReturnTime - departureTime;

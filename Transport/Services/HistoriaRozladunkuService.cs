@@ -40,12 +40,19 @@ namespace Kalendarz1.Transport.Services
         // Filtr „realnej wizyty"
         private const int MinWizytaMin = 5;     // krótszy postój = przelot / korek
         private const int MaxWizytaMin = 240;   // dłuższy = nocowanie / anomalia
+        // Filtr „realnego odcinka jazdy" (B2)
+        private const int MinOdcinekMin = 5;    // <5 min = klient blisko, w sąsiednim bloku
+        private const int MaxOdcinekMin = 300;  // >5h = przerwa nocna lub long-haul
         // Bliskość klienta (linia prosta, bez RoadFactor — to próg „jesteśmy na miejscu")
         private const double PromienKlientaKm = 2.0;
         // Próg „stoi" (≤ km/h)
         private const int ProgStoiKmh = 5;
         // Minimalna liczba wizyt aby zaufać medianie
         public const int MinProbDoZaufania = 3;
+        // Baza Koziołki — id=0 w EstymacjeTras
+        public const int BazaLokId = 0;
+        private const double BazaLat = 51.86857;
+        private const double BazaLon = 19.79476;
 
         private readonly string _connLibra;
         private readonly string _connTransport;
@@ -77,6 +84,20 @@ namespace Kalendarz1.Transport.Services
                         LiczbaProb INT NOT NULL,
                         OstatniRefresh DATETIME NOT NULL DEFAULT GETDATE()
                     );
+                END
+
+                -- B2: tabela czasów jazdy odcinek↔odcinek
+                -- LokalizacjaA/B = KlientId z Sage, 0 = baza Koziołki
+                IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'EstymacjeTras')
+                BEGIN
+                    CREATE TABLE dbo.EstymacjeTras (
+                        LokalizacjaA INT NOT NULL,
+                        LokalizacjaB INT NOT NULL,
+                        MinutyMediana INT NOT NULL,
+                        LiczbaProb INT NOT NULL,
+                        OstatniRefresh DATETIME NOT NULL DEFAULT GETDATE(),
+                        PRIMARY KEY (LokalizacjaA, LokalizacjaB)
+                    );
                 END";
             await using var cn = new SqlConnection(_connLibra);
             await cn.OpenAsync();
@@ -94,6 +115,7 @@ namespace Kalendarz1.Transport.Services
             public int DniPrzetworzonych { get; set; }
             public int WizytaWykrytych { get; set; }
             public int KlientowZestymowanych { get; set; }
+            public int OdcinkowZestymowanych { get; set; }   // B2
             public List<string> Bledy { get; } = new();
         }
 
@@ -131,8 +153,9 @@ namespace Kalendarz1.Transport.Services
             }
             progress?.Report($"Klientów z GPS: {klienciGps.Count}");
 
-            // 3. Dla każdego pojazdu × każdego dnia — pobierz tracks i wykryj wizyty
-            var wizytyAgregowane = new Dictionary<int, List<int>>(); // klientId → lista minut
+            // 3. Dla każdego pojazdu × każdego dnia — pobierz tracks i wykryj wizyty + odcinki
+            var wizytyAgregowane = new Dictionary<int, List<int>>();                    // klientId → minuty
+            var odcinkiAgregowane = new Dictionary<(int A, int B), List<int>>();        // (A, B) → minuty
 
             var dataDo = DateTime.Today;
             for (int d = 0; d < daysBack; d++)
@@ -146,6 +169,8 @@ namespace Kalendarz1.Transport.Services
                     {
                         var tracks = await PobierzTracksAsync(objectNo, data);
                         if (tracks.Count == 0) continue;
+
+                        // Wizyty u klientów
                         var wizyty = WykryjWizyty(tracks, klienciGps);
                         foreach (var w in wizyty)
                         {
@@ -153,6 +178,16 @@ namespace Kalendarz1.Transport.Services
                                 wizytyAgregowane[w.KlientId] = lista = new List<int>();
                             lista.Add(w.Minuty);
                             wynik.WizytaWykrytych++;
+                        }
+
+                        // B2: odcinki jazdy pomiędzy wizytami + baza→pierwsza i ostatnia→baza
+                        var odcinki = WykryjOdcinki(tracks, wizyty);
+                        foreach (var o in odcinki)
+                        {
+                            var klucz = (o.A, o.B);
+                            if (!odcinkiAgregowane.TryGetValue(klucz, out var lista))
+                                odcinkiAgregowane[klucz] = lista = new List<int>();
+                            lista.Add(o.Minuty);
                         }
                     }
                     catch (Exception ex)
@@ -163,17 +198,28 @@ namespace Kalendarz1.Transport.Services
                 wynik.PojazdowPrzetworzonych = pojazdy.Count;
             }
 
-            // 4. Per klient — mediana + UPSERT
+            // 4. Per klient — mediana rozładunku + UPSERT
             foreach (var (klientId, czasy) in wizytyAgregowane)
             {
                 if (czasy.Count < 1) continue;
                 int mediana = Mediana(czasy);
-                if (mediana < MinWizytaMin) continue;   // bezpieczeństwo
+                if (mediana < MinWizytaMin) continue;
                 await ZapiszEstymacjeAsync(klientId, mediana, czasy.Count);
                 wynik.KlientowZestymowanych++;
             }
 
-            progress?.Report($"Gotowe. Wykryto {wynik.WizytaWykrytych} wizyt u {wynik.KlientowZestymowanych} klientów.");
+            // 5. B2: per odcinek — mediana czasu jazdy + UPSERT do EstymacjeTras
+            foreach (var (klucz, czasy) in odcinkiAgregowane)
+            {
+                if (czasy.Count < 1) continue;
+                int mediana = Mediana(czasy);
+                if (mediana < MinOdcinekMin || mediana > MaxOdcinekMin) continue;
+                await ZapiszOdcinekAsync(klucz.A, klucz.B, mediana, czasy.Count);
+                wynik.OdcinkowZestymowanych++;
+            }
+
+            progress?.Report($"Gotowe. Wykryto {wynik.WizytaWykrytych} wizyt u {wynik.KlientowZestymowanych} klientów, " +
+                             $"{wynik.OdcinkowZestymowanych} odcinków jazdy.");
             return wynik;
         }
 
@@ -346,6 +392,120 @@ namespace Kalendarz1.Transport.Services
             int min = (int)Math.Round((koniec - start).TotalMinutes);
             if (min < MinWizytaMin || min > MaxWizytaMin) return;
             wynik.Add(new Wizyta(klientId, min, start, koniec));
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // B2 — Wykrywanie odcinków jazdy między wizytami (i baza↔klient)
+        // ════════════════════════════════════════════════════════════════════
+
+        public record Odcinek(int A, int B, int Minuty);
+
+        /// <summary>
+        /// Z wizyt + tracks wyciąga odcinki jazdy:
+        ///   baza → wizyta1 → wizyta2 → ... → baza
+        /// Czas odcinka = (start wizyty B) - (koniec wizyty A).
+        /// Pierwszy odcinek: czas od (pierwszy track w bazie) do (start wizyty 1).
+        /// Ostatni odcinek: od (koniec ostatniej wizyty) do (pierwszy track w bazie po niej).
+        /// </summary>
+        public static List<Odcinek> WykryjOdcinki(List<TrackPoint> tracks, List<Wizyta> wizyty)
+        {
+            var wynik = new List<Odcinek>();
+            if (wizyty.Count == 0) return wynik;
+            wizyty = wizyty.OrderBy(w => w.Start).ToList();
+
+            // Odcinki między kolejnymi wizytami
+            for (int i = 0; i < wizyty.Count - 1; i++)
+            {
+                var a = wizyty[i];
+                var b = wizyty[i + 1];
+                int min = (int)Math.Round((b.Start - a.Koniec).TotalMinutes);
+                if (min >= MinOdcinekMin && min <= MaxOdcinekMin)
+                    wynik.Add(new Odcinek(a.KlientId, b.KlientId, min));
+            }
+
+            // Pierwszy odcinek: baza → pierwsza wizyta
+            // Szukamy ostatniego momentu „w bazie" przed pierwszą wizytą
+            var pierwsza = wizyty[0];
+            DateTime? wyjazdZBazy = null;
+            foreach (var p in tracks)
+            {
+                if (p.Time >= pierwsza.Start) break;
+                if (HaversineKm(p.Lat, p.Lon, BazaLat, BazaLon) <= PromienKlientaKm)
+                    wyjazdZBazy = p.Time;   // zapamiętuj ostatni moment w bazie
+            }
+            if (wyjazdZBazy.HasValue)
+            {
+                int min = (int)Math.Round((pierwsza.Start - wyjazdZBazy.Value).TotalMinutes);
+                if (min >= MinOdcinekMin && min <= MaxOdcinekMin)
+                    wynik.Add(new Odcinek(BazaLokId, pierwsza.KlientId, min));
+            }
+
+            // Ostatni odcinek: ostatnia wizyta → baza (gdy wraca tego samego dnia)
+            var ostatnia = wizyty[^1];
+            DateTime? przyjazdDoBazy = null;
+            foreach (var p in tracks)
+            {
+                if (p.Time <= ostatnia.Koniec) continue;
+                if (HaversineKm(p.Lat, p.Lon, BazaLat, BazaLon) <= PromienKlientaKm)
+                {
+                    przyjazdDoBazy = p.Time;
+                    break;
+                }
+            }
+            if (przyjazdDoBazy.HasValue)
+            {
+                int min = (int)Math.Round((przyjazdDoBazy.Value - ostatnia.Koniec).TotalMinutes);
+                if (min >= MinOdcinekMin && min <= MaxOdcinekMin)
+                    wynik.Add(new Odcinek(ostatnia.KlientId, BazaLokId, min));
+            }
+
+            return wynik;
+        }
+
+        private async Task ZapiszOdcinekAsync(int a, int b, int mediana, int liczbaProb)
+        {
+            const string sql = @"
+                IF EXISTS (SELECT 1 FROM dbo.EstymacjeTras WHERE LokalizacjaA = @a AND LokalizacjaB = @b)
+                    UPDATE dbo.EstymacjeTras
+                    SET MinutyMediana = @m, LiczbaProb = @n, OstatniRefresh = GETDATE()
+                    WHERE LokalizacjaA = @a AND LokalizacjaB = @b;
+                ELSE
+                    INSERT INTO dbo.EstymacjeTras (LokalizacjaA, LokalizacjaB, MinutyMediana, LiczbaProb, OstatniRefresh)
+                    VALUES (@a, @b, @m, @n, GETDATE());";
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+                await using var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@a", a);
+                cmd.Parameters.AddWithValue("@b", b);
+                cmd.Parameters.AddWithValue("@m", mediana);
+                cmd.Parameters.AddWithValue("@n", liczbaProb);
+                await cmd.ExecuteNonQueryAsync();
+            }
+            catch (Exception ex) { Debug.WriteLine($"[Historia.Odcinek {a}→{b}] {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// Wszystkie odcinki z bazy do użycia w EtaService.Calculate.
+        /// Zwraca słownik (A, B) → minuty (gdy LiczbaProb >= MinProbDoZaufania).
+        /// </summary>
+        public async Task<Dictionary<(int, int), int>> PobierzWszystkieOdcinkiAsync()
+        {
+            await EnsureTableAsync();
+            var wynik = new Dictionary<(int, int), int>();
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+                await using var cmd = new SqlCommand(
+                    $"SELECT LokalizacjaA, LokalizacjaB, MinutyMediana FROM dbo.EstymacjeTras WHERE LiczbaProb >= {MinProbDoZaufania}", cn);
+                await using var rd = await cmd.ExecuteReaderAsync();
+                while (await rd.ReadAsync())
+                    wynik[(rd.GetInt32(0), rd.GetInt32(1))] = rd.GetInt32(2);
+            }
+            catch (Exception ex) { Debug.WriteLine($"[Historia.PobierzOdcinki] {ex.Message}"); }
+            return wynik;
         }
 
         private async Task ZapiszEstymacjeAsync(int klientId, int mediana, int liczbaProb)

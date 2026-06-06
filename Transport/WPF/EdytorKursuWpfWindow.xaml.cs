@@ -674,30 +674,21 @@ namespace Kalendarz1.Transport.WPF
                     };
                 }).ToList();
 
-                var wynik = new EtaService().Calculate(wyjazd, stops);
+                // B2: pobierz mediany odcinków jazdy z historii Webfleet (klient↔klient i baza↔klient)
+                Dictionary<(int, int), int>? odcinki = null;
+                try { odcinki = await new Kalendarz1.Transport.Services.HistoriaRozladunkuService().PobierzWszystkieOdcinkiAsync(); }
+                catch { }
+
+                var wynik = new EtaService().Calculate(wyjazd, stops, odcinki);
                 var powrot = ZaokraglijDo5(wynik.EstimatedReturnTime);
                 TxtPowrot.Text = powrot.ToString(@"hh\:mm");
 
-                // Zapisz dane do Gantt + narysuj
-                _ostatnieSzacowanie = (wyjazd, wynik);
-                RysujGantt();
-                WygenerujOstrzezenia(wyjazd, powrot, wynik);
+                // Auto-uczenie z Webfleet w tle (jeśli >24h od ostatniego). Fire-and-forget.
+                _ = UruchomAutoUczenieGdyTrzebaAsync();
 
-                int bezGps = stops.Count(s => s.Latitude == 0 || s.Longitude == 0);
                 double km = wynik.TotalDistanceKm + wynik.ReturnDistanceKm;
-                var dur = wynik.TotalDuration;
-                int sumaRozladunku = wynik.Stops.Sum(s => s.UnloadMin);
-                int przystSpecjalne = wynik.Stops.Count(s => s.UnloadMin != Kalendarz1.Transport.Services.EtaService.UnloadMinutes);
-
-                var hint = new System.Text.StringBuilder();
-                hint.Append($"🔮 Szac. powrót ~{powrot:hh\\:mm}  ·  {stops.Count} przyst.  ·  ~{km:F0} km  ·  trasa ~{(int)dur.TotalHours}h {dur.Minutes:00}min");
-                hint.Append($"  ·  rozładunek ~{sumaRozladunku} min");
-                if (przystSpecjalne > 0)
-                    hint.Append($" (z karty klienta dla {przystSpecjalne})");
-                if (bezGps > 0)
-                    hint.Append($"  ·  ⚠ {bezGps} bez GPS (przyjęto 30 min jazdy/szt.)");
-                SzacunekHint.Text = hint.ToString();
-                StatusText.Text = "Oszacowano powrót — w razie potrzeby nadpisz ręcznie.";
+                SzacunekHint.Text = $"~{km:F0} km";
+                StatusText.Text = "Oszacowano powrót.";
             }
             catch (Exception ex)
             {
@@ -715,230 +706,29 @@ namespace Kalendarz1.Transport.WPF
         }
 
         // ════════════════════════════════════════════════════════════════════
-        // GANTT WIZUALNY — pasek z blokami jazda/rozładunek + skala godzin
-        // Generowany po „🔮 Szacuj". Bloki proporcjonalne do czasu trwania.
-        // Tooltip per blok: nazwa klienta / czas / dystans.
+        // AUTO-UCZENIE — w tle przy każdym „🔮 Szacuj" jeśli >24h od ostatniego.
+        // Fire-and-forget Task.Run + flag żeby nie odpalać wielokrotnie naraz.
         // ════════════════════════════════════════════════════════════════════
-        private (TimeSpan wyjazd, EtaService.RouteEtaResult wynik)? _ostatnieSzacowanie;
+        private static bool _autoUczenieTrwa;
+        private static DateTime _ostatnieAutoUczenie = DateTime.MinValue;
+        private static readonly TimeSpan IntervalAutoUczenia = TimeSpan.FromHours(24);
 
-        private void GanttCanvas_SizeChanged(object sender, SizeChangedEventArgs e) => RysujGantt();
-
-        private void RysujGantt()
+        private async System.Threading.Tasks.Task UruchomAutoUczenieGdyTrzebaAsync()
         {
-            if (GanttCanvas == null) return;
-            GanttCanvas.Children.Clear();
-            if (_ostatnieSzacowanie == null) return;
-            var (wyjazd, wynik) = _ostatnieSzacowanie.Value;
+            if (_autoUczenieTrwa) return;
+            if (DateTime.UtcNow - _ostatnieAutoUczenie < IntervalAutoUczenia) return;
 
-            double width = GanttCanvas.ActualWidth;
-            if (width < 50) return;   // jeszcze nie zlayoutowane
-
-            GanttContainer.Visibility = Visibility.Visible;
-
-            // Czas całkowity: od wyjazdu (przed załadunkiem) do powrotu
-            // EtaService po wyjeździe dorzuca LoadMinutes (30 min) załadunku przed pierwszym dojazdem
-            TimeSpan start = wyjazd;
-            TimeSpan koniec = wynik.EstimatedReturnTime;
-            double calyMin = (koniec - start).TotalMinutes;
-            if (calyMin <= 0) return;
-
-            const double rowHeight = 24;
-            const double rowY = 4;
-            const double textY = rowY + rowHeight + 4;
-
-            double PxNaMinuty(double min) => Math.Max(0, min / calyMin * width);
-
-            // 1. Załadunek w bazie (LoadMinutes = 30 min na początku)
-            double xKursor = 0;
-            double zaladPx = PxNaMinuty(EtaService.LoadMinutes);
-            DodajBlok(xKursor, zaladPx, rowY, rowHeight, "#94A3B8",
-                $"⏳ Załadunek w bazie · {EtaService.LoadMinutes} min ({start:hh\\:mm} → {(start.Add(TimeSpan.FromMinutes(EtaService.LoadMinutes))):hh\\:mm})");
-            xKursor += zaladPx;
-
-            // 2. Dla każdego stop: jazda + rozładunek
-            TimeSpan czasBiezacy = start.Add(TimeSpan.FromMinutes(EtaService.LoadMinutes));
-            foreach (var s in wynik.Stops.OrderBy(x => x.Kolejnosc))
-            {
-                // Jazda do klienta
-                double jazdaMin = s.DriveTime.TotalMinutes;
-                double jazdaPx = PxNaMinuty(jazdaMin);
-                DodajBlok(xKursor, jazdaPx, rowY, rowHeight, "#2563EB",
-                    $"🚛 Jazda → {s.NazwaKlienta} · {(int)Math.Ceiling(jazdaMin)} min · {s.DistanceFromPrevKm:F1} km" +
-                    (s.HasCoordinates ? "" : " ⚠ brak GPS, fallback"));
-                xKursor += jazdaPx;
-                czasBiezacy = czasBiezacy.Add(s.DriveTime);
-
-                // Etykieta ETA pod blokiem
-                DodajEtykiete(xKursor - 1, textY, $"{czasBiezacy:hh\\:mm}", "#1E40AF", false);
-
-                // Rozładunek u klienta
-                double rozPx = PxNaMinuty(s.UnloadMin);
-                DodajBlok(xKursor, rozPx, rowY, rowHeight, "#10B981",
-                    $"📦 Rozładunek u {s.NazwaKlienta} · {s.UnloadMin} min" +
-                    (s.UnloadMin != EtaService.UnloadMinutes ? " (z karty klienta)" : ""));
-                xKursor += rozPx;
-                czasBiezacy = czasBiezacy.Add(TimeSpan.FromMinutes(s.UnloadMin));
-            }
-
-            // 3. Powrót do bazy (od ostatniego stop)
-            double powrotPx = Math.Max(0, width - xKursor);
-            if (powrotPx > 2)
-            {
-                double powrotMin = (koniec - czasBiezacy).TotalMinutes;
-                DodajBlok(xKursor, powrotPx, rowY, rowHeight, "#94A3B8",
-                    $"🏠 Powrót do bazy · {(int)Math.Ceiling(powrotMin)} min · {wynik.ReturnDistanceKm:F1} km");
-            }
-
-            // 4. Etykieta startu i końca
-            DodajEtykiete(0, textY, $"{start:hh\\:mm}", "#475569", false);
-            DodajEtykiete(width - 1, textY, $"{koniec:hh\\:mm}", "#475569", true);
-        }
-
-        private void DodajBlok(double x, double w, double y, double h, string hex, string tooltip)
-        {
-            if (w < 1) return;   // nie rysuj niewidocznych
-            var rect = new System.Windows.Shapes.Rectangle
-            {
-                Width = w,
-                Height = h,
-                Fill = (Brush)new BrushConverter().ConvertFrom(hex)!,
-                Stroke = Brushes.White,
-                StrokeThickness = 1,
-                RadiusX = 2,
-                RadiusY = 2,
-                ToolTip = tooltip
-            };
-            Canvas.SetLeft(rect, x);
-            Canvas.SetTop(rect, y);
-            GanttCanvas.Children.Add(rect);
-        }
-
-        private void DodajEtykiete(double x, double y, string text, string hex, bool alignRight)
-        {
-            var tb = new TextBlock
-            {
-                Text = text,
-                FontSize = 9.5,
-                FontFamily = new System.Windows.Media.FontFamily("Consolas"),
-                Foreground = (Brush)new BrushConverter().ConvertFrom(hex)!
-            };
-            tb.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-            double xPozycja = alignRight ? x - tb.DesiredSize.Width : x;
-            Canvas.SetLeft(tb, Math.Max(0, xPozycja));
-            Canvas.SetTop(tb, y);
-            GanttCanvas.Children.Add(tb);
-        }
-
-        // ════════════════════════════════════════════════════════════════════
-        // HISTORIA ROZŁADUNKU — uczenie się czasów z Webfleet (B1)
-        // Pobiera tracks z ostatnich 30 dni, wykrywa wizyty u klientów, liczy medianę.
-        // Wynik zapisany w EstymacjeRozladunku — używane w przyszłych szacowaniach.
-        // ════════════════════════════════════════════════════════════════════
-        private async void BtnOdswiezHistorie_Click(object sender, RoutedEventArgs e)
-        {
-            // Potwierdzenie — to długie zapytanie (30s-3min zależnie od ilości pojazdów)
-            var r = MessageBox.Show(
-                "Pobrać historię tras z Webfleet z ostatnich 30 dni i wyestymować czasy rozładunku per klient?\n\n" +
-                "• Skanuje wszystkie zmapowane pojazdy\n" +
-                "• Wykrywa wizyty u klientów (postój ≤2 km, 5-240 min)\n" +
-                "• Liczy medianę z wszystkich wizyt\n" +
-                "• Wynik zapisany w EstymacjeRozladunku (używany w przyszłych szacowaniach)\n\n" +
-                "Może potrwać 30s-3min.",
-                "Uczy z Webfleet",
-                MessageBoxButton.YesNo, MessageBoxImage.Question);
-            if (r != MessageBoxResult.Yes) return;
-
-            BtnOdswiezHistorie.IsEnabled = false;
-            var oryginalnyHint = SzacunekHint.Text;
-            SzacunekHint.Text = "🔄 Pobieram historię z Webfleet…";
+            _autoUczenieTrwa = true;
             try
             {
-                var svc = new Kalendarz1.Transport.Services.HistoriaRozladunkuService();
-                var progress = new Progress<string>(msg => SzacunekHint.Text = $"🔄 {msg}");
-                var wynik = await svc.OdswiezAsync(daysBack: 30, progress);
-
-                var sb = new System.Text.StringBuilder();
-                sb.AppendLine($"✓ Gotowe — przetworzono {wynik.PojazdowPrzetworzonych} pojazdów × {wynik.DniPrzetworzonych} dni.");
-                sb.AppendLine($"• Wykryto wizyt: {wynik.WizytaWykrytych}");
-                sb.AppendLine($"• Klientów ze świeżą estymacją: {wynik.KlientowZestymowanych}");
-                if (wynik.Bledy.Count > 0)
+                await System.Threading.Tasks.Task.Run(async () =>
                 {
-                    sb.AppendLine($"\n⚠ Ostrzeżenia ({wynik.Bledy.Count}):");
-                    foreach (var b in wynik.Bledy.Take(10))
-                        sb.AppendLine($"  • {b}");
-                    if (wynik.Bledy.Count > 10)
-                        sb.AppendLine($"  ... + {wynik.Bledy.Count - 10} więcej");
-                }
-                MessageBox.Show(sb.ToString(), "Wynik aktualizacji", MessageBoxButton.OK, MessageBoxImage.Information);
-                StatusText.Text = $"✓ Zaktualizowano {wynik.KlientowZestymowanych} estymacji z Webfleet.";
-                SzacunekHint.Text = oryginalnyHint;
+                    try { await new Kalendarz1.Transport.Services.HistoriaRozladunkuService().OdswiezAsync(daysBack: 30); }
+                    catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[AutoUczenie] {ex.Message}"); }
+                });
+                _ostatnieAutoUczenie = DateTime.UtcNow;
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd aktualizacji historii:\n\n{ex.Message}", "Błąd",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-                SzacunekHint.Text = oryginalnyHint;
-            }
-            finally { BtnOdswiezHistorie.IsEnabled = true; }
-        }
-
-        // ════════════════════════════════════════════════════════════════════
-        // OSTRZEŻENIA — analiza kursu, wykrywanie problemów planowania
-        // ════════════════════════════════════════════════════════════════════
-        private readonly Services.OstrzezeniaService _ostrzezeniaSvc = new();
-
-        private void WygenerujOstrzezenia(TimeSpan wyjazd, TimeSpan powrot, EtaService.RouteEtaResult? wynik)
-        {
-            var kierowca = CmbKierowca.SelectedItem as Kierowca;
-            var pojazd = CmbPojazd.SelectedItem as Pojazd;
-
-            // Mapowanie LadunekWierszWpf → DTO niezależne od UI
-            var ladunkiDto = _ladunki.Select(l => new Services.OstrzezeniaService.LadunekZAwizacja
-            {
-                NazwaDisplay = l.NazwaDisplay,
-                Kolejnosc = l.Kolejnosc,
-                Awizacja = l.Awizacja,
-                PojemnikiE2 = l.PojemnikiE2,
-                MaGps = wynik?.Stops.FirstOrDefault(s => s.Kolejnosc == l.Kolejnosc)?.HasCoordinates ?? false
-            }).ToList();
-
-            var alerty = _ostrzezeniaSvc.Analizuj(kierowca, pojazd, wyjazd, powrot, ladunkiDto, wynik);
-
-            // Wrappuj w kolorowane wiersze
-            OstrzezeniaList.ItemsSource = alerty.Select(a => new OstrzezenieWiersz(a)).ToList();
-        }
-
-        /// <summary>
-        /// Wiersz w UI — wzbogaca OstrzezenieKursu o kolory dopasowane do wagi.
-        /// Separuje warstwę prezentacji od logiki serwisowej.
-        /// </summary>
-        private class OstrzezenieWiersz
-        {
-            public string Ikona { get; }
-            public string Tytul { get; }
-            public string Opis { get; }
-            public Brush Tlo { get; }
-            public Brush Obramowanie { get; }
-            public Brush Tekst { get; }
-            public Brush TekstBold { get; }
-
-            public OstrzezenieWiersz(Models.OstrzezenieKursu o)
-            {
-                Ikona = o.Ikona;
-                Tytul = o.Tytul;
-                Opis = o.Opis;
-                (Tlo, Obramowanie, Tekst, TekstBold) = o.Waga switch
-                {
-                    Models.WagaOstrzezenia.Krytyczny => (
-                        Hex("#FEF2F2"), Hex("#FCA5A5"), Hex("#7F1D1D"), Hex("#B91C1C")),
-                    Models.WagaOstrzezenia.Ostrzezenie => (
-                        Hex("#FFFBEB"), Hex("#FCD34D"), Hex("#78350F"), Hex("#B45309")),
-                    _ => ( // Info
-                        Hex("#EFF6FF"), Hex("#93C5FD"), Hex("#1E3A8A"), Hex("#1D4ED8"))
-                };
-            }
-
-            private static Brush Hex(string h) => (Brush)new BrushConverter().ConvertFrom(h)!;
+            finally { _autoUczenieTrwa = false; }
         }
 
         // ════════════════════════════════════════════════════════════════════
