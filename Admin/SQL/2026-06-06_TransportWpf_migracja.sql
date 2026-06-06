@@ -26,8 +26,8 @@ DECLARE @migrated INT = 0;
 -- Pokaż przed migracją (audyt)
 PRINT N'=== PRZED MIGRACJĄ ===';
 SELECT
-    Login,
-    Username,
+    ID,
+    Name,
     CASE WHEN LEN(Access) >= 17 THEN SUBSTRING(Access, 17, 1) ELSE '-' END AS Bit16_Ustalanie,
     CASE WHEN LEN(Access) >= 78 THEN SUBSTRING(Access, 78, 1) ELSE '-' END AS Bit77_WPF,
     LEN(Access) AS DlugoscAccess
@@ -35,7 +35,7 @@ FROM dbo.operators
 WHERE LEN(Access) >= 78
   AND SUBSTRING(Access, 78, 1) = '1'
   AND (LEN(Access) < 17 OR SUBSTRING(Access, 17, 1) = '0')
-ORDER BY Login;
+ORDER BY ID;
 
 -- Migracja: ustaw bit 16 = 1 dla wszystkich z bitem 77 = 1, którzy nie mają jeszcze bitu 16
 UPDATE dbo.operators
@@ -53,8 +53,8 @@ PRINT N'Zmigrowano użytkowników: ' + CAST(@migrated AS NVARCHAR(10));
 PRINT N'';
 PRINT N'=== WALIDACJA (powinno być 0 rekordów) ===';
 SELECT
-    Login,
-    Username,
+    ID,
+    Name,
     SUBSTRING(Access, 17, 1) AS Bit16,
     SUBSTRING(Access, 78, 1) AS Bit77
 FROM dbo.operators
