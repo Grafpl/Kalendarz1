@@ -397,7 +397,7 @@ namespace Kalendarz1.Admin.Services
 
                 // ─── Opakowania i Transport ───
                 new() { Key = "OpakowaniaWinForm",    DisplayName = "Opakowania Zwrotne",    Description = "Salda opakowań zwrotnych kontrahentów",      Category = "Opakowania i Transport", Icon = "📦" },
-                new() { Key = "UstalanieTranportu",   DisplayName = "Planowanie Transportu", Description = "Lista kursów + edytor z ETA i auto-uczeniem z Webfleet (WPF)", Category = "Opakowania i Transport", Icon = "🚚" },
+                new() { Key = "UstalanieTranportu",   DisplayName = "Centrum Planowania Transportu", Description = "Lista kursów + edytor z ETA (auto-uczy się z historii GPS)", Category = "Opakowania i Transport", Icon = "🧭" },
                 new() { Key = "TransportZmiany",      DisplayName = "Zmiany Transportu",     Description = "Zatwierdzanie zmian w transporcie",          Category = "Opakowania i Transport", Icon = "📋" },
                 new() { Key = "Flota",                DisplayName = "Flota Pojazdów",        Description = "Zarządzanie kierowcami i pojazdami",         Category = "Opakowania i Transport", Icon = "🚛" },
                 new() { Key = "MapaFloty",            DisplayName = "Mapa Floty",            Description = "Mapa live GPS pojazdów z Webfleet",          Category = "Opakowania i Transport", Icon = "🗺️" },

@@ -1921,10 +1921,11 @@ namespace Kalendarz1
 
                     // Planowanie Transportu — pełna wersja WPF (lista kursów + edytor + ETA + auto-uczenie z Webfleet).
                     // Zastąpiło WinForms TransportMainFormImproved (commit a0162c8). Uprawnienia 1:1.
-                    new MenuItemConfig("UstalanieTranportu", "Planowanie Transportu",
-                        "Organizacja tras dostaw: lista kursów + edytor z ETA (z karty klienta + Webfleet), pakowanie palet, wolne zamówienia",
-                        Color.FromArgb(0, 131, 143), // Turkusowy #00838F
-                        () => new Kalendarz1.Transport.WPF.PlanowanieTransportuWpfWindow(), "🚚", "Transport"),
+                    // Indygo #1E40AF (mocniejszy niż reszta turkusowo-cyan w kategorii) — wyróżnia główny kafelek.
+                    new MenuItemConfig("UstalanieTranportu", "Centrum Planowania Transportu",
+                        "Lista kursów + edytor z ETA (auto-uczy się z historii GPS), pakowanie palet, wolne zamówienia",
+                        Color.FromArgb(30, 64, 175), // Indygo-700 #1E40AF
+                        () => new Kalendarz1.Transport.WPF.PlanowanieTransportuWpfWindow(), "🧭", "Transport"),
 
                     new MenuItemConfig("TransportHub", "Centrum Transportu",
                         "Hub: Planowanie + Zmiany do akceptacji + Mapa Floty LIVE w jednym oknie",
