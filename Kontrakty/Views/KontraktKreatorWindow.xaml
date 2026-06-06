@@ -605,41 +605,63 @@
                                                                 </Style.Triggers>
                                                             </Style>
                                                         </Border.Style>
-                                                        <StackPanel>
-                                                            <TextBlock Text="{Binding DataLabel}" FontSize="13" FontWeight="Bold"
-                                                                       Foreground="#0F172A" HorizontalAlignment="Center"/>
-                                                            <Border Background="#F1F5F9" Height="1" Margin="0,5"/>
-                                                            <!-- Cena (zielony) -->
-                                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                                                <TextBlock Text="💱 " FontSize="11" VerticalAlignment="Center"/>
-                                                                <TextBlock Text="{Binding CenaLabel}" FontSize="11.5" FontWeight="SemiBold"
-                                                                           Foreground="#047857"/>
-                                                            </StackPanel>
-                                                            <!-- Dodatek (granat) -->
-                                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,2,0,0">
-                                                                <TextBlock Text="➕ " FontSize="11" VerticalAlignment="Center"/>
-                                                                <TextBlock Text="{Binding DodatekLabel}" FontSize="11.5" FontWeight="SemiBold"
-                                                                           Foreground="#1E40AF"/>
-                                                            </StackPanel>
-                                                            <!-- Ubytek (czerwony) -->
-                                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,2,0,0">
-                                                                <TextBlock Text="🚛 " FontSize="11" VerticalAlignment="Center"/>
-                                                                <TextBlock Text="{Binding UbytekLabel}" FontSize="11.5" FontWeight="SemiBold"
-                                                                           Foreground="#B91C1C"/>
-                                                            </StackPanel>
-                                                            <!-- Typ ceny (indygo) -->
-                                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,4,0,0">
-                                                                <TextBlock Text="💰 " FontSize="11" VerticalAlignment="Center"/>
-                                                                <TextBlock Text="{Binding TypCenyLabel}" FontSize="11" FontWeight="SemiBold"
-                                                                           Foreground="#4338CA" TextTrimming="CharacterEllipsis" MaxWidth="100"/>
-                                                            </StackPanel>
-                                                            <!-- Czyja waga (fiolet) -->
-                                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,2,0,0">
-                                                                <TextBlock Text="⚖ " FontSize="11" VerticalAlignment="Center"/>
-                                                                <TextBlock Text="{Binding CzyjaWagaLabel}" FontSize="11" FontWeight="SemiBold"
-                                                                           Foreground="#6B21A8"/>
-                                                            </StackPanel>
-                                                        </StackPanel>
+                                                        <Grid>
+                                                            <Grid.RowDefinitions>
+                                                                <RowDefinition Height="Auto"/>
+                                                                <RowDefinition Height="Auto"/>
+                                                                <RowDefinition Height="Auto"/>
+                                                                <RowDefinition Height="Auto"/>
+                                                            </Grid.RowDefinitions>
+                                                            <!-- Header: Data + Typ ceny -->
+                                                            <Grid Grid.Row="0">
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="Auto"/>
+                                                                    <ColumnDefinition Width="*"/>
+                                                                </Grid.ColumnDefinitions>
+                                                                <TextBlock Grid.Column="0" Text="{Binding DataLabel}" FontSize="13"
+                                                                           FontWeight="Bold" Foreground="#0F172A"/>
+                                                                <Border Grid.Column="1" Background="#EEF2FF" CornerRadius="4" Padding="6,2"
+                                                                        HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                                    <TextBlock Text="{Binding TypCenyLabel}" FontSize="10" FontWeight="SemiBold"
+                                                                               Foreground="#4338CA" TextTrimming="CharacterEllipsis" MaxWidth="80"/>
+                                                                </Border>
+                                                            </Grid>
+                                                            <Border Grid.Row="1" Background="#F1F5F9" Height="1" Margin="0,6"/>
+                                                            <!-- Row 1: Cena | Dodatek -->
+                                                            <Grid Grid.Row="2">
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="*"/>
+                                                                    <ColumnDefinition Width="*"/>
+                                                                </Grid.ColumnDefinitions>
+                                                                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                                                    <TextBlock Text="💱" FontSize="11" VerticalAlignment="Center" Margin="0,0,3,0"/>
+                                                                    <TextBlock Text="{Binding CenaLabel}" FontSize="11.5" FontWeight="SemiBold"
+                                                                               Foreground="#047857"/>
+                                                                </StackPanel>
+                                                                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                                                    <TextBlock Text="➕" FontSize="11" VerticalAlignment="Center" Margin="0,0,3,0"/>
+                                                                    <TextBlock Text="{Binding DodatekLabel}" FontSize="11.5" FontWeight="SemiBold"
+                                                                               Foreground="#1E40AF"/>
+                                                                </StackPanel>
+                                                            </Grid>
+                                                            <!-- Row 2: Ubytek | Waga -->
+                                                            <Grid Grid.Row="3" Margin="0,4,0,0">
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="*"/>
+                                                                    <ColumnDefinition Width="*"/>
+                                                                </Grid.ColumnDefinitions>
+                                                                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                                                    <TextBlock Text="🚛" FontSize="11" VerticalAlignment="Center" Margin="0,0,3,0"/>
+                                                                    <TextBlock Text="{Binding UbytekLabel}" FontSize="11.5" FontWeight="SemiBold"
+                                                                               Foreground="#B91C1C"/>
+                                                                </StackPanel>
+                                                                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                                                    <TextBlock Text="⚖" FontSize="11" VerticalAlignment="Center" Margin="0,0,3,0"/>
+                                                                    <TextBlock Text="{Binding CzyjaWagaLabel}" FontSize="11" FontWeight="SemiBold"
+                                                                               Foreground="#6B21A8"/>
+                                                                </StackPanel>
+                                                            </Grid>
+                                                        </Grid>
                                                     </Border>
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
@@ -649,27 +671,31 @@
                                     </StackPanel>
                                 </Border>
 
-                                <!-- 💼 Pola warunków: każde w kolorowej miniaturce z paskiem akcentu -->
+                                <!-- 💼 Pola warunków: siatka 2×2 — większe pola, więcej oddechu -->
                                 <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="10"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/><ColumnDefinition Width="8"/>
-                                        <ColumnDefinition Width="*"/><ColumnDefinition Width="8"/>
-                                        <ColumnDefinition Width="*"/><ColumnDefinition Width="8"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="10"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
 
-                                    <!-- Typ ceny — indygo -->
-                                    <Border Grid.Column="0" CornerRadius="9" Background="White"
+                                    <!-- [0,0] Typ ceny — indygo -->
+                                    <Border Grid.Row="0" Grid.Column="0" CornerRadius="10" Background="White"
                                             BorderBrush="#E2E8F0" BorderThickness="1" Padding="0">
                                         <Grid>
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="4"/>
+                                                <ColumnDefinition Width="5"/>
                                                 <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
-                                            <Border Grid.Column="0" Background="#4338CA" CornerRadius="9,0,0,9"/>
-                                            <StackPanel Grid.Column="1" Margin="10,4,10,10">
-                                                <TextBlock FontSize="13" Margin="0,4,0,5">
-                                                    <Run Text="💱  " FontSize="14"/>
+                                            <Border Grid.Column="0" Background="#4338CA" CornerRadius="10,0,0,10"/>
+                                            <StackPanel Grid.Column="1" Margin="14,7,14,12">
+                                                <TextBlock FontSize="13" Margin="0,2,0,6">
+                                                    <Run Text="💱  " FontSize="15"/>
                                                     <Run Text="Typ ceny" Foreground="#4338CA" FontWeight="SemiBold"/>
                                                 </TextBlock>
                                                 <ComboBox x:Name="cbTypCeny">
@@ -682,18 +708,18 @@
                                         </Grid>
                                     </Border>
 
-                                    <!-- Dodatek — szmaragd -->
-                                    <Border Grid.Column="2" CornerRadius="9" Background="White"
+                                    <!-- [0,1] Dodatek — szmaragd -->
+                                    <Border Grid.Row="0" Grid.Column="2" CornerRadius="10" Background="White"
                                             BorderBrush="#E2E8F0" BorderThickness="1" Padding="0">
                                         <Grid>
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="4"/>
+                                                <ColumnDefinition Width="5"/>
                                                 <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
-                                            <Border Grid.Column="0" Background="#047857" CornerRadius="9,0,0,9"/>
-                                            <StackPanel Grid.Column="1" Margin="10,4,10,10">
-                                                <TextBlock FontSize="13" Margin="0,4,0,5">
-                                                    <Run Text="➕  " FontSize="14"/>
+                                            <Border Grid.Column="0" Background="#047857" CornerRadius="10,0,0,10"/>
+                                            <StackPanel Grid.Column="1" Margin="14,7,14,12">
+                                                <TextBlock FontSize="13" Margin="0,2,0,6">
+                                                    <Run Text="➕  " FontSize="15"/>
                                                     <Run Text="Dodatek (zł/kg)" Foreground="#047857" FontWeight="SemiBold"/>
                                                 </TextBlock>
                                                 <TextBox x:Name="txtDodatek"/>
@@ -701,18 +727,18 @@
                                         </Grid>
                                     </Border>
 
-                                    <!-- Ubytek — czerwień + ikona AUTA 🚛 -->
-                                    <Border Grid.Column="4" CornerRadius="9" Background="White"
+                                    <!-- [1,0] Ubytek — czerwień + 🚛 -->
+                                    <Border Grid.Row="2" Grid.Column="0" CornerRadius="10" Background="White"
                                             BorderBrush="#E2E8F0" BorderThickness="1" Padding="0">
                                         <Grid>
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="4"/>
+                                                <ColumnDefinition Width="5"/>
                                                 <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
-                                            <Border Grid.Column="0" Background="#B91C1C" CornerRadius="9,0,0,9"/>
-                                            <StackPanel Grid.Column="1" Margin="10,4,10,10">
-                                                <TextBlock FontSize="13" Margin="0,4,0,5">
-                                                    <Run Text="🚛  " FontSize="14"/>
+                                            <Border Grid.Column="0" Background="#B91C1C" CornerRadius="10,0,0,10"/>
+                                            <StackPanel Grid.Column="1" Margin="14,7,14,12">
+                                                <TextBlock FontSize="13" Margin="0,2,0,6">
+                                                    <Run Text="🚛  " FontSize="15"/>
                                                     <Run Text="Ubytek (%)" Foreground="#B91C1C" FontWeight="SemiBold"/>
                                                 </TextBlock>
                                                 <TextBox x:Name="txtUbytek" Text="3,0"
@@ -721,18 +747,18 @@
                                         </Grid>
                                     </Border>
 
-                                    <!-- Płatność — fiolet -->
-                                    <Border Grid.Column="6" CornerRadius="9" Background="White"
+                                    <!-- [1,1] Płatność — fiolet -->
+                                    <Border Grid.Row="2" Grid.Column="2" CornerRadius="10" Background="White"
                                             BorderBrush="#E2E8F0" BorderThickness="1" Padding="0">
                                         <Grid>
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="4"/>
+                                                <ColumnDefinition Width="5"/>
                                                 <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
-                                            <Border Grid.Column="0" Background="#6B21A8" CornerRadius="9,0,0,9"/>
-                                            <StackPanel Grid.Column="1" Margin="10,4,10,10">
-                                                <TextBlock FontSize="13" Margin="0,4,0,5">
-                                                    <Run Text="💳  " FontSize="14"/>
+                                            <Border Grid.Column="0" Background="#6B21A8" CornerRadius="10,0,0,10"/>
+                                            <StackPanel Grid.Column="1" Margin="14,7,14,12">
+                                                <TextBlock FontSize="13" Margin="0,2,0,6">
+                                                    <Run Text="💳  " FontSize="15"/>
                                                     <Run Text="Płatność (dni)" Foreground="#6B21A8" FontWeight="SemiBold"/>
                                                 </TextBlock>
                                                 <TextBox x:Name="txtTermin" Text="21"
@@ -742,68 +768,85 @@
                                     </Border>
                                 </Grid>
 
-                                <!-- Row 2: Rozliczana waga (lewa) + Konfiskaty/Padłe (prawa) — side-by-side -->
-                                <Grid Margin="0,4,0,0">
+                                <!-- Row 3: Rozliczana waga (miniaturka jak inne) + Konfiskaty -->
+                                <Grid Margin="0,10,0,0">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="14"/>
-                                        <ColumnDefinition Width="2*"/>
+                                        <ColumnDefinition Width="10"/>
+                                        <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
 
-                                    <!-- LEWA: Rozliczana waga -->
-                                    <StackPanel Grid.Column="0" VerticalAlignment="Top">
-                                        <TextBlock Text="⚖ Rozliczana waga" Style="{StaticResource LblBig}"/>
-                                        <ComboBox x:Name="cbWaga"
-                                                  ToolTip="Czyja waga jest podstawą rozliczenia: netto hodowcy (po jego stronie) lub netto ubojni (po naszej)">
-                                            <ComboBoxItem Content="netto hodowcy" Tag="NETTO_HODOWCY" IsSelected="True"/>
-                                            <ComboBoxItem Content="netto ubojni" Tag="NETTO_UBOJNI"/>
-                                        </ComboBox>
-                                    </StackPanel>
-
-                                    <!-- PRAWA: Konfiskaty i padłe (bursztyn) -->
-                                    <Border Grid.Column="2" Background="#FEF6E7" CornerRadius="10" Padding="14,11"
-                                            BorderBrush="#F2DDB0" BorderThickness="1" Margin="0,16,0,0">
-                                        <StackPanel>
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBlock Style="{StaticResource Ico}" Text="&#xE7BA;" Foreground="#B45309"/>
-                                                <TextBlock Text="KONFISKATY I PADŁE"
-                                                           FontSize="11.5" FontWeight="Bold" Foreground="#B45309"
-                                                           VerticalAlignment="Center"/>
+                                    <!-- LEWA: Rozliczana waga — granatowy akcent -->
+                                    <Border Grid.Column="0" CornerRadius="10" Background="White"
+                                            BorderBrush="#E2E8F0" BorderThickness="1" Padding="0">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="5"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Border Grid.Column="0" Background="#1E40AF" CornerRadius="10,0,0,10"/>
+                                            <StackPanel Grid.Column="1" Margin="14,7,14,12">
+                                                <TextBlock FontSize="13" Margin="0,2,0,6">
+                                                    <Run Text="⚖  " FontSize="15"/>
+                                                    <Run Text="Rozliczana waga" Foreground="#1E40AF" FontWeight="SemiBold"/>
+                                                </TextBlock>
+                                                <ComboBox x:Name="cbWaga"
+                                                          ToolTip="Czyja waga jest podstawą rozliczenia: netto hodowcy (po jego stronie) lub netto ubojni (po naszej)">
+                                                    <ComboBoxItem Content="netto hodowcy" Tag="NETTO_HODOWCY" IsSelected="True"/>
+                                                    <ComboBoxItem Content="netto ubojni" Tag="NETTO_UBOJNI"/>
+                                                </ComboBox>
                                             </StackPanel>
-                                            <TextBlock Text="Kto bierze koszt na siebie?"
-                                                       FontSize="11.5" Foreground="#92400E" Margin="0,5,0,7"/>
+                                        </Grid>
+                                    </Border>
 
-                                            <!-- Hodowca (default) -->
-                                            <RadioButton x:Name="chkKonfiskatyHodowca" GroupName="KonfPokrywa"
-                                                         IsChecked="True" Style="{StaticResource RadioCard}"
-                                                         ToolTip="Hodowca bierze koszty konfiskat i padłych na siebie — kwota potrącana z rozliczenia za dostawę">
+                                    <!-- PRAWA: Konfiskaty i padłe (bursztyn) — radio obok siebie, kompakt -->
+                                    <Border Grid.Column="2" Background="#FEF6E7" CornerRadius="10" Padding="14,9,14,11"
+                                            BorderBrush="#F2DDB0" BorderThickness="1">
+                                        <StackPanel>
+                                            <Grid>
                                                 <StackPanel Orientation="Horizontal">
-                                                    <TextBlock Style="{StaticResource Ico}" Text="&#xE77B;"
-                                                               FontSize="17" Foreground="#B45309" Margin="0,0,10,0"/>
-                                                    <StackPanel>
-                                                        <TextBlock Text="Hodowca na siebie" FontWeight="SemiBold"
-                                                                   FontSize="13.5" Foreground="#B45309"/>
-                                                        <TextBlock Text="potrącane od rozliczenia"
-                                                                   FontSize="11" Foreground="#92400E" Opacity="0.85"/>
-                                                    </StackPanel>
+                                                    <TextBlock Style="{StaticResource Ico}" Text="&#xE7BA;" Foreground="#B45309"/>
+                                                    <TextBlock Text="KONFISKATY I PADŁE — kto pokrywa?"
+                                                               FontSize="11.5" FontWeight="Bold" Foreground="#B45309"
+                                                               VerticalAlignment="Center"/>
                                                 </StackPanel>
-                                            </RadioButton>
-
-                                            <!-- Ubojnia -->
-                                            <RadioButton GroupName="KonfPokrywa" Style="{StaticResource RadioCard}"
-                                                         Margin="0,4,0,0"
-                                                         ToolTip="Ubojnia bierze koszty konfiskat i padłych na siebie — nie potrącamy hodowcy">
-                                                <StackPanel Orientation="Horizontal">
-                                                    <TextBlock Style="{StaticResource Ico}" Text="&#xE7E6;"
-                                                               FontSize="17" Foreground="#B45309" Margin="0,0,10,0"/>
-                                                    <StackPanel>
-                                                        <TextBlock Text="Ubojnia na siebie" FontWeight="SemiBold"
-                                                                   FontSize="13.5" Foreground="#B45309"/>
-                                                        <TextBlock Text="koszt po naszej stronie"
-                                                                   FontSize="11" Foreground="#92400E" Opacity="0.85"/>
+                                            </Grid>
+                                            <Grid Margin="0,7,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="6"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <!-- Hodowca (default) -->
+                                                <RadioButton Grid.Column="0" x:Name="chkKonfiskatyHodowca" GroupName="KonfPokrywa"
+                                                             IsChecked="True" Style="{StaticResource RadioCard}"
+                                                             ToolTip="Hodowca bierze koszty konfiskat i padłych na siebie — kwota potrącana z rozliczenia za dostawę">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Style="{StaticResource Ico}" Text="&#xE77B;"
+                                                                   FontSize="16" Foreground="#B45309" Margin="0,0,8,0"/>
+                                                        <StackPanel>
+                                                            <TextBlock Text="Hodowca" FontWeight="SemiBold"
+                                                                       FontSize="13" Foreground="#B45309"/>
+                                                            <TextBlock Text="potrącane"
+                                                                       FontSize="10.5" Foreground="#92400E" Opacity="0.85"/>
+                                                        </StackPanel>
                                                     </StackPanel>
-                                                </StackPanel>
-                                            </RadioButton>
+                                                </RadioButton>
+                                                <!-- Ubojnia -->
+                                                <RadioButton Grid.Column="2" GroupName="KonfPokrywa" Style="{StaticResource RadioCard}"
+                                                             ToolTip="Ubojnia bierze koszty konfiskat i padłych na siebie — nie potrącamy hodowcy">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Style="{StaticResource Ico}" Text="&#xE7E6;"
+                                                                   FontSize="16" Foreground="#B45309" Margin="0,0,8,0"/>
+                                                        <StackPanel>
+                                                            <TextBlock Text="Ubojnia" FontWeight="SemiBold"
+                                                                       FontSize="13" Foreground="#B45309"/>
+                                                            <TextBlock Text="nasz koszt"
+                                                                       FontSize="10.5" Foreground="#92400E" Opacity="0.85"/>
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                </RadioButton>
+                                            </Grid>
                                         </StackPanel>
                                     </Border>
                                 </Grid>
