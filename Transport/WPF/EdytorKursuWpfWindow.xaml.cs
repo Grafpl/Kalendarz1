@@ -681,6 +681,7 @@ namespace Kalendarz1.Transport.WPF
                 // Zapisz dane do Gantt + narysuj
                 _ostatnieSzacowanie = (wyjazd, wynik);
                 RysujGantt();
+                WygenerujOstrzezenia(wyjazd, powrot, wynik);
 
                 int bezGps = stops.Count(s => s.Latitude == 0 || s.Longitude == 0);
                 double km = wynik.TotalDistanceKm + wynik.ReturnDistanceKm;
@@ -826,6 +827,65 @@ namespace Kalendarz1.Transport.WPF
             Canvas.SetLeft(tb, Math.Max(0, xPozycja));
             Canvas.SetTop(tb, y);
             GanttCanvas.Children.Add(tb);
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // OSTRZEŻENIA — analiza kursu, wykrywanie problemów planowania
+        // ════════════════════════════════════════════════════════════════════
+        private readonly Services.OstrzezeniaService _ostrzezeniaSvc = new();
+
+        private void WygenerujOstrzezenia(TimeSpan wyjazd, TimeSpan powrot, EtaService.RouteEtaResult? wynik)
+        {
+            var kierowca = CmbKierowca.SelectedItem as Kierowca;
+            var pojazd = CmbPojazd.SelectedItem as Pojazd;
+
+            // Mapowanie LadunekWierszWpf → DTO niezależne od UI
+            var ladunkiDto = _ladunki.Select(l => new Services.OstrzezeniaService.LadunekZAwizacja
+            {
+                NazwaDisplay = l.NazwaDisplay,
+                Kolejnosc = l.Kolejnosc,
+                Awizacja = l.Awizacja,
+                PojemnikiE2 = l.PojemnikiE2,
+                MaGps = wynik?.Stops.FirstOrDefault(s => s.Kolejnosc == l.Kolejnosc)?.HasCoordinates ?? false
+            }).ToList();
+
+            var alerty = _ostrzezeniaSvc.Analizuj(kierowca, pojazd, wyjazd, powrot, ladunkiDto, wynik);
+
+            // Wrappuj w kolorowane wiersze
+            OstrzezeniaList.ItemsSource = alerty.Select(a => new OstrzezenieWiersz(a)).ToList();
+        }
+
+        /// <summary>
+        /// Wiersz w UI — wzbogaca OstrzezenieKursu o kolory dopasowane do wagi.
+        /// Separuje warstwę prezentacji od logiki serwisowej.
+        /// </summary>
+        private class OstrzezenieWiersz
+        {
+            public string Ikona { get; }
+            public string Tytul { get; }
+            public string Opis { get; }
+            public Brush Tlo { get; }
+            public Brush Obramowanie { get; }
+            public Brush Tekst { get; }
+            public Brush TekstBold { get; }
+
+            public OstrzezenieWiersz(Models.OstrzezenieKursu o)
+            {
+                Ikona = o.Ikona;
+                Tytul = o.Tytul;
+                Opis = o.Opis;
+                (Tlo, Obramowanie, Tekst, TekstBold) = o.Waga switch
+                {
+                    Models.WagaOstrzezenia.Krytyczny => (
+                        Hex("#FEF2F2"), Hex("#FCA5A5"), Hex("#7F1D1D"), Hex("#B91C1C")),
+                    Models.WagaOstrzezenia.Ostrzezenie => (
+                        Hex("#FFFBEB"), Hex("#FCD34D"), Hex("#78350F"), Hex("#B45309")),
+                    _ => ( // Info
+                        Hex("#EFF6FF"), Hex("#93C5FD"), Hex("#1E3A8A"), Hex("#1D4ED8"))
+                };
+            }
+
+            private static Brush Hex(string h) => (Brush)new BrushConverter().ConvertFrom(h)!;
         }
 
         // ════════════════════════════════════════════════════════════════════

@@ -239,6 +239,27 @@
                                                 SizeChanged="GanttCanvas_SizeChanged"/>
                                     </StackPanel>
                                 </Border>
+
+                                <!-- Ostrzeżenia — kontrola jakości kursu. Generowane po szacowaniu LUB przy zmianie kierowcy/pojazdu. -->
+                                <ItemsControl x:Name="OstrzezeniaList" Margin="0,10,0,0">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border BorderThickness="1" CornerRadius="6" Padding="10,8" Margin="0,0,0,4"
+                                                    Background="{Binding Tlo}" BorderBrush="{Binding Obramowanie}">
+                                                <DockPanel>
+                                                    <TextBlock Text="{Binding Ikona}" FontSize="18" VerticalAlignment="Top"
+                                                               DockPanel.Dock="Left" Margin="0,0,10,0"/>
+                                                    <StackPanel>
+                                                        <TextBlock Text="{Binding Tytul}" FontWeight="SemiBold" FontSize="12"
+                                                                   Foreground="{Binding TekstBold}"/>
+                                                        <TextBlock Text="{Binding Opis}" FontSize="11" TextWrapping="Wrap"
+                                                                   Foreground="{Binding Tekst}" Margin="0,2,0,0"/>
+                                                    </StackPanel>
+                                                </DockPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
                             </StackPanel>
                         </WrapPanel>
 
