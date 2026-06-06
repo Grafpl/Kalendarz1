@@ -335,7 +335,7 @@ namespace Kalendarz1.Transport.WPF
             row.EtaKolor = EtaSzary;
             row.EtaTooltip = null;
 
-            // Drugi kurs tym samym pojazdem już startuje — ten kurs jest skończony
+            // Drugi kurs tym samym pojazdem już wystartował — ten kurs jest skończony
             if (zastapiony)
             {
                 row.EtaCzas = "✓ koniec kursu";
@@ -345,101 +345,151 @@ namespace Kalendarz1.Transport.WPF
                 return;
             }
 
-            if (!ladunki.TryGetValue(row.KursID, out var lad) || lad.Count == 0) return;
-            var wynik = await _etaSvc.WyliczDlaKursuAsync(row.Source.PojazdID, lad, info);
+            ladunki.TryGetValue(row.KursID, out var lad);
+            var wynik = await _etaSvc.WyliczDlaKursuAsync(
+                row.Source.DataKursu,
+                row.Source.PojazdID,
+                row.Source.GodzWyjazdu,
+                lad ?? new List<Ladunek>(),
+                info);
 
-            // Tooltip: pełny adres GPS + prędkość + ewentualnie awizacja celu
-            if (!string.IsNullOrEmpty(wynik.SkadAdres))
+            row.EtaTooltip = BudujTooltipEta(wynik);
+            UstawWierszEtaWgStatusu(row, wynik);
+        }
+
+        /// <summary>Składa tooltip o pełnym kontekście ETA — pozycja pojazdu, awizacja, statystyki.</summary>
+        private static string? BudujTooltipEta(EtaNastepnyService.WynikEta w)
+        {
+            // Brak GPS pojazdu w ogóle → krótki tooltip wyłącznie z powodem
+            if (string.IsNullOrEmpty(w.SkadAdres))
+                return string.IsNullOrEmpty(w.Powod) ? null : w.Powod;
+
+            var t = new System.Text.StringBuilder();
+            string predkoscTxt = w.Stoi ? "stoi" : $"{w.Predkosc} km/h";
+            string lokalizacja = w.WBazie ? $"🏠 W bazie (Koziołki) — {w.SkadAdres}" : $"📍 {w.SkadAdres}";
+            t.Append($"{lokalizacja} · {predkoscTxt}");
+
+            if (w.AwizacjaCelu.HasValue && !string.IsNullOrEmpty(w.KlientNazwa) && w.KlientNazwa != "—")
+                t.Append($"\n🕐 Awizacja {w.KlientNazwa}: {w.AwizacjaCelu:HH:mm}");
+            if (w.DoStartu.HasValue)
+                t.Append($"\n⏰ Start kursu za: {FormatTimeSpanShort(w.DoStartu.Value)}");
+            if (w.ObsluzonychPoTerminie > 0 && w.LiczbaPrzystankow > 0)
+                t.Append($"\n✓ Po terminie: {w.ObsluzonychPoTerminie}/{w.LiczbaPrzystankow} klient(ów)");
+            return t.ToString();
+        }
+
+        /// <summary>Wypełnia EtaCzas/EtaKlient/EtaKolor na podstawie statusu z silnika ETA.</summary>
+        private void UstawWierszEtaWgStatusu(KursRow row, EtaNastepnyService.WynikEta w)
+        {
+            switch (w.Status)
             {
-                string predkoscTxt = wynik.Stoi ? "stoi" : $"{wynik.Predkosc} km/h";
-                string lokalizacja = wynik.WBazie ? $"🏠 W bazie (Koziołki) — {wynik.SkadAdres}" : $"📍 {wynik.SkadAdres}";
-                var tip = new System.Text.StringBuilder();
-                tip.Append($"{lokalizacja} · {predkoscTxt}");
-                if (wynik.AwizacjaCelu.HasValue)
-                    tip.Append($"\n🕐 Awizacja {wynik.KlientNazwa}: {wynik.AwizacjaCelu:HH:mm}");
-                if (wynik.ObsluzonychPoTerminie > 0)
-                    tip.Append($"\n✓ Po terminie: {wynik.ObsluzonychPoTerminie} klient(ów)");
-                row.EtaTooltip = tip.ToString();
-            }
+                case EtaNastepnyService.EtaStatus.HistoriaKursu:
+                    row.EtaCzas = "—";
+                    row.EtaKlient = w.Powod;   // „kurs zakończony" / „kurs zaplanowany"
+                    row.EtaKolor = EtaSzary;
+                    return;
 
-            // Brak danych — diagnostyka + ewentualna pozycja pojazdu
-            if (!wynik.MaDane)
-            {
-                row.EtaCzas = wynik.Powod;
-                row.EtaKlient = !string.IsNullOrEmpty(wynik.SkadMiasto)
-                    ? (wynik.Stoi ? $"🛰 stoi · {wynik.SkadMiasto}" : $"🚛 jedzie · {wynik.SkadMiasto} ({wynik.Predkosc} km/h)")
-                    : "—";
-                return;
-            }
+                case EtaNastepnyService.EtaStatus.BrakDanych:
+                    // Mamy pozycję pojazdu? Pokaż tylko ją w linii 2 (cenne dla planisty)
+                    row.EtaCzas = w.Powod;
+                    row.EtaKlient = !string.IsNullOrEmpty(w.SkadMiasto)
+                        ? (w.Stoi ? $"🛰 stoi · {w.SkadMiasto}" : $"🚛 jedzie · {w.SkadMiasto} ({w.Predkosc} km/h)")
+                        : "—";
+                    row.EtaKolor = EtaSzary;
+                    return;
 
-            // Format dystans + czas dojazdu — wspólny dla klienta i bazy
-            var min = (int)Math.Ceiling(wynik.Czas.TotalMinutes);
-            string czasDojazduTxt = min < 60
-                ? $"za {min} min  ·  {wynik.DystansKm:F1} km"
-                : $"za {wynik.Czas.Hours}h {wynik.Czas.Minutes:00}min  ·  {wynik.DystansKm:F1} km";
-
-            // Cel = baza (po wszystkich klientach) → spokojny niebieski, bez kontekstu awizacji
-            if (wynik.CelToBaza)
-            {
-                if (wynik.WBazie)
-                {
-                    // Pojazd już dojechał — koniec trasy, nie pokazujemy odległości/czasu
+                case EtaNastepnyService.EtaStatus.WBazie:
                     row.EtaCzas = "🏠 W bazie";
-                    row.EtaKlient = wynik.Stoi ? "✓ koniec trasy" : $"manewruje ({wynik.Predkosc} km/h)";
-                }
-                else
+                    row.EtaKlient = w.Stoi ? "✓ koniec trasy" : $"manewruje ({w.Predkosc} km/h)";
+                    row.EtaKolor = EtaNiebieski;
+                    return;
+
+                case EtaNastepnyService.EtaStatus.DoBazy:
                 {
-                    row.EtaCzas = $"🏠 powrót do bazy · {czasDojazduTxt.Substring(3)}"; // bez "za " na początku
-                    row.EtaKlient = wynik.Stoi
-                        ? $"🛰 stoi · {wynik.SkadMiasto}"
-                        : $"🚛 jedzie · {wynik.SkadMiasto} ({wynik.Predkosc} km/h)";
+                    row.EtaCzas = $"🏠 powrót do bazy · {FormatCzasDystans(w.Czas, w.DystansKm)}";
+                    row.EtaKlient = w.Stoi
+                        ? $"🛰 stoi · {w.SkadMiasto}"
+                        : $"🚛 jedzie · {w.SkadMiasto} ({w.Predkosc} km/h)";
+                    row.EtaKolor = EtaNiebieski;
+                    return;
                 }
-                row.EtaKolor = EtaNiebieski;
-                return;
-            }
 
-            // Cel = klient — dorzucamy kontekst awizacji (zapas / spóźnienie)
-            row.EtaCzas = czasDojazduTxt;
+                case EtaNastepnyService.EtaStatus.UKlienta:
+                    row.EtaCzas = "📍 na miejscu";
+                    row.EtaKlient = w.Stoi
+                        ? $"rozładunek · {w.KlientNazwa}"
+                        : $"manewruje · {w.KlientNazwa} ({w.Predkosc} km/h)";
+                    row.EtaKolor = EtaZielony;
+                    return;
 
-            // Status „skąd": gdy pojazd w bazie, pokaż „w bazie" zamiast nazwy miasta
-            string statusPojazdu;
-            if (wynik.WBazie)
-            {
-                statusPojazdu = wynik.Stoi ? "🏠 w bazie" : "🚛 wyjeżdża z bazy";
-            }
-            else
-            {
-                statusPojazdu = wynik.Stoi
-                    ? $"🛰 stoi · {wynik.SkadMiasto}"
-                    : $"🚛 jedzie · {wynik.SkadMiasto}";
-            }
+                case EtaNastepnyService.EtaStatus.PrzedWyjazdem:
+                {
+                    int doStartu = (int)Math.Ceiling(w.DoStartu!.Value.TotalMinutes);
+                    row.EtaCzas = doStartu < 60
+                        ? $"⏰ start za {doStartu} min"
+                        : $"⏰ start za {w.DoStartu.Value.Hours}h {w.DoStartu.Value.Minutes:00}min";
 
-            // Linia 2: status pojazdu + cel + awizacja + zapas/spóźnienie
-            var linia2 = new System.Text.StringBuilder();
-            linia2.Append(statusPojazdu);
-            linia2.Append(" → ").Append(wynik.KlientNazwa);
-            if (wynik.AwizacjaCelu.HasValue)
-                linia2.Append($" · awiz. {wynik.AwizacjaCelu:HH:mm}");
+                    // Pokażmy też dokąd jedzie i jaki dystans (bezpieczeństwo planisty)
+                    var linia2 = new System.Text.StringBuilder();
+                    linia2.Append(w.WBazie ? "🏠 w bazie" : (w.Stoi ? $"🛰 stoi · {w.SkadMiasto}" : $"🚛 jedzie · {w.SkadMiasto}"));
+                    linia2.Append($" → {w.KlientNazwa}");
+                    if (w.AwizacjaCelu.HasValue) linia2.Append($" · awiz. {w.AwizacjaCelu:HH:mm}");
+                    row.EtaKlient = linia2.ToString();
+                    row.EtaKolor = EtaNiebieski;
+                    return;
+                }
 
-            if (wynik.Spoznienie.HasValue)
-            {
-                int spMin = (int)Math.Ceiling(wynik.Spoznienie.Value.TotalMinutes);
-                linia2.Append($" · spóźniony {spMin} min");
-                row.EtaKolor = EtaCzerwony;
-            }
-            else if (wynik.Zapas.HasValue)
-            {
-                int zapMin = (int)Math.Floor(wynik.Zapas.Value.TotalMinutes);
-                if (zapMin < 30) { linia2.Append($" · zapas {zapMin} min"); row.EtaKolor = EtaAmber; }
-                else { linia2.Append($" · zapas {zapMin} min"); row.EtaKolor = EtaZielony; }
-            }
-            else
-            {
-                // Brak awizacji — neutralnie, kolor wg odległości
-                row.EtaKolor = min < 30 ? EtaAmber : EtaZielony;
-            }
+                case EtaNastepnyService.EtaStatus.DoKlienta:
+                {
+                    row.EtaCzas = $"za {FormatCzasDystans(w.Czas, w.DystansKm)}";
 
-            row.EtaKlient = linia2.ToString();
+                    string statusPojazdu = w.WBazie
+                        ? (w.Stoi ? "🏠 w bazie" : "🚛 wyjeżdża z bazy")
+                        : (w.Stoi ? $"🛰 stoi · {w.SkadMiasto}" : $"🚛 jedzie · {w.SkadMiasto}");
+
+                    var linia2 = new System.Text.StringBuilder();
+                    linia2.Append(statusPojazdu).Append(" → ").Append(w.KlientNazwa);
+                    if (w.AwizacjaCelu.HasValue)
+                        linia2.Append($" · awiz. {w.AwizacjaCelu:HH:mm}");
+
+                    if (w.Spoznienie.HasValue)
+                    {
+                        int spMin = (int)Math.Ceiling(w.Spoznienie.Value.TotalMinutes);
+                        linia2.Append($" · spóźniony {spMin} min");
+                        row.EtaKolor = EtaCzerwony;
+                    }
+                    else if (w.Zapas.HasValue)
+                    {
+                        int zapMin = (int)Math.Floor(w.Zapas.Value.TotalMinutes);
+                        linia2.Append($" · zapas {zapMin} min");
+                        row.EtaKolor = zapMin < 30 ? EtaAmber : EtaZielony;
+                    }
+                    else
+                    {
+                        // Klient bez awizacji — neutralnie wg odległości
+                        int min = (int)Math.Ceiling(w.Czas.TotalMinutes);
+                        row.EtaKolor = min < 30 ? EtaAmber : EtaZielony;
+                    }
+                    row.EtaKlient = linia2.ToString();
+                    return;
+                }
+            }
+        }
+
+        /// <summary>„za 25 min · 12.4 km" / „1h 30min · 78 km" (bez prefiksu "za ").</summary>
+        private static string FormatCzasDystans(TimeSpan czas, double km)
+        {
+            int min = (int)Math.Ceiling(czas.TotalMinutes);
+            return min < 60
+                ? $"{min} min  ·  {km:F1} km"
+                : $"{czas.Hours}h {czas.Minutes:00}min  ·  {km:F1} km";
+        }
+
+        /// <summary>„45 min" / „2h 15min" — do tooltipa.</summary>
+        private static string FormatTimeSpanShort(TimeSpan ts)
+        {
+            int totalMin = (int)Math.Ceiling(ts.TotalMinutes);
+            return totalMin < 60 ? $"{totalMin} min" : $"{ts.Hours}h {ts.Minutes:00}min";
         }
 
         /// <summary>Wpisuje tymczasowy komunikat w status bar i czyści go po 5 s.
