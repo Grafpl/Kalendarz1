@@ -326,10 +326,10 @@
                                         <Button Grid.Column="2" x:Name="btnSprawdzalka"
                                                 Click="BtnSprawdzalka_Click" VerticalAlignment="Center"
                                                 Style="{StaticResource BtnPrimary}" Height="38" Padding="14,0"
-                                                ToolTip="Otwórz Sprawdzalkę umów z prefilowanym hodowcą — pełna historia dostaw">
+                                                ToolTip="Otwórz formularz umowy zakupu z prefilowanym hodowcą (tak jak ze Sprawdzalki przy &#x201E;Nowa&#x201D;/edycji)">
                                             <StackPanel Orientation="Horizontal">
-                                                <TextBlock Style="{StaticResource IcoBtn}" Text="&#xE9D9;"/>
-                                                <TextBlock Text="Sprawdzalka" VerticalAlignment="Center" FontSize="12.5"/>
+                                                <TextBlock Style="{StaticResource IcoBtn}" Text="&#xE8A5;"/>
+                                                <TextBlock Text="Umowa zakupu" VerticalAlignment="Center" FontSize="12.5"/>
                                             </StackPanel>
                                         </Button>
                                     </Grid>

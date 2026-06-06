@@ -220,21 +220,23 @@ namespace Kalendarz1.Kontrakty.Views
             }
         }
 
-        // Otwarcie Sprawdzalki Umów z prefilowanym hodowcą — szybki podgląd historii dostaw
+        // Otwiera bezpośrednio UmowyForm (tak samo jak Sprawdzalka przy „Nowa"/edycji)
+        // — formularz umowy zakupu z prefilowanym hodowcą.
         private void BtnSprawdzalka_Click(object sender, RoutedEventArgs e)
         {
             if (_hod == null) return;
             try
             {
-                var w = new Kalendarz1.WPF.SprawdzalkaUmowWindow(Kalendarz1.App.UserID ?? "") { Owner = this };
-                // pole szukania w Sprawdzalce — pre-fill na nazwę hodowcy (internal x:Name field)
-                w.txtSearch.Text = _hod.Nazwa;
-                w.Show(); // non-modal, by user mógł flippować z kreatorem
+                var form = new UmowyForm(initialLp: null, initialIdLibra: _hod.DostawcaId)
+                {
+                    UserID = Kalendarz1.App.UserID ?? ""
+                };
+                form.Show(); // non-modal — user może flippować między kreatorem a umową zakupu
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Nie udało się otworzyć Sprawdzalki: " + ex.Message, "Sprawdzalka",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("Nie udało się otworzyć formularza umowy zakupu: " + ex.Message,
+                    "Umowa zakupu", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
 
