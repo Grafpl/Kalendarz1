@@ -1,7 +1,9 @@
 // ════════════════════════════════════════════════════════════════════════════
 // Transport/WPF/Services/EtaNastepnyService.cs
-// ETA z pozycji GPS pojazdu (Webfleet) do następnego klienta w kursie.
-// NIE wylicza powrotu do bazy — wyłącznie czas dojazdu do kolejnego przystanku.
+// ETA świadoma czasu — z pozycji GPS pojazdu do CELU:
+//   • cel = pierwszy klient którego (awizacja + 30 min) jeszcze nie minęła
+//   • gdy wszyscy klienci po terminie → cel = baza (Koziołki, ubojnia)
+// + kontekst: zapas czasu / spóźnienie względem awizacji, status stoi/jedzie.
 //
 // Reuse:
 //  - KursMonitorService.PobierzPozycjeAsync(objectNo) — pozycja GPS pojazdu z Webfleet
@@ -29,17 +31,32 @@ namespace Kalendarz1.Transport.WPF.Services
         public class PozycjaGPS { public double Lat; public double Lon; public int Speed; public string Address = ""; }
         public class WynikEta
         {
-            public string KlientNazwa { get; set; } = "—";
+            public string KlientNazwa { get; set; } = "—";   // nazwa celu (klient lub „Baza")
             public double DystansKm { get; set; }
-            public TimeSpan Czas { get; set; }
-            public bool MaDane { get; set; }      // false → brak GPS pojazdu / brak współrzędnych klienta / brak następnego
-            public string Powod { get; set; } = "";   // diagnostyka gdy MaDane=false
-            public string SkadAdres { get; set; } = "";    // pełny adres GPS pojazdu z Webfleet (postext)
-            public string SkadMiasto { get; set; } = "";   // krótki skrót — miasto z adresu (do UI)
-            public int Predkosc { get; set; }              // km/h z Webfleet
-            public double? PojazdLat { get; set; }         // do mapy / Google Maps link
+            public TimeSpan Czas { get; set; }               // czas dojazdu z GPS do celu
+            public bool MaDane { get; set; }
+            public string Powod { get; set; } = "";
+            public string SkadAdres { get; set; } = "";
+            public string SkadMiasto { get; set; } = "";
+            public int Predkosc { get; set; }
+            public double? PojazdLat { get; set; }
             public double? PojazdLon { get; set; }
+
+            // Kontekst czasowy — logika „cel zależy od awizacji vs teraz"
+            public bool CelToBaza { get; set; }              // true → wszyscy klienci po terminie, cel = ubojnia
+            public int ObsluzonychPoTerminie { get; set; }   // ile klientów już za czasem (do diagnostyki)
+            public DateTime? AwizacjaCelu { get; set; }      // godzina awizacji klienta-celu (null gdy CelToBaza)
+            public TimeSpan? Spoznienie { get; set; }        // czasDojazdu > czasDoAwizacji → spóźniony o ...
+            public TimeSpan? Zapas { get; set; }             // czasDoAwizacji > czasDojazdu → zapas ...
+            public bool Stoi { get; set; }                   // Predkosc <= 5 km/h
         }
+
+        // Baza — ubojnia Piórkowscy w Koziołkach 40 (powrót po wszystkich klientach)
+        private const double BazaLat = 51.86857;
+        private const double BazaLon = 19.79476;
+        // Bufor po awizacji — uznajemy klienta za obsłużonego/spóźnionego dopiero gdy minęło N min od awizacji
+        // 30 min to typowy czas rozładunku/odbioru u nas
+        private static readonly TimeSpan BuforPoAwizacji = TimeSpan.FromMinutes(30);
 
         private const double AvgKmh = 60.0;
         private const double RoadFactor = 1.3;
@@ -122,47 +139,104 @@ namespace Kalendarz1.Transport.WPF.Services
             wynik.SkadAdres = gps.Address ?? "";
             wynik.SkadMiasto = SkrocAdresDoMiasta(gps.Address);
             wynik.Predkosc = gps.Speed;
+            wynik.Stoi = gps.Speed <= 5;
             wynik.PojazdLat = gps.Lat;
             wynik.PojazdLon = gps.Lon;
 
-            // Lista (Klient, KodKlienta) po Kolejnosc, tylko z dostępnymi nazwami
-            var stops = new List<(string Kod, string Klient)>();
-            foreach (var l in ladunki.OrderBy(x => x.Kolejnosc))
+            // Budujemy listę przystanków: nazwa + kod + awizacja (z ZamowienieNazwaInfo) + kolejność.
+            // Sortujemy po Awizacji (jeśli jest), inaczej po Kolejnosc — to odpowiada faktycznemu planowi dnia.
+            var stops = new List<(string Kod, string Klient, DateTime? Awizacja, int Kolejnosc)>();
+            foreach (var l in ladunki)
             {
                 if (l.KodKlienta == null || !l.KodKlienta.StartsWith("ZAM_")) continue;
                 if (!int.TryParse(l.KodKlienta.Substring(4), out var zid)) continue;
                 if (!info.TryGetValue(zid, out var zi)) continue;
                 if (string.IsNullOrEmpty(zi.Nazwa)) continue;
-                stops.Add((l.KodKlienta, zi.Nazwa));
+                stops.Add((l.KodKlienta, zi.Nazwa, zi.Awizacja, l.Kolejnosc));
             }
             if (stops.Count == 0) { wynik.Powod = "brak ZAM_ ładunków"; return wynik; }
 
-            // Pobierz współrzędne klientów ładunków (cache KlientAdres + Handel fallback)
+            stops = stops
+                .OrderBy(s => s.Awizacja ?? DateTime.MaxValue)   // klienci z awizacją najpierw, w kolejności godzin
+                .ThenBy(s => s.Kolejnosc)                         // klienci bez awizacji — w kolejności w planie
+                .ToList();
+
+            // Pobierz współrzędne klientów (cache KlientAdres + Handel fallback)
             var ws = new WebfleetOrderService();
             var adresy = await ws.PobierzAdresySzybkoAsync(stops.Select(s => s.Kod));
 
-            // Pierwszy klient po Kolejnosc z dostępnymi współrzędnymi — bez filtra "<500 m"
-            // (filtr powodował omijanie bliskich klientów, np. pojazd 400 m od cel = pomijany)
+            // Wybór celu — pierwszy klient którego awizacja+30min jeszcze nie minęła I ma GPS.
+            // Brak awizacji = traktujemy jak „dziś, nadal do obsługi" (najczęściej tak właśnie jest).
+            // Klient po terminie + bez GPS → pominięty (planista nie ma jak go obsłużyć).
+            var teraz = DateTime.Now;
+            int obsluzonychPoTerminie = 0;
             int zGps = 0;
+            (string Kod, string Klient, DateTime? Awizacja, int Kolejnosc)? celKlient = null;
+
             foreach (var s in stops)
             {
-                if (!adresy.TryGetValue(s.Kod, out var a) || a.Lat == 0 || a.Lon == 0) continue;
-                zGps++;
-                if (wynik.MaDane) continue;   // już wzięliśmy pierwszego, dalej tylko liczymy zGps
-                double dystans = HaversineKm(gps.Lat, gps.Lon, a.Lat, a.Lon) * RoadFactor;
-                var minuty = dystans / AvgKmh * 60.0;
-                wynik.KlientNazwa = s.Klient;
-                wynik.DystansKm = dystans;
-                wynik.Czas = TimeSpan.FromMinutes(minuty);
-                wynik.MaDane = true;
+                bool maGps = adresy.TryGetValue(s.Kod, out var a) && a.Lat != 0 && a.Lon != 0;
+                if (maGps) zGps++;
+
+                // Po terminie? Awizacja + 30 min minęła → już obsłużony / przegapiony.
+                bool poTerminie = s.Awizacja.HasValue && s.Awizacja.Value + BuforPoAwizacji < teraz;
+                if (poTerminie) { obsluzonychPoTerminie++; continue; }
+
+                // Nie po terminie + ma GPS → pierwszy taki staje się celem
+                if (maGps && celKlient == null) celKlient = s;
             }
 
-            if (!wynik.MaDane)
+            wynik.ObsluzonychPoTerminie = obsluzonychPoTerminie;
+
+            // Wszyscy klienci po terminie → cel = baza (powrót do ubojni)
+            if (celKlient == null && obsluzonychPoTerminie == stops.Count)
             {
-                wynik.Powod = stops.Count == 1
-                    ? $"klient {stops[0].Klient} bez GPS — geokoduj w Kartoteka → Mapa klientów"
-                    : $"0/{stops.Count} klientów ma GPS — uruchom Kartoteka → Mapa klientów → 📍 Geokoduj adresy";
+                double dystBaza = HaversineKm(gps.Lat, gps.Lon, BazaLat, BazaLon) * RoadFactor;
+                wynik.CelToBaza = true;
+                wynik.KlientNazwa = "Baza (Koziołki)";
+                wynik.DystansKm = dystBaza;
+                wynik.Czas = TimeSpan.FromMinutes(dystBaza / AvgKmh * 60.0);
+                wynik.MaDane = true;
+                return wynik;
             }
+
+            // Ktoś jest celem ale nie ma GPS — diagnostyka
+            if (celKlient == null)
+            {
+                wynik.Powod = zGps == 0
+                    ? $"0/{stops.Count} klientów ma GPS — uruchom Kartoteka → Mapa klientów → 📍 Geokoduj"
+                    : $"następny klient bez GPS — dwuklik na nim w Mapie Klientów";
+                return wynik;
+            }
+
+            // Mamy cel — wylicz dystans + czas + kontekst awizacji
+            var adr = adresy[celKlient.Value.Kod];
+            double dystans = HaversineKm(gps.Lat, gps.Lon, adr.Lat, adr.Lon) * RoadFactor;
+            double minuty = dystans / AvgKmh * 60.0;
+            var czasDojazdu = TimeSpan.FromMinutes(minuty);
+
+            wynik.KlientNazwa = celKlient.Value.Klient;
+            wynik.DystansKm = dystans;
+            wynik.Czas = czasDojazdu;
+            wynik.AwizacjaCelu = celKlient.Value.Awizacja;
+            wynik.MaDane = true;
+
+            // Kontekst czasowy — zapas vs spóźnienie
+            if (celKlient.Value.Awizacja.HasValue)
+            {
+                var doAwizacji = celKlient.Value.Awizacja.Value - teraz;
+                if (doAwizacji < czasDojazdu)
+                {
+                    // Pojazd nie zdąży na czas
+                    wynik.Spoznienie = czasDojazdu - doAwizacji;
+                }
+                else
+                {
+                    // Zapas — wystarczy czasu, plus rezerwa
+                    wynik.Zapas = doAwizacji - czasDojazdu;
+                }
+            }
+
             return wynik;
         }
 
