@@ -328,12 +328,22 @@ namespace Kalendarz1.Transport.WPF
         /// BEZ powrotu do bazy — tylko między obecną pozycją a następnym celem.
         /// Wymaga: pojazd zmapowany w WebfleetVehicleMapping + GPS dostępny + klient ze współrzędnymi.
         /// </summary>
-        private async Task WypelnijEtaNastepnyGpsAsync(KursRow row, Dictionary<long, List<Ladunek>> ladunki, Dictionary<int, ZamowienieNazwaInfo> info)
+        private async Task WypelnijEtaNastepnyGpsAsync(KursRow row, Dictionary<long, List<Ladunek>> ladunki, Dictionary<int, ZamowienieNazwaInfo> info, bool zastapiony = false)
         {
             row.EtaCzas = "";
             row.EtaKlient = "—";
             row.EtaKolor = EtaSzary;
             row.EtaTooltip = null;
+
+            // Drugi kurs tym samym pojazdem już startuje — ten kurs jest skończony
+            if (zastapiony)
+            {
+                row.EtaCzas = "✓ koniec kursu";
+                row.EtaKlient = "następny kurs tym pojazdem już wystartował";
+                row.EtaKolor = EtaSzary;
+                row.EtaTooltip = "Pojazd przeszedł do kolejnej trasy dzisiaj — pierwszy kurs zakończony.";
+                return;
+            }
 
             if (!ladunki.TryGetValue(row.KursID, out var lad) || lad.Count == 0) return;
             var wynik = await _etaSvc.WyliczDlaKursuAsync(row.Source.PojazdID, lad, info);
@@ -342,8 +352,9 @@ namespace Kalendarz1.Transport.WPF
             if (!string.IsNullOrEmpty(wynik.SkadAdres))
             {
                 string predkoscTxt = wynik.Stoi ? "stoi" : $"{wynik.Predkosc} km/h";
+                string lokalizacja = wynik.WBazie ? $"🏠 W bazie (Koziołki) — {wynik.SkadAdres}" : $"📍 {wynik.SkadAdres}";
                 var tip = new System.Text.StringBuilder();
-                tip.Append($"📍 Pojazd: {wynik.SkadAdres} · {predkoscTxt}");
+                tip.Append($"{lokalizacja} · {predkoscTxt}");
                 if (wynik.AwizacjaCelu.HasValue)
                     tip.Append($"\n🕐 Awizacja {wynik.KlientNazwa}: {wynik.AwizacjaCelu:HH:mm}");
                 if (wynik.ObsluzonychPoTerminie > 0)
@@ -370,10 +381,19 @@ namespace Kalendarz1.Transport.WPF
             // Cel = baza (po wszystkich klientach) → spokojny niebieski, bez kontekstu awizacji
             if (wynik.CelToBaza)
             {
-                row.EtaCzas = $"🏠 powrót do bazy · {czasDojazduTxt.Substring(3)}"; // bez "za " na początku
-                row.EtaKlient = wynik.Stoi
-                    ? $"🛰 stoi · {wynik.SkadMiasto}"
-                    : $"🚛 jedzie · {wynik.SkadMiasto} ({wynik.Predkosc} km/h)";
+                if (wynik.WBazie)
+                {
+                    // Pojazd już dojechał — koniec trasy, nie pokazujemy odległości/czasu
+                    row.EtaCzas = "🏠 W bazie";
+                    row.EtaKlient = wynik.Stoi ? "✓ koniec trasy" : $"manewruje ({wynik.Predkosc} km/h)";
+                }
+                else
+                {
+                    row.EtaCzas = $"🏠 powrót do bazy · {czasDojazduTxt.Substring(3)}"; // bez "za " na początku
+                    row.EtaKlient = wynik.Stoi
+                        ? $"🛰 stoi · {wynik.SkadMiasto}"
+                        : $"🚛 jedzie · {wynik.SkadMiasto} ({wynik.Predkosc} km/h)";
+                }
                 row.EtaKolor = EtaNiebieski;
                 return;
             }
@@ -381,9 +401,18 @@ namespace Kalendarz1.Transport.WPF
             // Cel = klient — dorzucamy kontekst awizacji (zapas / spóźnienie)
             row.EtaCzas = czasDojazduTxt;
 
-            string statusPojazdu = wynik.Stoi
-                ? $"🛰 stoi · {wynik.SkadMiasto}"
-                : $"🚛 jedzie · {wynik.SkadMiasto}";
+            // Status „skąd": gdy pojazd w bazie, pokaż „w bazie" zamiast nazwy miasta
+            string statusPojazdu;
+            if (wynik.WBazie)
+            {
+                statusPojazdu = wynik.Stoi ? "🏠 w bazie" : "🚛 wyjeżdża z bazy";
+            }
+            else
+            {
+                statusPojazdu = wynik.Stoi
+                    ? $"🛰 stoi · {wynik.SkadMiasto}"
+                    : $"🚛 jedzie · {wynik.SkadMiasto}";
+            }
 
             // Linia 2: status pojazdu + cel + awizacja + zapas/spóźnienie
             var linia2 = new System.Text.StringBuilder();
@@ -687,9 +716,28 @@ namespace Kalendarz1.Transport.WPF
         {
             try
             {
+                // Tym samym pojazdem mogą jechać 2 kursy w jednym dniu (np. 14:00 + 21:00).
+                // Gdy drugi kurs już wystartował (GodzWyjazdu <= teraz), pierwszy nie ma sensu liczyć
+                // ETA do bazy — pojazd jest w nowej trasie. Oznaczamy go jako „koniec".
+                var teraz = DateTime.Now.TimeOfDay;
+                var zastapioneKursy = new HashSet<long>();
+                var kursyPerPojazd = _rowsAll
+                    .Where(r => r.Source.PojazdID.HasValue && r.Source.GodzWyjazdu.HasValue)
+                    .GroupBy(r => r.Source.PojazdID!.Value);
+                foreach (var grupa in kursyPerPojazd)
+                {
+                    var posort = grupa.OrderBy(r => r.Source.GodzWyjazdu!.Value).ToList();
+                    for (int i = 0; i < posort.Count - 1; i++)
+                    {
+                        var nast = posort[i + 1];
+                        if (nast.Source.GodzWyjazdu!.Value <= teraz)
+                            zastapioneKursy.Add(posort[i].KursID);
+                    }
+                }
+
                 var taski = _rowsAll
                     .Where(r => r.Source.PojazdID.HasValue)
-                    .Select(r => WypelnijEtaNastepnyGpsAsync(r, ladunki, info))
+                    .Select(r => WypelnijEtaNastepnyGpsAsync(r, ladunki, info, zastapioneKursy.Contains(r.KursID)))
                     .ToList();
                 await Task.WhenAll(taski);
                 KursyGrid.Items.Refresh();

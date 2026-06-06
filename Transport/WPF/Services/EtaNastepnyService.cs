@@ -49,7 +49,12 @@ namespace Kalendarz1.Transport.WPF.Services
             public TimeSpan? Spoznienie { get; set; }        // czasDojazdu > czasDoAwizacji → spóźniony o ...
             public TimeSpan? Zapas { get; set; }             // czasDoAwizacji > czasDojazdu → zapas ...
             public bool Stoi { get; set; }                   // Predkosc <= 5 km/h
+            public bool WBazie { get; set; }                 // pojazd ≤ 2 km od ubojni Koziołki
         }
+
+        // Promień bazy — pojazd w tym dystansie liniowym uznajemy za „w bazie"
+        // (manewry, plac, parking — nie ma sensu liczyć ETA „do bazy")
+        private const double PromienBazyKm = 2.0;
 
         // Baza — ubojnia Piórkowscy w Koziołkach 40 (powrót po wszystkich klientach)
         private const double BazaLat = 51.86857;
@@ -143,6 +148,10 @@ namespace Kalendarz1.Transport.WPF.Services
             wynik.PojazdLat = gps.Lat;
             wynik.PojazdLon = gps.Lon;
 
+            // Pojazd w bazie? (≤2 km od ubojni Koziołki w linii prostej, bez RoadFactor)
+            double dystOdBazy = HaversineKm(gps.Lat, gps.Lon, BazaLat, BazaLon);
+            wynik.WBazie = dystOdBazy <= PromienBazyKm;
+
             // Budujemy listę przystanków: nazwa + kod + awizacja (z ZamowienieNazwaInfo) + kolejność.
             // Sortujemy po Awizacji (jeśli jest), inaczej po Kolejnosc — to odpowiada faktycznemu planowi dnia.
             var stops = new List<(string Kod, string Klient, DateTime? Awizacja, int Kolejnosc)>();
@@ -191,12 +200,23 @@ namespace Kalendarz1.Transport.WPF.Services
             // Wszyscy klienci po terminie → cel = baza (powrót do ubojni)
             if (celKlient == null && obsluzonychPoTerminie == stops.Count)
             {
-                double dystBaza = HaversineKm(gps.Lat, gps.Lon, BazaLat, BazaLon) * RoadFactor;
                 wynik.CelToBaza = true;
                 wynik.KlientNazwa = "Baza (Koziołki)";
-                wynik.DystansKm = dystBaza;
-                wynik.Czas = TimeSpan.FromMinutes(dystBaza / AvgKmh * 60.0);
                 wynik.MaDane = true;
+
+                if (wynik.WBazie)
+                {
+                    // Pojazd już dojechał — koniec trasy, nie liczymy ETA
+                    wynik.DystansKm = 0;
+                    wynik.Czas = TimeSpan.Zero;
+                }
+                else
+                {
+                    // W drodze do bazy — liczymy ETA
+                    double dystBaza = dystOdBazy * RoadFactor;
+                    wynik.DystansKm = dystBaza;
+                    wynik.Czas = TimeSpan.FromMinutes(dystBaza / AvgKmh * 60.0);
+                }
                 return wynik;
             }
 
