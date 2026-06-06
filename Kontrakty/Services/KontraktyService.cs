@@ -281,27 +281,35 @@ WHERE LTRIM(RTRIM(CustomerGID))=@id AND CalcDate >= DATEADD(MONTH, -12, CAST(GET
             return s;
         }
 
-        // ─── Ostatnie dostawy scalone w grupy 10-dniowe (mini-karty w Warunkach handlowych) ─
-        // Pobiera surowe dostawy z ostatnich 12 mies., scala w okna ≤10 dni, zwraca TOP N grup.
-        // Każda grupa: średnia cena/dodatek/ubytek, najczęstszy typ ceny i rozliczana waga.
-        public async Task<List<DostawaSugestia>> GetOstatnieDostawyDoSugestiiAsync(string dostawcaId, int topGrup = 3)
+        // ─── Ostatnie dostawy POTWIERDZONE scalone w 10-dniowe grupy (mini-karty w Warunkach) ─
+        // Lista dostaw z HarmonogramDostaw gdzie Bufor IN ('Potwierdzony','Potwierdzone'),
+        // wartości handlowe (cena/dodatek/ubytek/typ ceny) z FarmerCalc po dacie+hodowcy.
+        // Scala w okna ≤10 dni, zwraca TOP N grup z agregatami: AVG cena/dodatek/ubytek,
+        // najczęstszy typ ceny i rozliczana waga.
+        public async Task<List<DostawaSugestia>> GetOstatnieDostawyDoSugestiiAsync(
+            string dostawcaId, string nazwaHodowcy, int topGrup = 3)
         {
             var wynik = new List<DostawaSugestia>();
-            if (string.IsNullOrWhiteSpace(dostawcaId)) return wynik;
+            if (string.IsNullOrWhiteSpace(dostawcaId) || string.IsNullOrWhiteSpace(nazwaHodowcy))
+                return wynik;
 
             const string sql = @"
 SELECT
-    fc.CalcDate,
+    hd.DataOdbioru,
     fc.Price,
     fc.Addition,
     fc.Loss,
     ISNULL(pt.Name, '') AS TypCenyName
-FROM dbo.FarmerCalc fc
+FROM dbo.HarmonogramDostaw hd
+LEFT JOIN dbo.FarmerCalc fc
+       ON LTRIM(RTRIM(fc.CustomerGID)) = @id
+      AND CAST(fc.CalcDate AS DATE) = CAST(hd.DataOdbioru AS DATE)
+      AND ISNULL(fc.Deleted, 0) = 0
 LEFT JOIN dbo.PriceType pt ON pt.ID = fc.PriceTypeID
-WHERE LTRIM(RTRIM(fc.CustomerGID)) = @id
-  AND fc.CalcDate >= DATEADD(MONTH, -12, CAST(GETDATE() AS DATE))
-  AND ISNULL(fc.Deleted, 0) = 0
-ORDER BY fc.CalcDate DESC;";
+WHERE hd.Dostawca = @nazwa
+  AND hd.Bufor IN ('Potwierdzony', 'Potwierdzone')
+  AND hd.DataOdbioru >= DATEADD(MONTH, -12, CAST(GETDATE() AS DATE))
+ORDER BY hd.DataOdbioru DESC;";
 
             // Surowe wiersze
             var surowe = new List<(DateTime Data, decimal? Cena, decimal? Dodatek, decimal? Loss, string TypCeny)>();
@@ -311,6 +319,7 @@ ORDER BY fc.CalcDate DESC;";
                 await cn.OpenAsync();
                 using var cmd = new SqlCommand(sql, cn) { CommandTimeout = Timeout };
                 cmd.Parameters.AddWithValue("@id", dostawcaId.Trim());
+                cmd.Parameters.AddWithValue("@nazwa", nazwaHodowcy.Trim());
                 using var r = await cmd.ExecuteReaderAsync();
                 while (await r.ReadAsync())
                 {
