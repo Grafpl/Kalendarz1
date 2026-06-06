@@ -299,6 +299,7 @@ SELECT
     fc.Price,
     fc.Addition,
     fc.Loss,
+    fc.IncDeadConf,
     ISNULL(pt.Name, '') AS TypCenyName
 FROM dbo.HarmonogramDostaw hd
 LEFT JOIN dbo.FarmerCalc fc
@@ -312,7 +313,7 @@ WHERE hd.Dostawca = @nazwa
 ORDER BY hd.DataOdbioru DESC;";
 
             // Surowe wiersze
-            var surowe = new List<(DateTime Data, decimal? Cena, decimal? Dodatek, decimal? Loss, string TypCeny)>();
+            var surowe = new List<(DateTime Data, decimal? Cena, decimal? Dodatek, decimal? Loss, decimal? PiK, string TypCeny)>();
             try
             {
                 using var cn = new SqlConnection(_conn);
@@ -328,7 +329,8 @@ ORDER BY hd.DataOdbioru DESC;";
                         r.IsDBNull(1) ? null : (decimal?)r.GetDecimal(1),
                         r.IsDBNull(2) ? null : (decimal?)r.GetDecimal(2),
                         r.IsDBNull(3) ? null : (decimal?)r.GetDecimal(3),
-                        r.IsDBNull(4) ? "" : r.GetString(4)
+                        r.IsDBNull(4) ? null : (decimal?)r.GetDecimal(4),
+                        r.IsDBNull(5) ? "" : r.GetString(5)
                     ));
                 }
             }
@@ -337,7 +339,7 @@ ORDER BY hd.DataOdbioru DESC;";
 
             // Scalanie 10-dniowe — najnowsza zaczyna grupę, dodajemy starsze gdy w oknie ≤10 dni
             // licząc od NAJNOWSZEJ dostawy w grupie.
-            var grupy = new List<List<(DateTime Data, decimal? Cena, decimal? Dodatek, decimal? Loss, string TypCeny)>>();
+            var grupy = new List<List<(DateTime Data, decimal? Cena, decimal? Dodatek, decimal? Loss, decimal? PiK, string TypCeny)>>();
             DateTime? glowaGrupy = null;
             foreach (var d in surowe)  // już posortowane DESC po CalcDate
             {
@@ -367,6 +369,9 @@ ORDER BY hd.DataOdbioru DESC;";
                 string czyja = g.Select(x => x.Loss is { } l && l > 0 ? "Hodowca" : "Ubojnia")
                                 .GroupBy(x => x).OrderByDescending(x => x.Count())
                                 .Select(x => x.Key).FirstOrDefault() ?? "Ubojnia";
+                // Konfiskaty hodowca — heurystyka: IncDeadConf (PiK) > 0 → potrącone z hodowcy
+                int hodCnt = g.Count(x => x.PiK is { } p && p > 0);
+                bool konfHodowca = hodCnt >= (g.Count + 1) / 2;  // ≥ połowa grupy
 
                 wynik.Add(new DostawaSugestia
                 {
@@ -377,7 +382,8 @@ ORDER BY hd.DataOdbioru DESC;";
                     Dodatek = dodSr is { } ds ? Math.Round(ds, 2) : null,
                     UbytekProc = lossSr is { } ls ? Math.Round(ls * 100m, 1) : null,
                     TypCeny = typCeny,
-                    CzyjaWaga = czyja
+                    CzyjaWaga = czyja,
+                    KonfiskatyHodowca = konfHodowca
                 });
             }
             return wynik;

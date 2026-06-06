@@ -165,6 +165,7 @@ namespace Kalendarz1.Kontrakty.Models
         public decimal? UbytekProc { get; set; }      // średnia % z grupy (Loss*100)
         public string TypCeny { get; set; } = "";     // najczęstszy w grupie (PriceType.Name)
         public string CzyjaWaga { get; set; } = "";   // najczęstsza (heurystyka)
+        public bool KonfiskatyHodowca { get; set; }   // true gdy w grupie częściej IncDeadConf > 0
 
         public string DataLabel =>
             DataDo == default || Data.Date == DataDo.Date

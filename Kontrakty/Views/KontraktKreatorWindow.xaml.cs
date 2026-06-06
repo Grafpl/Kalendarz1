@@ -175,6 +175,9 @@ namespace Kalendarz1.Kontrakty.Views
             boxDostawyPusto.Visibility = ostatnie.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
             btnZastosujSugestie.IsEnabled = maCo;
 
+            // Auto-wypełnienie pól z najnowszej grupy dostaw (user może później zmienić)
+            if (ostatnie.Count > 0) ZastosujWarunkiZDostawy(ostatnie[0], auto: true);
+
             // historia dostaw w bannerze — kluczowe info inline
             if (_sugestia.MaDane)
             {
@@ -206,6 +209,13 @@ namespace Kalendarz1.Kontrakty.Views
         private void DostawaCard_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
             if ((sender as FrameworkElement)?.Tag is not DostawaSugestia d) return;
+            ZastosujWarunkiZDostawy(d, auto: false);
+        }
+
+        // Wspólna logika: zastosuj wartości z grupy dostaw (klik karty lub auto po wyborze hodowcy).
+        // Auto = true: cisza w stopce (tylko krótki komunikat), nie nadpisuje pól ustawionych ręcznie.
+        private void ZastosujWarunkiZDostawy(DostawaSugestia d, bool auto)
+        {
             var zastosowane = new List<string>();
 
             if (d.UbytekProc is { } u)
@@ -218,7 +228,6 @@ namespace Kalendarz1.Kontrakty.Views
                 txtDodatek.Text = dod.ToString("0.00", Pl);
                 zastosowane.Add($"dodatek {dod:0.00} zł");
             }
-            // Typ ceny — match po nazwie (case-insensitive)
             if (!string.IsNullOrWhiteSpace(d.TypCeny))
             {
                 string tag = MapujTypCenyNaTag(d.TypCeny);
@@ -228,7 +237,6 @@ namespace Kalendarz1.Kontrakty.Views
                     zastosowane.Add($"typ ceny „{d.TypCeny}”");
                 }
             }
-            // Rozliczana waga: Hodowca → NETTO_HODOWCY, Ubojnia → NETTO_UBOJNI
             if (!string.IsNullOrWhiteSpace(d.CzyjaWaga))
             {
                 string tagWaga = d.CzyjaWaga.StartsWith("H", StringComparison.OrdinalIgnoreCase)
@@ -236,10 +244,18 @@ namespace Kalendarz1.Kontrakty.Views
                 SelectByTag(cbWaga, tagWaga);
                 zastosowane.Add($"waga: {d.CzyjaWaga}");
             }
+            // Konfiskaty i padłe — kto pokrywa (heurystyka PiK z grupy)
+            chkKonfiskatyHodowca.IsChecked = d.KonfiskatyHodowca;
+            zastosowane.Add($"konfiskaty: {(d.KonfiskatyHodowca ? "Hodowca" : "Ubojnia")}");
 
-            txtStopka.Text = zastosowane.Count > 0
-                ? $"✔ Zastosowano z dostawy {d.Data:dd.MM.yyyy}: " + string.Join(" · ", zastosowane)
-                : $"ℹ Dostawa {d.Data:dd.MM.yyyy} nie miała danych do zastosowania.";
+            if (auto)
+                txtStopka.Text = zastosowane.Count > 0
+                    ? $"ℹ Auto-wypełniono z ostatnich dostaw (kliknij kartę by zmienić)."
+                    : "";
+            else
+                txtStopka.Text = zastosowane.Count > 0
+                    ? $"✔ Zastosowano z dostawy {d.Data:dd.MM.yyyy}: " + string.Join(" · ", zastosowane)
+                    : $"ℹ Dostawa {d.Data:dd.MM.yyyy} nie miała danych do zastosowania.";
         }
 
         private static string MapujTypCenyNaTag(string nazwa)
