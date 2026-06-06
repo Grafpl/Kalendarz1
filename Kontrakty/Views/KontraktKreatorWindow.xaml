@@ -323,15 +323,28 @@
                                                            Foreground="{StaticResource GreenDark}"/>
                                             </Border>
                                         </StackPanel>
-                                        <Button Grid.Column="2" x:Name="btnSprawdzalka"
-                                                Click="BtnSprawdzalka_Click" VerticalAlignment="Center"
-                                                Style="{StaticResource BtnPrimary}" Height="38" Padding="14,0"
-                                                ToolTip="Otwórz formularz umowy zakupu z prefilowanym hodowcą (tak jak ze Sprawdzalki przy &#x201E;Nowa&#x201D;/edycji)">
+                                        <StackPanel Grid.Column="2" Orientation="Vertical" VerticalAlignment="Center">
                                             <StackPanel Orientation="Horizontal">
-                                                <TextBlock Style="{StaticResource IcoBtn}" Text="&#xE8A5;"/>
-                                                <TextBlock Text="Umowa zakupu" VerticalAlignment="Center" FontSize="12.5"/>
+                                                <Button x:Name="btnSprawdzalka"
+                                                        Click="BtnSprawdzalka_Click"
+                                                        Style="{StaticResource BtnPrimary}" Height="38" Padding="14,0"
+                                                        ToolTip="Inteligentny przycisk: edytuje ostatnią umowę zakupu jeśli jest pending, w przeciwnym razie tworzy nową — z prefilowanym hodowcą">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock x:Name="txtUmowaIco" Style="{StaticResource IcoBtn}" Text="&#xE8A5;"/>
+                                                        <TextBlock x:Name="txtUmowaLabel" Text="Nowa umowa zakupu" VerticalAlignment="Center" FontSize="12.5"/>
+                                                    </StackPanel>
+                                                </Button>
+                                                <Button x:Name="btnHistoriaUmow"
+                                                        Click="BtnHistoriaUmow_Click" Margin="4,0,0,0"
+                                                        Style="{StaticResource Btn}" Height="38" Padding="10,0"
+                                                        ToolTip="Pełna historia umów hodowcy (Sprawdzalka)">
+                                                    <TextBlock Style="{StaticResource IcoBtn}" Text="&#xE81C;" Margin="0"/>
+                                                </Button>
                                             </StackPanel>
-                                        </Button>
+                                            <TextBlock x:Name="txtUmowaInfo" FontSize="11" Foreground="{StaticResource GreenDark}"
+                                                       Opacity="0.75" HorizontalAlignment="Right" Margin="0,4,2,0"
+                                                       TextTrimming="CharacterEllipsis" MaxWidth="240"/>
+                                        </StackPanel>
                                     </Grid>
                                 </Border>
 

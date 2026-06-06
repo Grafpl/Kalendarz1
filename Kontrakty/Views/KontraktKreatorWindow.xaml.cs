@@ -161,6 +161,9 @@ namespace Kalendarz1.Kontrakty.Views
             // #3 Detektor aktywnego kontraktu — wczytaj listę aktywnych i pokaż banner
             await PokazAktywneKontraktyAsync(h.DostawcaId);
 
+            // Smart przycisk Umowa zakupu — wczytaj ostatnią + ustaw label
+            await PokazOstatniaUmoweAsync();
+
             // sugestie warunków (FarmerCalc)
             _sugestia = await _svc.GetSugestieWarunkowAsync(h.DostawcaId);
             bool maCo = _sugestia.MaDane && _sugestia.UbytekSredniProc != null;
@@ -220,24 +223,118 @@ namespace Kalendarz1.Kontrakty.Views
             }
         }
 
-        // Otwiera bezpośrednio UmowyForm (tak samo jak Sprawdzalka przy „Nowa"/edycji)
-        // — formularz umowy zakupu z prefilowanym hodowcą.
+        // Stan ostatniej umowy zakupu — wyznacza tryb smart-przycisku
+        private KontraktyService.OstatniaUmowaZakupu? _ostatniaUmowa;
+
+        // Smart: edytuje ostatnią umowę zakupu jeśli jest pending (≤7 dni i nieukończona),
+        // w przeciwnym razie tworzy nową — z prefilowanym hodowcą.
         private void BtnSprawdzalka_Click(object sender, RoutedEventArgs e)
         {
             if (_hod == null) return;
             try
             {
-                var form = new UmowyForm(initialLp: null, initialIdLibra: _hod.DostawcaId)
+                string? lp = null;
+                string? idLibra = _hod.DostawcaId;
+                if (_ostatniaUmowa is { } u && JestPendingDoEdycji(u))
+                {
+                    lp = u.Lp.ToString();
+                    idLibra = null;     // edycja istniejącej — nie wymuszamy supplier
+                }
+                var form = new UmowyForm(initialLp: lp, initialIdLibra: idLibra)
                 {
                     UserID = Kalendarz1.App.UserID ?? ""
                 };
-                form.Show(); // non-modal — user może flippować między kreatorem a umową zakupu
+                form.FormClosed += async (_, _) => await OdswiezPoUmowieAsync();
+                form.Show();
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Nie udało się otworzyć formularza umowy zakupu: " + ex.Message,
                     "Umowa zakupu", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
+        }
+
+        // Otwiera pełną historię umów hodowcy (Sprawdzalka filtered)
+        private void BtnHistoriaUmow_Click(object sender, RoutedEventArgs e)
+        {
+            if (_hod == null) return;
+            try
+            {
+                var w = new Kalendarz1.WPF.SprawdzalkaUmowWindow(Kalendarz1.App.UserID ?? "") { Owner = this };
+                w.txtSearch.Text = _hod.Nazwa;
+                w.Show();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Nie udało się otworzyć Sprawdzalki: " + ex.Message, "Historia umów",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
+        // Pending = umowa do edycji: data ≤ dziś+2 (jeszcze nadchodzi/dzisiaj) i nie ukończona „Otrzymane"
+        private static bool JestPendingDoEdycji(KontraktyService.OstatniaUmowaZakupu u)
+        {
+            if (u.Otrzymane) return false;
+            return u.DataOdbioru.Date <= DateTime.Today.AddDays(2);
+        }
+
+        // Załaduj ostatnią umowę zakupu i ustaw label/tooltip przycisku
+        private async System.Threading.Tasks.Task PokazOstatniaUmoweAsync()
+        {
+            if (_hod == null)
+            {
+                _ostatniaUmowa = null;
+                txtUmowaLabel.Text = "Nowa umowa zakupu";
+                txtUmowaIco.Text = "";
+                txtUmowaInfo.Text = "";
+                return;
+            }
+            try { _ostatniaUmowa = await _svc.GetOstatniaUmoweZakupuAsync(_hod.Nazwa); }
+            catch { _ostatniaUmowa = null; }
+
+            if (_ostatniaUmowa is not { } u)
+            {
+                txtUmowaLabel.Text = "Nowa umowa zakupu";
+                txtUmowaIco.Text = "";   // Document
+                txtUmowaInfo.Text = "Brak umów zakupu w bazie.";
+                return;
+            }
+
+            string status = u.Otrzymane ? "✓ otrzymane"
+                          : u.Wyslane   ? "📤 wysłane"
+                          : u.Utworzone ? "📝 utworzone"
+                                        : "⏳ oczekuje";
+            string n90 = u.LiczbaWOstatnich90Dniach > 0
+                ? $" · {u.LiczbaWOstatnich90Dniach} {Odmiana(u.LiczbaWOstatnich90Dniach, "umowa", "umowy", "umów")} / 90 dni"
+                : "";
+            txtUmowaInfo.Text = $"Ostatnia: LP {u.Lp} · {u.DataOdbioru:dd.MM.yyyy} · {status}{n90}";
+
+            if (JestPendingDoEdycji(u))
+            {
+                txtUmowaLabel.Text = $"Edytuj LP {u.Lp} ({u.DataOdbioru:dd.MM})";
+                txtUmowaIco.Text = "";   // Edit
+            }
+            else
+            {
+                txtUmowaLabel.Text = "Nowa umowa zakupu";
+                txtUmowaIco.Text = "";   // Document
+            }
+        }
+
+        // Refresh po zamknięciu UmowyForm — zaktualizuj sugestie + ostatnią umowę
+        private async System.Threading.Tasks.Task OdswiezPoUmowieAsync()
+        {
+            if (_hod == null) return;
+            try
+            {
+                _sugestia = await _svc.GetSugestieWarunkowAsync(_hod.DostawcaId);
+                bool maCo = _sugestia.MaDane && _sugestia.UbytekSredniProc != null;
+                txtSugestia.Text = _sugestia.MaDane ? _sugestia.Opis : "";
+                panelSugestia.Visibility = maCo ? Visibility.Visible : Visibility.Collapsed;
+                btnZastosujSugestie.IsEnabled = maCo;
+            }
+            catch { /* refresh to luksus */ }
+            await PokazOstatniaUmoweAsync();
         }
 
         private async void BtnKopiuj_Click(object sender, RoutedEventArgs e)
@@ -651,6 +748,9 @@ namespace Kalendarz1.Kontrakty.Views
         private void ResetujFormularz()
         {
             _hod = null; _poprzedniId = null; _skanPath = null; _sugestia = null;
+            _ostatniaUmowa = null;
+            txtUmowaLabel.Text = "Nowa umowa zakupu";
+            txtUmowaInfo.Text = "";
             foreach (var tb in new[] { txtNazwa, txtNip, txtPesel, txtRegon, txtDowod, txtTelefon, txtEmail,
                                        txtGosp, txtAdres, txtDodatek, txtSkanPlik })
                 tb.Clear();

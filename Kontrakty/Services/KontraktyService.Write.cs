@@ -211,6 +211,53 @@ VALUES (@k, @w, @t, @n, @s, @u, @o);", cn) { CommandTimeout = Timeout };
             return Convert.ToInt32(await cmd.ExecuteScalarAsync());
         }
 
+        // ─── Ostatnia umowa zakupu hodowcy (HarmonogramDostaw, match po nazwie) ─
+        public class OstatniaUmowaZakupu
+        {
+            public int Lp { get; set; }
+            public DateTime DataOdbioru { get; set; }
+            public bool Utworzone { get; set; }
+            public bool Wyslane { get; set; }
+            public bool Otrzymane { get; set; }
+            public int LiczbaWOstatnich90Dniach { get; set; }
+        }
+
+        public async Task<OstatniaUmowaZakupu?> GetOstatniaUmoweZakupuAsync(string nazwaHodowcy)
+        {
+            if (string.IsNullOrWhiteSpace(nazwaHodowcy)) return null;
+            const string sql = @"
+SELECT TOP 1
+    LP, DataOdbioru,
+    ISNULL([Utworzone],0)  AS Utworzone,
+    ISNULL([Wysłane],0)    AS Wyslane,
+    ISNULL([Otrzymane],0)  AS Otrzymane,
+    (SELECT COUNT(*) FROM dbo.HarmonogramDostaw h2
+       WHERE h2.Dostawca = @n AND h2.Bufor = 'Potwierdzony'
+         AND h2.DataOdbioru >= DATEADD(DAY,-90,GETDATE())) AS Cnt90
+FROM dbo.HarmonogramDostaw
+WHERE Dostawca = @n AND Bufor = 'Potwierdzony'
+ORDER BY DataOdbioru DESC, LP DESC;";
+            try
+            {
+                using var cn = new SqlConnection(_conn);
+                await cn.OpenAsync();
+                using var cmd = new SqlCommand(sql, cn) { CommandTimeout = Timeout };
+                cmd.Parameters.AddWithValue("@n", nazwaHodowcy.Trim());
+                using var r = await cmd.ExecuteReaderAsync();
+                if (!await r.ReadAsync()) return null;
+                return new OstatniaUmowaZakupu
+                {
+                    Lp = r.GetInt32(0),
+                    DataOdbioru = r.GetDateTime(1),
+                    Utworzone = !r.IsDBNull(2) && Convert.ToBoolean(r.GetValue(2)),
+                    Wyslane = !r.IsDBNull(3) && Convert.ToBoolean(r.GetValue(3)),
+                    Otrzymane = !r.IsDBNull(4) && Convert.ToBoolean(r.GetValue(4)),
+                    LiczbaWOstatnich90Dniach = r.IsDBNull(5) ? 0 : r.GetInt32(5)
+                };
+            }
+            catch (SqlException) { return null; }
+        }
+
         // ─── Quick-copy: ostatni kontrakt danego hodowcy (do „kopiuj z poprzedniego") ─
         public async Task<int?> GetOstatniKontraktIdHodowcyAsync(string dostawcaId)
         {
