@@ -79,7 +79,12 @@ namespace Kalendarz1.Kontrakty.Views
             {
                 var dane = await _svc.GetHodowcyAsync(_prefillDostawcaId);
                 var match = dane.FirstOrDefault(h => h.DostawcaId == _prefillDostawcaId) ?? dane.FirstOrDefault();
-                if (match != null) { lstHodowcy.ItemsSource = dane; lstHodowcy.SelectedItem = match; }
+                if (match != null)
+                {
+                    lstHodowcy.ItemsSource = dane;
+                    lstHodowcy.SelectedItem = match;
+                    lstHodowcy.Visibility = Visibility.Visible;
+                }
             }
 
             // #4 Smart „Obowiązuje do" — eventy na od/typ/do
@@ -110,10 +115,19 @@ namespace Kalendarz1.Kontrakty.Views
 
         private async System.Threading.Tasks.Task SzukajHodAsync()
         {
+            // Listbox pokazujemy dopiero gdy user zacznie pisać — bez frazy nic nie ładujemy
+            if (string.IsNullOrWhiteSpace(txtSzukaj.Text))
+            {
+                lstHodowcy.ItemsSource = null;
+                lstHodowcy.Visibility = Visibility.Collapsed;
+                txtCount.Text = "Wpisz frazę, by wyszukać hodowcę…";
+                return;
+            }
             var dane = await _svc.GetHodowcyAsync(txtSzukaj.Text);
             lstHodowcy.ItemsSource = dane;
+            lstHodowcy.Visibility = dane.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
             txtCount.Text = dane.Count == 0
-                ? (string.IsNullOrWhiteSpace(txtSzukaj.Text) ? "Wpisz frazę, by wyszukać hodowcę…" : "Brak wyników")
+                ? "Brak wyników"
                 : $"{dane.Count}{(dane.Count >= 60 ? " (pierwsze 60 — uściślij)" : "")} wyników";
         }
 
@@ -302,7 +316,7 @@ namespace Kalendarz1.Kontrakty.Views
             txtStopka.Text = $"✔ Skopiowano warunki i {_cykle.Count} cykli z {det.NumerKontraktu}.";
         }
 
-        // #1 — GUS / Biała Lista MF: pobierz nazwę + REGON + adres po NIP
+        // #1 — GUS / Biała Lista MF: pobierz dane + pokaż dialog z checkboxami do wyboru pól
         private async void BtnGus_Click(object sender, RoutedEventArgs e)
         {
             string nip = (txtNip.Text ?? "").Trim();
@@ -315,30 +329,35 @@ namespace Kalendarz1.Kontrakty.Views
             btnGus.IsEnabled = false;
             string staryLabel = txtGusLabel.Text;
             txtGusLabel.Text = "Pobieram…";
+            GusApiService.GusResult r;
             try
             {
-                var r = await GusApiService.PobierzPoNipAsync(nip);
-                if (!r.Znaleziono)
-                {
-                    MessageBox.Show(r.Komunikat ?? "Nie znaleziono podmiotu w MF.",
-                        "GUS / Biała Lista MF", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    return;
-                }
-                // nadpisuj tylko puste pola — szanujemy ręczne wpisy
-                int zmian = 0;
-                if (string.IsNullOrWhiteSpace(txtNazwa.Text) && !string.IsNullOrWhiteSpace(r.Nazwa)) { txtNazwa.Text = r.Nazwa; zmian++; }
-                if (string.IsNullOrWhiteSpace(txtRegon.Text) && !string.IsNullOrWhiteSpace(r.Regon)) { txtRegon.Text = r.Regon; zmian++; }
-                if (string.IsNullOrWhiteSpace(txtAdres.Text) && !string.IsNullOrWhiteSpace(r.Adres)) { txtAdres.Text = r.Adres; zmian++; }
-                string statusInfo = string.IsNullOrEmpty(r.StatusVat) ? "" : $" · VAT: {r.StatusVat}";
-                txtStopka.Text = zmian > 0
-                    ? $"✔ Pobrano z MF: {r.Nazwa}{statusInfo} (uzupełniono {zmian} {Odmiana(zmian, "pole", "pola", "pól")})."
-                    : $"ℹ MF zwrócił dane, ale wszystkie pola były już wypełnione.{statusInfo}";
+                r = await GusApiService.PobierzPoNipAsync(nip);
             }
             finally
             {
                 txtGusLabel.Text = staryLabel;
                 btnGus.IsEnabled = Walidatory.NipPoprawny(txtNip.Text);
             }
+            if (!r.Znaleziono)
+            {
+                MessageBox.Show(r.Komunikat ?? "Nie znaleziono podmiotu w MF.",
+                    "GUS / Biała Lista MF", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var dlg = new GusWyborDialog(nip, r, txtNazwa.Text, txtRegon.Text, txtAdres.Text) { Owner = this };
+            if (dlg.ShowDialog() != true) return;
+
+            int zmian = 0;
+            if (dlg.WybranoNazwe && !string.IsNullOrWhiteSpace(dlg.Nazwa)) { txtNazwa.Text = dlg.Nazwa; zmian++; }
+            if (dlg.WybranoRegon && !string.IsNullOrWhiteSpace(dlg.Regon)) { txtRegon.Text = dlg.Regon; zmian++; }
+            if (dlg.WybranoAdres && !string.IsNullOrWhiteSpace(dlg.Adres)) { txtAdres.Text = dlg.Adres; zmian++; }
+
+            string statusInfo = string.IsNullOrEmpty(r.StatusVat) ? "" : $" · VAT: {r.StatusVat}";
+            txtStopka.Text = zmian > 0
+                ? $"✔ Z MF: {r.Nazwa}{statusInfo} — uzupełniono {zmian} {Odmiana(zmian, "pole", "pola", "pól")}."
+                : $"ℹ Nie zaznaczono żadnego pola do uzupełnienia.{statusInfo}";
         }
 
         // ── Cykle wstawień ──────────────────────────────────────────────────

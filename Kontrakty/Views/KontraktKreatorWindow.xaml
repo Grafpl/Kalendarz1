@@ -218,11 +218,15 @@
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- ═══ COL 1: HODOWCA + PRODUCENT ═══ -->
-                <StackPanel x:Name="col1Panel" Grid.Column="0">
+                <!-- ═══ COL 1: HODOWCA + PRODUCENT — Producent rozciągnięty do spodu ═══ -->
+                <Grid x:Name="col1Panel" Grid.Column="0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
 
                     <!-- 🔎 ZNAJDŹ HODOWCĘ (pasek #2E7D32) -->
-                    <Border Style="{StaticResource CardElev}" Padding="0">
+                    <Border Grid.Row="0" Style="{StaticResource CardElev}" Padding="0">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="6"/>
@@ -267,6 +271,7 @@
                                 <TextBlock x:Name="txtCount" FontSize="12" Foreground="{StaticResource Muted}" Margin="2,7,0,4"/>
 
                                 <ListBox x:Name="lstHodowcy" Height="180" SelectionChanged="LstHodowcy_Changed"
+                                         Visibility="Collapsed"
                                          ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                                     <ListBox.ItemTemplate>
                                         <DataTemplate>
@@ -360,8 +365,8 @@
                         </Grid>
                     </Border>
 
-                    <!-- 🧑‍🌾 DANE PRODUCENTA (pasek #2E7D32) -->
-                    <Border Style="{StaticResource CardElev}" Padding="0" Margin="0,12,0,0">
+                    <!-- 🧑‍🌾 DANE PRODUCENTA (pasek #2E7D32) — rozciągnięta na dół -->
+                    <Border Grid.Row="1" Style="{StaticResource CardElev}" Padding="0" Margin="0,12,0,0" VerticalAlignment="Stretch">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="6"/>
@@ -379,7 +384,7 @@
 
                                 <Grid Margin="0,2,0,0">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/><ColumnDefinition Width="10"/>
+                                        <ColumnDefinition Width="1.6*"/><ColumnDefinition Width="10"/>
                                         <ColumnDefinition Width="*"/><ColumnDefinition Width="10"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
@@ -445,13 +450,17 @@
                             </StackPanel>
                         </Grid>
                     </Border>
-                </StackPanel>
+                </Grid>
 
-                <!-- ═══ COL 2: UMOWA + OKRES + WARUNKI ═══ -->
-                <StackPanel x:Name="col2Panel" Grid.Column="2">
+                <!-- ═══ COL 2: UMOWA + OKRES + WARUNKI — Warunki rozciągnięte do spodu ═══ -->
+                <Grid x:Name="col2Panel" Grid.Column="2">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
 
                     <!-- 📄 UMOWA I OKRES (pasek #2563EB) -->
-                    <Border Style="{StaticResource CardElev}" Padding="0">
+                    <Border Grid.Row="0" Style="{StaticResource CardElev}" Padding="0">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="6"/>
@@ -522,8 +531,8 @@
                         </Grid>
                     </Border>
 
-                    <!-- 💰 WARUNKI HANDLOWE + ☑ KONFISKATY (pasek #D97706) -->
-                    <Border Style="{StaticResource CardElev}" Padding="0" Margin="0,12,0,0">
+                    <!-- 💰 WARUNKI HANDLOWE + ☑ KONFISKATY (pasek #D97706) — rozciągnięta na dół -->
+                    <Border Grid.Row="1" Style="{StaticResource CardElev}" Padding="0" Margin="0,12,0,0" VerticalAlignment="Stretch">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="6"/>
@@ -653,7 +662,7 @@
                             </StackPanel>
                         </Grid>
                     </Border>
-                </StackPanel>
+                </Grid>
 
                 <!-- ═══ COL 3: CYKLE + SKAN + WALIDACJA + PRZYCISKI — wysokość zsynchronizowana z col 2 ═══ -->
                 <Grid Grid.Column="4" VerticalAlignment="Top"
