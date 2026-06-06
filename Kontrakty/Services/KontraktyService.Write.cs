@@ -392,6 +392,9 @@ WHERE w.KontraktId = @id ORDER BY w.NrWersji DESC;";
                 int kontraktId = await InsertNaglowekAsync(cn, tx, h, rok, lp, numer, userId);
                 int wersjaId = await InsertWersjaAsync(cn, tx, kontraktId, 1, true, w, userId);
                 await InsertHarmonogramAsync(cn, tx, kontraktId, wersjaId, cykle);
+                // Wstawienia → tabela centralna dbo.WstawieniaKurczakow z KontraktID
+                // (best-effort — gdyby tabela nie istniała lub kolumna brakowała, łapiemy w środku)
+                await InsertCykleDoWstawienAsync(cn, tx, kontraktId, h.NazwaHodowcySnapshot ?? "", w.TypCeny, cykle, userId);
                 await LogAuditAsync(cn, tx, kontraktId, wersjaId, "Kontrakt", "UTWORZENIE", "Numer", null, numer, userId);
 
                 tx.Commit();
@@ -401,6 +404,68 @@ WHERE w.KontraktId = @id ORDER BY w.NrWersji DESC;";
             {
                 try { tx.Rollback(); } catch { }
                 throw;
+            }
+        }
+
+        // ─── INSERT cykli do centralnej tabeli dbo.WstawieniaKurczakow + KontraktID ──
+        // Każdy cykl z DataWstawienia i IloscWstawiona staje się wierszem w Wstawieniach.
+        // KontraktID = nowy Id kontraktu (wymaga uruchomienia migracji 07_AddKontraktID_Wstawienia.sql).
+        // Best-effort: jeśli tabela/kolumna nieobecna → cicho pomijamy (kontrakt i tak się zapisze).
+        private async Task InsertCykleDoWstawienAsync(
+            SqlConnection cn, SqlTransaction tx,
+            int kontraktId, string nazwaHodowcy, string typCenyTag,
+            List<HarmonogramCykl> cykle, string userId)
+        {
+            if (cykle == null || cykle.Count == 0) return;
+
+            // Tabela istnieje?
+            bool maTabele;
+            using (var chk = new SqlCommand(
+                "SELECT CASE WHEN OBJECT_ID('dbo.WstawieniaKurczakow','U') IS NOT NULL THEN 1 ELSE 0 END",
+                cn, tx) { CommandTimeout = Timeout })
+                maTabele = Convert.ToInt32(await chk.ExecuteScalarAsync()) == 1;
+            if (!maTabele) return;
+
+            // Kolumna KontraktID istnieje (po migracji 07)?
+            bool maKolumne;
+            using (var chk = new SqlCommand(
+                "SELECT CASE WHEN COL_LENGTH('dbo.WstawieniaKurczakow','KontraktID') IS NOT NULL THEN 1 ELSE 0 END",
+                cn, tx) { CommandTimeout = Timeout })
+                maKolumne = Convert.ToInt32(await chk.ExecuteScalarAsync()) == 1;
+
+            string sql = maKolumne ? @"
+INSERT INTO dbo.WstawieniaKurczakow
+    (Lp, Dostawca, DataWstawienia, IloscWstawienia, DataUtw, KtoStwo, Uwagi, TypUmowy, TypCeny, KontraktID)
+VALUES (@Lp, @D, @DW, @Il, SYSDATETIME(), @Kto, @Uw, @TU, @TC, @KID);" : @"
+INSERT INTO dbo.WstawieniaKurczakow
+    (Lp, Dostawca, DataWstawienia, IloscWstawienia, DataUtw, KtoStwo, Uwagi, TypUmowy, TypCeny)
+VALUES (@Lp, @D, @DW, @Il, SYSDATETIME(), @Kto, @Uw, @TU, @TC);";
+
+            foreach (var c in cykle)
+            {
+                if (c.DataWstawienia is not { } data) continue;
+                if (c.IloscWstawiona is not { } ilosc || ilosc <= 0) continue;
+
+                long lpW;
+                using (var cmdMax = new SqlCommand(
+                    "SELECT ISNULL(MAX(Lp), 0) FROM dbo.WstawieniaKurczakow WITH (UPDLOCK, HOLDLOCK)",
+                    cn, tx) { CommandTimeout = Timeout })
+                {
+                    object v = await cmdMax.ExecuteScalarAsync();
+                    lpW = v == DBNull.Value ? 1 : Convert.ToInt64(v) + 1;
+                }
+
+                using var cmd = new SqlCommand(sql, cn, tx) { CommandTimeout = Timeout };
+                cmd.Parameters.AddWithValue("@Lp", lpW);
+                cmd.Parameters.AddWithValue("@D", nazwaHodowcy);
+                cmd.Parameters.AddWithValue("@DW", data);
+                cmd.Parameters.AddWithValue("@Il", ilosc);
+                cmd.Parameters.AddWithValue("@Kto", userId ?? "");
+                cmd.Parameters.AddWithValue("@Uw", $"Z kontraktu (cykl {c.NrCyklu})");
+                cmd.Parameters.AddWithValue("@TU", "Kontrakt");
+                cmd.Parameters.AddWithValue("@TC", typCenyTag ?? "");
+                if (maKolumne) cmd.Parameters.AddWithValue("@KID", kontraktId);
+                await cmd.ExecuteNonQueryAsync();
             }
         }
 
