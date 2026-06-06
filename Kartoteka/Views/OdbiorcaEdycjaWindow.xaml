@@ -136,13 +136,17 @@
                             <TextBox x:Name="TxtCzasRozladunku" Padding="8,6" Width="80"
                                      BorderBrush="#BBF7D0" TextAlignment="Center"
                                      FontSize="14" FontWeight="SemiBold"
-                                     ToolTip="Wpisz minuty (5-240). Pusto = użyj 30 min domyślnych."/>
+                                     ToolTip="Wpisz minuty (5-240). Pusto = z historii Webfleet lub 30 min domyślnych."/>
                             <TextBlock Text="min" VerticalAlignment="Center" Margin="6,0,0,0" Foreground="#6B7280"/>
                         </StackPanel>
                     </StackPanel>
                     <StackPanel Grid.Column="2" VerticalAlignment="Bottom" Margin="14,0,0,2">
                         <TextBlock x:Name="TxtCzasRozladunkuHint" FontSize="10" Foreground="#9CA3AF" TextWrapping="Wrap"
-                                   Text="Średni czas postoju u tego klienta. Edytor kursu używa do szacowania powrotu. Default 30 min."/>
+                                   Text="Średni czas postoju u tego klienta. Edytor kursu używa do szacowania powrotu."/>
+                        <Border x:Name="TxtHistoriaWebfleet" Visibility="Collapsed" Margin="0,4,0,0"
+                                Background="#EFF6FF" BorderBrush="#93C5FD" BorderThickness="1" CornerRadius="4" Padding="6,4">
+                            <TextBlock x:Name="TxtHistoriaWebfleetTxt" FontSize="10" Foreground="#1E40AF" TextWrapping="Wrap"/>
+                        </Border>
                     </StackPanel>
                 </Grid>
 

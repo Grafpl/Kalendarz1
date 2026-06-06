@@ -84,16 +84,27 @@ namespace Kalendarz1.Transport.Services
                     parametry.Add(p);
                     cmd.Parameters.AddWithValue(p, id);
                 }
+                // Hierarchia źródeł (priorytet po lewej):
+                //   1. KartotekaOdbiorcyDane.CzasRozladunkuMin — ręcznie ustawione przez planistę
+                //   2. EstymacjeRozladunku.MinutyMediana — gdy LiczbaProb >= MinProbDoZaufania (3)
+                //   3. fallback DefaultMin (30) — domyślne, wypełniane na koniec
                 cmd.CommandText = $@"
-                    SELECT IdSymfonia, CzasRozladunkuMin
-                    FROM dbo.KartotekaOdbiorcyDane
-                    WHERE IdSymfonia IN ({string.Join(",", parametry)})
-                      AND CzasRozladunkuMin IS NOT NULL";
+                    SELECT
+                        kod.IdSymfonia,
+                        COALESCE(
+                            kod.CzasRozladunkuMin,
+                            CASE WHEN er.LiczbaProb >= {HistoriaRozladunkuService.MinProbDoZaufania}
+                                 THEN er.MinutyMediana ELSE NULL END
+                        ) AS Min
+                    FROM dbo.KartotekaOdbiorcyDane kod
+                    LEFT JOIN dbo.EstymacjeRozladunku er ON er.KlientId = kod.IdSymfonia
+                    WHERE kod.IdSymfonia IN ({string.Join(",", parametry)})";
 
                 await using var rd = await cmd.ExecuteReaderAsync();
                 while (await rd.ReadAsync())
                 {
                     int id = rd.GetInt32(0);
+                    if (rd.IsDBNull(1)) continue;   // fallback do default w pętli niżej
                     int min = rd.GetInt32(1);
                     if (min >= MinMin && min <= MaxMin)
                         wynik[id] = min;
@@ -135,12 +146,19 @@ namespace Kalendarz1.Transport.Services
                     parametry.Add(p);
                     cmd.Parameters.AddWithValue(p, id);
                 }
+                // Hierarchia: ręczne (karta) > historia (mediana z Webfleet) > default 30
                 cmd.CommandText = $@"
                     SELECT zm.Id,
                            zm.KlientId,
-                           ISNULL(kod.CzasRozladunkuMin, {DefaultMin}) AS Minuty
+                           COALESCE(
+                               kod.CzasRozladunkuMin,
+                               CASE WHEN er.LiczbaProb >= {HistoriaRozladunkuService.MinProbDoZaufania}
+                                    THEN er.MinutyMediana ELSE NULL END,
+                               {DefaultMin}
+                           ) AS Minuty
                     FROM dbo.ZamowieniaMieso zm
                     LEFT JOIN dbo.KartotekaOdbiorcyDane kod ON kod.IdSymfonia = zm.KlientId
+                    LEFT JOIN dbo.EstymacjeRozladunku er ON er.KlientId = zm.KlientId
                     WHERE zm.Id IN ({string.Join(",", parametry)})";
 
                 await using var rd = await cmd.ExecuteReaderAsync();

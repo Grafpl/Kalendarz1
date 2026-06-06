@@ -830,6 +830,59 @@ namespace Kalendarz1.Transport.WPF
         }
 
         // ════════════════════════════════════════════════════════════════════
+        // HISTORIA ROZŁADUNKU — uczenie się czasów z Webfleet (B1)
+        // Pobiera tracks z ostatnich 30 dni, wykrywa wizyty u klientów, liczy medianę.
+        // Wynik zapisany w EstymacjeRozladunku — używane w przyszłych szacowaniach.
+        // ════════════════════════════════════════════════════════════════════
+        private async void BtnOdswiezHistorie_Click(object sender, RoutedEventArgs e)
+        {
+            // Potwierdzenie — to długie zapytanie (30s-3min zależnie od ilości pojazdów)
+            var r = MessageBox.Show(
+                "Pobrać historię tras z Webfleet z ostatnich 30 dni i wyestymować czasy rozładunku per klient?\n\n" +
+                "• Skanuje wszystkie zmapowane pojazdy\n" +
+                "• Wykrywa wizyty u klientów (postój ≤2 km, 5-240 min)\n" +
+                "• Liczy medianę z wszystkich wizyt\n" +
+                "• Wynik zapisany w EstymacjeRozladunku (używany w przyszłych szacowaniach)\n\n" +
+                "Może potrwać 30s-3min.",
+                "Uczy z Webfleet",
+                MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (r != MessageBoxResult.Yes) return;
+
+            BtnOdswiezHistorie.IsEnabled = false;
+            var oryginalnyHint = SzacunekHint.Text;
+            SzacunekHint.Text = "🔄 Pobieram historię z Webfleet…";
+            try
+            {
+                var svc = new Kalendarz1.Transport.Services.HistoriaRozladunkuService();
+                var progress = new Progress<string>(msg => SzacunekHint.Text = $"🔄 {msg}");
+                var wynik = await svc.OdswiezAsync(daysBack: 30, progress);
+
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine($"✓ Gotowe — przetworzono {wynik.PojazdowPrzetworzonych} pojazdów × {wynik.DniPrzetworzonych} dni.");
+                sb.AppendLine($"• Wykryto wizyt: {wynik.WizytaWykrytych}");
+                sb.AppendLine($"• Klientów ze świeżą estymacją: {wynik.KlientowZestymowanych}");
+                if (wynik.Bledy.Count > 0)
+                {
+                    sb.AppendLine($"\n⚠ Ostrzeżenia ({wynik.Bledy.Count}):");
+                    foreach (var b in wynik.Bledy.Take(10))
+                        sb.AppendLine($"  • {b}");
+                    if (wynik.Bledy.Count > 10)
+                        sb.AppendLine($"  ... + {wynik.Bledy.Count - 10} więcej");
+                }
+                MessageBox.Show(sb.ToString(), "Wynik aktualizacji", MessageBoxButton.OK, MessageBoxImage.Information);
+                StatusText.Text = $"✓ Zaktualizowano {wynik.KlientowZestymowanych} estymacji z Webfleet.";
+                SzacunekHint.Text = oryginalnyHint;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd aktualizacji historii:\n\n{ex.Message}", "Błąd",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+                SzacunekHint.Text = oryginalnyHint;
+            }
+            finally { BtnOdswiezHistorie.IsEnabled = true; }
+        }
+
+        // ════════════════════════════════════════════════════════════════════
         // OSTRZEŻENIA — analiza kursu, wykrywanie problemów planowania
         // ════════════════════════════════════════════════════════════════════
         private readonly Services.OstrzezeniaService _ostrzezeniaSvc = new();

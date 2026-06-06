@@ -212,6 +212,9 @@
                                     <Button x:Name="BtnSzacujPowrot" Content="🔮 Szacuj" Style="{StaticResource BtnGhost}" Height="40" Margin="10,0,0,0"
                                             Click="BtnSzacujPowrot_Click"
                                             ToolTip="Oszacuj godzinę powrotu z adresów przystanków (Haversine + czas rozładunku). Możesz nadpisać ręcznie."/>
+                                    <Button x:Name="BtnOdswiezHistorie" Content="🔄 Uczy z Webfleet" Style="{StaticResource BtnGhost}" Height="40" Margin="6,0,0,0"
+                                            Click="BtnOdswiezHistorie_Click"
+                                            ToolTip="Pobierz historię tras z Webfleet (30 dni) i automatycznie wyestymuj czas rozładunku per klient. Uruchom raz dziennie lub gdy dodajesz nowych klientów."/>
                                 </StackPanel>
                                 <TextBlock x:Name="SzacunekHint" Foreground="{StaticResource InkMuted}" FontSize="10.5"
                                            Margin="0,4,0,0" TextWrapping="Wrap" MaxWidth="360"/>

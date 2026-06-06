@@ -45,16 +45,60 @@ namespace Kalendarz1.Kartoteka.Views
             {
                 _czasRozladunkuStary = await _czasRozladunkuSvc.PobierzDlaKlientaAsync(_odbiorca.IdSymfonia);
                 TxtCzasRozladunku.Text = _czasRozladunkuStary?.ToString() ?? "";
-                // Update hint with current state
-                if (_czasRozladunkuStary.HasValue)
-                    TxtCzasRozladunkuHint.Text = $"Ustawione na {_czasRozladunkuStary} min. Wyczyść aby wrócić do domyślnych 30 min.";
-                else
-                    TxtCzasRozladunkuHint.Text = "Brak konfiguracji — szacowanie używa 30 min (domyślne). Wpisz aby spersonalizować.";
+
+                // Pobierz dane z historii Webfleet (info, nie nadpisuje pola)
+                Kalendarz1.Transport.Services.HistoriaRozladunkuService.EstymacjaInfo? historia = null;
+                try { historia = await new Kalendarz1.Transport.Services.HistoriaRozladunkuService().PobierzAsync(_odbiorca.IdSymfonia); }
+                catch { }
+
+                AktualizujHintCzasuRozladunku(historia);
             }
             catch
             {
                 TxtCzasRozladunkuHint.Text = "Nie udało się wczytać czasu rozładunku z bazy.";
             }
+        }
+
+        private void AktualizujHintCzasuRozladunku(Kalendarz1.Transport.Services.HistoriaRozladunkuService.EstymacjaInfo? historia)
+        {
+            // Hint głównej linii — co system użyje
+            if (_czasRozladunkuStary.HasValue)
+            {
+                TxtCzasRozladunkuHint.Text = $"✓ Używane: {_czasRozladunkuStary} min (ręcznie). Wyczyść aby przełączyć na historię / 30 min.";
+            }
+            else if (historia != null && historia.LiczbaProb >= Kalendarz1.Transport.Services.HistoriaRozladunkuService.MinProbDoZaufania)
+            {
+                TxtCzasRozladunkuHint.Text = $"✓ Używane: {historia.MinutyMediana} min (z historii Webfleet). Wpisz aby nadpisać.";
+            }
+            else
+            {
+                TxtCzasRozladunkuHint.Text = "✓ Używane: 30 min (domyślne). Wpisz aby spersonalizować lub odśwież dane historyczne.";
+            }
+
+            // Dodatkowy box — info o historii (jeśli są jakiekolwiek dane)
+            if (historia != null && historia.LiczbaProb > 0)
+            {
+                TxtHistoriaWebfleet.Visibility = Visibility.Visible;
+                string aktualnosc = DniOd(historia.OstatniRefresh);
+                string zaufanie = historia.LiczbaProb >= Kalendarz1.Transport.Services.HistoriaRozladunkuService.MinProbDoZaufania
+                    ? "✓ dane wiarygodne"
+                    : $"⏳ za mało próbek (min {Kalendarz1.Transport.Services.HistoriaRozladunkuService.MinProbDoZaufania})";
+                TxtHistoriaWebfleetTxt.Text = $"📊 Webfleet: {historia.MinutyMediana} min mediana · {historia.LiczbaProb} wizyt · {aktualnosc} · {zaufanie}";
+            }
+            else
+            {
+                TxtHistoriaWebfleet.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private static string DniOd(DateTime kiedy)
+        {
+            var dni = (DateTime.Now.Date - kiedy.Date).TotalDays;
+            if (dni < 1) return "dziś";
+            if (dni < 2) return "wczoraj";
+            if (dni < 7) return $"{(int)dni} dni temu";
+            if (dni < 30) return $"{(int)(dni / 7)} tyg. temu";
+            return $"{(int)(dni / 30)} mies. temu";
         }
 
         private void LoadData()
