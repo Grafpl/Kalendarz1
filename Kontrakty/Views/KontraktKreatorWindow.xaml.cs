@@ -702,7 +702,7 @@ namespace Kalendarz1.Kontrakty.Views
                 Cena = null,                                       // Cena bazowa USUNIĘTA — zawsze null
                 DodatekZl = ParseDec(txtDodatek.Text),
                 ProcentUbytku = ParseDec(txtUbytek.Text),
-                TerminPlatnosciDni = ParseInt(txtTermin.Text) ?? 21,
+                TerminPlatnosciDni = ParseInt(txtTermin.Text) ?? 45,
                 BonusOpis = null,                                         // Bonus USUNIĘTY — zawsze null
                 DostawcaPaszyNazwa = null,                                // Pasza USUNIĘTA — zawsze null
                 DostawcaPisklatNazwa = null,                              // Pisklak USUNIĘTY — zawsze null
@@ -808,7 +808,7 @@ namespace Kalendarz1.Kontrakty.Views
             foreach (var tb in new[] { txtNazwa, txtNip, txtPesel, txtRegon, txtDowod, txtTelefon, txtEmail,
                                        txtGosp, txtAdres, txtDodatek, txtSkanPlik })
                 tb.Clear();
-            txtUbytek.Text = "3,0"; txtTermin.Text = "21"; txtWypow.Text = "90";
+            txtUbytek.Text = "3,0"; txtTermin.Text = "45"; txtWypow.Text = "90";
             cbTyp.SelectedIndex = 0; cbPodmiot.SelectedIndex = 0; cbTypCeny.SelectedIndex = 0; cbWaga.SelectedIndex = 0; cbTypZal.SelectedIndex = 0;
             chkBezterm.IsChecked = false; chkKonfiskatyHodowca.IsChecked = true;
             _cykle.Clear(); OdswiezCykle();

@@ -760,8 +760,8 @@
                                                     <Run Text="💳  " FontSize="15"/>
                                                     <Run Text="Płatność (dni)" Foreground="#6B21A8" FontWeight="SemiBold"/>
                                                 </TextBlock>
-                                                <TextBox x:Name="txtTermin" Text="21"
-                                                         ToolTip="Ile dni od dostawy do zapłaty (typowo 14/21/30)"/>
+                                                <TextBox x:Name="txtTermin" Text="45"
+                                                         ToolTip="Ile dni od dostawy do zapłaty (domyślnie 45; typowo 14/21/30/45/60)"/>
                                             </StackPanel>
                                         </Grid>
                                     </Border>

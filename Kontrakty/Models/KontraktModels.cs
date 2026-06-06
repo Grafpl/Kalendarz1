@@ -410,7 +410,7 @@ namespace Kalendarz1.Kontrakty.Models
         public string TypCeny { get; set; } = "wolnorynkowa";
         public decimal? Cena { get; set; }
         public decimal? DodatekZl { get; set; }
-        public int TerminPlatnosciDni { get; set; } = 21;
+        public int TerminPlatnosciDni { get; set; } = 45;
         public string RozliczanaWaga { get; set; } = "NETTO_HODOWCY";
         public int? MinimalnaIloscSzt { get; set; }
         public bool Ekskluzywnosc { get; set; }

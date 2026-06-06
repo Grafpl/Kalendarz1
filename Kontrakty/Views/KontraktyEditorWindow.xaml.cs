@@ -295,7 +295,7 @@ namespace Kalendarz1.Kontrakty.Views
             w.Cena = ParseDec(txtCena.Text);
             w.DodatekZl = ParseDec(txtDodatek.Text);
             w.ProcentUbytku = ParseDec(txtUbytek.Text);
-            w.TerminPlatnosciDni = ParseInt(txtTermin.Text) ?? 21;
+            w.TerminPlatnosciDni = ParseInt(txtTermin.Text) ?? 45;
             w.MinimalnaIloscSzt = ParseInt(txtMinSzt.Text);
             w.Ekskluzywnosc = chkEkskl.IsChecked == true;
             w.KlauzuleSzczegolne = string.IsNullOrWhiteSpace(txtKlauzule.Text) ? null : txtKlauzule.Text.Trim();
