@@ -123,6 +123,29 @@
                 <TextBlock Text="Preferencje dostawy (notatka)" FontSize="11" Foreground="#6B7280" Margin="0,0,0,4"/>
                 <TextBox x:Name="TxtPreferencjeDostawy" Padding="8,6" BorderBrush="#BBF7D0" Margin="0,0,0,8"/>
 
+                <!-- Typowy czas rozładunku (per klient — używany w szacowaniu powrotu kursu) -->
+                <Grid Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="⏱ Typowy czas rozładunku" FontSize="11" Foreground="#6B7280" Margin="0,0,0,4"/>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBox x:Name="TxtCzasRozladunku" Padding="8,6" Width="80"
+                                     BorderBrush="#BBF7D0" TextAlignment="Center"
+                                     FontSize="14" FontWeight="SemiBold"
+                                     ToolTip="Wpisz minuty (5-240). Pusto = użyj 30 min domyślnych."/>
+                            <TextBlock Text="min" VerticalAlignment="Center" Margin="6,0,0,0" Foreground="#6B7280"/>
+                        </StackPanel>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" VerticalAlignment="Bottom" Margin="14,0,0,2">
+                        <TextBlock x:Name="TxtCzasRozladunkuHint" FontSize="10" Foreground="#9CA3AF" TextWrapping="Wrap"
+                                   Text="Średni czas postoju u tego klienta. Edytor kursu używa do szacowania powrotu. Default 30 min."/>
+                    </StackPanel>
+                </Grid>
+
                 <Border Height="1" Background="#E5E7EB" Margin="0,8,0,16"/>
 
                 <!-- Kategoria -->

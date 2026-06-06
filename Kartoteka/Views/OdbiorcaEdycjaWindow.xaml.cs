@@ -19,6 +19,10 @@ namespace Kalendarz1.Kartoteka.Views
         private readonly HashSet<string> _highlightFields;
         private readonly string _connLibra = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
 
+        // Czas rozładunku — ładowany async po otwarciu okna, zapisywany do osobnej kolumny
+        private int? _czasRozladunkuStary;
+        private readonly Kalendarz1.Transport.Services.CzasRozladunkuService _czasRozladunkuSvc = new();
+
         public OdbiorcaEdycjaWindow(OdbiorcaHandlowca odbiorca, KartotekaService service, string userName)
             : this(odbiorca, service, userName, null) { }
 
@@ -32,6 +36,25 @@ namespace Kalendarz1.Kartoteka.Views
             _highlightFields = highlightFields != null ? new HashSet<string>(highlightFields) : new HashSet<string>();
 
             LoadData();
+            Loaded += async (_, _) => await LoadCzasRozladunkuAsync();
+        }
+
+        private async System.Threading.Tasks.Task LoadCzasRozladunkuAsync()
+        {
+            try
+            {
+                _czasRozladunkuStary = await _czasRozladunkuSvc.PobierzDlaKlientaAsync(_odbiorca.IdSymfonia);
+                TxtCzasRozladunku.Text = _czasRozladunkuStary?.ToString() ?? "";
+                // Update hint with current state
+                if (_czasRozladunkuStary.HasValue)
+                    TxtCzasRozladunkuHint.Text = $"Ustawione na {_czasRozladunkuStary} min. Wyczyść aby wrócić do domyślnych 30 min.";
+                else
+                    TxtCzasRozladunkuHint.Text = "Brak konfiguracji — szacowanie używa 30 min (domyślne). Wpisz aby spersonalizować.";
+            }
+            catch
+            {
+                TxtCzasRozladunkuHint.Text = "Nie udało się wczytać czasu rozładunku z bazy.";
+            }
         }
 
         private void LoadData()
@@ -118,6 +141,20 @@ namespace Kalendarz1.Kartoteka.Views
 
                 await _service.ZapiszDaneWlasneAsync(_odbiorca, _userName);
 
+                // Czas rozładunku — parse + walidacja + zapis (osobna kolumna)
+                var (czasNowy, blad) = ParsujCzasRozladunku(TxtCzasRozladunku.Text);
+                if (blad != null)
+                {
+                    MessageBox.Show(blad, "Niepoprawny czas rozładunku", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    TxtCzasRozladunku.Focus();
+                    return;
+                }
+                if (czasNowy != _czasRozladunkuStary)
+                {
+                    try { await _czasRozladunkuSvc.ZapiszDlaKlientaAsync(_odbiorca.IdSymfonia, czasNowy); }
+                    catch (Exception exCr) { System.Diagnostics.Debug.WriteLine($"[CzasRozladunku.Save] {exCr.Message}"); }
+                }
+
                 // Loguj zmiany do historii
                 try
                 {
@@ -146,6 +183,24 @@ namespace Kalendarz1.Kartoteka.Views
         {
             DialogResult = false;
             Close();
+        }
+
+        /// <summary>
+        /// Parsuje wartość z TxtCzasRozladunku. Pusty string → null (default 30 min).
+        /// Liczba poza zakresem [5, 240] → błąd. Cokolwiek innego → błąd.
+        /// </summary>
+        private static (int? Wartosc, string? Blad) ParsujCzasRozladunku(string text)
+        {
+            string trimmed = (text ?? "").Trim();
+            if (string.IsNullOrEmpty(trimmed)) return (null, null);   // pusto = wyczyść (default 30)
+            if (!int.TryParse(trimmed, out int n))
+                return (null, $"„{trimmed}" + "\" to nie liczba. Wpisz minuty (np. 45) lub zostaw puste dla domyślnych 30 min.");
+            if (n < Kalendarz1.Transport.Services.CzasRozladunkuService.MinMin
+                || n > Kalendarz1.Transport.Services.CzasRozladunkuService.MaxMin)
+                return (null, $"Czas {n} min poza zakresem. Akceptowane: " +
+                    $"{Kalendarz1.Transport.Services.CzasRozladunkuService.MinMin}-" +
+                    $"{Kalendarz1.Transport.Services.CzasRozladunkuService.MaxMin} min.");
+            return (n, null);
         }
     }
 }
