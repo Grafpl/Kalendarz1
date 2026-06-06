@@ -16,6 +16,13 @@ namespace Kalendarz1.Admin.Services
     {
         private readonly string _libraNetConn = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
 
+        // Dolny limit długości stringa Access = liczba modułów w Menu.cs._moduleAccessOrder
+        // (obecnie 82, poz. 0–81).
+        // ⚠️ Kolumna operators.Access to VARCHAR(100) i jest WSPÓŁDZIELONA z systemem LibraNet
+        // (Raporty.exe Pro-Nova) — NIE WOLNO jej zmieniać. Dlatego string Access NIGDY nie może
+        // przekroczyć 100 znaków (twardy limit ~100 modułów). Nie podnosić tej stałej powyżej ~95.
+        private const int ACCESS_STRING_MIN_LEN = 82;
+
         // ─────────────────────────────────────────────────────────────────
         // USERS
         // ─────────────────────────────────────────────────────────────────
@@ -129,20 +136,31 @@ namespace Kalendarz1.Admin.Services
             try
             {
                 var map = GetAccessMap();
-                int len = map.Count > 0 ? map.Keys.Max() + 1 : 65;
-                char[] arr = new char[len];
-                for (int i = 0; i < len; i++) arr[i] = '0';
 
+                // Audit + ZACHOWANIE bitów: pobierz stary access ZANIM zaktualizujemy.
+                string oldAccess = await GetAccessStringAsync(userId);
+
+                // KRYTYCZNE: zapis NIE-NISZCZĄCY. Nigdy nie skracamy stringa i nie zerujemy
+                // pozycji, których ten panel nie pokazuje (moduły z Menu poza tą mapą: 68–81,
+                // a także 13/14/20/21/27/28/36). Inaczej zapis z panelu o krótszej mapie
+                // kasuje uprawnienia do nowszych modułów (objaw: "uprawnienia znikają i wracają").
+                int mapLen = map.Count > 0 ? map.Keys.Max() + 1 : 0;
+                int len = Math.Max(Math.Max(mapLen, oldAccess.Length), ACCESS_STRING_MIN_LEN);
+
+                // START od istniejącego stringa (zachowujemy wszystkie bity spoza tego panelu).
+                char[] arr = new char[len];
+                for (int i = 0; i < len; i++)
+                    arr[i] = (i < oldAccess.Length && oldAccess[i] == '1') ? '1' : '0';
+
+                // Modyfikujemy WYŁĄCZNIE pozycje modułów faktycznie widocznych w panelu.
                 foreach (var module in modules)
                 {
-                    if (!module.HasAccess) continue;
-                    var pos = map.FirstOrDefault(kv => kv.Value == module.Key).Key;
-                    if (pos >= 0 && pos < len) arr[pos] = '1';
+                    var match = map.FirstOrDefault(kv => kv.Value == module.Key);
+                    if (match.Value == null) continue;   // moduł spoza mapy — NIE ruszamy poz. 0
+                    int pos = match.Key;
+                    if (pos >= 0 && pos < len) arr[pos] = module.HasAccess ? '1' : '0';
                 }
                 string newAccess = new string(arr);
-
-                // Audit: pobierz stary access ZANIM zaktualizujemy — żeby zalogować zmianę.
-                string oldAccess = await GetAccessStringAsync(userId);
 
                 await using var conn = new SqlConnection(_libraNetConn);
                 await conn.OpenAsync();
@@ -310,6 +328,7 @@ namespace Kalendarz1.Admin.Services
             {
                 await using var conn = new SqlConnection(_libraNetConn);
                 await conn.OpenAsync();
+                // Kolumna współdzielona z LibraNet — utrzymujemy oryginalny rozmiar VARCHAR(100), NIE zmieniamy.
                 await using var cmd = new SqlCommand("ALTER TABLE operators ALTER COLUMN Access VARCHAR(100)", conn);
                 await cmd.ExecuteNonQueryAsync();
             }
@@ -362,6 +381,7 @@ namespace Kalendarz1.Admin.Services
                 new() { Key = "ListaOfert",           DisplayName = "Archiwum Ofert",        Description = "Historia ofert handlowych",                  Category = "Sprzedaż i CRM", Icon = "📂" },
                 new() { Key = "DashboardOfert",       DisplayName = "Analiza Ofert",         Description = "Statystyki skuteczności ofert",              Category = "Sprzedaż i CRM", Icon = "📊" },
                 new() { Key = "DashboardWyczerpalnosci",DisplayName = "Klasy Wagowe",        Description = "Rozdzielanie klas wagowych",                 Category = "Sprzedaż i CRM", Icon = "⚖️" },
+                new() { Key = "KreatorPuliBilansu",   DisplayName = "Kreator Puli Bilansu",  Description = "Składniki towarów dla puli w Podsumowaniu dnia", Category = "Sprzedaż i CRM", Icon = "🧩" },
                 new() { Key = "PanelReklamacji",      DisplayName = "Reklamacje Klientów",   Description = "Obsługa reklamacji odbiorców",               Category = "Sprzedaż i CRM", Icon = "⚠️" },
                 new() { Key = "ReklamacjeJakosc",     DisplayName = "Reklamacje Jakość",     Description = "Reklamacje wewnętrzne jakości",              Category = "Sprzedaż i CRM", Icon = "🔍" },
                 new() { Key = "StatystykiReklamacji", DisplayName = "Analiza Reklamacji",    Description = "Dashboard analityczny korekt i reklamacji",  Category = "Sprzedaż i CRM", Icon = "📊" },
@@ -377,7 +397,7 @@ namespace Kalendarz1.Admin.Services
 
                 // ─── Opakowania i Transport ───
                 new() { Key = "OpakowaniaWinForm",    DisplayName = "Opakowania Zwrotne",    Description = "Salda opakowań zwrotnych kontrahentów",      Category = "Opakowania i Transport", Icon = "📦" },
-                new() { Key = "UstalanieTranportu",   DisplayName = "Planowanie Transportu", Description = "Organizacja tras dostaw",                    Category = "Opakowania i Transport", Icon = "🚚" },
+                new() { Key = "UstalanieTranportu",   DisplayName = "Planowanie Transportu", Description = "Lista kursów + edytor z ETA i auto-uczeniem z Webfleet (WPF)", Category = "Opakowania i Transport", Icon = "🚚" },
                 new() { Key = "TransportZmiany",      DisplayName = "Zmiany Transportu",     Description = "Zatwierdzanie zmian w transporcie",          Category = "Opakowania i Transport", Icon = "📋" },
                 new() { Key = "Flota",                DisplayName = "Flota Pojazdów",        Description = "Zarządzanie kierowcami i pojazdami",         Category = "Opakowania i Transport", Icon = "🚛" },
                 new() { Key = "MapaFloty",            DisplayName = "Mapa Floty",            Description = "Mapa live GPS pojazdów z Webfleet",          Category = "Opakowania i Transport", Icon = "🗺️" },
@@ -404,6 +424,29 @@ namespace Kalendarz1.Admin.Services
                 new() { Key = "UstawieniaZmianZamowien",DisplayName = "Ustawienia Zmian Zamówień",Description = "Konfiguracja zmian w zamówieniach",     Category = "Administracja Systemu", Icon = "⚙️" },
                 new() { Key = "CentrumNagranAI",      DisplayName = "Centrum nagrań AI",     Description = "Wyszukiwanie zdarzeń w CCTV przez Claude AI",Category = "Administracja Systemu", Icon = "🎥" },
                 new() { Key = "KameryPanelJola",      DisplayName = "Kamery Panelu Joli",    Description = "Konfiguracja 2 kanałów NVR widocznych na Panelu Pani Joli",Category = "Administracja Systemu", Icon = "📹" },
+
+                // ─── Dodane 2026-06-02: aktywne kafelki dotąd niezarządzalne w panelu (poz. 68–79).
+                //     Pominięto moduły "[stare]" (PrognozyUboju/AnalizaTygodniowa/AnalizaWydajnosci/
+                //     AnalizaPrzychodu) oraz bez kafelka (ZSRIR/Customer360/RezerwacjaKlas) i scalone
+                //     opakowania (PodsumowanieSaldOpak/SaldaOdbiorcowOpak → widoczne jako OpakowaniaWinForm).
+                new() { Key = "KontraktyHodowcow",  DisplayName = "Kontrakty Hodowców",        Description = "Rejestr umów z hodowcami: wersjonowanie warunków, compliance ARiMR, alerty wygasania", Category = "Zaopatrzenie i Zakupy", Icon = "📜" },
+                new() { Key = "MapowanieDostawcow", DisplayName = "Mapowanie Dostawców",       Description = "Dopasowanie dostawców LibraNet do kontrahentów Symfonii (auto-match po NIP)",          Category = "Zaopatrzenie i Zakupy", Icon = "🔗" },
+
+                new() { Key = "DOA",                DisplayName = "DOA — Padłe w Transporcie", Description = "Rejestr padłych sztuk (Dead On Arrival) + ranking hodowców wg % DOA",                  Category = "Produkcja i Magazyn", Icon = "💀" },
+                new() { Key = "ColdChain",          DisplayName = "Cold Chain HACCP",          Description = "Monitoring CCP — temperatury parzelnika/chłodni/mroźni + incydenty",                   Category = "Produkcja i Magazyn", Icon = "🛡" },
+                new() { Key = "Traceability",       DisplayName = "Traceability + Recall",     Description = "Śledzenie palet (lot) — reverse trace do hodowcy + zarządzanie wycofaniem (recall)",  Category = "Produkcja i Magazyn", Icon = "🔍" },
+
+                new() { Key = "TransportHub",       DisplayName = "Centrum Transportu",        Description = "Hub: Planowanie + Zmiany do akceptacji + Mapa Floty LIVE w jednym oknie",             Category = "Opakowania i Transport", Icon = "🎛️" },
+                // TransportWPF (bit 77) — usunięto z UI panelu admina (zlewa się z UstalanieTranportu/bit 16).
+                // Pozycja 77 w _moduleAccessOrder zostaje dla kompatybilności bitstringu w operators.Access.
+                // Migracja: użytkownicy z bitem 77=1 dostają bit 16=1 automatycznie (skrypt Admin/SQL/008_TransportWpf_migracja.sql).
+                new() { Key = "MapowanieFlota",     DisplayName = "Mapowanie Webfleet (GPS)",  Description = "Mapuj pojazdy i kierowców z Webfleet GPS do bazy TransportPL",                         Category = "Opakowania i Transport", Icon = "🔗" },
+
+                new() { Key = "Sprawozdania",       DisplayName = "Sprawozdania",              Description = "Tygodniowe sprawozdania zakupu kurczaka + wysyłka do ZSRIR (ministerstwo)",            Category = "Finanse i Zarządzanie", Icon = "📊" },
+                new() { Key = "SprawozdaniaGus",    DisplayName = "Sprawozdania GUS",          Description = "P-02 (produkcja miesięczna) i pozostałe sprawozdania do Portalu GUS — generowanie XML", Category = "Finanse i Zarządzanie", Icon = "📊" },
+
+                new() { Key = "HDIDokumenty",       DisplayName = "HDI — Dokumenty Identyfikacyjne", Description = "Handlowe Dokumenty Identyfikacyjne dla klientów (np. JBB Bałdyga): auto-numeracja, auto-fill z zamówień, PDF", Category = "Sprzedaż i CRM", Icon = "📋" },
+                new() { Key = "HalaLive",           DisplayName = "Hala LIVE",                 Description = "Fullscreen dashboard na TV w hali — pracownicy, żywiec, klasy, wydania, hodowcy (auto-refresh 30s)", Category = "Produkcja i Magazyn", Icon = "📺" },
             };
         }
 
@@ -430,6 +473,12 @@ namespace Kalendarz1.Admin.Services
                 [56] = "KartotekaTowarow",      [57] = "Flota",                 [58] = "ListaPartii",           [59] = "TransportZmiany",
                 [60] = "OpakowaniaWinForm",     [61] = "UstawieniaZmianZamowien",[62] = "MapaFloty",            [63] = "OsCzasuFloty",
                 [64] = "RaportFloty",           [65] = "StatystykiReklamacji",  [66] = "AnalitykaPelna",        [67] = "CentrumNagranAI",
+                // ── poz. 68–81: SYNC z Menu.cs._moduleAccessOrder (jedyne źródło prawdy runtime).
+                // Bez tego zapis z tego panelu ucinał string do 68 znaków i kasował te uprawnienia.
+                [68] = "MapowanieFlota",        [69] = "TransportHub",          [70] = "Sprawozdania",          [71] = "ZSRIR",
+                [72] = "SprawozdaniaGus",       [73] = "Customer360",           [74] = "DOA",                   [75] = "ColdChain",
+                [76] = "Traceability",          [77] = "TransportWPF",          [78] = "KontraktyHodowcow",     [79] = "MapowanieDostawcow",
+                [80] = "KameryPanelJola",       [81] = "KreatorPuliBilansu",   [82] = "HDIDokumenty",          [83] = "HalaLive",
             };
         }
 

@@ -1390,6 +1390,9 @@ namespace Kalendarz1
             /* 78 */ "KontraktyHodowcow",
             /* 79 */ "MapowanieDostawcow",
             /* 80 */ "KameryPanelJola",
+            /* 81 */ "KreatorPuliBilansu",
+            /* 82 */ "HDIDokumenty",
+            /* 83 */ "HalaLive",
         };
 
         private void ParseAccessString(string accessString)
@@ -1562,9 +1565,9 @@ namespace Kalendarz1
                         () => new Platnosci(), "💵", "Płatności"),
 
                     new MenuItemConfig("ZakupPaszyPisklak", "Zakup Paszy i Piskląt",
-                        "Ewidencja zakupów pasz i piskląt dla hodowców kontraktowych",
+                        "Kreator zakupu paszy: paszarnia → ja → hodowca z marżą (LibraNet cennik), kolejka do Symfonii",
                         Color.FromArgb(27, 94, 32), // Ciemny zielony #1B5E20
-                        null, "🌾", "Pasza"),
+                        () => new Kalendarz1.Pasza.KreatorPaszyWindow(), "🌾", "Pasza"),
 
                     new MenuItemConfig("RaportyHodowcow", "Statystyki Hodowców",
                         "Raporty i analizy współpracy z hodowcami - wydajność, jakość, terminowość dostaw",
@@ -1837,6 +1840,15 @@ namespace Kalendarz1
                             return window;
                         }, "⚖️", "Klasy"),
 
+                    new MenuItemConfig("KreatorPuliBilansu", "Kreator Puli Bilansu",
+                        "Definiuje składniki towarów: zamówienia produktów-dzieci (np. Noga, Pałka) doliczane do puli rodzica (np. Ćwiartka) w Podsumowaniu dnia",
+                        Color.FromArgb(22, 160, 133), // Turkusowy #16A085
+                        () => {
+                            var connLibra = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+                            var connHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
+                            return new KreatorPuliBilansuWindow(connLibra, connHandel, App.UserID);
+                        }, "🧩", "Pula Bilansu"),
+
                     new MenuItemConfig("PanelReklamacji", "Reklamacje Klientów",
                         "Rejestracja i obsługa reklamacji jakościowych zgłaszanych przez odbiorców",
                         Color.FromArgb(13, 71, 161), // Ciemny niebieski #0D47A1
@@ -1907,26 +1919,17 @@ namespace Kalendarz1
                         Color.FromArgb(0, 172, 193), // #00ACC1
                         () => new Opakowania.Forms.OpakowaniaForm(), "📦", "Opakowania"),
 
+                    // Planowanie Transportu — pełna wersja WPF (lista kursów + edytor + ETA + auto-uczenie z Webfleet).
+                    // Zastąpiło WinForms TransportMainFormImproved (commit a0162c8). Uprawnienia 1:1.
                     new MenuItemConfig("UstalanieTranportu", "Planowanie Transportu",
-                        "Organizacja tras dostaw do klientów z przydziałem pojazdów i kierowców",
+                        "Organizacja tras dostaw: lista kursów + edytor z ETA (z karty klienta + Webfleet), pakowanie palet, wolne zamówienia",
                         Color.FromArgb(0, 131, 143), // Turkusowy #00838F
-                        () => {
-                            var connTransport = "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True";
-                            var repo = new Transport.Repozytorium.TransportRepozytorium(connTransport, connectionString);
-                            return new Transport.Formularze.TransportMainFormImproved(repo, App.UserID);
-                        }, "🚚", "Transport"),
+                        () => new Kalendarz1.Transport.WPF.PlanowanieTransportuWpfWindow(), "🚚", "Transport"),
 
                     new MenuItemConfig("TransportHub", "Centrum Transportu",
                         "Hub: Planowanie + Zmiany do akceptacji + Mapa Floty LIVE w jednym oknie",
                         Color.FromArgb(38, 116, 122),
                         () => new Kalendarz1.Transport.TransportHubWindow(), "🎛️", "Hub"),
-
-                    // SANDBOX — nowa wersja planowania transportu w czystym WPF (lista + edytor).
-                    // Izolowana od WinForms (TransportMainFormImproved) i WPF Huba; docelowo zastąpi WinForms.
-                    new MenuItemConfig("TransportWPF", "Planowanie Transportu (WPF)",
-                        "NOWA wersja WPF: lista kursów + edytor (tworzenie/modyfikacja) z wolnymi zamówieniami i pakowaniem palet. Szablon — docelowo oficjalna wersja.",
-                        Color.FromArgb(57, 73, 171), // Indygo #3949AB
-                        () => new Kalendarz1.Transport.WPF.PlanowanieTransportuWpfWindow(), "🆕", "Transport WPF"),
 
                     new MenuItemConfig("Flota", "Flota Pojazdów",
                         "Zarządzanie kierowcami, pojazdami, przypisaniami i serwisem - dokumenty, alerty, historia",
