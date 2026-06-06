@@ -164,13 +164,15 @@ namespace Kalendarz1.Kontrakty.Views
             // Smart przycisk Umowa zakupu — wczytaj ostatnią + ustaw label
             await PokazOstatniaUmoweAsync();
 
-            // sugestie warunków (FarmerCalc) + lista ostatnich 4 dostaw do mini-kart
+            // sugestie warunków (FarmerCalc) + lista 3 ostatnich grup dostaw POTWIERDZONYCH
             _sugestia = await _svc.GetSugestieWarunkowAsync(h.DostawcaId);
             var ostatnie = await _svc.GetOstatnieDostawyDoSugestiiAsync(h.DostawcaId, h.Nazwa, 3);
             icDostawy.ItemsSource = ostatnie;
             bool maCo = _sugestia.MaDane && _sugestia.UbytekSredniProc != null;
             txtSugestia.Text = _sugestia.MaDane ? _sugestia.Opis : "";
-            panelSugestia.Visibility = (ostatnie.Count > 0 || maCo) ? Visibility.Visible : Visibility.Collapsed;
+            // Panel widoczny zawsze gdy hodowca wybrany — pokazujemy empty state gdy 0 dostaw
+            panelSugestia.Visibility = Visibility.Visible;
+            boxDostawyPusto.Visibility = ostatnie.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
             btnZastosujSugestie.IsEnabled = maCo;
 
             // historia dostaw w bannerze — kluczowe info inline
@@ -384,7 +386,8 @@ namespace Kalendarz1.Kontrakty.Views
                 icDostawy.ItemsSource = ostatnie;
                 bool maCo = _sugestia.MaDane && _sugestia.UbytekSredniProc != null;
                 txtSugestia.Text = _sugestia.MaDane ? _sugestia.Opis : "";
-                panelSugestia.Visibility = (ostatnie.Count > 0 || maCo) ? Visibility.Visible : Visibility.Collapsed;
+                panelSugestia.Visibility = Visibility.Visible;
+                boxDostawyPusto.Visibility = ostatnie.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
                 btnZastosujSugestie.IsEnabled = maCo;
             }
             catch { /* refresh to luksus */ }
@@ -822,6 +825,7 @@ namespace Kalendarz1.Kontrakty.Views
             txtNip.ClearValue(BorderBrushProperty); txtPesel.ClearValue(BorderBrushProperty); txtGosp.ClearValue(BorderBrushProperty);
             panelSugestia.Visibility = Visibility.Collapsed;
             icDostawy.ItemsSource = null;
+            boxDostawyPusto.Visibility = Visibility.Collapsed;
             btnKopiuj.Visibility = Visibility.Collapsed;
             btnZIstniejacego.Visibility = Visibility.Collapsed;
             boxAktywneKontrakty.Visibility = Visibility.Collapsed;
@@ -884,21 +888,37 @@ namespace Kalendarz1.Kontrakty.Views
             _ustawiamDoAuto = false;
         }
 
-        // ── #12 Drag&drop PDF na karcie SKAN ─────────────────────────────────
+        // ── #12 Drag&drop PDF na karcie SKAN — z visual feedback ─────────────
+        private static readonly Brush SkanStripeNormal  = new SolidColorBrush(Color.FromRgb(0x94, 0xA3, 0xB8));
+        private static readonly Brush SkanStripeActive  = new SolidColorBrush(Color.FromRgb(0x0D, 0x94, 0x88));
+        private static readonly Brush SkanBgNormal      = Brushes.Transparent;
+        private static readonly Brush SkanBgActive      = new SolidColorBrush(Color.FromRgb(0xEC, 0xFD, 0xF5));
+
         private void SkanBorder_DragOver(object sender, DragEventArgs e)
         {
             e.Effects = DragDropEffects.None;
+            bool ok = false;
             if (e.Data.GetDataPresent(DataFormats.FileDrop))
             {
                 var files = (string[])e.Data.GetData(DataFormats.FileDrop);
                 if (files.Length > 0 && files[0].EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+                {
                     e.Effects = DragDropEffects.Copy;
+                    ok = true;
+                }
             }
+            SkanPodswietl(ok);
             e.Handled = true;
+        }
+
+        private void SkanBorder_DragLeave(object sender, DragEventArgs e)
+        {
+            SkanPodswietl(false);
         }
 
         private void SkanBorder_Drop(object sender, DragEventArgs e)
         {
+            SkanPodswietl(false);
             if (!e.Data.GetDataPresent(DataFormats.FileDrop)) return;
             var files = (string[])e.Data.GetData(DataFormats.FileDrop);
             if (files.Length == 0) return;
@@ -911,7 +931,14 @@ namespace Kalendarz1.Kontrakty.Views
             }
             _skanPath = plik;
             txtSkanPlik.Text = Path.GetFileName(plik);
+            txtStopka.Text = $"✔ Załączono: {Path.GetFileName(plik)}";
             e.Handled = true;
+        }
+
+        private void SkanPodswietl(bool aktywny)
+        {
+            borderSkanStripe.Background = aktywny ? SkanStripeActive : SkanStripeNormal;
+            borderSkan.Background = aktywny ? SkanBgActive : SkanBgNormal;
         }
 
         // ── #14 Auto-zapis draft i przywracanie ──────────────────────────────

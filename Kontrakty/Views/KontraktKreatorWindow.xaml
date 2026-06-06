@@ -163,6 +163,21 @@
                 </Setter>
             </Style>
 
+            <!-- ═════ Pole-miniaturka (Warunki handlowe): subtelny hover na akcent ═════ -->
+            <Style x:Key="FieldCard" TargetType="Border">
+                <Setter Property="CornerRadius" Value="10"/>
+                <Setter Property="Background" Value="White"/>
+                <Setter Property="BorderBrush" Value="#E2E8F0"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Padding" Value="0"/>
+                <Style.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="BorderBrush" Value="#94A3B8"/>
+                        <Setter Property="Background" Value="#FAFBFC"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+
             <!-- ═════ Przycisk teal dla cykli (Dodaj wstawienie) ═════ -->
             <Style x:Key="BtnTeal" TargetType="Button" BasedOn="{StaticResource Btn}">
                 <Setter Property="Foreground" Value="White"/>
@@ -665,6 +680,16 @@
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
+                                        <Border x:Name="boxDostawyPusto" Visibility="Collapsed" Margin="0,2,0,0"
+                                                Background="#FAFAFA" CornerRadius="8" Padding="14,12"
+                                                BorderBrush="#E5E7EB" BorderThickness="1">
+                                            <StackPanel HorizontalAlignment="Center">
+                                                <TextBlock Text="📭" FontSize="22" HorizontalAlignment="Center" Opacity="0.5"/>
+                                                <TextBlock Text="Brak potwierdzonych dostaw w ostatnich 12 miesiącach"
+                                                           FontSize="11.5" Foreground="#94A3B8" FontStyle="Italic"
+                                                           HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                                            </StackPanel>
+                                        </Border>
                                         <TextBlock x:Name="txtSugestia" FontSize="11.5" Foreground="#64748B"
                                                    Margin="2,8,0,0" TextWrapping="Wrap" FontStyle="Italic"/>
                                     </StackPanel>
@@ -684,8 +709,7 @@
                                     </Grid.ColumnDefinitions>
 
                                     <!-- [0,0] Typ ceny — indygo -->
-                                    <Border Grid.Row="0" Grid.Column="0" CornerRadius="10" Background="White"
-                                            BorderBrush="#E2E8F0" BorderThickness="1" Padding="0">
+                                    <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource FieldCard}">
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="5"/>
@@ -708,8 +732,7 @@
                                     </Border>
 
                                     <!-- [0,1] Dodatek — szmaragd -->
-                                    <Border Grid.Row="0" Grid.Column="2" CornerRadius="10" Background="White"
-                                            BorderBrush="#E2E8F0" BorderThickness="1" Padding="0">
+                                    <Border Grid.Row="0" Grid.Column="2" Style="{StaticResource FieldCard}">
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="5"/>
@@ -727,8 +750,7 @@
                                     </Border>
 
                                     <!-- [1,0] Ubytek — czerwień + 🚛 -->
-                                    <Border Grid.Row="2" Grid.Column="0" CornerRadius="10" Background="White"
-                                            BorderBrush="#E2E8F0" BorderThickness="1" Padding="0">
+                                    <Border Grid.Row="2" Grid.Column="0" Style="{StaticResource FieldCard}">
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="5"/>
@@ -747,8 +769,7 @@
                                     </Border>
 
                                     <!-- [1,1] Płatność — fiolet -->
-                                    <Border Grid.Row="2" Grid.Column="2" CornerRadius="10" Background="White"
-                                            BorderBrush="#E2E8F0" BorderThickness="1" Padding="0">
+                                    <Border Grid.Row="2" Grid.Column="2" Style="{StaticResource FieldCard}">
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="5"/>
@@ -776,8 +797,7 @@
                                     </Grid.ColumnDefinitions>
 
                                     <!-- LEWA: Rozliczana waga — granatowy akcent -->
-                                    <Border Grid.Column="0" CornerRadius="10" Background="White"
-                                            BorderBrush="#E2E8F0" BorderThickness="1" Padding="0">
+                                    <Border Grid.Column="0" Style="{StaticResource FieldCard}">
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="5"/>
@@ -992,15 +1012,15 @@
                     </Border>
 
                     <!-- 📎 SKAN / ZAŁĄCZNIK (pasek #94A3B8, drag&drop PDF) -->
-                    <Border Grid.Row="1" Style="{StaticResource CardElev}" Padding="0" Margin="0,12,0,0"
-                            AllowDrop="True" PreviewDragOver="SkanBorder_DragOver" Drop="SkanBorder_Drop"
+                    <Border x:Name="borderSkan" Grid.Row="1" Style="{StaticResource CardElev}" Padding="0" Margin="0,12,0,0"
+                            AllowDrop="True" PreviewDragOver="SkanBorder_DragOver" PreviewDragLeave="SkanBorder_DragLeave" Drop="SkanBorder_Drop"
                             ToolTip="Przeciągnij plik PDF tutaj lub kliknij „Wybierz&#x201D;">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="6"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-                            <Border Grid.Column="0" Background="#94A3B8" CornerRadius="13,0,0,13"/>
+                            <Border x:Name="borderSkanStripe" Grid.Column="0" Background="#94A3B8" CornerRadius="13,0,0,13"/>
                             <StackPanel Grid.Column="1" Margin="16,16,18,16">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Style="{StaticResource Ico}" Text="&#xE723;" Foreground="#475569"/>
