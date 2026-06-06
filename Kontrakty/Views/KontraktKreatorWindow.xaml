@@ -119,12 +119,12 @@
                 </Setter>
             </Style>
 
-            <!-- ═════ Kafelek cyklu z hover (subtelna interakcja) ═════ -->
+            <!-- ═════ Kafelek cyklu z hover (subtelna interakcja, 2-kolumnowy grid) ═════ -->
             <Style x:Key="CycleTile" TargetType="Border">
                 <Setter Property="Background" Value="White"/>
                 <Setter Property="CornerRadius" Value="12"/>
-                <Setter Property="Margin" Value="0,0,0,10"/>
-                <Setter Property="Padding" Value="16,13"/>
+                <Setter Property="Margin" Value="0,0,8,8"/>
+                <Setter Property="Padding" Value="14,11"/>
                 <Setter Property="BorderBrush" Value="{StaticResource Line}"/>
                 <Setter Property="BorderThickness" Value="1"/>
                 <Style.Triggers>
@@ -914,6 +914,11 @@
 
                                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,0,4,0">
                                     <ItemsControl x:Name="icCykle">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <UniformGrid Columns="2"/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
                                                 <Border Style="{StaticResource CycleTile}">
