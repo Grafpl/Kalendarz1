@@ -678,6 +678,10 @@ namespace Kalendarz1.Transport.WPF
                 var powrot = ZaokraglijDo5(wynik.EstimatedReturnTime);
                 TxtPowrot.Text = powrot.ToString(@"hh\:mm");
 
+                // Zapisz dane do Gantt + narysuj
+                _ostatnieSzacowanie = (wyjazd, wynik);
+                RysujGantt();
+
                 int bezGps = stops.Count(s => s.Latitude == 0 || s.Longitude == 0);
                 double km = wynik.TotalDistanceKm + wynik.ReturnDistanceKm;
                 var dur = wynik.TotalDuration;
@@ -707,6 +711,121 @@ namespace Kalendarz1.Transport.WPF
             int m = (int)Math.Round(t.TotalMinutes / 5.0) * 5;
             m = Math.Max(0, Math.Min(24 * 60 - 5, m));
             return TimeSpan.FromMinutes(m);
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // GANTT WIZUALNY — pasek z blokami jazda/rozładunek + skala godzin
+        // Generowany po „🔮 Szacuj". Bloki proporcjonalne do czasu trwania.
+        // Tooltip per blok: nazwa klienta / czas / dystans.
+        // ════════════════════════════════════════════════════════════════════
+        private (TimeSpan wyjazd, EtaService.RouteEtaResult wynik)? _ostatnieSzacowanie;
+
+        private void GanttCanvas_SizeChanged(object sender, SizeChangedEventArgs e) => RysujGantt();
+
+        private void RysujGantt()
+        {
+            if (GanttCanvas == null) return;
+            GanttCanvas.Children.Clear();
+            if (_ostatnieSzacowanie == null) return;
+            var (wyjazd, wynik) = _ostatnieSzacowanie.Value;
+
+            double width = GanttCanvas.ActualWidth;
+            if (width < 50) return;   // jeszcze nie zlayoutowane
+
+            GanttContainer.Visibility = Visibility.Visible;
+
+            // Czas całkowity: od wyjazdu (przed załadunkiem) do powrotu
+            // EtaService po wyjeździe dorzuca LoadMinutes (30 min) załadunku przed pierwszym dojazdem
+            TimeSpan start = wyjazd;
+            TimeSpan koniec = wynik.EstimatedReturnTime;
+            double calyMin = (koniec - start).TotalMinutes;
+            if (calyMin <= 0) return;
+
+            const double rowHeight = 24;
+            const double rowY = 4;
+            const double textY = rowY + rowHeight + 4;
+
+            double PxNaMinuty(double min) => Math.Max(0, min / calyMin * width);
+
+            // 1. Załadunek w bazie (LoadMinutes = 30 min na początku)
+            double xKursor = 0;
+            double zaladPx = PxNaMinuty(EtaService.LoadMinutes);
+            DodajBlok(xKursor, zaladPx, rowY, rowHeight, "#94A3B8",
+                $"⏳ Załadunek w bazie · {EtaService.LoadMinutes} min ({start:hh\\:mm} → {(start.Add(TimeSpan.FromMinutes(EtaService.LoadMinutes))):hh\\:mm})");
+            xKursor += zaladPx;
+
+            // 2. Dla każdego stop: jazda + rozładunek
+            TimeSpan czasBiezacy = start.Add(TimeSpan.FromMinutes(EtaService.LoadMinutes));
+            foreach (var s in wynik.Stops.OrderBy(x => x.Kolejnosc))
+            {
+                // Jazda do klienta
+                double jazdaMin = s.DriveTime.TotalMinutes;
+                double jazdaPx = PxNaMinuty(jazdaMin);
+                DodajBlok(xKursor, jazdaPx, rowY, rowHeight, "#2563EB",
+                    $"🚛 Jazda → {s.NazwaKlienta} · {(int)Math.Ceiling(jazdaMin)} min · {s.DistanceFromPrevKm:F1} km" +
+                    (s.HasCoordinates ? "" : " ⚠ brak GPS, fallback"));
+                xKursor += jazdaPx;
+                czasBiezacy = czasBiezacy.Add(s.DriveTime);
+
+                // Etykieta ETA pod blokiem
+                DodajEtykiete(xKursor - 1, textY, $"{czasBiezacy:hh\\:mm}", "#1E40AF", false);
+
+                // Rozładunek u klienta
+                double rozPx = PxNaMinuty(s.UnloadMin);
+                DodajBlok(xKursor, rozPx, rowY, rowHeight, "#10B981",
+                    $"📦 Rozładunek u {s.NazwaKlienta} · {s.UnloadMin} min" +
+                    (s.UnloadMin != EtaService.UnloadMinutes ? " (z karty klienta)" : ""));
+                xKursor += rozPx;
+                czasBiezacy = czasBiezacy.Add(TimeSpan.FromMinutes(s.UnloadMin));
+            }
+
+            // 3. Powrót do bazy (od ostatniego stop)
+            double powrotPx = Math.Max(0, width - xKursor);
+            if (powrotPx > 2)
+            {
+                double powrotMin = (koniec - czasBiezacy).TotalMinutes;
+                DodajBlok(xKursor, powrotPx, rowY, rowHeight, "#94A3B8",
+                    $"🏠 Powrót do bazy · {(int)Math.Ceiling(powrotMin)} min · {wynik.ReturnDistanceKm:F1} km");
+            }
+
+            // 4. Etykieta startu i końca
+            DodajEtykiete(0, textY, $"{start:hh\\:mm}", "#475569", false);
+            DodajEtykiete(width - 1, textY, $"{koniec:hh\\:mm}", "#475569", true);
+        }
+
+        private void DodajBlok(double x, double w, double y, double h, string hex, string tooltip)
+        {
+            if (w < 1) return;   // nie rysuj niewidocznych
+            var rect = new System.Windows.Shapes.Rectangle
+            {
+                Width = w,
+                Height = h,
+                Fill = (Brush)new BrushConverter().ConvertFrom(hex)!,
+                Stroke = Brushes.White,
+                StrokeThickness = 1,
+                RadiusX = 2,
+                RadiusY = 2,
+                ToolTip = tooltip
+            };
+            Canvas.SetLeft(rect, x);
+            Canvas.SetTop(rect, y);
+            GanttCanvas.Children.Add(rect);
+        }
+
+        private void DodajEtykiete(double x, double y, string text, string hex, bool alignRight)
+        {
+            var tb = new TextBlock
+            {
+                Text = text,
+                FontSize = 9.5,
+                FontFamily = new System.Windows.Media.FontFamily("Consolas"),
+                Foreground = (Brush)new BrushConverter().ConvertFrom(hex)!
+            };
+            tb.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            double xPozycja = alignRight ? x - tb.DesiredSize.Width : x;
+            Canvas.SetLeft(tb, Math.Max(0, xPozycja));
+            Canvas.SetTop(tb, y);
+            GanttCanvas.Children.Add(tb);
         }
 
         // ════════════════════════════════════════════════════════════════════
