@@ -281,17 +281,24 @@ WHERE LTRIM(RTRIM(CustomerGID))=@id AND CalcDate >= DATEADD(MONTH, -12, CAST(GET
         }
 
         // ─── Ostatnie N dostaw z warunkami (do mini-kart w Warunkach handlowych) ─
+        // Pokazuje cena, dodatek, ubytek, typ ceny i czyja waga (heurystyka jak w UmowyForm).
         public async Task<List<DostawaSugestia>> GetOstatnieDostawyDoSugestiiAsync(string dostawcaId, int top = 4)
         {
             var lista = new List<DostawaSugestia>();
             if (string.IsNullOrWhiteSpace(dostawcaId)) return lista;
             string sql = $@"
 SELECT TOP ({Math.Max(1, top)})
-    CalcDate, Price, Loss, AvWeight
-FROM dbo.FarmerCalc
-WHERE LTRIM(RTRIM(CustomerGID)) = @id
-  AND CalcDate >= DATEADD(MONTH, -12, CAST(GETDATE() AS DATE))
-ORDER BY CalcDate DESC;";
+    fc.CalcDate,
+    fc.Price,
+    fc.Addition,
+    fc.Loss,
+    ISNULL(pt.Name, '') AS TypCenyName
+FROM dbo.FarmerCalc fc
+LEFT JOIN dbo.PriceType pt ON pt.ID = fc.PriceTypeID
+WHERE LTRIM(RTRIM(fc.CustomerGID)) = @id
+  AND fc.CalcDate >= DATEADD(MONTH, -12, CAST(GETDATE() AS DATE))
+  AND ISNULL(fc.Deleted, 0) = 0
+ORDER BY fc.CalcDate DESC;";
             try
             {
                 using var cn = new SqlConnection(_conn);
@@ -301,12 +308,17 @@ ORDER BY CalcDate DESC;";
                 using var r = await cmd.ExecuteReaderAsync();
                 while (await r.ReadAsync())
                 {
+                    decimal? loss = r.IsDBNull(3) ? (decimal?)null : r.GetDecimal(3);
+                    // Heurystyka jak w UmowyForm: Loss > 0 → rozliczane wg wagi hodowcy, =0 → ubojni
+                    string czyja = loss is { } l && l > 0 ? "Hodowca" : "Ubojnia";
                     lista.Add(new DostawaSugestia
                     {
                         Data = r.IsDBNull(0) ? DateTime.MinValue : r.GetDateTime(0),
                         Cena = r.IsDBNull(1) ? null : Math.Round(r.GetDecimal(1), 2),
-                        UbytekProc = r.IsDBNull(2) ? null : Math.Round(r.GetDecimal(2) * 100m, 1),
-                        WagaSrednia = r.IsDBNull(3) ? null : Math.Round(r.GetDecimal(3), 2)
+                        Dodatek = r.IsDBNull(2) ? null : Math.Round(r.GetDecimal(2), 2),
+                        UbytekProc = loss is { } ll ? Math.Round(ll * 100m, 1) : null,
+                        TypCeny = r.IsDBNull(4) ? "" : r.GetString(4),
+                        CzyjaWaga = czyja
                     });
                 }
             }

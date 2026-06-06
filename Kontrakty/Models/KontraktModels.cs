@@ -158,14 +158,18 @@ namespace Kalendarz1.Kontrakty.Models
     public class DostawaSugestia
     {
         public DateTime Data { get; set; }
-        public decimal? Cena { get; set; }            // zł/kg
-        public decimal? UbytekProc { get; set; }      // %
-        public decimal? WagaSrednia { get; set; }     // kg/ptak
+        public decimal? Cena { get; set; }            // zł/kg (FarmerCalc.Price)
+        public decimal? Dodatek { get; set; }         // zł/kg (FarmerCalc.Addition)
+        public decimal? UbytekProc { get; set; }      // % (Loss*100)
+        public string TypCeny { get; set; } = "";     // z PriceType.Name (Wolnorynkowa/Rolnicza/…)
+        public string CzyjaWaga { get; set; } = "";   // „Hodowca" / „Ubojnia" — heurystyka z Ubytek
 
         public string DataLabel => Data.ToString("dd.MM");
         public string CenaLabel => Cena is { } c ? $"{c:0.00} zł" : "—";
+        public string DodatekLabel => Dodatek is { } d ? $"{d:0.00} zł" : "—";
         public string UbytekLabel => UbytekProc is { } u ? $"{u:0.0}%" : "—";
-        public string WagaLabel => WagaSrednia is { } w ? $"{w:0.00} kg" : "—";
+        public string TypCenyLabel => string.IsNullOrWhiteSpace(TypCeny) ? "—" : TypCeny;
+        public string CzyjaWagaLabel => string.IsNullOrWhiteSpace(CzyjaWaga) ? "—" : CzyjaWaga;
     }
 
     /// <summary>Konfiguracja numeracji kontraktów (dbo.KontraktyNumeracjaConfig).</summary>

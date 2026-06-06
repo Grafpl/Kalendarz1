@@ -200,15 +200,54 @@ namespace Kalendarz1.Kontrakty.Views
             if (_sugestia?.UbytekSredniProc is { } u) txtUbytek.Text = u.ToString("0.0", Pl);
         }
 
-        // Klik mini-karty dostawy → zastosuj ubytek z tej konkretnej dostawy
+        // Klik mini-karty dostawy → zastosuj WSZYSTKIE dostępne warunki z tej dostawy
         private void DostawaCard_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
             if ((sender as FrameworkElement)?.Tag is not DostawaSugestia d) return;
+            var zastosowane = new List<string>();
+
             if (d.UbytekProc is { } u)
             {
                 txtUbytek.Text = u.ToString("0.0", Pl);
-                txtStopka.Text = $"✔ Zastosowano ubytek {u:0.0}% z dostawy {d.Data:dd.MM.yyyy}";
+                zastosowane.Add($"ubytek {u:0.0}%");
             }
+            if (d.Dodatek is { } dod)
+            {
+                txtDodatek.Text = dod.ToString("0.00", Pl);
+                zastosowane.Add($"dodatek {dod:0.00} zł");
+            }
+            // Typ ceny — match po nazwie (case-insensitive)
+            if (!string.IsNullOrWhiteSpace(d.TypCeny))
+            {
+                string tag = MapujTypCenyNaTag(d.TypCeny);
+                if (!string.IsNullOrEmpty(tag))
+                {
+                    SelectByTag(cbTypCeny, tag);
+                    zastosowane.Add($"typ ceny „{d.TypCeny}”");
+                }
+            }
+            // Rozliczana waga: Hodowca → NETTO_HODOWCY, Ubojnia → NETTO_UBOJNI
+            if (!string.IsNullOrWhiteSpace(d.CzyjaWaga))
+            {
+                string tagWaga = d.CzyjaWaga.StartsWith("H", StringComparison.OrdinalIgnoreCase)
+                    ? "NETTO_HODOWCY" : "NETTO_UBOJNI";
+                SelectByTag(cbWaga, tagWaga);
+                zastosowane.Add($"waga: {d.CzyjaWaga}");
+            }
+
+            txtStopka.Text = zastosowane.Count > 0
+                ? $"✔ Zastosowano z dostawy {d.Data:dd.MM.yyyy}: " + string.Join(" · ", zastosowane)
+                : $"ℹ Dostawa {d.Data:dd.MM.yyyy} nie miała danych do zastosowania.";
+        }
+
+        private static string MapujTypCenyNaTag(string nazwa)
+        {
+            string n = (nazwa ?? "").Trim().ToLowerInvariant();
+            if (n.StartsWith("wolno")) return "wolnorynkowa";
+            if (n.StartsWith("rol"))   return "rolnicza";
+            if (n.StartsWith("min"))   return "ministerialna";
+            if (n.StartsWith("łącz") || n.StartsWith("lącz") || n.StartsWith("lacz")) return "laczona";
+            return "";
         }
 
         // #3 — banner "hodowca ma aktywny kontrakt"

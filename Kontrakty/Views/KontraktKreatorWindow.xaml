@@ -606,23 +606,38 @@
                                                             </Style>
                                                         </Border.Style>
                                                         <StackPanel>
-                                                            <TextBlock Text="{Binding DataLabel}" FontSize="12" FontWeight="Bold"
+                                                            <TextBlock Text="{Binding DataLabel}" FontSize="13" FontWeight="Bold"
                                                                        Foreground="#0F172A" HorizontalAlignment="Center"/>
                                                             <Border Background="#F1F5F9" Height="1" Margin="0,5"/>
+                                                            <!-- Cena (zielony) -->
                                                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                                                 <TextBlock Text="💱 " FontSize="11" VerticalAlignment="Center"/>
                                                                 <TextBlock Text="{Binding CenaLabel}" FontSize="11.5" FontWeight="SemiBold"
                                                                            Foreground="#047857"/>
                                                             </StackPanel>
+                                                            <!-- Dodatek (granat) -->
+                                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,2,0,0">
+                                                                <TextBlock Text="➕ " FontSize="11" VerticalAlignment="Center"/>
+                                                                <TextBlock Text="{Binding DodatekLabel}" FontSize="11.5" FontWeight="SemiBold"
+                                                                           Foreground="#1E40AF"/>
+                                                            </StackPanel>
+                                                            <!-- Ubytek (czerwony) -->
                                                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,2,0,0">
                                                                 <TextBlock Text="🚛 " FontSize="11" VerticalAlignment="Center"/>
                                                                 <TextBlock Text="{Binding UbytekLabel}" FontSize="11.5" FontWeight="SemiBold"
                                                                            Foreground="#B91C1C"/>
                                                             </StackPanel>
+                                                            <!-- Typ ceny (indygo) -->
+                                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,4,0,0">
+                                                                <TextBlock Text="💰 " FontSize="11" VerticalAlignment="Center"/>
+                                                                <TextBlock Text="{Binding TypCenyLabel}" FontSize="11" FontWeight="SemiBold"
+                                                                           Foreground="#4338CA" TextTrimming="CharacterEllipsis" MaxWidth="100"/>
+                                                            </StackPanel>
+                                                            <!-- Czyja waga (fiolet) -->
                                                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,2,0,0">
                                                                 <TextBlock Text="⚖ " FontSize="11" VerticalAlignment="Center"/>
-                                                                <TextBlock Text="{Binding WagaLabel}" FontSize="11.5" FontWeight="SemiBold"
-                                                                           Foreground="#1E40AF"/>
+                                                                <TextBlock Text="{Binding CzyjaWagaLabel}" FontSize="11" FontWeight="SemiBold"
+                                                                           Foreground="#6B21A8"/>
                                                             </StackPanel>
                                                         </StackPanel>
                                                     </Border>
