@@ -42,19 +42,33 @@ namespace Kalendarz1.Customer360.Services
 
                     p.Content().PaddingVertical(10).Column(col =>
                     {
-                        // KLASYFIKACJA RYZYKA — duzy nagłowek
+                        // KLASYFIKACJA RYZYKA — duzy nagłowek + 4 wymiary inline (bez helperow zeby uniknac problemow z typami QuestPDF)
                         col.Item().Background("#F8FAFC").Padding(10).Column(s =>
                         {
                             s.Item().Text($"KLASYFIKACJA: {d.Klasyfikacja.Kategoria} ({d.Klasyfikacja.TotalScore}/100)")
                                 .FontSize(13).Bold().FontColor(d.Klasyfikacja.KolorHex);
                             s.Item().PaddingTop(4).Text("4 wymiary ryzyka (waga: 30%/30%/30%/10%):").FontSize(9).FontColor("#64748B");
-                            DodajWymiar(s, "Reputacyjny", d.Klasyfikacja.RiskReputacyjny, d.Klasyfikacja.OpisReputacyjny);
-                            DodajWymiar(s, "Finansowy",   d.Klasyfikacja.RiskFinansowy,    d.Klasyfikacja.OpisFinansowy);
-                            DodajWymiar(s, "Operacyjny",  d.Klasyfikacja.RiskOperacyjny,   d.Klasyfikacja.OpisOperacyjny);
-                            DodajWymiar(s, "Komunikacyjny", d.Klasyfikacja.RiskKomunikacyjny, d.Klasyfikacja.OpisKomunikacyjny);
+
+                            var wymiary = new (string nazwa, int pkt, string opis)[]
+                            {
+                                ("Reputacyjny", d.Klasyfikacja.RiskReputacyjny, d.Klasyfikacja.OpisReputacyjny),
+                                ("Finansowy",   d.Klasyfikacja.RiskFinansowy,    d.Klasyfikacja.OpisFinansowy),
+                                ("Operacyjny",  d.Klasyfikacja.RiskOperacyjny,   d.Klasyfikacja.OpisOperacyjny),
+                                ("Komunikacyjny", d.Klasyfikacja.RiskKomunikacyjny, d.Klasyfikacja.OpisKomunikacyjny)
+                            };
+                            foreach (var w in wymiary)
+                            {
+                                string kolor = w.pkt < 20 ? "#16A34A" : w.pkt < 50 ? "#EAB308" : w.pkt < 75 ? "#F97316" : "#DC2626";
+                                s.Item().PaddingTop(6).Row(r =>
+                                {
+                                    r.ConstantItem(110).Text(w.nazwa).FontSize(10).SemiBold();
+                                    r.ConstantItem(50).Text($"{w.pkt}/100").FontSize(10).Bold().FontColor(kolor);
+                                    r.RelativeItem().Text(w.opis).FontSize(9).FontColor("#64748B");
+                                });
+                            }
                         });
 
-                        // 6 KPI TILE
+                        // 6 KPI TILE — inline
                         col.Item().PaddingTop(10).Text("KLUCZOWE SYGNALY (12 mies)").FontSize(11).Bold();
                         col.Item().PaddingTop(4).Table(t =>
                         {
@@ -62,12 +76,24 @@ namespace Kalendarz1.Customer360.Services
                             {
                                 for (int i = 0; i < 3; i++) c2.RelativeColumn();
                             });
-                            DodajKpi(t, "Anulowane", d.LiczbaAnulowanych.ToString(), $"{d.SumaKgAnulowanych:N0} kg · {d.ProcAnulowanych:N1}%");
-                            DodajKpi(t, "Reklamacje", d.LiczbaReklamacji.ToString(), $"{d.WartoscReklamacji:N0} zl · {d.LiczbaReklamacjiOtwartych} otwartych");
-                            DodajKpi(t, "Niedotrzymanie", d.SredniaRealizacjaProc > 0 ? $"{d.SredniaRealizacjaProc:N0}%" : "—", $"{d.LiczbaPozycjiUcietych} poz. · {d.SumaKgUcietych:N0} kg");
-                            DodajKpi(t, "Korekty minus", d.LiczbaKorektMinus.ToString(), $"{d.SumaKorektMinus:N0} zl");
-                            DodajKpi(t, "Zmiany terminow", d.LiczbaZmianTerminow.ToString(), $"sr. +{d.SredniePrzesuniecieTerminowDni:N0} dni");
-                            DodajKpi(t, "Przeterminowane", $"{d.Przeterminowane:N0} zl", d.MaxDniOpoznienia > 0 ? $"max {d.MaxDniOpoznienia} dni" : "OK");
+                            var tiles = new (string label, string val, string sub)[]
+                            {
+                                ("Anulowane", d.LiczbaAnulowanych.ToString(), $"{d.SumaKgAnulowanych:N0} kg · {d.ProcAnulowanych:N1}%"),
+                                ("Reklamacje", d.LiczbaReklamacji.ToString(), $"{d.WartoscReklamacji:N0} zl · {d.LiczbaReklamacjiOtwartych} otwartych"),
+                                ("Niedotrzymanie", d.SredniaRealizacjaProc > 0 ? $"{d.SredniaRealizacjaProc:N0}%" : "—", $"{d.LiczbaPozycjiUcietych} poz. · {d.SumaKgUcietych:N0} kg"),
+                                ("Korekty minus", d.LiczbaKorektMinus.ToString(), $"{d.SumaKorektMinus:N0} zl"),
+                                ("Zmiany terminow", d.LiczbaZmianTerminow.ToString(), $"sr. +{d.SredniePrzesuniecieTerminowDni:N0} dni"),
+                                ("Przeterminowane", $"{d.Przeterminowane:N0} zl", d.MaxDniOpoznienia > 0 ? $"max {d.MaxDniOpoznienia} dni" : "OK")
+                            };
+                            foreach (var tile in tiles)
+                            {
+                                t.Cell().Border(1).BorderColor("#E2E8F0").Padding(6).Column(c =>
+                                {
+                                    c.Item().Text(tile.label.ToUpper()).FontSize(8).FontColor("#64748B").SemiBold();
+                                    c.Item().PaddingTop(2).Text(tile.val).FontSize(14).Bold();
+                                    c.Item().Text(tile.sub).FontSize(8).FontColor("#94A3B8");
+                                });
+                            }
                         });
 
                         // REKOMENDACJA
@@ -161,25 +187,5 @@ namespace Kalendarz1.Customer360.Services
             return doc.GeneratePdf();
         }
 
-        private static void DodajWymiar(QuestPDF.Infrastructure.IContainer s, string nazwa, int pkt, string opis)
-        {
-            string kolor = pkt < 20 ? "#16A34A" : pkt < 50 ? "#EAB308" : pkt < 75 ? "#F97316" : "#DC2626";
-            s.PaddingTop(6).Row(r =>
-            {
-                r.ConstantItem(110).Text(nazwa).FontSize(10).SemiBold();
-                r.ConstantItem(50).Text($"{pkt}/100").FontSize(10).Bold().FontColor(kolor);
-                r.RelativeItem().Text(opis).FontSize(9).FontColor("#64748B");
-            });
-        }
-
-        private static void DodajKpi(QuestPDF.Infrastructure.ITableContainer t, string label, string val, string sub)
-        {
-            t.Cell().Border(1).BorderColor("#E2E8F0").Padding(6).Column(c =>
-            {
-                c.Item().Text(label.ToUpper()).FontSize(8).FontColor("#64748B").SemiBold();
-                c.Item().PaddingTop(2).Text(val).FontSize(14).Bold();
-                c.Item().Text(sub).FontSize(8).FontColor("#94A3B8");
-            });
-        }
     }
 }
