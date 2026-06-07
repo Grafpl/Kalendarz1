@@ -66,6 +66,8 @@ namespace Kalendarz1.Reklamacje
         private string _decyzjaJakosci;
         private bool _wymagaUzupelnienia;
         private string _handlowiec;
+        private string _przyczynaGlowna;
+        private string _akcjeNaprawcze;
 
         public int Id { get => _id; set { _id = value; OnPropertyChanged(nameof(Id)); } }
         public DateTime DataZgloszenia { get => _dataZgloszenia; set { _dataZgloszenia = value; OnPropertyChanged(nameof(DataZgloszenia)); } }
@@ -123,6 +125,9 @@ namespace Kalendarz1.Reklamacje
         public string NumerFakturyOryginalnej { get => _numerFakturyOryginalnej; set { _numerFakturyOryginalnej = value; OnPropertyChanged(nameof(NumerFakturyOryginalnej)); } }
         public int? IdFakturyOryginalnej { get => _idFakturyOryginalnej; set { _idFakturyOryginalnej = value; OnPropertyChanged(nameof(IdFakturyOryginalnej)); } }
         public string DecyzjaJakosci { get => _decyzjaJakosci; set { _decyzjaJakosci = value; OnPropertyChanged(nameof(DecyzjaJakosci)); } }
+        public string PrzyczynaGlowna { get => _przyczynaGlowna; set { _przyczynaGlowna = value; OnPropertyChanged(nameof(PrzyczynaGlowna)); } }
+        public string AkcjeNaprawcze { get => _akcjeNaprawcze; set { _akcjeNaprawcze = value; OnPropertyChanged(nameof(AkcjeNaprawcze)); } }
+        public int IdKontrahenta { get; set; }  // dla mini-statystyk klienta
         public bool WymagaUzupelnienia
         {
             get => _wymagaUzupelnienia;
@@ -215,6 +220,24 @@ namespace Kalendarz1.Reklamacje
         public ImageSource ZglaszajacyAvatar { get; set; }
         public ImageSource RozpatrujacyAvatar { get; set; }
         public string ZglaszajacyInitials => FormRozpatrzenieWindow.GetInitials(Zglaszajacy);
+        public string ZglaszajacySkrot => SkrocImie(Zglaszajacy);
+        public string RozpatrujacySkrot => SkrocImie(OsobaRozpatrujaca);
+        public string UserZakonczeniaSkrot => SkrocImie(UserZakonczenia);
+        // Skrót: "Justyna Steczkowska" → "Justyna.S"
+        // Pojedyncze słowo: zwraca pierwsze 12 znaków.
+        // Brak: zwraca pusty string.
+        private static string SkrocImie(string full)
+        {
+            if (string.IsNullOrWhiteSpace(full)) return "";
+            full = full.Trim();
+            int sp = full.IndexOf(' ');
+            if (sp <= 0)
+                return full.Length <= 12 ? full : full.Substring(0, 12);
+            string first = full.Substring(0, sp);
+            string rest = full.Substring(sp + 1).Trim();
+            if (rest.Length == 0) return first;
+            return first + "." + rest[0];
+        }
         public SolidColorBrush ZglaszajacyAvatarBrush => FormRozpatrzenieWindow.GetAvatarBrush(Zglaszajacy);
         public string RozpatrujacyInitials => FormRozpatrzenieWindow.GetInitials(OsobaRozpatrujaca);
         public SolidColorBrush RozpatrujacyAvatarBrush => FormRozpatrzenieWindow.GetAvatarBrush(OsobaRozpatrujaca);

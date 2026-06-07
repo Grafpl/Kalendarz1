@@ -84,13 +84,15 @@ GO
 USE Handel;
 GO
 
--- Indeks dla faktur wg daty i kontrahenta
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Dashboard_DK_Data')
+-- Indeks dla naleznosci wg kontrahenta (zakladka Platnosci + KontrahentPlatnosciWindow)
+-- UWAGA: HM.DK NIE MA kolumny "zaplacono" (stara wersja skryptu sie wywalala).
+-- Wdrozony na 192.168.0.112: 2026-06-07
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Dashboard_DK_Khid_Naleznosci')
 BEGIN
-    CREATE NONCLUSTERED INDEX IX_Dashboard_DK_Data
-    ON [HM].[DK] (data, khid)
-    INCLUDE (id, numer, typ, walbrutto, zaplacono, plattermin, anulowany);
-    PRINT 'Utworzono indeks IX_Dashboard_DK_Data';
+    CREATE NONCLUSTERED INDEX IX_Dashboard_DK_Khid_Naleznosci
+    ON [HM].[DK] (khid, anulowany, bufor, typ_dk)
+    INCLUDE (walbrutto, netto, vat, waluta, kurs, plattermin, data, kod);
+    PRINT 'Utworzono indeks IX_Dashboard_DK_Khid_Naleznosci';
 END
 GO
 
@@ -165,12 +167,13 @@ BEGIN
 END
 GO
 
--- Indeks dla platnosci (PN)
+-- Indeks dla rozrachunkow (PN) — pokrywa agregacje PNAgg (kwotarozl/kwotarozlpln/termin/datarozl)
+-- Wdrozony na 192.168.0.112: 2026-06-07
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Dashboard_PN_DkId')
 BEGIN
     CREATE NONCLUSTERED INDEX IX_Dashboard_PN_DkId
     ON [HM].[PN] (dkid)
-    INCLUDE (kwotarozl, Termin);
+    INCLUDE (kwotarozl, kwotarozlpln, termin, datarozl, anulowany);
     PRINT 'Utworzono indeks IX_Dashboard_PN_DkId';
 END
 GO

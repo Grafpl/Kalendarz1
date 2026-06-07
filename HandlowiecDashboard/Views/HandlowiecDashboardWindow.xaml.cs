@@ -166,7 +166,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 5 => $"Porownanie_{rok}",
                 6 => $"Trend_{rok}_{miesiac}",
                 7 => $"Opakowania_{rok}_{miesiac}",
-                8 => $"Platnosci_{rok}_{miesiac}",
+                8 => GetPlatnosciCacheKey(), // realny klucz danych — wczesniej "Platnosci_{rok}_{miesiac}" nigdy nie pasowal i Odswiez nie czyscil cache
                 _ => $"Unknown_{tabIndex}"
             };
         }
@@ -510,6 +510,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
         private async void CmbTrend_SelectionChanged(object sender, SelectionChangedEventArgs e) => await OdswiezJesliGotoweAsync();
         private async void CmbOpakowania_SelectionChanged(object sender, SelectionChangedEventArgs e) => await OdswiezJesliGotoweAsync();
         private async void CmbPlatnosci_SelectionChanged(object sender, SelectionChangedEventArgs e) => await OdswiezJesliGotoweAsync();
+        private async void ChkPlatPasza_Changed(object sender, RoutedEventArgs e) => await OdswiezJesliGotoweAsync();
 
         /// <summary>
         /// Obsluga przelacznika E2/H1/RAZEM - tylko odswiezenie UI bez pobierania danych
@@ -2531,31 +2532,64 @@ WHERE MZ.data >= '2020-01-01' AND MZ.data <= @DataDo{i} AND MG.anulowany = 0
 
         private class PlatnosciSnapshot { public List<PlatnoscRow> Dane { get; set; } public AgingData Aging { get; set; } }
 
-        private async Task<PlatnosciSnapshot> FetchPlatnosciAsync(string wybranyHandlowiec)
+        /// <summary>
+        /// Typy dokumentow sprzedazy wliczane do naleznosci.
+        /// HM.DK trzyma WSZYSTKIE dokumenty (takze zakupy FVZ/fzk/FVR=RR z ujemnym walbrutto,
+        /// proformy FPro/PROF, wewnetrzne FW="Sklepy_Firmowe") — bez filtra typ_dk KPI bylo zawyzone o ~3,1M.
+        /// FPP/FPP1 = "Pasza/Pisklaki" (naleznosci od hodowcow) — opcjonalnie przez checkbox.
+        /// </summary>
+        private static string BuildTypDkList(bool zPasza)
+        {
+            var typy = "'FVS','PAR','WDT','FVW','FWS','FVSZ'";
+            if (zPasza) typy += ",'FPP','FPP1'";
+            return typy;
+        }
+
+        /// <summary>
+        /// Klucz cache zakladki Platnosci — MUSI byc identyczny w fetch i invalidacji
+        /// (wczesniej Odswiez invalidowal "Platnosci_{rok}_{miesiac}", a dane lezaly pod "Platnosci_{handlowiec}").
+        /// </summary>
+        private string GetPlatnosciCacheKey()
+        {
+            string h = (cmbHandlowiecPlat?.SelectedItem is ComboItem item && item.Value > 0) ? item.Text : "ALL";
+            string pasza = chkPlatPasza?.IsChecked == true ? "P1" : "P0";
+            return $"Platnosci_{h}_{pasza}";
+        }
+
+        private async Task<PlatnosciSnapshot> FetchPlatnosciAsync(string wybranyHandlowiec, bool zPasza)
         {
             var snap = new PlatnosciSnapshot { Dane = new List<PlatnoscRow>(), Aging = new AgingData() };
 
             await using var cn = new SqlConnection(_connectionStringHandel);
             await cn.OpenAsync();
 
-            var sqlCombined = @"
--- Glowne zapytanie z liczba faktur
+            // DK.walbrutto jest w WALUCIE dokumentu (eksport WDT/FVW = EUR!) — saldo liczymy w walucie,
+            // a do PLN przeliczamy kursem faktury (DK.kurs). Dla PLN kurs=1.
+            var typDkList = BuildTypDkList(zPasza);
+            var sqlCombined = $@"
+-- Glowne zapytanie z liczba faktur (tylko dokumenty sprzedazy, saldo przeliczone na PLN)
 WITH PNAgg AS (
     SELECT PN.dkid, SUM(ISNULL(PN.kwotarozl,0)) AS KwotaRozliczona, MAX(PN.Termin) AS TerminPrawdziwy
-    FROM [HANDEL].[HM].[PN] PN WITH (NOLOCK) GROUP BY PN.dkid
+    FROM [HANDEL].[HM].[PN] PN WITH (NOLOCK)
+    WHERE PN.anulowany = 0
+    GROUP BY PN.dkid
 ),
 Dokumenty AS (
-    SELECT DK.id, DK.khid, DK.walbrutto, DK.plattermin
+    SELECT DK.id, DK.khid, DK.walbrutto, DK.plattermin,
+           CASE WHEN ISNULL(DK.waluta,'') IN ('', 'PLN', N'ZŁ') THEN CAST(1 AS float)
+                ELSE ISNULL(NULLIF(DK.kurs, 0), 1) END AS KursPLN
     FROM [HANDEL].[HM].[DK] DK WITH (NOLOCK)
     INNER JOIN [HANDEL].[SSCommon].[STContractors] C WITH (NOLOCK) ON DK.khid = C.id
     LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM WITH (NOLOCK) ON DK.khid = WYM.ElementId
-    WHERE DK.anulowany = 0 AND (@Handlowiec IS NULL OR WYM.CDim_Handlowiec_Val = @Handlowiec)
+    WHERE DK.anulowany = 0 AND DK.bufor = 0
+      AND DK.typ_dk IN ({typDkList})
+      AND (@Handlowiec IS NULL OR WYM.CDim_Handlowiec_Val = @Handlowiec)
 ),
 Saldo AS (
     SELECT D.id, D.khid,
-           (D.walbrutto - ISNULL(PA.KwotaRozliczona,0)) AS DoZaplacenia,
+           (D.walbrutto - ISNULL(PA.KwotaRozliczona,0)) * D.KursPLN AS DoZaplacenia,
            ISNULL(PA.TerminPrawdziwy, D.plattermin) AS TerminPlatnosci,
-           CASE WHEN (D.walbrutto - ISNULL(PA.KwotaRozliczona,0)) > 0.01 AND GETDATE() > ISNULL(PA.TerminPrawdziwy, D.plattermin)
+           CASE WHEN GETDATE() > ISNULL(PA.TerminPrawdziwy, D.plattermin)
                 THEN DATEDIFF(day, ISNULL(PA.TerminPrawdziwy, D.plattermin), GETDATE()) ELSE 0 END AS DniPrzeterminowania
     FROM Dokumenty D LEFT JOIN PNAgg PA ON PA.dkid = D.id
     WHERE (D.walbrutto - ISNULL(PA.KwotaRozliczona,0)) > 0.01
@@ -2579,15 +2613,20 @@ ORDER BY Przeterminowane DESC, DoZaplaty DESC;
 -- Aging analysis per faktura - NOWE PRZEDZIALY: 1-7, 8-14, 15-21, 21+
 WITH PNAgg2 AS (
     SELECT PN.dkid, SUM(ISNULL(PN.kwotarozl,0)) AS KwotaRozliczona, MAX(PN.Termin) AS TerminPrawdziwy
-    FROM [HANDEL].[HM].[PN] PN WITH (NOLOCK) GROUP BY PN.dkid
+    FROM [HANDEL].[HM].[PN] PN WITH (NOLOCK)
+    WHERE PN.anulowany = 0
+    GROUP BY PN.dkid
 ),
 FakturyPrzeterminowane AS (
-    SELECT (DK.walbrutto - ISNULL(PA.KwotaRozliczona,0)) AS Kwota,
+    SELECT (DK.walbrutto - ISNULL(PA.KwotaRozliczona,0))
+           * CASE WHEN ISNULL(DK.waluta,'') IN ('', 'PLN', N'ZŁ') THEN CAST(1 AS float)
+                  ELSE ISNULL(NULLIF(DK.kurs, 0), 1) END AS Kwota,
            DATEDIFF(day, ISNULL(PA.TerminPrawdziwy, DK.plattermin), GETDATE()) AS DniPrzeterminowania
     FROM [HANDEL].[HM].[DK] DK WITH (NOLOCK)
     LEFT JOIN PNAgg2 PA ON PA.dkid = DK.id
     LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM WITH (NOLOCK) ON DK.khid = WYM.ElementId
-    WHERE DK.anulowany = 0
+    WHERE DK.anulowany = 0 AND DK.bufor = 0
+      AND DK.typ_dk IN ({typDkList})
       AND (DK.walbrutto - ISNULL(PA.KwotaRozliczona,0)) > 0.01
       AND GETDATE() > ISNULL(PA.TerminPrawdziwy, DK.plattermin)
       AND (@Handlowiec IS NULL OR WYM.CDim_Handlowiec_Val = @Handlowiec)
@@ -2661,13 +2700,14 @@ FROM FakturyPrzeterminowane;";
             string wybranyHandlowiec = null;
             if (cmbHandlowiecPlat.SelectedItem is ComboItem item && item.Value > 0)
                 wybranyHandlowiec = item.Text;
+            bool zPasza = chkPlatPasza?.IsChecked == true;
 
             PlatnosciSnapshot snap;
             try
             {
                 snap = await _cache.GetOrLoadAsync(
-                    $"Platnosci_{wybranyHandlowiec ?? "ALL"}",
-                    () => FetchPlatnosciAsync(wybranyHandlowiec));
+                    GetPlatnosciCacheKey(),
+                    () => FetchPlatnosciAsync(wybranyHandlowiec, zPasza));
             }
             catch (Exception ex)
             {
@@ -2690,7 +2730,11 @@ FROM FakturyPrzeterminowane;";
                 var iloscZPrzekroczonym = dane.Count(d => d.PrzekroczonyLimit > 0);
                 var sumaFakturPrzeterminowanych = dane.Sum(d => d.LiczbaFakturPrzeterminowanych);
                 var maxDni = dane.Where(d => d.DniPrzeterminowania.HasValue && d.DniPrzeterminowania > 0).MaxOrDefault(d => d.DniPrzeterminowania.Value);
-                var maxDniKlient = dane.FirstOrDefault(d => d.DniPrzeterminowania == maxDni)?.Kontrahent ?? "";
+                // Nazwe klienta pokazuj TYLKO gdy ktos faktycznie zalega — przy maxDni=0 FirstOrDefault
+                // trafialby na przypadkowego klienta z DniPrzeterminowania=0
+                var maxDniKlient = maxDni > 0
+                    ? dane.FirstOrDefault(d => d.DniPrzeterminowania == maxDni)?.Kontrahent ?? ""
+                    : "";
 
                 // Aktualizuj karty
                 txtPlatSumaDoZaplaty.Text = $"{sumaDoZaplaty:N0} zł";
@@ -2927,7 +2971,7 @@ FROM FakturyPrzeterminowane;";
         {
             if (gridPlatnosci.SelectedItem is PlatnoscRow row)
             {
-                var okno = new KontrahentPlatnosciWindow(row.Kontrahent, row.Handlowiec);
+                var okno = new KontrahentPlatnosciWindow(row.Kontrahent, row.Handlowiec, chkPlatPasza?.IsChecked == true);
                 okno.Show();
             }
         }

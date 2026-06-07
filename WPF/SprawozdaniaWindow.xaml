@@ -550,6 +550,10 @@
                             Padding="8,5" Margin="0,0,4,0" ToolTip="Test logowania do API">
                         <TextBlock Text="🔌  Test"/>
                     </Button>
+                    <Button x:Name="btnZsrirDebug" Style="{StaticResource SecondaryButton}" Click="BtnZsrirDebug_Click"
+                            Padding="8,5" Margin="0,0,4,0" ToolTip="Debugger: pokazuje payload JSON, odpowiedź API, pozwala edytować wartości i wysłać próbnie">
+                        <TextBlock Text="🐛  Debug"/>
+                    </Button>
                     <Button x:Name="btnZsrirSend" Style="{StaticResource ZsrirSendButton}" Click="BtnZsrirSend_Click"
                             ToolTip="Wyślij raport za wybrany okres do ZSRIR (do MRiRW)">
                         <StackPanel Orientation="Horizontal">

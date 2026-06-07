@@ -1537,31 +1537,46 @@ namespace Kalendarz1
             try
             {
                 var accessMap = GetAccessMap();
-                int len = accessMap.Count > 0 ? accessMap.Keys.Max() + 1 : 65;
-                char[] accessArray = new char[len];
-                for (int i = 0; i < len; i++) accessArray[i] = '0';
-
-                foreach (var categoryList in categoryCheckboxes.Values)
-                {
-                    foreach (var checkbox in categoryList)
-                    {
-                        string moduleKey = checkbox.Tag?.ToString();
-                        if (!string.IsNullOrEmpty(moduleKey) && checkbox.Checked)
-                        {
-                            var position = accessMap.FirstOrDefault(x => x.Value == moduleKey).Key;
-                            if (position >= 0 && position < len)
-                            {
-                                accessArray[position] = '1';
-                            }
-                        }
-                    }
-                }
-
-                string newAccessString = new string(accessArray);
 
                 using (SqlConnection conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
+
+                    // ZACHOWANIE bitów: pobierz aktualny Access ZANIM go nadpiszemy.
+                    string oldAccess = "";
+                    using (var getCmd = new SqlCommand("SELECT Access FROM operators WHERE ID = @userId", conn))
+                    {
+                        getCmd.Parameters.AddWithValue("@userId", selectedUserId);
+                        oldAccess = (getCmd.ExecuteScalar()?.ToString()) ?? "";
+                    }
+
+                    // Zapis NIE-NISZCZĄCY: nigdy nie skracamy stringa i nie zerujemy pozycji,
+                    // których ten panel nie pokazuje (np. moduły z Menu poza tą mapą).
+                    int mapLen = accessMap.Count > 0 ? accessMap.Keys.Max() + 1 : 0;
+                    // 82 = liczba modułów (Menu.cs). Kolumna operators.Access to VARCHAR(100)
+                    // WSPÓŁDZIELONA z LibraNet — string NIE może przekroczyć 100 znaków.
+                    int len = Math.Max(Math.Max(mapLen, oldAccess.Length), 82);
+                    char[] accessArray = new char[len];
+                    for (int i = 0; i < len; i++)
+                        accessArray[i] = (i < oldAccess.Length && oldAccess[i] == '1') ? '1' : '0';
+
+                    // Modyfikujemy WYŁĄCZNIE pozycje modułów pokazanych jako checkboxy.
+                    foreach (var categoryList in categoryCheckboxes.Values)
+                    {
+                        foreach (var checkbox in categoryList)
+                        {
+                            string moduleKey = checkbox.Tag?.ToString();
+                            if (string.IsNullOrEmpty(moduleKey)) continue;
+                            var match = accessMap.FirstOrDefault(x => x.Value == moduleKey);
+                            if (match.Value == null) continue;   // moduł spoza mapy — NIE ruszamy poz. 0
+                            int position = match.Key;
+                            if (position >= 0 && position < len)
+                                accessArray[position] = checkbox.Checked ? '1' : '0';
+                        }
+                    }
+
+                    string newAccessString = new string(accessArray);
+
                     string query = "UPDATE operators SET Access = @access WHERE ID = @userId";
                     using (SqlCommand cmd = new SqlCommand(query, conn))
                     {
@@ -2205,6 +2220,7 @@ namespace Kalendarz1
                 new ModuleInfo("ListaOfert", "Archiwum Ofert", "Historia ofert handlowych", "Sprzedaż i CRM", "📂"),
                 new ModuleInfo("DashboardOfert", "Analiza Ofert", "Statystyki skuteczności ofert", "Sprzedaż i CRM", "📊"),
                 new ModuleInfo("DashboardWyczerpalnosci", "Klasy Wagowe", "Rozdzielanie klas wagowych", "Sprzedaż i CRM", "⚖️"),
+                new ModuleInfo("KreatorPuliBilansu", "Kreator Puli Bilansu", "Składniki towarów dla puli w Podsumowaniu dnia", "Sprzedaż i CRM", "🧩"),
                 new ModuleInfo("PanelReklamacji", "Reklamacje Klientów", "Obsługa reklamacji odbiorców", "Sprzedaż i CRM", "⚠️"),
                 new ModuleInfo("ReklamacjeJakosc", "Reklamacje Jakość", "Reklamacje wewnętrzne jakości", "Sprzedaż i CRM", "🔍"),
                 new ModuleInfo("StatystykiReklamacji", "Analiza Reklamacji", "Dashboard analityczny korekt i reklamacji — wykresy, trendy, ranking kontrahentów", "Sprzedaż i CRM", "📊"),
@@ -2275,7 +2291,9 @@ namespace Kalendarz1
                 new ModuleInfo("MapowanieFlota", "Mapowanie Webfleet (GPS)", "Mapowanie pojazdów GPS z systemem Webfleet", "Opakowania i Transport", "📍"),
                 new ModuleInfo("Sprawozdania", "Sprawozdania", "Generowanie sprawozdań i raportów", "Finanse i Zarządzanie", "📄"),
                 new ModuleInfo("SprawozdaniaGus", "Sprawozdania GUS", "Sprawozdania dla Głównego Urzędu Statystycznego", "Finanse i Zarządzanie", "🏛️"),
-                new ModuleInfo("ZSRIR", "ZSRIR", "Zintegrowany System Rolniczej Informacji Rynkowej", "Finanse i Zarządzanie", "📋")
+                new ModuleInfo("ZSRIR", "ZSRIR", "Zintegrowany System Rolniczej Informacji Rynkowej", "Finanse i Zarządzanie", "📋"),
+                new ModuleInfo("HDIDokumenty", "HDI — Dokumenty Identyfikacyjne", "Handlowe Dokumenty Identyfikacyjne dla klientów (np. JBB Bałdyga) - auto-numeracja, PDF", "Sprzedaż i CRM", "📋"),
+                new ModuleInfo("HalaLive", "Hala LIVE", "Fullscreen dashboard na TV w hali - pracownicy, żywiec, klasy, wydania, hodowcy", "Produkcja i Magazyn", "📺")
             };
         }
 
@@ -2366,7 +2384,10 @@ namespace Kalendarz1
                 [77] = "TransportWPF",
                 [78] = "KontraktyHodowcow",
                 [79] = "MapowanieDostawcow",
-                [80] = "KameryPanelJola"
+                [80] = "KameryPanelJola",
+                [81] = "KreatorPuliBilansu",
+                [82] = "HDIDokumenty",
+                [83] = "HalaLive"
             };
         }
 
@@ -2424,13 +2445,14 @@ namespace Kalendarz1
             var idLabel = new Label { Text = "ID użytkownika:", Location = new Point(30, 70), AutoSize = true, Font = new Font("Segoe UI", 10) };
             this.Controls.Add(idLabel);
 
-            idTextBox = new TextBox { Location = new Point(170, 67), Size = new Size(230, 28), Font = new Font("Segoe UI", 11) };
+            // operators.ID = varchar(15), operators.Name = varchar(20) — limity z bazy LibraNet
+            idTextBox = new TextBox { Location = new Point(170, 67), Size = new Size(230, 28), Font = new Font("Segoe UI", 11), MaxLength = 15 };
             this.Controls.Add(idTextBox);
 
-            var nameLabel = new Label { Text = "Nazwa:", Location = new Point(30, 115), AutoSize = true, Font = new Font("Segoe UI", 10) };
+            var nameLabel = new Label { Text = "Nazwa (max 20):", Location = new Point(30, 115), AutoSize = true, Font = new Font("Segoe UI", 10) };
             this.Controls.Add(nameLabel);
 
-            nameTextBox = new TextBox { Location = new Point(170, 112), Size = new Size(230, 28), Font = new Font("Segoe UI", 11) };
+            nameTextBox = new TextBox { Location = new Point(170, 112), Size = new Size(230, 28), Font = new Font("Segoe UI", 11), MaxLength = 20 };
             this.Controls.Add(nameTextBox);
 
             okButton = new Button
@@ -2474,15 +2496,41 @@ namespace Kalendarz1
 
             try
             {
+                string newId = idTextBox.Text.Trim();
+                string newName = nameTextBox.Text.Trim();
+
                 using (SqlConnection conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
-                    string query = @"INSERT INTO operators (ID, Name, Access) VALUES (@id, @name, @access)";
+
+                    // Duplikat ID = drugi operator z tym samym loginem (PK jest na GUID, więc baza by przepuściła!)
+                    using (var chk = new SqlCommand("SELECT COUNT(*) FROM operators WHERE ID = @id", conn))
+                    {
+                        chk.Parameters.AddWithValue("@id", newId);
+                        if ((int)chk.ExecuteScalar() > 0)
+                        {
+                            MessageBox.Show($"Operator o ID '{newId}' już istnieje.", "Błąd",
+                                MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                            this.DialogResult = DialogResult.None;
+                            return;
+                        }
+                    }
+
+                    // Schemat operators (LibraNet, współdzielony z Raporty.exe ProNova):
+                    //   GUID varchar(36) NOT NULL bez DEFAULT  → MUSIMY wygenerować (jak Libra: wielkie litery)
+                    //   CreateData varchar(10) 'yyyy-MM-dd', CreateGodzina varchar(8) 'HH:mm:ss' (konwencja Libry)
+                    //   Access — bitstring uprawnień ZPSP (84 pozycje wg Menu._moduleAccessOrder, w VARCHAR(100))
+                    string query = @"INSERT INTO operators (GUID, ID, Name, Access, CreateData, CreateGodzina)
+                                     VALUES (@guid, @id, @name, @access, @cd, @cg)";
                     using (SqlCommand cmd = new SqlCommand(query, conn))
                     {
-                        cmd.Parameters.AddWithValue("@id", idTextBox.Text);
-                        cmd.Parameters.AddWithValue("@name", nameTextBox.Text);
-                        cmd.Parameters.AddWithValue("@access", new string('0', 50));
+                        var now = DateTime.Now;
+                        cmd.Parameters.AddWithValue("@guid", Guid.NewGuid().ToString().ToUpperInvariant());
+                        cmd.Parameters.AddWithValue("@id", newId);
+                        cmd.Parameters.AddWithValue("@name", newName);
+                        cmd.Parameters.AddWithValue("@access", new string('0', 84));
+                        cmd.Parameters.AddWithValue("@cd", now.ToString("yyyy-MM-dd"));
+                        cmd.Parameters.AddWithValue("@cg", now.ToString("HH:mm:ss"));
                         cmd.ExecuteNonQuery();
                     }
                 }

@@ -117,6 +117,36 @@ namespace Kalendarz1.WPF
             return null;
         }
 
+        // Szuka grupy kurczak/kurczęta brojler. KRYTYCZNE: samo "brojler" pasuje też do "gęsi typu brojler" w drzewie ZSRIR,
+        // co w przeszłości spowodowało wysyłkę raportu w złej kategorii (gęsi zamiast kurczaków).
+        // Priorytet: zawiera "kurcz" (kurczak/kurczęta) AND "brojler"; fallback "kurcz" sam; potem dowolny "brojler" z logiem.
+        private static CommodityGroup? ZnajdzKurczakaBrojlera(CommodityGroup? root, out string trace)
+        {
+            trace = "";
+            if (root == null) return null;
+            var wszystkie = new List<CommodityGroup>();
+            Spłaszcz(root, wszystkie);
+
+            CommodityGroup? Pasuje(Func<string, bool> pred) =>
+                wszystkie.FirstOrDefault(g => pred((g.Name ?? "").ToLowerInvariant()));
+
+            var k1 = Pasuje(n => n.Contains("kurcz") && n.Contains("brojler"));
+            if (k1 != null) { trace = $"PRIO1 kurcz+brojler → '{k1.Name}' (id={k1.Id})"; return k1; }
+
+            var k2 = Pasuje(n => n.Contains("kurcz"));
+            if (k2 != null) { trace = $"PRIO2 kurcz → '{k2.Name}' (id={k2.Id})"; return k2; }
+
+            var k3 = Pasuje(n => n.Contains("brojler"));
+            if (k3 != null) { trace = $"FALLBACK brojler (UWAGA — może być gęś!) → '{k3.Name}' (id={k3.Id})"; return k3; }
+
+            return null;
+        }
+        private static void Spłaszcz(CommodityGroup g, List<CommodityGroup> output)
+        {
+            output.Add(g);
+            foreach (var sub in g.CommodityGroups) Spłaszcz(sub, output);
+        }
+
         // ============ BUTTON HANDLERS ============
         private async void BtnZsrirSettings_Click(object sender, RoutedEventArgs e)
         {
@@ -150,6 +180,25 @@ namespace Kalendarz1.WPF
             dlg.ShowDialog();
         }
 
+        private void BtnZsrirDebug_Click(object sender, RoutedEventArgs e)
+        {
+            if (!_hasData)
+            {
+                MessageBox.Show("Najpierw pobierz dane (przycisk Pobierz lub F5).", "Brak danych",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            // Źródło danych do ZSRIR: HANDEL (Symfonia) — kg i wartość z faktur 7+8 razem.
+            decimal handelKg = _kg7 + _kg8;
+            decimal handelWart = _suma7 + _suma8;
+            var secrets = ZsrirSecretsManager.Load();
+            var dlg = new ZsrirDebugDialog(_ostatniOd, _ostatniDo, handelKg, handelWart, ZsrirKategoria, secrets)
+            {
+                Owner = this
+            };
+            dlg.ShowDialog();
+        }
+
         private async void BtnZsrirSend_Click(object sender, RoutedEventArgs e)
         {
             if (!_hasData)
@@ -167,19 +216,19 @@ namespace Kalendarz1.WPF
                 return;
             }
 
-            // Liczby do wysyłki — z SPEC (FarmerCalc) bo to wiążące rozliczenie
-            decimal kg = _specKgRazem;
-            decimal wartosc = _specWartoscRazem;
+            // Liczby do wysyłki — z HANDEL (Symfonia): kg z faktur, wartość z faktur (typy 7+8 razem).
+            decimal kg = _kg7 + _kg8;
+            decimal wartosc = _suma7 + _suma8;
             decimal tony = Math.Round(kg / 1000m, 3);
             decimal cenaKg = kg > 0 ? wartosc / kg : 0;
             decimal cenaTona = Math.Round(cenaKg * 1000m, 2);
 
-            // Sprawdź duplikat
+            // Sprawdź duplikat — jeśli istnieje wysłany wpis, retry NADPISZE go (UPSERT).
             if (await _zsrirRepo.ExistsForPeriodAsync(_ostatniOd, _ostatniDo, ZsrirKategoria))
             {
                 if (MessageBox.Show(
-                    $"Już wysłano raport dla okresu {_ostatniOd:dd.MM} – {_ostatniDo:dd.MM.yyyy} (\"{ZsrirKategoria}\").\n\nWysłać mimo to?",
-                    "Duplikacja", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+                    $"Raport dla okresu {_ostatniOd:dd.MM} – {_ostatniDo:dd.MM.yyyy} (\"{ZsrirKategoria}\") został już wysłany.\n\nWysłać ponownie? Poprzedni wpis w historii zostanie nadpisany.",
+                    "Ponowna wysyłka", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
                     return;
             }
 
@@ -191,7 +240,7 @@ namespace Kalendarz1.WPF
                 $"Ilość:       {tony:N3} ton  ({kg:N0} kg)\n" +
                 $"Wartość:     {wartosc:N2} zł netto\n" +
                 $"Cena:        {cenaTona:N2} zł/tona  (= {cenaKg:N2} zł/kg)\n\n" +
-                $"Źródło: SPECYFIKACJA PDF (FarmerCalc) — wiążące rozliczenie po uboju.";
+                $"Źródło: HANDEL (Sage Symfonia) — faktury skupu (kg + zł netto).";
             if (MessageBox.Show(podsumowanie, "Potwierdzenie wysyłki do ZSRIR",
                     MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
 
@@ -218,10 +267,11 @@ namespace Kalendarz1.WPF
                 var cfg = await api.GetFormConfigurationAsync(secrets.FormId!.Value)
                     ?? throw new Exception("Pobranie konfiguracji formularza nieudane.");
 
-                // Szukaj kategorii "Brojler" rekurencyjnie w drzewie commodityGroup
-                var brojler = ZnajdzGrupeRekurencyjnie(cfg.CommodityGroup, "brojler")
-                    ?? throw new Exception("Nie znaleziono kategorii \"Brojler\" w formularzu.");
+                // Szukaj kategorii kurczak/kurczęta brojler — NIE samo "brojler" (pasuje też do gęsi typu brojler!).
+                var brojler = ZnajdzKurczakaBrojlera(cfg.CommodityGroup, out string traceKat)
+                    ?? throw new Exception("Nie znaleziono kategorii \"Kurczęta/Kurczak brojler\" w formularzu.");
                 commodityGroupId = brojler.Id;
+                System.Diagnostics.Debug.WriteLine("[ZSRIR] " + traceKat);
 
                 // Zbierz pola: najpierw z konkretnej grupy, potem z root (formFields), znajdź typy Price + Amount
                 var wszystkiePola = new List<FormField>();
@@ -255,8 +305,10 @@ namespace Kalendarz1.WPF
                                 CommodityGroupId = brojler.Id,
                                 FormFieldsValues = new()
                                 {
-                                    [pricePole.Id.ToString()]  = cenaTona,
-                                    [amountPole.Id.ToString()] = tony
+                                    // ZSRIR akceptuje TYLKO PL format (przecinek dziesiętny) — InvariantCulture (kropka)
+                                    // jest odrzucany jako "niepoprawna wartość liczbowa".
+                                    [pricePole.Id.ToString()]  = cenaTona.ToString("0.##", System.Globalization.CultureInfo.GetCultureInfo("pl-PL")),
+                                    [amountPole.Id.ToString()] = tony.ToString("0.###", System.Globalization.CultureInfo.GetCultureInfo("pl-PL"))
                                 }
                             }
                         }

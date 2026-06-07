@@ -976,8 +976,69 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 await LoadDostawyForWeekAsync(_dostawyNastepnyTydzien, _selectedDate.AddDays(7));
             }
 
+            // Doładuj snapshoty SMS-ów — flaguje dostawy które wymagają SMS-a aktualizującego
+            await ZastosujSnapshotySmsAsync();
+
             // Aktualizuj status bar
             UpdateStatusBar();
+        }
+
+        // Przelicza flagę SmsWymagaAktualizacji dla pojedynczej dostawy w pamięci.
+        // Wywoływane po każdej LOKALNEJ zmianie daty/aut (drag&drop, inline edit, dialog).
+        // Reaguje TYLKO na datę i liczbę aut — sztuki/waga są ignorowane (mogą się drobnie zmieniać).
+        // NIE reaguje w trybie symulacji — symulacja służy do nagrywania zależności,
+        // nie powinna fałszować flagi "wymaga aktualizacji SMS".
+        internal void PrzeliczFlageSmsLokalnie(DostawaModel d)
+        {
+            if (_isSimulationMode) return;
+            if (d == null || !d.BylSMS) return;
+            bool zmiana = false;
+            if (d.SmsSnapshotData.HasValue && d.SmsSnapshotData.Value.Date != d.DataOdbioru.Date) zmiana = true;
+            if (d.SmsSnapshotAuta.HasValue && d.SmsSnapshotAuta.Value != d.Auta) zmiana = true;
+            d.SmsWymagaAktualizacji = zmiana;
+        }
+
+        // Hurtowe pobranie snapshotów SMS-ów + porównanie z aktualnymi danymi dostaw.
+        // Ustawia BylSMS, SmsWymagaAktualizacji, SmsSnapshotData/Auta na każdej DostawaModel.
+        private async Task ZastosujSnapshotySmsAsync()
+        {
+            try
+            {
+                var snapshoty = await Zywiec.Kalendarz.Services.SmsDostawySnapshotService
+                    .PobierzWszystkieNajnowszeAsync(ConnectionString);
+                if (snapshoty.Count == 0) return;
+
+                void ZastosujDoListy(System.Collections.Generic.IEnumerable<DostawaModel> lista)
+                {
+                    foreach (var d in lista)
+                    {
+                        if (d.IsHeaderRow || d.IsSeparator || d.IsEmptyDay) continue;
+                        if (!int.TryParse(d.LP, out int lpInt)) continue;
+                        if (!snapshoty.TryGetValue(lpInt, out var snap))
+                        {
+                            d.BylSMS = false;
+                            d.SmsWymagaAktualizacji = false;
+                            d.SmsCreatedAt = null;
+                            d.SmsSnapshotData = null;
+                            d.SmsSnapshotAuta = null;
+                            continue;
+                        }
+                        d.BylSMS = true;
+                        d.SmsCreatedAt = snap.CreatedAt;
+                        d.SmsSnapshotData = snap.DataOdbioru;
+                        d.SmsSnapshotAuta = snap.Auta;
+                        d.SmsWymagaAktualizacji = Zywiec.Kalendarz.Services.SmsDostawySnapshotService
+                            .WymagaAktualizacji(snap, d.DataOdbioru, d.Auta);
+                    }
+                }
+
+                ZastosujDoListy(_dostawy);
+                ZastosujDoListy(_dostawyNastepnyTydzien);
+            }
+            catch
+            {
+                // Cicho — funkcja ozdobna, brak snapshotów nie blokuje listy dostaw
+            }
         }
 
         // Stara synchroniczna wersja dla kompatybilności
@@ -1233,10 +1294,11 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 SELECT DISTINCT
                     HD.LP, HD.DataOdbioru, HD.Dostawca, HD.Auta, HD.SztukiDek, HD.WagaDek, HD.bufor,
                     HD.TypCeny, HD.Cena, WK.DataWstawienia, D.Distance, HD.Ubytek, HD.LpW,
-                    (SELECT TOP 1 N.Tresc FROM Notatki N WHERE N.IndeksID = HD.Lp ORDER BY N.DataUtworzenia DESC) AS UWAGI,
-                    (SELECT TOP 1 N.KtoStworzyl FROM Notatki N WHERE N.IndeksID = HD.Lp ORDER BY N.DataUtworzenia DESC) AS UwagiAutorID,
-                    (SELECT TOP 1 O.Name FROM Notatki N LEFT JOIN operators O ON N.KtoStworzyl = O.ID WHERE N.IndeksID = HD.Lp ORDER BY N.DataUtworzenia DESC) AS UwagiAutorName,
-                    (SELECT TOP 1 N.DataUtworzenia FROM Notatki N WHERE N.IndeksID = HD.Lp ORDER BY N.DataUtworzenia DESC) AS DataNotatki,
+                    -- Kolumna Uwagi pomija auto-notatki SMS-owe (prefix '📱 SMS') — te są widoczne tylko w zakładce Notatki dostawcy
+                    (SELECT TOP 1 N.Tresc FROM Notatki N WHERE N.IndeksID = HD.Lp AND N.Tresc NOT LIKE N'📱 SMS%' ORDER BY N.DataUtworzenia DESC) AS UWAGI,
+                    (SELECT TOP 1 N.KtoStworzyl FROM Notatki N WHERE N.IndeksID = HD.Lp AND N.Tresc NOT LIKE N'📱 SMS%' ORDER BY N.DataUtworzenia DESC) AS UwagiAutorID,
+                    (SELECT TOP 1 O.Name FROM Notatki N LEFT JOIN operators O ON N.KtoStworzyl = O.ID WHERE N.IndeksID = HD.Lp AND N.Tresc NOT LIKE N'📱 SMS%' ORDER BY N.DataUtworzenia DESC) AS UwagiAutorName,
+                    (SELECT TOP 1 N.DataUtworzenia FROM Notatki N WHERE N.IndeksID = HD.Lp AND N.Tresc NOT LIKE N'📱 SMS%' ORDER BY N.DataUtworzenia DESC) AS DataNotatki,
                     HD.PotwWaga, HD.PotwSztuki, WK.isConf,
                     CASE WHEN HD.bufor = 'Potwierdzony' THEN 1 WHEN HD.bufor = 'B.Kontr.' THEN 2
                          WHEN HD.bufor = 'B.Wolny.' THEN 3 WHEN HD.bufor = 'Do Wykupienia' THEN 5 ELSE 4 END AS buforPriority
@@ -1754,12 +1816,14 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 using (SqlConnection conn = new SqlConnection(ConnectionString))
                 {
                     await conn.OpenAsync(_cts.Token);
+                    // Ostatnie notatki pomijają auto-notatki SMS-owe (te są dostępne w zakładce Notatki dostawcy)
                     string sql = @"SELECT TOP 20 N.DataUtworzenia, N.KtoStworzyl, FORMAT(H.DataOdbioru, 'MM-dd ddd') AS DataOdbioru,
                                    H.Dostawca, N.Tresc, O.Name AS KtoDodal
                                    FROM [LibraNet].[dbo].[Notatki] N
                                    LEFT JOIN [LibraNet].[dbo].[operators] O ON N.KtoStworzyl = O.ID
                                    LEFT JOIN [LibraNet].[dbo].[HarmonogramDostaw] H ON N.IndeksID = H.LP
-                                   WHERE N.TypID = 1 ORDER BY N.DataUtworzenia DESC";
+                                   WHERE N.TypID = 1 AND N.Tresc NOT LIKE N'📱 SMS%'
+                                   ORDER BY N.DataUtworzenia DESC";
 
                     using (SqlCommand cmd = new SqlCommand(sql, conn))
                     using (SqlDataReader reader = await cmd.ExecuteReaderAsync(_cts.Token))
@@ -3521,6 +3585,21 @@ namespace Kalendarz1.Zywiec.Kalendarz
                     else
                         parsedValue = decimal.Parse(newValue, CultureInfo.InvariantCulture);
 
+                    // TRYB SYMULACJI — bez zapisu do bazy, tylko in-memory
+                    if (_isSimulationMode)
+                    {
+                        switch (fieldName)
+                        {
+                            case "Auta": item.Auta = (int)parsedValue; break;
+                            case "SztukiDek": item.SztukiDek = (double)parsedValue; break;
+                            case "WagaDek": item.WagaDek = (decimal)parsedValue; break;
+                        }
+                        RecalculateDayHeader(collection, item.DataOdbioru);
+                        IncrementSimulationChangeCount();
+                        ShowToast($"📝 {columnName} (symulacja — bez zapisu)", ToastType.Info);
+                        return;
+                    }
+
                     using (SqlConnection conn = new SqlConnection(ConnectionString))
                     {
                         await conn.OpenAsync();
@@ -3541,6 +3620,9 @@ namespace Kalendarz1.Zywiec.Kalendarz
                         case "SztukiDek": item.SztukiDek = (double)parsedValue; break;
                         case "WagaDek": item.WagaDek = (decimal)parsedValue; break;
                     }
+
+                    // Po zmianie liczby aut — przelicz flagę SMS (czy wymaga aktualizacji)
+                    if (fieldName == "Auta") PrzeliczFlageSmsLokalnie(item);
 
                     // Przelicz sumy nagłówka dnia
                     RecalculateDayHeader(collection, item.DataOdbioru);
@@ -3726,6 +3808,13 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 saved = true;
                 string noteText = textBox.Text.Trim();
                 if (string.IsNullOrEmpty(noteText)) return;
+
+                // TRYB SYMULACJI — nie zapisuj notatki do bazy
+                if (_isSimulationMode)
+                {
+                    ShowToast("📝 W symulacji notatki nie są zapisywane", ToastType.Info);
+                    return;
+                }
 
                 int? parentId = _replyToNotatkaID;
 
@@ -4350,6 +4439,23 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
                 bool changeAll = checkBoxAll.IsChecked == true && !string.IsNullOrEmpty(selectedItem.LpW);
 
+                // TRYB SYMULACJI — tylko in-memory, bez zapisu
+                if (_isSimulationMode)
+                {
+                    if (changeAll && !string.IsNullOrEmpty(selectedItem.LpW))
+                    {
+                        foreach (var d in _dostawy.Concat(_dostawyNastepnyTydzien).Where(x => x.LpW == selectedItem.LpW))
+                            d.TypCeny = newTypCeny;
+                    }
+                    else
+                    {
+                        selectedItem.TypCeny = newTypCeny;
+                    }
+                    IncrementSimulationChangeCount();
+                    ShowToast("📝 Typ ceny (symulacja — bez zapisu)", ToastType.Info);
+                    return;
+                }
+
                 try
                 {
                     using (SqlConnection conn = new SqlConnection(ConnectionString))
@@ -4570,6 +4676,17 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 try
                 {
                     decimal parsedCena = decimal.Parse(newValue, CultureInfo.InvariantCulture);
+
+                    // TRYB SYMULACJI — tylko in-memory, bez zapisu
+                    if (_isSimulationMode)
+                    {
+                        selectedItem.Cena = parsedCena;
+                        var cenaCollSim = _dostawy.Contains(selectedItem) ? _dostawy : _dostawyNastepnyTydzien;
+                        RecalculateDayHeader(cenaCollSim, selectedItem.DataOdbioru);
+                        IncrementSimulationChangeCount();
+                        ShowToast("📝 Cena (symulacja — bez zapisu)", ToastType.Info);
+                        return;
+                    }
 
                     using (SqlConnection conn = new SqlConnection(ConnectionString))
                     {
@@ -5265,6 +5382,9 @@ namespace Kalendarz1.Zywiec.Kalendarz
             if (cmbStatus.SelectedItem != null)
                 dostawa.Bufor = cmbStatus.SelectedItem.ToString();
 
+            // Po zmianie daty/aut w symulacji — przelicz flagę SMS
+            PrzeliczFlageSmsLokalnie(dostawa);
+
             // Odśwież widok
             RefreshDostawyView();
 
@@ -5332,6 +5452,13 @@ namespace Kalendarz1.Zywiec.Kalendarz
                     var source = days > 0 ? AuditChangeSource.Button_DataUp : AuditChangeSource.Button_DataDown;
                     await _auditService.LogDateChangeAsync(lp, oldDate, newDate, source,
                         dostawa?.Dostawca, _cts.Token);
+                }
+
+                // Instant in-memory update + przeliczenie flagi SMS — bez czekania na LoadDostawyAsync
+                if (dostawa != null && oldDate.HasValue)
+                {
+                    dostawa.DataOdbioru = oldDate.Value.AddDays(days);
+                    PrzeliczFlageSmsLokalnie(dostawa);
                 }
 
                 ShowToast($"Data przesunięta o {days} dni", ToastType.Success);
@@ -6365,17 +6492,21 @@ namespace Kalendarz1.Zywiec.Kalendarz
             }
         }
 
-        // Pokaż wszystkie dostawy
+        // Pokaż wszystkie dostawy — nowe okno WPF (WszystkieDostawyWindow).
+        // Stary WinForms WidokWszystkichDostaw zachowany jako fallback (np. dla starszych
+        // skrótów lub gdy nowe okno wykryje błąd inicjalizacji).
         private void MenuPokazDostawy_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                WidokWszystkichDostaw widokWszystkichDostaw = new WidokWszystkichDostaw();
-                widokWszystkichDostaw.Show();
+                var okno = new Zywiec.Kalendarz.Views.WszystkieDostawyWindow();
+                okno.Show();
             }
             catch (Exception ex)
             {
                 ShowToast($"Błąd otwierania widoku dostaw: {ex.Message}", ToastType.Error);
+                // Fallback do starego WinForms
+                try { new WidokWszystkichDostaw().Show(); } catch { }
             }
         }
 
@@ -6555,7 +6686,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
         private static readonly string[] DniSkrotSms = { "niedz", "pon", "wt", "śr", "czw", "pt", "sob" };
 
-        private void MenuKopiujSMS_Click(object sender, RoutedEventArgs e)
+        private async void MenuKopiujSMS_Click(object sender, RoutedEventArgs e)
         {
             if (string.IsNullOrEmpty(_selectedLP))
             {
@@ -6571,19 +6702,201 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 return;
             }
 
-            string sms = BuildDostawaSmsText(dostawa);
+            // Wariant SMS-a: pierwszy raz vs aktualizacja
+            string wariant = dostawa.SmsWymagaAktualizacji ? "aktualizacja" : "pierwszy";
+            string sms = dostawa.SmsWymagaAktualizacji
+                ? BuildDostawaSmsAktualizacjaText(dostawa)
+                : BuildDostawaSmsText(dostawa);
 
             try
             {
                 Clipboard.SetText(sms);
-                ShowToast("📱 SMS skopiowany do schowka", ToastType.Success);
+                ShowToast(wariant == "aktualizacja"
+                    ? "📱 SMS AKTUALIZUJĄCY skopiowany do schowka"
+                    : "📱 SMS skopiowany do schowka", ToastType.Success);
             }
             catch
             {
                 ShowToast("Nie udało się skopiować do schowka", ToastType.Error);
             }
 
-            MessageBox.Show(sms, "📱 SMS — szczegóły dostawy", MessageBoxButton.OK, MessageBoxImage.Information);
+            // TRYB SYMULACJI — nie zapisuj snapshotu ani notatki, SMS tylko w schowku
+            if (_isSimulationMode)
+            {
+                MessageBox.Show(sms,
+                    wariant == "aktualizacja" ? "📱 SMS AKTUALIZUJĄCY — symulacja" : "📱 SMS — symulacja",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                ShowToast("📝 W symulacji SMS nie jest zapisywany (snapshot/notatka pominięte)", ToastType.Info);
+                return;
+            }
+
+            // Zapis snapshotu — pamiętamy stan w momencie SMS-a, żeby później wykryć zmiany
+            if (int.TryParse(dostawa.LP, out int lpInt))
+            {
+                int snapId = await Zywiec.Kalendarz.Services.SmsDostawySnapshotService.ZapiszSnapshotAsync(
+                    ConnectionString,
+                    lpInt,
+                    dostawa.Dostawca,
+                    dostawa.DataOdbioru,
+                    dostawa.Auta,
+                    (int)dostawa.SztukiDek,
+                    dostawa.WagaDek,
+                    sms,
+                    UserID ?? "",
+                    wariant);
+                if (snapId > 0)
+                {
+                    // Lokalna aktualizacja flag — bez ponownego ładowania całej listy
+                    dostawa.BylSMS = true;
+                    dostawa.SmsWymagaAktualizacji = false;
+                    dostawa.SmsCreatedAt = DateTime.Now;
+                    dostawa.SmsSnapshotData = dostawa.DataOdbioru;
+                    dostawa.SmsSnapshotAuta = dostawa.Auta;
+
+                    // Wpis do historii Notatek — żeby było widoczne w zakładce Notatki dostawy
+                    await DodajNotatkeSmsAsync(dostawa, wariant);
+                }
+                else
+                {
+                    // Coś poszło źle — pokaż szczegóły żeby user wiedział co naprawić
+                    string err = Zywiec.Kalendarz.Services.SmsDostawySnapshotService.LastError ?? "(brak szczegółów)";
+                    MessageBox.Show(
+                        "⚠️ Snapshot SMS-a NIE został zapisany w bazie.\n\n" +
+                        "Treść SMS-a jest w schowku — możesz go wysłać normalnie.\n" +
+                        "Jednak system NIE zapamięta że został wysłany i NIE pokaże ⚠️ przy zmianie daty/aut.\n\n" +
+                        "Szczegóły błędu:\n" + err,
+                        "Błąd zapisu snapshotu SMS",
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+            }
+
+            MessageBox.Show(sms,
+                wariant == "aktualizacja" ? "📱 SMS AKTUALIZUJĄCY — szczegóły dostawy" : "📱 SMS — szczegóły dostawy",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        // Aktualizacja nagłówka MenuItem przed otwarciem menu — pokazuje "AKTUALIZUJĄCY"
+        // gdy data/auta zmieniono od poprzedniego SMS-a. Wywoływane gdy MenuItem się ładuje
+        // (czyli przy otwarciu ContextMenu).
+        private void MenuKopiujSMS_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (sender is not MenuItem mi) return;
+            var dostawa = string.IsNullOrEmpty(_selectedLP) ? null
+                : (_dostawy.FirstOrDefault(d => d.LP == _selectedLP)
+                   ?? _dostawyNastepnyTydzien.FirstOrDefault(d => d.LP == _selectedLP));
+            if (dostawa == null || dostawa.IsHeaderRow || dostawa.IsSeparator)
+            {
+                mi.Header = "📱 Kopiuj SMS o szczegółach dostawy";
+                mi.Foreground = System.Windows.Media.Brushes.Black;
+                mi.FontWeight = FontWeights.Normal;
+                return;
+            }
+
+            if (dostawa.SmsWymagaAktualizacji)
+            {
+                var zmiany = new System.Collections.Generic.List<string>();
+                if (dostawa.SmsSnapshotData.HasValue && dostawa.SmsSnapshotData.Value.Date != dostawa.DataOdbioru.Date)
+                    zmiany.Add($"data {dostawa.SmsSnapshotData.Value:dd.MM}→{dostawa.DataOdbioru:dd.MM}");
+                if (dostawa.SmsSnapshotAuta.HasValue && dostawa.SmsSnapshotAuta.Value != dostawa.Auta)
+                    zmiany.Add($"auta {dostawa.SmsSnapshotAuta.Value}→{dostawa.Auta}");
+                string co = zmiany.Count > 0 ? $" ({string.Join(", ", zmiany)})" : "";
+                mi.Header = $"⚠️ Wyślij SMS AKTUALIZUJĄCY{co}";
+                mi.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xE6, 0x7E, 0x22));
+                mi.FontWeight = FontWeights.Bold;
+            }
+            else if (dostawa.BylSMS)
+            {
+                var kiedy = dostawa.SmsCreatedAt.HasValue ? dostawa.SmsCreatedAt.Value.ToString("dd.MM HH:mm") : "?";
+                mi.Header = $"📱 SMS o szczegółach (wysłano {kiedy}) — wyślij ponownie";
+                mi.Foreground = System.Windows.Media.Brushes.Black;
+                mi.FontWeight = FontWeights.Normal;
+            }
+            else
+            {
+                mi.Header = "📱 Kopiuj SMS o szczegółach dostawy";
+                mi.Foreground = System.Windows.Media.Brushes.Black;
+                mi.FontWeight = FontWeights.Normal;
+            }
+        }
+
+        // Wpis automatyczny do tabeli Notatki — żeby SMS pojawił się w historii dostawy.
+        // Treść opisuje co wysłano (wariant pierwszy / aktualizacja) + kluczowe dane.
+        private async Task DodajNotatkeSmsAsync(DostawaModel d, string wariant)
+        {
+            try
+            {
+                string tresc;
+                if (wariant == "aktualizacja")
+                {
+                    var zmiany = new System.Collections.Generic.List<string>();
+                    if (d.SmsSnapshotData.HasValue && d.SmsSnapshotData.Value.Date != d.DataOdbioru.Date)
+                        zmiany.Add($"data {d.SmsSnapshotData.Value:dd.MM}→{d.DataOdbioru:dd.MM}");
+                    if (d.SmsSnapshotAuta.HasValue && d.SmsSnapshotAuta.Value != d.Auta)
+                        zmiany.Add($"auta {d.SmsSnapshotAuta.Value}→{d.Auta}");
+                    string co = zmiany.Count > 0 ? string.Join(", ", zmiany) : "zmiana nieznana";
+                    tresc = $"📱 SMS AKTUALIZUJĄCY ({co}). Dostawa {d.DataOdbioru:dd.MM.yyyy}, {d.Auta} aut, {d.SztukiDek:#,0} szt.";
+                }
+                else
+                {
+                    tresc = $"📱 SMS o szczegółach dostawy ({d.DataOdbioru:dd.MM.yyyy}, {d.Auta} aut, {d.SztukiDek:#,0} szt, {d.WagaDek:0.00} kg).";
+                }
+
+                using var conn = new SqlConnection(ConnectionString);
+                await conn.OpenAsync();
+                using var cmd = new SqlCommand(
+                    "INSERT INTO Notatki (IndeksID, TypID, Tresc, KtoStworzyl, DataUtworzenia) VALUES (@lp, 1, @tresc, @kto, GETDATE())", conn);
+                cmd.Parameters.AddWithValue("@lp", d.LP);
+                cmd.Parameters.AddWithValue("@tresc", tresc);
+                cmd.Parameters.AddWithValue("@kto", UserID ?? "0");
+                await cmd.ExecuteNonQueryAsync();
+
+                // Odśwież listę notatek tylko dla bieżącej selekcji (żeby user od razu zobaczył wpis)
+                if (_selectedLP == d.LP)
+                {
+                    await LoadNotatkiAsync(d.LP);
+                    await LoadOstatnieNotatkiAsync();
+                }
+            }
+            catch
+            {
+                // Cicho — wpis do historii to bonus; brak go nie blokuje główny flow SMS
+            }
+        }
+
+        // SMS aktualizujący — wysyłany gdy zmieniono datę/auta od czasu pierwszego SMS-a.
+        // Zawiera wyróżnioną zmianę (poprzednia → obecna) + pełne aktualne dane.
+        private static string BuildDostawaSmsAktualizacjaText(DostawaModel d)
+        {
+            var dataUboj = d.DataOdbioru.Date;
+            var dataTransport = dataUboj.AddDays(-1);
+            string dniUboj = DniSkrotSms[(int)dataUboj.DayOfWeek];
+            string dniTransport = DniSkrotSms[(int)dataTransport.DayOfWeek];
+
+            var zmiany = new System.Collections.Generic.List<string>();
+            if (d.SmsSnapshotData.HasValue && d.SmsSnapshotData.Value.Date != d.DataOdbioru.Date)
+                zmiany.Add($"📅 Data: {d.SmsSnapshotData.Value:dd.MM.yyyy} → {d.DataOdbioru:dd.MM.yyyy}");
+            if (d.SmsSnapshotAuta.HasValue && d.SmsSnapshotAuta.Value != d.Auta)
+                zmiany.Add($"🚚 Auta: {d.SmsSnapshotAuta.Value} → {d.Auta}");
+            string zmianyTekst = zmiany.Count > 0
+                ? string.Join(Environment.NewLine, zmiany)
+                : "(zmiana nieznana)";
+
+            return
+                $"⚠️ AKTUALIZACJA wcześniej ustalonej dostawy:" + Environment.NewLine +
+                Environment.NewLine +
+                zmianyTekst + Environment.NewLine +
+                Environment.NewLine +
+                $"🚛 NOWE szczegóły:" + Environment.NewLine +
+                $"📌 Dostawca: {d.Dostawca}" + Environment.NewLine +
+                $"📅 Dzień uboju: {dniUboj} {dataUboj:dd.MM.yyyy}" + Environment.NewLine +
+                $"📅 Dzień transportu: {dniTransport} {dataTransport:dd.MM.yyyy}" + Environment.NewLine +
+                $"🚚 Auta: {d.Auta}" + Environment.NewLine +
+                $"🐔 Sztuki: {d.SztukiDek:#,0}" + Environment.NewLine +
+                $"⚖️ Waga: {d.WagaDek:0.00} kg" + Environment.NewLine +
+                Environment.NewLine +
+                "Prosimy o potwierdzenie zmian." + Environment.NewLine +
+                Environment.NewLine +
+                "Ubojnia Drobiu Piórkowscy";
         }
 
         private static string BuildDostawaSmsText(DostawaModel d)
@@ -7595,12 +7908,119 @@ namespace Kalendarz1.Zywiec.Kalendarz
             if (!string.IsNullOrEmpty(hodowca))
             {
                 LoadLpWstawieniaForHodowca(hodowca);
-                // Aktualizuj nagłówek z nazwą hodowcy
-                txtNazwaHodowcyHeader.Text = $"- {hodowca}";
+                // Aktualizuj hero panel — nazwa + inicjały
+                txtNazwaHodowcyHeader.Text = hodowca;
+                if (txtHeroInicjaly != null) txtHeroInicjaly.Text = WyliczInicjaly(hodowca);
+                _ = OdswiezHeroIKpiHodowcyAsync(hodowca);
             }
             else
             {
-                txtNazwaHodowcyHeader.Text = "";
+                txtNazwaHodowcyHeader.Text = "(wybierz hodowcę)";
+                if (txtHeroInicjaly != null) txtHeroInicjaly.Text = "?";
+                if (txtHeroAdres != null) txtHeroAdres.Text = "";
+                if (txtHeroDystans != null) txtHeroDystans.Text = "";
+                if (brdStalyKlientBadge != null) brdStalyKlientBadge.Visibility = Visibility.Collapsed;
+                if (txtKpiHIleDostaw != null) txtKpiHIleDostaw.Text = "—";
+                if (txtKpiHOstatniaData != null) txtKpiHOstatniaData.Text = "—";
+                if (txtKpiHOstatniaDni != null) txtKpiHOstatniaDni.Text = "";
+                if (txtKpiHSredniaAuta != null) txtKpiHSredniaAuta.Text = "—";
+                if (txtKpiHSredniaWaga != null) txtKpiHSredniaWaga.Text = "—";
+            }
+        }
+
+        // Inicjały hodowcy z nazwy (max 2 znaki — pierwsza litera nazwiska + pierwsza litera imienia)
+        private static string WyliczInicjaly(string nazwa)
+        {
+            if (string.IsNullOrWhiteSpace(nazwa)) return "?";
+            var tokeny = nazwa.Trim().Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+            if (tokeny.Length >= 2) return $"{char.ToUpper(tokeny[0][0])}{char.ToUpper(tokeny[1][0])}";
+            return tokeny.Length == 1 && tokeny[0].Length > 0 ? char.ToUpper(tokeny[0][0]).ToString() : "?";
+        }
+
+        // Hero panel + KPI strip — pobranie metryk dostaw hodowcy (12 m-cy) jednym query.
+        // BackgroundFire-and-forget, błędy ignorowane (panel zachowuje "—").
+        private async Task OdswiezHeroIKpiHodowcyAsync(string hodowca)
+        {
+            try
+            {
+                int ileDostaw = 0;
+                DateTime? ostatnia = null;
+                double sredniaAuta = 0;
+                decimal sredniaWaga = 0;
+                string adres = "", miasto = "";
+                int dystans = 0;
+
+                using var conn = new SqlConnection(ConnectionString);
+                await conn.OpenAsync();
+
+                // 1. Dane teleadresowe — krótkie zapytanie
+                using (var cmd = new SqlCommand(
+                    "SELECT TOP 1 ISNULL(Address,''), ISNULL(City,''), ISNULL(Distance,0) FROM dbo.Dostawcy WHERE Name = @n", conn))
+                {
+                    cmd.Parameters.AddWithValue("@n", hodowca);
+                    using var r = await cmd.ExecuteReaderAsync();
+                    if (await r.ReadAsync())
+                    {
+                        adres = r.GetString(0);
+                        miasto = r.GetString(1);
+                        dystans = r.GetInt32(2);
+                    }
+                }
+
+                // 2. KPI z HarmonogramDostaw — ostatnie 12 miesięcy, bez anulowanych
+                using (var cmd = new SqlCommand(@"
+                    SELECT COUNT(*),
+                           MAX(DataOdbioru),
+                           AVG(CAST(Auta AS FLOAT)),
+                           AVG(CAST(WagaDek AS DECIMAL(10,2)))
+                    FROM dbo.HarmonogramDostaw
+                    WHERE Dostawca = @n
+                      AND DataOdbioru >= DATEADD(MONTH, -12, GETDATE())
+                      AND (Bufor IS NULL OR Bufor NOT IN ('Anulowany'))", conn))
+                {
+                    cmd.Parameters.AddWithValue("@n", hodowca);
+                    using var r = await cmd.ExecuteReaderAsync();
+                    if (await r.ReadAsync() && !r.IsDBNull(0))
+                    {
+                        ileDostaw = r.GetInt32(0);
+                        ostatnia = r.IsDBNull(1) ? null : r.GetDateTime(1);
+                        sredniaAuta = r.IsDBNull(2) ? 0 : r.GetDouble(2);
+                        sredniaWaga = r.IsDBNull(3) ? 0 : r.GetDecimal(3);
+                    }
+                }
+
+                // Aktualizacja UI na wątku UI
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    // Hero adres + dystans
+                    string lokalizacja = !string.IsNullOrEmpty(miasto) && !string.IsNullOrEmpty(adres)
+                        ? $"{adres}, {miasto}"
+                        : (miasto + adres);
+                    if (txtHeroAdres != null) txtHeroAdres.Text = string.IsNullOrEmpty(lokalizacja) ? "" : $"📍 {lokalizacja}";
+                    if (txtHeroDystans != null) txtHeroDystans.Text = dystans > 0 ? $"🚗 {dystans} km" : "";
+
+                    // ★ Stały klient — jeśli ≥4 dostawy w 12 m-cach
+                    if (brdStalyKlientBadge != null)
+                        brdStalyKlientBadge.Visibility = ileDostaw >= 4 ? Visibility.Visible : Visibility.Collapsed;
+
+                    // KPI
+                    if (txtKpiHIleDostaw != null) txtKpiHIleDostaw.Text = ileDostaw.ToString();
+                    if (txtKpiHOstatniaData != null)
+                        txtKpiHOstatniaData.Text = ostatnia.HasValue ? ostatnia.Value.ToString("dd.MM.yyyy") : "brak";
+                    if (txtKpiHOstatniaDni != null && ostatnia.HasValue)
+                    {
+                        int dni = (DateTime.Today - ostatnia.Value.Date).Days;
+                        txtKpiHOstatniaDni.Text = dni == 0 ? "dziś" : (dni == 1 ? "wczoraj" : $"{dni} dni temu");
+                    }
+                    else if (txtKpiHOstatniaDni != null) txtKpiHOstatniaDni.Text = "";
+
+                    if (txtKpiHSredniaAuta != null) txtKpiHSredniaAuta.Text = sredniaAuta > 0 ? $"{sredniaAuta:0.0}" : "—";
+                    if (txtKpiHSredniaWaga != null) txtKpiHSredniaWaga.Text = sredniaWaga > 0 ? $"{sredniaWaga:0.00}" : "—";
+                });
+            }
+            catch
+            {
+                // Cicho — KPI to bonus, nie blokujemy główny flow
             }
         }
 
@@ -7625,6 +8045,13 @@ namespace Kalendarz1.Zywiec.Kalendarz
             if (string.IsNullOrEmpty(hodowca))
             {
                 ShowToast("Wybierz hodowcę", ToastType.Warning);
+                return;
+            }
+
+            // TRYB SYMULACJI — nie modyfikuj słownika Dostawcy w bazie
+            if (_isSimulationMode)
+            {
+                ShowToast("📝 W symulacji dane hodowcy nie są zapisywane do bazy", ToastType.Info);
                 return;
             }
 
@@ -8487,6 +8914,8 @@ namespace Kalendarz1.Zywiec.Kalendarz
                     {
                         item.RoznicaDni = item.RoznicaDni.Value + shiftDays;
                     }
+                    // Po zmianie daty — przelicz flagę SMS (czy wymaga aktualizacji)
+                    PrzeliczFlageSmsLokalnie(item);
                     RefreshDostawyView();
                 }
             }

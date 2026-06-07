@@ -52,6 +52,51 @@ namespace Kalendarz1.Zywiec.Kalendarz
         private bool _isSimulationMoved;
         public bool IsSimulationMoved { get => _isSimulationMoved; set { _isSimulationMoved = value; OnPropertyChanged(); } }
 
+        // ====== SMS o szczegółach dostawy — snapshot + flaga aktualizacji ======
+        // BylSMS = istnieje wpis w SmsDostawySnapshot dla tego LP
+        // SmsWymagaAktualizacji = od ostatniego SMS-a zmieniono DataOdbioru lub Auta
+        // SmsSnapshotData/Auta = wartości z momentu wysłania ostatniego SMS-a (do tooltipu i SMS-a aktualizującego)
+        private bool _bylSMS;
+        public bool BylSMS { get => _bylSMS; set { _bylSMS = value; OnPropertyChanged(); OnPropertyChanged(nameof(SmsStatusIkona)); OnPropertyChanged(nameof(SmsStatusTooltip)); } }
+
+        private bool _smsWymagaAktualizacji;
+        public bool SmsWymagaAktualizacji { get => _smsWymagaAktualizacji; set { _smsWymagaAktualizacji = value; OnPropertyChanged(); OnPropertyChanged(nameof(SmsStatusIkona)); OnPropertyChanged(nameof(SmsStatusTooltip)); } }
+
+        private DateTime? _smsCreatedAt;
+        public DateTime? SmsCreatedAt { get => _smsCreatedAt; set { _smsCreatedAt = value; OnPropertyChanged(); OnPropertyChanged(nameof(SmsStatusTooltip)); } }
+
+        private DateTime? _smsSnapshotData;
+        public DateTime? SmsSnapshotData { get => _smsSnapshotData; set { _smsSnapshotData = value; OnPropertyChanged(); OnPropertyChanged(nameof(SmsStatusTooltip)); } }
+
+        private int? _smsSnapshotAuta;
+        public int? SmsSnapshotAuta { get => _smsSnapshotAuta; set { _smsSnapshotAuta = value; OnPropertyChanged(); OnPropertyChanged(nameof(SmsStatusTooltip)); } }
+
+        // Display-only: ikona statusu SMS
+        // ⚠️ = SMS był ale wymaga aktualizacji (zmiana daty/aut)
+        // 📱 = SMS wysłany, dane się zgadzają
+        // ""  = brak SMS-a
+        public string SmsStatusIkona =>
+            SmsWymagaAktualizacji ? "⚠️" : (BylSMS ? "📱" : "");
+
+        public string SmsStatusTooltip
+        {
+            get
+            {
+                if (!BylSMS) return "";
+                var kiedy = SmsCreatedAt.HasValue ? SmsCreatedAt.Value.ToString("dd.MM.yyyy HH:mm") : "?";
+                if (SmsWymagaAktualizacji)
+                {
+                    var zmiany = new List<string>();
+                    if (SmsSnapshotData.HasValue && SmsSnapshotData.Value.Date != DataOdbioru.Date)
+                        zmiany.Add($"data: {SmsSnapshotData.Value:dd.MM} → {DataOdbioru:dd.MM}");
+                    if (SmsSnapshotAuta.HasValue && SmsSnapshotAuta.Value != Auta)
+                        zmiany.Add($"auta: {SmsSnapshotAuta.Value} → {Auta}");
+                    return $"⚠️ SMS wysłany {kiedy}, ale od tej pory zmieniło się:\n{string.Join("\n", zmiany)}\n\nKliknij PPM → SMS aktualizujący.";
+                }
+                return $"📱 SMS o szczegółach wysłany {kiedy} — dane się zgadzają.";
+            }
+        }
+
         public bool IsHeaderRow { get; set; }
         public bool IsSeparator { get; set; }
         public bool IsEmptyDay { get; set; }
@@ -93,7 +138,7 @@ namespace Kalendarz1.Zywiec.Kalendarz
             ? (SredniaKM > 0 ? $"{SredniaKM:0}" : "")
             : (Distance > 0 ? $"{Distance}" : "");
         public string RoznicaDniDisplay => IsHeaderRow
-            ? (SumaUbytek > 0 ? $"Ub:{SumaUbytek}" : "")
+            ? (SumaUbytek > 0 ? $"U {SumaUbytek}" : "")
             : (RoznicaDni.HasValue ? $"{RoznicaDni}" : "");
         public string AutaDisplay => IsHeaderRow
             ? (SumaAuta > 0 ? $"{SumaAuta:0}" : "")

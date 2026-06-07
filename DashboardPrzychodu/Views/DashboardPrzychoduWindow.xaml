@@ -305,202 +305,16 @@
     <!-- ============================================ -->
     <Grid Margin="6">
         <Grid.RowDefinitions>
-            <RowDefinition Height="28"/>   <!-- TOP BAR -->
-            <RowDefinition Height="36"/>   <!-- KPI STRIP -->
             <RowDefinition Height="*"/>    <!-- MAIN (Sidebar + Table) -->
             <RowDefinition Height="26"/>   <!-- BOTTOM BAR -->
         </Grid.RowDefinitions>
 
         <!-- ============================================ -->
-        <!-- ROW 0: TOP BAR (28px) -->
+        <!-- ROW 0: MAIN CONTENT (Sidebar + Table) -->
         <!-- ============================================ -->
-        <Border Grid.Row="0" Background="#292524" CornerRadius="5" Padding="8,0">
-            <Grid>
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <!-- LOGO - PPM do zmiany -->
-                    <Border x:Name="LogoBox" Width="22" Height="22" Background="#44403c"
-                            CornerRadius="3" Cursor="Hand" MouseRightButtonUp="LogoBox_RightClick">
-                        <TextBlock x:Name="LogoIcon" Text="🏭" FontSize="13"
-                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                    </Border>
-
-                    <TextBlock Text="PRZYCHÓD ŻYWCA" FontSize="12" FontWeight="Bold"
-                               Foreground="#fbbf24" Margin="8,0,0,0" VerticalAlignment="Center"/>
-
-                    <Border Background="#f59e0b" CornerRadius="6" Padding="5,1" Margin="8,0,0,0" VerticalAlignment="Center">
-                        <TextBlock Text="● LIVE" FontSize="7" FontWeight="Bold" Foreground="#1c1917"/>
-                    </Border>
-
-                    <Rectangle Width="1" Height="16" Fill="#44403c" Margin="12,0"/>
-
-                    <TextBlock Text="📅" FontSize="10" VerticalAlignment="Center"/>
-                    <DatePicker x:Name="dpData" SelectedDate="{x:Static sys:DateTime.Today}"
-                                Width="100" Style="{StaticResource DarkDatePicker}" Margin="4,0,0,0"/>
-                    <TextBlock x:Name="txtDataDisplay" Text="" FontSize="9"
-                               Foreground="#78716c" Margin="6,0,0,0" VerticalAlignment="Center"/>
-
-                    <Rectangle Width="1" Height="16" Fill="#44403c" Margin="12,0"/>
-
-                    <TextBlock Text="Plan:" FontSize="9" Foreground="#78716c" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                    <RadioButton x:Name="rbPlanStare" Content="Stare" GroupName="PlanMode"
-                                 Checked="RbPlanMode_Checked"
-                                 Foreground="#a8a29e" FontSize="9" VerticalAlignment="Center" Margin="0,0,8,0" Cursor="Hand"/>
-                    <RadioButton x:Name="rbPlanNowe" Content="Nowe" GroupName="PlanMode"
-                                 IsChecked="True" Checked="RbPlanMode_Checked"
-                                 Foreground="#a8a29e" FontSize="9" VerticalAlignment="Center" Cursor="Hand"/>
-                </StackPanel>
-
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                    <TextBox x:Name="txtSearch" Width="140" FontSize="9" Padding="6,3"
-                             Background="#1c1917" Foreground="#e7e5e4" BorderBrush="#44403c"
-                             BorderThickness="1" VerticalContentAlignment="Center"/>
-                    <Button Content="🔄 Odśwież" Style="{StaticResource BtnAmber}" Click="BtnRefresh_Click" Margin="8,0,0,0"/>
-                    <TextBlock FontSize="9" Foreground="#78716c" Margin="10,0,0,0" VerticalAlignment="Center">
-                        <Run Text="Auto: "/><Run x:Name="txtAutoRefresh" Text="30s" Foreground="#fbbf24"/>
-                    </TextBlock>
-                </StackPanel>
-            </Grid>
-        </Border>
-
-        <!-- ============================================ -->
-        <!-- ROW 1: KPI STRIP (36px) - 7 kafelków (dodano ETA) -->
-        <!-- ============================================ -->
-        <UniformGrid Grid.Row="1" Columns="7" Margin="0,4,0,0">
-
-            <!-- PLAN -->
-            <Border Background="#292524" CornerRadius="4" Margin="0,0,2,0" Padding="6,3"
-                    BorderThickness="0,0,0,2" BorderBrush="#f59e0b"
-                    MouseRightButtonUp="KpiIcon_RightClick" Tag="plan" Cursor="Hand"
-                    ToolTip="Planowana dostawa żywca wg deklaracji hodowców">
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock x:Name="IcoPlan" Text="🐔" FontSize="14" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                    <StackPanel>
-                        <TextBlock Text="PLAN" FontSize="7" Foreground="#78716c" FontWeight="SemiBold"/>
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock x:Name="txtKgPlan" Text="0" FontSize="13" FontWeight="Bold" Foreground="#fbbf24"/>
-                            <TextBlock Text=" kg" FontSize="8" Foreground="#78716c" VerticalAlignment="Bottom" Margin="0,0,0,1"/>
-                        </StackPanel>
-                    </StackPanel>
-                </StackPanel>
-            </Border>
-
-            <!-- ZWAŻONE -->
-            <Border Background="#292524" CornerRadius="4" Margin="2,0" Padding="6,3"
-                    BorderThickness="0,0,0,2" BorderBrush="#22c55e"
-                    MouseRightButtonUp="KpiIcon_RightClick" Tag="zwazone" Cursor="Hand"
-                    ToolTip="Żywiec już zważony na wadze przyjęcia">
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock x:Name="IcoZwazone" Text="✓" FontSize="14" Foreground="#22c55e"
-                               VerticalAlignment="Center" Margin="0,0,6,0"/>
-                    <StackPanel>
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="ZWAŻONE" FontSize="7" Foreground="#78716c" FontWeight="SemiBold"/>
-                            <TextBlock x:Name="txtTempoZwazone" Text="" FontSize="7" Foreground="#22c55e"
-                                       Margin="6,0,0,0" VerticalAlignment="Center"/>
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock x:Name="txtKgZwazone" Text="0" FontSize="13" FontWeight="Bold" Foreground="#22c55e"/>
-                            <TextBlock Text=" kg" FontSize="8" Foreground="#78716c" VerticalAlignment="Bottom" Margin="0,0,0,1"/>
-                            <TextBlock x:Name="txtTrendZwazone" Text="" FontSize="12" VerticalAlignment="Center" Margin="4,0,0,0"/>
-                        </StackPanel>
-                    </StackPanel>
-                </StackPanel>
-            </Border>
-
-            <!-- POZOSTAŁO -->
-            <Border Background="#292524" CornerRadius="4" Margin="2,0" Padding="6,3"
-                    BorderThickness="0,0,0,2" BorderBrush="#60a5fa"
-                    MouseRightButtonUp="KpiIcon_RightClick" Tag="pozostalo" Cursor="Hand"
-                    ToolTip="Żywiec oczekujący na ważenie">
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock x:Name="IcoPozostalo" Text="⏳" FontSize="14" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                    <StackPanel>
-                        <TextBlock Text="POZOSTAŁO" FontSize="7" Foreground="#78716c" FontWeight="SemiBold"/>
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock x:Name="txtKgPozostalo" Text="0" FontSize="13" FontWeight="Bold" Foreground="#60a5fa"/>
-                            <TextBlock Text=" kg" FontSize="8" Foreground="#78716c" VerticalAlignment="Bottom" Margin="0,0,0,1"/>
-                        </StackPanel>
-                    </StackPanel>
-                </StackPanel>
-            </Border>
-
-            <!-- ODCHYLENIE -->
-            <Border x:Name="borderOdchylenie" Background="#292524" CornerRadius="4" Margin="2,0" Padding="6,3"
-                    BorderThickness="0,0,0,2" BorderBrush="#78716c"
-                    MouseRightButtonUp="KpiIcon_RightClick" Tag="odchylenie" Cursor="Hand"
-                    ToolTip="Różnica plan vs rzeczywistość&#10;±2% OK | ±5% UWAGA | >5% PROBLEM">
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock x:Name="IcoOdchylenie" Text="📉" FontSize="14" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                    <StackPanel>
-                        <TextBlock Text="ODCHYLENIE" FontSize="7" Foreground="#78716c" FontWeight="SemiBold"/>
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock x:Name="txtOdchylenie" Text="-" FontSize="13" FontWeight="Bold" Foreground="#a8a29e"/>
-                            <TextBlock x:Name="txtOdchylenieProc" Text="" FontSize="9" Foreground="#78716c"
-                                       VerticalAlignment="Bottom" Margin="4,0,0,1"/>
-                        </StackPanel>
-                    </StackPanel>
-                </StackPanel>
-            </Border>
-
-            <!-- TUSZKI -->
-            <Border Background="#292524" CornerRadius="4" Margin="2,0" Padding="6,3"
-                    BorderThickness="0,0,0,2" BorderBrush="#c084fc"
-                    MouseRightButtonUp="KpiIcon_RightClick" Tag="tuszki" Cursor="Hand"
-                    ToolTip="Prognoza tuszek = żywiec × 78%">
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock x:Name="IcoTuszki" Text="🍗" FontSize="14" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                    <StackPanel>
-                        <TextBlock Text="TUSZKI" FontSize="7" Foreground="#78716c" FontWeight="SemiBold"/>
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock x:Name="txtPrognozaTuszek" Text="0" FontSize="13" FontWeight="Bold" Foreground="#c084fc"/>
-                            <TextBlock Text=" kg" FontSize="8" Foreground="#78716c" VerticalAlignment="Bottom" Margin="0,0,0,1"/>
-                        </StackPanel>
-                    </StackPanel>
-                </StackPanel>
-            </Border>
-
-            <!-- ETA + PACE - nowy kafelek (#6 + #7) - tooltip ustawiany programowo z UpdateSummaryUI -->
-            <Border x:Name="borderEta" Background="#292524" CornerRadius="4" Margin="2,0" Padding="6,3"
-                    BorderThickness="0,0,0,2" BorderBrush="#60a5fa" Cursor="Help">
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock x:Name="IcoEta" Text="⏰" FontSize="14" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                    <StackPanel>
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="ETA" FontSize="7" Foreground="#78716c" FontWeight="SemiBold"/>
-                            <TextBlock x:Name="txtPaceBadge" Text="" FontSize="7" FontWeight="SemiBold"
-                                       Foreground="#78716c" Margin="6,0,0,0" VerticalAlignment="Center"/>
-                        </StackPanel>
-                        <TextBlock x:Name="txtEta" Text="—" FontSize="13" FontWeight="Bold" Foreground="#60a5fa"/>
-                    </StackPanel>
-                </StackPanel>
-            </Border>
-
-            <!-- REALIZACJA -->
-            <Border Background="#292524" CornerRadius="4" Margin="2,0,0,0" Padding="6,3"
-                    BorderThickness="0,0,0,2" BorderBrush="#22c55e"
-                    MouseRightButtonUp="KpiIcon_RightClick" Tag="realizacja" Cursor="Hand"
-                    ToolTip="Procent zrealizowanych dostaw">
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock x:Name="IcoRealizacja" Text="📊" FontSize="14" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                    <StackPanel>
-                        <TextBlock Text="REALIZACJA" FontSize="7" Foreground="#78716c" FontWeight="SemiBold"/>
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock x:Name="txtRealizacja" Text="0%" FontSize="14" FontWeight="Bold" Foreground="#22c55e"/>
-                            <TextBlock x:Name="txtDostawyStatus" Text="(0/0)" FontSize="8" Foreground="#78716c"
-                                       Margin="4,0,0,0" VerticalAlignment="Bottom"/>
-                        </StackPanel>
-                    </StackPanel>
-                </StackPanel>
-            </Border>
-
-        </UniformGrid>
-
-        <!-- ============================================ -->
-        <!-- ROW 2: MAIN CONTENT (Sidebar + Table) -->
-        <!-- ============================================ -->
-        <Grid Grid.Row="2" Margin="0,4,0,0">
+        <Grid Grid.Row="0">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="460"/>  <!-- Sidebar - szerszy -->
+                <ColumnDefinition Width="680"/>  <!-- Sidebar - duzo szerszy z navigacja -->
                 <ColumnDefinition Width="*"/>    <!-- Table -->
             </Grid.ColumnDefinitions>
 
@@ -508,41 +322,71 @@
             <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" Margin="0,0,4,0">
                 <StackPanel>
 
-                    <!-- HARMONOGRAMY - kompaktowe kafelki -->
-                    <Border Background="#292524" CornerRadius="5" Padding="8,6" Margin="0,0,0,6">
+                    <!-- ====== NAWIGACJA (kompaktowa, na samej górze) ====== -->
+                    <Border Background="#292524" CornerRadius="6" Padding="12,8" Margin="0,0,0,6">
                         <StackPanel>
-                            <Grid Margin="0,0,0,4">
-                                <TextBlock Text="📦 HARMONOGRAMY" FontSize="10" FontWeight="Bold" Foreground="#f59e0b"/>
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                    <TextBlock Text="⚖️ " FontSize="9" Foreground="#78716c"/>
-                                    <TextBlock x:Name="txtSrWagaPlanSidebar" Text="-" FontSize="9" FontWeight="SemiBold" Foreground="#a8a29e"/>
-                                    <TextBlock Text=" → " FontSize="9" Foreground="#57534e"/>
-                                    <TextBlock x:Name="txtSrWagaRzeczSidebar" Text="-" FontSize="9" FontWeight="Bold" Foreground="#22c55e"/>
-                                    <TextBlock Text=" kg" FontSize="8" Foreground="#57534e"/>
+                            <!-- Linia 1: Logo + tytuł + LIVE + Odśwież + Auto-refresh -->
+                            <Grid Margin="0,0,0,6">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Border x:Name="LogoBox" Width="36" Height="36" Background="#44403c"
+                                            CornerRadius="5" Cursor="Hand" MouseRightButtonUp="LogoBox_RightClick">
+                                        <TextBlock x:Name="LogoIcon" Text="🏭" FontSize="20"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Text="PRZYCHÓD ŻYWCA" FontSize="16" FontWeight="Bold"
+                                               Foreground="#fbbf24" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                                    <Border Background="#f59e0b" CornerRadius="7" Padding="7,2" Margin="8,0,0,0" VerticalAlignment="Center">
+                                        <TextBlock Text="● LIVE" FontSize="9" FontWeight="Bold" Foreground="#1c1917"/>
+                                    </Border>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                    <Button Content="🔄 Odśwież" Style="{StaticResource BtnAmber}" Click="BtnRefresh_Click"
+                                            FontSize="13" Padding="14,7"/>
+                                    <TextBlock FontSize="12" Foreground="#a8a29e" Margin="10,0,0,0" VerticalAlignment="Center">
+                                        <Run Text="Auto: "/><Run x:Name="txtAutoRefresh" Text="30s" Foreground="#fbbf24" FontWeight="Bold"/>
+                                    </TextBlock>
                                 </StackPanel>
                             </Grid>
 
-                            <!-- Pasek realizacji łączonej dnia - kolorowy stacked bar -->
-                            <Grid Margin="0,0,0,6">
-                                <Border Background="#1c1917" CornerRadius="4" Height="14">
-                                    <ItemsControl x:Name="icStackedBar">
-                                        <ItemsControl.ItemsPanel>
-                                            <ItemsPanelTemplate>
-                                                <StackPanel Orientation="Horizontal"/>
-                                            </ItemsPanelTemplate>
-                                        </ItemsControl.ItemsPanel>
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
-                                                <Border Height="14" Width="{Binding BarWidth, Mode=OneWay}"
-                                                        Background="{Binding HodowcaKolor, Mode=OneWay}"
-                                                        ToolTip="{Binding BarTooltip, Mode=OneWay}"
-                                                        Opacity="0.85" CornerRadius="2"/>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </Border>
-                                <TextBlock x:Name="txtStackedBarLabel" Text="" FontSize="8" FontWeight="Bold"
-                                           Foreground="#1c1917" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <!-- Linia 2: Data + Plan S/N -->
+                            <Grid>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="📅" FontSize="16" VerticalAlignment="Center"/>
+                                    <DatePicker x:Name="dpData" SelectedDate="{x:Static sys:DateTime.Today}"
+                                                Width="160" FontSize="13" Style="{StaticResource DarkDatePicker}"
+                                                Margin="6,0,0,0"/>
+                                    <TextBlock x:Name="txtDataDisplay" Text="" FontSize="12"
+                                               Foreground="#a8a29e" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                    <TextBlock Text="Plan:" FontSize="13" Foreground="#a8a29e" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                    <RadioButton x:Name="rbPlanStare" Content="S" GroupName="PlanMode"
+                                                 Checked="RbPlanMode_Checked"
+                                                 Foreground="#a8a29e" FontSize="14" FontWeight="Bold"
+                                                 VerticalAlignment="Center" Margin="0,0,14,0" Cursor="Hand"
+                                                 ToolTip="Stare - plan proporcjonalny / ostatnie auto = reszta"/>
+                                    <RadioButton x:Name="rbPlanNowe" Content="N" GroupName="PlanMode"
+                                                 IsChecked="True" Checked="RbPlanMode_Checked"
+                                                 Foreground="#a8a29e" FontSize="14" FontWeight="Bold"
+                                                 VerticalAlignment="Center" Cursor="Hand"
+                                                 ToolTip="Nowe - plan per auto z SztukiExcel × WagaDek"/>
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- HARMONOGRAMY - karty -->
+                    <Border Background="#292524" CornerRadius="5" Padding="8,6" Margin="0,0,0,6">
+                        <StackPanel>
+                            <Grid Margin="0,0,0,4">
+                                <TextBlock Text="📦 HARMONOGRAMY" FontSize="11" FontWeight="Bold" Foreground="#f59e0b"/>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                    <TextBlock Text="⚖️ " FontSize="10" Foreground="#78716c"/>
+                                    <TextBlock x:Name="txtSrWagaPlanSidebar" Text="-" FontSize="10" FontWeight="SemiBold" Foreground="#a8a29e"/>
+                                    <TextBlock Text=" → " FontSize="10" Foreground="#57534e"/>
+                                    <TextBlock x:Name="txtSrWagaRzeczSidebar" Text="-" FontSize="10" FontWeight="Bold" Foreground="#22c55e"/>
+                                    <TextBlock Text=" kg" FontSize="9" Foreground="#57534e"/>
+                                </StackPanel>
                             </Grid>
 
                             <ItemsControl x:Name="icHarmonogramy">
@@ -553,7 +397,7 @@
                                 </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Border CornerRadius="6" Margin="0,0,6,6" MinWidth="200"
+                                        <Border CornerRadius="7" Margin="0,0,7,7" MinWidth="280" MaxWidth="300"
                                                 Background="#1c1917"
                                                 ToolTip="{Binding Hodowca, Mode=OneWay}">
                                             <!-- Pulsowanie aktywnej karty - kolorowe obramowanie -->
@@ -575,58 +419,105 @@
                                                         CornerRadius="6,0,0,6"
                                                         Background="{Binding HodowcaKolor, Mode=OneWay}"/>
 
-                                                <StackPanel Margin="12,7,8,7">
-                                                    <!-- Nagłówek: Hodowca + kropka statusu + % realizacji -->
-                                                    <Grid Margin="0,0,0,5">
-                                                        <StackPanel Orientation="Horizontal">
+                                                <StackPanel Margin="12,8,10,8">
+                                                    <!-- Nagłówek: Hodowca (pełna szerokość) + badge'e w prawym górnym rogu -->
+                                                    <Grid Margin="0,0,0,6">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <StackPanel Grid.Column="0" Orientation="Horizontal">
                                                             <!-- Kropka statusu -->
-                                                            <Ellipse Width="8" Height="8" Margin="0,0,5,0"
+                                                            <Ellipse Width="9" Height="9" Margin="0,0,5,0"
                                                                      Fill="{Binding StatusDotColor, Mode=OneWay}"
                                                                      Opacity="{Binding StatusDotOpacity, Mode=OneWay}"
                                                                      VerticalAlignment="Center"/>
-                                                            <TextBlock Text="{Binding Hodowca, Mode=OneWay}" FontSize="11" FontWeight="Bold"
+                                                            <TextBlock Text="{Binding Hodowca, Mode=OneWay}" FontSize="13" FontWeight="Bold"
                                                                        Foreground="{Binding HodowcaKolor, Mode=OneWay}"
-                                                                       TextTrimming="CharacterEllipsis" MaxWidth="120"/>
+                                                                       TextTrimming="CharacterEllipsis"
+                                                                       VerticalAlignment="Center"/>
                                                         </StackPanel>
-                                                        <Border Background="{Binding HodowcaKolor, Mode=OneWay}" CornerRadius="3"
-                                                                Padding="5,1,5,1" HorizontalAlignment="Right">
-                                                            <TextBlock Text="{Binding TrendDisplay, Mode=OneWay}" FontSize="10" FontWeight="Bold"
+                                                        <Border Grid.Column="1" Background="{Binding HodowcaKolor, Mode=OneWay}" CornerRadius="3"
+                                                                Padding="5,1,5,1" VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding TrendDisplay, Mode=OneWay}" FontSize="11" FontWeight="Bold"
                                                                        Foreground="#1c1917"/>
                                                         </Border>
                                                     </Grid>
 
+                                                    <!-- REALNI HODOWCY (pokazujemy gdy rozni sie od planowanego) -->
+                                                    <Border Background="#292524" CornerRadius="3" Padding="6,3" Margin="0,0,0,5"
+                                                            Visibility="{Binding MaRoznychRealnych, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                            ToolTip="{Binding RealniHodowcy}">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <TextBlock Text="👥" FontSize="11" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                                                            <TextBlock Text="Realnie: " FontSize="10" Foreground="#78716c" VerticalAlignment="Center"/>
+                                                            <TextBlock Text="{Binding RealniHodowcyDisplay, Mode=OneWay}" FontSize="10" FontWeight="SemiBold"
+                                                                       Foreground="#fbbf24" TextTrimming="CharacterEllipsis" MaxWidth="220"
+                                                                       VerticalAlignment="Center"/>
+                                                        </StackPanel>
+                                                    </Border>
+
                                                     <!-- Plan vs Rzecz - 2 kolumny -->
-                                                    <Grid Margin="0,0,0,3">
+                                                    <Grid Margin="0,0,0,4">
                                                         <Grid.ColumnDefinitions>
                                                             <ColumnDefinition Width="*"/>
                                                             <ColumnDefinition Width="Auto"/>
                                                             <ColumnDefinition Width="*"/>
                                                         </Grid.ColumnDefinitions>
                                                         <StackPanel Grid.Column="0">
-                                                            <TextBlock Text="PLAN" FontSize="7" Foreground="#78716c" FontWeight="SemiBold"/>
-                                                            <TextBlock Text="{Binding KgPlanDisplay, Mode=OneWay}" FontSize="13" FontWeight="SemiBold"
+                                                            <TextBlock Text="PLAN" FontSize="8" Foreground="#78716c" FontWeight="SemiBold"/>
+                                                            <TextBlock Text="{Binding KgPlanDisplay, Mode=OneWay}" FontSize="15" FontWeight="SemiBold"
                                                                        Foreground="#a8a29e"/>
                                                         </StackPanel>
-                                                        <TextBlock Grid.Column="1" Text="→" Foreground="#57534e" FontSize="12"
-                                                                   VerticalAlignment="Bottom" Margin="6,0,6,1"/>
+                                                        <TextBlock Grid.Column="1" Text="→" Foreground="#57534e" FontSize="13"
+                                                                   VerticalAlignment="Bottom" Margin="6,0,6,2"/>
                                                         <StackPanel Grid.Column="2" HorizontalAlignment="Right">
-                                                            <TextBlock Text="RZECZ" FontSize="7" Foreground="#78716c" FontWeight="SemiBold"
+                                                            <TextBlock Text="RZECZ" FontSize="8" Foreground="#78716c" FontWeight="SemiBold"
                                                                        HorizontalAlignment="Right"/>
-                                                            <TextBlock Text="{Binding KgRzeczDisplay, Mode=OneWay}" FontSize="13" FontWeight="Bold"
+                                                            <TextBlock Text="{Binding KgRzeczDisplay, Mode=OneWay}" FontSize="15" FontWeight="Bold"
                                                                        Foreground="#e7e5e4" HorizontalAlignment="Right"/>
                                                         </StackPanel>
                                                     </Grid>
 
-                                                    <!-- Waga: dek → rzecz -->
-                                                    <Grid Margin="0,0,0,4">
+                                                    <!-- CENTRALNE: Odchylenie kg i odchylenie waga (focus karty) -->
+                                                    <Border Background="#0a0a0a" CornerRadius="4" Padding="8,6" Margin="0,2,0,5">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="1"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <!-- Lewa: ODCHYL.KG -->
+                                                            <StackPanel Grid.Column="0" HorizontalAlignment="Center">
+                                                                <TextBlock Text="ODCHYL. KG" FontSize="8" Foreground="#78716c" FontWeight="SemiBold"
+                                                                           HorizontalAlignment="Center"/>
+                                                                <TextBlock Text="{Binding OdchylenieKgDisplay, Mode=OneWay}" FontSize="16" FontWeight="Bold"
+                                                                           Foreground="{Binding OdchylenieKgBrush, Mode=OneWay}"
+                                                                           HorizontalAlignment="Center"/>
+                                                            </StackPanel>
+                                                            <!-- Separator pionowy -->
+                                                            <Rectangle Grid.Column="1" Fill="#44403c" Width="1" Margin="0,2"/>
+                                                            <!-- Prawa: ODCHYL.WAGA -->
+                                                            <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+                                                                <TextBlock Text="ODCHYL. WAGA" FontSize="8" Foreground="#78716c" FontWeight="SemiBold"
+                                                                           HorizontalAlignment="Center"/>
+                                                                <TextBlock Text="{Binding OdchylenieWagiDisplay, Mode=OneWay}" FontSize="16" FontWeight="Bold"
+                                                                           Foreground="{Binding OdchylenieWagiBrush, Mode=OneWay}"
+                                                                           HorizontalAlignment="Center"/>
+                                                            </StackPanel>
+                                                        </Grid>
+                                                    </Border>
+
+                                                    <!-- Waga: dek → rzecz (mała linia kontekstowa) -->
+                                                    <Grid Margin="0,0,0,5">
                                                         <StackPanel Orientation="Horizontal">
-                                                            <TextBlock Text="⚖ " FontSize="8" Foreground="#57534e"/>
-                                                            <TextBlock Text="{Binding SredniaWagaPlanDisplay, Mode=OneWay}" FontSize="9"
+                                                            <TextBlock Text="⚖ " FontSize="10" Foreground="#57534e"/>
+                                                            <TextBlock Text="{Binding SredniaWagaPlanDisplay, Mode=OneWay}" FontSize="11"
                                                                        Foreground="#78716c"/>
-                                                            <TextBlock Text="  →  " FontSize="8" Foreground="#57534e"/>
-                                                            <TextBlock Text="{Binding SredniaWagaRzeczDisplay, Mode=OneWay}" FontSize="9" FontWeight="Bold"
+                                                            <TextBlock Text="→" FontSize="10" Foreground="#57534e" Margin="5,0,5,0"/>
+                                                            <TextBlock Text="{Binding SredniaWagaRzeczDisplay, Mode=OneWay}" FontSize="11" FontWeight="Bold"
                                                                        Foreground="#e7e5e4"/>
-                                                            <TextBlock Text=" kg" FontSize="8" Foreground="#57534e"/>
+                                                            <TextBlock Text=" kg" FontSize="9" Foreground="#57534e"/>
                                                         </StackPanel>
                                                     </Grid>
 
@@ -637,9 +528,9 @@
                                                             <ColumnDefinition Width="Auto"/>
                                                         </Grid.ColumnDefinitions>
                                                         <ProgressBar Grid.Column="0" Value="{Binding RealizacjaProc, Mode=OneWay}" Maximum="100"
-                                                                     Height="5" Background="#292524" Foreground="{Binding HodowcaKolor, Mode=OneWay}"
+                                                                     Height="6" Background="#292524" Foreground="{Binding HodowcaKolor, Mode=OneWay}"
                                                                      VerticalAlignment="Center"/>
-                                                        <TextBlock Grid.Column="1" Text="{Binding PostepDisplay, Mode=OneWay}" FontSize="8" FontWeight="SemiBold"
+                                                        <TextBlock Grid.Column="1" Text="{Binding PostepDisplay, Mode=OneWay}" FontSize="10" FontWeight="SemiBold"
                                                                    Foreground="#78716c" Margin="6,0,0,0" VerticalAlignment="Center"/>
                                                     </Grid>
                                                 </StackPanel>
@@ -791,68 +682,49 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- SZYBKIE AKCJE - rozwijany -->
-                    <Border Background="#292524" CornerRadius="5" Padding="4,4">
-                        <Expander IsExpanded="False" Foreground="#e7e5e4">
-                            <Expander.Header>
-                                <TextBlock Text="⚡ AKCJE" FontSize="10" FontWeight="Bold" Foreground="#f59e0b"/>
-                            </Expander.Header>
-                            <Expander.Style>
-                                <Style TargetType="Expander">
-                                    <Setter Property="Background" Value="Transparent"/>
-                                    <Setter Property="BorderThickness" Value="0"/>
-                                </Style>
-                            </Expander.Style>
-                            <StackPanel Margin="0,6,0,0">
-                                <Button Content="📋 Eksport Excel" Style="{StaticResource SidebarBtn}" Click="BtnExportExcel_Click"/>
-                                <Button Content="🖨️ Drukuj raport" Style="{StaticResource SidebarBtn}" Click="BtnPrint_Click"/>
-                                <Button Content="❓ Jak czytać?" Style="{StaticResource SidebarBtn}" Click="BtnHelp_Click"/>
-                                <Button Content="🔧 Diagnostyka" Style="{StaticResource SidebarBtn}" Click="BtnDiagnose_Click"
-                                        Background="#7f1d1d" Foreground="#fca5a5"/>
-                            </StackPanel>
-                        </Expander>
-                    </Border>
-
-                    <!-- HISTORIA ZMIAN DEKLARACJI - pod AKCJE, kompaktowa lista -->
+                    <!-- HISTORIA ZMIAN DEKLARACJI - dzisiejsze zmiany w HarmonogramDostaw dla dzis. dostaw, 3 kolumny -->
                     <Border Background="#292524" CornerRadius="5" Padding="8,6" Margin="0,6,0,0">
                         <StackPanel>
                             <Grid Margin="0,0,0,4">
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="📝 HISTORIA DEKLARACJI" FontSize="10" FontWeight="Bold" Foreground="#fbbf24"/>
-                                    <TextBlock x:Name="txtHistoriaCount" Text="(0)" FontSize="9" Foreground="#78716c" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                    <TextBlock Text="📝 HISTORIA DEKLARACJI" FontSize="11" FontWeight="Bold" Foreground="#fbbf24"/>
+                                    <TextBlock x:Name="txtHistoriaCount" Text="(0)" FontSize="10" Foreground="#78716c" Margin="6,0,0,0" VerticalAlignment="Center"/>
                                 </StackPanel>
-                                <TextBlock Text="Szt.Dek / Waga Brutto / Tara hodowcy" FontSize="8" Foreground="#78716c"
+                                <TextBlock Text="Sztuki / Waga śr. / Auta — zmiany z dziś" FontSize="9" Foreground="#78716c"
                                            HorizontalAlignment="Right" VerticalAlignment="Center"/>
                             </Grid>
 
-                            <!-- Lista zmian: TOP 100 najnowszych, scroll w pionie -->
-                            <Border Background="#1c1917" CornerRadius="4" Padding="4" MaxHeight="280">
+                            <!-- Lista zmian: 3 KOLUMNY, scroll w pionie -->
+                            <Border Background="#1c1917" CornerRadius="4" Padding="4" MaxHeight="320">
                                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                                     <ItemsControl x:Name="icHistoriaZmian">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <UniformGrid Columns="3"/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <Border Background="#292524" CornerRadius="3" Padding="6,4" Margin="0,0,0,3"
+                                                <Border Background="#292524" CornerRadius="3" Padding="6,5" Margin="2"
                                                         ToolTip="{Binding Tooltip}">
-                                                    <Grid>
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="38"/>  <!-- HH:mm -->
-                                                            <ColumnDefinition Width="50"/>  <!-- Pole (Szt/Brutto/Tara) -->
-                                                            <ColumnDefinition Width="*"/>   <!-- Old → New + hodowca -->
-                                                        </Grid.ColumnDefinitions>
-                                                        <TextBlock Grid.Column="0" Text="{Binding TimeDisplay}"
-                                                                   FontSize="9" FontWeight="SemiBold" Foreground="#fbbf24"
-                                                                   VerticalAlignment="Center"/>
-                                                        <Border Grid.Column="1" Background="#44403c" CornerRadius="2" Padding="3,1" Margin="0,0,4,0"
-                                                                HorizontalAlignment="Left" VerticalAlignment="Center">
-                                                            <TextBlock Text="{Binding FieldShort}" FontSize="8" FontWeight="Bold" Foreground="#e7e5e4"/>
-                                                        </Border>
-                                                        <StackPanel Grid.Column="2">
-                                                            <TextBlock Text="{Binding Hodowca}" FontSize="9" FontWeight="SemiBold"
-                                                                       Foreground="#a8a29e" TextTrimming="CharacterEllipsis"/>
-                                                            <TextBlock Text="{Binding ZmianaDisplay}" FontSize="10" FontWeight="Bold"
-                                                                       Foreground="#60a5fa" TextTrimming="CharacterEllipsis"/>
+                                                    <StackPanel>
+                                                        <!-- Linia 1: HH:mm + badge pola -->
+                                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
+                                                            <TextBlock Text="{Binding TimeDisplay}"
+                                                                       FontSize="10" FontWeight="SemiBold" Foreground="#fbbf24"
+                                                                       VerticalAlignment="Center"/>
+                                                            <Border Background="#44403c" CornerRadius="2" Padding="4,1" Margin="6,0,0,0"
+                                                                    VerticalAlignment="Center">
+                                                                <TextBlock Text="{Binding FieldShort}" FontSize="9" FontWeight="Bold" Foreground="#e7e5e4"/>
+                                                            </Border>
                                                         </StackPanel>
-                                                    </Grid>
+                                                        <!-- Linia 2: hodowca (trim) -->
+                                                        <TextBlock Text="{Binding Hodowca}" FontSize="10" FontWeight="SemiBold"
+                                                                   Foreground="#a8a29e" TextTrimming="CharacterEllipsis"/>
+                                                        <!-- Linia 3: old → new -->
+                                                        <TextBlock Text="{Binding ZmianaDisplay}" FontSize="11" FontWeight="Bold"
+                                                                   Foreground="#60a5fa" TextTrimming="CharacterEllipsis"/>
+                                                    </StackPanel>
                                                 </Border>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
@@ -1080,9 +952,9 @@
         </Grid>
 
         <!-- ============================================ -->
-        <!-- ROW 3: BOTTOM BAR (26px) -->
+        <!-- ROW 1: BOTTOM BAR (26px) -->
         <!-- ============================================ -->
-        <Border Grid.Row="3" Background="#292524" CornerRadius="5" Padding="10,0" Margin="0,4,0,0">
+        <Border Grid.Row="1" Background="#292524" CornerRadius="5" Padding="10,0" Margin="0,4,0,0">
             <Grid VerticalAlignment="Center">
                 <!-- LEGENDA -->
                 <StackPanel Orientation="Horizontal">
@@ -1111,7 +983,7 @@
         <!-- ============================================ -->
         <!-- OVERLAY ŁADOWANIA -->
         <!-- ============================================ -->
-        <Border x:Name="loadingOverlay" Grid.RowSpan="4" Background="#CC1c1917" Visibility="Collapsed">
+        <Border x:Name="loadingOverlay" Grid.RowSpan="2" Background="#CC1c1917" Visibility="Collapsed">
             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                 <Ellipse x:Name="spinnerEllipse" Width="40" Height="40" StrokeThickness="3"
                          Stroke="#f59e0b" StrokeDashArray="3,2">
@@ -1138,7 +1010,7 @@
         <!-- ============================================ -->
         <!-- OVERLAY BŁĘDU -->
         <!-- ============================================ -->
-        <Border x:Name="errorOverlay" Grid.RowSpan="4" Background="#CC1c1917" Visibility="Collapsed">
+        <Border x:Name="errorOverlay" Grid.RowSpan="2" Background="#CC1c1917" Visibility="Collapsed">
             <Border Background="#292524" CornerRadius="8" Padding="25,20" HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="400">
                 <StackPanel>
                     <TextBlock Text="Błąd połączenia" FontSize="16" FontWeight="Bold" Foreground="#ef4444" HorizontalAlignment="Center" Margin="0,0,0,10"/>

@@ -719,7 +719,7 @@
                                 <MenuItem Header="📦 DOSTAWA" IsEnabled="False" FontWeight="Bold" FontSize="10" Foreground="#6B7280"/>
                                 <MenuItem Header="➕ Nowa dostawa na ten dzień" Click="MenuItemNowaDostawaZDaty_Click" FontWeight="SemiBold" InputGestureText="Ctrl+N"/>
                                 <MenuItem Header="📋 Duplikuj dostawę" Click="BtnDuplikuj_Click" InputGestureText="Ctrl+D"/>
-                                <MenuItem Header="📱 Kopiuj SMS o szczegółach dostawy" Click="MenuKopiujSMS_Click"/>
+                                <MenuItem Header="📱 Kopiuj SMS o szczegółach dostawy" Click="MenuKopiujSMS_Click" Loaded="MenuKopiujSMS_Loaded"/>
                                 <Separator/>
 
                                 <!-- SEKCJA: Przesuwanie daty -->
@@ -767,7 +767,7 @@
                         </DataGrid.RenderTransform>
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="LP" Binding="{Binding LP}" Visibility="Collapsed"/>
-                                <DataGridTextColumn x:Name="colDostawcaHeader" Header="📅 Tydzień" Binding="{Binding DostawcaDisplay}" Width="100" IsReadOnly="True">
+                                <DataGridTextColumn x:Name="colDostawcaHeader" Header="Tydzień" Binding="{Binding DostawcaDisplay}" Width="102" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="VerticalAlignment" Value="Center"/>
@@ -783,7 +783,23 @@
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="🚛" Binding="{Binding AutaDisplay}" Width="28" IsReadOnly="True">
+                                <!-- 📱 Status SMS-a o szczegółach: "" / 📱 / ⚠️ — tooltip mówi co się zmieniło -->
+                                <DataGridTextColumn Header="📱" Binding="{Binding SmsStatusIkona}" Width="26" IsReadOnly="True">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="FontSize" Value="12"/>
+                                            <Setter Property="ToolTip" Value="{Binding SmsStatusTooltip}"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding SmsWymagaAktualizacji}" Value="True">
+                                                    <Setter Property="Background" Value="#FFF3CD"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="A" Binding="{Binding AutaDisplay}" Width="28" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="HorizontalAlignment" Value="Center"/>
@@ -791,7 +807,7 @@
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTemplateColumn Header="🐔 Szt" Width="65" IsReadOnly="True">
+                                <DataGridTemplateColumn Header="Szt" Width="63" IsReadOnly="True">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <Border Padding="2,0">
@@ -816,7 +832,7 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTemplateColumn Header="⚖️ Waga" Width="55" IsReadOnly="True">
+                                <DataGridTemplateColumn Header="Waga" Width="47" IsReadOnly="True">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <Border Padding="2,0">
@@ -841,7 +857,7 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTextColumn Header="📉 Ub" Width="42" Binding="{Binding RoznicaDniDisplay}" IsReadOnly="True">
+                                <DataGridTextColumn Header="Ub" Width="40" Binding="{Binding RoznicaDniDisplay}" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="HorizontalAlignment" Value="Center"/>
@@ -859,7 +875,7 @@
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTemplateColumn Header="📊 Typ" Width="45" IsReadOnly="True">
+                                <DataGridTemplateColumn Header="Typ" Width="41" IsReadOnly="True">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <Border Padding="2,0" CornerRadius="2" Margin="1">
@@ -904,19 +920,19 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTextColumn x:Name="colCena" Header="💰 Cena" Binding="{Binding CenaDisplay}" Width="50" IsReadOnly="True">
+                                <DataGridTextColumn x:Name="colCena" Header="Cena" Binding="{Binding CenaDisplay}" Width="44" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="🚗 KM" Binding="{Binding KmDisplay}" Width="42" IsReadOnly="True">
+                                <DataGridTextColumn Header="KM" Binding="{Binding KmDisplay}" Width="36" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="HorizontalAlignment" Value="Right"/>
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTemplateColumn x:Name="colUwagi" Header="📝 Uwagi" Width="*" MinWidth="60" IsReadOnly="True">
+                                <DataGridTemplateColumn x:Name="colUwagi" Header="Uwagi" Width="*" MinWidth="60" IsReadOnly="True">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
@@ -1080,7 +1096,7 @@
                                 <MenuItem Header="📦 DOSTAWA" IsEnabled="False" FontWeight="Bold" FontSize="10" Foreground="#6B7280"/>
                                 <MenuItem Header="➕ Nowa dostawa na ten dzień" Click="MenuItemNowaDostawaZDaty_Click" FontWeight="SemiBold" InputGestureText="Ctrl+N"/>
                                 <MenuItem Header="📋 Duplikuj dostawę" Click="BtnDuplikuj_Click" InputGestureText="Ctrl+D"/>
-                                <MenuItem Header="📱 Kopiuj SMS o szczegółach dostawy" Click="MenuKopiujSMS_Click"/>
+                                <MenuItem Header="📱 Kopiuj SMS o szczegółach dostawy" Click="MenuKopiujSMS_Click" Loaded="MenuKopiujSMS_Loaded"/>
                                 <Separator/>
 
                                 <!-- SEKCJA: Przesuwanie daty -->
@@ -1128,7 +1144,7 @@
                         </DataGrid.RenderTransform>
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="LP" Binding="{Binding LP}" Visibility="Collapsed"/>
-                            <DataGridTextColumn x:Name="colDostawcaHeader2" Header="📅 Tydzień" Binding="{Binding DostawcaDisplay}" Width="100" IsReadOnly="True">
+                            <DataGridTextColumn x:Name="colDostawcaHeader2" Header="Tydzień" Binding="{Binding DostawcaDisplay}" Width="102" IsReadOnly="True">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="VerticalAlignment" Value="Center"/>
@@ -1144,7 +1160,23 @@
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
-                            <DataGridTextColumn Header="🚛" Binding="{Binding AutaDisplay}" Width="28" IsReadOnly="True">
+                            <!-- 📱 Status SMS-a o szczegółach dostawy: ""/📱/⚠️ -->
+                            <DataGridTextColumn Header="📱" Binding="{Binding SmsStatusIkona}" Width="26" IsReadOnly="True">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="HorizontalAlignment" Value="Center"/>
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                        <Setter Property="FontSize" Value="12"/>
+                                        <Setter Property="ToolTip" Value="{Binding SmsStatusTooltip}"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding SmsWymagaAktualizacji}" Value="True">
+                                                <Setter Property="Background" Value="#FFF3CD"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="A" Binding="{Binding AutaDisplay}" Width="28" IsReadOnly="True">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="HorizontalAlignment" Value="Center"/>
@@ -1152,7 +1184,7 @@
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
-                            <DataGridTemplateColumn Header="🐔 Szt" Width="65" IsReadOnly="True">
+                            <DataGridTemplateColumn Header="Szt" Width="63" IsReadOnly="True">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <Border Padding="2,0">
@@ -1177,7 +1209,7 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTemplateColumn Header="⚖️ Waga" Width="55" IsReadOnly="True">
+                            <DataGridTemplateColumn Header="Waga" Width="47" IsReadOnly="True">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <Border Padding="2,0">
@@ -1202,7 +1234,7 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTextColumn Header="📉 Ub" Width="42" Binding="{Binding RoznicaDniDisplay}" IsReadOnly="True">
+                            <DataGridTextColumn Header="Ub" Width="40" Binding="{Binding RoznicaDniDisplay}" IsReadOnly="True">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="HorizontalAlignment" Value="Center"/>
@@ -1220,7 +1252,7 @@
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
-                            <DataGridTemplateColumn Header="📊 Typ" Width="45" IsReadOnly="True">
+                            <DataGridTemplateColumn Header="Typ" Width="41" IsReadOnly="True">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <Border Padding="2,0" CornerRadius="2" Margin="1">
@@ -1265,17 +1297,17 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTextColumn x:Name="colCenaNastepny" Header="💰 Cena" Binding="{Binding CenaDisplay}" Width="50" IsReadOnly="True">
+                            <DataGridTextColumn x:Name="colCenaNastepny" Header="Cena" Binding="{Binding CenaDisplay}" Width="44" IsReadOnly="True">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
-                            <DataGridTextColumn Header="🚗 KM" Binding="{Binding KmDisplay}" Width="42" IsReadOnly="True">
+                            <DataGridTextColumn Header="KM" Binding="{Binding KmDisplay}" Width="36" IsReadOnly="True">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
-                            <DataGridTemplateColumn x:Name="colUwagi2" Header="📝 Uwagi" Width="*" MinWidth="60" IsReadOnly="True">
+                            <DataGridTemplateColumn x:Name="colUwagi2" Header="Uwagi" Width="*" MinWidth="60" IsReadOnly="True">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
@@ -2844,123 +2876,249 @@
                         </Grid>
                     </TabItem>
 
-                    <!-- TAB: HODOWCA -->
+                    <!-- TAB: HODOWCA — redesign 2026: hero + KPI + lepsze kontakty -->
                     <TabItem Header="Hodowca">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
-                            <StackPanel Margin="8">
-                                <GroupBox Style="{StaticResource ModernGroupBoxStyle}">
+                            <StackPanel Margin="6">
+
+                                <!-- ===== HERO PANEL ===== -->
+                                <Border CornerRadius="10" Padding="14" Margin="0,0,0,8">
+                                    <Border.Background>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                            <GradientStop Color="#166534" Offset="0"/>
+                                            <GradientStop Color="#0F4F26" Offset="1"/>
+                                        </LinearGradientBrush>
+                                    </Border.Background>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- Avatar z inicjałami -->
+                                        <Border Grid.Column="0" Width="52" Height="52" CornerRadius="26" Background="#10B981"
+                                                BorderBrush="#34D399" BorderThickness="2" Margin="0,0,12,0">
+                                            <TextBlock x:Name="txtHeroInicjaly" Text="?" FontSize="20" FontWeight="Bold"
+                                                       Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+
+                                        <!-- Nazwa + meta -->
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock x:Name="txtNazwaHodowcyHeader" Text="(wybierz hodowcę)"
+                                                           FontSize="17" FontWeight="Bold" Foreground="White"/>
+                                                <Border x:Name="brdStalyKlientBadge" Background="#FBBF24" CornerRadius="10"
+                                                        Padding="6,1" Margin="8,0,0,0" Visibility="Collapsed" VerticalAlignment="Center">
+                                                    <TextBlock Text="★ STAŁY KLIENT" FontSize="9" FontWeight="Bold" Foreground="#7C2D12"/>
+                                                </Border>
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                                                <TextBlock x:Name="txtHeroAdres" Text="" FontSize="11" Foreground="#D1FAE5"/>
+                                                <TextBlock x:Name="txtHeroDystans" Text="" FontSize="11" FontWeight="SemiBold" Foreground="#FEF3C7" Margin="10,0,0,0"/>
+                                            </StackPanel>
+                                        </StackPanel>
+
+                                        <!-- ComboBox wyboru hodowcy (umieszczony w hero żeby był widoczny) -->
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <ComboBox x:Name="cmbDostawca" Style="{StaticResource FormComboBoxStyle}"
+                                                      SelectionChanged="CmbDostawca_SelectionChanged"
+                                                      Width="180" Height="28" FontSize="11"/>
+                                            <Button Click="BtnRefreshHodowcy_Click" ToolTip="Odśwież listę hodowców z bazy"
+                                                    Width="26" Height="26" Margin="4,0,0,0"
+                                                    Background="#FFFFFF22" BorderThickness="0" Cursor="Hand" Foreground="White">
+                                                <TextBlock Text="🔄" FontSize="11"/>
+                                            </Button>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <!-- ===== KPI STRIP — 4 metryki dostaw ===== -->
+                                <UniformGrid Columns="4" Rows="1" Margin="0,0,0,8">
+                                    <Border CornerRadius="8" Background="#F0FDF4" BorderBrush="#86EFAC" BorderThickness="1" Padding="10,8" Margin="0,0,4,0">
+                                        <StackPanel>
+                                            <TextBlock Text="🚚 Dostaw (12 m-cy)" FontSize="9.5" Foreground="#166534" FontWeight="SemiBold"/>
+                                            <TextBlock x:Name="txtKpiHIleDostaw" Text="—" FontSize="18" FontWeight="Bold" Foreground="#14532D" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border CornerRadius="8" Background="#EFF6FF" BorderBrush="#93C5FD" BorderThickness="1" Padding="10,8" Margin="0,0,4,0">
+                                        <StackPanel>
+                                            <TextBlock Text="📅 Ostatnia dostawa" FontSize="9.5" Foreground="#1E40AF" FontWeight="SemiBold"/>
+                                            <TextBlock x:Name="txtKpiHOstatniaData" Text="—" FontSize="14" FontWeight="Bold" Foreground="#1E3A8A" Margin="0,2,0,0"/>
+                                            <TextBlock x:Name="txtKpiHOstatniaDni" Text="" FontSize="9.5" Foreground="#3B82F6"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border CornerRadius="8" Background="#FEF3C7" BorderBrush="#FDE68A" BorderThickness="1" Padding="10,8" Margin="0,0,4,0">
+                                        <StackPanel>
+                                            <TextBlock Text="🚛 Średnio aut" FontSize="9.5" Foreground="#92400E" FontWeight="SemiBold"/>
+                                            <TextBlock x:Name="txtKpiHSredniaAuta" Text="—" FontSize="18" FontWeight="Bold" Foreground="#78350F" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border CornerRadius="8" Background="#FDF2F8" BorderBrush="#FBCFE8" BorderThickness="1" Padding="10,8">
+                                        <StackPanel>
+                                            <TextBlock Text="⚖️ Średnia waga" FontSize="9.5" Foreground="#9D174D" FontWeight="SemiBold"/>
+                                            <TextBlock x:Name="txtKpiHSredniaWaga" Text="—" FontSize="14" FontWeight="Bold" Foreground="#831843" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                </UniformGrid>
+
+                                <!-- ===== DWUKOLUMNOWY UKŁAD: ADRES | TELEFONY ===== -->
+                                <Grid Margin="0,0,0,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="6"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- LEWA: Adres / lokalizacja -->
+                                    <GroupBox Grid.Column="0" Style="{StaticResource ModernGroupBoxStyle}">
+                                        <GroupBox.Header>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="📍" FontSize="13" Margin="0,0,4,0"/>
+                                                <TextBlock Text="Lokalizacja" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </GroupBox.Header>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="70"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+
+                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Adres:" Style="{StaticResource FormLabelStyle}"/>
+                                            <TextBox x:Name="txtUlicaH" Grid.Row="0" Grid.Column="1" Style="{StaticResource FormTextBoxStyle}"/>
+
+                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Kod/Miasto:" Style="{StaticResource FormLabelStyle}"/>
+                                            <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal">
+                                                <TextBox x:Name="txtKodPocztowyH" Style="{StaticResource FormTextBoxStyle}" Width="60"/>
+                                                <TextBox x:Name="txtMiejscH" Style="{StaticResource FormTextBoxStyle}" Width="140" Margin="3,0,0,0"/>
+                                            </StackPanel>
+
+                                            <TextBlock Grid.Row="2" Grid.Column="0" Text="KM:" Style="{StaticResource FormLabelStyle}"/>
+                                            <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal">
+                                                <TextBox x:Name="txtKmH" Style="{StaticResource FormTextBoxStyle}" Width="60"/>
+                                                <Button Content="📍 Mapa" Style="{StaticResource ActionButtonStyle}" Click="BtnMapa_Click"
+                                                        Margin="6,0,0,0" Padding="8,2" FontSize="10" Height="24"/>
+                                            </StackPanel>
+
+                                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Email:" Style="{StaticResource FormLabelStyle}"/>
+                                            <TextBox x:Name="txtEmail" Grid.Row="3" Grid.Column="1" Style="{StaticResource FormTextBoxStyle}"/>
+                                        </Grid>
+                                    </GroupBox>
+
+                                    <!-- PRAWA: Telefony 1/2/3 z przyciskami akcji -->
+                                    <GroupBox Grid.Column="2" Style="{StaticResource ModernGroupBoxStyle}">
+                                        <GroupBox.Header>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="📞" FontSize="13" Margin="0,0,4,0"/>
+                                                <TextBlock Text="Kontakt — telefony" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </GroupBox.Header>
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+
+                                            <!-- Telefon 1 — główny -->
+                                            <Border Grid.Row="0" CornerRadius="6" Background="#F8FAFC" Padding="6" Margin="0,0,0,4" BorderBrush="#E2E8F0" BorderThickness="1">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="120"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="① " FontWeight="Bold" Foreground="#10B981" FontSize="12" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                                    <TextBox x:Name="txtTel1" Grid.Column="1" Style="{StaticResource FormTextBoxStyle}" FontWeight="SemiBold"/>
+                                                    <TextBox x:Name="txtInfo1" Grid.Column="2" Style="{StaticResource ReadOnlyTextBoxStyle}" Margin="3,0,0,0"/>
+                                                </Grid>
+                                            </Border>
+
+                                            <!-- Telefon 2 -->
+                                            <Border Grid.Row="1" CornerRadius="6" Background="#F8FAFC" Padding="6" Margin="0,0,0,4" BorderBrush="#E2E8F0" BorderThickness="1">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="120"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="② " FontWeight="Bold" Foreground="#3B82F6" FontSize="12" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                                    <TextBox x:Name="txtTel2" Grid.Column="1" Style="{StaticResource FormTextBoxStyle}"/>
+                                                    <TextBox x:Name="txtInfo2" Grid.Column="2" Style="{StaticResource ReadOnlyTextBoxStyle}" Margin="3,0,0,0"/>
+                                                </Grid>
+                                            </Border>
+
+                                            <!-- Telefon 3 -->
+                                            <Border Grid.Row="2" CornerRadius="6" Background="#F8FAFC" Padding="6" BorderBrush="#E2E8F0" BorderThickness="1">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="120"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="③ " FontWeight="Bold" Foreground="#94A3B8" FontSize="12" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                                    <TextBox x:Name="txtTel3" Grid.Column="1" Style="{StaticResource FormTextBoxStyle}"/>
+                                                    <TextBox x:Name="txtInfo3" Grid.Column="2" Style="{StaticResource ReadOnlyTextBoxStyle}" Margin="3,0,0,0"/>
+                                                </Grid>
+                                            </Border>
+                                        </Grid>
+                                    </GroupBox>
+                                </Grid>
+
+                                <!-- ===== OSOBOWOŚĆ ===== -->
+                                <GroupBox Style="{StaticResource ModernGroupBoxStyle}" Margin="0,0,0,6">
                                     <GroupBox.Header>
                                         <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="Dane hodowcy" VerticalAlignment="Center"/>
-                                            <TextBlock x:Name="txtNazwaHodowcyHeader" FontWeight="Bold" Foreground="#166534" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                            <TextBlock Text="🧠" FontSize="13" Margin="0,0,4,0"/>
+                                            <TextBlock Text="Typ osobowości (jak prowadzić rozmowę)" VerticalAlignment="Center"/>
                                         </StackPanel>
                                     </GroupBox.Header>
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="70"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                        </Grid.RowDefinitions>
-
-                                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Dostawca:" Style="{StaticResource FormLabelStyle}"/>
-                                        <Grid Grid.Row="0" Grid.Column="1">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                            <ComboBox x:Name="cmbDostawca" Grid.Column="0" Style="{StaticResource FormComboBoxStyle}" SelectionChanged="CmbDostawca_SelectionChanged"/>
-                                            <Button Grid.Column="1" Click="BtnRefreshHodowcy_Click"
-                                                    ToolTip="Odśwież listę hodowców z bazy"
-                                                    Width="22" Height="22" Margin="3,0,0,0"
-                                                    Background="Transparent" BorderThickness="0" Cursor="Hand">
-                                                <TextBlock Text="🔄" FontSize="10"/>
-                                            </Button>
-                                        </Grid>
-
-                                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Adres:" Style="{StaticResource FormLabelStyle}"/>
-                                        <TextBox x:Name="txtUlicaH" Grid.Row="1" Grid.Column="1" Style="{StaticResource FormTextBoxStyle}"/>
-
-                                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Kod/Miasto:" Style="{StaticResource FormLabelStyle}"/>
-                                        <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal">
-                                            <TextBox x:Name="txtKodPocztowyH" Style="{StaticResource FormTextBoxStyle}" Width="60"/>
-                                            <TextBox x:Name="txtMiejscH" Style="{StaticResource FormTextBoxStyle}" Width="120"/>
-                                        </StackPanel>
-
-                                        <TextBlock Grid.Row="3" Grid.Column="0" Text="KM:" Style="{StaticResource FormLabelStyle}"/>
-                                        <TextBox x:Name="txtKmH" Grid.Row="3" Grid.Column="1" Style="{StaticResource FormTextBoxStyle}" Width="60" HorizontalAlignment="Left"/>
-
-                                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Email:" Style="{StaticResource FormLabelStyle}"/>
-                                        <TextBox x:Name="txtEmail" Grid.Row="4" Grid.Column="1" Style="{StaticResource FormTextBoxStyle}"/>
-                                    </Grid>
-                                </GroupBox>
-
-                                <GroupBox Header="Kontakt" Style="{StaticResource ModernGroupBoxStyle}" Margin="0,4,0,0">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                        </Grid.RowDefinitions>
-
-                                        <TextBox x:Name="txtTel1" Grid.Row="0" Grid.Column="0" Style="{StaticResource FormTextBoxStyle}" />
-                                        <TextBox x:Name="txtInfo1" Grid.Row="0" Grid.Column="1" Style="{StaticResource ReadOnlyTextBoxStyle}"/>
-
-                                        <TextBox x:Name="txtTel2" Grid.Row="1" Grid.Column="0" Style="{StaticResource FormTextBoxStyle}"/>
-                                        <TextBox x:Name="txtInfo2" Grid.Row="1" Grid.Column="1" Style="{StaticResource ReadOnlyTextBoxStyle}"/>
-
-                                        <TextBox x:Name="txtTel3" Grid.Row="2" Grid.Column="0" Style="{StaticResource FormTextBoxStyle}"/>
-                                        <TextBox x:Name="txtInfo3" Grid.Row="2" Grid.Column="1" Style="{StaticResource ReadOnlyTextBoxStyle}"/>
-                                    </Grid>
-                                </GroupBox>
-
-                                <GroupBox Header="Osobowość" Style="{StaticResource ModernGroupBoxStyle}" Margin="0,4,0,0">
                                     <StackPanel Orientation="Horizontal">
-                                        <ComboBox x:Name="cmbOsobowosc1" Style="{StaticResource FormComboBoxStyle}" Width="100"/>
-                                        <ComboBox x:Name="cmbOsobowosc2" Style="{StaticResource FormComboBoxStyle}" Width="100" Margin="4,0,0,0"/>
+                                        <ComboBox x:Name="cmbOsobowosc1" Style="{StaticResource FormComboBoxStyle}" Width="140"/>
+                                        <ComboBox x:Name="cmbOsobowosc2" Style="{StaticResource FormComboBoxStyle}" Width="140" Margin="6,0,0,0"/>
                                     </StackPanel>
                                 </GroupBox>
 
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,8,0,0">
-                                    <Button Content="📍 Mapa" Style="{StaticResource ActionButtonStyle}" Click="BtnMapa_Click"/>
-                                    <Button Content="📱 SMS" Style="{StaticResource WarningButtonStyle}" Click="BtnSMS_Click"/>
-                                    <Button Click="BtnZapiszHodowce_Click" Padding="14,6" FontSize="11" Cursor="Hand" Margin="4,0,0,0" ToolTip="Zapisz dane hodowcy do bazy">
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="💾" FontSize="13" Margin="0,0,6,0" VerticalAlignment="Center"/>
-                                            <TextBlock Text="Zapisz hodowcę" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                        <Button.Style>
-                                            <Style TargetType="Button">
-                                                <Setter Property="Background" Value="#10B981"/>
-                                                <Setter Property="Foreground" Value="White"/>
-                                                <Setter Property="BorderThickness" Value="0"/>
-                                                <Setter Property="Template">
-                                                    <Setter.Value>
-                                                        <ControlTemplate TargetType="Button">
-                                                            <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
-                                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                                            </Border>
-                                                        </ControlTemplate>
-                                                    </Setter.Value>
-                                                </Setter>
-                                                <Style.Triggers>
-                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter Property="Background" Value="#059669"/>
-                                                    </Trigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Button.Style>
-                                    </Button>
-                                </StackPanel>
+                                <!-- ===== AKCJE FOOTER ===== -->
+                                <Border Background="#F1F5F9" CornerRadius="8" Padding="8" Margin="0,4,0,0">
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <Button Content="📱 SMS" Style="{StaticResource WarningButtonStyle}" Click="BtnSMS_Click" Padding="14,6"/>
+                                        <Button Click="BtnZapiszHodowce_Click" Padding="16,6" FontSize="11.5" Cursor="Hand" Margin="6,0,0,0" ToolTip="Zapisz dane hodowcy do bazy">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="💾" FontSize="13" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                <TextBlock Text="Zapisz dane hodowcy" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                            <Button.Style>
+                                                <Style TargetType="Button">
+                                                    <Setter Property="Background" Value="#10B981"/>
+                                                    <Setter Property="Foreground" Value="White"/>
+                                                    <Setter Property="BorderThickness" Value="0"/>
+                                                    <Setter Property="Template">
+                                                        <Setter.Value>
+                                                            <ControlTemplate TargetType="Button">
+                                                                <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                </Border>
+                                                            </ControlTemplate>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                    <Style.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter Property="Background" Value="#059669"/>
+                                                        </Trigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+                                    </StackPanel>
+                                </Border>
+
                             </StackPanel>
                         </ScrollViewer>
                     </TabItem>

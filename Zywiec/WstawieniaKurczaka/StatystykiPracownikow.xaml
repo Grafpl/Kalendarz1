@@ -371,6 +371,7 @@
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
 
                         <!-- Kto utworzyl -->
@@ -426,7 +427,7 @@
                         </Border>
 
                         <!-- Kto potwierdzil -->
-                        <Border Grid.Column="1" Background="White" CornerRadius="10" Padding="12,10" Margin="4,0,0,0">
+                        <Border Grid.Column="1" Background="White" CornerRadius="10" Padding="12,10" Margin="4,0,4,0">
                             <Border.Effect>
                                 <DropShadowEffect Color="#D5D8DC" Direction="270" ShadowDepth="1" BlurRadius="6" Opacity="0.25"/>
                             </Border.Effect>
@@ -462,6 +463,58 @@
                                                             </Grid>
                                                             <TextBlock Text="{Binding NazwaPracownika}" FontWeight="SemiBold" Foreground="#5D6D7E" FontSize="11" TextDecorations="Underline" VerticalAlignment="Center"/>
                                                             <TextBlock FontWeight="Bold" Foreground="#3498DB" Margin="4,0,0,0" FontSize="11" VerticalAlignment="Center">
+                                                                <Run Text="("/><Run Text="{Binding LiczbaAkcji}"/><Run Text=")"/>
+                                                            </TextBlock>
+                                                        </StackPanel>
+                                                    </Button>
+                                                    <Border Grid.Row="1" Height="5" Background="#EAECEE" CornerRadius="3" Margin="0,2,0,0">
+                                                        <Border HorizontalAlignment="Left" Background="{Binding Kolor}" CornerRadius="3" Width="{Binding ProcentWidth, Mode=OneWay}"/>
+                                                    </Border>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </Grid>
+                        </Border>
+
+                        <!-- 📱 Kto wysyłał SMS-y (auto-log z ContactHistory) -->
+                        <Border Grid.Column="2" Background="White" CornerRadius="10" Padding="12,10" Margin="4,0,0,0">
+                            <Border.Effect>
+                                <DropShadowEffect Color="#D5D8DC" Direction="270" ShadowDepth="1" BlurRadius="6" Opacity="0.25"/>
+                            </Border.Effect>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="120"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="📱 Kto wysyłał SMS" FontSize="12" FontWeight="Bold" Foreground="#34495E" Margin="0,0,0,6"/>
+                                    <Canvas x:Name="canvasSms" Width="110" Height="110"/>
+                                </StackPanel>
+                                <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" MaxHeight="140" Margin="8,0,0,0">
+                                    <ItemsControl x:Name="itemsSms">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid Margin="0,3">
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                    </Grid.RowDefinitions>
+                                                    <Button Background="Transparent" BorderThickness="0" Cursor="Hand" HorizontalContentAlignment="Stretch" Padding="0" Click="BtnPracownikDetails_Click" Tag="{Binding NazwaPracownika}">
+                                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                            <Grid Width="22" Height="22" Margin="0,0,5,0">
+                                                                <Border Width="22" Height="22" CornerRadius="11" Background="{Binding Kolor}">
+                                                                    <TextBlock Text="{Binding Initials}" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White" FontSize="8" FontWeight="SemiBold"/>
+                                                                </Border>
+                                                                <Ellipse Width="22" Height="22">
+                                                                    <Ellipse.Fill>
+                                                                        <ImageBrush ImageSource="{Binding AvatarSource}" Stretch="UniformToFill"/>
+                                                                    </Ellipse.Fill>
+                                                                </Ellipse>
+                                                            </Grid>
+                                                            <TextBlock Text="{Binding NazwaPracownika}" FontWeight="SemiBold" Foreground="#5D6D7E" FontSize="11" TextDecorations="Underline" VerticalAlignment="Center"/>
+                                                            <TextBlock FontWeight="Bold" Foreground="#8E44AD" Margin="4,0,0,0" FontSize="11" VerticalAlignment="Center">
                                                                 <Run Text="("/><Run Text="{Binding LiczbaAkcji}"/><Run Text=")"/>
                                                             </TextBlock>
                                                         </StackPanel>

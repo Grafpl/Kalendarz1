@@ -994,6 +994,10 @@
                                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,15,0">
                                     <TextBlock Text="Handlowiec:" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,6,0"/>
                                     <ComboBox x:Name="cmbHandlowiecPlat" Style="{StaticResource DarkComboBoxStyle}" Width="130" SelectionChanged="CmbPlatnosci_SelectionChanged"/>
+                                    <CheckBox x:Name="chkPlatPasza" Content="+ pasza (hodowcy)" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}"
+                                              VerticalAlignment="Center" Margin="10,0,0,0"
+                                              ToolTip="Dolicz faktury FPP/FPP1 (pasza i pisklęta dla hodowców) do należności"
+                                              Checked="ChkPlatPasza_Changed" Unchecked="ChkPlatPasza_Changed"/>
                                 </StackPanel>
 
                                 <!-- KPI: Suma do zaplaty -->

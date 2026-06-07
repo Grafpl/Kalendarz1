@@ -15,13 +15,20 @@ namespace Kalendarz1.HandlowiecDashboard.Views
         private readonly string _connectionStringHandel = Configuration.DatabaseConfig.HandelConnectionString;
         private readonly string _kontrahent;
         private readonly string _handlowiec;
+        private readonly string _typDkList;
 
-        public KontrahentPlatnosciWindow(string kontrahent, string handlowiec)
+        // Wycinek SQL: kurs do przeliczenia kwot walutowych (WDT/FVW = EUR) na PLN. Dla PLN = 1.
+        private const string SqlKursPLN = @"CASE WHEN ISNULL(DK.waluta,'') IN ('', 'PLN', N'ZŁ') THEN CAST(1 AS float)
+                       ELSE ISNULL(NULLIF(DK.kurs, 0), 1) END";
+
+        public KontrahentPlatnosciWindow(string kontrahent, string handlowiec, bool zPasza = false)
         {
             InitializeComponent();
             WindowIconHelper.SetIcon(this);
             _kontrahent = kontrahent;
             _handlowiec = handlowiec;
+            // Tylko dokumenty sprzedazy — HM.DK trzyma tez zakupy (ujemne), proformy i FW (wewnetrzne)
+            _typDkList = "'FVS','PAR','WDT','FVW','FWS','FVSZ'" + (zPasza ? ",'FPP','FPP1'" : "");
             txtKontrahentNazwa.Text = kontrahent;
             txtHandlowiec.Text = $"Handlowiec: {handlowiec}";
             Loaded += async (s, e) => await OdswiezDaneAsync();
@@ -72,18 +79,19 @@ namespace Kalendarz1.HandlowiecDashboard.Views
 
         private async Task PobierzDaneKontrahentaAsync(SqlConnection cn)
         {
-            var sql = @"
+            var sql = $@"
                 SELECT C.LimitAmount,
-                       SUM(CASE WHEN DK.walbrutto - ISNULL(PN.KwotaRozliczona, 0) > 0.01 THEN DK.walbrutto - ISNULL(PN.KwotaRozliczona, 0) ELSE 0 END) AS DoZaplaty,
-                       SUM(CASE WHEN DK.walbrutto - ISNULL(PN.KwotaRozliczona, 0) > 0.01 AND GETDATE() <= ISNULL(PN.TerminPrawdziwy, DK.plattermin) THEN DK.walbrutto - ISNULL(PN.KwotaRozliczona, 0) ELSE 0 END) AS Terminowe,
-                       SUM(CASE WHEN DK.walbrutto - ISNULL(PN.KwotaRozliczona, 0) > 0.01 AND GETDATE() > ISNULL(PN.TerminPrawdziwy, DK.plattermin) THEN DK.walbrutto - ISNULL(PN.KwotaRozliczona, 0) ELSE 0 END) AS Przeterminowane,
+                       SUM(CASE WHEN DK.walbrutto - ISNULL(PN.KwotaRozliczona, 0) > 0.01 THEN (DK.walbrutto - ISNULL(PN.KwotaRozliczona, 0)) * {SqlKursPLN} ELSE 0 END) AS DoZaplaty,
+                       SUM(CASE WHEN DK.walbrutto - ISNULL(PN.KwotaRozliczona, 0) > 0.01 AND GETDATE() <= ISNULL(PN.TerminPrawdziwy, DK.plattermin) THEN (DK.walbrutto - ISNULL(PN.KwotaRozliczona, 0)) * {SqlKursPLN} ELSE 0 END) AS Terminowe,
+                       SUM(CASE WHEN DK.walbrutto - ISNULL(PN.KwotaRozliczona, 0) > 0.01 AND GETDATE() > ISNULL(PN.TerminPrawdziwy, DK.plattermin) THEN (DK.walbrutto - ISNULL(PN.KwotaRozliczona, 0)) * {SqlKursPLN} ELSE 0 END) AS Przeterminowane,
                        MAX(CASE WHEN DK.walbrutto - ISNULL(PN.KwotaRozliczona, 0) > 0.01 AND GETDATE() > ISNULL(PN.TerminPrawdziwy, DK.plattermin) THEN DATEDIFF(day, ISNULL(PN.TerminPrawdziwy, DK.plattermin), GETDATE()) ELSE 0 END) AS MaxDni,
-                       COUNT(DISTINCT DK.id) AS IloscFaktur
+                       COUNT(DISTINCT CASE WHEN DK.walbrutto - ISNULL(PN.KwotaRozliczona, 0) > 0.01 THEN DK.id END) AS IloscFaktur
                 FROM [HANDEL].[SSCommon].[STContractors] C
-                LEFT JOIN [HANDEL].[HM].[DK] DK ON DK.khid = C.id AND DK.anulowany = 0
+                LEFT JOIN [HANDEL].[HM].[DK] DK ON DK.khid = C.id AND DK.anulowany = 0 AND DK.bufor = 0 AND DK.typ_dk IN ({_typDkList})
                 LEFT JOIN (
                     SELECT dkid, SUM(ISNULL(kwotarozl, 0)) AS KwotaRozliczona, MAX(Termin) AS TerminPrawdziwy
                     FROM [HANDEL].[HM].[PN]
+                    WHERE anulowany = 0
                     GROUP BY dkid
                 ) PN ON PN.dkid = DK.id
                 WHERE C.shortcut = @Kontrahent
@@ -107,7 +115,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 txtTerminowe.Text = $"{terminowe:N0} zl";
                 txtPrzeterminowane.Text = $"{przeterminowane:N0} zl";
                 txtMaxDni.Text = $"{maxDni} dni";
-                txtIloscFaktur.Text = $"{iloscFaktur} faktur";
+                txtIloscFaktur.Text = $"{iloscFaktur} niezapł. faktur";
 
                 if (doZaplaty > 0)
                 {
@@ -131,13 +139,15 @@ namespace Kalendarz1.HandlowiecDashboard.Views
         {
             var lista = new List<FakturaRow>();
 
-            var sql = @"
+            // Wszystkie kwoty w PLN (kurs faktury). Lista = otwarte saldo + historia 12 miesiecy
+            // (wczesniej ladowala WSZYSTKIE dokumenty od 2021 — tysiace wierszy u duzych klientow).
+            var sql = $@"
                 SELECT DK.kod AS NrDokumentu,
                        DK.data AS Data,
                        ISNULL(PN.TerminPrawdziwy, DK.plattermin) AS Termin,
-                       DK.walbrutto AS KwotaBrutto,
-                       ISNULL(PN.KwotaRozliczona, 0) AS Rozliczone,
-                       DK.walbrutto - ISNULL(PN.KwotaRozliczona, 0) AS DoZaplaty,
+                       DK.walbrutto * {SqlKursPLN} AS KwotaBrutto,
+                       ISNULL(PN.KwotaRozliczona, 0) * {SqlKursPLN} AS Rozliczone,
+                       (DK.walbrutto - ISNULL(PN.KwotaRozliczona, 0)) * {SqlKursPLN} AS DoZaplaty,
                        CASE
                            WHEN DK.walbrutto - ISNULL(PN.KwotaRozliczona, 0) <= 0.01 THEN 'Rozliczona'
                            WHEN GETDATE() > ISNULL(PN.TerminPrawdziwy, DK.plattermin) THEN 'Przeterminowana'
@@ -153,9 +163,12 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 LEFT JOIN (
                     SELECT dkid, SUM(ISNULL(kwotarozl, 0)) AS KwotaRozliczona, MAX(Termin) AS TerminPrawdziwy
                     FROM [HANDEL].[HM].[PN]
+                    WHERE anulowany = 0
                     GROUP BY dkid
                 ) PN ON PN.dkid = DK.id
-                WHERE C.shortcut = @Kontrahent AND DK.anulowany = 0
+                WHERE C.shortcut = @Kontrahent AND DK.anulowany = 0 AND DK.bufor = 0
+                  AND DK.typ_dk IN ({_typDkList})
+                  AND (DK.walbrutto - ISNULL(PN.KwotaRozliczona, 0) > 0.01 OR DK.data >= DATEADD(month, -12, GETDATE()))
                 ORDER BY DK.data DESC";
 
             await using var cmd = new SqlCommand(sql, cn);
@@ -210,17 +223,19 @@ namespace Kalendarz1.HandlowiecDashboard.Views
 
         private async Task PobierzTrendAsync(SqlConnection cn)
         {
-            var sql = @"
+            var sql = $@"
                 SELECT YEAR(DK.data) AS Rok, MONTH(DK.data) AS Miesiac,
-                       SUM(DK.walbrutto - ISNULL(PN.KwotaRozliczona, 0)) AS Saldo
+                       SUM((DK.walbrutto - ISNULL(PN.KwotaRozliczona, 0)) * {SqlKursPLN}) AS Saldo
                 FROM [HANDEL].[HM].[DK] DK
                 INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
                 LEFT JOIN (
                     SELECT dkid, SUM(ISNULL(kwotarozl, 0)) AS KwotaRozliczona
                     FROM [HANDEL].[HM].[PN]
+                    WHERE anulowany = 0
                     GROUP BY dkid
                 ) PN ON PN.dkid = DK.id
-                WHERE C.shortcut = @Kontrahent AND DK.anulowany = 0
+                WHERE C.shortcut = @Kontrahent AND DK.anulowany = 0 AND DK.bufor = 0
+                  AND DK.typ_dk IN ({_typDkList})
                   AND DK.data >= DATEADD(month, -6, GETDATE())
                 GROUP BY YEAR(DK.data), MONTH(DK.data)
                 ORDER BY Rok, Miesiac";
@@ -263,16 +278,22 @@ namespace Kalendarz1.HandlowiecDashboard.Views
 
         private async Task PobierzHistorieAsync(SqlConnection cn)
         {
-            var sql = @"
-                SELECT SUM(PN.kwotarozl) AS SumaZaplacona,
-                       AVG(DATEDIFF(day, DK.data, PN.data)) AS SredniCzasPlatnosci,
-                       MAX(PN.data) AS OstatniaPlatnosc,
-                       COUNT(CASE WHEN PN.data > ISNULL(PN.Termin, DK.plattermin) THEN 1 END) AS LiczbaOpoznien
+            // UWAGA: PN.data = data FAKTURY (rozrachunek powstaje razem z dokumentem)!
+            // Realna data zaplaty to PN.datarozl — liczenie po PN.data dawalo zawsze ~0 dni i 0 opoznien.
+            // kwotarozlpln = kwota rozliczona w PLN (dla dokumentow EUR kwotarozl jest w walucie).
+            var sql = $@"
+                SELECT SUM(PN.kwotarozlpln) AS SumaZaplacona,
+                       AVG(DATEDIFF(day, DK.data, PN.datarozl)) AS SredniCzasPlatnosci,
+                       MAX(PN.datarozl) AS OstatniaPlatnosc,
+                       COUNT(CASE WHEN PN.datarozl > ISNULL(PN.Termin, DK.plattermin) THEN 1 END) AS LiczbaOpoznien
                 FROM [HANDEL].[HM].[PN] PN
                 INNER JOIN [HANDEL].[HM].[DK] DK ON PN.dkid = DK.id
                 INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
                 WHERE C.shortcut = @Kontrahent
-                  AND PN.data >= DATEADD(month, -12, GETDATE())";
+                  AND PN.anulowany = 0 AND PN.kwotarozl > 0
+                  AND DK.anulowany = 0 AND DK.bufor = 0 AND DK.typ_dk IN ({_typDkList})
+                  AND PN.datarozl IS NOT NULL
+                  AND PN.datarozl >= DATEADD(month, -12, GETDATE())";
 
             await using var cmd = new SqlCommand(sql, cn);
             cmd.Parameters.AddWithValue("@Kontrahent", _kontrahent);

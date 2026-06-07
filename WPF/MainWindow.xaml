@@ -165,7 +165,7 @@
 
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="55"/>
+            <RowDefinition Height="0"/>   <!-- toolbar przeniesiony do prawego panelu (nad Podsumowanie dnia) -->
             <RowDefinition Height="*"/>
             <RowDefinition Height="24"/>
         </Grid.RowDefinitions>
@@ -190,73 +190,7 @@
             </StackPanel>
         </Border>
 
-        <Border Grid.Row="0" Background="White" 
-                BorderBrush="#E0E0E0" BorderThickness="0,0,0,1">
-            <Border.Effect>
-                <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.15" BlurRadius="8"/>
-            </Border.Effect>
-            <Grid Margin="8,3">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-
-                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button x:Name="btnPreviousWeek" Style="{StaticResource NavigationButtonStyle}"
-                            Content="&#x25C0;" FontSize="14" Width="32" Height="32"
-                            Click="BtnPreviousWeek_Click"/>
-
-                    <Button x:Name="btnNextWeek" Style="{StaticResource NavigationButtonStyle}"
-                            Content="&#x25B6;" FontSize="14" Width="32" Height="32"
-                            Click="BtnNextWeek_Click" Margin="5,0,0,0"/>
-                </StackPanel>
-
-                <StackPanel x:Name="panelDays" Grid.Column="1" Orientation="Horizontal" 
-                            Margin="20,0,0,0" VerticalAlignment="Center"/>
-
-                <StackPanel Grid.Column="3" Orientation="Horizontal"
-                            HorizontalAlignment="Right" VerticalAlignment="Center">
-                    <Button x:Name="btnNew" Style="{StaticResource ActionButtonStyle}"
-                            Background="#2ECC71" Content="➕Nowe" Width="55" ToolTip="Nowe zamówienie"
-                            Click="BtnNew_Click" FontSize="10" Height="28"/>
-
-                    <Button x:Name="btnNewTest" Style="{StaticResource ActionButtonStyle}"
-                            Background="#7C3AED" Content="✨TEST" Width="58" ToolTip="Nowe zamówienie — wersja TEST (nowy kreator)"
-                            Click="BtnNewTest_Click" Margin="2,0" FontSize="10" Height="28" FontWeight="Bold"/>
-
-                    <Button x:Name="btnPrint" Style="{StaticResource ActionButtonStyle}"
-                            Background="#3498DB" Content="🖨️Druk" Width="52" ToolTip="Drukuj"
-                            Click="BtnPrint_Click" Margin="2,0" FontSize="10" Height="28"/>
-
-                    <Button x:Name="btnRefresh" Style="{StaticResource ActionButtonStyle}"
-                            Background="#9B59B6" Content="🔄" Width="28" ToolTip="Odśwież dane"
-                            Click="BtnRefresh_Click" Margin="2,0" FontSize="12" Height="28"/>
-
-                    <!-- Przyciski do otwierania osobnych okien -->
-                    <Button x:Name="btnOpenDashboard" Style="{StaticResource ActionButtonStyle}"
-                            Background="#2C3E50" Content="📊Dash" Width="52" ToolTip="Dashboard produktów"
-                            Click="BtnOpenDashboard_Click" Margin="2,0" FontSize="10" Height="28"/>
-
-                    <Button x:Name="btnOpenStatystyki" Style="{StaticResource ActionButtonStyle}"
-                            Background="#E74C3C" Content="📈Stat" Width="48" ToolTip="Statystyki anulowanych"
-                            Click="BtnOpenStatystyki_Click" Margin="2,0" FontSize="10" Height="28"/>
-
-                    <Button x:Name="btnOpenHistoria" Style="{StaticResource ActionButtonStyle}"
-                            Background="#8E44AD" Content="📜Hist" Width="48" ToolTip="Historia zmian"
-                            Click="BtnOpenHistoria_Click" Margin="2,0" FontSize="10" Height="28"/>
-
-                    <Button x:Name="btnOpenTransport" Style="{StaticResource ActionButtonStyle}"
-                            Background="#1ABC9C" Content="🚚Tran" Width="50" ToolTip="Transport"
-                            Click="BtnOpenTransport_Click" Margin="2,0" FontSize="10" Height="28"/>
-
-                    <Button x:Name="btnDelete" Style="{StaticResource ActionButtonStyle}"
-                            Background="#C0392B" Content="🗑️Usuń" Width="50" ToolTip="Usuń zamówienie"
-                            Click="BtnDelete_Click" Visibility="Collapsed" Height="28" FontSize="10"/>
-                </StackPanel>
-            </Grid>
-        </Border>
+        <!-- Toolbar przeniesiony do prawego panelu (nad "Podsumowanie dnia") — tabela zamówień sięga samej góry -->
 
         <Grid x:Name="mainContentGrid" Grid.Row="1">
             <!-- Ukryte elementy kompatybilności -->
@@ -278,9 +212,11 @@
             <!-- ZAWARTOŚĆ - dwie kolumny z przesuwnym splitterem -->
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition x:Name="leftColumnDef" Width="*" MinWidth="300"/>
+                    <!-- Tabela zamówień ma stałą szerokość (priorytet przy zmniejszaniu okna);
+                         prawy panel (kafelki) jest elastyczny i kurczy się pierwszy -->
+                    <ColumnDefinition x:Name="leftColumnDef" Width="620" MinWidth="540"/>
                     <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition x:Name="rightColumnDef" Width="750" MinWidth="400"/>
+                    <ColumnDefinition x:Name="rightColumnDef" Width="*" MinWidth="340"/>
                 </Grid.ColumnDefinitions>
 
                 <!-- Lewa kolumna - zakładki -->
@@ -772,111 +708,142 @@
                               ShowsPreview="True"/>
 
                 <!-- Prawa kolumna - szczegóły i podsumowanie -->
-                <Grid x:Name="rightPanel" Grid.Column="2" Margin="5,0,10,10">
+                <Grid x:Name="rightPanel" Grid.Column="2" Margin="3,0,4,4">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="55*"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="45*"/>
+                    <RowDefinition Height="Auto"/>   <!-- nagłówek Podsumowanie dnia -->
+                    <RowDefinition Height="54*"/>     <!-- towary (karty) — na górze -->
+                    <RowDefinition Height="46*"/>     <!-- szczegóły zamówienia + notatki (na dole, wyższe) -->
                 </Grid.RowDefinitions>
 
-                <!-- ComboBox filtrowania produktów + pole wyszukiwania -->
-                <Border Grid.Row="0" Background="#ECEFF1" CornerRadius="5" Padding="6,4" Margin="0,5,0,5">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="Produkt:" FontSize="11" FontWeight="SemiBold"
-                                   Foreground="#2C3E50" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                        <ComboBox x:Name="cbProductFilter" Grid.Column="1" FontSize="12" Height="30"
-                                  VerticalContentAlignment="Center"
-                                  MaxDropDownHeight="450"
-                                  SelectionChanged="CbProductFilter_SelectionChanged"/>
-                        <Border Grid.Column="2" Background="White" CornerRadius="3" Margin="5,0,0,0"
-                                BorderBrush="#CCC" BorderThickness="1">
-                            <Grid>
-                                <TextBlock x:Name="txtSearchWatermark" Text="Szukaj..."
-                                           FontSize="11" Foreground="#AAA" IsHitTestVisible="False"
-                                           VerticalAlignment="Center" Margin="6,0,0,0"/>
-                                <TextBox x:Name="txtProductSearch" Width="120" Height="26" FontSize="11"
-                                         Background="Transparent" BorderThickness="0"
-                                         VerticalContentAlignment="Center" Padding="4,0"
-                                         TextChanged="TxtProductSearch_TextChanged"/>
-                            </Grid>
-                        </Border>
-                    </Grid>
+                <!-- Ukryte elementy kompatybilności (wyszukiwarka produktu + dane klienta — kod ich używa, -->
+                <!-- ale nazwa kontrahenta pokazuje się teraz w nagłówku kolumny "Produkt" w szczegółach) -->
+                <TextBlock x:Name="txtSearchWatermark" Visibility="Collapsed"/>
+                <TextBox x:Name="txtProductSearch" Visibility="Collapsed" TextChanged="TxtProductSearch_TextChanged"/>
+                <TextBlock x:Name="txtOrderClient" Visibility="Collapsed"/>
+                <TextBlock x:Name="txtOrderInfo" Visibility="Collapsed"/>
+                <DataGrid x:Name="dgAggregation" Visibility="Collapsed"
+                          Style="{StaticResource ModernDataGridStyle}" AutoGenerateColumns="False"/>
+
+                <!-- Pasek akcji (z dawnego górnego toolbara) + nagłówek "Podsumowanie dnia" -->
+                <StackPanel Grid.Row="0">
+                <!-- Nawigacja tygodnia + dni + akcje — nad podsumowaniem -->
+                <StackPanel Orientation="Horizontal" Margin="0,3,0,4">
+                    <Button x:Name="btnPreviousWeek" Style="{StaticResource NavigationButtonStyle}"
+                            Content="&#x25C0;" FontSize="12" Width="28" Height="28"
+                            Click="BtnPreviousWeek_Click"/>
+                    <Button x:Name="btnNextWeek" Style="{StaticResource NavigationButtonStyle}"
+                            Content="&#x25B6;" FontSize="12" Width="28" Height="28"
+                            Click="BtnNextWeek_Click" Margin="4,0,0,0"/>
+
+                    <StackPanel x:Name="panelDays" Orientation="Horizontal"
+                                Margin="10,0,0,0" VerticalAlignment="Center"/>
+
+                    <!-- MinWidth=0 PRZYMUSOWO — ActionButtonStyle ma MinWidth=95, które wygrywa z Width -->
+                    <Button x:Name="btnNew" Style="{StaticResource ActionButtonStyle}"
+                            Background="#2ECC71" Content="➕" Width="28" ToolTip="Nowe zamówienie"
+                            MinWidth="0" Padding="0"
+                            Click="BtnNew_Click" FontSize="12" Height="28" Margin="10,0,0,0"/>
+
+                    <Button x:Name="btnRefresh" Style="{StaticResource ActionButtonStyle}"
+                            Background="#9B59B6" Content="🔄" Width="28" ToolTip="Odśwież dane"
+                            MinWidth="0" Padding="0"
+                            Click="BtnRefresh_Click" Margin="4,0,0,0" FontSize="12" Height="28"/>
+
+                    <Button x:Name="btnOpenHistoria" Style="{StaticResource ActionButtonStyle}"
+                            Background="#8E44AD" Content="📜" Width="28" ToolTip="Historia zmian"
+                            MinWidth="0" Padding="0"
+                            Click="BtnOpenHistoria_Click" Margin="4,0,0,0" FontSize="12" Height="28"/>
+
+                    <!-- Pozostałe akcje pod jednym comboboxem (Dashboard / Statystyki / Transport / Usuń) -->
+                    <ComboBox x:Name="cbAkcje" Width="56" Height="28" FontSize="12" Margin="4,0,0,0"
+                              VerticalContentAlignment="Center" ToolTip="Więcej akcji (Dashboard / Statystyki / Transport / Usuń)"
+                              SelectionChanged="CbAkcje_SelectionChanged">
+                        <ComboBoxItem Content="⋯" IsSelected="True"/>
+                        <ComboBoxItem Content="📊 Dashboard" Tag="dash"/>
+                        <ComboBoxItem Content="📈 Statystyki" Tag="stat"/>
+                        <ComboBoxItem Content="🚚 Transport" Tag="tran"/>
+                        <ComboBoxItem x:Name="cbiUsun" Content="🗑️ Usuń zamówienie" Tag="usun" Visibility="Collapsed"/>
+                    </ComboBox>
+                </StackPanel>
+
+                <!-- Nagłówek "Podsumowanie dnia" + filtr produktu -->
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,3">
+                    <TextBlock Text="Podsumowanie dnia"
+                               Style="{StaticResource SectionHeaderStyle}" Margin="0,0,12,0"/>
+                    <ComboBox x:Name="cbProductFilter" Width="180" Height="26" FontSize="11"
+                              VerticalContentAlignment="Center" MaxDropDownHeight="450"
+                              VerticalAlignment="Center"
+                              ToolTip="Filtruj zamówienia po towarze"
+                              SelectionChanged="CbProductFilter_SelectionChanged"/>
+                    <!-- Przełącznik Zam./Wyd. ukryty — bilans zawsze liczony z zamówień (Zam.) -->
+                    <RadioButton x:Name="rbBilansZamowienia" Content="Zam." IsChecked="True" Visibility="Collapsed"
+                                 VerticalAlignment="Center" FontSize="10"
+                                 Checked="RbBilans_Checked"/>
+                    <RadioButton x:Name="rbBilansWydania" Content="Wyd." Visibility="Collapsed"
+                                 VerticalAlignment="Center" FontSize="10"
+                                 Checked="RbBilans_Checked"/>
+                    <Border x:Name="boxBilansSuma" Margin="16,0,0,0" CornerRadius="9" Padding="9,2"
+                            Background="#F2F4F7" VerticalAlignment="Center">
+                        <TextBlock x:Name="txtBilansSuma"
+                                   FontSize="10" FontWeight="SemiBold" Foreground="#2C3E50"
+                                   TextTrimming="CharacterEllipsis"/>
+                    </Border>
+                    <Button x:Name="btnPrzychodLibra" Style="{StaticResource ActionButtonStyle}"
+                            Background="#16A085" Content="📦" Width="22" Height="22"
+                            MinWidth="0" Padding="0"
+                            Margin="8,0,0,0" FontSize="10" VerticalAlignment="Center"
+                            ToolTip="Przychód produkcji z LibraNet (ważenia In0E) — per towar + rozkład godzinowy"
+                            Click="BtnPrzychodLibra_Click"/>
+                </StackPanel>
+                </StackPanel>
+
+                <!-- Karty towarów — na samej górze, zajmują najwięcej wysokości -->
+                <Border Grid.Row="1" Style="{StaticResource PanelBorderStyle}">
+                    <!-- Scrollbar ZAWSZE zarezerwowany (Visible, nie Auto) — Auto powodowało pętlę layoutu:
+                         pojawiający się/znikający pasek zmieniał szerokość panelu i karty "tańczyły" -->
+                    <ScrollViewer VerticalScrollBarVisibility="Visible" HorizontalScrollBarVisibility="Disabled" Padding="1,1,3,1">
+                        <WrapPanel x:Name="wpProductCards" Orientation="Horizontal"/>
+                    </ScrollViewer>
                 </Border>
 
-                <Border Grid.Row="1" Style="{StaticResource PanelBorderStyle}">
+                <!-- Szczegóły zamówienia (na dole): tabela + [Waluta po lewej | szersze notatki po prawej] -->
+                <Border Grid.Row="2" Style="{StaticResource PanelBorderStyle}" Margin="0,8,0,0">
                     <Grid>
                         <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
-                            <RowDefinition Height="50"/>
+                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
-                        <Grid Grid.Row="0">
+                        <DataGrid x:Name="dgDetails" Grid.Row="0"
+                                  Style="{StaticResource ModernDataGridStyle}"
+                                  AutoGenerateColumns="False"
+                                  IsReadOnly="False"
+                                  SelectionUnit="Cell"
+                                  SelectionMode="Single"/>
+
+                        <Grid Grid.Row="1" Margin="0,5,0,0">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
 
-                            <StackPanel Grid.Column="0" Orientation="Horizontal">
-                                <TextBlock Text="Szczegóły:" FontSize="12" FontWeight="SemiBold"
-                                           Foreground="#2C3E50" VerticalAlignment="Center"/>
-                                <TextBlock x:Name="txtOrderClient" Text="" FontSize="12" FontWeight="Bold"
-                                           Foreground="#27AE60" VerticalAlignment="Center" Margin="8,0,0,0"/>
-                                <TextBlock x:Name="txtOrderInfo" Text="" FontSize="10" Foreground="#888"
-                                           VerticalAlignment="Center" Margin="8,0,0,0"/>
-                            </StackPanel>
-
-                            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                            <!-- Po lewej: tylko Waluta -->
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,8,0">
                                 <TextBlock Text="Waluta:" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="10"/>
-                                <ComboBox x:Name="cbWalutaPanel" Width="55" Height="20" FontSize="10"
+                                <ComboBox x:Name="cbWalutaPanel" Width="55" Height="22" FontSize="10"
                                           SelectionChanged="CbWalutaPanel_SelectionChanged">
                                     <ComboBoxItem Content="PLN" IsSelected="True"/>
                                     <ComboBoxItem Content="EUR"/>
                                 </ComboBox>
                             </StackPanel>
+
+                            <!-- Po prawej: szerokie notatki -->
+                            <TextBox x:Name="txtNotes" Grid.Column="1"
+                                     Style="{StaticResource NotesTextBoxStyle}"
+                                     FontSize="11" Padding="6" Height="64" Margin="8,0,0,0"
+                                     ToolTip="Notatki do zamówienia"/>
                         </Grid>
-
-                        <DataGrid x:Name="dgDetails" Grid.Row="1"
-                                  Style="{StaticResource ModernDataGridStyle}"
-                                  AutoGenerateColumns="False" Margin="0,5,0,0"
-                                  IsReadOnly="False"
-                                  SelectionUnit="Cell"
-                                  SelectionMode="Single"/>
-
-                        <TextBox x:Name="txtNotes" Grid.Row="2"
-                                 Style="{StaticResource NotesTextBoxStyle}" Margin="0,5,0,0"
-                                 ToolTip="Notatki do zamówienia"/>
                     </Grid>
-                </Border>
-
-                <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,8,0,3">
-                    <TextBlock Text="Podsumowanie dnia"
-                               Style="{StaticResource SectionHeaderStyle}" Margin="0,0,15,0"/>
-                    <TextBlock Text="Bilans:" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="10"/>
-                    <RadioButton x:Name="rbBilansZamowienia" Content="Zam." IsChecked="True"
-                                 VerticalAlignment="Center" Margin="0,0,8,0" FontSize="10"
-                                 Checked="RbBilans_Checked"/>
-                    <RadioButton x:Name="rbBilansWydania" Content="Wyd."
-                                 VerticalAlignment="Center" FontSize="10"
-                                 Checked="RbBilans_Checked"/>
-                </StackPanel>
-
-                <!-- Ukryty DataGrid dla kompatybilności -->
-                <DataGrid x:Name="dgAggregation" Visibility="Collapsed"
-                          Style="{StaticResource ModernDataGridStyle}"
-                          AutoGenerateColumns="False"/>
-
-                <Border Grid.Row="3" Style="{StaticResource PanelBorderStyle}">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                        <WrapPanel x:Name="wpProductCards" Orientation="Horizontal"/>
-                    </ScrollViewer>
                 </Border>
                 </Grid>
             </Grid>

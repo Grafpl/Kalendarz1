@@ -61,18 +61,50 @@ END";
         public async Task<int> InsertAsync(SubmissionRow r)
         {
             await EnsureTableExistsAsync();
+            // UPSERT — UNIQUE (OkresOd, OkresDo, KategoriaTowaru) wymusza 1 wpis per okres+kategoria.
+            // Retry po Failed/Sent nadpisuje poprzedni wpis (historia retry żyje w ApiResponse/ErrorMessage).
             const string sql = @"
-INSERT INTO dbo.ZsrirSubmissions
-    (OkresOd, OkresDo, KategoriaTowaru, CommodityGroupId,
-     KgRazem, TonyRazem, WartoscNetto, CenaZlTona,
-     FormReportingPeriodId, DataSupplierId,
-     Status, ApiResponse, ErrorMessage, WyslanyPrzez, WyslanyDataCzas)
-VALUES
-    (@OkresOd, @OkresDo, @KategoriaTowaru, @CommodityGroupId,
-     @KgRazem, @TonyRazem, @WartoscNetto, @CenaZlTona,
-     @FormReportingPeriodId, @DataSupplierId,
-     @Status, @ApiResponse, @ErrorMessage, @WyslanyPrzez, @WyslanyDataCzas);
-SELECT CAST(SCOPE_IDENTITY() AS INT);";
+SET XACT_ABORT ON;
+BEGIN TRAN;
+
+DECLARE @Id INT;
+SELECT @Id = Id FROM dbo.ZsrirSubmissions WITH (UPDLOCK, HOLDLOCK)
+WHERE OkresOd = @OkresOd AND OkresDo = @OkresDo AND KategoriaTowaru = @KategoriaTowaru;
+
+IF @Id IS NULL
+BEGIN
+    INSERT INTO dbo.ZsrirSubmissions
+        (OkresOd, OkresDo, KategoriaTowaru, CommodityGroupId,
+         KgRazem, TonyRazem, WartoscNetto, CenaZlTona,
+         FormReportingPeriodId, DataSupplierId,
+         Status, ApiResponse, ErrorMessage, WyslanyPrzez, WyslanyDataCzas)
+    VALUES
+        (@OkresOd, @OkresDo, @KategoriaTowaru, @CommodityGroupId,
+         @KgRazem, @TonyRazem, @WartoscNetto, @CenaZlTona,
+         @FormReportingPeriodId, @DataSupplierId,
+         @Status, @ApiResponse, @ErrorMessage, @WyslanyPrzez, @WyslanyDataCzas);
+    SET @Id = CAST(SCOPE_IDENTITY() AS INT);
+END
+ELSE
+BEGIN
+    UPDATE dbo.ZsrirSubmissions SET
+        CommodityGroupId      = @CommodityGroupId,
+        KgRazem               = @KgRazem,
+        TonyRazem             = @TonyRazem,
+        WartoscNetto          = @WartoscNetto,
+        CenaZlTona            = @CenaZlTona,
+        FormReportingPeriodId = @FormReportingPeriodId,
+        DataSupplierId        = @DataSupplierId,
+        Status                = @Status,
+        ApiResponse           = @ApiResponse,
+        ErrorMessage          = @ErrorMessage,
+        WyslanyPrzez          = @WyslanyPrzez,
+        WyslanyDataCzas       = @WyslanyDataCzas
+    WHERE Id = @Id;
+END
+
+COMMIT;
+SELECT @Id;";
 
             using var conn = new SqlConnection(ConnLibra);
             await conn.OpenAsync();

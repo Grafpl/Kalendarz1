@@ -16,6 +16,38 @@ namespace Kalendarz1.DashboardPrzychodu.Models
         private int _autaZwazone;
         private int _autaOgolem;
         private int _autaPlanowane;
+
+        /// <summary>Asia potwierdziła wagi w Menu>Specyfikacja Surowca (HD.PotwWaga=1).</summary>
+        public bool PotwWaga { get; set; }
+        /// <summary>Asia potwierdziła sztuki w Specyfikacji Surowca.</summary>
+        public bool PotwSztuki { get; set; }
+        /// <summary>Data ostatniej modyfikacji harmonogramu (DataMod albo DataUtw).</summary>
+        public System.DateTime? DataOstatniejZmiany { get; set; }
+
+        /// <summary>Lista realnych hodowców z FarmerCalc (przez Dostawcy.Name po CustomerGID), oddzielone przecinkami.</summary>
+        public string RealniHodowcy { get; set; } = "";
+
+        /// <summary>Liczba unikalnych realnych hodowców pod tym LP.</summary>
+        public int LiczbaRealnychHodowcow { get; set; }
+
+        /// <summary>True gdy realnie pod tym LP są inni hodowcy niż w planie (HarmonogramDostaw.Dostawca).</summary>
+        public bool MaRoznychRealnych =>
+            LiczbaRealnychHodowcow > 0 &&
+            (LiczbaRealnychHodowcow > 1 ||
+             !string.Equals((RealniHodowcy ?? "").Trim(), (Hodowca ?? "").Trim(), System.StringComparison.OrdinalIgnoreCase));
+
+        /// <summary>Display dla karty: "Plan: Ferma Wyborów  •  Realnie: Sobota, Pietrasik" gdy rozjazd.</summary>
+        public string RealniHodowcyDisplay
+        {
+            get
+            {
+                if (string.IsNullOrWhiteSpace(RealniHodowcy)) return "";
+                if (LiczbaRealnychHodowcow == 1 &&
+                    string.Equals(RealniHodowcy.Trim(), (Hodowca ?? "").Trim(), System.StringComparison.OrdinalIgnoreCase))
+                    return "";  // dokladnie ten sam co planowany - nie pokazujemy
+                return RealniHodowcy;
+            }
+        }
         private decimal _planSztukiLacznie;
         private decimal _planKgLacznie;
         private decimal _sztukiZwazoneSuma;
@@ -100,6 +132,7 @@ namespace Kalendarz1.DashboardPrzychodu.Models
             get => _autaPlanowane;
             set { _autaPlanowane = value; OnPropertyChanged(); }
         }
+
 
         /// <summary>
         /// Ile aut jeszcze czeka na wazenie
@@ -411,6 +444,70 @@ namespace Kalendarz1.DashboardPrzychodu.Models
         public string KgRzeczDisplay => KgZwazoneSuma >= 1000
             ? $"{KgZwazoneSuma / 1000:N1}k"
             : $"{KgZwazoneSuma:N0}";
+
+        // ===== ODCHYLENIE: ile na + a ile na - (do centralnego pokazania na karcie) =====
+
+        /// <summary>
+        /// Odchylenie kg = ZwazoneSuma - PlanKgLacznie. Dodatnie = więcej niż plan.
+        /// Pokazujemy tylko gdy są jakieś ważenia (KgZwazoneSuma > 0).
+        /// </summary>
+        public decimal OdchylenieKg => KgZwazoneSuma > 0 ? KgZwazoneSuma - PlanKgLacznie : 0;
+
+        /// <summary>"+1 240 kg" / "−540 kg" / "0 kg".</summary>
+        public string OdchylenieKgDisplay
+        {
+            get
+            {
+                if (KgZwazoneSuma <= 0) return "—";
+                decimal od = OdchylenieKg;
+                string znak = od > 0 ? "+" : "";
+                return $"{znak}{od:N0} kg";
+            }
+        }
+
+        /// <summary>Zielony jeśli + (więcej niż plan), czerwony jeśli − (mniej), szary jeśli brak ważeń.</summary>
+        public Brush OdchylenieKgBrush
+        {
+            get
+            {
+                if (KgZwazoneSuma <= 0) return new SolidColorBrush(Color.FromRgb(120, 113, 108)); // szary
+                if (OdchylenieKg > 0) return new SolidColorBrush(Color.FromRgb(34, 197, 94));    // zielony
+                if (OdchylenieKg < 0) return new SolidColorBrush(Color.FromRgb(239, 68, 68));    // czerwony
+                return new SolidColorBrush(Color.FromRgb(168, 162, 158));                        // szary OK
+            }
+        }
+
+        /// <summary>
+        /// Odchylenie średniej wagi = SredniaWagaRzecz - SredniaWagaPlan.
+        /// </summary>
+        public decimal? OdchylenieWagi => SredniaWagaRzecz.HasValue && SredniaWagaPlan.HasValue
+            ? SredniaWagaRzecz.Value - SredniaWagaPlan.Value
+            : (decimal?)null;
+
+        /// <summary>"+0.12 kg" / "−0.05 kg" / "—".</summary>
+        public string OdchylenieWagiDisplay
+        {
+            get
+            {
+                if (!OdchylenieWagi.HasValue) return "—";
+                decimal od = OdchylenieWagi.Value;
+                string znak = od > 0 ? "+" : "";
+                return $"{znak}{od:N2}";
+            }
+        }
+
+        /// <summary>Zielony jeśli + (cięższe), czerwony jeśli − (lżejsze), szary jeśli brak.</summary>
+        public Brush OdchylenieWagiBrush
+        {
+            get
+            {
+                if (!OdchylenieWagi.HasValue) return new SolidColorBrush(Color.FromRgb(120, 113, 108));
+                decimal od = OdchylenieWagi.Value;
+                if (od > 0.02m) return new SolidColorBrush(Color.FromRgb(34, 197, 94));    // zielony
+                if (od < -0.02m) return new SolidColorBrush(Color.FromRgb(239, 68, 68));   // czerwony
+                return new SolidColorBrush(Color.FromRgb(168, 162, 158));                  // szary OK
+            }
+        }
 
         #endregion
 

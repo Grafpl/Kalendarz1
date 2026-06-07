@@ -30,6 +30,28 @@ namespace Kalendarz1.WPF
         private readonly string _connHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
         private readonly string _connTransport = "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True";
 
+        // Pula bilansu: rodzic (towar dashboardu) → dzieci (towary doliczane do puli). Patrz KreatorPuliBilansuWindow.
+        private readonly Kalendarz1.Zamowienia.Services.BilansSkladnikiService _bilansSkladnikiService;
+
+        // Nazwa kontrahenta wybranego zamówienia — pokazywana w nagłówku kolumny "Produkt" w szczegółach
+        private string _detailsClientName = "";
+
+        // Kurczak A: stan rozwinięcia tabelki klas wagowych (przeżywa odświeżenia panelu) + referencja karty
+        private bool _kurczakAExpanded = false;
+        private Border _kurczakACard;
+
+        // Zamówienia "Ogólne" zgrupowane w jeden wiersz (▶/▼) + indeks kolumny Utworzono (avatar loader)
+        private bool _ogolneExpanded = false;
+        private int _utworzonoColIndex = -1;
+        private readonly List<object[]> _ogolneDetale = new(); // cache detali grupy — toggle bez rundy do bazy
+
+        // Kolumny Wyd./Róż. w szczegółach — kurczone/ukrywane przy wąskim oknie
+        private DataGridColumn _colWydDet, _colRozDet;
+
+        // Cache mapy puli matka/córka (zmienia się rzadko — TTL 5 min zamiast 2 zapytań SQL na każde odświeżenie)
+        private Dictionary<int, List<int>> _puleCacheMap;
+        private DateTime _puleCacheTime = DateTime.MinValue;
+
         private static readonly DateTime MinSqlDate = new DateTime(1753, 1, 1);
         private static readonly DateTime MaxSqlDate = new DateTime(9999, 12, 31);
         private static bool _strefaColumnExists = false;
@@ -151,6 +173,9 @@ namespace Kalendarz1.WPF
         {
             InitializeComponent();
             WindowIconHelper.SetIcon(this);
+            _bilansSkladnikiService = new Kalendarz1.Zamowienia.Services.BilansSkladnikiService(_connLibra);
+            wpProductCards.SizeChanged += (s, e) => ApplyCardLayout(); // responsywne karty Podsumowania dnia
+            SizeChanged += (s, e) => ApplyOrdersLayout();              // responsywna tabela zamówień (progi szerokości okna)
             Loaded += MainWindow_Loaded;
             Closed += MainWindow_Closed;
         }
@@ -535,7 +560,7 @@ namespace Kalendarz1.WPF
             _selectedDate = ValidateSqlDate(DateTime.Today);
 
             SetupDayButtons();
-            btnDelete.Visibility = (UserID == "11111") ? Visibility.Visible : Visibility.Collapsed;
+            cbiUsun.Visibility = (UserID == "11111") ? Visibility.Visible : Visibility.Collapsed;
             chkShowReleasesWithoutOrders.IsChecked = _showReleasesWithoutOrders;
             chkShowAnulowane.IsChecked = false;
 
@@ -769,6 +794,24 @@ namespace Kalendarz1.WPF
 
         #region Przyciski otwierania osobnych okien
 
+        // Combobox "⋯ Więcej" — Dashboard / Statystyki / Transport / Usuń pod jednym kontrolką
+        private void CbAkcje_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (cbAkcje.SelectedItem is not ComboBoxItem item) return;
+            var tag = item.Tag as string;
+            if (string.IsNullOrEmpty(tag)) return;
+
+            cbAkcje.SelectedIndex = 0; // reset do nagłówka (wywoła ten handler ponownie, ale tag == null)
+
+            switch (tag)
+            {
+                case "dash": BtnOpenDashboard_Click(sender, e); break;
+                case "stat": BtnOpenStatystyki_Click(sender, e); break;
+                case "tran": BtnOpenTransport_Click(sender, e); break;
+                case "usun": BtnDelete_Click(sender, e); break;
+            }
+        }
+
         private void BtnOpenDashboard_Click(object sender, RoutedEventArgs e)
         {
             var dashboardWindow = new DashboardWindow(_connLibra, _connHandel, _selectedDate);
@@ -975,50 +1018,7 @@ namespace Kalendarz1.WPF
         {
             string[] dayNames = { "Pon", "Wt", "Śr", "Czw", "Pt", "So", "Nd" };
 
-            // Najpierw dodaj przycisk "Dziś" - mniejsze kafelki
-            btnToday = new Button
-            {
-                Style = (Style)FindResource("DayButtonStyle"),
-                Width = 60,
-                Height = 38,
-                Margin = new Thickness(0, 0, 3, 0)
-            };
-
-            var stackToday = new StackPanel();
-            stackToday.Children.Add(new TextBlock
-            {
-                Text = "Dziś",
-                FontSize = 8,
-                FontWeight = FontWeights.Bold,
-                Foreground = Brushes.White
-            });
-            stackToday.Children.Add(new TextBlock
-            {
-                Text = DateTime.Today.ToString("dd.MM"),
-                FontSize = 8,
-                Foreground = Brushes.White
-            });
-            btnToday.Content = stackToday;
-            btnToday.Background = new SolidColorBrush(Color.FromRgb(241, 196, 15));
-            btnToday.Click += async (s, e) =>
-            {
-                _selectedDate = DateTime.Today;
-                UpdateDayButtonDates();
-                await RefreshAllDataAsync();
-            };
-
-            panelDays.Children.Add(btnToday);
-
-            // Teraz dodaj separator
-            var separator = new System.Windows.Controls.Separator
-            {
-                Width = 2,
-                Margin = new Thickness(5, 0, 5, 0),
-                Background = new SolidColorBrush(Color.FromRgb(229, 231, 235))
-            };
-            panelDays.Children.Add(separator);
-
-            // Teraz dodaj przyciski dni tygodnia - mniejsze kafelki
+            // Najpierw przyciski dni tygodnia - mniejsze kafelki
             for (int i = 0; i < 7; i++)
             {
                 var btn = new Button
@@ -1039,6 +1039,47 @@ namespace Kalendarz1.WPF
                 _dayButtons.Add(btn);
                 panelDays.Children.Add(btn);
             }
+
+            // Separator przed przyciskiem "Dziś"
+            var separator = new System.Windows.Controls.Separator
+            {
+                Width = 2,
+                Margin = new Thickness(5, 0, 5, 0),
+                Background = new SolidColorBrush(Color.FromRgb(229, 231, 235))
+            };
+            panelDays.Children.Add(separator);
+
+            // Przycisk "Dziś" — ŻÓŁTY, na końcu (obok niedzieli)
+            btnToday = new Button
+            {
+                Style = (Style)FindResource("DayButtonStyle"),
+                ClickMode = ClickMode.Press,
+                Background = new SolidColorBrush(Color.FromRgb(0xFF, 0xD5, 0x4F)),       // żółty
+                BorderBrush = new SolidColorBrush(Color.FromRgb(0xF5, 0xB7, 0x00)),
+                Foreground = new SolidColorBrush(Color.FromRgb(0x5A, 0x42, 0x00))
+            };
+
+            var stackToday = new StackPanel();
+            stackToday.Children.Add(new TextBlock
+            {
+                Text = "Dziś",
+                FontSize = 8,
+                FontWeight = FontWeights.Bold
+            });
+            stackToday.Children.Add(new TextBlock
+            {
+                Text = DateTime.Today.ToString("dd.MM"),
+                FontSize = 8
+            });
+            btnToday.Content = stackToday;
+            btnToday.Click += async (s, e) =>
+            {
+                _selectedDate = DateTime.Today;
+                UpdateDayButtonDates();
+                await RefreshAllDataAsync();
+            };
+
+            panelDays.Children.Add(btnToday);
         }
         private async Task LoadInitialDataAsync()
         {
@@ -2089,6 +2130,36 @@ namespace Kalendarz1.WPF
             {
                 _selectedProductId = selected.Tag as int?;
                 await RefreshAllDataAsync();
+            }
+        }
+
+        /// <summary>
+        /// 📦 Przychód produkcji z LibraNet (In0E) dla wybranego dnia.
+        /// Jeśli w filtrze wybrano konkretny towar — jego nazwa trafia jako filtr startowy.
+        /// </summary>
+        private void BtnPrzychodLibra_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                string? filtrStartowy = null;
+                if (_selectedProductId.HasValue
+                    && cbProductFilter.SelectedItem is ComboBoxItem sel
+                    && sel.Content is StackPanel sp)
+                {
+                    // Nazwa towaru = ostatni TextBlock w itemie combo (przed nim bywa zdjęcie i kropka ●)
+                    filtrStartowy = sp.Children.OfType<TextBlock>().LastOrDefault()?.Text?.Trim();
+                }
+
+                var okno = new Zamowienia.PrzychodLibraNetWindow(_selectedDate, filtrStartowy)
+                {
+                    Owner = this
+                };
+                okno.Show();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Nie udało się otworzyć przychodu LibraNet:\n{ex.Message}",
+                    "Przychód LibraNet", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -3944,6 +4015,14 @@ namespace Kalendarz1.WPF
                 _dtOrders.DefaultView.RowFilter = "";
             }
 
+            // ⚠ NAJPIERW zdejmij Sort/RowFilter z widoku! Żywy indeks DataView (po sortowaniu kolumną)
+            // wskazuje kolumny, które zaraz skasujemy — bez tego pierwszy Rows.Add wywala
+            // NullReference w System.Data.Index.CompareRecords. Sort przywracamy na końcu metody.
+            string przywrocSort = "";
+            try { przywrocSort = _dtOrders.DefaultView.Sort; } catch { }
+            try { _dtOrders.DefaultView.Sort = ""; } catch { }
+            try { _dtOrders.DefaultView.RowFilter = ""; } catch { }
+
             // Zawsze czyść i odtwarzaj kolumny - grupy mogą się zmienić
             _dtOrders.Clear();
             _dtOrders.Columns.Clear();
@@ -3984,7 +4063,16 @@ namespace Kalendarz1.WPF
             _dtOrders.Columns.Add("CzyZrealizowane", typeof(bool));
             _dtOrders.Columns.Add("WyprInfo", typeof(string));
             _dtOrders.Columns.Add("WydanoInfo", typeof(string));
+            _dtOrders.Columns.Add("TerminSort", typeof(DateTime));   // pełna data+godzina odbioru — sortowanie chronologiczne
+            _dtOrders.Columns.Add("WydaneWszystko", typeof(int));    // -1 brak wydania / 1 wszystko / 0 częściowo (Panel Magazyniera)
+            _dtOrders.Columns.Add("UtworzonoSort", typeof(DateTime)); // pełna data+godzina utworzenia — sortowanie chronologiczne
+            _dtOrders.Columns.Add("CenaPoziom", typeof(int));         // 0-5: odchylenie od średniej ważonej kg dnia (czerwony→zielony), -1 = brak
+            _dtOrders.Columns.Add("CenaTip", typeof(string));         // tooltip: "+1,3% vs średnia ważona dnia (8,42 zł/kg)"
+            _dtOrders.Columns.Add("MaWlasnyTransport", typeof(bool)); // TransportStatus='Wlasny' → ikonka 🚗 przy nazwie
+            _dtOrders.Columns.Add("WydanePoTerminie", typeof(bool));  // DataWydania > awizacja → godzina wydania na czerwono
             _dtOrders.Columns.Add("CyklGroupId", typeof(string));
+            _dtOrders.Columns.Add("OgolneTyp", typeof(string)); // "" / "header" / "detail" — grupowanie handlowca "Ogólne"
+            _dtOrders.Columns.Add("SortPriority", typeof(int)).DefaultValue = 1; // 0=SUMA (góra), 1=zwykłe, 8/9=Ogólne (dół) — trzymane także przy sortowaniu
 
             // Dynamiczne kolumny dla grup towarowych (z sanityzowanymi nazwami)
             _grupyKolumnDoNazw.Clear();
@@ -4082,13 +4170,14 @@ SELECT zm.Id, zm.KlientId, SUM(ISNULL(zmt.Ilosc,0)) AS Ilosc,
             THEN 1 ELSE 0 END AS BIT) AS CzyMaCeny,
        ISNULL(zm.CzyZrealizowane, 0) AS CzyZrealizowane,
        zm.DataWydania{slaughterDateSelect},
+       zm.TransportStatus,
        CAST(zm.CyklGroupId AS NVARCHAR(36)) AS CyklGroupId
 FROM [dbo].[ZamowieniaMieso] zm
 LEFT JOIN [dbo].[ZamowieniaMiesoTowar] zmt ON zm.Id = zmt.ZamowienieId
 WHERE {dateColumnZm} = @Day " +
                         (selectedProductId.HasValue ? "AND (zmt.KodTowaru = @ProductId OR zmt.KodTowaru IS NULL) " : "") +
                         $@"GROUP BY zm.Id, zm.KlientId, zm.DataPrzyjazdu, zm.DataUtworzenia, zm.IdUser, zm.Status,
-     zm.LiczbaPojemnikow, zm.LiczbaPalet, zm.TrybE2, zm.Uwagi, zm.TransportKursID, zm.CzyZrealizowane, zm.DataWydania{slaughterDateGroupBy}, CAST(zm.CyklGroupId AS NVARCHAR(36))
+     zm.LiczbaPojemnikow, zm.LiczbaPalet, zm.TrybE2, zm.Uwagi, zm.TransportKursID, zm.CzyZrealizowane, zm.DataWydania{slaughterDateGroupBy}, zm.TransportStatus, CAST(zm.CyklGroupId AS NVARCHAR(36))
 ORDER BY zm.Id";
 
                     await using var cmd = new SqlCommand(sql, cn) { CommandTimeout = 15 };
@@ -4104,6 +4193,9 @@ ORDER BY zm.Id";
 
             // Zadanie 3: Wydania z HANDEL (równolegle!)
             var taskWydania = GetReleasesPerClientProductAsync(day);
+
+            // Zadanie 3b: Wydania PER ZAMÓWIENIE z Panelu Magazyniera (CzyWydane + ZamowienieWydanieRoznice)
+            var taskWydaniaPerOrder = GetWydaniaPerOrderAsync(day, dateColumnZm);
 
             // Zadanie 4: Kategorie odbiorców z KartotekaOdbiorcyDane (równolegle!) — TTL 30 min (kategorie zmieniają się rzadko)
             var taskKategorie = Task.Run(async () =>
@@ -4135,12 +4227,13 @@ ORDER BY zm.Id";
             });
 
             // Czekaj na wszystkie zadania
-            await Task.WhenAll(taskKontrahenci, taskZamowienia, taskWydania, taskKategorie);
+            await Task.WhenAll(taskKontrahenci, taskZamowienia, taskWydania, taskWydaniaPerOrder, taskKategorie);
             contractors = await taskKontrahenci;
             var zamResult = await taskZamowienia;
             clientsWithOrders = zamResult.clients;
             temp = zamResult.ordersTable;
             releasesPerClientProduct = await taskWydania;
+            var wydaniaPerOrder = await taskWydaniaPerOrder;
             var kategorie = await taskKategorie;
 
             // Cache wydań
@@ -4320,6 +4413,7 @@ ORDER BY zm.Id";
             decimal totalOrdered = 0m;
             decimal totalReleased = 0m;
             decimal totalPallets = 0m;
+            decimal totalCenaWaga = 0m, totalCenaWartosc = 0m; // średnia ważona cena dla wiersza SUMA
             int totalOrdersCount = 0;
             int actualOrdersCount = 0;
             var clientsReleasedCounted = new HashSet<int>(); // Śledzenie klientów, których wydania już policzono
@@ -4372,13 +4466,19 @@ ORDER BY zm.Id";
 
                 // Ikony statusu nie są już dodawane do tekstu - wyświetlane jako kolorowe ikony w kolumnie szablonowej
 
+                // Wydano PER ZAMÓWIENIE — z Panelu Magazyniera (faktyczne kg + flaga "czy wszystko poszło")
                 decimal released = 0m;
-                if (releasesPerClientProduct.TryGetValue(clientId, out var perProduct))
+                int wydaneWszystko = -1; // -1 = magazynier jeszcze nie wydał
+                if (wydaniaPerOrder.TryGetValue(id, out var wo))
                 {
-                    released = selectedProductId.HasValue ?
-                        perProduct.TryGetValue(selectedProductId.Value, out var w) ? w : 0m :
-                        perProduct.Values.Sum();
+                    released = selectedProductId.HasValue
+                        ? (wo.PerProdukt.TryGetValue(selectedProductId.Value, out var w) ? w : 0m)
+                        : wo.PerProdukt.Values.Sum();
+                    wydaneWszystko = wo.Wszystko ? 1 : 0;
                 }
+                // Kg się zgadzają (wydano >= zamówiono) → bez ⚠, nawet gdy flaga magazyniera mówi "częściowo"
+                if (wydaneWszystko == 0 && quantity > 0 && released >= quantity)
+                    wydaneWszystko = 1;
 
                 // ✅ PRZYWRÓCONY ORYGINALNY FORMAT
                 string pickupTerm = "";
@@ -4451,18 +4551,26 @@ ORDER BY zm.Id";
                     wydanoInfo = $"{dataWydania.Value:HH:mm} {dzienWyd}";
                 }
 
+                // Wydanie PO czasie awizacji → godzina wydania świeci na czerwono
+                bool wydanePoTerminie = dataWydania.HasValue && arrivalDate.HasValue
+                                        && dataWydania.Value > arrivalDate.Value;
+
                 totalOrdersCount++;
                 if (status != "Anulowane")
                 {
                     totalOrdered += quantity;
-                    // Wydania liczone raz na klienta, nie na każde zamówienie
-                    if (!clientsReleasedCounted.Contains(clientId))
-                    {
-                        totalReleased += released;
-                        clientsReleasedCounted.Add(clientId);
-                    }
+                    // Wydania per zamówienie (Panel Magazyniera) — sumują się wprost
+                    totalReleased += released;
                     totalPallets += pallets;
                     actualOrdersCount++;
+
+                    // Średnia ważona cena (waga = ilość; tylko zamówienia z ceną)
+                    decimal cenaZam = srednieCenyZamowien.TryGetValue(id, out var scSuma) ? scSuma : 0m;
+                    if (cenaZam > 0 && quantity > 0)
+                    {
+                        totalCenaWaga += quantity;
+                        totalCenaWartosc += cenaZam * quantity;
+                    }
                 }
 
                 // Różnica = Zamówiono - Wydano
@@ -4506,6 +4614,14 @@ ORDER BY zm.Id";
                 newRow["CzyZrealizowane"] = czyZrealizowane;
                 newRow["WyprInfo"] = wyprInfo;
                 newRow["WydanoInfo"] = wydanoInfo;
+                newRow["TerminSort"] = arrivalDate ?? day;
+                newRow["WydaneWszystko"] = wydaneWszystko;
+                newRow["UtworzonoSort"] = createdDate.HasValue ? (object)createdDate.Value : DBNull.Value;
+                string transportStatus = temp.Columns.Contains("TransportStatus") && !(r["TransportStatus"] is DBNull)
+                    ? r["TransportStatus"].ToString()?.Trim() ?? "" : "";
+                newRow["MaWlasnyTransport"] = transportStatus.Equals("Wlasny", StringComparison.OrdinalIgnoreCase)
+                                           || transportStatus.Equals("Własny", StringComparison.OrdinalIgnoreCase);
+                newRow["WydanePoTerminie"] = wydanePoTerminie;
 
                 // CyklGroupId
                 string cyklGuid = temp.Columns.Contains("CyklGroupId") && !(r["CyklGroupId"] is DBNull)
@@ -4581,6 +4697,9 @@ ORDER BY zm.Id";
                 row["CzyZrealizowane"] = false;
                 row["WyprInfo"] = "";
                 row["WydanoInfo"] = "";
+                row["TerminSort"] = day;
+                row["WydaneWszystko"] = 1;
+                row["MaWlasnyTransport"] = false;
 
                 // Kolumny grup dla wydań bez zamówień = 0
                 foreach (var grupaName in _grupyTowaroweNazwy)
@@ -4622,13 +4741,57 @@ ORDER BY zm.Id";
                 }
             }
 
+            // === Poziom ceny 0-5: odchylenie od ŚREDNIEJ WAŻONEJ KILOGRAMAMI dnia ===
+            // Uczciwe względem wolumenu: benchmark to średnia ważona kg (duże zamówienia ważą
+            // proporcjonalnie więcej), a kolor zależy od % odchylenia — nie od rankingu.
+            // Dzięki temu 90 kg po top cenie nie spycha 19 000 kg z ceną minimalnie niższą w czerwień.
+            // Progi: ≥+5% ciemna zieleń / +2..5% zieleń / ±2% neutralny (w rynku) /
+            //        −5..−2% pomarańcz / −10..−5% czerwień / <−10% ciemna czerwień
+            {
+                decimal sumaWag = 0m, sumaWartosci = 0m;
+                foreach (DataRow row in _dtOrders.Rows)
+                {
+                    if (row["SredniaCena"] is decimal cv && cv > 0 &&
+                        row["IloscZamowiona"] is decimal kg && kg > 0)
+                    {
+                        sumaWag += kg;
+                        sumaWartosci += cv * kg;
+                    }
+                }
+                decimal avgWazona = sumaWag > 0 ? sumaWartosci / sumaWag : 0m;
+
+                foreach (DataRow row in _dtOrders.Rows)
+                {
+                    decimal cv = row["SredniaCena"] is decimal d ? d : 0m;
+                    if (cv <= 0 || avgWazona <= 0)
+                    {
+                        row["CenaPoziom"] = -1;
+                        row["CenaTip"] = "";
+                        continue;
+                    }
+                    double odch = (double)((cv - avgWazona) / avgWazona * 100m);
+                    int poziom = odch >= 5 ? 5
+                               : odch >= 2 ? 4
+                               : odch >= -2 ? 3
+                               : odch >= -5 ? 2
+                               : odch >= -10 ? 1
+                               : 0;
+                    row["CenaPoziom"] = poziom;
+                    row["CenaTip"] = $"{(odch >= 0 ? "+" : "")}{odch:F1}% vs średnia ważona dnia ({avgWazona:N2} zł/kg)";
+                }
+            }
+
+            // === Zamówienia "Ogólne" → jeden wiersz-nagłówek z możliwością rozwinięcia ===
+            GrupujOgolne();
+
             if (_dtOrders.Rows.Count > 0 && actualOrdersCount > 0)
             {
                 var summaryRow = _dtOrders.NewRow();
                 summaryRow["Id"] = -1;
                 summaryRow["KlientId"] = 0;
                 summaryRow["Kategoria"] = "";
-                summaryRow["Odbiorca"] = "═══ SUMA ═══";
+                summaryRow["SortPriority"] = 0; // SUMA zawsze na samej górze (też przy sortowaniu)
+                summaryRow["Odbiorca"] = ""; // bez napisu — wiersz sumy poznaje się po stylu (zielone tło, bold)
 
                 // ✅ POPRAWKA 3: Tylko liczba zamówień (bez tekstu "Zamówień:")
                 summaryRow["Handlowiec"] = actualOrdersCount.ToString();
@@ -4654,9 +4817,9 @@ ORDER BY zm.Id";
                 summaryRow["MaMrozone"] = false;
                 summaryRow["Trans"] = "";
                 summaryRow["Prod"] = "";
-                summaryRow["CzyMaCeny"] = false;
+                summaryRow["CzyMaCeny"] = true; // SUMA nie świeci na czerwono "brakiem ceny"
                 summaryRow["CenaInfo"] = "";
-                summaryRow["SredniaCena"] = 0m;
+                summaryRow["SredniaCena"] = totalCenaWaga > 0 ? totalCenaWartosc / totalCenaWaga : 0m; // średnia ważona dnia
                 summaryRow["TerminInfo"] = "";
                 summaryRow["TransportInfo"] = "";
                 summaryRow["CzyZrealizowane"] = false;
@@ -4689,6 +4852,11 @@ ORDER BY zm.Id";
 
             SetupOrdersDataGrid();
             ApplyFilters();
+
+            // Przywróć sortowanie użytkownika zdjęte na początku metody (kolumny już odtworzone).
+            // Try/catch: sort mógł wskazywać dynamiczną kolumnę grupy, której dziś nie ma.
+            if (!string.IsNullOrEmpty(przywrocSort))
+                try { _dtOrders.DefaultView.Sort = przywrocSort; } catch { }
         }
 
         private async Task LoadTodayProductIdsAsync(DateTime day)
@@ -4979,25 +5147,190 @@ ORDER BY zm.Id";
             }
         }
 
+        // Zwija wiersze odbiorcy "Ogólne*" do jednego wiersza-nagłówka z sumami (▶ zwinięte / ▼ rozwinięte).
+        // Klik w wiersz-nagłówek przełącza stan (DgOrders_OgolneToggle) i przeładowuje listę.
+        private void GrupujOgolne()
+        {
+            if (!_dtOrders.Columns.Contains("OgolneTyp")) return;
+
+            // Grupujemy zamówienia przypisane do HANDLOWCA "Ogólne" (nie odbiorcy!)
+            bool JestOgolne(DataRow r)
+            {
+                string h = (r["Handlowiec"]?.ToString() ?? "").ToLowerInvariant();
+                return h.Contains("ogóln") || h.Contains("ogoln"); // "Ogólne", "OGÓLNE", bez diakrytyki itp.
+            }
+            _ogolneDetale.Clear();
+            var detale = _dtOrders.Rows.Cast<DataRow>().Where(JestOgolne).ToList();
+            if (detale.Count < 2) return; // pojedyncze zamówienie "Ogólne" zostaje zwykłym wierszem
+
+            decimal sumZam = 0m, sumWyd = 0m, sumWaga = 0m, sumWartosc = 0m;
+            foreach (var d in detale)
+            {
+                d["OgolneTyp"] = "detail";
+                d["SortPriority"] = 9; // detale Ogólne zawsze na dole (też przy sortowaniu)
+                decimal il = d["IloscZamowiona"] is decimal z ? z : 0m;
+                sumZam += il;
+                if (d["IloscFaktyczna"] is decimal w) sumWyd += w;
+                // średnia ważona cena (waga = ilość zamówiona, tylko pozycje z ceną)
+                if (d["SredniaCena"] is decimal cn && cn > 0 && il > 0)
+                {
+                    sumWaga += il;
+                    sumWartosc += cn * il;
+                }
+            }
+            decimal sredniaCenaGrupy = sumWaga > 0 ? sumWartosc / sumWaga : 0m;
+
+            // Kopie detali — do cache (toggle działa w pamięci, bez przeładowania z bazy).
+            // Avatar pobieramy PRZED usunięciem wierszy (usunięty DataRow nie ma już danych!)
+            object avatarOgolne = detale[0]["HandlowiecAvatar"];
+            _ogolneDetale.AddRange(detale.Select(d => (object[])d.ItemArray.Clone()));
+            foreach (var d in detale) _dtOrders.Rows.Remove(d);
+
+            var header = _dtOrders.NewRow();
+            header["Id"] = -7777; // sentinel wiersza-nagłówka
+            header["KlientId"] = 0;
+            header["Kategoria"] = "";
+            header["Odbiorca"] = (_ogolneExpanded ? "▼" : "▶") + $" Ogólne ({detale.Count})";
+            header["Handlowiec"] = "Ogólne";
+            header["HandlowiecAvatar"] = avatarOgolne ?? DBNull.Value; // avatar handlowca "Ogólne" (jeśli jest)
+            header["IloscZamowiona"] = sumZam;
+            header["IloscFaktyczna"] = sumWyd;
+            header["Roznica"] = sumZam - sumWyd;
+            header["Pojemniki"] = 0;
+            header["Palety"] = 0m;
+            header["TrybE2"] = "";
+            header["DataPrzyjecia"] = DateTime.Today;
+            header["GodzinaPrzyjecia"] = "";
+            header["TerminOdbioru"] = "";
+            header["DataUboju"] = DBNull.Value;
+            header["UtworzonePrzez"] = "";
+            header["UtworzonePrzezID"] = "";
+            header["UtworzonoGodzina"] = "";
+            header["Status"] = "";
+            header["MaNotatke"] = false;
+            header["MaFolie"] = false;
+            header["MaHallal"] = false;
+            header["MaStrefa"] = false;
+            header["MaMrozone"] = false;
+            header["Trans"] = "";
+            header["Prod"] = "";
+            header["CzyMaCeny"] = sredniaCenaGrupy > 0; // czerwone "-" gdy żadne zamówienie grupy nie ma ceny
+            header["CenaInfo"] = "";
+            header["SredniaCena"] = sredniaCenaGrupy; // średnia ważona cena pogrupowanych zamówień
+            header["TerminInfo"] = "";
+            header["TransportInfo"] = "";
+            header["CzyZrealizowane"] = false;
+            header["WyprInfo"] = "";
+            header["WydanoInfo"] = "";
+            header["CyklGroupId"] = "";
+            header["OgolneTyp"] = "header";
+            header["SortPriority"] = 8;
+
+            // "Ogólne" ZAWSZE na samym dole tabeli (nagłówek + ewentualnie rozwinięte detale pod nim)
+            _dtOrders.Rows.Add(header);
+            if (_ogolneExpanded)
+                foreach (var arr in _ogolneDetale)
+                    _dtOrders.Rows.Add(arr);
+        }
+
+        // Sortowanie kolumn z zachowaniem przypięć: SUMA zawsze na górze, grupa "Ogólne" zawsze na dole
+        private void DgOrders_Sorting(object sender, DataGridSortingEventArgs e)
+        {
+            string member = e.Column.SortMemberPath;
+            if (string.IsNullOrEmpty(member)) return; // kolumny szablonowe bez SortMemberPath — bez sortowania
+
+            e.Handled = true;
+            var dir = e.Column.SortDirection != System.ComponentModel.ListSortDirection.Ascending
+                ? System.ComponentModel.ListSortDirection.Ascending
+                : System.ComponentModel.ListSortDirection.Descending;
+            foreach (var c in dgOrders.Columns) c.SortDirection = null;
+            e.Column.SortDirection = dir;
+
+            string kierunek = dir == System.ComponentModel.ListSortDirection.Ascending ? "ASC" : "DESC";
+
+            // Handlowiec: grupuj po handlowcu, a w obrębie handlowca od najwyższej ceny do najniższej
+            string dodatkowy = member == "Handlowiec" ? ", SredniaCena DESC" : "";
+
+            _dtOrders.DefaultView.Sort = $"SortPriority ASC, [{member}] {kierunek}{dodatkowy}";
+        }
+
+        private void DgOrders_OgolneToggle(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            // Toggle TYLKO po kliknięciu w strzałkę ▶/▼ (początek kolumny Odbiorca),
+            // klik w resztę wiersza działa normalnie (zaznaczenie itd.)
+            var dep = e.OriginalSource as DependencyObject;
+            DataGridCell cell = null;
+            DataGridRow row = null;
+            while (dep != null)
+            {
+                if (cell == null && dep is DataGridCell c) cell = c;
+                if (dep is DataGridRow r) { row = r; break; }
+                dep = System.Windows.Media.VisualTreeHelper.GetParent(dep);
+            }
+
+            if (row?.Item is DataRowView drv
+                && _dtOrders.Columns.Contains("OgolneTyp")
+                && drv.Row["OgolneTyp"]?.ToString() == "header"
+                && cell != null
+                && ReferenceEquals(cell.Column, dgOrders.Columns.Count > 0 ? dgOrders.Columns[0] : null)
+                && e.GetPosition(cell).X <= 26)
+            {
+                e.Handled = true;
+                _ogolneExpanded = !_ogolneExpanded;
+
+                // ⚡ Toggle w pamięci — bez przeładowania z bazy
+                drv.Row["Odbiorca"] = (_ogolneExpanded ? "▼" : "▶") + $" Ogólne ({_ogolneDetale.Count})";
+                if (_ogolneExpanded)
+                {
+                    foreach (var arr in _ogolneDetale)
+                        _dtOrders.Rows.Add(arr); // nagłówek jest na dole → detale lądują tuż pod nim
+                }
+                else
+                {
+                    foreach (var d in _dtOrders.Rows.Cast<DataRow>()
+                                 .Where(r => r["OgolneTyp"]?.ToString() == "detail").ToList())
+                        _dtOrders.Rows.Remove(d);
+                }
+            }
+        }
+
         private void SetupOrdersDataGrid()
         {
+            // ⚡ Kolumny tabeli są statyczne — przebudowa szablonów/stylów tylko przy PIERWSZYM wywołaniu.
+            // Kolejne odświeżenia tylko dopasowują szerokości (wiersze i tak płyną przez DefaultView).
+            if (dgOrders.Columns.Count > 0)
+            {
+                ApplyOrdersLayout();
+                return;
+            }
+
             dgOrders.ItemsSource = _dtOrders.DefaultView;
             dgOrders.Columns.Clear();
 
             dgOrders.LoadingRow -= DgOrders_LoadingRow;
             dgOrders.LoadingRow += DgOrders_LoadingRow;
 
+            // Toggle wiersza-nagłówka "Ogólne" (▶/▼)
+            dgOrders.PreviewMouseLeftButtonDown -= DgOrders_OgolneToggle;
+            dgOrders.PreviewMouseLeftButtonDown += DgOrders_OgolneToggle;
+
+            // Sortowanie z przypiętą SUMĄ (góra) i Ogólne (dół)
+            dgOrders.Sorting -= DgOrders_Sorting;
+            dgOrders.Sorting += DgOrders_Sorting;
+
             // ✅ Avatary nie są ucinane — mogą wychodzić poza wiersz
             dgOrders.ClipToBounds = false;
+            dgOrders.MinRowHeight = 40; // kompaktowe wiersze zamówień
             var rowStyle = new Style(typeof(DataGridRow));
             rowStyle.Setters.Add(new Setter(UIElement.ClipToBoundsProperty, false));
             dgOrders.RowStyle = rowStyle;
 
-            // 0. Kategoria odbiorcy - kolorowa kolumna A/B/C
+            // 0. Kategoria odbiorcy (A/B/C) — kolorowa litera PRZED nazwą odbiorcy (osobna kolumna usunięta)
             var kategoriaStyle = new Style(typeof(TextBlock));
-            kategoriaStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center));
             kategoriaStyle.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.Bold));
             kategoriaStyle.Setters.Add(new Setter(TextBlock.FontSizeProperty, 12.0));
+            kategoriaStyle.Setters.Add(new Setter(TextBlock.MarginProperty, new Thickness(0, 0, 5, 0)));
+            kategoriaStyle.Setters.Add(new Setter(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center));
 
             var katATrigger = new DataTrigger { Binding = new System.Windows.Data.Binding("Kategoria"), Value = "A" };
             katATrigger.Setters.Add(new Setter(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(0, 150, 0))));
@@ -5009,20 +5342,12 @@ ORDER BY zm.Id";
             kategoriaStyle.Triggers.Add(katBTrigger);
             kategoriaStyle.Triggers.Add(katCTrigger);
 
-            dgOrders.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Kat",
-                Binding = new System.Windows.Data.Binding("Kategoria"),
-                Width = new DataGridLength(35),
-                ElementStyle = kategoriaStyle
-            });
-
             // 1. Odbiorca - kolumna szablonowa z kolorowymi ikonami statusu
             {
                 var odbiorcaCol = new DataGridTemplateColumn
                 {
                     Header = "Odbiorca",
-                    Width = new DataGridLength(200),
+                    Width = new DataGridLength(195),
                     IsReadOnly = true
                 };
 
@@ -5032,6 +5357,22 @@ ORDER BY zm.Id";
                 odbiorcaCellFactory.SetValue(StackPanel.MarginProperty, new Thickness(2));
 
                 var boolToVisConv = new BooleanToVisibilityConverter();
+
+                // Litera kategorii (A/B/C) — PIERWSZA, przed wszystkimi ikonkami
+                var katTxt = new FrameworkElementFactory(typeof(TextBlock));
+                katTxt.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("Kategoria"));
+                katTxt.SetValue(FrameworkElement.StyleProperty, kategoriaStyle);
+                odbiorcaCellFactory.AppendChild(katTxt);
+
+                // Ikona 🚗 — klient odbiera własnym transportem (TransportStatus='Wlasny')
+                var icoAuto = new FrameworkElementFactory(typeof(TextBlock));
+                icoAuto.SetValue(TextBlock.TextProperty, "\U0001F697");
+                icoAuto.SetValue(TextBlock.FontSizeProperty, 12.0);
+                icoAuto.SetValue(TextBlock.MarginProperty, new Thickness(0, 0, 2, 0));
+                icoAuto.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+                icoAuto.SetValue(FrameworkElement.ToolTipProperty, "Transport własny klienta");
+                icoAuto.SetBinding(TextBlock.VisibilityProperty, new System.Windows.Data.Binding("MaWlasnyTransport") { Converter = boolToVisConv });
+                odbiorcaCellFactory.AppendChild(icoAuto);
 
                 // Ikona Mrożone ❄️ - niebieska
                 var icoMrozone = new FrameworkElementFactory(typeof(TextBlock));
@@ -5088,36 +5429,33 @@ ORDER BY zm.Id";
             {
                 var handTemplate = new DataGridTemplateColumn
                 {
-                    Header = "Hand.",
-                    Width = new DataGridLength(80),
-                    IsReadOnly = true
+                    Header = "",
+                    Width = new DataGridLength(44),
+                    IsReadOnly = true,
+                    SortMemberPath = "Handlowiec", // klik w nagłówek: po handlowcu + cena malejąco
+                    CanUserSort = true
                 };
 
                 var cellFactory = new FrameworkElementFactory(typeof(StackPanel));
                 cellFactory.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
                 cellFactory.SetValue(StackPanel.VerticalAlignmentProperty, VerticalAlignment.Center);
+                cellFactory.SetValue(StackPanel.HorizontalAlignmentProperty, HorizontalAlignment.Center);
                 cellFactory.SetValue(StackPanel.MarginProperty, new Thickness(2));
                 cellFactory.SetValue(UIElement.SnapsToDevicePixelsProperty, true);
                 cellFactory.SetValue(FrameworkElement.UseLayoutRoundingProperty, true);
 
                 var imgFactory = new FrameworkElementFactory(typeof(System.Windows.Controls.Image));
                 imgFactory.SetBinding(System.Windows.Controls.Image.SourceProperty, new System.Windows.Data.Binding("HandlowiecAvatar"));
-                imgFactory.SetValue(FrameworkElement.WidthProperty, 32.0);
-                imgFactory.SetValue(FrameworkElement.HeightProperty, 32.0);
-                imgFactory.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 0, 6, 0));
+                imgFactory.SetValue(FrameworkElement.WidthProperty, 34.0);
+                imgFactory.SetValue(FrameworkElement.HeightProperty, 34.0);
+                imgFactory.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 0, 2, 0));
                 imgFactory.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
                 imgFactory.SetValue(RenderOptions.BitmapScalingModeProperty, BitmapScalingMode.Fant);
                 imgFactory.SetValue(UIElement.SnapsToDevicePixelsProperty, true);
 
-                var txtFactory = new FrameworkElementFactory(typeof(TextBlock));
-                txtFactory.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("Handlowiec"));
-                txtFactory.SetValue(TextBlock.FontWeightProperty, FontWeights.Bold);
-                txtFactory.SetValue(TextBlock.FontSizeProperty, 11.0);
-                txtFactory.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
-                txtFactory.SetValue(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis);
-
+                // Tylko avatar — nazwa handlowca w tooltipie (kolumna węższa)
+                imgFactory.SetBinding(FrameworkElement.ToolTipProperty, new System.Windows.Data.Binding("Handlowiec"));
                 cellFactory.AppendChild(imgFactory);
-                cellFactory.AppendChild(txtFactory);
 
                 handTemplate.CellTemplate = new DataTemplate { VisualTree = cellFactory };
                 // ✅ Avatar nie ucinany
@@ -5127,141 +5465,188 @@ ORDER BY zm.Id";
                 dgOrders.Columns.Add(handTemplate);
             }
 
-            // 3. Zamówiono - pogrubione
-            var zamowioneStyle = new Style(typeof(TextBlock));
-            zamowioneStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Right));
-            zamowioneStyle.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.Bold));
-
-            dgOrders.Columns.Add(new DataGridTextColumn
+            // 3. Zam. — scalone: na górze zamówiono (bold), pod spodem wydano (małe, lekkie). Kolumny Wyd. i +/- usunięte.
             {
-                Header = "Zam.",
-                Binding = new System.Windows.Data.Binding("IloscZamowiona") { StringFormat = "N0" },
-                Width = new DataGridLength(70),
-                ElementStyle = zamowioneStyle
-            });
+                var zamCol = new DataGridTemplateColumn
+                {
+                    Header = "Zam.",
+                    Width = new DataGridLength(82),
+                    IsReadOnly = true
+                };
+                var zamStack = new FrameworkElementFactory(typeof(StackPanel));
+                zamStack.SetValue(StackPanel.OrientationProperty, Orientation.Vertical);
+                zamStack.SetValue(StackPanel.VerticalAlignmentProperty, VerticalAlignment.Center);
+                zamStack.SetValue(StackPanel.HorizontalAlignmentProperty, HorizontalAlignment.Center);
 
-            // 4. Wydano - pogrubione (rozmiar M)
-            var wydaneStyle = new Style(typeof(TextBlock));
-            wydaneStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Right));
-            wydaneStyle.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.Bold));
+                var zamTxt = new FrameworkElementFactory(typeof(TextBlock));
+                zamTxt.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("IloscZamowiona") { StringFormat = "{0:N0} kg" });
+                zamTxt.SetValue(TextBlock.FontWeightProperty, FontWeights.Bold);
+                zamTxt.SetValue(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+                zamStack.AppendChild(zamTxt);
 
-            dgOrders.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Wyd.",
-                Binding = new System.Windows.Data.Binding("IloscFaktyczna") { StringFormat = "N0" },
-                Width = new DataGridLength(70),
-                ElementStyle = wydaneStyle
-            });
+                // Wydano (Panel Magazyniera) — styl przez Style, bo trigger na "częściowo wydane" musi wygrać
+                var wydStyle = new Style(typeof(TextBlock));
+                wydStyle.Setters.Add(new Setter(TextBlock.FontSizeProperty, 9.0));
+                wydStyle.Setters.Add(new Setter(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(139, 148, 158))));
+                wydStyle.Setters.Add(new Setter(FrameworkElement.ToolTipProperty, "Wydano (Panel Magazyniera)"));
+                var czescioweTrig = new DataTrigger { Binding = new System.Windows.Data.Binding("WydaneWszystko"), Value = 0 };
+                czescioweTrig.Setters.Add(new Setter(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(0xE6, 0x7E, 0x22))));
+                czescioweTrig.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.SemiBold));
+                czescioweTrig.Setters.Add(new Setter(FrameworkElement.ToolTipProperty, "Magazynier: NIE wszystko wydane"));
+                wydStyle.Triggers.Add(czescioweTrig);
 
-            // 5. +/- (Różnica: Zam - Wyd) (rozmiar M)
-            var roznicaStyle = new Style(typeof(TextBlock));
-            roznicaStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Right));
-            roznicaStyle.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.Bold));
+                var wydStack = new FrameworkElementFactory(typeof(StackPanel));
+                wydStack.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
+                wydStack.SetValue(StackPanel.HorizontalAlignmentProperty, HorizontalAlignment.Center);
 
-            dgOrders.Columns.Add(new DataGridTextColumn
-            {
-                Header = "+/-",
-                Binding = new System.Windows.Data.Binding("Roznica") { StringFormat = "N0" },
-                Width = new DataGridLength(60),
-                ElementStyle = roznicaStyle
-            });
+                var wydTxt = new FrameworkElementFactory(typeof(TextBlock));
+                wydTxt.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("IloscFaktyczna") { StringFormat = "{0:N0} kg" });
+                wydTxt.SetValue(FrameworkElement.StyleProperty, wydStyle);
+                wydStack.AppendChild(wydTxt);
 
-            // 6. Cena - V (zielony) jeśli wszystkie pozycje mają cenę, X (czerwony) jeśli nie
-            var cenaStyle = new Style(typeof(TextBlock));
-            cenaStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center));
-            cenaStyle.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.Bold));
+                // ⚠ tylko gdy magazynier zaznaczył "nie wszystko wydane"
+                var warnStyle = new Style(typeof(TextBlock));
+                warnStyle.Setters.Add(new Setter(TextBlock.FontSizeProperty, 9.0));
+                warnStyle.Setters.Add(new Setter(TextBlock.MarginProperty, new Thickness(2, 0, 0, 0)));
+                warnStyle.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Collapsed));
+                warnStyle.Setters.Add(new Setter(FrameworkElement.ToolTipProperty, "Magazynier: NIE wszystko wydane"));
+                var warnTrig = new DataTrigger { Binding = new System.Windows.Data.Binding("WydaneWszystko"), Value = 0 };
+                warnTrig.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Visible));
+                warnStyle.Triggers.Add(warnTrig);
 
-            var greenTrigger = new DataTrigger { Binding = new System.Windows.Data.Binding("CzyMaCeny"), Value = true };
-            greenTrigger.Setters.Add(new Setter(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(0, 150, 0))));
+                var warnTxt = new FrameworkElementFactory(typeof(TextBlock));
+                warnTxt.SetValue(TextBlock.TextProperty, "⚠");
+                warnTxt.SetValue(FrameworkElement.StyleProperty, warnStyle);
+                wydStack.AppendChild(warnTxt);
 
-            var redTrigger = new DataTrigger { Binding = new System.Windows.Data.Binding("CzyMaCeny"), Value = false };
-            redTrigger.Setters.Add(new Setter(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(200, 0, 0))));
+                zamStack.AppendChild(wydStack);
 
-            cenaStyle.Triggers.Add(greenTrigger);
-            cenaStyle.Triggers.Add(redTrigger);
+                zamCol.CellTemplate = new DataTemplate { VisualTree = zamStack };
+                dgOrders.Columns.Add(zamCol);
+            }
 
-            dgOrders.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Cena",
-                Binding = new System.Windows.Data.Binding("CenaInfo"),
-                Width = new DataGridLength(38),
-                ElementStyle = cenaStyle
-            });
+            // 6. (kolumna ✓/✗ "Cena" usunięta — informacja o brakach cen jest w tooltipie/edytorze)
 
-            // 7. Średnia cena - wartość średniej ważonej ceny produktów (rozmiar M)
+            // 7. Cena — średnia ważona (zł/kg); skala 6 przyciemnionych odcieni czerwień→żółć→zieleń
+            //    wg pozycji ceny na tle dnia (CenaPoziom 0-5); brak ceny = "- zł/kg" NA CZERWONO
             var sredniaCenaStyle = new Style(typeof(TextBlock));
-            sredniaCenaStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Right));
+            sredniaCenaStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center));
+            sredniaCenaStyle.Setters.Add(new Setter(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center));
             sredniaCenaStyle.Setters.Add(new Setter(TextBlock.ForegroundProperty, Brushes.Black));
+            sredniaCenaStyle.Setters.Add(new Setter(FrameworkElement.ToolTipProperty, new System.Windows.Data.Binding("CenaTip")));
+            // Pusty tip → bez dymka
+            var pustyTipTrig = new DataTrigger { Binding = new System.Windows.Data.Binding("CenaTip"), Value = "" };
+            pustyTipTrig.Setters.Add(new Setter(FrameworkElement.ToolTipProperty, null));
+            sredniaCenaStyle.Triggers.Add(pustyTipTrig);
 
-            dgOrders.Columns.Add(new DataGridTextColumn
+            // Przyciemnione (cieniowane czernią) odcienie: poniżej średniej ważonej → czerwienie, powyżej → zielenie
+            var cenaPoziomKolory = new (int Poziom, Color Kolor)[]
             {
-                Header = "Śr.Cena",
-                Binding = new System.Windows.Data.Binding("SredniaCena") { StringFormat = "N2" },
-                Width = new DataGridLength(70),
-                ElementStyle = sredniaCenaStyle
-            });
+                (0, Color.FromRgb(0x7B, 0x24, 0x1C)), // ciemna czerwień
+                (1, Color.FromRgb(0xB0, 0x3A, 0x2E)), // czerwień
+                (2, Color.FromRgb(0xB9, 0x5A, 0x0E)), // ciemny pomarańcz
+                (3, Color.FromRgb(0x8F, 0x73, 0x0A)), // ciemna żółć (oliwkowa)
+                (4, Color.FromRgb(0x1E, 0x84, 0x49)), // zieleń
+                (5, Color.FromRgb(0x14, 0x5A, 0x32))  // ciemna zieleń
+            };
+            foreach (var (poziom, kolor) in cenaPoziomKolory)
+            {
+                var trig = new DataTrigger { Binding = new System.Windows.Data.Binding("CenaPoziom"), Value = poziom };
+                trig.Setters.Add(new Setter(TextBlock.ForegroundProperty, new SolidColorBrush(kolor)));
+                trig.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.SemiBold));
+                // Biały obrys (cień) — kolor odcina się od tła
+                trig.Setters.Add(new Setter(UIElement.EffectProperty, new System.Windows.Media.Effects.DropShadowEffect
+                {
+                    Color = Colors.White,
+                    ShadowDepth = 0,
+                    BlurRadius = 3,
+                    Opacity = 0.9
+                }));
+                sredniaCenaStyle.Triggers.Add(trig);
+            }
 
-            // 8. Utworzone przez (rozmiar M) - z avatarem
+            // Brak ceny — wygrywa z poziomem: czerwone, bold "- zł/kg"
+            var brakCenyTrigger = new DataTrigger { Binding = new System.Windows.Data.Binding("CzyMaCeny"), Value = false };
+            brakCenyTrigger.Setters.Add(new Setter(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(200, 0, 0))));
+            brakCenyTrigger.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.Bold));
+            sredniaCenaStyle.Triggers.Add(brakCenyTrigger);
+
+            // Zaznaczony wiersz — OSTATNI trigger (wygrywa ze wszystkim): biały tekst na niebieskiej selekcji
+            var cenaSelTrig = new DataTrigger
+            {
+                Binding = new System.Windows.Data.Binding("IsSelected")
+                {
+                    RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor, typeof(DataGridRow), 1)
+                },
+                Value = true
+            };
+            cenaSelTrig.Setters.Add(new Setter(TextBlock.ForegroundProperty, Brushes.White));
+            cenaSelTrig.Setters.Add(new Setter(UIElement.EffectProperty, null));
+            sredniaCenaStyle.Triggers.Add(cenaSelTrig);
+
+            // Kolumna szablonowa: liczba (kolor+obrys) na górze, "zł/kg" małym drukiem pod spodem
+            {
+                var cenaCol = new DataGridTemplateColumn
+                {
+                    Header = "Cena",
+                    Width = new DataGridLength(64),
+                    SortMemberPath = "SredniaCena",
+                    IsReadOnly = true
+                };
+
+                var cenaStack = new FrameworkElementFactory(typeof(StackPanel));
+                cenaStack.SetValue(StackPanel.OrientationProperty, Orientation.Vertical);
+                cenaStack.SetValue(StackPanel.VerticalAlignmentProperty, VerticalAlignment.Center);
+                cenaStack.SetValue(StackPanel.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+
+                var cenaTxt = new FrameworkElementFactory(typeof(TextBlock));
+                cenaTxt.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("SredniaCena") { Converter = new CenaLiczbaConverter() });
+                cenaTxt.SetValue(FrameworkElement.StyleProperty, sredniaCenaStyle);
+                cenaStack.AppendChild(cenaTxt);
+
+                // "zł/kg" — mały, szary; przy zaznaczeniu wiersza biały
+                var jednostkaStyle = new Style(typeof(TextBlock));
+                jednostkaStyle.Setters.Add(new Setter(TextBlock.FontSizeProperty, 8.5));
+                jednostkaStyle.Setters.Add(new Setter(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(139, 148, 158))));
+                jednostkaStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center));
+                var jednSelTrig = new DataTrigger
+                {
+                    Binding = new System.Windows.Data.Binding("IsSelected")
+                    {
+                        RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor, typeof(DataGridRow), 1)
+                    },
+                    Value = true
+                };
+                jednSelTrig.Setters.Add(new Setter(TextBlock.ForegroundProperty, Brushes.White));
+                jednostkaStyle.Triggers.Add(jednSelTrig);
+
+                var cenaJedn = new FrameworkElementFactory(typeof(TextBlock));
+                cenaJedn.SetValue(TextBlock.TextProperty, "zł/kg");
+                cenaJedn.SetValue(FrameworkElement.StyleProperty, jednostkaStyle);
+                cenaStack.AppendChild(cenaJedn);
+
+                cenaCol.CellTemplate = new DataTemplate { VisualTree = cenaStack };
+                dgOrders.Columns.Add(cenaCol);
+            }
+
+            // 8. Utworzono — BEZ avatara: kto utworzył (11) + godzina (9), kompaktowo
             var utworzonoColumn = new DataGridTemplateColumn
             {
                 Header = "Utworzono",
-                Width = new DataGridLength(140)
+                Width = new DataGridLength(92),
+                SortMemberPath = "UtworzonoSort" // pełna data+godzina dodania → od najwcześniejszego
             };
 
             var utworzonoTemplate = new DataTemplate();
-            var stackPanelFactory = new FrameworkElementFactory(typeof(StackPanel));
-            stackPanelFactory.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
-            stackPanelFactory.SetValue(StackPanel.VerticalAlignmentProperty, VerticalAlignment.Center);
-            stackPanelFactory.SetValue(StackPanel.MarginProperty, new Thickness(2));
-
-            // Avatar Grid
-            var avatarGridFactory = new FrameworkElementFactory(typeof(Grid));
-            avatarGridFactory.SetValue(Grid.WidthProperty, 32.0);
-            avatarGridFactory.SetValue(Grid.HeightProperty, 32.0);
-            avatarGridFactory.SetValue(Grid.MarginProperty, new Thickness(0, 0, 6, 0));
-            avatarGridFactory.SetValue(UIElement.SnapsToDevicePixelsProperty, true);
-            avatarGridFactory.SetValue(FrameworkElement.UseLayoutRoundingProperty, true);
-
-            // Avatar border with initials
-            var avatarBorderFactory = new FrameworkElementFactory(typeof(Border));
-            avatarBorderFactory.SetValue(Border.WidthProperty, 32.0);
-            avatarBorderFactory.SetValue(Border.HeightProperty, 32.0);
-            avatarBorderFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(16));
-            avatarBorderFactory.SetValue(Border.BackgroundProperty, new SolidColorBrush(Color.FromRgb(66, 165, 245)));
-
-            var initialsFactory = new FrameworkElementFactory(typeof(TextBlock));
-            initialsFactory.SetValue(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center);
-            initialsFactory.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
-            initialsFactory.SetValue(TextBlock.ForegroundProperty, Brushes.White);
-            initialsFactory.SetValue(TextBlock.FontSizeProperty, 11.0);
-            initialsFactory.SetValue(TextBlock.FontWeightProperty, FontWeights.SemiBold);
-            initialsFactory.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("UtworzonePrzez")
-            {
-                Converter = new UtworzoneInitialsConverter()
-            });
-
-            avatarBorderFactory.AppendChild(initialsFactory);
-            avatarGridFactory.AppendChild(avatarBorderFactory);
-
-            // Ellipse for photo
-            var ellipseFactory = new FrameworkElementFactory(typeof(Ellipse));
-            ellipseFactory.SetValue(Ellipse.WidthProperty, 32.0);
-            ellipseFactory.SetValue(Ellipse.HeightProperty, 32.0);
-            ellipseFactory.SetValue(Ellipse.VisibilityProperty, Visibility.Collapsed);
-            ellipseFactory.SetValue(Ellipse.NameProperty, "avatarEllipse");
-            ellipseFactory.SetValue(RenderOptions.BitmapScalingModeProperty, BitmapScalingMode.Fant);
-            ellipseFactory.SetValue(UIElement.SnapsToDevicePixelsProperty, true);
-
-            avatarGridFactory.AppendChild(ellipseFactory);
-            stackPanelFactory.AppendChild(avatarGridFactory);
-
-            // Text container (vertical: name + time)
             var textContainerFactory = new FrameworkElementFactory(typeof(StackPanel));
             textContainerFactory.SetValue(StackPanel.OrientationProperty, Orientation.Vertical);
             textContainerFactory.SetValue(StackPanel.VerticalAlignmentProperty, VerticalAlignment.Center);
+            textContainerFactory.SetValue(StackPanel.HorizontalAlignmentProperty, HorizontalAlignment.Left);
+            textContainerFactory.SetValue(StackPanel.MarginProperty, new Thickness(2));
 
             var textFactory = new FrameworkElementFactory(typeof(TextBlock));
             textFactory.SetValue(TextBlock.FontSizeProperty, 11.0);
+            textFactory.SetValue(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis);
             textFactory.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("UtworzonePrzez"));
 
             var timeFactory = new FrameworkElementFactory(typeof(TextBlock));
@@ -5271,25 +5656,118 @@ ORDER BY zm.Id";
 
             textContainerFactory.AppendChild(textFactory);
             textContainerFactory.AppendChild(timeFactory);
-            stackPanelFactory.AppendChild(textContainerFactory);
 
-            utworzonoTemplate.VisualTree = stackPanelFactory;
+            utworzonoTemplate.VisualTree = textContainerFactory;
             utworzonoColumn.CellTemplate = utworzonoTemplate;
-            // ✅ Avatar nie ucinany
-            var utworzonoCellStyle = new Style(typeof(DataGridCell));
-            utworzonoCellStyle.Setters.Add(new Setter(UIElement.ClipToBoundsProperty, false));
-            utworzonoColumn.CellStyle = utworzonoCellStyle;
-
             dgOrders.Columns.Add(utworzonoColumn);
+            _utworzonoColIndex = -1; // brak avatara → loader zdjęć twórcy pomijany
 
-            // 9. Termin (rozmiar M)
-            dgOrders.Columns.Add(new DataGridTextColumn
+            // Termin — wyśrodkowany (jak reszta tabeli)
+            var terminLeftStyle = new Style(typeof(TextBlock));
+            terminLeftStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center));
+            terminLeftStyle.Setters.Add(new Setter(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center));
+
+            // 9. Termin: plan "🚚 12:00 pon." + pod spodem PRAWDZIWA godzina wydania
+            //     z Panelu Magazyniera (WydanoInfo z DataWydania) — mniejszą czcionką, na zielono
+            var terminCol = new DataGridTemplateColumn
             {
                 Header = "Termin",
-                Binding = new System.Windows.Data.Binding("TerminInfo"),
-                Width = new DataGridLength(100),
-                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
-            });
+                Width = new DataGridLength(96),
+                SortMemberPath = "TerminSort", // pełna data+godzina → od najwcześniejszej do następnego dnia
+
+                IsReadOnly = true
+            };
+            var terminStack = new FrameworkElementFactory(typeof(StackPanel));
+            terminStack.SetValue(StackPanel.OrientationProperty, Orientation.Vertical);
+            terminStack.SetValue(StackPanel.VerticalAlignmentProperty, VerticalAlignment.Center);
+            terminStack.SetValue(StackPanel.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+
+            var terminTxt = new FrameworkElementFactory(typeof(TextBlock));
+            // Ikona zależna od transportu: 🏭 awizacja na zakładzie / 🚗 klient odbiera własnym autem
+            var terminMb = new System.Windows.Data.MultiBinding { Converter = new TerminIkonaConverter() };
+            terminMb.Bindings.Add(new System.Windows.Data.Binding("TerminInfo"));
+            terminMb.Bindings.Add(new System.Windows.Data.Binding("MaWlasnyTransport"));
+            terminTxt.SetBinding(TextBlock.TextProperty, terminMb);
+            terminTxt.SetValue(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+            // Tooltip przez Style — lokalny SetValue wygrałby z triggerem
+            var terminTipStyle = new Style(typeof(TextBlock));
+            terminTipStyle.Setters.Add(new Setter(FrameworkElement.ToolTipProperty, "Awizacja — godzina i dzień odbioru na zakładzie"));
+            var autoTipTrig = new DataTrigger { Binding = new System.Windows.Data.Binding("MaWlasnyTransport"), Value = true };
+            autoTipTrig.Setters.Add(new Setter(FrameworkElement.ToolTipProperty, "Transport własny — klient przyjeżdża o tej godzinie"));
+            terminTipStyle.Triggers.Add(autoTipTrig);
+            terminTxt.SetValue(FrameworkElement.StyleProperty, terminTipStyle);
+            terminStack.AppendChild(terminTxt);
+
+            // Realne wydanie — styl przez Style (settery + trigger), bo lokalne SetValue wygrałoby z triggerem
+            var wydanoStyle = new Style(typeof(TextBlock));
+            wydanoStyle.Setters.Add(new Setter(TextBlock.FontSizeProperty, 9.0));
+            wydanoStyle.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.SemiBold));
+            wydanoStyle.Setters.Add(new Setter(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(0x2E, 0x7D, 0x32))));
+            wydanoStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center));
+            wydanoStyle.Setters.Add(new Setter(FrameworkElement.ToolTipProperty, "Rzeczywista godzina wydania (Panel Magazyniera)"));
+            var brakWydaniaTrig = new DataTrigger { Binding = new System.Windows.Data.Binding("WydanoInfo"), Value = "" };
+            brakWydaniaTrig.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Collapsed));
+            wydanoStyle.Triggers.Add(brakWydaniaTrig);
+            // Wydanie PO czasie awizacji → czerwone zamiast zielonego
+            var poTerminieTrig = new DataTrigger { Binding = new System.Windows.Data.Binding("WydanePoTerminie"), Value = true };
+            poTerminieTrig.Setters.Add(new Setter(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(0xC0, 0x39, 0x2B))));
+            poTerminieTrig.Setters.Add(new Setter(FrameworkElement.ToolTipProperty, "Wydano PO czasie awizacji (Panel Magazyniera)"));
+            wydanoStyle.Triggers.Add(poTerminieTrig);
+            // Zaznaczony wiersz → biały tekst (zielony ginie na niebieskim tle selekcji)
+            var wydanoSelTrig = new DataTrigger
+            {
+                Binding = new System.Windows.Data.Binding("IsSelected")
+                {
+                    RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor, typeof(DataGridRow), 1)
+                },
+                Value = true
+            };
+            wydanoSelTrig.Setters.Add(new Setter(TextBlock.ForegroundProperty, Brushes.White));
+            wydanoStyle.Triggers.Add(wydanoSelTrig);
+
+            var wydanoTxt = new FrameworkElementFactory(typeof(TextBlock));
+            wydanoTxt.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("WydanoInfo") { Converter = new WydanieAutoConverter() });
+            wydanoTxt.SetValue(FrameworkElement.StyleProperty, wydanoStyle);
+            terminStack.AppendChild(wydanoTxt);
+
+            terminCol.CellTemplate = new DataTemplate { VisualTree = terminStack };
+            dgOrders.Columns.Add(terminCol);
+
+            // Szerokości kolumn + szerokość lewej kolumny układu — zależne od szerokości okna
+            ApplyOrdersLayout();
+        }
+
+        // Responsywna tabela zamówień: przy zwężaniu okna kolumny (w tym Zam./wyd) kurczą się progami,
+        // ale tabela ZAWSZE mieści wszystkie kolumny (MinWidth lewej kolumny = suma szerokości).
+        private void ApplyOrdersLayout()
+        {
+            if (dgOrders == null || dgOrders.Columns.Count == 0 || leftColumnDef == null) return;
+
+            double winW = ActualWidth;
+            int tier = winW < 1280 ? 2 : winW < 1520 ? 1 : 0; // 0 = pełny, 1 = kompakt, 2 = mini
+
+            void Ustaw(string header, double w0, double w1, double w2)
+            {
+                var c = dgOrders.Columns.FirstOrDefault(x => (x.Header?.ToString() ?? "") == header);
+                if (c != null) c.Width = new DataGridLength(tier == 0 ? w0 : tier == 1 ? w1 : w2);
+            }
+            Ustaw("Odbiorca", 195, 167, 145);
+            Ustaw("Zam.", 82, 70, 62);     // razem z poddrukiem "wydano X kg"
+            Ustaw("Cena", 64, 58, 52);   // węższa — jednostka "zł/kg" jest pod liczbą
+            Ustaw("Utworzono", 92, 86, 80);
+            Ustaw("Termin", 96, 84, 74);
+
+            double tableW = 0;
+            foreach (var col in dgOrders.Columns)
+                if (col.Visibility == Visibility.Visible && col.Width.IsAbsolute)
+                    tableW += col.Width.Value;
+            tableW += 64; // marginesy TabControl, ramki, pionowy scrollbar
+            if (tableW > 100)
+            {
+                leftColumnDef.MinWidth = tableW;
+                if (!leftColumnDef.Width.IsStar && leftColumnDef.Width.Value != tableW)
+                    leftColumnDef.Width = new GridLength(tableW);
+            }
         }
 
         // Flagi lazy loading - czy dane zostały już załadowane dla aktualnego dnia
@@ -5423,9 +5901,26 @@ ORDER BY zm.Id";
 
             if (e.Row.Item is DataRowView rowView)
             {
+                // ⚠ RESET — kontenery wierszy są RECYKLOWANE przy przewijaniu/odświeżaniu.
+                // Bez wyczyszczenia wiersz po "czerwonym z białą czcionką" (>34 palet) albo po
+                // "Anulowane" (szary, kursywa) zostawia swoje style następnemu zamówieniu.
+                e.Row.ClearValue(Control.BackgroundProperty);
+                e.Row.ClearValue(Control.ForegroundProperty);
+                e.Row.ClearValue(Control.FontWeightProperty);
+                e.Row.ClearValue(Control.FontStyleProperty);
+                e.Row.ClearValue(FrameworkElement.CursorProperty);
+                e.Row.ClearValue(FrameworkElement.ToolTipProperty);
+                e.Row.ClearValue(FrameworkElement.MinHeightProperty);
+
                 var status = rowView.Row.Field<string>("Status") ?? "";
                 var salesman = rowView.Row.Field<string>("Handlowiec") ?? "";
                 var id = rowView.Row.Field<int>("Id");
+
+                // Rozwinięte zamówienia grupy "Ogólne" — wiersze o 3 px niższe (MinRowHeight 40 → 37)
+                var ogolneTyp = rowView.Row.Table.Columns.Contains("OgolneTyp")
+                    ? rowView.Row.Field<string>("OgolneTyp") ?? "" : "";
+                if (ogolneTyp == "detail")
+                    e.Row.MinHeight = 37;
 
                 if (id == -1 || status == "SUMA")
                 {
@@ -5433,6 +5928,17 @@ ORDER BY zm.Id";
                     e.Row.Background = new SolidColorBrush(Color.FromRgb(240, 245, 240));
                     e.Row.Foreground = new SolidColorBrush(Color.FromRgb(40, 60, 40));
                     e.Row.FontWeight = FontWeights.Bold;
+                    return;
+                }
+
+                // Wiersz-nagłówek grupy "Ogólne" (▶/▼) — wyróżniony, klikalny (toggle zwijania)
+                if (id == -7777)
+                {
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(0xE8, 0xED, 0xF2));
+                    e.Row.Foreground = new SolidColorBrush(Color.FromRgb(0x2C, 0x3E, 0x50));
+                    e.Row.FontWeight = FontWeights.Bold;
+                    e.Row.Cursor = System.Windows.Input.Cursors.Hand;
+                    e.Row.ToolTip = "Kliknij strzałkę ▶/▼ (na początku wiersza), aby rozwinąć/zwinąć zamówienia Ogólne";
                     return;
                 }
 
@@ -5481,10 +5987,10 @@ ORDER BY zm.Id";
                         try
                         {
                             var presenter = FindVisualChild<DataGridCellsPresenter>(row);
-                            if (presenter != null)
+                            if (presenter != null && _utworzonoColIndex >= 0)
                             {
-                                // Utworzono column is at index 8 (po dodaniu kolumny Kategoria)
-                                var cell = presenter.ItemContainerGenerator.ContainerFromIndex(8) as DataGridCell;
+                                // Dynamiczny indeks kolumny Utworzono (ustawiany w SetupOrdersDataGrid)
+                                var cell = presenter.ItemContainerGenerator.ContainerFromIndex(_utworzonoColIndex) as DataGridCell;
                                 if (cell != null)
                                 {
                                     var ellipse = FindVisualChild<Ellipse>(cell);
@@ -6059,6 +6565,74 @@ ORDER BY zm.Id";
             return dict;
         }
 
+        /// <summary>
+        /// Wydania PER ZAMÓWIENIE z Panelu Magazyniera dla zamówień widocznych w danym dniu.
+        /// Kg = faktycznie wydane (ZamowienieWydanieRoznice.IloscWydana jeśli magazynier zapisał różnice,
+        /// inaczej pełne Ilosc z pozycji). Wszystko = flaga CzyWszystkoWydane którą zaznacza magazynier.
+        /// </summary>
+        private async Task<Dictionary<int, (Dictionary<int, decimal> PerProdukt, bool Wszystko)>> GetWydaniaPerOrderAsync(
+            DateTime day, string dateColumnZm)
+        {
+            day = ValidateSqlDate(day);
+            var dict = new Dictionary<int, (Dictionary<int, decimal> PerProdukt, bool Wszystko)>();
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                bool hasRoznice;
+                await using (var check = new SqlCommand(
+                    "SELECT CASE WHEN EXISTS (SELECT 1 FROM sys.objects WHERE name='ZamowienieWydanieRoznice' AND type='U') THEN 1 ELSE 0 END", cn))
+                {
+                    hasRoznice = Convert.ToInt32(await check.ExecuteScalarAsync()) == 1;
+                }
+
+                string joinRoznice = hasRoznice
+                    ? "LEFT JOIN dbo.ZamowienieWydanieRoznice r ON r.ZamowienieId = zm.Id AND r.KodTowaru = zt.KodTowaru"
+                    : "";
+                string iloscExpr = hasRoznice ? "ISNULL(r.IloscWydana, zt.Ilosc)" : "zt.Ilosc";
+
+                string sql = $@"
+                    SELECT zm.Id, zt.KodTowaru, SUM({iloscExpr}) AS qty,
+                           MIN(CAST(ISNULL(zm.CzyWszystkoWydane, 1) AS INT)) AS Wszystko
+                    FROM dbo.ZamowieniaMieso zm
+                    INNER JOIN dbo.ZamowieniaMiesoTowar zt ON zt.ZamowienieId = zm.Id
+                    {joinRoznice}
+                    WHERE {dateColumnZm} = @Day
+                      AND zm.CzyWydane = 1
+                      AND zt.KodTowaru IS NOT NULL
+                      AND zt.Ilosc > 0
+                    GROUP BY zm.Id, zt.KodTowaru";
+
+                await using var cmd = new SqlCommand(sql, cn) { CommandTimeout = 30 };
+                cmd.Parameters.AddWithValue("@Day", day);
+                await using var rdr = await cmd.ExecuteReaderAsync();
+                while (await rdr.ReadAsync())
+                {
+                    int zamId = rdr.GetInt32(0);
+                    int productId = rdr.IsDBNull(1) ? 0 : Convert.ToInt32(rdr.GetValue(1));
+                    decimal qty = rdr.IsDBNull(2) ? 0m : Convert.ToDecimal(rdr.GetValue(2));
+                    bool wszystko = !rdr.IsDBNull(3) && Convert.ToInt32(rdr.GetValue(3)) == 1;
+
+                    if (!dict.TryGetValue(zamId, out var entry))
+                    {
+                        entry = (new Dictionary<int, decimal>(), wszystko);
+                        dict[zamId] = entry;
+                    }
+                    var perProdukt = entry.PerProdukt;
+                    if (perProdukt.ContainsKey(productId))
+                        perProdukt[productId] += qty;
+                    else
+                        perProdukt[productId] = qty;
+                    // flaga "wszystko" — jeśli którakolwiek część mówi NIE, całość = NIE
+                    dict[zamId] = (perProdukt, entry.Wszystko && wszystko);
+                }
+            }
+            catch { /* brak danych = brak wydań — tabela pokaże 0 */ }
+
+            return dict;
+        }
+
         private async Task DisplayOrderDetailsAsync(int orderId)
         {
             try
@@ -6140,33 +6714,44 @@ ORDER BY zm.Id";
                     }
                 }
 
+                // Wydano per pozycja — z PANELU MAGAZYNIERA (nie z dokumentów WZ w HANDEL):
+                // zamówienie wydane (CzyWydane=1) → IloscWydana z ZamowienieWydanieRoznice
+                // (magazynier zapisuje różnice gdy nie wszystko poszło), fallback = pełne Ilosc pozycji.
                 var releases = new Dictionary<int, decimal>();
-                if (clientId > 0)
                 {
-                    await using (var cn = new SqlConnection(_connHandel))
+                    await using var cn = new SqlConnection(_connLibra);
+                    await cn.OpenAsync();
+
+                    bool hasRoznice;
+                    await using (var check = new SqlCommand(
+                        "SELECT CASE WHEN EXISTS (SELECT 1 FROM sys.objects WHERE name='ZamowienieWydanieRoznice' AND type='U') THEN 1 ELSE 0 END", cn))
                     {
-                        await cn.OpenAsync();
-                        const string sql = @"
-                    SELECT MZ.idtw, SUM(ABS(MZ.ilosc)) 
-                    FROM [HANDEL].[HM].[MZ] MZ 
-                    JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id 
-                    WHERE MG.seria IN ('sWZ','sWZ-W') 
-                    AND MG.aktywny = 1 
-                    AND MG.data = @Day 
-                    AND MG.khid = @ClientId 
-                    GROUP BY MZ.idtw";
+                        hasRoznice = Convert.ToInt32(await check.ExecuteScalarAsync()) == 1;
+                    }
 
-                        await using var cmd = new SqlCommand(sql, cn);
-                        cmd.Parameters.AddWithValue("@Day", dateForReleases);
-                        cmd.Parameters.AddWithValue("@ClientId", clientId);
-                        using var rd = await cmd.ExecuteReaderAsync();
+                    string joinRoznice = hasRoznice
+                        ? "LEFT JOIN dbo.ZamowienieWydanieRoznice r ON r.ZamowienieId = zm.Id AND r.KodTowaru = zt.KodTowaru"
+                        : "";
+                    string iloscExpr = hasRoznice ? "ISNULL(r.IloscWydana, zt.Ilosc)" : "zt.Ilosc";
 
-                        while (await rd.ReadAsync())
-                        {
-                            int productId = rd.IsDBNull(0) ? 0 : rd.GetInt32(0);
-                            decimal quantity = rd.IsDBNull(1) ? 0m : Convert.ToDecimal(rd.GetValue(1));
-                            releases[productId] = quantity;
-                        }
+                    string sql = $@"
+                        SELECT zt.KodTowaru, SUM({iloscExpr})
+                        FROM dbo.ZamowieniaMieso zm
+                        INNER JOIN dbo.ZamowieniaMiesoTowar zt ON zt.ZamowienieId = zm.Id
+                        {joinRoznice}
+                        WHERE zm.Id = @Id
+                          AND zm.CzyWydane = 1
+                          AND zt.KodTowaru IS NOT NULL
+                        GROUP BY zt.KodTowaru";
+
+                    await using var cmd = new SqlCommand(sql, cn);
+                    cmd.Parameters.AddWithValue("@Id", orderId);
+                    using var rd = await cmd.ExecuteReaderAsync();
+                    while (await rd.ReadAsync())
+                    {
+                        int productId = rd.IsDBNull(0) ? 0 : rd.GetInt32(0);
+                        decimal quantity = rd.IsDBNull(1) ? 0m : Convert.ToDecimal(rd.GetValue(1));
+                        releases[productId] = quantity;
                     }
                 }
 
@@ -6244,6 +6829,8 @@ ORDER BY zm.Id";
                 {
                     txtOrderClient.Text = !string.IsNullOrEmpty(clientName) ? clientName : "";
                 }
+                // Nazwa kontrahenta trafia do nagłówka kolumny "Produkt" w szczegółach zamówienia
+                _detailsClientName = clientName ?? "";
 
                 // Ustaw walutę w panelu
                 if (cbWalutaPanel != null)
@@ -6293,10 +6880,11 @@ ORDER BY zm.Id";
                 Visibility = Visibility.Collapsed
             });
 
-            // Kolumna Produkt z miniaturką zdjęcia i kolorowymi ikonami statusu
+            // Kolumna Produkt z miniaturką zdjęcia i kolorowymi ikonami statusu.
+            // Nagłówek = nazwa kontrahenta (zamiast "Produkt"), gdy znana.
             var produktCol = new DataGridTemplateColumn
             {
-                Header = "Produkt",
+                Header = string.IsNullOrWhiteSpace(_detailsClientName) ? "Produkt" : _detailsClientName,
                 Width = new DataGridLength(1, DataGridLengthUnitType.Star),
                 MinWidth = 80,
                 IsReadOnly = true
@@ -6305,6 +6893,8 @@ ORDER BY zm.Id";
             var boolToVisConverter = new BooleanToVisibilityConverter();
             var spFactory = new FrameworkElementFactory(typeof(StackPanel));
             spFactory.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
+            spFactory.SetValue(StackPanel.HorizontalAlignmentProperty, HorizontalAlignment.Right); // zdjęcie+towar do prawej
+            spFactory.SetValue(StackPanel.MarginProperty, new Thickness(0, 0, 10, 0));            // z lekkim odstępem
             spFactory.SetValue(StackPanel.VerticalAlignmentProperty, VerticalAlignment.Center);
             var imgFactory = new FrameworkElementFactory(typeof(System.Windows.Controls.Image));
             imgFactory.SetBinding(System.Windows.Controls.Image.SourceProperty, new System.Windows.Data.Binding("ProduktImg"));
@@ -6348,39 +6938,50 @@ ORDER BY zm.Id";
             produktCol.CellTemplate = cellTemplate;
             dgDetails.Columns.Add(produktCol);
 
-            // Edytowalna kolumna ilości - z separatorem tysięcy
+            // Styl: wyśrodkowanie w poziomie i w pionie (wszystkie kolumny poza towarem)
+            var centerBoth = new Style(typeof(TextBlock));
+            centerBoth.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center));
+            centerBoth.Setters.Add(new Setter(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center));
+
+            var centerCheck = new Style(typeof(CheckBox));
+            centerCheck.Setters.Add(new Setter(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Center));
+            centerCheck.Setters.Add(new Setter(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center));
+
+            // Edytowalna kolumna ilości — wyświetla "1 200 kg", edycja odporna na sufiks (konwerter + parser)
             var zamowioneBinding = new System.Windows.Data.Binding("Zamówiono")
             {
                 Mode = System.Windows.Data.BindingMode.TwoWay,
                 UpdateSourceTrigger = System.Windows.Data.UpdateSourceTrigger.LostFocus,
-                StringFormat = "#,##0"
+                Converter = new JednostkaEditConverter("kg", "#,##0")
             };
             dgDetails.Columns.Add(new DataGridTextColumn
             {
                 Header = "Zam.",
                 Binding = zamowioneBinding,
-                Width = new DataGridLength(70),
-                ElementStyle = (Style)FindResource("RightAlignedCellStyle"),
+                Width = new DataGridLength(82),
+                ElementStyle = centerBoth,
                 IsReadOnly = false
             });
 
-            dgDetails.Columns.Add(new DataGridTextColumn
+            _colWydDet = new DataGridTextColumn
             {
                 Header = "Wyd.",
-                Binding = new System.Windows.Data.Binding("Wydano") { StringFormat = "#,##0" },
-                Width = new DataGridLength(70),
-                ElementStyle = (Style)FindResource("RightAlignedCellStyle"),
+                Binding = new System.Windows.Data.Binding("Wydano") { StringFormat = "#,##0 kg" },
+                Width = new DataGridLength(82),
+                ElementStyle = centerBoth,
                 IsReadOnly = true
-            });
+            };
+            dgDetails.Columns.Add(_colWydDet);
 
-            dgDetails.Columns.Add(new DataGridTextColumn
+            _colRozDet = new DataGridTextColumn
             {
                 Header = "Róż.",
-                Binding = new System.Windows.Data.Binding("Różnica") { StringFormat = "#,##0" },
-                Width = new DataGridLength(70),
-                ElementStyle = (Style)FindResource("RightAlignedCellStyle"),
+                Binding = new System.Windows.Data.Binding("Różnica") { StringFormat = "#,##0 kg" },
+                Width = new DataGridLength(82),
+                ElementStyle = centerBoth,
                 IsReadOnly = true
-            });
+            };
+            dgDetails.Columns.Add(_colRozDet);
 
             // Checkbox Folia
             var foliaBinding = new System.Windows.Data.Binding("Folia")
@@ -6393,6 +6994,7 @@ ORDER BY zm.Id";
                 Header = "\U0001F39E\uFE0F Folia",
                 Binding = foliaBinding,
                 Width = new DataGridLength(55),
+                ElementStyle = centerCheck,
                 IsReadOnly = false
             });
 
@@ -6407,6 +7009,7 @@ ORDER BY zm.Id";
                 Header = "\U0001F52A Halal",
                 Binding = hallalBinding,
                 Width = new DataGridLength(55),
+                ElementStyle = centerCheck,
                 IsReadOnly = false
             });
 
@@ -6421,24 +7024,30 @@ ORDER BY zm.Id";
                 Header = "\u26A0\uFE0F Strefa",
                 Binding = strefaBinding,
                 Width = new DataGridLength(60),
+                ElementStyle = centerCheck,
                 IsReadOnly = false
             });
 
-            // Edytowalna kolumna ceny
+            // Edytowalna kolumna ceny — "24,50 zł/kg", edycja odporna na sufiks
             var cenaBinding = new System.Windows.Data.Binding("Cena")
             {
                 Mode = System.Windows.Data.BindingMode.TwoWay,
                 UpdateSourceTrigger = System.Windows.Data.UpdateSourceTrigger.LostFocus,
-                StringFormat = "N2"
+                Converter = new JednostkaEditConverter("zł/kg", "N2")
             };
             dgDetails.Columns.Add(new DataGridTextColumn
             {
                 Header = "Cena",
                 Binding = cenaBinding,
-                Width = new DataGridLength(60),
-                ElementStyle = (Style)FindResource("RightAlignedCellStyle"),
+                Width = new DataGridLength(86),
+                ElementStyle = centerBoth,
                 IsReadOnly = false
             });
+
+            // Responsywne kurczenie Wyd./Róż. przy wąskim oknie
+            dgDetails.SizeChanged -= DgDetails_SizeChanged;
+            dgDetails.SizeChanged += DgDetails_SizeChanged;
+            ApplyDetailsLayout();
 
             // Podpinanie eventów
             dgDetails.CellEditEnding -= DgDetails_CellEditEnding;
@@ -6515,7 +7124,7 @@ ORDER BY zm.Id";
 
             dgDetails.Columns.Add(new DataGridTextColumn
             {
-                Header = "Produkt",
+                Header = string.IsNullOrWhiteSpace(recipientName) ? "Produkt" : recipientName,
                 Binding = new System.Windows.Data.Binding("Produkt"),
                 Width = new DataGridLength(1, DataGridLengthUnitType.Star)
             });
@@ -6999,7 +7608,21 @@ ORDER BY zm.Id";
 
             // Załaduj produkty z domyślnego widoku dashboardu
             var dashboardProductIds = await LoadDefaultDashboardProductIdsAsync();
-            var productNames = await LoadProductNamesAsync(dashboardProductIds);
+
+            // ✅ PULA BILANSU: rodzic → dzieci (zamówienia/wydania dzieci doliczane do puli rodzica)
+            // ⚡ Cache 5 min — konfiguracja puli zmienia się rzadko (Kreator Puli Bilansu)
+            if (_puleCacheMap == null || (DateTime.Now - _puleCacheTime).TotalMinutes > 5)
+            {
+                _puleCacheMap = await _bilansSkladnikiService.GetMapowanieAsync();
+                _puleCacheTime = DateTime.Now;
+            }
+            var puleMap = _puleCacheMap;
+            // Nazwy musimy znać także dla dzieci (do rozpiski na karcie)
+            var nameIds = new List<int>(dashboardProductIds);
+            foreach (var kv in puleMap)
+                if (dashboardProductIds.Contains(kv.Key))
+                    nameIds.AddRange(kv.Value);
+            var productNames = await LoadProductNamesAsync(nameIds.Distinct().ToList());
 
             var colors = new[] {
                 Color.FromRgb(52, 152, 219),  // Niebieski
@@ -7012,28 +7635,37 @@ ORDER BY zm.Id";
             };
             int colorIdx = 0;
 
+            // ✅ #1 Suma dnia — akumulatory bilansu dla nagłówka
+            decimal sumDoSprzedania = 0m, sumNadmiar = 0m;
+            int cntPrzekroczone = 0;
+            void AkumulujBilans(decimal b)
+            {
+                if (b >= 0) sumDoSprzedania += b;
+                else { sumNadmiar += -b; cntPrzekroczone++; }
+            }
+
+            // Pozycje do karty zbiorczej "Bilans dnia" (wstawiana jako PIERWSZA karta panelu)
+            var zbiorczaPozycje = new List<(int towarId, string nazwa, decimal baza, decimal stanMag, decimal zamW, decimal bilans, Color kolor)>();
+
             // 1. Kurczak A zawsze jako pierwsza karta
             if (kurczakA.Key > 0 && dashboardProductIds.Contains(kurczakA.Key))
             {
                 var kurczakAName = productNames.TryGetValue(kurczakA.Key, out var n) ? n : "Kurczak A";
                 decimal wartoscA = uzywajWydan ? wydaniaA : ordersA;
+                AkumulujBilans(balanceA);
+                zbiorczaPozycje.Add((kurczakA.Key, kurczakAName,
+                    factA > 0 ? factA : planA, stanMagA, wartoscA, balanceA,
+                    DarkStatusColor(wartoscA, (factA > 0 ? factA : planA) + stanMagA)));
                 wpProductCards.Children.Add(CreateKurczakACard(
                     kurczakAName, planA, factA, wartoscA, balanceA, stanMagA,
                     colors[colorIdx % colors.Length], kurczakAName, kurczakA.Key,
                     _pojemnikiKlasyPrognoza, uzywajWydan, rezerwacjeKlas));
                 colorIdx++;
-
-                // 2. Separator po Kurczaku A
-                var separator = new Border
-                {
-                    Width = 1,
-                    Background = new SolidColorBrush(Color.FromRgb(200, 200, 200)),
-                    Margin = new Thickness(2, 8, 2, 8)
-                };
-                wpProductCards.Children.Add(separator);
+                // (separator po Kurczaku A usunięty — psuł układ 3 kart w linii)
             }
 
-            // 3. Pozostałe produkty (pomijając Kurczak A)
+            // 3. Pozostałe produkty (pomijając Kurczak A) — najpierw zbierz dane, potem sortuj i twórz karty
+            var cardData = new List<(string name, decimal plan, decimal fakt, decimal wartosc, decimal bilans, decimal stan, int productId, List<(string nazwa, decimal kg, int towarId)> rozpiska)>();
             foreach (var productId in dashboardProductIds)
             {
                 if (!productNames.TryGetValue(productId, out var productName))
@@ -7049,15 +7681,71 @@ ORDER BY zm.Id";
                 if (orderSum.TryGetValue(productId, out var z)) zam = z;
                 if (wydaniaSum.TryGetValue(productId, out var w)) wyd = w;
                 if (stanyMagazynowe.TryGetValue(productId, out var s)) stan = s;
+
+                // ✅ PULA BILANSU — doklej zamówienia/wydania składników (dzieci) do puli rodzica
+                List<(string nazwa, decimal kg, int towarId)> skladnikiRozpiska = null;
+                if (puleMap.TryGetValue(productId, out var dzieci) && dzieci.Count > 0)
+                {
+                    decimal zamWlasne = zam, wydWlasne = wyd;
+                    decimal zamDzieci = 0m, wydDzieci = 0m;
+                    var rozpiska = new List<(string nazwa, decimal kg, int towarId)>();
+                    foreach (var childId in dzieci)
+                    {
+                        decimal zc = orderSum.TryGetValue(childId, out var zz) ? zz : 0m;
+                        decimal wc = wydaniaSum.TryGetValue(childId, out var ww) ? ww : 0m;
+                        zamDzieci += zc;
+                        wydDzieci += wc;
+                        decimal childVal = uzywajWydan ? wc : zc;
+                        string childName = productNames.TryGetValue(childId, out var cn2) ? cn2 : $"#{childId}";
+                        rozpiska.Add((childName, childVal, childId));
+                    }
+                    zam += zamDzieci;
+                    wyd += wydDzieci;
+
+                    // Rozpiska tylko gdy cokolwiek dokleiliśmy (w bieżącym trybie)
+                    if ((uzywajWydan ? wydDzieci : zamDzieci) > 0)
+                    {
+                        skladnikiRozpiska = new List<(string nazwa, decimal kg, int towarId)>
+                        {
+                            ("własne", uzywajWydan ? wydWlasne : zamWlasne, productId)
+                        };
+                        skladnikiRozpiska.AddRange(rozpiska);
+                    }
+                }
+
                 decimal baseVal = fakt > 0 ? fakt : plan;
                 decimal odejmij = uzywajWydan ? wyd : zam;
                 bilans = baseVal + stan - odejmij;
 
                 decimal wartoscDoPokazania = uzywajWydan ? wyd : zam;
+                AkumulujBilans(bilans);
+                zbiorczaPozycje.Add((productId, productName,
+                    baseVal, stan, wartoscDoPokazania, bilans,
+                    DarkStatusColor(wartoscDoPokazania, baseVal + stan)));
+                cardData.Add((productName, plan, fakt, wartoscDoPokazania, bilans, stan, productId, skladnikiRozpiska));
+            }
+
+            // (sortowanie problemów cofnięte — karty w kolejności z szablonu dashboardu)
+            foreach (var cd in cardData)
+            {
                 wpProductCards.Children.Add(CreateDashboardCard(
-                    productName, plan, fakt, wartoscDoPokazania, bilans, stan,
-                    colors[colorIdx % colors.Length], false, productName, productId));
+                    cd.name, cd.plan, cd.fakt, cd.wartosc, cd.bilans, cd.stan,
+                    colors[colorIdx % colors.Length], false, cd.name, cd.productId, cd.rozpiska));
                 colorIdx++;
+            }
+
+            // ✅ KARTA ZBIORCZA — pierwsza w panelu: wszystkie towary ze zdjęciami i bilansami
+            if (zbiorczaPozycje.Count > 0)
+                wpProductCards.Children.Insert(0, CreateZbiorczaCard(zbiorczaPozycje));
+
+            // ✅ #1 Suma dnia — zaktualizuj nagłówek
+            if (txtBilansSuma != null)
+            {
+                txtBilansSuma.Text = cntPrzekroczone > 0
+                    ? $"Do sprzedania: {sumDoSprzedania:N0} kg  ·  Nadmiar: {sumNadmiar:N0} kg  ·  przekroczone: {cntPrzekroczone}"
+                    : $"Do sprzedania: {sumDoSprzedania:N0} kg";
+                txtBilansSuma.Foreground = new SolidColorBrush(cntPrzekroczone > 0
+                    ? Color.FromRgb(192, 57, 43) : Color.FromRgb(39, 174, 96));
             }
 
             // Jeśli brak szablonu - pokaż stare karty
@@ -7097,6 +7785,9 @@ ORDER BY zm.Id";
             dgAggregation.ItemsSource = dtAgg.DefaultView;
             SetupAggregationDataGrid();
 
+            // Responsywne szerokości kart (po przebudowie panelu; stan rozwinięcia Kurczaka A przeżywa odświeżenie)
+            ForceCardLayout();
+
             // Wypełnij dashboard dostępności produktów dla handlowców
             PopulateDostepnoscProduktow(dtAgg);
 
@@ -7131,12 +7822,22 @@ ORDER BY zm.Id";
             return name;
         }
 
-        private async Task LoadProductImagesAsync()
+        // Single-flight: jedno współbieżne ładowanie; kolejne wywołania czekają na ten sam Task.
+        // Słownik wypełniany DOPIERO po pełnym wczytaniu (żaden caller nie zobaczy stanu częściowego),
+        // a po błędzie Task jest zerowany — następne wywołanie próbuje ponownie.
+        private Task _productImagesTask;
+        private Task LoadProductImagesAsync()
         {
-            if (_productImages.Count > 0) return; // Już załadowane
+            if (_productImages.Count > 0) return Task.CompletedTask; // pełny cache już jest
+            return _productImagesTask ??= LoadProductImagesCoreAsync();
+        }
 
+        private async Task LoadProductImagesCoreAsync()
+        {
             try
             {
+                var tmp = new Dictionary<int, BitmapImage?>();
+
                 await using var cn = new SqlConnection(_connLibra);
                 await cn.OpenAsync();
 
@@ -7151,14 +7852,19 @@ ORDER BY zm.Id";
                     if (!rdr.IsDBNull(1))
                     {
                         byte[] imageData = (byte[])rdr["Zdjecie"];
-                        var image = BytesToBitmapImage(imageData);
-                        _productImages[towarId] = image;
+                        var image = BytesToBitmapImage(imageData); // Freeze() w środku — bezpieczne między wątkami
+                        tmp[towarId] = image;
                     }
                 }
+
+                // Commit dopiero po pełnym wczytaniu
+                foreach (var kv in tmp)
+                    _productImages[kv.Key] = kv.Value;
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[MainWindow] Błąd ładowania obrazków: {ex.Message}");
+                _productImagesTask = null; // retry przy następnym wywołaniu
             }
         }
 
@@ -7211,6 +7917,298 @@ ORDER BY zm.Id";
             return names;
         }
 
+        // Pasek postępu pod bilansem — spójna geometria na każdej karcie:
+        //   [ pigułkowy tor = 100% dostępności | strefa nadmiaru ] [ % ]
+        // Znacznik (pionowa kreska) wyznacza limit 100%; przy nadmiarze wypełnienie
+        // PRZECHODZI przez znacznik w strefę nadmiaru. % zawsze w tej samej, prawej kolumnie.
+        private FrameworkElement BuildPostepBar(double pct, Color statusColor)
+        {
+            const double TRACK_FRAC = 0.86;          // tor (=100%) zajmuje stałe 86% szerokości strefy paska
+            const double PCT_MAX_VIS = 100.0 / TRACK_FRAC; // ~116% — dalej wypełnienie jest już pełne
+
+            bool over = pct > 100.0;
+            double fillFrac = Math.Max(0.0, Math.Min(1.0, (pct / 100.0) * TRACK_FRAC));
+            string pctTxt = pct > 999.0 ? ">999%" : $"{Math.Round(pct)}%";
+
+            var root = new Grid { Margin = new Thickness(1, 7, 4, 0) };
+            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // pasek
+            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });                   // % (stała kolumna)
+
+            // --- strefa paska ---
+            var barZone = new Grid { Height = 10, VerticalAlignment = VerticalAlignment.Center };
+            barZone.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(TRACK_FRAC, GridUnitType.Star) });
+            barZone.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1 - TRACK_FRAC, GridUnitType.Star) });
+
+            // 1) Tor (pigułka) = 100% dostępności
+            var track = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(0xEE, 0xF2, 0xF5)),
+                CornerRadius = new CornerRadius(5)
+            };
+            Grid.SetColumn(track, 0);
+            barZone.Children.Add(track);
+
+            // 2) Wypełnienie (pigułka w kolorze statusu) — może przejść przez znacznik 100%
+            var fillHost = new Grid();
+            Grid.SetColumnSpan(fillHost, 2);
+            fillHost.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(fillFrac, GridUnitType.Star) });
+            fillHost.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1 - fillFrac, GridUnitType.Star) });
+            if (pct > 0.5)
+            {
+                var fill = new Border
+                {
+                    Background = new SolidColorBrush(statusColor),
+                    CornerRadius = new CornerRadius(5)
+                };
+                Grid.SetColumn(fill, 0);
+                fillHost.Children.Add(fill);
+            }
+            barZone.Children.Add(fillHost);
+
+            // 3) Znacznik limitu 100% — rysowany NA wypełnieniu (widać "przelanie")
+            var limit = new Border
+            {
+                Width = 2,
+                Height = 14,
+                Background = new SolidColorBrush(Color.FromRgb(0x9F, 0xAC, 0xB6)),
+                CornerRadius = new CornerRadius(1),
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, -2, -1, -2)
+            };
+            Grid.SetColumn(limit, 0);
+            barZone.Children.Add(limit);
+
+            Grid.SetColumn(barZone, 0);
+            root.Children.Add(barZone);
+
+            // --- % w stałej kolumnie po prawej (równa linia przez wszystkie karty) ---
+            var pctLbl = new TextBlock
+            {
+                Text = pctTxt,
+                FontSize = 10,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(statusColor),
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            System.Windows.Documents.Typography.SetNumeralAlignment(pctLbl, FontNumeralAlignment.Tabular);
+            Grid.SetColumn(pctLbl, 1);
+            root.Children.Add(pctLbl);
+
+            root.ToolTip = over
+                ? $"Wykorzystanie puli: {pct:N0}% — PONAD dostępność (za znacznikiem 100%)"
+                : $"Wykorzystanie puli: {pct:N0}% (znacznik = 100% dostępności)";
+            return root;
+        }
+
+        // Ciemny odcień koloru statusu (do liczb) wg progów StatusInfo
+        private Color DarkStatusColor(decimal zam, decimal available)
+        {
+            var (_, word, _, _) = StatusInfo(zam, available);
+            return word == "Nadmiar" ? Color.FromRgb(0xC0, 0x39, 0x2B)
+                 : word == "Napięte" ? Color.FromRgb(0xB9, 0x77, 0x0E)
+                 : word == "OK" ? Color.FromRgb(0x1E, 0x84, 0x49)
+                 : Color.FromRgb(0x7F, 0x8C, 0x8D);
+        }
+
+        // Karta zbiorcza "Bilans dnia" — pierwsza karta panelu: wszystkie towary ze zdjęciem,
+        // równaniem plan/fakt + stan − zam i wynikiem (bilansem) w kg
+        private Border CreateZbiorczaCard(List<(int towarId, string nazwa, decimal baza, decimal stanMag, decimal zamW, decimal bilans, Color kolor)> pozycje)
+        {
+            var card = new Border
+            {
+                Background = Brushes.White,
+                CornerRadius = new CornerRadius(9),
+                Margin = new Thickness(2),
+                Padding = new Thickness(10, 7, 10, 7),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(0x2C, 0x3E, 0x50)),
+                BorderThickness = new Thickness(1),
+                Width = 280,
+                Height = 212,
+                Tag = new { TowarId = 0, Nazwa = "Bilans dnia" }, // Tag ≠ null → ApplyCardLayout nadaje slot
+                UseLayoutRounding = true,
+                SnapsToDevicePixels = true
+            };
+
+            var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+
+            var serY = new SolidColorBrush(Color.FromRgb(0xE6, 0xB0, 0x08));   // plan/fakt
+            var serP = new SolidColorBrush(Color.FromRgb(0x9B, 0x59, 0xB6));   // stan
+            var serB = new SolidColorBrush(Color.FromRgb(0x34, 0x98, 0xDB));   // zam
+            var serSzary = new SolidColorBrush(Color.FromRgb(0x8A, 0x98, 0xA3));
+
+            foreach (var p in pozycje)
+            {
+                var row = new Grid { Margin = new Thickness(0, 2, 0, 2) };
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(86) }); // stała kolumna wyników → równa linia
+
+                var img = p.towarId > 0 ? GetProductImage(p.towarId) : null;
+                Border ikona;
+                if (img != null)
+                {
+                    var im = new System.Windows.Controls.Image { Source = img, Width = 30, Height = 30, Stretch = Stretch.Uniform };
+                    RenderOptions.SetBitmapScalingMode(im, BitmapScalingMode.HighQuality);
+                    ikona = new Border { Width = 32, Height = 32, CornerRadius = new CornerRadius(6), ClipToBounds = true, Child = im };
+                }
+                else
+                {
+                    ikona = new Border
+                    {
+                        Width = 32, Height = 32, CornerRadius = new CornerRadius(6),
+                        Background = new SolidColorBrush(Color.FromRgb(236, 240, 241)),
+                        Child = new TextBlock { Text = "📦", FontSize = 13, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center }
+                    };
+                }
+                ikona.Margin = new Thickness(0, 0, 6, 0);
+                ikona.VerticalAlignment = VerticalAlignment.Center;
+                Grid.SetColumn(ikona, 0);
+                row.Children.Add(ikona);
+
+                // Środek: nazwa + równanie plan/fakt + stan − zam (wartości w kolorach serii)
+                var srodek = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+                srodek.Children.Add(new TextBlock
+                {
+                    Text = p.nazwa,
+                    FontSize = 11,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = new SolidColorBrush(Color.FromRgb(0x2C, 0x3E, 0x50)),
+                    TextTrimming = TextTrimming.CharacterEllipsis
+                });
+                // Równanie (kg) — dosunięte do prawej, tuż przy kolumnie wyników → wszystko w jednej linii
+                var rownanie = new TextBlock
+                {
+                    FontSize = 9.3,
+                    HorizontalAlignment = HorizontalAlignment.Right,
+                    TextTrimming = TextTrimming.CharacterEllipsis
+                };
+                rownanie.Inlines.Add(new Run($"{p.baza:N0}") { Foreground = serY, FontWeight = FontWeights.SemiBold });
+                rownanie.Inlines.Add(new Run(" + ") { Foreground = serSzary });
+                rownanie.Inlines.Add(new Run($"{p.stanMag:N0}") { Foreground = serP, FontWeight = FontWeights.SemiBold });
+                rownanie.Inlines.Add(new Run(" − ") { Foreground = serSzary });
+                rownanie.Inlines.Add(new Run($"{p.zamW:N0}") { Foreground = serB, FontWeight = FontWeights.SemiBold });
+                rownanie.Inlines.Add(new Run(" kg =") { Foreground = serSzary });
+                srodek.Children.Add(rownanie);
+                Grid.SetColumn(srodek, 1);
+                row.Children.Add(srodek);
+
+                // Wynik (bilans) z "kg" — stała kolumna, do prawej → wyniki w idealnie równej linii
+                var wartoscTb = new TextBlock
+                {
+                    Text = (p.bilans < 0 ? $"−{Math.Abs(p.bilans):N0}" : $"{p.bilans:N0}") + " kg",
+                    FontSize = 14,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = new SolidColorBrush(p.kolor),
+                    VerticalAlignment = VerticalAlignment.Center,
+                    HorizontalAlignment = HorizontalAlignment.Right,
+                    Margin = new Thickness(6, 0, 0, 0)
+                };
+                System.Windows.Documents.Typography.SetNumeralAlignment(wartoscTb, FontNumeralAlignment.Tabular);
+                Grid.SetColumn(wartoscTb, 2);
+                row.Children.Add(wartoscTb);
+
+                stack.Children.Add(row);
+            }
+
+            card.ToolTip = "Bilans dnia: plan/fakt + stan − zam = do sprzedania (czerwone = nadmiar)\nKliknij — pokaż wszystkie towary (zdejmij filtr)";
+            card.Cursor = System.Windows.Input.Cursors.Hand;
+            card.MouseLeftButtonUp += (s, e) =>
+            {
+                // Klik w kartę "Bilans dnia" → zdejmij filtr towaru (pokaż wszystkie towary i zamówienia)
+                if (cbProductFilter.Items.Count > 0)
+                    cbProductFilter.SelectedIndex = 0;
+            };
+            card.Child = stack;
+            return card;
+        }
+
+        // Responsywne kurczenie kolumn Wyd./Róż. w szczegółach zamówienia:
+        //   szeroko → pełne 82 px; ciaśniej → 56 px i krótsze nagłówki; bardzo wąsko → Róż. znika, potem Wyd.
+        private void DgDetails_SizeChanged(object sender, SizeChangedEventArgs e) => ApplyDetailsLayout();
+
+        private void ApplyDetailsLayout()
+        {
+            if (_colWydDet == null || _colRozDet == null) return;
+            double w = dgDetails?.ActualWidth ?? 0;
+            if (w <= 0) return;
+
+            if (w < 520)
+            {
+                _colWydDet.Visibility = Visibility.Collapsed;
+                _colRozDet.Visibility = Visibility.Collapsed;
+            }
+            else if (w < 620)
+            {
+                _colWydDet.Visibility = Visibility.Visible;
+                _colWydDet.Width = new DataGridLength(56);
+                _colWydDet.Header = "W.";
+                _colRozDet.Visibility = Visibility.Collapsed;
+            }
+            else if (w < 740)
+            {
+                _colWydDet.Visibility = Visibility.Visible;
+                _colWydDet.Width = new DataGridLength(56);
+                _colWydDet.Header = "W.";
+                _colRozDet.Visibility = Visibility.Visible;
+                _colRozDet.Width = new DataGridLength(56);
+                _colRozDet.Header = "R.";
+            }
+            else
+            {
+                _colWydDet.Visibility = Visibility.Visible;
+                _colWydDet.Width = new DataGridLength(82);
+                _colWydDet.Header = "Wyd.";
+                _colRozDet.Visibility = Visibility.Visible;
+                _colRozDet.Width = new DataGridLength(82);
+                _colRozDet.Header = "Róż.";
+            }
+        }
+
+        // Responsywny układ kart "Podsumowania dnia": szerokość kart wyliczana z szerokości panelu,
+        // żeby zawsze równo wypełniały przestrzeń (bez pustego pasa). Rozwinięty Kurczak A = 2 sloty.
+        private bool _applyingCardLayout;
+        private double _lastCardAvail = -1;
+        private void ApplyCardLayout()
+        {
+            if (_applyingCardLayout) return; // blokada re-entrancji (SizeChanged wywołane przez nasze własne zmiany)
+            const double MIN_W = 232, MAX_W = 470, MARG = 4;   // MIN niżej — przy wąskim oknie karty kurczą się mocniej zamiast znikać
+            double avail = wpProductCards.ActualWidth;
+            if (avail < MIN_W + MARG) return;
+            // Ignoruj mikro-drgania szerokości (<2 px) — gasi pętle layoutu
+            if (Math.Abs(avail - _lastCardAvail) < 2 && !_cardLayoutForce) return;
+            _lastCardAvail = avail;
+            _cardLayoutForce = false;
+
+            // Celujemy w 3 kolumny (3 karty w linii, 3 pod spodem); przy wąskim panelu spadamy do 2
+            int cols = Math.Max(2, Math.Min(3, (int)(avail / (MIN_W + MARG))));
+            double w = Math.Min(MAX_W, Math.Floor((avail - cols * MARG) / cols));
+
+            try
+            {
+                _applyingCardLayout = true;
+                foreach (var c in wpProductCards.Children.OfType<Border>())
+                {
+                    if (c.Tag == null) continue; // separator po Kurczaku A — pomijamy
+                    double target = (ReferenceEquals(c, _kurczakACard) && _kurczakAExpanded)
+                        ? w * 2 + MARG      // rozwinięty Kurczak A = dokładnie 2 sloty siatki
+                        : w;
+                    if (Math.Abs(c.Width - target) > 0.5)
+                        c.Width = target;
+                }
+            }
+            finally { _applyingCardLayout = false; }
+        }
+
+        // Wymusza pełne przeliczenie przy następnym ApplyCardLayout (po przebudowie kart / toggle Kurczaka A)
+        private bool _cardLayoutForce;
+        private void ForceCardLayout()
+        {
+            _cardLayoutForce = true;
+            ApplyCardLayout();
+        }
+
         private BitmapImage? BytesToBitmapImage(byte[] data)
         {
             if (data == null || data.Length == 0) return null;
@@ -7241,7 +8239,339 @@ ORDER BY zm.Id";
             return _productImages.TryGetValue(towarId, out var img) ? img : null;
         }
 
-        private Border CreateDashboardCard(string nazwa, decimal plan, decimal fakt, decimal zamLubWyd, decimal bilans, decimal stan, Color barColor, bool isSummary, string tooltip = null, int towarId = 0)
+        // Kolor statusu wg % zamówień do (przychód+stan):
+        //   > 100%          → CZERWONY (NADMIAR — sprzedane ponad dostępność, STOP)
+        //   96% – 100%      → ZIELONY  (idealnie domknięte)
+        //   70% – 95,9%     → POMARAŃCZOWY (jeszcze sporo do sprzedania)
+        //   0% – 69,9%      → SZARY "niebezpieczny" (dużo niesprzedanego towaru)
+        private (Color color, string word, string icon, double pct) StatusInfo(decimal zam, decimal available)
+        {
+            var green = Color.FromRgb(39, 174, 96);
+            var orange = Color.FromRgb(243, 156, 18);
+            var red = Color.FromRgb(231, 76, 60);
+            var gray = Color.FromRgb(149, 165, 166);
+
+            if (available <= 0)
+                return zam > 0 ? (red, "Nadmiar", "🔴", 999.0) : (gray, "—", "⚪", 0.0);
+
+            double pct = (double)(zam / available) * 100.0;
+            if (pct > 100.0)
+                return (red, "Nadmiar", "🔴", pct);
+            if (pct >= 96.0)
+                return (green, "OK", "🟢", pct);
+            if (pct >= 70.0)
+                return (orange, "Napięte", "🟡", pct);
+            return (gray, "Wolne", "⚪", pct);
+        }
+
+        // Jeden pasek: RAMKA = przychód+stan (available), WYPEŁNIENIE = zamówienia (zam).
+        // Gdy zam > available → wypełnienie wychodzi poza ramkę. Etykieta % wyśrodkowana na ramce.
+        private FrameworkElement BuildUtilBar(decimal zam, decimal available, Color statusColor, double trackWidth, double height = 18)
+        {
+            double ratio = available > 0 ? (double)(zam / available) : (zam > 0 ? 1.5 : 0.0);
+            double fillW = Math.Max(2.0, ratio * trackWidth);
+
+            var host = new Grid
+            {
+                Margin = new Thickness(0, 3, 0, 2),
+                ClipToBounds = false,
+                HorizontalAlignment = HorizontalAlignment.Left
+            };
+
+            // Wypełnienie (zamówienia) — może przekroczyć ramkę (overflow w prawo)
+            host.Children.Add(new Border
+            {
+                Width = fillW,
+                Height = height - 4,
+                HorizontalAlignment = HorizontalAlignment.Left,
+                VerticalAlignment = VerticalAlignment.Center,
+                CornerRadius = new CornerRadius(3),
+                Background = new SolidColorBrush(statusColor)
+            });
+
+            // Ramka (przychód+stan) — sam kontur, rysowana na wypełnieniu
+            host.Children.Add(new Border
+            {
+                Width = trackWidth,
+                Height = height,
+                HorizontalAlignment = HorizontalAlignment.Left,
+                CornerRadius = new CornerRadius(4),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(120, 130, 140)),
+                BorderThickness = new Thickness(1),
+                Background = Brushes.Transparent
+            });
+
+            // Etykieta danych (%) — wyśrodkowana na ramce
+            var lblHost = new Grid { Width = trackWidth, Height = height, HorizontalAlignment = HorizontalAlignment.Left };
+            lblHost.Children.Add(new TextBlock
+            {
+                Text = available > 0 ? $"{(double)(zam / available) * 100:N0}%" : (zam > 0 ? ">100%" : "—"),
+                FontSize = 9,
+                FontWeight = FontWeights.Bold,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Foreground = new SolidColorBrush(Color.FromRgb(33, 37, 41))
+            });
+            host.Children.Add(lblHost);
+
+            return host;
+        }
+
+        // Pasek-skala wg mockupu: RAMKA = plan/fakt, za nią segment STAN (fiolet),
+        // wypełnienie = ZAM (niebieskie, może wyjść poza ramkę i stan).
+        // Nad paskiem etykiety wartości w kolorach serii + pionowe znaczniki granic.
+        private FrameworkElement BuildSkalaBar(decimal baza, decimal stan, decimal zam, double width, string zamLabel)
+        {
+            var blue = Color.FromRgb(52, 152, 219);
+            var yellow = Color.FromRgb(230, 176, 8);
+            var purple = Color.FromRgb(155, 89, 182);
+            var dark = Color.FromRgb(44, 62, 80);
+
+            decimal total = Math.Max(baza + stan, zam);
+            if (total <= 0) total = 1;
+            double Px(decimal v) => (double)(v / total) * (width - 4) + 2;
+
+            double xBaza = Px(baza);
+            double xStan = Px(baza + stan);
+            double xZam = Px(zam);
+
+            const double lblH = 12;
+            const double barTop = lblH + 2;
+            const double barH = 22;
+
+            var root = new Canvas
+            {
+                Width = width,
+                Height = barTop + barH + (stan > 0 ? 13 : 3), // dolny rząd tylko gdy jest stan
+                Margin = new Thickness(0, 3, 0, 1),
+                ClipToBounds = false,
+                HorizontalAlignment = HorizontalAlignment.Left
+            };
+
+            bool przekroczone = zam > baza + stan;
+            double xAvail = xStan;
+
+            // 0) Tło wnętrza ramki (pojemność plan/fakt) — bardzo jasne, pusta część czytelna
+            var inner = new Border
+            {
+                Width = Math.Max(3, xBaza),
+                Height = barH,
+                Background = new SolidColorBrush(Color.FromRgb(0xF7, 0xF9, 0xFB)),
+                CornerRadius = new CornerRadius(3)
+            };
+            Canvas.SetLeft(inner, 0);
+            Canvas.SetTop(inner, barTop);
+            root.Children.Add(inner);
+
+            // 1) Segment STAN — za ramką (jasny fiolet, zaokrąglony z prawej)
+            if (stan > 0)
+            {
+                var stanSeg = new Border
+                {
+                    Width = Math.Max(2, xStan - xBaza),
+                    Height = barH,
+                    Background = new SolidColorBrush(Color.FromArgb(56, purple.R, purple.G, purple.B)),
+                    BorderBrush = new SolidColorBrush(Color.FromArgb(120, purple.R, purple.G, purple.B)),
+                    BorderThickness = new Thickness(0, 1, 1, 1),
+                    CornerRadius = new CornerRadius(0, 3, 3, 0)
+                };
+                Canvas.SetLeft(stanSeg, xBaza);
+                Canvas.SetTop(stanSeg, barTop);
+                root.Children.Add(stanSeg);
+            }
+
+            // 2) Wypełnienie ZAM (gradient) — część PONAD dostępność (baza+stan) zmienia się w CZERWONĄ
+            if (zam > 0)
+            {
+                double xFillBlueEnd = Math.Min(xZam, xAvail);
+                var fillBlue = new Border
+                {
+                    Width = Math.Max(3, xFillBlueEnd - 2),
+                    Height = barH - 4,
+                    Background = new LinearGradientBrush(
+                        Color.FromRgb(0x5D, 0xAD, 0xE2), Color.FromRgb(0x2E, 0x86, 0xC1), 90),
+                    CornerRadius = przekroczone ? new CornerRadius(2, 0, 0, 2) : new CornerRadius(2)
+                };
+                Canvas.SetLeft(fillBlue, 2);
+                Canvas.SetTop(fillBlue, barTop + 2);
+                root.Children.Add(fillBlue);
+
+                if (przekroczone)
+                {
+                    var fillRed = new Border
+                    {
+                        Width = Math.Max(3, xZam - xAvail),
+                        Height = barH - 4,
+                        Background = new LinearGradientBrush(
+                            Color.FromRgb(0xEC, 0x70, 0x63), Color.FromRgb(0xC0, 0x39, 0x2B), 90),
+                        CornerRadius = new CornerRadius(0, 2, 2, 0),
+                        ToolTip = $"Przekroczono dostępność o {zam - (baza + stan):N0}"
+                    };
+                    Canvas.SetLeft(fillRed, xAvail);
+                    Canvas.SetTop(fillRed, barTop + 2);
+                    root.Children.Add(fillRed);
+                }
+            }
+
+            // 3) Ramka = PLAN/FAKT (kontur, na wierzchu)
+            var frame = new Border
+            {
+                Width = Math.Max(3, xBaza),
+                Height = barH,
+                Background = Brushes.Transparent,
+                BorderBrush = new SolidColorBrush(dark),
+                BorderThickness = new Thickness(1.4),
+                CornerRadius = new CornerRadius(3)
+            };
+            Canvas.SetLeft(frame, 0);
+            Canvas.SetTop(frame, barTop);
+            root.Children.Add(frame);
+
+            // 4) Pionowe znaczniki granic: żółty (koniec planu/faktu), fioletowy (koniec stanu)
+            void Tick(double x, Color c)
+            {
+                var t = new Border
+                {
+                    Width = 2.6,
+                    Height = barH + 4,
+                    Background = new SolidColorBrush(c),
+                    CornerRadius = new CornerRadius(1)
+                };
+                Canvas.SetLeft(t, Math.Min(width - 3, Math.Max(0, x - 1.3)));
+                Canvas.SetTop(t, barTop - 2);
+                root.Children.Add(t);
+            }
+            Tick(xBaza, yellow);
+            if (stan > 0) Tick(xStan, purple);
+
+            // 5) Etykiety:
+            //    • ZAM — BIAŁĄ czcionką WEWNĄTRZ niebieskiego wypełnienia
+            //    • przychód (fakt/plan) — ŻÓŁTY, nad żółtą kreską granicy
+            //    • stan — FIOLETOWY, pod segmentem stanu
+            void AddLbl(string txt, Color c, double x, double top)
+            {
+                double w = txt.Length * 5.6 + 2;
+                double left = Math.Max(0, Math.Min(width - w, x - w / 2));
+                var t = new TextBlock
+                {
+                    Text = txt,
+                    FontSize = 9,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = new SolidColorBrush(c)
+                };
+                Canvas.SetLeft(t, left);
+                Canvas.SetTop(t, top);
+                root.Children.Add(t);
+            }
+
+            // ZAM — białe, wyśrodkowane w wypełnieniu (gdy za wąskie → obok, w kolorze wypełnienia)
+            if (zam > 0)
+            {
+                string zamTxt = $"{zam:N0}";
+                double zamW = zamTxt.Length * 5.6 + 2;
+                double fillEnd = Math.Min(xZam, width);
+                if (fillEnd - 4 >= zamW + 6)
+                {
+                    var t = new TextBlock
+                    {
+                        Text = zamTxt,
+                        FontSize = 10.5,
+                        FontWeight = FontWeights.Bold,
+                        Foreground = Brushes.White
+                    };
+                    Canvas.SetLeft(t, Math.Max(4, (fillEnd - zamW) / 2));
+                    Canvas.SetTop(t, barTop + 4);
+                    root.Children.Add(t);
+                }
+                else
+                {
+                    AddLbl(zamTxt, przekroczone ? Color.FromRgb(0xC0, 0x39, 0x2B) : blue,
+                        Math.Min(width - 10, xZam + zamW / 2 + 4), barTop + 5);
+                }
+            }
+
+            // Przychód (fakt/plan) — żółty, centralnie nad żółtą kreską
+            AddLbl($"{baza:N0}", yellow, xBaza, 0);
+
+            // Stan — fioletowy, centralnie pod fioletową kreską (koniec stanu)
+            if (stan > 0)
+                AddLbl($"{stan:N0}", purple, xStan, barTop + barH + 2);
+
+            root.ToolTip = $"Ramka = plan/fakt ({baza:N0}) · stan {stan:N0} · {zamLabel} {zam:N0}" +
+                           (zam > baza + stan ? $" · PRZEKROCZONO o {zam - (baza + stan):N0}" : "");
+            return root;
+        }
+
+        // Równanie bilansu: Plan/Fakt + Stan − Zam = Do sprzedania/Nadmiar (kolory serii)
+        private FrameworkElement BuildRownanie(string bazaLabel, decimal baza, decimal stan, string zamLabel, decimal zam, decimal bilans)
+        {
+            var gray = Color.FromRgb(127, 140, 141);
+            var yellow = Color.FromRgb(230, 176, 8);
+            var purple = Color.FromRgb(155, 89, 182);
+            var blue = Color.FromRgb(52, 152, 219);
+            var bilansColor = bilans >= 0 ? Color.FromRgb(39, 174, 96) : Color.FromRgb(231, 76, 60);
+            string bilansLbl = bilans >= 0 ? "Do sprzedania" : "Nadmiar";
+
+            var row = new Grid { Margin = new Thickness(0, 4, 0, 0) };
+            for (int i = 0; i < 7; i++)
+                row.ColumnDefinitions.Add(new ColumnDefinition
+                {
+                    Width = i % 2 == 0 ? new GridLength(1, GridUnitType.Star) : GridLength.Auto
+                });
+
+            FrameworkElement Val(string label, string value, Color c, double valSize)
+            {
+                var sp = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Bottom };
+                sp.Children.Add(new TextBlock
+                {
+                    Text = label,
+                    FontSize = 7,
+                    Foreground = new SolidColorBrush(gray),
+                    HorizontalAlignment = HorizontalAlignment.Center
+                });
+                sp.Children.Add(new TextBlock
+                {
+                    Text = value,
+                    FontSize = valSize,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = new SolidColorBrush(c),
+                    HorizontalAlignment = HorizontalAlignment.Center
+                });
+                return sp;
+            }
+            TextBlock Op(string s) => new TextBlock
+            {
+                Text = s,
+                FontSize = 9,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(gray),
+                VerticalAlignment = VerticalAlignment.Bottom,
+                Margin = new Thickness(1, 0, 1, 2)
+            };
+
+            var e0 = Val(bazaLabel, $"{baza:N0}", yellow, 10); Grid.SetColumn(e0, 0); row.Children.Add(e0);
+            var o1 = Op("+"); Grid.SetColumn(o1, 1); row.Children.Add(o1);
+            var e2 = Val("Stan", $"{stan:N0}", purple, 10); Grid.SetColumn(e2, 2); row.Children.Add(e2);
+            var o3 = Op("−"); Grid.SetColumn(o3, 3); row.Children.Add(o3);
+            var e4 = Val(zamLabel, $"{zam:N0}", blue, 10); Grid.SetColumn(e4, 4); row.Children.Add(e4);
+            var o5 = Op("="); Grid.SetColumn(o5, 5); row.Children.Add(o5);
+
+            // Wynik w kolorowej pigułce — mniejszy, ale wciąż wyróżniony tłem
+            var e6 = new Border
+            {
+                Background = new SolidColorBrush(Color.FromArgb(26, bilansColor.R, bilansColor.G, bilansColor.B)),
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(5, 1, 5, 1),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Bottom,
+                Child = Val(bilansLbl, $"{Math.Abs(bilans):N0}", bilansColor, 11)
+            };
+            Grid.SetColumn(e6, 6); row.Children.Add(e6);
+
+            return row;
+        }
+
+        private Border CreateDashboardCard(string nazwa, decimal plan, decimal fakt, decimal zamLubWyd, decimal bilans, decimal stan, Color barColor, bool isSummary, string tooltip = null, int towarId = 0, List<(string nazwa, decimal kg, int towarId)> skladnikiRozpiska = null)
         {
             bool uzytoFakt = fakt > 0;
             bool uzywajWydan = rbBilansWydania?.IsChecked == true;
@@ -7249,19 +8579,53 @@ ORDER BY zm.Id";
             decimal maxBarValue = Math.Max(Math.Max(plan, fakt), Math.Max(zamLubWyd, 1));
             double maxBarWidth = 155;  // Rozmiar L
 
+            // === ASYMETRIA F: pasek statusu (lewo) + wielka liczba + pionowe równanie księgowe (prawo) ===
+            decimal baseValCard = fakt > 0 ? fakt : plan;
+            decimal poolCard = baseValCard + stan;
+            var (statusColor, statusWord, _, statusPct) = StatusInfo(zamLubWyd, poolCard);
+
+            bool stRed = !isSummary && statusWord == "Nadmiar";
+            bool stOrange = !isSummary && statusWord == "Napięte";
+            bool stGreen = !isSummary && statusWord == "OK";
+
+            // Ciemne odcienie statusu dla liczby/% (pasek dostaje pełny kolor ze StatusInfo)
+            Color numColor = isSummary ? Color.FromRgb(0x2C, 0x3E, 0x50)
+                : stRed ? Color.FromRgb(0xC0, 0x39, 0x2B)
+                : stOrange ? Color.FromRgb(0xB9, 0x77, 0x0E)
+                : stGreen ? Color.FromRgb(0x1E, 0x84, 0x49)
+                : Color.FromRgb(0x7F, 0x8C, 0x8D);
+            Color stripeColor = isSummary ? Color.FromRgb(0x2C, 0x3E, 0x50) : statusColor;
+
+            // Tło: tylko nadmiar barwi kartę; zieleń/pomarańcz = biała karta (sygnał niesie pasek + liczba)
+            Color cardBg = stRed ? Color.FromRgb(0xFD, 0xEC, 0xEA) : Colors.White;
+            Color cardBorder = stRed ? Color.FromRgb(0xE7, 0x4C, 0x3C) : Color.FromRgb(0xE3, 0xE8, 0xEC);
+
             var card = new Border
             {
-                Background = Brushes.White,
-                CornerRadius = new CornerRadius(6),
-                Margin = new Thickness(4),
-                Padding = new Thickness(10),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
+                Background = new SolidColorBrush(cardBg),
+                CornerRadius = new CornerRadius(9),
+                Margin = new Thickness(2),
+                Padding = new Thickness(0), // pasek statusu musi dotykać krawędzi
+                BorderBrush = new SolidColorBrush(cardBorder),
                 BorderThickness = new Thickness(1),
-                Width = 200,  // Rozmiar L (S=140, M=160, L=200)
+                Width = 280,  // wstępna — ApplyCardLayout() dopasowuje do szerokości panelu
+                Height = 212, // wyższa — większe zdjęcie towaru (40 px) w nagłówku
                 ToolTip = tooltip ?? nazwa,
                 Tag = new { TowarId = towarId, Nazwa = nazwa },
-                Cursor = System.Windows.Input.Cursors.Hand
+                Cursor = System.Windows.Input.Cursors.Hand,
+                UseLayoutRounding = true,
+                SnapsToDevicePixels = true
             };
+
+            // Delikatna głębia (miękki cień) — spójny, lekki
+            var baseShadow = new System.Windows.Media.Effects.DropShadowEffect
+            {
+                ShadowDepth = 1.5,
+                BlurRadius = 7,
+                Opacity = 0.16,
+                Color = Color.FromRgb(0, 0, 0)
+            };
+            card.Effect = baseShadow;
 
             // ✅ KLIKNIĘCIE - filtruj zamówienia po tym produkcie
             if (towarId > 0)
@@ -7271,6 +8635,19 @@ ORDER BY zm.Id";
                     FilterOrdersByProduct(towarId, nazwa);
                 };
             }
+
+            // Hover — wyraźniejszy cień (afordancja klikalności), bez kolizji z animacją zaznaczenia
+            card.MouseEnter += (s, e) =>
+            {
+                card.Effect = new System.Windows.Media.Effects.DropShadowEffect
+                {
+                    ShadowDepth = 2.5,
+                    BlurRadius = 13,
+                    Opacity = 0.28,
+                    Color = Color.FromRgb(0, 0, 0)
+                };
+            };
+            card.MouseLeave += (s, e) => card.Effect = baseShadow;
 
             // ✅ MENU KONTEKSTOWE (prawy przycisk)
             var contextMenu = new ContextMenu();
@@ -7332,14 +8709,37 @@ ORDER BY zm.Id";
                 brush.BeginAnimation(SolidColorBrush.ColorProperty, pulseAnim);
             }
 
-            var stack = new StackPanel();
+            string zamWydLabelCap = uzywajWydan ? "Wyd" : "Zam";
+            var numBrush = new SolidColorBrush(numColor);
 
-            // === NAGŁÓWEK: zdjęcie w lewym górnym rogu + nazwa obok ===
-            var headerGrid = new Grid { Margin = new Thickness(0, -4, 0, 2) };
+            var root = new Grid();
+            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(6) });                       // pasek statusu
+            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });    // treść
+            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(102) });                     // równanie
+
+            // --- KOLUMNA 0: pasek statusu (pełny kolor) ---
+            var stripe = new Border
+            {
+                Background = new SolidColorBrush(stripeColor),
+                CornerRadius = new CornerRadius(8, 0, 0, 8)
+            };
+            Grid.SetColumn(stripe, 0);
+            root.Children.Add(stripe);
+
+            // --- KOLUMNA 1: treść — nagłówek / wielka liczba / pula ---
+            var content = new Grid { Margin = new Thickness(10, 8, 8, 8) };
+            content.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });                       // nagłówek
+            content.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });  // bilans
+            content.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });                       // pasek postępu
+            content.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });                       // pula
+            Grid.SetColumn(content, 1);
+            root.Children.Add(content);
+
+            // Nagłówek: zdjęcie 38 px + nazwa
+            var headerGrid = new Grid();
             headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
-            // Zdjęcie produktu — mniejsze, przesunięte w górę
             var productImage = towarId > 0 ? GetProductImage(towarId) : null;
             Border imgBorder;
             if (productImage != null)
@@ -7347,36 +8747,38 @@ ORDER BY zm.Id";
                 var img = new System.Windows.Controls.Image
                 {
                     Source = productImage,
-                    Width = 36,
-                    Height = 36,
+                    Width = 38,
+                    Height = 38,
                     Stretch = Stretch.Uniform
                 };
                 RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.HighQuality);
                 imgBorder = new Border
                 {
-                    Width = 38,
-                    Height = 38,
-                    CornerRadius = new CornerRadius(6),
+                    Width = 40,
+                    Height = 40,
+                    CornerRadius = new CornerRadius(8),
                     ClipToBounds = true,
                     Child = img,
                     Margin = new Thickness(0, 0, 6, 0),
-                    VerticalAlignment = VerticalAlignment.Top
+                    VerticalAlignment = VerticalAlignment.Center,
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(229, 232, 235)),
+                    BorderThickness = new Thickness(1)
                 };
             }
             else
             {
                 imgBorder = new Border
                 {
-                    Width = 38,
-                    Height = 38,
-                    CornerRadius = new CornerRadius(6),
+                    Width = 40,
+                    Height = 40,
+                    CornerRadius = new CornerRadius(8),
                     Background = new SolidColorBrush(Color.FromRgb(236, 240, 241)),
                     Margin = new Thickness(0, 0, 6, 0),
-                    VerticalAlignment = VerticalAlignment.Top,
+                    VerticalAlignment = VerticalAlignment.Center,
                     Child = new TextBlock
                     {
                         Text = "📷",
-                        FontSize = 14,
+                        FontSize = 12,
                         HorizontalAlignment = HorizontalAlignment.Center,
                         VerticalAlignment = VerticalAlignment.Center,
                         Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166))
@@ -7386,58 +8788,200 @@ ORDER BY zm.Id";
             Grid.SetColumn(imgBorder, 0);
             headerGrid.Children.Add(imgBorder);
 
-            // Nazwa produktu
             var titleText = new TextBlock
             {
                 Text = nazwa,
-                FontSize = 11,
+                FontSize = 12.5,
                 FontWeight = FontWeights.Bold,
-                Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
-                TextWrapping = TextWrapping.Wrap,
+                Foreground = new SolidColorBrush(Color.FromRgb(0x2C, 0x3E, 0x50)),
+                TextTrimming = TextTrimming.CharacterEllipsis,
                 VerticalAlignment = VerticalAlignment.Center
             };
             Grid.SetColumn(titleText, 1);
             headerGrid.Children.Add(titleText);
-            stack.Children.Add(headerGrid);
+            Grid.SetRow(headerGrid, 0);
+            content.Children.Add(headerGrid);
 
-            // === PASEK PLAN (przekreślony jeśli użyto fakt) ===
-            stack.Children.Add(CreateMiniBar("plan", plan, maxBarValue, maxBarWidth,
-                uzytoFakt ? Color.FromRgb(189, 195, 199) : Color.FromRgb(241, 196, 15), uzytoFakt));
-
-            // === PASEK FAKT (jeśli > 0) ===
-            if (fakt > 0)
+            // Środek: wielka liczba bilansu (ze znakiem minus przy nadmiarze) + etykieta
+            string bilansTxt = bilans < 0 ? $"−{Math.Abs(bilans):N0}" : $"{bilans:N0}";
+            double numSize = bilansTxt.Length > 6 ? 36 : 44;
+            var centerStack = new StackPanel
             {
-                stack.Children.Add(CreateMiniBar("fakt", fakt, maxBarValue, maxBarWidth,
-                    Color.FromRgb(241, 196, 15), false));
+                HorizontalAlignment = HorizontalAlignment.Left,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            centerStack.Children.Add(new TextBlock
+            {
+                Text = bilansTxt,
+                FontSize = numSize,
+                FontWeight = FontWeights.ExtraBold,
+                Foreground = numBrush
+            });
+            string bilansEtykieta = bilans > 0 ? "DO SPRZEDANIA" : (bilans == 0 ? "WYPRZEDANE" : "NADMIAR — STOP");
+            Color etykietaColor = (stGreen || isSummary) ? Color.FromRgb(0x9A, 0xA7, 0xB0) : numColor;
+            centerStack.Children.Add(new TextBlock
+            {
+                Text = string.Join(" ", bilansEtykieta.Select(c => c.ToString())), // rozstrzelone litery
+                FontSize = 8,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(etykietaColor),
+                Margin = new Thickness(1, -1, 0, 0)
+            });
+            Grid.SetRow(centerStack, 1);
+            content.Children.Add(centerStack);
+
+            // Pasek postępu pod bilansem — % wykorzystania puli w kolorze statusu
+            if (!isSummary)
+            {
+                var postep = BuildPostepBar(statusPct, statusColor);
+                Grid.SetRow(postep, 2);
+                content.Children.Add(postep);
             }
 
-            // === PASEK ZAMÓWIENIA/WYDANIA ===
-            stack.Children.Add(CreateMiniBar(zamWydLabel, zamLubWyd, maxBarValue, maxBarWidth,
-                Color.FromRgb(52, 152, 219), false));
-
-            // === STAN MAGAZYNOWY (jeśli > 0) - rozmiar L ===
-            if (stan > 0)
+            // Dół: pula matka/córka (klikalne dzieci → filtr zamówień)
+            string pulaTooltipText = null;
+            if (skladnikiRozpiska != null && skladnikiRozpiska.Count > 1)
             {
-                var stanPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3, 0, 0), HorizontalAlignment = HorizontalAlignment.Right };
-                stanPanel.Children.Add(new TextBlock { Text = "Stan: ", FontSize = 10, Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141)) });
-                stanPanel.Children.Add(new TextBlock { Text = $"{stan:N0}", FontSize = 10, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(155, 89, 182)) });
-                stack.Children.Add(stanPanel);
+                var dzieci = skladnikiRozpiska.Skip(1).Where(s => s.kg != 0).ToList();
+                if (dzieci.Count > 0)
+                {
+                    var pulaBrush = new SolidColorBrush(Color.FromRgb(0x5B, 0x6F, 0xB5));
+                    var line = new TextBlock
+                    {
+                        FontSize = 9.3,
+                        TextTrimming = TextTrimming.CharacterEllipsis,
+                        Foreground = pulaBrush
+                    };
+                    line.Inlines.Add(new Run("+ ") { FontWeight = FontWeights.Bold });
+                    for (int i = 0; i < dzieci.Count; i++)
+                    {
+                        if (i > 0) line.Inlines.Add(new Run(" · "));
+                        int childId = dzieci[i].towarId;
+                        string childName = dzieci[i].nazwa;
+                        var link = new System.Windows.Documents.Hyperlink
+                        {
+                            TextDecorations = null,
+                            Cursor = System.Windows.Input.Cursors.Hand,
+                            Foreground = pulaBrush,
+                            ToolTip = $"Pokaż zamówienia: {childName}"
+                        };
+                        link.Inlines.Add(new Run($"{childName} "));
+                        link.Inlines.Add(new Run($"{dzieci[i].kg:N0}") { FontWeight = FontWeights.Bold });
+                        link.Click += (s, e) => { e.Handled = true; if (childId > 0) FilterOrdersByProduct(childId, childName); };
+                        line.Inlines.Add(link);
+                    }
+                    Grid.SetRow(line, 3);
+                    content.Children.Add(line);
+
+                    pulaTooltipText = "Pula: " + string.Join(" · ", skladnikiRozpiska.Select(s => $"{s.nazwa} {s.kg:N0}"));
+                }
             }
 
-            // === DO SPRZEDANIA / NADMIAR ===
-            string bilansLabel = bilans >= 0 ? "Do sprzedania: " : "Nadmiar: ";
-            var bilansColor = bilans >= 0 ? Color.FromRgb(39, 174, 96) : Color.FromRgb(231, 76, 60);
-            var bilansText = new TextBlock
+            // --- KOLUMNA 2: pionowe równanie księgowe (% u góry, pozycje przy dole, podwójna kreska) ---
+            var eqBorder = new Border
             {
-                FontSize = 11,
-                Margin = new Thickness(0, 5, 0, 0),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(0xED, 0xF0, 0xF2)),
+                BorderThickness = new Thickness(1, 0, 0, 0),
+                Padding = new Thickness(8, 8, 10, 8)
+            };
+            var eqGrid = new Grid();
+            eqGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });                       // %
+            eqGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });                       // separator
+            eqGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });  // spacer
+            eqGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });                       // pozycje
+            eqGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });                       // podwójna kreska
+
+            var pctText = new TextBlock
+            {
+                Text = (poolCard <= 0 && zamLubWyd > 0) ? ">100%" : $"{Math.Round(statusPct)}%",
+                FontSize = 13,
+                FontWeight = FontWeights.Bold,
+                Foreground = numBrush,
                 HorizontalAlignment = HorizontalAlignment.Right
             };
-            bilansText.Inlines.Add(new Run(bilansLabel) { Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141)) });
-            bilansText.Inlines.Add(new Run($"{Math.Abs(bilans):N0}") { FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(bilansColor) });
-            stack.Children.Add(bilansText);
+            Grid.SetRow(pctText, 0);
+            eqGrid.Children.Add(pctText);
 
-            card.Child = stack;
+            var pctSep = new Border { Height = 1, Background = new SolidColorBrush(Color.FromRgb(0xED, 0xF0, 0xF2)), Margin = new Thickness(0, 4, 0, 0) };
+            Grid.SetRow(pctSep, 1);
+            eqGrid.Children.Add(pctSep);
+
+            var eqRows = new StackPanel();
+            var serYellow = Color.FromRgb(0xE6, 0xB0, 0x08);   // Plan/Fakt
+            var serPurple = Color.FromRgb(0x9B, 0x59, 0xB6);   // Stan
+            var serBlue = Color.FromRgb(0x34, 0x98, 0xDB);     // Zam/Wyd
+            void EqRow(string lbl, string val, Color valColor, bool strike = false)
+            {
+                var rowG = new Grid { Margin = new Thickness(0, 1, 0, 1) };
+                rowG.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                rowG.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                var l = new TextBlock
+                {
+                    Text = lbl,
+                    FontSize = 9.6,
+                    Foreground = new SolidColorBrush(strike ? Color.FromRgb(0xB9, 0xC4, 0xCC) : Color.FromRgb(0x8A, 0x98, 0xA3)),
+                    TextDecorations = strike ? TextDecorations.Strikethrough : null,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                Grid.SetColumn(l, 0);
+                rowG.Children.Add(l);
+                var v = new TextBlock
+                {
+                    Text = val,
+                    FontSize = 11,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = new SolidColorBrush(strike ? Color.FromRgb(0xB9, 0xC4, 0xCC) : valColor),
+                    TextDecorations = strike ? TextDecorations.Strikethrough : null,
+                    HorizontalAlignment = HorizontalAlignment.Right,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                System.Windows.Documents.Typography.SetNumeralAlignment(v, FontNumeralAlignment.Tabular);
+                Grid.SetColumn(v, 1);
+                rowG.Children.Add(v);
+                eqRows.Children.Add(rowG);
+            }
+            if (fakt > 0)
+            {
+                EqRow("Plan", $"{plan:N0}", serYellow, strike: true);
+                EqRow("Fakt", $"{fakt:N0}", serYellow);
+            }
+            else
+            {
+                EqRow("Plan", $"{plan:N0}", serYellow);
+            }
+            EqRow("Stan", $"{stan:N0}", serPurple); // zawsze, także przy 0
+            EqRow(zamWydLabelCap, $"−{zamLubWyd:N0}", serBlue);
+            Grid.SetRow(eqRows, 3);
+            eqGrid.Children.Add(eqRows);
+
+            // Podwójna kreska "=" na dole kolumny
+            var dblLine = new StackPanel { Margin = new Thickness(0, 3, 0, 0) };
+            dblLine.Children.Add(new Border { Height = 1, Background = new SolidColorBrush(Color.FromRgb(0x7F, 0x8C, 0x8D)) });
+            dblLine.Children.Add(new Border { Height = 1, Background = new SolidColorBrush(Color.FromRgb(0x7F, 0x8C, 0x8D)), Margin = new Thickness(0, 2, 0, 0) });
+            Grid.SetRow(dblLine, 4);
+            eqGrid.Children.Add(dblLine);
+
+            // WYNIK pod kreską — ta sama liczba co po lewej, w kolorze statusu, z "kg"
+            eqGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            var eqWynik = new TextBlock
+            {
+                Text = bilansTxt + " kg",
+                FontSize = 13,
+                FontWeight = FontWeights.Bold,
+                Foreground = numBrush,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(0, 2, 0, 0)
+            };
+            System.Windows.Documents.Typography.SetNumeralAlignment(eqWynik, FontNumeralAlignment.Tabular);
+            Grid.SetRow(eqWynik, 5);
+            eqGrid.Children.Add(eqWynik);
+
+            eqBorder.Child = eqGrid;
+            Grid.SetColumn(eqBorder, 2);
+            root.Children.Add(eqBorder);
+
+            // Tooltip z paskiem-skalą usunięty na życzenie — karta bez dymka po najechaniu
+            card.Child = root;
             return card;
         }
 
@@ -7491,18 +9035,33 @@ ORDER BY zm.Id";
             decimal maxBarValue = Math.Max(Math.Max(plan, fakt), Math.Max(zamLubWyd, 1));
             double maxBarWidth = 155;
 
+            // Status wg % zamówień do (przychód+stan) — te same progi co karty elementów (Asymetria F)
+            var (kStatusColor, kWord, _, kPct) = StatusInfo(zamLubWyd, (fakt > 0 ? fakt : plan) + stan);
+
+            bool kRed = kWord == "Nadmiar";
+            bool kOrange = kWord == "Napięte";
+            bool kGreen = kWord == "OK";
+            Color kNum = kRed ? Color.FromRgb(0xC0, 0x39, 0x2B)
+                : kOrange ? Color.FromRgb(0xB9, 0x77, 0x0E)
+                : kGreen ? Color.FromRgb(0x1E, 0x84, 0x49)
+                : Color.FromRgb(0x7F, 0x8C, 0x8D);
+            Color kCardBg = kRed ? Color.FromRgb(0xFD, 0xEC, 0xEA) : Colors.White;
+            Color kCardBorder = kRed ? Color.FromRgb(0xE7, 0x4C, 0x3C) : Color.FromRgb(0xE3, 0xE8, 0xEC);
+
             var card = new Border
             {
-                Background = Brushes.White,
-                CornerRadius = new CornerRadius(6),
-                Margin = new Thickness(4),
-                Padding = new Thickness(10),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
+                Background = new SolidColorBrush(kCardBg),
+                CornerRadius = new CornerRadius(9),
+                Margin = new Thickness(2),
+                Padding = new Thickness(0), // pasek statusu dotyka krawędzi
+                BorderBrush = new SolidColorBrush(kCardBorder),
                 BorderThickness = new Thickness(1),
-                Width = 450, // Powiększona karta (standardowa = 200)
-                ToolTip = "Kliknij 2x aby otworzyć klasy wagowe dnia",
+                Width = 280,      // wstępna — ApplyCardLayout() nadaje 1 slot (zwinięty) lub 2 sloty (rozwinięty)
+                MinHeight = 212,  // tabelka klas może być wyższa — karta wtedy urośnie
                 Tag = new { TowarId = towarId, Nazwa = nazwa },
-                Cursor = System.Windows.Input.Cursors.Hand
+                Cursor = System.Windows.Input.Cursors.Hand,
+                UseLayoutRounding = true,
+                SnapsToDevicePixels = true
             };
 
             if (towarId > 0)
@@ -7571,18 +9130,39 @@ ORDER BY zm.Id";
                 brush.BeginAnimation(SolidColorBrush.ColorProperty, pulseAnim);
             }
 
-            // Główny layout: lewy panel (standardowe dane) | prawy panel (klasy wagowe)
+            // Główny layout: pasek statusu | treść | równanie | tabelka klas (zwijana) | uchwyt
             var mainGrid = new Grid();
-            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Auto) });
+            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(6) });                       // pasek statusu
+            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });    // treść
+            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(102) });                     // równanie
+            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });                         // klasy wagowe (Visibility)
+            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });                         // uchwyt rozwijania
 
-            // ========== LEWA STRONA: standardowe dane ==========
-            var leftStack = new StackPanel();
+            string zamWydCapK = uzywajWydan ? "Wyd" : "Zam";
+            decimal bazaK = fakt > 0 ? fakt : plan;
+            decimal poolK = bazaK + stan;
+            var kNumBrush = new SolidColorBrush(kNum);
 
-            // Nagłówek ze zdjęciem
-            var headerGrid = new Grid { Margin = new Thickness(0, -4, 0, 2) };
-            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            // --- KOLUMNA 0: pasek statusu ---
+            var stripeK = new Border
+            {
+                Background = new SolidColorBrush(kStatusColor),
+                CornerRadius = new CornerRadius(8, 0, 0, 8)
+            };
+            Grid.SetColumn(stripeK, 0);
+            mainGrid.Children.Add(stripeK);
+
+            // --- KOLUMNA 1: treść — nagłówek / wielka liczba ---
+            var contentK = new Grid { Margin = new Thickness(10, 8, 8, 8) };
+            contentK.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });                       // nagłówek
+            contentK.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });  // bilans
+            contentK.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });                       // pasek postępu
+            Grid.SetColumn(contentK, 1);
+            mainGrid.Children.Add(contentK);
+
+            var headerGridK = new Grid();
+            headerGridK.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            headerGridK.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
             var productImage = towarId > 0 ? GetProductImage(towarId) : null;
             Border imgBorder;
@@ -7590,26 +9170,28 @@ ORDER BY zm.Id";
             {
                 var img = new System.Windows.Controls.Image
                 {
-                    Source = productImage, Width = 36, Height = 36, Stretch = Stretch.Uniform
+                    Source = productImage, Width = 38, Height = 38, Stretch = Stretch.Uniform
                 };
                 RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.HighQuality);
                 imgBorder = new Border
                 {
-                    Width = 38, Height = 38, CornerRadius = new CornerRadius(6),
+                    Width = 40, Height = 40, CornerRadius = new CornerRadius(8),
                     ClipToBounds = true, Child = img,
-                    Margin = new Thickness(0, 0, 6, 0), VerticalAlignment = VerticalAlignment.Top
+                    Margin = new Thickness(0, 0, 6, 0), VerticalAlignment = VerticalAlignment.Center,
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(229, 232, 235)),
+                    BorderThickness = new Thickness(1)
                 };
             }
             else
             {
                 imgBorder = new Border
                 {
-                    Width = 38, Height = 38, CornerRadius = new CornerRadius(6),
+                    Width = 40, Height = 40, CornerRadius = new CornerRadius(8),
                     Background = new SolidColorBrush(Color.FromRgb(236, 240, 241)),
-                    Margin = new Thickness(0, 0, 6, 0), VerticalAlignment = VerticalAlignment.Top,
+                    Margin = new Thickness(0, 0, 6, 0), VerticalAlignment = VerticalAlignment.Center,
                     Child = new TextBlock
                     {
-                        Text = "\U0001F4F7", FontSize = 14,
+                        Text = "\U0001F4F7", FontSize = 12,
                         HorizontalAlignment = HorizontalAlignment.Center,
                         VerticalAlignment = VerticalAlignment.Center,
                         Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166))
@@ -7617,54 +9199,169 @@ ORDER BY zm.Id";
                 };
             }
             Grid.SetColumn(imgBorder, 0);
-            headerGrid.Children.Add(imgBorder);
+            headerGridK.Children.Add(imgBorder);
 
-            var titleText = new TextBlock
+            var titleK = new TextBlock
             {
-                Text = nazwa, FontSize = 12, FontWeight = FontWeights.Bold,
-                Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
+                Text = nazwa,
+                FontSize = 12.5,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Color.FromRgb(0x2C, 0x3E, 0x50)),
+                TextTrimming = TextTrimming.CharacterEllipsis,
                 VerticalAlignment = VerticalAlignment.Center
             };
-            Grid.SetColumn(titleText, 1);
-            headerGrid.Children.Add(titleText);
-            leftStack.Children.Add(headerGrid);
+            Grid.SetColumn(titleK, 1);
+            headerGridK.Children.Add(titleK);
+            Grid.SetRow(headerGridK, 0);
+            contentK.Children.Add(headerGridK);
 
-            // Paski: plan, fakt, zam/wyd
-            leftStack.Children.Add(CreateMiniBar("plan", plan, maxBarValue, maxBarWidth,
-                uzytoFakt ? Color.FromRgb(189, 195, 199) : Color.FromRgb(241, 196, 15), uzytoFakt));
-            if (fakt > 0)
-                leftStack.Children.Add(CreateMiniBar("fakt", fakt, maxBarValue, maxBarWidth,
-                    Color.FromRgb(241, 196, 15), false));
-            leftStack.Children.Add(CreateMiniBar(zamWydLabel, zamLubWyd, maxBarValue, maxBarWidth,
-                Color.FromRgb(52, 152, 219), false));
-
-            // Stan magazynowy
-            if (stan > 0)
+            string bilansTxtK = bilans < 0 ? $"−{Math.Abs(bilans):N0}" : $"{bilans:N0}";
+            double numSizeK = bilansTxtK.Length > 6 ? 36 : 44;
+            var centerK = new StackPanel
             {
-                var stanPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3, 0, 0), HorizontalAlignment = HorizontalAlignment.Right };
-                stanPanel.Children.Add(new TextBlock { Text = "Stan: ", FontSize = 10, Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141)) });
-                stanPanel.Children.Add(new TextBlock { Text = $"{stan:N0}", FontSize = 10, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(155, 89, 182)) });
-                leftStack.Children.Add(stanPanel);
+                HorizontalAlignment = HorizontalAlignment.Left,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            centerK.Children.Add(new TextBlock
+            {
+                Text = bilansTxtK,
+                FontSize = numSizeK,
+                FontWeight = FontWeights.ExtraBold,
+                Foreground = kNumBrush
+            });
+            string etykietaK = bilans > 0 ? "DO SPRZEDANIA" : (bilans == 0 ? "WYPRZEDANE" : "NADMIAR — STOP");
+            Color etykietaColorK = kGreen ? Color.FromRgb(0x9A, 0xA7, 0xB0) : kNum;
+            centerK.Children.Add(new TextBlock
+            {
+                Text = string.Join(" ", etykietaK.Select(c => c.ToString())), // rozstrzelone litery
+                FontSize = 8,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(etykietaColorK),
+                Margin = new Thickness(1, -1, 0, 0)
+            });
+            Grid.SetRow(centerK, 1);
+            contentK.Children.Add(centerK);
+
+            // Pasek postępu pod bilansem — % wykorzystania puli w kolorze statusu
+            var postepK = BuildPostepBar(kPct, kStatusColor);
+            Grid.SetRow(postepK, 2);
+            contentK.Children.Add(postepK);
+
+            // --- KOLUMNA 2: pionowe równanie (Plan/Fakt, Stan jeśli > 0, Zam, podwójna kreska) ---
+            var eqBorderK = new Border
+            {
+                BorderBrush = new SolidColorBrush(Color.FromRgb(0xED, 0xF0, 0xF2)),
+                BorderThickness = new Thickness(1, 0, 0, 0),
+                Padding = new Thickness(8, 8, 10, 8)
+            };
+            var eqGridK = new Grid();
+            eqGridK.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            eqGridK.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            eqGridK.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            eqGridK.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            eqGridK.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            var pctTextK = new TextBlock
+            {
+                Text = (poolK <= 0 && zamLubWyd > 0) ? ">100%" : $"{Math.Round(kPct)}%",
+                FontSize = 13,
+                FontWeight = FontWeights.Bold,
+                Foreground = kNumBrush,
+                HorizontalAlignment = HorizontalAlignment.Right
+            };
+            Grid.SetRow(pctTextK, 0);
+            eqGridK.Children.Add(pctTextK);
+
+            var pctSepK = new Border { Height = 1, Background = new SolidColorBrush(Color.FromRgb(0xED, 0xF0, 0xF2)), Margin = new Thickness(0, 4, 0, 0) };
+            Grid.SetRow(pctSepK, 1);
+            eqGridK.Children.Add(pctSepK);
+
+            var eqRowsK = new StackPanel();
+            var serYellowK = Color.FromRgb(0xE6, 0xB0, 0x08);   // Plan/Fakt
+            var serPurpleK = Color.FromRgb(0x9B, 0x59, 0xB6);   // Stan
+            var serBlueK = Color.FromRgb(0x34, 0x98, 0xDB);     // Zam/Wyd
+            void EqRowK(string lbl, string val, Color valColor, bool strike = false)
+            {
+                var rowG = new Grid { Margin = new Thickness(0, 1, 0, 1) };
+                rowG.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                rowG.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                var l = new TextBlock
+                {
+                    Text = lbl,
+                    FontSize = 9.6,
+                    Foreground = new SolidColorBrush(strike ? Color.FromRgb(0xB9, 0xC4, 0xCC) : Color.FromRgb(0x8A, 0x98, 0xA3)),
+                    TextDecorations = strike ? TextDecorations.Strikethrough : null,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                Grid.SetColumn(l, 0);
+                rowG.Children.Add(l);
+                var v = new TextBlock
+                {
+                    Text = val,
+                    FontSize = 11,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = new SolidColorBrush(strike ? Color.FromRgb(0xB9, 0xC4, 0xCC) : valColor),
+                    TextDecorations = strike ? TextDecorations.Strikethrough : null,
+                    HorizontalAlignment = HorizontalAlignment.Right,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                System.Windows.Documents.Typography.SetNumeralAlignment(v, FontNumeralAlignment.Tabular);
+                Grid.SetColumn(v, 1);
+                rowG.Children.Add(v);
+                eqRowsK.Children.Add(rowG);
             }
+            if (fakt > 0)
+            {
+                EqRowK("Plan", $"{plan:N0}", serYellowK, strike: true);
+                EqRowK("Fakt", $"{fakt:N0}", serYellowK);
+            }
+            else
+            {
+                EqRowK("Plan", $"{plan:N0}", serYellowK);
+            }
+            if (stan > 0)
+                EqRowK("Stan", $"{stan:N0}", serPurpleK); // u Kurczaka A tylko gdy > 0
+            EqRowK(zamWydCapK, $"−{zamLubWyd:N0}", serBlueK);
+            Grid.SetRow(eqRowsK, 3);
+            eqGridK.Children.Add(eqRowsK);
 
-            // Bilans
-            string bilansLabel = bilans >= 0 ? "Do sprzedania: " : "Nadmiar: ";
-            var bilansColor = bilans >= 0 ? Color.FromRgb(39, 174, 96) : Color.FromRgb(231, 76, 60);
-            var bilansText = new TextBlock { FontSize = 11, Margin = new Thickness(0, 5, 0, 0), HorizontalAlignment = HorizontalAlignment.Right };
-            bilansText.Inlines.Add(new Run(bilansLabel) { Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141)) });
-            bilansText.Inlines.Add(new Run($"{Math.Abs(bilans):N0}") { FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(bilansColor) });
-            leftStack.Children.Add(bilansText);
+            var dblLineK = new StackPanel { Margin = new Thickness(0, 3, 0, 0) };
+            dblLineK.Children.Add(new Border { Height = 1, Background = new SolidColorBrush(Color.FromRgb(0x7F, 0x8C, 0x8D)) });
+            dblLineK.Children.Add(new Border { Height = 1, Background = new SolidColorBrush(Color.FromRgb(0x7F, 0x8C, 0x8D)), Margin = new Thickness(0, 2, 0, 0) });
+            Grid.SetRow(dblLineK, 4);
+            eqGridK.Children.Add(dblLineK);
 
-            Grid.SetColumn(leftStack, 0);
-            mainGrid.Children.Add(leftStack);
+            // WYNIK pod kreską — jak po lewej, w kolorze statusu, z "kg"
+            eqGridK.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            var eqWynikK = new TextBlock
+            {
+                Text = bilansTxtK + " kg",
+                FontSize = 13,
+                FontWeight = FontWeights.Bold,
+                Foreground = kNumBrush,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(0, 2, 0, 0)
+            };
+            System.Windows.Documents.Typography.SetNumeralAlignment(eqWynikK, FontNumeralAlignment.Tabular);
+            Grid.SetRow(eqWynikK, 5);
+            eqGridK.Children.Add(eqWynikK);
 
-            // ========== PRAWA STRONA: klasy wagowe ==========
+            eqBorderK.Child = eqGridK;
+            Grid.SetColumn(eqBorderK, 2);
+            mainGrid.Children.Add(eqBorderK);
+
+            // Tooltip z paskiem-skalą usunięty na życzenie — zostaje tylko prosta podpowiedź tekstowa
+            card.ToolTip = "Kliknij 2× — klasy wagowe dnia";
+
+            // ========== KOLUMNA 3: klasy wagowe (treść BEZ ZMIAN — zwijana uchwytem) ==========
             var rightBorder = new Border
             {
-                BorderBrush = new SolidColorBrush(Color.FromRgb(224, 224, 224)),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(0xE0, 0xE6, 0xEA)),
                 BorderThickness = new Thickness(1, 0, 0, 0),
-                Margin = new Thickness(10, 0, 0, 0),
-                Padding = new Thickness(10, 0, 0, 0)
+                Margin = new Thickness(8, 6, 0, 6),
+                Padding = new Thickness(10, 0, 6, 0),
+                Width = 230,
+                Visibility = _kurczakAExpanded ? Visibility.Visible : Visibility.Collapsed
             };
 
             var rightStack = new StackPanel();
@@ -7844,10 +9541,48 @@ ORDER BY zm.Id";
             }
 
             rightBorder.Child = rightStack;
-            Grid.SetColumn(rightBorder, 1);
+            Grid.SetColumn(rightBorder, 3);
             mainGrid.Children.Add(rightBorder);
 
+            // ========== KOLUMNA 4: uchwyt rozwijania/zwijania tabelki klas ==========
+            var arrowText = new TextBlock
+            {
+                Text = _kurczakAExpanded ? "◀" : "▶",
+                FontSize = 10,
+                Foreground = new SolidColorBrush(Color.FromRgb(0x6B, 0x7A, 0x86)),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            var handle = new Border
+            {
+                Width = 20,
+                Height = 46,
+                VerticalAlignment = VerticalAlignment.Center,
+                CornerRadius = new CornerRadius(8, 0, 0, 8),
+                Background = new SolidColorBrush(Color.FromRgb(0xFA, 0xFB, 0xFC)),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(0xE3, 0xE8, 0xEC)),
+                BorderThickness = new Thickness(1),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                ToolTip = "Pokaż/ukryj klasy wagowe",
+                Child = arrowText
+            };
+            handle.MouseEnter += (s, e) => handle.Background = new SolidColorBrush(Color.FromRgb(0xEF, 0xF3, 0xF6));
+            handle.MouseLeave += (s, e) => handle.Background = new SolidColorBrush(Color.FromRgb(0xFA, 0xFB, 0xFC));
+            // Down + Up z Handled — żeby NIE odpalał się filtr produktu ani double-click karty
+            handle.MouseLeftButtonDown += (s, e) => { e.Handled = true; };
+            handle.MouseLeftButtonUp += (s, e) =>
+            {
+                e.Handled = true;
+                _kurczakAExpanded = !_kurczakAExpanded;
+                rightBorder.Visibility = _kurczakAExpanded ? Visibility.Visible : Visibility.Collapsed;
+                arrowText.Text = _kurczakAExpanded ? "◀" : "▶";
+                ForceCardLayout();
+            };
+            Grid.SetColumn(handle, 4);
+            mainGrid.Children.Add(handle);
+
             card.Child = mainGrid;
+            _kurczakACard = card; // referencja dla ApplyCardLayout (2 sloty po rozwinięciu)
             return card;
         }
 
@@ -9156,6 +10891,98 @@ ORDER BY zm.Id";
             public string Uwagi { get; set; } = "";
         }
 
+        // Cena w tabeli zamówień: wartość > 0 → "24,50 zł/kg"; brak ceny → "- zł/kg"
+        public class CenaZlKgConverter : IValueConverter
+        {
+            public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+            {
+                decimal d = value is decimal dd ? dd : 0m;
+                return d > 0 ? d.ToString("N2", CultureInfo.CurrentCulture) + " zł/kg" : "- zł/kg";
+            }
+            public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+                => System.Windows.Data.Binding.DoNothing;
+        }
+
+        // Termin z ikoną zależną od transportu: 🏭 awizacja na zakładzie / 🚗 transport własny klienta
+        public class TerminIkonaConverter : System.Windows.Data.IMultiValueConverter
+        {
+            public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+            {
+                string s = values != null && values.Length > 0 ? values[0]?.ToString() ?? "" : "";
+                if (string.IsNullOrWhiteSpace(s)) return "";
+                bool wlasny = values.Length > 1 && values[1] is bool b && b;
+                return (wlasny ? "\U0001F697 " : "\U0001F3ED ") + s;
+            }
+            public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
+                => throw new NotSupportedException();
+        }
+
+        // Sama liczba ceny (jednostka "zł/kg" jest osobnym wierszem pod spodem)
+        public class CenaLiczbaConverter : IValueConverter
+        {
+            public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+            {
+                decimal d = value is decimal dd ? dd : 0m;
+                return d > 0 ? d.ToString("N2", CultureInfo.CurrentCulture) : "-";
+            }
+            public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+                => System.Windows.Data.Binding.DoNothing;
+        }
+
+        // Termin (awizacja) w tabeli zamówień: ikonka ZAKŁADU przed godziną/dniem —
+        // przypomina, że to godzina i data awizacji NA ZAKŁADZIE (puste zostaje puste)
+        public class TerminAutoConverter : IValueConverter
+        {
+            public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+            {
+                string s = value?.ToString() ?? "";
+                return string.IsNullOrWhiteSpace(s) ? "" : "🏭 " + s;
+            }
+            public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+                => System.Windows.Data.Binding.DoNothing;
+        }
+
+        // Rzeczywiste wydanie: ikonka AUTA przed godziną/dniem wyjazdu (puste zostaje puste)
+        public class WydanieAutoConverter : IValueConverter
+        {
+            public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+            {
+                string s = value?.ToString() ?? "";
+                return string.IsNullOrWhiteSpace(s) ? "" : "🚚 " + s;
+            }
+            public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+                => System.Windows.Data.Binding.DoNothing;
+        }
+
+        // Konwerter dla edytowalnych kolumn z jednostką: wyświetla "1 200 kg" / "24,50 zł/kg",
+        // a przy zapisie zdejmuje sufiks i parsuje liczbę (kultura PL)
+        public class JednostkaEditConverter : IValueConverter
+        {
+            private readonly string _suffix;
+            private readonly string _format;
+            public JednostkaEditConverter(string suffix, string format) { _suffix = suffix; _format = format; }
+
+            public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+            {
+                if (value is decimal d) return d.ToString(_format, CultureInfo.CurrentCulture) + " " + _suffix;
+                if (value is double db) return db.ToString(_format, CultureInfo.CurrentCulture) + " " + _suffix;
+                return value?.ToString() ?? "";
+            }
+
+            public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            {
+                string s = (value?.ToString() ?? "")
+                    .Replace(_suffix, "", StringComparison.OrdinalIgnoreCase)
+                    .Replace("zł/kg", "", StringComparison.OrdinalIgnoreCase)
+                    .Replace("kg", "", StringComparison.OrdinalIgnoreCase)
+                    .Replace(" ", " ")
+                    .Trim();
+                return decimal.TryParse(s, NumberStyles.Any, CultureInfo.CurrentCulture, out var d)
+                    ? d
+                    : System.Windows.Data.Binding.DoNothing;
+            }
+        }
+
         public class UtworzoneInitialsConverter : IValueConverter
         {
             public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
@@ -9774,7 +11601,12 @@ ORDER BY zm.Id";
 
             if (e.EditingElement is TextBox textBox)
             {
-                string newText = textBox.Text;
+                // Wartości wyświetlane mają sufiksy jednostek ("kg", "zł/kg") — zdejmij przed parsowaniem
+                string newText = textBox.Text
+                    .Replace("zł/kg", "", StringComparison.OrdinalIgnoreCase)
+                    .Replace("kg", "", StringComparison.OrdinalIgnoreCase)
+                    .Replace(" ", " ")
+                    .Trim();
 
                 if (columnName == "Zam.")
                 {

@@ -15,12 +15,12 @@ namespace Kalendarz1.DashboardPrzychodu.Models
         public string NewValue { get; set; } = "";
         public string UserName { get; set; } = "";
 
-        /// <summary>Krotka nazwa pola dla UI (Szt.Dek → "Szt", "Waga Brutto Hodowca" → "Brutto", "Waga Tara Hodowca" → "Tara").</summary>
+        /// <summary>Krotka nazwa pola dla UI (HarmonogramDostaw_ChangeLog FieldNames).</summary>
         public string FieldShort => FieldName switch
         {
-            "Szt.Dek" => "Szt",
-            "Waga Brutto Hodowca" => "Brutto",
-            "Waga Tara Hodowca" => "Tara",
+            "SztukiDek" => "Sztuki",
+            "WagaDek"   => "Waga śr.",
+            "Auta"      => "Auta",
             _ => FieldName
         };
 

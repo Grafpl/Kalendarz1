@@ -165,6 +165,7 @@
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
             <Border Grid.Row="0" Style="{StaticResource CardPanel}" Padding="8,6">
@@ -180,10 +181,148 @@
                         <Image x:Name="imgLogo" Width="28" Height="28" Stretch="Uniform"/>
                     </Border>
 
-                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,20,0">
-                        <TextBlock Text="📋 Panel Główny Wstawień" FontSize="12" FontWeight="Bold" Foreground="#2C3E50"/>
-                        <TextBlock Text="Zarządzanie hodowcami, dostawami i kontaktami" FontSize="8.5" Foreground="#5C8A3A" FontWeight="SemiBold" Margin="0,1,0,0"/>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
+                        <StackPanel VerticalAlignment="Center" Margin="0,0,14,0">
+                            <TextBlock Text="📋 Panel Główny Wstawień" FontSize="12" FontWeight="Bold" Foreground="#2C3E50"/>
+                            <TextBlock Text="Zarządzanie hodowcami, dostawami i kontaktami" FontSize="8.5" Foreground="#5C8A3A" FontWeight="SemiBold" Margin="0,1,0,0"/>
+                        </StackPanel>
+
+                        <!-- 🔍 Szukajka (po lewej, zaraz przy tytule) -->
+                        <Border Background="#F8F9FA" CornerRadius="14" Padding="8,3" BorderBrush="#CFD8DC" BorderThickness="1"
+                                Width="200" Height="28" Margin="0,0,8,0" VerticalAlignment="Center">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="🔍" FontSize="11" VerticalAlignment="Center" Margin="0,0,5,0" Foreground="#5C8A3A"/>
+                                <TextBox Grid.Column="1" x:Name="textBoxFilter"
+                                         BorderThickness="0" Background="Transparent"
+                                         Padding="0" FontSize="10.5" Foreground="#2C3E50"
+                                         VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+
+                        <!-- ➕ Dodaj (po szukajce) -->
+                        <Button Style="{StaticResource PrimaryButton}"
+                                Height="28" FontSize="10" Click="BtnDodaj_Click"
+                                ToolTip="Dodaj nowe wstawienie (Ctrl+N)">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="➕" FontSize="12" Margin="0,0,4,0"/>
+                                <TextBlock Text="Dodaj" FontSize="10" FontWeight="SemiBold"/>
+                            </StackPanel>
+                        </Button>
                     </StackPanel>
+
+                    <!-- ⌨️ Legenda skrótów klawiszowych — 3 grupy: 📱 SMS / ✅ Akcje / 📋 Lista -->
+                    <Border Grid.Column="2" Background="#FFFFFF" CornerRadius="8" Padding="10,5" BorderBrush="#CFD8DC" BorderThickness="1"
+                            VerticalAlignment="Center" HorizontalAlignment="Center" Margin="8,0,8,0">
+                        <Border.ToolTip>
+                            <TextBlock>
+                                <Run Text="Skróty klawiszowe działają gdy fokus jest w tabeli." FontWeight="Bold"/>
+                                <LineBreak/>
+                                <Run Text="Najpierw kliknij wiersz, potem naciśnij klawisz."/>
+                                <LineBreak/>
+                                <LineBreak/>
+                                <Run Text="📱 SMS" FontWeight="Bold" Foreground="#C0392B"/>
+                                <LineBreak/>
+                                <Run Text="   S = wyślij SMS krótki (skopiuje treść do schowka)"/>
+                                <LineBreak/>
+                                <Run Text="   Shift+S = wyślij SMS pełny (oficjalny standardowy)"/>
+                                <LineBreak/>
+                                <LineBreak/>
+                                <Run Text="✅ Akcje" FontWeight="Bold" Foreground="#27AE60"/>
+                                <LineBreak/>
+                                <Run Text="   F = potwierdź wstawienie (bez pytania)"/>
+                                <LineBreak/>
+                                <Run Text="   R = oznacz 'nie odebrał' + snooze 3 dni"/>
+                                <LineBreak/>
+                                <LineBreak/>
+                                <Run Text="📋 Lista" FontWeight="Bold" Foreground="#2980B9"/>
+                                <LineBreak/>
+                                <Run Text="   Ctrl+N = dodaj nowe wstawienie"/>
+                                <LineBreak/>
+                                <Run Text="   Enter = otwórz edycję wstawienia"/>
+                                <LineBreak/>
+                                <Run Text="   Del = usuń wstawienie (z potwierdzeniem)"/>
+                                <LineBreak/>
+                                <Run Text="   F5 = odśwież wszystkie listy"/>
+                            </TextBlock>
+                        </Border.ToolTip>
+                        <StackPanel Orientation="Horizontal">
+
+                            <!-- GRUPA 1: 📱 SMS (priorytetowe, czerwone) -->
+                            <StackPanel Orientation="Horizontal" Margin="0,0,6,0">
+                                <TextBlock Text="📱" FontSize="13" VerticalAlignment="Center" Margin="0,0,5,0"
+                                           ToolTip="📱 SMS — najczęściej używane skróty"/>
+                                <Border Background="#C0392B" CornerRadius="4" Padding="6,2" Margin="0,0,3,0"
+                                        ToolTip="Wyślij SMS krótki (wariant 2) — kopiuje treść do schowka">
+                                    <TextBlock Text="S" FontSize="10" FontWeight="Bold" Foreground="White"/>
+                                </Border>
+                                <TextBlock Text="krótki" FontSize="10" Foreground="#37474F" FontWeight="SemiBold"
+                                           VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <Border Background="#C0392B" CornerRadius="4" Padding="6,2" Margin="0,0,3,0"
+                                        ToolTip="Wyślij SMS pełny (wariant 1) — oficjalny standardowy">
+                                    <TextBlock Text="⇧S" FontSize="10" FontWeight="Bold" Foreground="White"/>
+                                </Border>
+                                <TextBlock Text="pełny" FontSize="10" Foreground="#37474F" FontWeight="SemiBold"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+
+                            <Rectangle Width="1" Height="20" Fill="#CFD8DC" Margin="6,0,6,0" VerticalAlignment="Center"/>
+
+                            <!-- GRUPA 2: ✅ Akcje (potwierdź / nie odebrał) -->
+                            <StackPanel Orientation="Horizontal" Margin="0,0,6,0">
+                                <TextBlock Text="✅" FontSize="13" VerticalAlignment="Center" Margin="0,0,5,0"
+                                           ToolTip="✅ Akcje — zmień status wstawienia"/>
+                                <Border Background="#27AE60" CornerRadius="4" Padding="6,2" Margin="0,0,3,0"
+                                        ToolTip="Potwierdź wstawienie natychmiast — bez pytania">
+                                    <TextBlock Text="F" FontSize="10" FontWeight="Bold" Foreground="White"/>
+                                </Border>
+                                <TextBlock Text="potwierdź" FontSize="10" Foreground="#37474F" FontWeight="SemiBold"
+                                           VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <Border Background="#E67E22" CornerRadius="4" Padding="6,2" Margin="0,0,3,0"
+                                        ToolTip="Oznacz 'nie odebrał' i odłóż o 3 dni (tylko Przypomnienia)">
+                                    <TextBlock Text="R" FontSize="10" FontWeight="Bold" Foreground="White"/>
+                                </Border>
+                                <TextBlock Text="nie odebrał" FontSize="10" Foreground="#37474F" FontWeight="SemiBold"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+
+                            <Rectangle Width="1" Height="20" Fill="#CFD8DC" Margin="6,0,6,0" VerticalAlignment="Center"/>
+
+                            <!-- GRUPA 3: 📋 Lista (CRUD + odświeżanie) -->
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="📋" FontSize="13" VerticalAlignment="Center" Margin="0,0,5,0"
+                                           ToolTip="📋 Lista — zarządzanie wstawieniami"/>
+                                <Border Background="#2980B9" CornerRadius="4" Padding="6,2" Margin="0,0,3,0"
+                                        ToolTip="Dodaj nowe wstawienie">
+                                    <TextBlock Text="Ctrl+N" FontSize="10" FontWeight="Bold" Foreground="White"/>
+                                </Border>
+                                <TextBlock Text="dodaj" FontSize="10" Foreground="#37474F" FontWeight="SemiBold"
+                                           VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <Border Background="#7F8C8D" CornerRadius="4" Padding="6,2" Margin="0,0,3,0"
+                                        ToolTip="Otwórz edycję wybranego wstawienia">
+                                    <TextBlock Text="Enter" FontSize="10" FontWeight="Bold" Foreground="White"/>
+                                </Border>
+                                <TextBlock Text="edytuj" FontSize="10" Foreground="#37474F" FontWeight="SemiBold"
+                                           VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <Border Background="#E74C3C" CornerRadius="4" Padding="6,2" Margin="0,0,3,0"
+                                        ToolTip="Usuń wstawienie (z potwierdzeniem)">
+                                    <TextBlock Text="Del" FontSize="10" FontWeight="Bold" Foreground="White"/>
+                                </Border>
+                                <TextBlock Text="usuń" FontSize="10" Foreground="#37474F" FontWeight="SemiBold"
+                                           VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <Border Background="#16A085" CornerRadius="4" Padding="6,2" Margin="0,0,3,0"
+                                        ToolTip="Odśwież wszystkie tabele (ponownie pobierz dane z bazy)">
+                                    <TextBlock Text="F5" FontSize="10" FontWeight="Bold" Foreground="White"/>
+                                </Border>
+                                <TextBlock Text="odśwież" FontSize="10" Foreground="#37474F" FontWeight="SemiBold"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+
+                        </StackPanel>
+                    </Border>
 
                     <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
                         <Button x:Name="btnAudyt" Style="{StaticResource InfoButton}"
@@ -241,69 +380,12 @@
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
 
-                        <Grid Grid.Row="0" Margin="0,0,0,8">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-
-                            <Grid Grid.Row="0" Margin="0,0,0,6">
-                                <StackPanel VerticalAlignment="Center">
-                                    <TextBlock Text="📋 Lista Wstawień" FontSize="15" FontWeight="Bold" Foreground="#2C3E50"/>
-                                    <TextBlock Text="Ctrl+N Dodaj  |  Del Usuń  |  Ctrl+F Szukaj  |  F5 Odśwież  |  Enter Edytuj"
-                                               FontSize="7" Foreground="#95A5A6" FontStyle="Italic" Margin="0,1,0,0"/>
-                                </StackPanel>
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                    <Button Content="➕ Dodaj" Style="{StaticResource PrimaryButton}"
-                                            Click="BtnDodaj_Click"/>
-                                </StackPanel>
-                            </Grid>
-
-                            <Grid Grid.Row="1">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-
-                                <Border Grid.Column="0" Background="#F8F9FA" CornerRadius="6" Padding="8,6" BorderBrush="#E0E0E0" BorderThickness="1" Margin="0,0,6,0">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Text="🔍" FontSize="12" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="#5C8A3A"/>
-                                        <TextBox Grid.Column="1" x:Name="textBoxFilter" 
-                                                 Style="{StaticResource ModernTextBox}"
-                                                 BorderThickness="0" Background="Transparent"
-                                                 Padding="2" FontSize="10" 
-                                                 Foreground="#2C3E50"/>
-                                    </Grid>
-                                </Border>
-
-                                <Border Grid.Column="1" Background="#E8F5E9" CornerRadius="6" Padding="6,4" BorderBrush="#81C784" BorderThickness="1" Margin="0,0,6,0">
-                                    <CheckBox x:Name="chkPokazPrzyszle" Content="📅 Tylko przyszłe" FontSize="9" FontWeight="SemiBold" 
-                                              Foreground="#2E7D32" VerticalAlignment="Center" Checked="ChkPokazPrzyszle_Changed" Unchecked="ChkPokazPrzyszle_Changed"/>
-                                </Border>
-
-                                <Border Grid.Column="2" Background="#FFF3E0" CornerRadius="6" Padding="6,4" BorderBrush="#FFB74D" BorderThickness="1" Margin="0,0,6,0">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="📆 Od: " FontSize="9" FontWeight="SemiBold" Foreground="#EF6C00" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                        <DatePicker x:Name="datePickerOd" FontSize="9" Height="22" BorderThickness="0" Background="Transparent"
-                                                    SelectedDateChanged="DatePickerOd_Changed" Width="90"/>
-                                    </StackPanel>
-                                </Border>
-
-                                <Border Grid.Column="3" Background="#FFF3E0" CornerRadius="6" Padding="6,4" BorderBrush="#FFB74D" BorderThickness="1">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="Do: " FontSize="9" FontWeight="SemiBold" Foreground="#EF6C00" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                        <DatePicker x:Name="datePickerDo" FontSize="9" Height="22" BorderThickness="0" Background="Transparent"
-                                                    SelectedDateChanged="DatePickerDo_Changed" Width="90"/>
-                                    </StackPanel>
-                                </Border>
-                            </Grid>
-                        </Grid>
+                        <!-- Nagłówek listy wstawień (szukajka + Dodaj są w lewym górnym pasku) -->
+                        <StackPanel Grid.Row="0" VerticalAlignment="Center" Margin="0,0,0,8">
+                            <TextBlock Text="📋 Lista Wstawień" FontSize="15" FontWeight="Bold" Foreground="#2C3E50"/>
+                            <TextBlock Text="🔍 Szukajka i ➕ Dodaj są w lewym górnym rogu okna."
+                                       FontSize="8" Foreground="#95A5A6" FontStyle="Italic" Margin="0,1,0,0"/>
+                        </StackPanel>
 
                         <Border Grid.Row="1" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="10" ClipToBounds="True">
                             <DataGrid x:Name="dataGridWstawienia"
@@ -321,6 +403,16 @@
                                         <MenuItem Header="✅ Potwierdzenie wstawienia" Click="MenuPotwierdzWstawienieGrid_Click" FontWeight="SemiBold" Foreground="#27AE60"/>
                                         <MenuItem Header="↩️ Cofnij potwierdzenie" Click="MenuCofnijPotwierdzenie_Click" Foreground="#E67E22"/>
                                         <Separator/>
+                                        <MenuItem Header="📱 1️⃣  SMS — Oficjalny standardowy" Tag="1" Click="MenuSmsWariantWst_Click" FontWeight="SemiBold"/>
+                                        <MenuItem Header="📱 2️⃣  SMS — Krótki i konkretny" Tag="2" Click="MenuSmsWariantWst_Click"/>
+                                        <MenuItem Header="📱 3️⃣  SMS — Przyjazny i ciepły" Tag="3" Click="MenuSmsWariantWst_Click"/>
+                                        <MenuItem Header="📱 4️⃣  SMS — Z pytaniem o termin" Tag="4" Click="MenuSmsWariantWst_Click"/>
+                                        <MenuItem Header="📱 5️⃣  SMS — Z delikatnym przypomnieniem" Tag="5" Click="MenuSmsWariantWst_Click"/>
+                                        <Separator/>
+                                        <MenuItem Header="🌾 6️⃣  Wolny rynek — prośba o orientacyjny termin" Tag="6" Click="MenuSmsWariantWst_Click" Foreground="#5C8A3A"/>
+                                        <MenuItem Header="🌾 7️⃣  Wolny rynek — otwarcie drogi do kontaktu" Tag="7" Click="MenuSmsWariantWst_Click" Foreground="#5C8A3A"/>
+                                        <MenuItem Header="🌾 8️⃣  Wolny rynek — sygnał zainteresowania (lekki)" Tag="8" Click="MenuSmsWariantWst_Click" Foreground="#5C8A3A"/>
+                                        <Separator/>
                                         <MenuItem Header="🗑️ Usuń wstawienie" Click="MenuUsun_Click" Foreground="#E74C3C"/>
                                     </ContextMenu>
                                 </DataGrid.ContextMenu>
@@ -332,6 +424,8 @@
                 <Border Grid.Column="1" Style="{StaticResource CardPanel}">
                     <Grid>
                         <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
@@ -346,7 +440,7 @@
                                     </StackPanel>
                                 </Border>
                             </Grid>
-                            <TextBlock Text="PPM → Opcje kontaktu" FontSize="7.5" Foreground="#7F8C8D" FontStyle="Italic"/>
+                            <TextBlock Text="PPM → Opcje kontaktu  •  ⭐ = stały klient (miał Potwierdzony)" FontSize="7.5" Foreground="#7F8C8D" FontStyle="Italic"/>
                         </StackPanel>
 
                         <Border Grid.Row="1" BorderBrush="#F39C12" BorderThickness="2" CornerRadius="8" ClipToBounds="True">
@@ -365,12 +459,44 @@
                                         <Separator/>
                                         <MenuItem Header="📞 Zadzwoń (Łącze z telefonem)" Click="MenuZadzwon_Click" FontWeight="SemiBold"/>
                                         <Separator/>
-                                        <MenuItem Header="📱 Wyślij SMS (schowek)" Click="MenuSmsSchowek_Click" FontWeight="SemiBold"/>
+                                        <MenuItem Header="📱 1️⃣  SMS — Oficjalny standardowy" Tag="1" Click="MenuSmsWariant_Click" FontWeight="SemiBold"/>
+                                        <MenuItem Header="📱 2️⃣  SMS — Krótki i konkretny" Tag="2" Click="MenuSmsWariant_Click"/>
+                                        <MenuItem Header="📱 3️⃣  SMS — Przyjazny i ciepły" Tag="3" Click="MenuSmsWariant_Click"/>
+                                        <MenuItem Header="📱 4️⃣  SMS — Z pytaniem o termin" Tag="4" Click="MenuSmsWariant_Click"/>
+                                        <MenuItem Header="📱 5️⃣  SMS — Z delikatnym przypomnieniem" Tag="5" Click="MenuSmsWariant_Click"/>
+                                        <Separator/>
+                                        <MenuItem Header="🌾 6️⃣  Wolny rynek — prośba o orientacyjny termin" Tag="6" Click="MenuSmsWariant_Click" Foreground="#5C8A3A"/>
+                                        <MenuItem Header="🌾 7️⃣  Wolny rynek — otwarcie drogi do kontaktu" Tag="7" Click="MenuSmsWariant_Click" Foreground="#5C8A3A"/>
+                                        <MenuItem Header="🌾 8️⃣  Wolny rynek — sygnał zainteresowania (lekki)" Tag="8" Click="MenuSmsWariant_Click" Foreground="#5C8A3A"/>
+                                        <Separator/>
                                         <MenuItem Header="📲 Wyślij SMS (Łącze z telefonem)" Click="MenuSmsPhoneLink_Click" FontWeight="SemiBold"/>
                                         <MenuItem Header="📋 Kopiuj numer telefonu" Click="MenuKopiujNumer_Click"/>
                                     </ContextMenu>
                                 </DataGrid.ContextMenu>
                             </DataGrid>
+                        </Border>
+
+                        <!-- Sekcja: Nadchodzące wstawienia (zakupowiec dzwoni potwierdzić, bo czasami zmieniają) -->
+                        <StackPanel Grid.Row="2" Margin="0,8,0,4">
+                            <Grid>
+                                <TextBlock Text="📞 Nadchodzące wstawienia (zadzwoń potwierdzić)" FontSize="12" FontWeight="Bold" Foreground="#2C3E50" HorizontalAlignment="Left"/>
+                                <Border Background="#E3F2FD" CornerRadius="6" Padding="5,2" HorizontalAlignment="Right">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="🗓 " FontSize="8" Foreground="#1976D2" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="txtLiczbaDoPotwierdzenia" Text="0" FontSize="9" Foreground="#1976D2" FontWeight="Bold"/>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+                            <TextBlock Text="Wstawienia w ciągu 14 dni — zadzwoń żeby potwierdzić termin" FontSize="7.5" Foreground="#7F8C8D" FontStyle="Italic"/>
+                        </StackPanel>
+
+                        <Border Grid.Row="3" BorderBrush="#1976D2" BorderThickness="2" CornerRadius="8" ClipToBounds="True">
+                            <!-- ContextMenu jest dodawany programowo w SetupDoPotwierdzeniaColumns -->
+                            <DataGrid x:Name="dataGridDoPotwierdzenia"
+                                      Style="{StaticResource ModernDataGrid}"
+                                      ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
+                                      CellStyle="{StaticResource DataGridCellStyle}"
+                                      RowHeight="24" FontSize="9"/>
                         </Border>
 
                     </Grid>
@@ -399,9 +525,38 @@
                     </Grid>
                 </Border>
             </Grid>
-        </Grid>
 
-        <!-- Ukryty DataGrid — usunięty z UI ale code-behind go wymaga -->
-        <DataGrid x:Name="dataGridDoPotwierdzenia" Visibility="Collapsed"/>
+            <!-- 📊 Status bar dolny — liczniki w czasie rzeczywistym -->
+            <Border Grid.Row="2" Background="#FFFFFF" CornerRadius="6" Padding="10,4" Margin="6,4,6,0"
+                    BorderBrush="#E0E6E8" BorderThickness="1">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Orientation="Horizontal">
+                        <TextBlock Text="📋" FontSize="11" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                        <TextBlock x:Name="statusWstawienia" Text="Wstawień: —" FontSize="10" FontWeight="SemiBold" Foreground="#37474F" VerticalAlignment="Center" Margin="0,0,16,0"/>
+
+                        <TextBlock Text="⏰" FontSize="11" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                        <TextBlock x:Name="statusPrzypomnienia" Text="Przypomnień: —" FontSize="10" FontWeight="SemiBold" Foreground="#E74C3C" VerticalAlignment="Center" Margin="0,0,16,0"/>
+
+                        <TextBlock Text="📞" FontSize="11" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                        <TextBlock x:Name="statusNadchodzace" Text="Nadchodzących: —" FontSize="10" FontWeight="SemiBold" Foreground="#1976D2" VerticalAlignment="Center" Margin="0,0,16,0"/>
+
+                        <TextBlock Text="📜" FontSize="11" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                        <TextBlock x:Name="statusHistoria" Text="Historia: —" FontSize="10" FontWeight="SemiBold" Foreground="#9B59B6" VerticalAlignment="Center" Margin="0,0,16,0"/>
+
+                        <TextBlock Text="⭐" FontSize="11" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                        <TextBlock x:Name="statusStali" Text="Stałych: —" FontSize="10" FontWeight="SemiBold" Foreground="#4CAF50" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <TextBlock Grid.Column="2" x:Name="statusUser" Text="" FontSize="9" Foreground="#95A5A6" FontStyle="Italic" VerticalAlignment="Center"/>
+                </Grid>
+            </Border>
+
+        </Grid>
     </Grid>
 </Window>

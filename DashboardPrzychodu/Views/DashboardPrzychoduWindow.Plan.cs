@@ -38,7 +38,12 @@ namespace Kalendarz1.DashboardPrzychodu.Views
 
         /// <summary>
         /// Tryb "Nowe": per-auto plan = SztukiExcel × WagaDek(harmonogram),
-        /// ostatnie auto w grupie = reszta z harmonogramu.
+        /// ostatnie auto w grupie = reszta z harmonogramu (tylko gdy NIE ma overflow).
+        ///
+        /// PRZYPADEK OVERFLOW (np. Łapiak Monika - 3 auta wjechały, plan na 2):
+        /// Reguła "ostatnie = reszta" daje 0 kg planu dla trzeciego auta, bo poprzednie
+        /// dwie wyczerpały plan. Dlatego: GDY items.Count > AutaPlanowane,
+        /// wszystkie auta dostają zwykłe SztukiExcel × WagaDek bez "reszty".
         /// </summary>
         private void RecalculateNowyPlan()
         {
@@ -51,13 +56,18 @@ namespace Kalendarz1.DashboardPrzychodu.Views
                 var items = group.OrderBy(d => d.NrKursu).ToList();
                 decimal planKgLacznie = items.First().PlanKgLacznie;
                 decimal wagaDekl = items.First().WagaDeklHarmonogram ?? 0;
+                int autaPlan = items.First().AutaPlanowane;
+
+                // OVERFLOW: wjechało więcej aut niż w harmonogramie - wszystkie dostają
+                // własny SztukiExcel × WagaDek (bez reguły "ostatnie = reszta")
+                bool overflow = items.Count > autaPlan;
 
                 decimal sumaAssigned = 0;
                 for (int i = 0; i < items.Count; i++)
                 {
-                    if (i == items.Count - 1)
+                    if (!overflow && i == items.Count - 1)
                     {
-                        // Ostatnie auto = reszta z harmonogramu
+                        // Standard: ostatnie auto = reszta z harmonogramu (zgadza się suma)
                         items[i].NowyPlanKg = planKgLacznie - sumaAssigned;
                     }
                     else
@@ -69,11 +79,14 @@ namespace Kalendarz1.DashboardPrzychodu.Views
                 }
             }
 
-            // Rekordy bez LpDostawy: SztukiExcel × WagaDek z FarmerCalc
+            // Rekordy bez LpDostawy: SztukiExcel × WagaDek z FarmerCalc,
+            // z fallbackiem do item.KgPlan (które ma już NettoFarmWeight z SQL gdy istnieje)
             foreach (var item in _dostawy.Where(d => !d.LpDostawy.HasValue))
             {
                 decimal wagaDekl = item.WagaDeklHarmonogram ?? item.SredniaWagaPlan ?? 0;
-                item.NowyPlanKg = item.SztukiExcel * wagaDekl;
+                decimal obliczony = item.SztukiExcel * wagaDekl;
+                // Jeśli SztExcel=0 lub waga=NULL → użyj planu z SQL (NettoFarmWeight per auto)
+                item.NowyPlanKg = obliczony > 0 ? obliczony : item.KgPlan;
             }
 
             RecalculateNowySummary();

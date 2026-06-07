@@ -22,8 +22,13 @@ namespace Kalendarz1.DashboardPrzychodu.Views
         {
             _hodowcaColorMap.Clear();
 
+            // Mapuj kolory dla WSZYSTKICH hodowców - z FarmerCalc + z HarmonogramDostaw.
+            // Inaczej hodowcy z harmonogramu którzy nie dostarczyli aut (np. Łapiak Monika
+            // gdy rodzeństwo zmieniło decyzję) mają HodowcaKolor=null → nazwa karty
+            // niewidoczna (czarny tekst na ciemnym tle).
             var uniqueNames = _dostawy
                 .Select(d => (d.Hodowca ?? "").Trim())
+                .Concat(_postepyHarmonogramow.Select(h => (h.Hodowca ?? "").Trim()))
                 .Where(n => !string.IsNullOrEmpty(n))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
@@ -97,9 +102,21 @@ namespace Kalendarz1.DashboardPrzychodu.Views
                 }
             }
 
-            // Wykryj aktywne karty (zmiana AutaZwazone od ostatniego refresh) + sortuj
+            // Wykryj aktywne karty (zmiana AutaZwazone od ostatniego refresh) + sortuj.
+            // Sortowanie wg kolejności wjazdu: pierwszy hodowca w DataGrid (najmniejszy NrKursu)
+            // dostaje swoja karte na pierwszym miejscu w sidebarze.
             var noweAuta = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-            var posortowane = _postepyHarmonogramow.OrderBy(h => h.CzyZakonczone ? 1 : 0).ThenBy(h => h.Hodowca).ToList();
+
+            // Mapuj LpDostawy → najmniejszy NrKursu (kolejność wjazdu na rampę)
+            var kolejnoscWjazdu = _dostawy
+                .Where(d => d.LpDostawy.HasValue)
+                .GroupBy(d => d.LpDostawy.Value)
+                .ToDictionary(g => g.Key, g => g.Min(d => d.NrKursu));
+
+            var posortowane = _postepyHarmonogramow
+                .OrderBy(h => kolejnoscWjazdu.TryGetValue(h.LpDostawy, out var nr) ? nr : int.MaxValue)
+                .ThenBy(h => h.Hodowca)
+                .ToList();
             _postepyHarmonogramow.Clear();
             foreach (var h in posortowane)
             {
@@ -116,46 +133,6 @@ namespace Kalendarz1.DashboardPrzychodu.Views
                 _postepyHarmonogramow.Add(h);
             }
             _poprzednieAutaZwazone = noweAuta;
-
-            UpdateStackedBar();
-        }
-
-        /// <summary>
-        /// Stacked bar realizacji dnia: paski proporcjonalne kg, kolory per hodowca.
-        /// </summary>
-        private void UpdateStackedBar()
-        {
-            var segments = new List<BarSegment>();
-            decimal totalPlan = _postepyHarmonogramow.Sum(h => h.PlanKgLacznie);
-            if (totalPlan <= 0)
-            {
-                icStackedBar.ItemsSource = segments;
-                txtStackedBarLabel.Text = "";
-                return;
-            }
-
-            double barTotalWidth = Math.Max(100, icStackedBar.ActualWidth > 0 ? icStackedBar.ActualWidth : 430);
-
-            decimal totalZwazone = 0;
-            foreach (var h in _postepyHarmonogramow)
-            {
-                if (h.KgZwazoneSuma <= 0) continue;
-                double proportion = (double)(h.KgZwazoneSuma / totalPlan);
-                double width = Math.Max(3, proportion * barTotalWidth);
-                totalZwazone += h.KgZwazoneSuma;
-
-                segments.Add(new BarSegment
-                {
-                    Hodowca = h.Hodowca,
-                    BarWidth = width,
-                    HodowcaKolor = h.HodowcaKolor,
-                    BarTooltip = $"{h.Hodowca}: {h.KgZwazoneSuma:N0} kg ({proportion * 100:N0}%)"
-                });
-            }
-
-            icStackedBar.ItemsSource = segments;
-            decimal procent = totalPlan > 0 ? totalZwazone / totalPlan * 100 : 0;
-            txtStackedBarLabel.Text = $"{procent:N0}%";
         }
     }
 }

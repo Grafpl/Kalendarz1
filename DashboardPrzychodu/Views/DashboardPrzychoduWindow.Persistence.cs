@@ -82,16 +82,7 @@ namespace Kalendarz1.DashboardPrzychodu.Views
         /// </summary>
         private void ApplyKpiIconEmoji(string target, string emoji)
         {
-            if (string.IsNullOrEmpty(emoji)) return;
-            switch (target)
-            {
-                case "plan": IcoPlan.Text = emoji; break;
-                case "zwazone": IcoZwazone.Text = emoji; break;
-                case "pozostalo": IcoPozostalo.Text = emoji; break;
-                case "odchylenie": IcoOdchylenie.Text = emoji; break;
-                case "tuszki": IcoTuszki.Text = emoji; break;
-                case "realizacja": IcoRealizacja.Text = emoji; break;
-            }
+            // KPI Strip został usunięty - no-op (zachowane settings persystowane ale nie używane wizualnie)
         }
     }
 }

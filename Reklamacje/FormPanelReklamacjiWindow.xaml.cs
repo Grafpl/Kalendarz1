@@ -145,11 +145,12 @@ namespace Kalendarz1.Reklamacje
             // Statystyki - tylko dla jakosci
             if (btnStatystyki != null) btnStatystyki.Visibility = isJakosc ? Visibility.Visible : Visibility.Collapsed;
 
-            // Usuwanie + debug + ustawienia sync + profiler - tylko admin (UserID 11111)
+            // Usuwanie + debug + ustawienia sync - tylko admin (UserID 11111)
             if (btnUsun != null) btnUsun.Visibility = isAdmin ? Visibility.Visible : Visibility.Collapsed;
             if (btnDebugSync != null) btnDebugSync.Visibility = isAdmin ? Visibility.Visible : Visibility.Collapsed;
             if (btnUstawieniaSync != null) btnUstawieniaSync.Visibility = isAdmin ? Visibility.Visible : Visibility.Collapsed;
-            if (btnProfiler != null) btnProfiler.Visibility = isAdmin ? Visibility.Visible : Visibility.Collapsed;
+            // Profiler — widoczny dla wszystkich (przydatne do diagnostyki)
+            if (btnProfiler != null) btnProfiler.Visibility = Visibility.Visible;
 
             // Panel jakosci - ZAWSZE widoczny dla wszystkich (bez ograniczen rolowych)
             if (panelJakosci != null) panelJakosci.Visibility = Visibility.Visible;
@@ -256,29 +257,20 @@ namespace Kalendarz1.Reklamacje
                 {
                     if (_cts.IsCancellationRequested) return;
                     _syncWToku = false;
+                    this.Title = originalTitle; // zawsze przywroc czysty tytul
                     if (ok)
                     {
                         if (nowych > 0)
                         {
-                            this.Title = $"{originalTitle}  —  ✅ +{nowych} nowych korekt";
+                            ShowToast("✅ Zsynchronizowano " + nowych + " nowych korekt z Symfonii", 4000);
                             try { WczytajReklamacje(); WczytajStatystyki(); } catch { }
-                            // Przywroc tytul po 4s
-                            var t = new DispatcherTimer { Interval = TimeSpan.FromSeconds(4) };
-                            t.Tick += (s, a) => { this.Title = originalTitle; t.Stop(); };
-                            t.Start();
                         }
-                        else
-                        {
-                            this.Title = originalTitle;
-                        }
+                        // Brak nowych — nie pokazuj toasta (cicha aktualizacja)
                     }
                     else
                     {
-                        this.Title = originalTitle + "  —  ⚠ sync failed";
+                        ShowToast("⚠ Sync korekt nie powiodl sie: " + (errMsg ?? "blad"), 5000);
                         System.Diagnostics.Debug.WriteLine("Async sync error: " + errMsg);
-                        var t = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
-                        t.Tick += (s, a) => { this.Title = originalTitle; t.Stop(); };
-                        t.Start();
                     }
                 }));
             });
@@ -464,7 +456,10 @@ namespace Kalendarz1.Reklamacje
                         "Handlowiec NVARCHAR(100) NULL",
                         // Kto i kiedy ZAKONCZYL sprawe (Zatwierdz / Odrzuc) — pokazywane w kolumnie "Zakonczyl"
                         "DataZakonczenia DATETIME NULL",
-                        "UserZakonczenia NVARCHAR(50) NULL"
+                        "UserZakonczenia NVARCHAR(50) NULL",
+                        // Pola decyzji jakosci — przyczyna + akcje naprawcze (wymagane przez FormRozpatrzenie i panel boczny)
+                        "PrzyczynaGlowna NVARCHAR(MAX) NULL",
+                        "AkcjeNaprawcze NVARCHAR(MAX) NULL"
                     };
 
                     using (StartupProfiler.Sql($"Migracja: ALTER {kolumnyDoDodania.Length} kolumn V2 (loop)", "ALTER TABLE Reklamacje ADD ... × " + kolumnyDoDodania.Length, "LibraNet"))
@@ -866,7 +861,10 @@ namespace Kalendarz1.Reklamacje
                             r.DataAnalizy,
                             -- Info o powiazanej korekcie (jezeli reklamacja ma partnera typu 'Faktura korygujaca')
                             kor.NumerDokumentu AS NumerKorekty,
-                            kor.DataZgloszenia AS DataKorekty
+                            kor.DataZgloszenia AS DataKorekty,
+                            r.PrzyczynaGlowna,
+                            r.AkcjeNaprawcze,
+                            ISNULL(r.IdKontrahenta, 0) AS IdKontrahenta
                         FROM [dbo].[Reklamacje] r
                         LEFT JOIN [dbo].[operators] o ON r.UserID = o.ID
                         LEFT JOIN [dbo].[operators] o2 ON r.OsobaRozpatrujaca = o2.ID
@@ -878,7 +876,8 @@ namespace Kalendarz1.Reklamacje
                         --   - korekty ze statusem nie-ZGLOSZONA (juz obrabiane) — pokazujemy zawsze
                         --   - korekty POWIAZANA (z partnerem handlowca) — UKRYWAMY (duplikat)
                         WHERE (r.TypReklamacji <> 'Faktura korygujaca' OR r.DataZgloszenia >= @DataOdKorekt OR ISNULL(r.StatusV2,'ZGLOSZONA') NOT IN ('ZGLOSZONA'))
-                          AND NOT (r.TypReklamacji = 'Faktura korygujaca' AND ISNULL(r.StatusV2,'') = 'POWIAZANA')";
+                          AND NOT (r.TypReklamacji = 'Faktura korygujaca' AND ISNULL(r.StatusV2,'') = 'POWIAZANA')
+                          AND ISNULL(r.NazwaKontrahenta,'') NOT LIKE 'Centrum drobiu%'";
 
                     string statusFilter = (cmbStatus.SelectedItem as ComboBoxItem)?.Content?.ToString();
                     string statusV2Filter = statusFilter switch
@@ -985,7 +984,10 @@ namespace Kalendarz1.Reklamacje
                                     DataZakonczenia = reader.IsDBNull(23) ? (DateTime?)null : reader.GetDateTime(23),
                                     DataAnalizy = reader.IsDBNull(24) ? (DateTime?)null : reader.GetDateTime(24),
                                     NumerKorektyPowiazanej = reader.IsDBNull(25) ? null : reader.GetString(25),
-                                    DataKorektyPowiazanej = reader.IsDBNull(26) ? (DateTime?)null : reader.GetDateTime(26)
+                                    DataKorektyPowiazanej = reader.IsDBNull(26) ? (DateTime?)null : reader.GetDateTime(26),
+                                    PrzyczynaGlowna = reader.IsDBNull(27) ? null : reader.GetString(27),
+                                    AkcjeNaprawcze = reader.IsDBNull(28) ? null : reader.GetString(28),
+                                    IdKontrahenta = reader.IsDBNull(29) ? 0 : reader.GetInt32(29)
                                 };
                                 // Fix G: NIE pobieramy avatarów w pętli readera (avatar disk I/O blokowałoby connection).
                                 // Avatary populowane po zakończeniu readera (Fix G) + część w tle (Fix H).
@@ -1273,6 +1275,9 @@ namespace Kalendarz1.Reklamacje
             // Workflow V2: kontekstowa widocznosc przyciskow (tylko dla pojedynczego zaznaczenia)
             UstawKontekstoweAkcje(single ? dgReklamacje.SelectedItem as ReklamacjaItem : null);
 
+            // Panel boczny ze szczegolami
+            WyswietlPanelSzczegolow(single ? dgReklamacje.SelectedItem as ReklamacjaItem : null);
+
             if (n >= 2)
             {
                 txtZaznaczenie.Text = $"Zaznaczono {n} reklamacji — uzyj paska akcji masowych powyzej";
@@ -1294,7 +1299,3808 @@ namespace Kalendarz1.Reklamacje
         }
 
         // ============================================================
-        // KARTA KLIENTA — sticky panel boczny
+        // PANEL BOCZNY SZCZEGOLOW REKLAMACJI
+        // ============================================================
+        private void WyswietlPanelSzczegolow(ReklamacjaItem item)
+        {
+            if (item == null)
+            {
+                if (panelEmpty != null) panelEmpty.Visibility = Visibility.Visible;
+                if (panelSzczegoly != null) panelSzczegoly.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            try
+            {
+                if (panelEmpty != null) panelEmpty.Visibility = Visibility.Collapsed;
+                if (panelSzczegoly != null) panelSzczegoly.Visibility = Visibility.Visible;
+
+                // Header
+                ps_Id.Text = "#" + item.Id;
+                ps_NumerDokumentu.Text = string.IsNullOrEmpty(item.NumerDokumentu) ? "(bez numeru)" : item.NumerDokumentu;
+                ps_Status.Text = item.StatusV2Etykieta;
+                ps_StatusBadge.Background = StatusBgBrush(item.StatusV2, item.WymagaUzupelnienia);
+
+                // Priorytet
+                ps_Priorytet.Text = (item.Priorytet ?? "Normalny").ToUpper();
+                ps_PriorytetBadge.Background = item.PriorytetKropkaKolor;
+
+                // Zrodlo zgloszenia
+                ps_Zrodlo.Text = item.ZrodloIkona?.ToUpper() ?? "—";
+                ps_ZrodloBadge.Background = item.ZrodloBgBrush;
+                ps_Zrodlo.Foreground = item.ZrodloFgBrush;
+
+                // Wymaga uzupelnienia
+                ps_WymagaUzup.Visibility = item.WymagaUzupelnienia ? Visibility.Visible : Visibility.Collapsed;
+
+                // Klient
+                ps_Kontrahent.Text = item.NazwaKontrahenta ?? "(brak)";
+
+                // Handlowiec
+                if (!string.IsNullOrEmpty(item.Handlowiec) && item.Handlowiec != "-")
+                {
+                    ps_HandlowiecPanel.Visibility = Visibility.Visible;
+                    ps_Handlowiec.Text = item.Handlowiec;
+                    ps_HandlowiecInit.Text = item.HandlowiecInitials;
+                    ps_HandlowiecBg.Background = item.HandlowiecAvatarBrush;
+                    if (item.HandlowiecAvatar != null)
+                    {
+                        ps_HandlowiecPhoto.Fill = new ImageBrush(item.HandlowiecAvatar) { Stretch = Stretch.UniformToFill };
+                        ps_HandlowiecPhoto.Visibility = Visibility.Visible;
+                    }
+                    else ps_HandlowiecPhoto.Visibility = Visibility.Collapsed;
+                }
+                else
+                {
+                    ps_HandlowiecPanel.Visibility = Visibility.Collapsed;
+                }
+
+                // Data + dni od zgloszenia
+                ps_DataZgl.Text = item.DataZgloszenia == DateTime.MinValue ? "—" : item.DataZgloszenia.ToString("dd.MM.yyyy");
+                int dni = item.DniOdZgloszenia;
+                ps_DniOd.Text = dni == 0 ? "dzisiaj" : (dni == 1 ? "wczoraj" : $"{dni} dni temu");
+
+                // Typ + Kg
+                ps_Typ.Text = string.IsNullOrEmpty(item.TypReklamacjiEtykieta) ? "—" : item.TypReklamacjiEtykieta;
+                ps_SumaKg.Text = item.SumaKg.ToString("N2");
+
+                // Opis
+                ps_Opis.Text = string.IsNullOrEmpty(item.Opis) ? "(brak opisu)" : item.Opis;
+
+                // Faktura bazowa
+                if (!string.IsNullOrEmpty(item.NumerFakturyOryginalnej))
+                {
+                    ps_FakturaPanel.Visibility = Visibility.Visible;
+                    ps_FakturaNr.Text = "📄 " + item.NumerFakturyOryginalnej;
+                    ps_FakturaId.Text = item.IdFakturyOryginalnej.HasValue ? $"ID dokumentu: {item.IdFakturyOryginalnej}" : "";
+                }
+                else ps_FakturaPanel.Visibility = Visibility.Collapsed;
+
+                // Powiazana sprawa
+                if (item.MaPowiazanie)
+                {
+                    ps_PowiazaniePanel.Visibility = Visibility.Visible;
+                    ps_PowiazanieNr.Text = !string.IsNullOrEmpty(item.NumerKorektyPowiazanej)
+                        ? "Korekta " + item.NumerKorektyPowiazanej
+                        : $"Sprawa #{item.PowiazanaReklamacjaId}";
+                    ps_PowiazanieData.Text = item.DataKorektyPowiazanej.HasValue
+                        ? "z dnia " + item.DataKorektyPowiazanej.Value.ToString("dd.MM.yyyy")
+                        : "";
+                }
+                else ps_PowiazaniePanel.Visibility = Visibility.Collapsed;
+
+                // Workflow: Zglaszajacy (zawsze)
+                if (!string.IsNullOrEmpty(item.Zglaszajacy))
+                {
+                    ps_ZglaszajacyPanel.Visibility = Visibility.Visible;
+                    ps_ZgName.Text = item.Zglaszajacy;
+                    ps_ZgInit.Text = item.ZglaszajacyInitials;
+                    ps_ZgBg.Background = item.ZglaszajacyAvatarBrush;
+                    if (item.ZglaszajacyAvatar != null)
+                    {
+                        ps_ZgPhoto.Fill = new ImageBrush(item.ZglaszajacyAvatar) { Stretch = Stretch.UniformToFill };
+                        ps_ZgPhoto.Visibility = Visibility.Visible;
+                    }
+                    else ps_ZgPhoto.Visibility = Visibility.Collapsed;
+                }
+                else ps_ZglaszajacyPanel.Visibility = Visibility.Collapsed;
+
+                // Workflow: Rozpatruje
+                if (!string.IsNullOrEmpty(item.OsobaRozpatrujaca))
+                {
+                    ps_RozpatrujePanel.Visibility = Visibility.Visible;
+                    ps_RpName.Text = item.OsobaRozpatrujaca;
+                    ps_RpInit.Text = item.RozpatrujacyInitials;
+                    ps_RpBg.Background = item.RozpatrujacyAvatarBrush;
+                    if (item.RozpatrujacyAvatar != null)
+                    {
+                        ps_RpPhoto.Fill = new ImageBrush(item.RozpatrujacyAvatar) { Stretch = Stretch.UniformToFill };
+                        ps_RpPhoto.Visibility = Visibility.Visible;
+                    }
+                    else ps_RpPhoto.Visibility = Visibility.Collapsed;
+                    ps_RpData.Text = item.DataAnalizy.HasValue ? "od " + item.DataAnalizy.Value.ToString("dd.MM.yyyy") : "";
+                }
+                else ps_RozpatrujePanel.Visibility = Visibility.Collapsed;
+
+                // Workflow: Zakonczyl
+                if (!string.IsNullOrEmpty(item.UserZakonczenia))
+                {
+                    ps_ZakonczylPanel.Visibility = Visibility.Visible;
+                    ps_ZkName.Text = item.UserZakonczenia;
+                    ps_ZkInit.Text = item.ZakonczylInitials;
+                    ps_ZkBg.Background = item.ZakonczylAvatarBrush;
+                    if (item.ZakonczylAvatar != null)
+                    {
+                        ps_ZkPhoto.Fill = new ImageBrush(item.ZakonczylAvatar) { Stretch = Stretch.UniformToFill };
+                        ps_ZkPhoto.Visibility = Visibility.Visible;
+                    }
+                    else ps_ZkPhoto.Visibility = Visibility.Collapsed;
+                    ps_ZkLabel.Text = (item.ZakonczylDecyzja ?? "ZAKONCZYL").ToUpper();
+                    ps_ZkData.Text = item.DataZakonczenia.HasValue ? item.DataZakonczenia.Value.ToString("dd.MM.yyyy HH:mm") : "";
+                }
+                else ps_ZakonczylPanel.Visibility = Visibility.Collapsed;
+
+                // ── WORKFLOW STEPPER: Przyczyna → Akcje → Decyzja → SLA
+                // Kazdy krok ma 3 stany: zrobione (zielony), aktywny (niebieski), nieaktywny (szary)
+                var kolorZrobione = new SolidColorBrush(Color.FromRgb(0x10, 0xB9, 0x81)); // zielony
+                var kolorAktywny = new SolidColorBrush(Color.FromRgb(0x21, 0x96, 0xF3));  // niebieski
+                var kolorNieaktywny = new SolidColorBrush(Color.FromRgb(0xD1, 0xD5, 0xDB)); // szary
+
+                // KROK 1: PRZYCZYNA
+                bool maPrzyczyne = !string.IsNullOrWhiteSpace(item.PrzyczynaGlowna);
+                if (ps_PrzyczynaPanel != null)
+                {
+                    ps_PrzyczynaPanel.Visibility = Visibility.Visible; // ZAWSZE widoczne (czesc stepper)
+                    ps_Przyczyna.Text = maPrzyczyne ? item.PrzyczynaGlowna : "—";
+                    ps_Przyczyna.Foreground = maPrzyczyne ? new SolidColorBrush(Color.FromRgb(0x37, 0x41, 0x51)) : new SolidColorBrush(Color.FromRgb(0xD1, 0xD5, 0xDB));
+                    if (ps_PrzyczynaStep != null) ps_PrzyczynaStep.Background = maPrzyczyne ? kolorZrobione : kolorNieaktywny;
+                    ps_PrzyczynaPanel.BorderBrush = maPrzyczyne ? new SolidColorBrush(Color.FromRgb(0xBB, 0xF7, 0xD0)) : new SolidColorBrush(Color.FromRgb(0xE5, 0xE7, 0xEB));
+                }
+
+                // KROK 2: AKCJE
+                bool maAkcje = !string.IsNullOrWhiteSpace(item.AkcjeNaprawcze);
+                if (ps_AkcjePanel != null)
+                {
+                    ps_AkcjePanel.Visibility = Visibility.Visible;
+                    ps_Akcje.Text = maAkcje ? item.AkcjeNaprawcze : "—";
+                    ps_Akcje.Foreground = maAkcje ? new SolidColorBrush(Color.FromRgb(0x37, 0x41, 0x51)) : new SolidColorBrush(Color.FromRgb(0xD1, 0xD5, 0xDB));
+                    if (ps_AkcjeStep != null) ps_AkcjeStep.Background = maAkcje ? kolorZrobione : kolorNieaktywny;
+                    ps_AkcjePanel.BorderBrush = maAkcje ? new SolidColorBrush(Color.FromRgb(0xBB, 0xF7, 0xD0)) : new SolidColorBrush(Color.FromRgb(0xE5, 0xE7, 0xEB));
+                }
+
+                // KROK 3: DECYZJA
+                bool maDecyzje = !string.IsNullOrEmpty(item.DecyzjaJakosci);
+                if (ps_DecyzjaPanel != null)
+                {
+                    ps_DecyzjaPanel.Visibility = Visibility.Visible;
+                    ps_Decyzja.Text = maDecyzje ? item.DecyzjaJakosci : "—";
+                    ps_Decyzja.Foreground = maDecyzje ? new SolidColorBrush(Color.FromRgb(0xB9, 0x1C, 0x1C)) : new SolidColorBrush(Color.FromRgb(0xD1, 0xD5, 0xDB));
+                    if (ps_DecyzjaStep != null) ps_DecyzjaStep.Background = maDecyzje ? kolorZrobione : kolorNieaktywny;
+                    ps_DecyzjaPanel.BorderBrush = maDecyzje ? new SolidColorBrush(Color.FromRgb(0xFC, 0xA5, 0xA5)) : new SolidColorBrush(Color.FromRgb(0xE5, 0xE7, 0xEB));
+                }
+
+                // SLA
+                if (item.JestKrytycznySLA)
+                {
+                    ps_SLAPanel.Background = new SolidColorBrush(Color.FromRgb(0xFF, 0xEB, 0xEE));
+                    ps_SLAStatus.Text = "KRYTYCZNY — " + dni + " dni bez akcji";
+                    ps_SLAStatus.Foreground = new SolidColorBrush(Color.FromRgb(0xC6, 0x28, 0x28));
+                    ps_SLABadge.Text = "🔴";
+                    if (ps_SlaStep != null) ps_SlaStep.Background = new SolidColorBrush(Color.FromRgb(0xDC, 0x26, 0x26)); // czerwony
+                    ps_SLAPanel.BorderBrush = new SolidColorBrush(Color.FromRgb(0xFC, 0xA5, 0xA5));
+                }
+                else if (item.JestZagrozonySLA)
+                {
+                    ps_SLAPanel.Background = new SolidColorBrush(Color.FromRgb(0xFF, 0xF8, 0xE1));
+                    ps_SLAStatus.Text = "ZAGROZONY — " + dni + " dni bez akcji";
+                    ps_SLAStatus.Foreground = new SolidColorBrush(Color.FromRgb(0xE6, 0x7E, 0x22));
+                    ps_SLABadge.Text = "⚠";
+                    if (ps_SlaStep != null) ps_SlaStep.Background = new SolidColorBrush(Color.FromRgb(0xF5, 0x9E, 0x0B)); // pomaranczowy
+                    ps_SLAPanel.BorderBrush = new SolidColorBrush(Color.FromRgb(0xFD, 0xE6, 0x8A));
+                }
+                else
+                {
+                    bool zamkniete = item.KategoriaZakladki == "ZAMKNIETE";
+                    ps_SLAPanel.Background = new SolidColorBrush(Color.FromRgb(0xEC, 0xEF, 0xF1));
+                    ps_SLAStatus.Text = zamkniete ? "Sprawa zamknieta" : "W normie (" + dni + " dni)";
+                    ps_SLAStatus.Foreground = new SolidColorBrush(Color.FromRgb(0x2C, 0x3E, 0x50));
+                    ps_SLABadge.Text = zamkniete ? "✓" : "🟢";
+                    if (ps_SlaStep != null) ps_SlaStep.Background = zamkniete
+                        ? new SolidColorBrush(Color.FromRgb(0x10, 0xB9, 0x81))    // zielony - sprawa zamknieta
+                        : new SolidColorBrush(Color.FromRgb(0x21, 0x96, 0xF3));   // niebieski - w toku
+                    ps_SLAPanel.BorderBrush = zamkniete
+                        ? new SolidColorBrush(Color.FromRgb(0xBB, 0xF7, 0xD0))
+                        : new SolidColorBrush(Color.FromRgb(0xBF, 0xDB, 0xFE));
+                }
+
+                // Zdjecia
+                int liczba = item.LiczbaZdjec;
+                ps_ZdjeciaCount.Text = liczba == 0 ? "Brak" : (liczba == 1 ? "1 zdjecie" : $"{liczba} zdjec");
+                ps_Zdj1Border.Visibility = item.Miniatura1 != null ? Visibility.Visible : Visibility.Collapsed;
+                ps_Zdj2Border.Visibility = item.Miniatura2 != null ? Visibility.Visible : Visibility.Collapsed;
+                ps_Zdj3Border.Visibility = item.Miniatura3 != null ? Visibility.Visible : Visibility.Collapsed;
+                ps_Zdj1.Source = item.Miniatura1;
+                ps_Zdj2.Source = item.Miniatura2;
+                ps_Zdj3.Source = item.Miniatura3;
+                ps_ZdjeciaPusty.Visibility = liczba == 0 ? Visibility.Visible : Visibility.Collapsed;
+
+                // Quick-action "PRZYJMIJ" w headerze — pokaz tylko dla ZGLOSZONA (nowa, nie wzieta)
+                if (ps_BtnQuickPrzyjmij != null)
+                {
+                    bool czyZgloszona = string.IsNullOrEmpty(item.StatusV2) || item.StatusV2 == "ZGLOSZONA";
+                    ps_BtnQuickPrzyjmij.Visibility = czyZgloszona ? Visibility.Visible : Visibility.Collapsed;
+                }
+
+                // Pamietaj item dla drag&drop handlerow (ktora reklamacja dostaje plik)
+                _aktywnaReklamacjaId = item.Id;
+                _aktywnaReklamacjaKhid = item.IdKontrahenta;
+                // Data faktury — defaultowo DataZgloszenia, ale jezeli to korekta -> pobierz date oryginalnej FVS
+                _aktywnaDataFaktury = item.DataZgloszenia;
+                // FKSB = korekta braku wagowego (bezposrednia LUB powiazana) — mocniejszy badge wagi
+                bool jestBezposrednioFKSB = !string.IsNullOrEmpty(item.NumerDokumentu) && item.NumerDokumentu.Contains("FKSB");
+                _aktywnaJestFKSB = jestBezposrednioFKSB;
+                _avgWagaPaletkowa.Clear(); // reset cache
+
+                // GLOWNY ALERT "BRAK WAGOWY" — widoczny w headerze
+                if (jestBezposrednioFKSB)
+                {
+                    ps_BrakWagowyAlert.Visibility = Visibility.Visible;
+                    ps_BrakWagowyDetal.Text = "Ta reklamacja to korekta typu FKSB — brak wagowy potwierdzony przez księgowość. Sprawdź średnie wagi paletkowe (badge ⚖ przy partiach).";
+                }
+                else
+                {
+                    ps_BrakWagowyAlert.Visibility = Visibility.Collapsed; // pokazemy po async sprawdzeniu czy powiazana FKSB istnieje
+                }
+
+                // Jezeli to NIE jest FKSB bezposrednio — sprawdz w tle czy faktura ma jakas powiazana korekte FKSB
+                if (!jestBezposrednioFKSB)
+                {
+                    int reklIdSnapFksb = item.Id;
+                    System.Threading.Tasks.Task.Run(() =>
+                    {
+                        try
+                        {
+                            // Pobierz IdDokumentu aktualnej reklamacji + jezeli to korekta to IdFakturyOryginalnej tez
+                            int idDok = 0, idFakOryg = 0;
+                            using (var conn = new SqlConnection(connectionString))
+                            {
+                                conn.Open();
+                                using (var cmd = new SqlCommand("SELECT ISNULL(IdDokumentu,0), ISNULL(IdFakturyOryginalnej,0) FROM [dbo].[Reklamacje] WHERE Id=@Id", conn))
+                                {
+                                    cmd.Parameters.AddWithValue("@Id", reklIdSnapFksb);
+                                    using (var r = cmd.ExecuteReader())
+                                    {
+                                        if (r.Read()) { idDok = r.GetInt32(0); idFakOryg = r.GetInt32(1); }
+                                    }
+                                }
+
+                                if (idDok == 0 && idFakOryg == 0) return;
+
+                                // Szukamy INNYCH reklamacji powiazanych z tym samym IdDokumentu/IdFakturyOryginalnej ktore sa FKSB
+                                using (var cmd = new SqlCommand(@"
+                                    SELECT TOP 1 1 FROM [dbo].[Reklamacje]
+                                    WHERE Id <> @SelfId
+                                      AND (
+                                            (@IdDok > 0 AND (IdDokumentu = @IdDok OR IdFakturyOryginalnej = @IdDok))
+                                         OR (@IdFak > 0 AND (IdDokumentu = @IdFak OR IdFakturyOryginalnej = @IdFak))
+                                          )
+                                      AND ISNULL(NumerDokumentu,'') LIKE '%FKSB%'", conn))
+                                {
+                                    cmd.Parameters.AddWithValue("@SelfId", reklIdSnapFksb);
+                                    cmd.Parameters.AddWithValue("@IdDok", idDok);
+                                    cmd.Parameters.AddWithValue("@IdFak", idFakOryg);
+                                    var o = cmd.ExecuteScalar();
+                                    if (o != null && o != DBNull.Value)
+                                    {
+                                        Dispatcher.BeginInvoke(new Action(() =>
+                                        {
+                                            if (_aktywnaReklamacjaId == reklIdSnapFksb && !_aktywnaJestFKSB)
+                                            {
+                                                _aktywnaJestFKSB = true;
+                                                // GLOWNY ALERT: faktura ma powiazana FKSB
+                                                ps_BrakWagowyAlert.Visibility = Visibility.Visible;
+                                                ps_BrakWagowyDetal.Text = "Ta faktura ma powiązaną korektę FKSB (braku wagowego). Sprawdź średnie wagi paletkowe (badge ⚖ przy partiach).";
+                                                if (_lastPartieList != null && _lastPartieCounts != null && _lastPartieInfo != null)
+                                                    ZbudujWidokPogrupowanyPoHodowcy(_lastPartieList, _lastPartieCounts, _lastPartieInfo);
+                                            }
+                                        }));
+                                    }
+                                }
+                            }
+                        }
+                        catch { }
+                    });
+                }
+                if (item.TypReklamacji == "Faktura korygujaca" && item.IdFakturyOryginalnej.HasValue && item.IdFakturyOryginalnej.Value > 0)
+                {
+                    int idOryg = item.IdFakturyOryginalnej.Value;
+                    int reklIdSnap = item.Id;
+                    System.Threading.Tasks.Task.Run(() =>
+                    {
+                        try
+                        {
+                            using (var conn = new SqlConnection(ReklamacjeConnectionStrings.Handel))
+                            {
+                                conn.Open();
+                                using (var cmd = new SqlCommand("SELECT data FROM [HANDEL].[HM].[DK] WHERE id = @Id", conn))
+                                {
+                                    cmd.Parameters.AddWithValue("@Id", idOryg);
+                                    var o = cmd.ExecuteScalar();
+                                    if (o != null && o != DBNull.Value)
+                                    {
+                                        var dataOryg = Convert.ToDateTime(o);
+                                        Dispatcher.BeginInvoke(new Action(() =>
+                                        {
+                                            // Tylko jezeli wciaz ta sama reklamacja zaznaczona
+                                            if (_aktywnaReklamacjaId == reklIdSnap)
+                                            {
+                                                _aktywnaDataFaktury = dataOryg;
+                                                // Re-render partie z poprawna data
+                                                if (_lastPartieCounts != null && _lastPartieInfo != null && _lastPartieList != null)
+                                                    ZbudujWidokPogrupowanyPoHodowcy(_lastPartieList, _lastPartieCounts, _lastPartieInfo);
+                                            }
+                                        }));
+                                    }
+                                }
+                            }
+                        }
+                        catch (Exception ex) { System.Diagnostics.Debug.WriteLine("Pobieranie daty oryginalnej faktury blad: " + ex.Message); }
+                    });
+                }
+
+                // Async ladowanie 3 sekcji: statystyki klienta + zalaczniki + historia
+                LadujSekcjeBoczne(item);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("WyswietlPanelSzczegolow blad: " + ex.Message);
+            }
+        }
+
+        // ============================================================
+        // SEKCJE DODATKOWE PANELU BOCZNEGO (stats klienta + zalaczniki + historia)
+        // ============================================================
+        // Data faktury aktywnej reklamacji — uzywana do liczenia "wiek towaru w momencie wystawienia faktury"
+        private DateTime? _aktywnaDataFaktury;
+        // Cache danych partii (do re-renderu po pobraniu daty oryginalnej faktury async)
+        private List<string> _lastPartieList;
+        private Dictionary<string, int> _lastPartieCounts;
+        private Dictionary<string, PartiaInfo> _lastPartieInfo;
+        // FKSB = korekta braku wagowego. Pokazujemy srednia z In0E dla weryfikacji.
+        private bool _aktywnaJestFKSB;
+        // Wyniki sredniej wagi paletkowej per partia (P1 → avg, count, dominującKlasa, %dominacji)
+        private Dictionary<string, (decimal avg, int count, int? dominKlasa, int dominCnt)> _avgWagaPaletkowa = new Dictionary<string, (decimal, int, int?, int)>(StringComparer.OrdinalIgnoreCase);
+        // Partie ktore SA w trakcie deep retry (po pierwszym fetch nie znalezlismy hodowcy)
+        private readonly HashSet<string> _partieDeepFetchPending = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        // LRU cache wynikow per IdDokumentu — instant load drugiej wizyty w tej samej reklamacji
+        private sealed class PartieCacheEntry
+        {
+            public List<string> Partie;
+            public Dictionary<string, int> Counts;
+            public Dictionary<string, PartiaInfo> Info;
+            public Dictionary<string, (decimal, int, int?, int)> AvgWag;
+            public DateTime FetchedAt;
+        }
+        private readonly Dictionary<int, PartieCacheEntry> _cachePartie = new Dictionary<int, PartieCacheEntry>();
+        private readonly LinkedList<int> _cacheOrder = new LinkedList<int>();
+        private const int CACHE_SIZE = 10;
+        private const int CACHE_TTL_SEC = 120; // 2 minuty
+        private int _aktywnaReklamacjaId;
+        private int _aktywnaReklamacjaKhid;
+
+        // Trzymamy bezposrednie referencje do kontrolek per kafelek partii — pomija
+        // problemy z Name property na elementach tworzonych w code-behind.
+        private sealed class PartiaKontrolki
+        {
+            public Border Kafelek;
+            public TextBlock Hodowca;
+            public TextBlock Data;
+            public TextBlock Check;
+            public Border Badge;
+            public TextBlock BadgeText;
+        }
+        private readonly Dictionary<string, PartiaKontrolki> _partieControls = new Dictionary<string, PartiaKontrolki>(StringComparer.OrdinalIgnoreCase);
+
+        private void LadujSekcjeBoczne(ReklamacjaItem item)
+        {
+            // Reset stanu (na wypadek bledu / pustki)
+            ps_StatsKlientPanel.Visibility = Visibility.Collapsed;
+            ps_ZalacznikiList.Children.Clear();
+            ps_ZalacznikiPusty.Visibility = Visibility.Visible;
+            ps_ZalacznikiCount.Text = "";
+            ps_HistoriaList.Children.Clear();
+            ps_HistoriaPusty.Visibility = Visibility.Visible;
+            ps_HistoriaCount.Text = "";
+            ps_PartiePanel.Visibility = Visibility.Collapsed;
+            ps_PartieList.Children.Clear();
+
+            int reklId = item.Id;
+            int khid = item.IdKontrahenta;
+
+            // PARTIE Z INI — czytaj synchronicznie (cache 60s, pierwsze pobranie ~10ms)
+            // Klucz: dla korekty Symfonii partie sa na FAKTURZE BAZOWEJ (IdFakturyOryginalnej),
+            //         dla zwyklej reklamacji handlowca — na IdDokumentu wybranej faktury.
+            int idDokDoPartii = (item.TypReklamacji == "Faktura korygujaca" && item.IdFakturyOryginalnej.HasValue && item.IdFakturyOryginalnej.Value > 0)
+                ? item.IdFakturyOryginalnej.Value
+                : 0;
+            // Fallback — uzyj IdDokumentu z reklamacji jezeli nie ma IdFakturyOryginalnej
+            // (uwaga: dla korekty IdDokumentu = id korekty, NIE faktury bazowej; ale dla rekl handlowca = id faktury)
+            if (idDokDoPartii == 0 && item.TypReklamacji != "Faktura korygujaca")
+            {
+                try
+                {
+                    using (var conn = new SqlConnection(connectionString))
+                    {
+                        conn.Open();
+                        using (var cmd = new SqlCommand("SELECT ISNULL(IdDokumentu,0) FROM [dbo].[Reklamacje] WHERE Id=@Id", conn))
+                        {
+                            cmd.Parameters.AddWithValue("@Id", reklId);
+                            var v = cmd.ExecuteScalar();
+                            if (v != null && v != DBNull.Value) idDokDoPartii = Convert.ToInt32(v);
+                        }
+                    }
+                }
+                catch { }
+            }
+            if (idDokDoPartii > 0)
+            {
+                int idLokal = idDokDoPartii; // capture
+                System.Threading.Tasks.Task.Run(() =>
+                {
+                    try
+                    {
+                        var partie = Reklamacje.Services.SymfoniaPartieReader.GetForDocument(idLokal);
+                        if (_cts.IsCancellationRequested) return;
+                        if (!partie.Found) return;
+                        Dispatcher.BeginInvoke(new Action(() =>
+                        {
+                            if (_cts.IsCancellationRequested) return;
+                            if (_aktywnaReklamacjaId != reklId) return; // user przekliknal
+                            ZastosujPartie(partie, idLokal);
+                        }));
+                    }
+                    catch { }
+                });
+            }
+
+            // Async — nie blokujemy UI
+            System.Threading.Tasks.Task.Run(() =>
+            {
+                var data = LoadSekcjeBoczneData(reklId, khid);
+                if (data == null) return;
+                try
+                {
+                    Dispatcher.BeginInvoke(new Action(() => ApplySekcjeBoczne(data, reklId)));
+                }
+                catch { }
+            });
+        }
+
+        private sealed class SekcjeBoczneData
+        {
+            public int? StatsCount;
+            public decimal? StatsKg;
+            public decimal? StatsWartosc;
+            public List<(int id, string nazwa, long rozmiar, string typMime, DateTime data, string user)> Zalaczniki = new();
+            public List<(DateTime data, string user, string stary, string nowy, string typAkcji, string komentarz)> Historia = new();
+        }
+
+        private SekcjeBoczneData LoadSekcjeBoczneData(int reklId, int khid)
+        {
+            var d = new SekcjeBoczneData();
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+
+                    // 1) Statystyki klienta — 3 mies wstecz
+                    if (khid > 0)
+                    {
+                        using (var cmd = new SqlCommand(@"
+                            SELECT COUNT(*),
+                                   ISNULL(SUM(SumaKg),0),
+                                   ISNULL(SUM(ISNULL(SumaWartosc,0)),0)
+                            FROM [dbo].[Reklamacje]
+                            WHERE IdKontrahenta=@Khid
+                              AND DataZgloszenia >= DATEADD(MONTH,-3,GETDATE())
+                              AND NOT (TypReklamacji='Faktura korygujaca' AND ISNULL(StatusV2,'')='POWIAZANA')", conn))
+                        {
+                            cmd.Parameters.AddWithValue("@Khid", khid);
+                            using (var r = cmd.ExecuteReader())
+                            {
+                                if (r.Read())
+                                {
+                                    d.StatsCount = r.GetInt32(0);
+                                    d.StatsKg = r.GetDecimal(1);
+                                    d.StatsWartosc = r.GetDecimal(2);
+                                }
+                            }
+                        }
+                    }
+
+                    // 2) Zalaczniki — wszystkie (zwykle 0-5)
+                    using (var cmd = new SqlCommand(@"
+                        IF OBJECT_ID('dbo.ReklamacjeZalaczniki') IS NOT NULL
+                        SELECT TOP 20 Id, NazwaPliku, ISNULL(Rozmiar,0), ISNULL(TypMime,''), DataDodania, ISNULL(UserID,'')
+                        FROM [dbo].[ReklamacjeZalaczniki]
+                        WHERE IdReklamacji=@Id
+                        ORDER BY DataDodania DESC", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Id", reklId);
+                        using (var r = cmd.ExecuteReader())
+                        {
+                            while (r.Read())
+                                d.Zalaczniki.Add((r.GetInt32(0), r.GetString(1), r.GetInt64(2), r.GetString(3), r.GetDateTime(4), r.GetString(5)));
+                        }
+                    }
+
+                    // 3) Historia — TOP 5 najnowszych
+                    using (var cmd = new SqlCommand(@"
+                        IF OBJECT_ID('dbo.ReklamacjeHistoria') IS NOT NULL
+                        SELECT TOP 5 DataZmiany, ISNULL(UserID,''), ISNULL(PoprzedniStatus,''), ISNULL(StatusNowy,''), ISNULL(TypAkcji,''), ISNULL(Komentarz,'')
+                        FROM [dbo].[ReklamacjeHistoria]
+                        WHERE IdReklamacji=@Id
+                        ORDER BY DataZmiany DESC", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Id", reklId);
+                        using (var r = cmd.ExecuteReader())
+                        {
+                            while (r.Read())
+                                d.Historia.Add((r.GetDateTime(0), r.GetString(1), r.GetString(2), r.GetString(3), r.GetString(4), r.GetString(5)));
+                        }
+                    }
+                }
+            }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine("LoadSekcjeBoczne blad: " + ex.Message); }
+            return d;
+        }
+
+        private void ApplySekcjeBoczne(SekcjeBoczneData d, int reklId)
+        {
+            // Sprawdz czy nadal pokazujemy te sama reklamacje (uzytkownik mogl zmienic wybor)
+            if (_aktywnaReklamacjaId != reklId) return;
+
+            // Statystyki klienta — "—" zamiast "0" gdy brak danych w polu
+            if (d.StatsCount.HasValue && d.StatsCount.Value > 0)
+            {
+                ps_StatsKlientPanel.Visibility = Visibility.Visible;
+                ps_StatsCount.Text = d.StatsCount.Value.ToString();
+                ps_StatsKg.Text = d.StatsKg.GetValueOrDefault() > 0 ? d.StatsKg.Value.ToString("N0") : "—";
+                ps_StatsWartosc.Text = d.StatsWartosc.GetValueOrDefault() > 0 ? d.StatsWartosc.Value.ToString("N0") : "—";
+            }
+
+            // Zalaczniki
+            ps_ZalacznikiCount.Text = d.Zalaczniki.Count == 0 ? "" : (d.Zalaczniki.Count == 1 ? "1 plik" : d.Zalaczniki.Count + " plikow");
+            ps_ZalacznikiPusty.Visibility = d.Zalaczniki.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            foreach (var z in d.Zalaczniki) ps_ZalacznikiList.Children.Add(BudujZalacznikRow(z.id, z.nazwa, z.rozmiar, z.typMime, z.data));
+
+            // Historia
+            ps_HistoriaCount.Text = "";
+            ps_HistoriaPusty.Visibility = d.Historia.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            foreach (var h in d.Historia) ps_HistoriaList.Children.Add(BudujHistoriaRow(h.data, h.user, h.stary, h.nowy, h.typAkcji, h.komentarz));
+        }
+
+        // Zastosowanie partii z INI Symfonii na panelu bocznym
+        private void ZastosujPartie(Reklamacje.Services.SymfoniaPartieReader.PartieData p, int idDok)
+        {
+            try
+            {
+                ps_PartiePanel.Visibility = Visibility.Visible;
+                ps_PartieList.Children.Clear();
+                _partieControls.Clear(); // reset referencji dla nowej reklamacji
+
+                // OCZYSC: niektore wpisy w INI sa brudne — np. "98926148005, 32326147001" (kilka partii w 1 polu)
+                // albo "62526146001- 400 poj" (sufiks pojemnikow) lub "76226127013-4200kg" (waga).
+                // Rozbijamy na liste prawdziwych numerow partii (11 lub 8 cyfr).
+                var oczyszczonePartie = new List<string>();
+                foreach (var raw in p.Partie)
+                {
+                    foreach (var clean in RozbijLuznoZapisaneParti(raw))
+                        if (!oczyszczonePartie.Contains(clean)) oczyszczonePartie.Add(clean);
+                }
+                ps_PartieCount.Text = oczyszczonePartie.Count + " partii (z " + p.Partie.Count + " wpisów)";
+
+                // SPRAWDZ CACHE — jezeli mamy dane <2 min temu, pokaz natychmiast
+                int reklIdLocal = _aktywnaReklamacjaId;
+                if (_cachePartie.TryGetValue(idDok, out var cached)
+                    && (DateTime.Now - cached.FetchedAt).TotalSeconds < CACHE_TTL_SEC)
+                {
+                    _avgWagaPaletkowa = cached.AvgWag;
+                    ZbudujWidokPogrupowanyPoHodowcy(cached.Partie, cached.Counts, cached.Info);
+                    return; // instant load — koniec
+                }
+
+                // INSTANT PLACEHOLDERY: pokaz od razu szare karty z numerami partii (z mini spinnerem na avatarach)
+                BudujPlaceholderyPartii(oczyszczonePartie);
+
+                // BATCH w tle — 3 queries RÓWNOLEGLE (Task.WhenAll) zamiast sekwencyjnie
+                System.Threading.Tasks.Task.Run(async () =>
+                {
+                    var tCounts = System.Threading.Tasks.Task.Run(() => LiczReklamacjiPartiBatch(oczyszczonePartie));
+                    var tInfo = System.Threading.Tasks.Task.Run(() => LoadPartieInfoBatch(oczyszczonePartie));
+                    var tAvg = System.Threading.Tasks.Task.Run(() => LoadAvgWagaPaletkowaBatch(oczyszczonePartie));
+                    await System.Threading.Tasks.Task.WhenAll(tCounts, tInfo, tAvg).ConfigureAwait(false);
+                    var counts = tCounts.Result;
+                    var info = tInfo.Result;
+                    var avgWag = tAvg.Result;
+
+                    if (_cts.IsCancellationRequested) return;
+                    try
+                    {
+                        Dispatcher.BeginInvoke(new Action(() =>
+                        {
+                            if (_cts.IsCancellationRequested || _aktywnaReklamacjaId != reklIdLocal) return;
+                            if (avgWag != null) _avgWagaPaletkowa = avgWag;
+                            // CACHE: zapisz wyniki
+                            CachePartieWyniki(idDok, oczyszczonePartie, counts, info, avgWag);
+
+                            // Identyfikuj partie BEZ hodowcy → oznacz jako pending dla deep retry
+                            _partieDeepFetchPending.Clear();
+                            var doDeepFetch = new List<string>();
+                            foreach (var par in oczyszczonePartie)
+                            {
+                                if (info.TryGetValue(par, out var pi) && string.IsNullOrWhiteSpace(pi.Hodowca))
+                                {
+                                    _partieDeepFetchPending.Add(par);
+                                    doDeepFetch.Add(par);
+                                }
+                            }
+
+                            ZbudujWidokPogrupowanyPoHodowcy(oczyszczonePartie, counts, info);
+
+                            // Deep retry w tle dla partii bez hodowcy
+                            if (doDeepFetch.Count > 0)
+                            {
+                                System.Threading.Tasks.Task.Run(() =>
+                                {
+                                    var dodatkowi = DeepLookupHodowcyBatch(doDeepFetch);
+                                    if (_cts.IsCancellationRequested) return;
+                                    try
+                                    {
+                                        Dispatcher.BeginInvoke(new Action(() =>
+                                        {
+                                            if (_cts.IsCancellationRequested || _aktywnaReklamacjaId != reklIdLocal) return;
+                                            // Merge wyniki do info
+                                            foreach (var kv in dodatkowi)
+                                            {
+                                                if (info.TryGetValue(kv.Key, out var pi))
+                                                {
+                                                    pi.Hodowca = kv.Value;
+                                                    pi.HodowcaSkrot = SkrocHodowce(kv.Value);
+                                                }
+                                            }
+                                            _partieDeepFetchPending.Clear();
+                                            ZbudujWidokPogrupowanyPoHodowcy(oczyszczonePartie, counts, info);
+                                        }));
+                                    }
+                                    catch { }
+                                });
+                            }
+                        }));
+                    }
+                    catch { }
+                });
+
+                // ── METADANE FAKTURY jako kolorowe CHIPY w WrapPanel
+                ps_PartieMetaChips.Children.Clear();
+                // (Hidden compat — niewidoczne TextBlock w tym samym WrapPanel)
+                ps_PartieMetaChips.Children.Add(ps_PartieAuto);
+                ps_PartieMetaChips.Children.Add(ps_PartieDaty);
+                ps_PartieMetaChips.Children.Add(ps_PartieOpak);
+
+                // 1. AUTO (granat)
+                if (!string.IsNullOrEmpty(p.NrSamochodu))
+                    ps_PartieMetaChips.Children.Add(MakeMetaChip("🚛", p.NrSamochodu, Color.FromRgb(0xE0, 0xE7, 0xFF), Color.FromRgb(0x1E, 0x40, 0xAF), "Nr auta dostawcy"));
+
+                // 2. DATA PRODUKCJI (zielony)
+                if (p.DataProdukcji.HasValue)
+                    ps_PartieMetaChips.Children.Add(MakeMetaChip("🏭", "Prod. " + p.DataProdukcji.Value.ToString("dd.MM"), Color.FromRgb(0xD1, 0xFA, 0xE5), Color.FromRgb(0x06, 0x59, 0x3D), "Data produkcji"));
+
+                // 3. DATY PRZYDATNOŚCI (kolor zależny od dni do końca)
+                Action<string, DateTime?, string> dodajDateChip = (etykieta, dt, tooltip) =>
+                {
+                    if (!dt.HasValue) return;
+                    int dni = (int)(dt.Value.Date - DateTime.Today).TotalDays;
+                    Color bg, fg; string emoji;
+                    if (dni < 0) { bg = Color.FromRgb(0xFE, 0xE2, 0xE2); fg = Color.FromRgb(0x99, 0x1B, 0x1B); emoji = "❌"; }
+                    else if (dni < 3) { bg = Color.FromRgb(0xFE, 0xF3, 0xC7); fg = Color.FromRgb(0x92, 0x40, 0x0E); emoji = "⚠"; }
+                    else { bg = Color.FromRgb(0xF0, 0xFD, 0xF4); fg = Color.FromRgb(0x16, 0x65, 0x34); emoji = "⏰"; }
+                    string txt = emoji + " " + etykieta + " " + dt.Value.ToString("dd.MM");
+                    if (dni >= 0 && dni < 10) txt += " (" + dni + "d)";
+                    ps_PartieMetaChips.Children.Add(MakeMetaChip("", txt, bg, fg, tooltip + " " + dt.Value.ToString("dd.MM.yyyy") + (dni >= 0 ? " (" + dni + " dni)" : " (PRZETERMINOWANE " + (-dni) + " dni)")));
+                };
+                dodajDateChip("tuszka", p.DataPrzyd_Tuszka, "Przydatność tuszka");
+                dodajDateChip("element.", p.DataPrzyd_Elementy, "Przydatność elementy");
+                dodajDateChip("podroby", p.DataPrzyd_Podroby, "Przydatność podroby");
+
+                // 4. POJEMNIKI / PALETY (pomarańczowy)
+                var op = new System.Text.StringBuilder();
+                if (p.Pojemniki.HasValue) op.Append(p.Pojemniki + " poj ");
+                if (p.Pal_H1.HasValue) op.Append("H1:" + p.Pal_H1 + " ");
+                if (p.Pal_Drewn.HasValue) op.Append("Dr:" + p.Pal_Drewn + " ");
+                if (p.Pal_Euro.HasValue) op.Append("Eu:" + p.Pal_Euro + " ");
+                if (p.Pal_Plast.HasValue) op.Append("Pl:" + p.Pal_Plast);
+                if (op.Length > 0)
+                    ps_PartieMetaChips.Children.Add(MakeMetaChip("📦", op.ToString().TrimEnd(), Color.FromRgb(0xFE, 0xE1, 0xD3), Color.FromRgb(0xC2, 0x41, 0x0C), "Pojemniki i palety"));
+
+                // Zrodlo pliku (debug — pokaze ktora sciezka zadzialala)
+                ps_PartieZrodlo.Text = "Klucz INI: [" + idDok + "]  •  " + (p.ZrodloPliku ?? "(brak)");
+            }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine("ZastosujPartie: " + ex.Message); }
+        }
+
+        // Kompaktowy wiersz partii (StackPanel pionowo). Pojedynczy Border ~36-44px wysoki.
+        //  Linia 1: [numer]  [👤 hodowca / data]  [✓]  [badge]  [▾]
+        //  Tooltip na całości = pełna nazwa hodowcy + data uboju + status
+        private UIElement BudujPartiaKafelek(string nrPartii)
+        {
+            var border = new Border
+            {
+                Background = Brushes.White,
+                CornerRadius = new CornerRadius(5),
+                Padding = new Thickness(8, 5, 6, 5),
+                Margin = new Thickness(0, 1, 0, 1),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                BorderBrush = new SolidColorBrush(Color.FromRgb(0xBB, 0xDE, 0xFB)),
+                BorderThickness = new Thickness(0, 0, 0, 0),
+                Tag = nrPartii
+            };
+
+            var grid = new Grid();
+            // Wszystko w jednej linii: numer | hodowca/data (stretch) | check | badge | ▾
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });  // 0: numer
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // 1: info (stretch)
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });  // 2: check
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });  // 3: badge
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });  // 4: menu
+
+            // (dla compat z ZastosujInfoDoKafelkow który spodziewa się RowDefinitions — dodaję 5 wirtualnych)
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(0) });
+            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(0) });
+            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(0) });
+            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(0) });
+
+            // Col 0: numer partii (mono, niebieski, bold)
+            var tNumer = new TextBlock
+            {
+                Text = nrPartii,
+                FontSize = 11,
+                FontFamily = new FontFamily("Cascadia Mono, Consolas"),
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Color.FromRgb(0x0D, 0x47, 0xA1)),
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 10, 0)
+            };
+            Grid.SetColumn(tNumer, 0);
+            grid.Children.Add(tNumer);
+
+            // Col 1: hodowca + data (stack horizontal, wypełnia w batch)
+            var infoSp = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            var tHodowca = new TextBlock
+            {
+                Name = "tHodowca",
+                Text = "ładuje…",
+                FontSize = 10,
+                Foreground = new SolidColorBrush(Color.FromRgb(0xBD, 0xC3, 0xC7)),
+                FontStyle = FontStyles.Italic,
+                VerticalAlignment = VerticalAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                MaxWidth = 180
+            };
+            infoSp.Children.Add(tHodowca);
+            var tData = new TextBlock
+            {
+                Name = "tData",
+                Text = "",
+                FontSize = 9,
+                Foreground = new SolidColorBrush(Color.FromRgb(0x7F, 0x8C, 0x8D)),
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(8, 0, 0, 0)
+            };
+            infoSp.Children.Add(tData);
+            Grid.SetColumn(infoSp, 1);
+            grid.Children.Add(infoSp);
+
+            // Col 2: indykator istnienia (ikonka)
+            var ikonaCheck = new TextBlock
+            {
+                Name = "tCheck",
+                Text = "",
+                FontSize = 11,
+                FontWeight = FontWeights.Bold,
+                Margin = new Thickness(0, 0, 6, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                ToolTip = "Status w bazie LibraNet"
+            };
+            Grid.SetColumn(ikonaCheck, 2);
+            grid.Children.Add(ikonaCheck);
+
+            // Col 3: badge alarmu reklamacji (klikalny)
+            var badge = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(0x95, 0xA5, 0xA6)),
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(6, 1, 6, 1),
+                Margin = new Thickness(0, 0, 6, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                Visibility = Visibility.Collapsed,
+                Cursor = System.Windows.Input.Cursors.Hand,
+                Tag = "badge",
+                ToolTip = "Klik = poprzednie reklamacje tej partii"
+            };
+            var badgeTb = new TextBlock { Foreground = Brushes.White, FontSize = 9, FontWeight = FontWeights.Bold };
+            badge.Child = badgeTb;
+            badge.MouseLeftButtonUp += (s, e) => { e.Handled = true; PokazReklamacjeParti(nrPartii); };
+            Grid.SetColumn(badge, 3);
+            grid.Children.Add(badge);
+
+            // Col 4: ▾ menu
+            var btnMenu = new Border
+            {
+                CornerRadius = new CornerRadius(3),
+                Padding = new Thickness(4, 0, 4, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                Cursor = System.Windows.Input.Cursors.Hand,
+                ToolTip = "Pokaż menu akcji (lub right-click)"
+            };
+            var tMenu = new TextBlock { Text = "▾", FontSize = 12, FontWeight = FontWeights.Bold, Opacity = 0.6, Foreground = new SolidColorBrush(Color.FromRgb(0x15, 0x65, 0xC0)) };
+            btnMenu.Child = tMenu;
+            btnMenu.MouseEnter += (s, e) => { btnMenu.Background = new SolidColorBrush(Color.FromRgb(0x90, 0xCA, 0xF9)); tMenu.Opacity = 1.0; };
+            btnMenu.MouseLeave += (s, e) => { btnMenu.Background = null; tMenu.Opacity = 0.6; };
+            Grid.SetColumn(btnMenu, 4);
+            grid.Children.Add(btnMenu);
+
+            border.Child = grid;
+
+            // Hover + tooltip
+            border.MouseEnter += (s, e) => { border.Background = new SolidColorBrush(Color.FromRgb(0xE3, 0xF2, 0xFD)); };
+            border.MouseLeave += (s, e) => { border.Background = Brushes.White; };
+            border.ToolTip = "Klik = kopiuj numer | ▾ / right-click = menu akcji";
+
+            // Context menu z 5 akcjami
+            var cm = new ContextMenu();
+            cm.Items.Add(MakeMenuItem("📋  Kopiuj numer do schowka", () => { Clipboard.SetText(nrPartii); ShowToast("📋 Skopiowano: " + nrPartii, 2000); }));
+            cm.Items.Add(new Separator());
+            cm.Items.Add(MakeMenuItem("📜  Lista reklamacji tej partii", () => PokazReklamacjeParti(nrPartii)));
+            cm.Items.Add(MakeMenuItem("🌐  Kto jeszcze dostał tę partię", () => PokazFakturyZParti(nrPartii)));
+            cm.Items.Add(MakeMenuItem("👨‍🌾  Hodowca + wstawienie", () => PokazHodowceZParti(nrPartii)));
+            cm.Items.Add(new Separator());
+            cm.Items.Add(MakeMenuItem("🔗  Otwórz w Lista Partii V2", () => OtworzListePartii(nrPartii)));
+            cm.Items.Add(new Separator());
+            cm.Items.Add(MakeMenuItem("🔧  DIAGNOSTYKA SQL (debugger)", () => PokazDiagnostykePartii(nrPartii)));
+            border.ContextMenu = cm;
+
+            // Lewy klik = schowek
+            border.MouseLeftButtonUp += (s, e) =>
+            {
+                try
+                {
+                    Clipboard.SetText(nrPartii);
+                    ShowToast("📋 Skopiowano numer partii: " + nrPartii, 2000);
+                }
+                catch { }
+            };
+            // Right-click = menu
+            border.MouseRightButtonUp += (s, e) => { cm.IsOpen = true; e.Handled = true; };
+            // Klik na ▾ = menu
+            btnMenu.MouseLeftButtonUp += (s, e) => { e.Handled = true; cm.PlacementTarget = btnMenu; cm.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom; cm.IsOpen = true; };
+
+            // KLUCZOWE: zapisz bezposrednie referencje do kontrolek per partia (dla ZastosujInfoDoKafelkow)
+            _partieControls[nrPartii] = new PartiaKontrolki
+            {
+                Kafelek = border,
+                Hodowca = tHodowca,
+                Data = tData,
+                Check = ikonaCheck,
+                Badge = badge,
+                BadgeText = badgeTb
+            };
+
+            return border;
+        }
+
+        // Otwiera log debug w notepad — wywoływane z klikalnego bannera
+        private void PartieDebugBanner_Click(object sender, MouseButtonEventArgs e)
+        {
+            try
+            {
+                string path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "reklamacje-partie.log");
+                if (System.IO.File.Exists(path))
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true });
+                else
+                    ShowToast("Log nie istnieje jeszcze. Klik reklamacji z partiami zeby cos wpadlo.", 4000);
+            }
+            catch (Exception ex) { MessageBox.Show("Blad otwarcia logu: " + ex.Message); }
+        }
+
+        // Aplikuje counts (reklamacje) i info (hodowca/data) do już wyrenderowanych wierszy
+        private void ZastosujInfoDoKafelkow(Dictionary<string, int> counts, Dictionary<string, PartiaInfo> info)
+        {
+            // DEBUG banner — pokazuje ile partii zostalo rozpoznanych
+            try
+            {
+                int totalPartii = info?.Count ?? 0;
+                int zHodowca = info?.Count(x => !string.IsNullOrEmpty(x.Value?.Hodowca)) ?? 0;
+                int istniejacych = info?.Count(x => x.Value?.Istnieje == true) ?? 0;
+                if (ps_PartieDebugBanner != null && ps_PartieDebugText != null)
+                {
+                    if (totalPartii > 0 && zHodowca < totalPartii)
+                    {
+                        ps_PartieDebugBanner.Visibility = Visibility.Visible;
+                        ps_PartieDebugText.Text = "⚠ DEBUG: " + totalPartii + " partii, " + istniejacych + " w bazie, "
+                            + zHodowca + " z hodowcą. Klik = otworz log %TEMP%\\reklamacje-partie.log";
+                    }
+                    else
+                    {
+                        ps_PartieDebugBanner.Visibility = Visibility.Collapsed;
+                    }
+                }
+            }
+            catch { }
+
+            foreach (var kv in _partieControls)
+            {
+                string partia = kv.Key;
+                var pk = kv.Value;
+                if (pk == null) continue;
+
+                PartiaInfo pi = null;
+                info?.TryGetValue(partia, out pi);
+                int c = 0;
+                counts?.TryGetValue(partia, out c);
+
+                // Bezposrednie referencje — bez iteracji visual tree, bez polegania na Name
+                TextBlock tHodowca = pk.Hodowca;
+                TextBlock tData = pk.Data;
+                TextBlock tCheck = pk.Check;
+                Border badge = pk.Badge;
+                Border kafelek = pk.Kafelek;
+
+                DbgLog("ZastosujInfo dla " + partia + ": pi=" + (pi == null ? "null" : "ok") + ", Hodowca='" + (pi?.Hodowca ?? "null") + "', HodowcaSkrot='" + (pi?.HodowcaSkrot ?? "null") + "'");
+
+                // Hodowca + DIAGNOSTYKA gdy brak (pokazuje co kod szukał)
+                if (tHodowca != null)
+                {
+                    if (pi != null && !string.IsNullOrEmpty(pi.HodowcaSkrot))
+                    {
+                        tHodowca.Text = "👤 " + pi.HodowcaSkrot;
+                        tHodowca.FontStyle = FontStyles.Normal;
+                        tHodowca.Foreground = new SolidColorBrush(Color.FromRgb(0x2C, 0x3E, 0x50));
+                        if (!string.IsNullOrEmpty(pi.Hodowca) && pi.Hodowca != pi.HodowcaSkrot)
+                            tHodowca.ToolTip = "Hodowca: " + pi.Hodowca;
+                    }
+                    else
+                    {
+                        // Diagnostyka: rozbij numer i pokaz tooltip
+                        var (cid, partiaDB) = Reklamacje.Services.SymfoniaPartieReader.RozbijNumerPartii(partia);
+                        string debugInfo = "DEBUG dla partii: " + partia +
+                            "\nFormat rozbity: CustomerID = " + (cid ?? "(none)") + ", PartiaDB = " + partiaDB +
+                            "\nIstnieje w listapartii: " + (pi?.Istnieje == true ? "TAK" : "NIE") +
+                            "\nData uboju: " + (pi?.DataUboju?.ToString("yyyy-MM-dd") ?? "(brak)") +
+                            "\n\nSQL diagnostyka:" +
+                            "\n  SELECT * FROM PartiaDostawca WHERE Partia='" + partiaDB + "'" + (cid != null ? " AND CustomerID='" + cid + "'" : "") +
+                            "\n  SELECT * FROM Dostawcy WHERE ID='" + (cid ?? "?") + "'";
+
+                        if (pi?.Istnieje == true)
+                        {
+                            tHodowca.Text = "❌ brak hodowcy w bazie";
+                            tHodowca.Foreground = new SolidColorBrush(Color.FromRgb(0xE6, 0x7E, 0x22));
+                        }
+                        else
+                        {
+                            tHodowca.Text = "❓ partia nieznana (CID=" + (cid ?? "?") + ", DB=" + partiaDB + ")";
+                            tHodowca.Foreground = new SolidColorBrush(Color.FromRgb(0xBD, 0xC3, 0xC7));
+                        }
+                        tHodowca.FontStyle = FontStyles.Italic;
+                        tHodowca.ToolTip = debugInfo;
+                    }
+                }
+
+                // Data uboju
+                if (tData != null)
+                {
+                    if (pi != null && pi.DataUboju.HasValue)
+                    {
+                        int dni = (int)(DateTime.Today - pi.DataUboju.Value.Date).TotalDays;
+                        string dniTxt = dni == 0 ? "dziś" : dni == 1 ? "wczoraj" : dni + " dni temu";
+                        tData.Text = "🔪 " + pi.DataUboju.Value.ToString("dd.MM") + " (" + dniTxt + ")";
+                    }
+                    else tData.Text = "";
+                }
+
+                // Indykator istnienia — kompaktowy 1-znak
+                if (tCheck != null)
+                {
+                    if (pi != null && pi.Istnieje)
+                    {
+                        tCheck.Text = pi.Zamknieta ? "🔒" : "✓";
+                        tCheck.Foreground = new SolidColorBrush(pi.Zamknieta
+                            ? Color.FromRgb(0x95, 0xA5, 0xA6)
+                            : Color.FromRgb(0x27, 0xAE, 0x60));
+                        tCheck.ToolTip = pi.Zamknieta ? "Partia zamknięta w bazie" : "Partia w bazie LibraNet";
+                    }
+                    else
+                    {
+                        tCheck.Text = "❓";
+                        tCheck.Foreground = new SolidColorBrush(Color.FromRgb(0xE6, 0x7E, 0x22));
+                        tCheck.ToolTip = "Partia nieznaleziona w listapartii (LibraNet)";
+                    }
+                }
+
+                // Badge alarmu reklamacji
+                if (badge != null && c > 0)
+                {
+                    badge.Visibility = Visibility.Visible;
+                    if (pk.BadgeText != null) pk.BadgeText.Text = c + " rekl.";
+                    badge.Background = new SolidColorBrush(c >= 2
+                        ? Color.FromRgb(0xC6, 0x28, 0x28)
+                        : Color.FromRgb(0xE6, 0x7E, 0x22));
+                }
+
+                // Border lewa = kolor statusu (left bar) — zamiast całej ramki
+                if (c >= 2)
+                    kafelek.BorderBrush = new SolidColorBrush(Color.FromRgb(0xC6, 0x28, 0x28)); // czerwony
+                else if (c == 1)
+                    kafelek.BorderBrush = new SolidColorBrush(Color.FromRgb(0xE6, 0x7E, 0x22)); // pomaranczowy
+                else if (pi != null && pi.Istnieje)
+                    kafelek.BorderBrush = new SolidColorBrush(Color.FromRgb(0x27, 0xAE, 0x60)); // zielony
+                else
+                    kafelek.BorderBrush = new SolidColorBrush(Color.FromRgb(0xBD, 0xC3, 0xC7)); // szary
+                kafelek.BorderThickness = new Thickness(3, 0, 0, 0); // tylko lewy pasek
+            }
+        }
+
+        // ============================================================
+        // GRUPOWANIE PARTII PER HODOWCA — z metadanymi (data uboju, dzień, nr auta)
+        // ============================================================
+        // 8-cyfrowa partia ma strukturę: YY (rok) + DDD (dzień roku) + NNN (nr auta)
+        // Np. "24268004" → rok 2024, dzień 268 = 24 września, auto #004
+        private static (int? rok, int? dzienRoku, string nrAuta, DateTime? dataKalendarzowa) RozbijPartiaDB(string partiaDB)
+        {
+            if (string.IsNullOrWhiteSpace(partiaDB) || partiaDB.Length != 8) return (null, null, "", null);
+            if (!partiaDB.All(char.IsDigit)) return (null, null, "", null);
+            try
+            {
+                int yy = int.Parse(partiaDB.Substring(0, 2));
+                int ddd = int.Parse(partiaDB.Substring(2, 3));
+                string nnn = partiaDB.Substring(5, 3);
+                int rokPelny = 2000 + yy;
+                DateTime? dt = null;
+                if (ddd >= 1 && ddd <= 366)
+                {
+                    try { dt = new DateTime(rokPelny, 1, 1).AddDays(ddd - 1); } catch { }
+                }
+                return (rokPelny, ddd, nnn, dt);
+            }
+            catch { return (null, null, "", null); }
+        }
+
+        private void ZbudujWidokPogrupowanyPoHodowcy(List<string> partie, Dictionary<string, int> counts, Dictionary<string, PartiaInfo> info)
+        {
+            // Cache do re-renderu (gdy async fetch daty oryginalnej faktury skonczy sie)
+            _lastPartieList = partie;
+            _lastPartieCounts = counts;
+            _lastPartieInfo = info;
+            ps_PartieList.Children.Clear();
+            _partieControls.Clear();
+
+            // 1. Grupowanie
+            var grupy = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+            int zHodowca = 0, bezHodowcy = 0;
+            foreach (var p in partie)
+            {
+                info.TryGetValue(p, out var pi);
+                string klucz;
+                if (pi != null && !string.IsNullOrWhiteSpace(pi.Hodowca))
+                {
+                    klucz = pi.Hodowca.Trim();
+                    zHodowca++;
+                }
+                else
+                {
+                    // Jezeli wciaz trwa deep fetch dla tej partii — oznacz "ładowanie", inaczej "nieznany"
+                    klucz = _partieDeepFetchPending.Contains(p) ? "⟳ Szukam hodowcy..." : "❓ Nieznany hodowca";
+                    bezHodowcy++;
+                }
+                if (!grupy.ContainsKey(klucz)) grupy[klucz] = new List<string>();
+                grupy[klucz].Add(p);
+            }
+
+            // Update licznika
+            ps_PartieCount.Text = partie.Count + " partii · " + (grupy.Count - (bezHodowcy > 0 ? 1 : 0)) + " hodowców"
+                + (bezHodowcy > 0 ? " · " + bezHodowcy + " nieznanych" : "");
+
+            // 2. Sortowanie: znani hodowcy najpierw (po liczbie partii malejaco), nieznani na koncu
+            var posortowaneGrupy = grupy
+                .OrderBy(g => g.Key.StartsWith("❓") ? 1 : 0)
+                .ThenByDescending(g => g.Value.Count)
+                .ThenBy(g => g.Key);
+
+            // 3. Buduj UI per grupa — try/catch per grupa zeby blad jednej nie zabil calego widoku
+            foreach (var g in posortowaneGrupy)
+            {
+                try
+                {
+                    ps_PartieList.Children.Add(BudujGrupeHodowcy(g.Key, g.Value, counts, info));
+                }
+                catch (Exception ex)
+                {
+                    DbgLog("BudujGrupeHodowcy BLAD dla hodowcy '" + g.Key + "': " + ex.Message);
+                    // Pokaz placeholder bezawaryjny
+                    ps_PartieList.Children.Add(new TextBlock
+                    {
+                        Text = "⚠ " + g.Key + " (" + g.Value.Count + " partii — błąd renderowania)",
+                        FontSize = 11,
+                        Foreground = new SolidColorBrush(Color.FromRgb(0xE6, 0x7E, 0x22)),
+                        Margin = new Thickness(8, 4, 8, 4)
+                    });
+                }
+            }
+        }
+
+        private UIElement BudujGrupeHodowcy(string hodowca, List<string> partie, Dictionary<string, int> counts, Dictionary<string, PartiaInfo> info)
+        {
+            bool nieznany = hodowca.StartsWith("❓");
+
+            // Wyliczenia dla nagłówka grupy
+            int sumaAlarmow = partie.Sum(p => { counts.TryGetValue(p, out var c); return c; });
+            var pierwszaPartia = partie.FirstOrDefault();
+            string krotkaNazwa = nieznany ? hodowca : hodowca;
+
+            var glowny = new Border
+            {
+                Background = Brushes.White,
+                CornerRadius = new CornerRadius(10),
+                // 2 kolumny w panelu bocznym (~480px): kazda grupa ~215px + 5px margin
+                Width = 215,
+                Margin = new Thickness(0, 0, 5, 6),
+                VerticalAlignment = VerticalAlignment.Top,
+                BorderBrush = new SolidColorBrush(nieznany ? Color.FromRgb(0xEF, 0xF1, 0xF4) : Color.FromRgb(0xDB, 0xEA, 0xFE)),
+                BorderThickness = new Thickness(1),
+                Effect = new System.Windows.Media.Effects.DropShadowEffect
+                {
+                    Color = Color.FromRgb(0x00, 0x00, 0x00),
+                    Opacity = 0.06,
+                    BlurRadius = 6,
+                    ShadowDepth = 1,
+                    Direction = 270
+                }
+            };
+
+            // ── HEADER GRUPY (avatar + nazwa hodowcy + licznik partii) — KLIKALNY (Expander)
+            var expander = new Expander
+            {
+                IsExpanded = false, // domyślnie zwiniete
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0),
+                Padding = new Thickness(0)
+            };
+
+            // Header expandera (avatar + nazwa)
+            var headerGrid = new Grid { Margin = new Thickness(2, 4, 4, 4) };
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            // Avatar — albo inicjały, albo MINI SPINNER (gdy grupa to "Szukam hodowcy...")
+            bool ladowanie = hodowca.StartsWith("⟳");
+            UIElement avatarElement;
+            if (ladowanie)
+            {
+                // Mini spinner 24×24
+                var spinCanvas = new Canvas { Width = 24, Height = 24, Margin = new Thickness(0, 0, 8, 0) };
+                var bgRing = new System.Windows.Shapes.Ellipse
+                {
+                    Width = 22, Height = 22,
+                    Stroke = new SolidColorBrush(Color.FromRgb(0xE5, 0xE7, 0xEB)),
+                    StrokeThickness = 3, Fill = Brushes.Transparent
+                };
+                Canvas.SetLeft(bgRing, 1); Canvas.SetTop(bgRing, 1);
+                spinCanvas.Children.Add(bgRing);
+                var arc = new System.Windows.Shapes.Path
+                {
+                    Stroke = new SolidColorBrush(Color.FromRgb(0x21, 0x96, 0xF3)),
+                    StrokeThickness = 3,
+                    StrokeStartLineCap = PenLineCap.Round,
+                    StrokeEndLineCap = PenLineCap.Round,
+                    Data = System.Windows.Media.Geometry.Parse("M 12,1 A 11,11 0 1 1 1,12")
+                };
+                var rt = new RotateTransform(0, 12, 12);
+                arc.RenderTransform = rt;
+                spinCanvas.Children.Add(arc);
+                rt.BeginAnimation(RotateTransform.AngleProperty, new System.Windows.Media.Animation.DoubleAnimation
+                {
+                    From = 0, To = 360,
+                    Duration = TimeSpan.FromSeconds(1),
+                    RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever
+                });
+                avatarElement = spinCanvas;
+            }
+            else
+            {
+                string initials = nieznany ? "?" : GetHodowcaInitials(hodowca);
+                var avatarBg = nieznany ? Color.FromRgb(0xBD, 0xBD, 0xBD) : KolorAvataraHodowcy(hodowca);
+                avatarElement = new Border
+                {
+                    Width = 24, Height = 24, CornerRadius = new CornerRadius(12),
+                    Background = new SolidColorBrush(avatarBg),
+                    Margin = new Thickness(0, 0, 8, 0),
+                    Child = new TextBlock { Text = initials, Foreground = Brushes.White, FontWeight = FontWeights.Bold, FontSize = 9, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center }
+                };
+            }
+            Grid.SetColumn(avatarElement, 0);
+            headerGrid.Children.Add(avatarElement);
+
+            // Nazwa hodowcy + licznik partii w 1 linii (kompakt)
+            var nazwaSp = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            nazwaSp.Children.Add(new TextBlock
+            {
+                Text = krotkaNazwa,
+                FontSize = 12,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(nieznany ? Color.FromRgb(0x95, 0xA5, 0xA6) : Color.FromRgb(0x0D, 0x47, 0xA1)),
+                VerticalAlignment = VerticalAlignment.Center
+            });
+            nazwaSp.Children.Add(new TextBlock
+            {
+                Text = "  " + partie.Count + " " + (partie.Count == 1 ? "partia" : (partie.Count < 5 ? "partie" : "partii"))
+                       + (sumaAlarmow > 0 ? "  ⚠ " + sumaAlarmow : ""),
+                FontSize = 10,
+                Foreground = new SolidColorBrush(Color.FromRgb(0x60, 0x7D, 0x8B)),
+                VerticalAlignment = VerticalAlignment.Center
+            });
+            Grid.SetColumn(nazwaSp, 1);
+            headerGrid.Children.Add(nazwaSp);
+
+            // Badge "szczegóły" — tylko gdy znany hodowca
+            if (!nieznany && !string.IsNullOrEmpty(pierwszaPartia))
+            {
+                var btn = new Border
+                {
+                    Background = new SolidColorBrush(Color.FromRgb(0xEB, 0xF4, 0xFB)),
+                    CornerRadius = new CornerRadius(4),
+                    Padding = new Thickness(7, 2, 7, 2),
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Cursor = System.Windows.Input.Cursors.Hand
+                };
+                btn.Child = new TextBlock { Text = "👤", FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromRgb(0x1E, 0x88, 0xE5)) };
+                btn.ToolTip = "Szczegóły hodowcy";
+                btn.MouseLeftButtonUp += (s, e) => { e.Handled = true; try { PokazHodowceZParti(pierwszaPartia); } catch { } };
+                Grid.SetColumn(btn, 2);
+                headerGrid.Children.Add(btn);
+            }
+
+            expander.Header = headerGrid;
+
+            // ── ZAWARTOSC: lista partii (rozwijana)
+            var listaSp = new StackPanel { Margin = new Thickness(0, 2, 0, 4) };
+            foreach (var partia in partie)
+            {
+                listaSp.Children.Add(BudujWierszPartiiWGrupie(partia, info, counts));
+            }
+            expander.Content = listaSp;
+
+            // Tlo headera (lekko niebieskie/szare)
+            var headerBg = nieznany
+                ? new SolidColorBrush(Color.FromRgb(0xF5, 0xF5, 0xF5))
+                : new SolidColorBrush(Color.FromRgb(0xE3, 0xF2, 0xFD));
+            var wrapper = new Border
+            {
+                Background = headerBg,
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(6, 2, 6, 2),
+                Child = expander
+            };
+            glowny.Child = wrapper;
+            return glowny;
+        }
+
+        private UIElement BudujWierszPartiiWGrupie(string partia, Dictionary<string, PartiaInfo> info, Dictionary<string, int> counts)
+        {
+            info.TryGetValue(partia, out var pi);
+            counts.TryGetValue(partia, out var alarmCount);
+
+            var (cid, partiaDB) = Reklamacje.Services.SymfoniaPartieReader.RozbijNumerPartii(partia);
+            var (rok, dzien, nrAuta, dataKal) = RozbijPartiaDB(partiaDB ?? partia);
+            // Preferuj dataUboju z DB, fallback na datę kalendarzową z numeru partii
+            DateTime? dataDoWyswietlenia = pi?.DataUboju ?? dataKal;
+
+            var border = new Border
+            {
+                Background = Brushes.Transparent,
+                Padding = new Thickness(10, 4, 8, 4),
+                Margin = new Thickness(0, 1, 0, 0),
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+            // Lewy pasek koloru = status (alarm/zielony/szary)
+            var leftBarColor = alarmCount >= 2 ? Color.FromRgb(0xC6, 0x28, 0x28)
+                : alarmCount == 1 ? Color.FromRgb(0xE6, 0x7E, 0x22)
+                : (pi != null && pi.Istnieje) ? Color.FromRgb(0x4C, 0xAF, 0x50)
+                : Color.FromRgb(0xBD, 0xBD, 0xBD);
+            border.BorderBrush = new SolidColorBrush(leftBarColor);
+            border.BorderThickness = new Thickness(3, 0, 0, 0);
+
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // numer + auto pod nim
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });     // badges (alarmy/check)
+
+            // KOL 0: NUMER PARTII (monospace) + pod nim data + wiek + auto
+            var sp0 = new StackPanel();
+            var tNumer = new TextBlock
+            {
+                Text = partia,
+                FontFamily = new FontFamily("Cascadia Mono, Consolas, monospace"),
+                FontSize = 12, // POWIEKSZONE 10→12
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Color.FromRgb(0x11, 0x18, 0x27))
+            };
+            sp0.Children.Add(tNumer);
+
+            // Pod numerem: WIEK + data + auto (czytelnie, większa czcionka)
+            var inlineLine = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 0) };
+            string tooltipData = "";
+
+            if (dataDoWyswietlenia.HasValue)
+            {
+                // WIEK TOWARU = data faktury (aktualna reklamacja) - data uboju
+                DateTime dataFak = _aktywnaDataFaktury?.Date ?? DateTime.Today;
+                int wiekDni = (int)(dataFak - dataDoWyswietlenia.Value.Date).TotalDays;
+                string wiekTxt = DeklinujDni(wiekDni);
+
+                // Kolor wieku — czerwony >7d (drob krotki termin), pomar 4-7d, zielony 0-3d
+                Color wiekColor = wiekDni < 0 ? Color.FromRgb(0x6B, 0x72, 0x80)  // przyszlosc?
+                    : wiekDni <= 3 ? Color.FromRgb(0x06, 0x59, 0x3D)              // swieże – zielony
+                    : wiekDni <= 7 ? Color.FromRgb(0xC2, 0x41, 0x0C)              // średnie – pomarańcz
+                    : Color.FromRgb(0x99, 0x1B, 0x1B);                            // stare – czerwony
+
+                // Wiek jako BADGE (mocniejszy akcent)
+                var wiekBadge = new Border
+                {
+                    Background = new SolidColorBrush(wiekDni <= 3 ? Color.FromRgb(0xD1, 0xFA, 0xE5)
+                                                    : wiekDni <= 7 ? Color.FromRgb(0xFE, 0xE1, 0xD3)
+                                                    : Color.FromRgb(0xFE, 0xE2, 0xE2)),
+                    CornerRadius = new CornerRadius(3),
+                    Padding = new Thickness(5, 1, 5, 1),
+                    Margin = new Thickness(0, 0, 5, 0),
+                    Child = new TextBlock
+                    {
+                        Text = wiekTxt,
+                        FontSize = 11, // CZYTELNE
+                        FontWeight = FontWeights.Bold,
+                        Foreground = new SolidColorBrush(wiekColor)
+                    }
+                };
+                inlineLine.Children.Add(wiekBadge);
+
+                // Data uboju mała
+                inlineLine.Children.Add(new TextBlock
+                {
+                    Text = "🔪" + dataDoWyswietlenia.Value.ToString("dd.MM"),
+                    FontSize = 10,
+                    Foreground = new SolidColorBrush(Color.FromRgb(0x6B, 0x72, 0x80)),
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(0, 0, 5, 0)
+                });
+
+                tooltipData = "Data uboju: " + dataDoWyswietlenia.Value.ToString("dddd, dd MMMM yyyy", new System.Globalization.CultureInfo("pl-PL"))
+                            + "\nData faktury: " + dataFak.ToString("dddd, dd MMMM yyyy", new System.Globalization.CultureInfo("pl-PL"))
+                            + "\nWiek towaru przy wystawieniu faktury: " + wiekTxt;
+            }
+
+            if (!string.IsNullOrEmpty(nrAuta))
+            {
+                inlineLine.Children.Add(new TextBlock
+                {
+                    Text = "🚛#" + nrAuta,
+                    FontSize = 10,
+                    Foreground = new SolidColorBrush(Color.FromRgb(0x6B, 0x72, 0x80)),
+                    VerticalAlignment = VerticalAlignment.Center,
+                    ToolTip = "Nr auta dostawcy"
+                });
+            }
+            if (inlineLine.Children.Count > 0)
+            {
+                if (!string.IsNullOrEmpty(tooltipData)) inlineLine.ToolTip = tooltipData;
+                sp0.Children.Add(inlineLine);
+            }
+
+            // Badge sredniej wagi paletkowej + dominujaca klasa kurczaka z In0E
+            if (_avgWagaPaletkowa.TryGetValue(partia, out var wagaInfo))
+            {
+                decimal odchyl = wagaInfo.avg - 540m;
+                Color bg, fg;
+                string znak = odchyl >= 0 ? "+" : "";
+                bool wNormie = Math.Abs(odchyl) < 1;
+                bool mniejNiz = odchyl < -1;
+                if (wNormie) { bg = Color.FromRgb(0xD1, 0xFA, 0xE5); fg = Color.FromRgb(0x06, 0x59, 0x3D); }
+                else if (odchyl > 0) { bg = Color.FromRgb(0xDB, 0xEA, 0xFE); fg = Color.FromRgb(0x1E, 0x40, 0xAF); }
+                else { bg = Color.FromRgb(0xFE, 0xE2, 0xE2); fg = Color.FromRgb(0x99, 0x1B, 0x1B); }
+
+                string prefiks = _aktywnaJestFKSB && mniejNiz ? "🚨 " : "⚖ ";
+
+                // WrapPanel dla badge wagi + chipa klasy obok
+                var badgesLine = new WrapPanel { Margin = new Thickness(0, 3, 0, 0), Orientation = Orientation.Horizontal };
+
+                var wagaBadge = new Border
+                {
+                    Background = new SolidColorBrush(bg),
+                    CornerRadius = new CornerRadius(3),
+                    Padding = new Thickness(6, 2, 6, 2),
+                    Margin = new Thickness(0, 0, 4, 2),
+                    BorderBrush = _aktywnaJestFKSB && mniejNiz ? new SolidColorBrush(Color.FromRgb(0xDC, 0x26, 0x26)) : null,
+                    BorderThickness = _aktywnaJestFKSB && mniejNiz ? new Thickness(1) : new Thickness(0),
+                    Child = new TextBlock
+                    {
+                        Text = prefiks + wagaInfo.avg.ToString("N1") + " kg (" + wagaInfo.count + "×) " + znak + odchyl.ToString("N1"),
+                        FontSize = 11,
+                        FontWeight = FontWeights.Bold,
+                        Foreground = new SolidColorBrush(fg)
+                    },
+                    ToolTip = "Średnia waga paletkowa z " + wagaInfo.count + " ważeń (In0E, Weight=540)\n"
+                            + "Deklarowane: 540 kg/paleta\n"
+                            + "Rzeczywiste: " + wagaInfo.avg.ToString("N2") + " kg\n"
+                            + "Odchylenie: " + znak + odchyl.ToString("N2") + " kg"
+                            + (_aktywnaJestFKSB && mniejNiz ? "\n\n🚨 FKSB-related: BRAK WAGOWY POTWIERDZONY" : "")
+                };
+                badgesLine.Children.Add(wagaBadge);
+
+                // CHIP klasy kurczaka — jeśli mamy dominującą klasę
+                if (wagaInfo.dominKlasa.HasValue)
+                {
+                    int klasa = wagaInfo.dominKlasa.Value;
+                    var (nazwaKlasy, emojiKlasy, bgKlasy, fgKlasy) = OpisKlasyKurczaka(klasa);
+                    int proc = wagaInfo.count > 0 ? (int)Math.Round((double)wagaInfo.dominCnt * 100 / wagaInfo.count) : 0;
+                    var klasaBadge = new Border
+                    {
+                        Background = new SolidColorBrush(bgKlasy),
+                        CornerRadius = new CornerRadius(3),
+                        Padding = new Thickness(6, 2, 6, 2),
+                        Margin = new Thickness(0, 0, 0, 2),
+                        Child = new TextBlock
+                        {
+                            Text = emojiKlasy + " kl." + klasa + (proc < 100 ? " (" + proc + "%)" : ""),
+                            FontSize = 11,
+                            FontWeight = FontWeights.Bold,
+                            Foreground = new SolidColorBrush(fgKlasy)
+                        },
+                        ToolTip = nazwaKlasy + " (QntInCont = " + klasa + ")\n"
+                                + "Dominacja: " + wagaInfo.dominCnt + " z " + wagaInfo.count + " ważeń = " + proc + "%\n"
+                                + (klasa >= 4 && klasa <= 7 ? "Duży kurczak ~14-16 kg/szt, ok. 36/paleta"
+                                    : klasa >= 8 && klasa <= 12 ? "Mały kurczak ~5-7 kg/szt"
+                                    : "Klasa anomalna — możliwy błąd ważenia")
+                    };
+                    badgesLine.Children.Add(klasaBadge);
+                }
+
+                sp0.Children.Add(badgesLine);
+            }
+            Grid.SetColumn(sp0, 0);
+            grid.Children.Add(sp0);
+
+            // KOL 1: BADGES (alarm + status partii)
+            var badgesSp = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            if (alarmCount > 0)
+            {
+                var alarmBg = alarmCount >= 2 ? Color.FromRgb(0xC6, 0x28, 0x28) : Color.FromRgb(0xE6, 0x7E, 0x22);
+                badgesSp.Children.Add(new Border
+                {
+                    Background = new SolidColorBrush(alarmBg),
+                    CornerRadius = new CornerRadius(3),
+                    Padding = new Thickness(5, 1, 5, 1),
+                    Margin = new Thickness(0, 0, 4, 0),
+                    Child = new TextBlock { Text = "⚠ " + alarmCount, FontSize = 9, FontWeight = FontWeights.Bold, Foreground = Brushes.White },
+                    ToolTip = alarmCount + " reklamacji dla tej partii"
+                });
+            }
+            string statusEmoji = pi != null && pi.Istnieje ? (pi.Zamknieta ? "🔒" : "✓") : "❓";
+            Color statusColor = pi != null && pi.Istnieje ? (pi.Zamknieta ? Color.FromRgb(0x95, 0xA5, 0xA6) : Color.FromRgb(0x27, 0xAE, 0x60)) : Color.FromRgb(0xE6, 0x7E, 0x22);
+            badgesSp.Children.Add(new TextBlock { Text = statusEmoji, FontSize = 11, Foreground = new SolidColorBrush(statusColor), VerticalAlignment = VerticalAlignment.Center });
+            Grid.SetColumn(badgesSp, 1);
+            grid.Children.Add(badgesSp);
+
+            border.Child = grid;
+
+            // Hover
+            var origBg = border.Background;
+            border.MouseEnter += (s, e) => border.Background = new SolidColorBrush(Color.FromRgb(0xF5, 0xF9, 0xFC));
+            border.MouseLeave += (s, e) => border.Background = origBg;
+
+            // Klik = kopia + toast
+            border.MouseLeftButtonUp += (s, e) =>
+            {
+                try { Clipboard.SetText(partia); ShowToast("📋 Skopiowano partię: " + partia, 1500); } catch { }
+            };
+
+            // ContextMenu (taki sam jak w starym kafelku)
+            var cm = new ContextMenu();
+            cm.Items.Add(MakeMenuItem("👤  Hodowca + wstawienie", () => PokazHodowceZParti(partia)));
+            cm.Items.Add(MakeMenuItem("⚠  Reklamacje tej partii", () => PokazReklamacjeParti(partia)));
+            cm.Items.Add(MakeMenuItem("📄  Inne faktury z tą partią", () => PokazFakturyZParti(partia)));
+            cm.Items.Add(new Separator());
+            cm.Items.Add(MakeMenuItem("🔗  Otwórz w Lista Partii V2", () => OtworzListePartii(partia)));
+            cm.Items.Add(new Separator());
+            cm.Items.Add(MakeMenuItem("🔧  DIAGNOSTYKA SQL", () => PokazDiagnostykePartii(partia)));
+            border.ContextMenu = cm;
+            border.MouseRightButtonUp += (s, e) => { cm.IsOpen = true; e.Handled = true; };
+
+            return border;
+        }
+
+        // Inicjały z nazwy hodowcy: "Szymczak Anna" → "SA", "Kiełbasa" → "K"
+        private static string GetHodowcaInitials(string nazwa)
+        {
+            if (string.IsNullOrWhiteSpace(nazwa)) return "?";
+            // RemoveEmptyEntries — chroni przed podwojnymi spacjami ("Szymczak  Anna")
+            // i tabami w nazwie ("Kowalski\tJan")
+            var parts = nazwa.Trim().Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length == 0) return "?";
+            // Pierwsza litera 1. czesci + pierwsza litera 2. czesci (jezeli istnieje i niepusta)
+            if (parts.Length >= 2 && parts[0].Length > 0 && parts[1].Length > 0)
+                return ("" + parts[0][0] + parts[1][0]).ToUpper();
+            // Jedno slowo: pierwsze 2 znaki, lub 1 znak jezeli krotsze
+            if (parts[0].Length >= 2) return parts[0].Substring(0, 2).ToUpper();
+            if (parts[0].Length == 1) return parts[0].ToUpper();
+            return "?";
+        }
+
+        // ============================================================
+        // INSTANT PLACEHOLDERY — pokaz partie OD RAZU (przed SQL fetch)
+        // ============================================================
+        // Kazda partia jako mini-karta z mini-spinnerem w avatarze + numer partii.
+        // Po fetchu zastapione prawdziwymi grupami przez ZbudujWidokPogrupowanyPoHodowcy.
+        private void BudujPlaceholderyPartii(List<string> partie)
+        {
+            ps_PartieList.Children.Clear();
+            foreach (var p in partie)
+            {
+                var card = new Border
+                {
+                    Background = Brushes.White,
+                    CornerRadius = new CornerRadius(10),
+                    Width = 215,
+                    Margin = new Thickness(0, 0, 5, 6),
+                    VerticalAlignment = VerticalAlignment.Top,
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(0xEF, 0xF1, 0xF4)),
+                    BorderThickness = new Thickness(1),
+                    Padding = new Thickness(8, 6, 8, 6)
+                };
+                var sp = new StackPanel { Orientation = Orientation.Horizontal };
+                // Mini spinner 18x18
+                var spinCanvas = new Canvas { Width = 18, Height = 18, Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center };
+                spinCanvas.Children.Add(new System.Windows.Shapes.Ellipse
+                {
+                    Width = 16, Height = 16, Stroke = new SolidColorBrush(Color.FromRgb(0xE5, 0xE7, 0xEB)), StrokeThickness = 2.5, Fill = Brushes.Transparent
+                });
+                Canvas.SetLeft(spinCanvas.Children[0], 1); Canvas.SetTop(spinCanvas.Children[0], 1);
+                var arc = new System.Windows.Shapes.Path
+                {
+                    Stroke = new SolidColorBrush(Color.FromRgb(0x21, 0x96, 0xF3)),
+                    StrokeThickness = 2.5,
+                    StrokeStartLineCap = PenLineCap.Round,
+                    StrokeEndLineCap = PenLineCap.Round,
+                    Data = System.Windows.Media.Geometry.Parse("M 9,1 A 8,8 0 1 1 1,9")
+                };
+                var rt = new RotateTransform(0, 9, 9);
+                arc.RenderTransform = rt;
+                spinCanvas.Children.Add(arc);
+                rt.BeginAnimation(RotateTransform.AngleProperty, new System.Windows.Media.Animation.DoubleAnimation
+                {
+                    From = 0, To = 360,
+                    Duration = TimeSpan.FromSeconds(1),
+                    RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever
+                });
+                sp.Children.Add(spinCanvas);
+                sp.Children.Add(new TextBlock
+                {
+                    Text = p,
+                    FontFamily = new FontFamily("Cascadia Mono, Consolas, monospace"),
+                    FontSize = 11,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = new SolidColorBrush(Color.FromRgb(0x6B, 0x72, 0x80)),
+                    VerticalAlignment = VerticalAlignment.Center
+                });
+                card.Child = sp;
+                ps_PartieList.Children.Add(card);
+            }
+        }
+
+        // LRU cache wynikow batch — instant load drugiej wizyty w tej samej reklamacji
+        private void CachePartieWyniki(int idDok, List<string> partie, Dictionary<string, int> counts, Dictionary<string, PartiaInfo> info, Dictionary<string, (decimal, int, int?, int)> avgWag)
+        {
+            if (idDok <= 0) return;
+            // Jezeli juz jest — przeniesc na top
+            if (_cachePartie.ContainsKey(idDok))
+            {
+                _cacheOrder.Remove(idDok);
+            }
+            else if (_cachePartie.Count >= CACHE_SIZE && _cacheOrder.Count > 0)
+            {
+                // Evict najstarszy
+                int oldest = _cacheOrder.First.Value;
+                _cacheOrder.RemoveFirst();
+                _cachePartie.Remove(oldest);
+            }
+            _cachePartie[idDok] = new PartieCacheEntry
+            {
+                Partie = partie,
+                Counts = counts,
+                Info = info,
+                AvgWag = avgWag ?? new Dictionary<string, (decimal, int, int?, int)>(StringComparer.OrdinalIgnoreCase),
+                FetchedAt = DateTime.Now
+            };
+            _cacheOrder.AddLast(idDok);
+        }
+
+        // ============================================================
+        // SPINNER (kręcące się kółko) — placeholder podczas ładowania partii
+        // ============================================================
+        private UIElement BudujSpinnerLoadingHodowcow()
+        {
+            var container = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(8, 16, 8, 16)
+            };
+
+            // Spinner — Canvas z 2 arcami: pusty pierscien + niebieski wycinek (animowany obrot)
+            var spinnerCanvas = new Canvas
+            {
+                Width = 24,
+                Height = 24,
+                Margin = new Thickness(0, 0, 10, 0),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            // Tło — szary ring (cały okrąg)
+            var bgRing = new System.Windows.Shapes.Ellipse
+            {
+                Width = 22,
+                Height = 22,
+                Stroke = new SolidColorBrush(Color.FromRgb(0xE5, 0xE7, 0xEB)),
+                StrokeThickness = 3,
+                Fill = Brushes.Transparent
+            };
+            Canvas.SetLeft(bgRing, 1);
+            Canvas.SetTop(bgRing, 1);
+            spinnerCanvas.Children.Add(bgRing);
+
+            // Wycinek niebieski — Arc 270°
+            var arc = new System.Windows.Shapes.Path
+            {
+                Stroke = new SolidColorBrush(Color.FromRgb(0x21, 0x96, 0xF3)),
+                StrokeThickness = 3,
+                StrokeStartLineCap = PenLineCap.Round,
+                StrokeEndLineCap = PenLineCap.Round,
+                Data = System.Windows.Media.Geometry.Parse("M 12,1 A 11,11 0 1 1 1,12") // 270° arc
+            };
+            var rotateTransform = new RotateTransform(0, 12, 12);
+            arc.RenderTransform = rotateTransform;
+            spinnerCanvas.Children.Add(arc);
+
+            // Animacja: pełny obrót w 1 sekundzie, w nieskończoność
+            var anim = new System.Windows.Media.Animation.DoubleAnimation
+            {
+                From = 0,
+                To = 360,
+                Duration = TimeSpan.FromSeconds(1),
+                RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever
+            };
+            rotateTransform.BeginAnimation(RotateTransform.AngleProperty, anim);
+
+            container.Children.Add(spinnerCanvas);
+            container.Children.Add(new TextBlock
+            {
+                Text = "Szukam partii i hodowców...",
+                FontSize = 11,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Color.FromRgb(0x37, 0x41, 0x51)),
+                VerticalAlignment = VerticalAlignment.Center
+            });
+
+            return container;
+        }
+
+        // Deklinacja PL: "0 dni" / "1 dzień" / "2 dni" / "5 dni" / "21 dni"
+        private static string DeklinujDni(int n)
+        {
+            if (n == 1) return "1 dzień";
+            return n + " dni";
+        }
+
+        // Deterministyczny kolor avatara z nazwy hodowcy
+        private static Color KolorAvataraHodowcy(string nazwa)
+        {
+            var paleta = new[]
+            {
+                Color.FromRgb(0x21, 0x96, 0xF3), // blue
+                Color.FromRgb(0x43, 0xA0, 0x47), // green
+                Color.FromRgb(0xFB, 0x8C, 0x00), // orange
+                Color.FromRgb(0x8E, 0x24, 0xAA), // purple
+                Color.FromRgb(0x00, 0xAC, 0xC1), // cyan
+                Color.FromRgb(0x6D, 0x4C, 0x41), // brown
+                Color.FromRgb(0x1E, 0x88, 0xE5), // light blue
+                Color.FromRgb(0x53, 0x6D, 0xFE), // indigo
+            };
+            int h = 0;
+            foreach (var c in nazwa ?? "") h = (h * 31 + c) & 0x7FFFFFFF;
+            return paleta[h % paleta.Length];
+        }
+
+        // (stara metoda BudujPartiaRow zastapiona kafelkiem — zachowana tymczasowo dla compat — nieuzywana)
+        private UIElement BudujPartiaRow(string nrPartii)
+        {
+            var border = new Border
+            {
+                Background = Brushes.White,
+                CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(8, 4, 8, 4),
+                Margin = new Thickness(0, 1, 0, 1),
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            // Kol 0: numer partii
+            var tNumer = new TextBlock
+            {
+                Text = nrPartii,
+                FontSize = 11,
+                FontFamily = new FontFamily("Cascadia Mono, Consolas"),
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Color.FromRgb(0x0D, 0x47, 0xA1)),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(tNumer, 0);
+            grid.Children.Add(tNumer);
+
+            // Kol 1: 📋 (subtelne)
+            var tCopy = new TextBlock
+            {
+                Text = " 📋",
+                FontSize = 9,
+                Opacity = 0.45,
+                Foreground = new SolidColorBrush(Color.FromRgb(0x15, 0x65, 0xC0)),
+                Margin = new Thickness(4, 0, 0, 0),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(tCopy, 1);
+            grid.Children.Add(tCopy);
+
+            // Kol 2: badge alarmu (#1) — klikalny → popup listy reklamacji
+            var badge = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(0x95, 0xA5, 0xA6)),
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(6, 1, 6, 1),
+                Margin = new Thickness(6, 0, 0, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                Visibility = Visibility.Collapsed,
+                Cursor = System.Windows.Input.Cursors.Hand,
+                ToolTip = "Klik = poprzednie reklamacje tej partii",
+                Tag = nrPartii // dla async update lookupa
+            };
+            var badgeTb = new TextBlock { Foreground = Brushes.White, FontSize = 9, FontWeight = FontWeights.Bold };
+            badge.Child = badgeTb;
+            badge.MouseLeftButtonUp += (s, e) =>
+            {
+                e.Handled = true; // nie odpalaj rowniez schowka na borderze
+                PokazReklamacjeParti(nrPartii);
+            };
+            Grid.SetColumn(badge, 2);
+            grid.Children.Add(badge);
+
+            // Kol 3: ▾ (akcje) — klikalny → otwiera ContextMenu (typowy dropdown UX)
+            var btnMenu = new Border
+            {
+                CornerRadius = new CornerRadius(3),
+                Padding = new Thickness(4, 0, 4, 0),
+                Margin = new Thickness(6, 0, 0, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                Cursor = System.Windows.Input.Cursors.Hand,
+                ToolTip = "Pokaż menu akcji (lub right-click)"
+            };
+            var tMenu = new TextBlock
+            {
+                Text = "▾",
+                FontSize = 11,
+                FontWeight = FontWeights.Bold,
+                Opacity = 0.7,
+                Foreground = new SolidColorBrush(Color.FromRgb(0x15, 0x65, 0xC0))
+            };
+            btnMenu.Child = tMenu;
+            // Hover effect
+            btnMenu.MouseEnter += (s, e) => { btnMenu.Background = new SolidColorBrush(Color.FromRgb(0x90, 0xCA, 0xF9)); tMenu.Opacity = 1.0; };
+            btnMenu.MouseLeave += (s, e) => { btnMenu.Background = null; tMenu.Opacity = 0.7; };
+            Grid.SetColumn(btnMenu, 3);
+            grid.Children.Add(btnMenu);
+
+            border.Child = grid;
+            // Tooltip + cursor na całym wierszu
+            border.ToolTip = "Klik = kopiuj numer | ▾ / right-click = menu akcji";
+
+            // Context menu z 4 akcjami
+            var cm = new ContextMenu();
+            cm.Items.Add(MakeMenuItem("📋  Kopiuj numer do schowka", () => { Clipboard.SetText(nrPartii); ShowToast("📋 Skopiowano: " + nrPartii, 2000); }));
+            cm.Items.Add(new Separator());
+            cm.Items.Add(MakeMenuItem("📜  Lista reklamacji tej partii", () => PokazReklamacjeParti(nrPartii)));
+            cm.Items.Add(MakeMenuItem("🌐  Kto jeszcze dostał tę partię", () => PokazFakturyZParti(nrPartii)));
+            cm.Items.Add(MakeMenuItem("👨‍🌾  Hodowca + wstawienie", () => PokazHodowceZParti(nrPartii)));
+            cm.Items.Add(new Separator());
+            cm.Items.Add(MakeMenuItem("🔗  Otwórz w Lista Partii V2", () => OtworzListePartii(nrPartii)));
+            cm.Items.Add(new Separator());
+            cm.Items.Add(MakeMenuItem("🔧  DIAGNOSTYKA SQL (debugger)", () => PokazDiagnostykePartii(nrPartii)));
+            border.ContextMenu = cm;
+
+            // Hover
+            border.MouseEnter += (s, e) => { border.Background = new SolidColorBrush(Color.FromRgb(0xBB, 0xDE, 0xFB)); };
+            border.MouseLeave += (s, e) => { border.Background = Brushes.White; };
+            // Lewy klik = kopia
+            border.MouseLeftButtonUp += (s, e) =>
+            {
+                try
+                {
+                    Clipboard.SetText(nrPartii);
+                    ShowToast("📋 Skopiowano numer partii: " + nrPartii, 2000);
+                }
+                catch { }
+            };
+            // Mid-click / right-click otwiera menu (right click jest default)
+            border.MouseRightButtonUp += (s, e) => { cm.IsOpen = true; e.Handled = true; };
+            // Klik na ikonkę ▾ też otwiera menu (typowy dropdown UX)
+            btnMenu.MouseLeftButtonUp += (s, e) => { e.Handled = true; cm.PlacementTarget = btnMenu; cm.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom; cm.IsOpen = true; };
+
+            // Badge wypelniany w batchu w ZastosujPartie (1 SQL dla wszystkich 12 partii zamiast 12 oddzielnych)
+
+            return border;
+        }
+
+        private static MenuItem MakeMenuItem(string text, Action onClick)
+        {
+            var mi = new MenuItem { Header = text, FontSize = 12 };
+            mi.Click += (s, e) => { try { onClick?.Invoke(); } catch (Exception ex) { System.Diagnostics.Debug.WriteLine("MenuItem: " + ex.Message); } };
+            return mi;
+        }
+
+        // #1 — liczba reklamacji ktore wspominaja te partie (w Opis / PrzyczynaGlowna / AkcjeNaprawcze)
+        private int LiczReklamacjiParti(string nrPartii)
+        {
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    using (var cmd = new SqlCommand(@"
+                        SELECT COUNT(*) FROM [dbo].[Reklamacje]
+                        WHERE Opis LIKE @P OR PrzyczynaGlowna LIKE @P OR AkcjeNaprawcze LIKE @P", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@P", "%" + nrPartii + "%");
+                        var v = cmd.ExecuteScalar();
+                        return v == null || v == DBNull.Value ? 0 : Convert.ToInt32(v);
+                    }
+                }
+            }
+            catch { return 0; }
+        }
+
+        // Batch info partii: dla 12 partii — jeden SQL JOIN listapartii + PartiaDostawca.
+        // Zwraca: czy partia istnieje + nazwa hodowcy + data uboju (CreateData).
+        public sealed class PartiaInfo
+        {
+            public bool Istnieje;
+            public string Hodowca;        // CustomerName z PartiaDostawca
+            public string HodowcaSkrot;   // pierwsze litery hodowcy
+            public DateTime? DataUboju;   // listapartii.CreateData
+            public bool Zamknieta;        // IsClose=1
+        }
+
+        // Debug log w %TEMP% — uzytkownik moze otworzyc gdy diagnostyka potrzebna
+        private static void DbgLog(string msg)
+        {
+            try
+            {
+                string path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "reklamacje-partie.log");
+                System.IO.File.AppendAllText(path, DateTime.Now.ToString("HH:mm:ss.fff") + "  " + msg + "\n");
+            }
+            catch { }
+        }
+
+        // ============================================================
+        // Rozbija LUZNO zapisane wpisy partii z INI Symfonii na liste czystych numerow.
+        // INPUT  → OUTPUT
+        // "98926148005, 32326147001, 90626148001"  → [98926148005, 32326147001, 90626148001]
+        // "62526146001- 400 poj"                   → [62526146001]
+        // "76226127013-4200kg"                     → [76226127013]
+        // "78626153014-WĄTROBA"                    → [78626153014]
+        // "WĄTROBA MROŻONA Z KURCZAKA"             → [] (brak prawidlowych cyfr)
+        // "597- 24.04.2026- 1000 KG"               → [] (3-cyfrowy fragment, nie partia)
+        // Akceptujemy TYLKO sekwencje 11-cyfrowe (CID+Partia) lub 8-cyfrowe (sama Partia).
+        // ============================================================
+        private static List<string> RozbijLuznoZapisaneParti(string raw)
+        {
+            var result = new List<string>();
+            if (string.IsNullOrWhiteSpace(raw)) return result;
+
+            // Split po przecinku, sredniku, slash, pipe — czesta interpunkcja w polu "Partia"
+            foreach (var part in raw.Split(new[] { ',', ';', '|', '/' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                var cleaned = part.Trim();
+                if (cleaned.Length == 0) continue;
+
+                // Utnij sufiks po pierwszym myslniku (kg / pojemniki / opis produktu / data)
+                int dashIdx = cleaned.IndexOf('-');
+                if (dashIdx > 0) cleaned = cleaned.Substring(0, dashIdx).Trim();
+
+                // Wyciagnij wszystkie cyfry (na wypadek spacji lub innych smieci)
+                var digits = new string(cleaned.Where(char.IsDigit).ToArray());
+
+                // 11-cyfrowy = pelny format ZPSP [CID 3][Partia 8]
+                // 8-cyfrowy = sama Partia (CID nieznany)
+                // Wszystko inne — odrzut
+                if (digits.Length == 11 || digits.Length == 8)
+                {
+                    if (!result.Contains(digits)) result.Add(digits);
+                }
+            }
+            return result;
+        }
+
+        // ============================================================
+        // SREDNIA WAGA PALETKOWA dla FKSB (brak wagowy)
+        // ============================================================
+        // SELECT P1, AVG(ActWeight), COUNT(*) FROM In0E
+        // WHERE Weight = 540 AND P1 IN (@P0, @P1, ...)
+        // GROUP BY P1
+        //
+        // Pokazuje user'owi czy faktyczna srednia waga palet z tej partii (ActWeight)
+        // zgadza sie z deklarowanym 540 kg/paleta. Jezeli faktura miala 540 a srednia
+        // jest 543 → klient ma racje ze dostal mniej niz faktura mowi.
+        // ============================================================
+        // ============================================================
+        // DEEP LOOKUP HODOWCY (drugie podejscie po brzmieniu pierwszego)
+        // ============================================================
+        // Jezeli pierwszy fetch (LoadPartieInfoBatch) nie znalazł hodowcy,
+        // probojemy bardziej liberalnie:
+        //   - tylko po Partia (8 cyfr), ignorujemy CID
+        //   - bierzemy najnowszego (CreateData DESC)
+        //   - jezeli wciaz nic — szukamy w listapartii / PartiaDostawca / Dostawcy
+        // ============================================================
+        private Dictionary<string, string> DeepLookupHodowcyBatch(List<string> partie)
+        {
+            var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (partie == null || partie.Count == 0) return result;
+
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    foreach (var full in partie)
+                    {
+                        var (_, partiaDB) = Reklamacje.Services.SymfoniaPartieReader.RozbijNumerPartii(full);
+                        string lookupPartia = partiaDB ?? full;
+
+                        // Najpierw PartiaDostawca po samej Partia (najnowszy hodowca)
+                        string nazwa = null;
+                        using (var cmd = new SqlCommand(@"
+                            SELECT TOP 1 COALESCE(NULLIF(LTRIM(RTRIM(d.Name)),''), NULLIF(LTRIM(RTRIM(pd.CustomerName)),''), '')
+                            FROM [dbo].[PartiaDostawca] pd
+                            LEFT JOIN [dbo].[Dostawcy] d ON LTRIM(RTRIM(d.ID)) = LTRIM(RTRIM(pd.CustomerID))
+                            WHERE LTRIM(RTRIM(pd.Partia)) = @P
+                            ORDER BY pd.CreateData DESC", conn))
+                        {
+                            cmd.CommandTimeout = 5;
+                            cmd.Parameters.AddWithValue("@P", lookupPartia);
+                            var o = cmd.ExecuteScalar();
+                            if (o != null && o != DBNull.Value)
+                                nazwa = o.ToString()?.Trim();
+                        }
+
+                        if (!string.IsNullOrEmpty(nazwa))
+                        {
+                            result[full] = nazwa;
+                            continue;
+                        }
+
+                        // Backup: szukamy w In0E po P1 (kto ważył partię — pierwszy dostawca)
+                        using (var cmd = new SqlCommand(@"
+                            SELECT TOP 1 ISNULL(LTRIM(RTRIM(d.Name)), '')
+                            FROM [dbo].[In0E] i
+                            LEFT JOIN [dbo].[Dostawcy] d ON LTRIM(RTRIM(d.ID)) = LTRIM(RTRIM(i.CustomerID))
+                            WHERE LTRIM(RTRIM(i.P1)) = @P AND i.CustomerID IS NOT NULL
+                            ORDER BY i.Data DESC", conn))
+                        {
+                            cmd.CommandTimeout = 5;
+                            cmd.Parameters.AddWithValue("@P", lookupPartia);
+                            var o = cmd.ExecuteScalar();
+                            if (o != null && o != DBNull.Value)
+                            {
+                                var n2 = o.ToString()?.Trim();
+                                if (!string.IsNullOrEmpty(n2)) result[full] = n2;
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex) { DbgLog("DeepLookupHodowcyBatch BLAD: " + ex.Message); }
+            return result;
+        }
+
+        private Dictionary<string, (decimal avg, int count, int? dominKlasa, int dominCnt)> LoadAvgWagaPaletkowaBatch(List<string> partie)
+        {
+            var result = new Dictionary<string, (decimal, int, int?, int)>(StringComparer.OrdinalIgnoreCase);
+            if (partie == null || partie.Count == 0) return result;
+
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+
+                    // Query: per partia → AVG ActWeight, COUNT, DOMINUJACA QntInCont, COUNT tej klasy
+                    var sb = new System.Text.StringBuilder(@"
+                        WITH KlasyRanked AS (
+                            SELECT P1, QntInCont, COUNT(*) AS Cnt,
+                                   ROW_NUMBER() OVER (PARTITION BY P1 ORDER BY COUNT(*) DESC) AS Rn
+                            FROM [dbo].[In0E]
+                            WHERE Weight = 540 AND P1 IN (");
+                    for (int i = 0; i < partie.Count; i++)
+                    {
+                        if (i > 0) sb.Append(", ");
+                        sb.Append("@P").Append(i);
+                    }
+                    sb.Append(@")
+                            GROUP BY P1, QntInCont
+                        ),
+                        Stats AS (
+                            SELECT P1, AVG(CAST(ActWeight AS DECIMAL(18,2))) AS Avg, COUNT(*) AS Cnt
+                            FROM [dbo].[In0E]
+                            WHERE Weight = 540 AND P1 IN (");
+                    for (int i = 0; i < partie.Count; i++)
+                    {
+                        if (i > 0) sb.Append(", ");
+                        sb.Append("@P").Append(i);
+                    }
+                    sb.Append(@")
+                            GROUP BY P1
+                        )
+                        SELECT s.P1, s.Avg, s.Cnt, kr.QntInCont, kr.Cnt AS KlasaCnt
+                        FROM Stats s
+                        LEFT JOIN KlasyRanked kr ON kr.P1 = s.P1 AND kr.Rn = 1");
+
+                    using (var cmd = new SqlCommand(sb.ToString(), conn))
+                    {
+                        cmd.CommandTimeout = 15;
+                        for (int i = 0; i < partie.Count; i++)
+                        {
+                            var (_, partiaDB) = Reklamacje.Services.SymfoniaPartieReader.RozbijNumerPartii(partie[i]);
+                            cmd.Parameters.AddWithValue("@P" + i, (object)(partiaDB ?? partie[i]) ?? DBNull.Value);
+                        }
+                        using (var r = cmd.ExecuteReader())
+                        {
+                            while (r.Read())
+                            {
+                                string p1 = r.GetString(0)?.Trim();
+                                if (string.IsNullOrEmpty(p1)) continue;
+                                decimal avg = Convert.ToDecimal(r.GetValue(1));
+                                int cnt = r.GetInt32(2);
+                                int? dominKlasa = r.IsDBNull(3) ? (int?)null : Convert.ToInt32(r.GetValue(3));
+                                int dominCnt = r.IsDBNull(4) ? 0 : r.GetInt32(4);
+
+                                foreach (var full in partie)
+                                {
+                                    var (_, dbPart) = Reklamacje.Services.SymfoniaPartieReader.RozbijNumerPartii(full);
+                                    if (string.Equals(dbPart ?? full, p1, StringComparison.OrdinalIgnoreCase))
+                                        result[full] = (avg, cnt, dominKlasa, dominCnt);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex) { DbgLog("LoadAvgWagaPaletkowaBatch BLAD: " + ex.Message); }
+            return result;
+        }
+
+        // QntInCont 4-7 = Duży kurczak | 8-12 = Mały kurczak | 1-3, >12 = anomalie
+        private static (string nazwa, string emoji, Color bg, Color fg) OpisKlasyKurczaka(int klasa)
+        {
+            if (klasa >= 4 && klasa <= 7)
+                return ("Duży kurczak", "🐔", Color.FromRgb(0xDB, 0xEA, 0xFE), Color.FromRgb(0x1E, 0x40, 0xAF));
+            if (klasa >= 8 && klasa <= 12)
+                return ("Mały kurczak", "🐤", Color.FromRgb(0xFF, 0xED, 0xD5), Color.FromRgb(0xC2, 0x41, 0x0C));
+            return ("Klasa anomalna", "❓", Color.FromRgb(0xE5, 0xE7, 0xEB), Color.FromRgb(0x6B, 0x72, 0x80));
+        }
+
+        private Dictionary<string, PartiaInfo> LoadPartieInfoBatch(List<string> partie)
+        {
+            var result = new Dictionary<string, PartiaInfo>(StringComparer.OrdinalIgnoreCase);
+            if (partie == null || partie.Count == 0) return result;
+            foreach (var p in partie) result[p] = new PartiaInfo();
+
+            DbgLog("LoadPartieInfoBatch START — partie: " + string.Join(", ", partie));
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    // Format ZPSP: [CustomerID 3][Partia 8] = 11 cyfr. Rozbij i JOIN po obu kluczach.
+                    // PartiaDostawca ma klucz złozony (Partia, CustomerID) — dwoch hodowcow moze
+                    // miec ta sama partia tego samego dnia.
+                    // UWAGA: alias kolumny 'Full' = SQL keyword (FULL OUTER JOIN). Uzywamy 'FullNumer'.
+                    var sb = new System.Text.StringBuilder(@"
+                        WITH P AS (
+                            SELECT v.FullNumer, v.PartiaDB, v.CID FROM (VALUES ");
+                    for (int i = 0; i < partie.Count; i++)
+                    {
+                        if (i > 0) sb.Append(", ");
+                        sb.Append("(@F").Append(i).Append(", @P").Append(i).Append(", @C").Append(i).Append(")");
+                    }
+                    sb.Append(@") AS v(FullNumer, PartiaDB, CID)
+                        )
+                        -- 4-poziomowy lookup hodowcy:
+                        --  1. CID rozbity z numeru → Dostawcy.Name direct (najsilniejszy)
+                        --  2. PartiaDostawca match (Partia + CID) → Dostawcy.Name
+                        --  3. PartiaDostawca.CustomerName (cached, moze byc nieaktualny)
+                        --  4. Fallback: ANY hodowca dla tej Partia (gdy CID nie pasuje)
+                        SELECT P.FullNumer,
+                               CASE WHEN lp.Partia IS NULL THEN 0 ELSE 1 END AS Istnieje,
+                               lp.CreateData,
+                               ISNULL(lp.IsClose, 0) AS Zamknieta,
+                               COALESCE(NULLIF(d_cid.Name, ''),
+                                        NULLIF(d_pd.Name, ''),
+                                        NULLIF(pd.CustomerName, ''),
+                                        NULLIF(pd_any.CustomerName, ''),
+                                        '') AS Hodowca
+                        FROM P
+                        LEFT JOIN [dbo].[listapartii] lp
+                               ON LTRIM(RTRIM(lp.Partia)) = LTRIM(RTRIM(P.PartiaDB))
+                        LEFT JOIN [dbo].[PartiaDostawca] pd
+                               ON LTRIM(RTRIM(pd.Partia)) = LTRIM(RTRIM(P.PartiaDB))
+                              AND P.CID IS NOT NULL
+                              AND LTRIM(RTRIM(pd.CustomerID)) = LTRIM(RTRIM(P.CID))
+                        LEFT JOIN [dbo].[Dostawcy] d_pd
+                               ON LTRIM(RTRIM(d_pd.ID)) = LTRIM(RTRIM(pd.CustomerID))
+                        LEFT JOIN [dbo].[Dostawcy] d_cid
+                               ON P.CID IS NOT NULL AND LTRIM(RTRIM(d_cid.ID)) = LTRIM(RTRIM(P.CID))
+                        OUTER APPLY (
+                            SELECT TOP 1 CustomerName, CustomerID
+                            FROM [dbo].[PartiaDostawca]
+                            WHERE LTRIM(RTRIM(Partia)) = LTRIM(RTRIM(P.PartiaDB))
+                            ORDER BY CreateData DESC
+                        ) pd_any");
+                    using (var cmd = new SqlCommand(sb.ToString(), conn))
+                    {
+                        cmd.CommandTimeout = 5;
+                        for (int i = 0; i < partie.Count; i++)
+                        {
+                            var (cid, partiaDB) = Reklamacje.Services.SymfoniaPartieReader.RozbijNumerPartii(partie[i]);
+                            cmd.Parameters.AddWithValue("@F" + i, partie[i]);
+                            cmd.Parameters.AddWithValue("@P" + i, (object)partiaDB ?? DBNull.Value);
+                            cmd.Parameters.AddWithValue("@C" + i, (object)cid ?? DBNull.Value);
+                        }
+                        using (var r = cmd.ExecuteReader())
+                        {
+                            while (r.Read())
+                            {
+                                string fullNumer = r.GetString(0);
+                                if (!result.TryGetValue(fullNumer, out var info)) continue;
+                                info.Istnieje = r.GetInt32(1) == 1;
+                                // CreateData moze byc varchar (LibraNet trzyma daty jako string yyyy-MM-dd)
+                                if (!r.IsDBNull(2))
+                                {
+                                    var raw = r.GetValue(2);
+                                    if (raw is DateTime dt) info.DataUboju = dt;
+                                    else if (DateTime.TryParse(raw.ToString(), System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var parsed))
+                                        info.DataUboju = parsed;
+                                }
+                                info.Zamknieta = Convert.ToInt32(r.GetValue(3)) == 1;
+                                if (!r.IsDBNull(4))
+                                {
+                                    info.Hodowca = (r.GetString(4) ?? "").Trim();
+                                    info.HodowcaSkrot = SkrocHodowce(info.Hodowca);
+                                }
+                                DbgLog("  " + fullNumer + " → Istnieje=" + info.Istnieje + ", Hodowca='" + (info.Hodowca ?? "null") + "', DataUboju=" + (info.DataUboju?.ToString("yyyy-MM-dd") ?? "null"));
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                DbgLog("LoadPartieInfoBatch BLAD: " + ex.Message + "\n  STACK: " + ex.StackTrace);
+                System.Diagnostics.Debug.WriteLine("LoadPartieInfoBatch: " + ex.Message);
+            }
+            DbgLog("LoadPartieInfoBatch END — result: " + result.Count + " partii (" + result.Count(x => !string.IsNullOrEmpty(x.Value.Hodowca)) + " z hodowca)");
+            return result;
+        }
+
+        private static string SkrocHodowce(string nazwa)
+        {
+            if (string.IsNullOrWhiteSpace(nazwa)) return null;
+            nazwa = nazwa.Trim();
+            // Jeżeli krótka (≤12 znaków) — pokaż w całości
+            if (nazwa.Length <= 12) return nazwa;
+            // Spróbuj wyciąć przed pierwszą spacją / przecinkiem
+            int idx = nazwa.IndexOfAny(new[] { ' ', ',', '.' });
+            if (idx > 0 && idx <= 14) return nazwa.Substring(0, idx);
+            // Inaczej obciąć
+            return nazwa.Substring(0, 11) + "…";
+        }
+
+        // Polishing — batch query: jeden SQL zwraca count dla wszystkich partii naraz.
+        // Generuje SUM(CASE WHEN ... LIKE @Pn THEN 1 ELSE 0 END) per partia.
+        // 12 partii = 1 SQL roundtrip zamiast 12.
+        // Cache statyczny per partia — przy szybkim przeklikiwaniu reklamacji counts sa cache'owane.
+        private static readonly Dictionary<string, (int count, DateTime cachedAt)> _partieCountCache
+            = new Dictionary<string, (int, DateTime)>(StringComparer.OrdinalIgnoreCase);
+        private static readonly object _partieCacheLock = new object();
+        private static readonly TimeSpan PARTIE_CACHE_TTL = TimeSpan.FromMinutes(2);
+
+        private Dictionary<string, int> LiczReklamacjiPartiBatch(List<string> partie)
+        {
+            var result = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            if (partie == null || partie.Count == 0) return result;
+
+            // Cache check — zbierz tylko te ktore wymagaja zapytania
+            var doZapytania = new List<string>();
+            lock (_partieCacheLock)
+            {
+                foreach (var p in partie)
+                {
+                    if (_partieCountCache.TryGetValue(p, out var entry) && (DateTime.Now - entry.cachedAt) < PARTIE_CACHE_TTL)
+                        result[p] = entry.count;
+                    else
+                        doZapytania.Add(p);
+                }
+            }
+            if (doZapytania.Count == 0) return result;
+
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    // Szukamy DWA warianty per partia: full numer + skrocony (PartiaDB bez CustomerID prefix)
+                    // Bo handlowiec moze wpisac pelny "98024268004" albo skrocony "24268004"
+                    var sb = new System.Text.StringBuilder("SELECT ");
+                    for (int i = 0; i < doZapytania.Count; i++)
+                    {
+                        if (i > 0) sb.Append(", ");
+                        sb.Append("SUM(CASE WHEN Opis LIKE @F").Append(i).Append(" OR Opis LIKE @P").Append(i)
+                          .Append(" OR PrzyczynaGlowna LIKE @F").Append(i).Append(" OR PrzyczynaGlowna LIKE @P").Append(i)
+                          .Append(" OR AkcjeNaprawcze LIKE @F").Append(i).Append(" OR AkcjeNaprawcze LIKE @P").Append(i)
+                          .Append(" THEN 1 ELSE 0 END) AS C").Append(i);
+                    }
+                    sb.Append(" FROM [dbo].[Reklamacje]");
+                    using (var cmd = new SqlCommand(sb.ToString(), conn))
+                    {
+                        for (int i = 0; i < doZapytania.Count; i++)
+                        {
+                            var (_, partiaDB) = Reklamacje.Services.SymfoniaPartieReader.RozbijNumerPartii(doZapytania[i]);
+                            cmd.Parameters.AddWithValue("@F" + i, "%" + doZapytania[i] + "%");      // full numer
+                            cmd.Parameters.AddWithValue("@P" + i, "%" + (partiaDB ?? doZapytania[i]) + "%"); // partiaDB (skrocony)
+                        }
+                        using (var r = cmd.ExecuteReader())
+                        {
+                            if (r.Read())
+                            {
+                                for (int i = 0; i < doZapytania.Count; i++)
+                                {
+                                    int c = r.IsDBNull(i) ? 0 : r.GetInt32(i);
+                                    result[doZapytania[i]] = c;
+                                    lock (_partieCacheLock) _partieCountCache[doZapytania[i]] = (c, DateTime.Now);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch { /* w przypadku bledu zostaja juz uzupelnione z cache */ }
+            return result;
+        }
+
+        // #1 popup: lista reklamacji wspominajacych te partie
+        // Klik z XAML: przycisk "🔍 Sprawdź historię" w sekcji PARTIE Z FAKTURY
+        private void PsBtnSprawdzHistorie_Click(object sender, RoutedEventArgs e)
+        {
+            PokazReklamacjeWszystkichPartiZFaktury();
+        }
+
+        // ========================================
+        // POKAZ REKLAMACJE WIELU PARTII (z faktury) — agregowany lookup (ASYNC + grupowanie)
+        // ========================================
+        private sealed class HistoriaWiersz
+        {
+            public int Id;
+            public DateTime Data;
+            public string Klient;
+            public string Typ;
+            public string StatusV2;
+            public string DopasowanaPartia;
+            public string Opis;
+        }
+
+        private async void PokazReklamacjeWszystkichPartiZFaktury()
+        {
+            if (ps_BtnSprawdzHistorie != null) ps_BtnSprawdzHistorie.IsEnabled = false;
+            try
+            {
+                if (!(dgReklamacje.SelectedItem is ReklamacjaItem aktualna))
+                {
+                    ShowToast("Najpierw zaznacz reklamację", 2500);
+                    return;
+                }
+
+                int aktualnyId = aktualna.Id;
+                string aktualnyNumer = aktualna.NumerDokumentu ?? "?";
+                ShowToast("🔍 Szukam historii reklamacji...", 1500);
+
+                // RUN ALL DB WORK IN BACKGROUND
+                var rezultat = await System.Threading.Tasks.Task.Run(() =>
+                {
+                    var lista = new List<HistoriaWiersz>();
+                    int idDok = 0;
+                    List<string> partie = null;
+
+                    using (var conn = new SqlConnection(connectionString))
+                    {
+                        conn.Open();
+                        // Krok 1: IdDokumentu
+                        using (var cmd = new SqlCommand("SELECT ISNULL(IdDokumentu,0) FROM [dbo].[Reklamacje] WHERE Id=@Id", conn))
+                        {
+                            cmd.Parameters.AddWithValue("@Id", aktualnyId);
+                            var o = cmd.ExecuteScalar();
+                            if (o != null && o != DBNull.Value) idDok = Convert.ToInt32(o);
+                        }
+                    }
+
+                    if (idDok <= 0) return (lista, new List<string>(), "BRAK_FAKTURY");
+
+                    // Krok 2: czytaj INI (synchronicznie - cache 60s)
+                    var p = Reklamacje.Services.SymfoniaPartieReader.GetForDocument(idDok);
+                    if (p?.Partie == null || p.Partie.Count == 0)
+                        return (lista, new List<string>(), "BRAK_PARTII_W_INI");
+
+                    // Krok 3: rozbij brudne wpisy
+                    partie = new List<string>();
+                    foreach (var raw in p.Partie)
+                        foreach (var clean in RozbijLuznoZapisaneParti(raw))
+                            if (!partie.Contains(clean)) partie.Add(clean);
+
+                    if (partie.Count == 0) return (lista, partie, "BRAK_ROZPOZNANYCH");
+
+                    // Krok 4: BATCH SQL — CROSS APPLY zamiast N×OR LIKE (1 scan tabeli)
+                    // Plus filtr daty: tylko ostatnie 18 miesięcy (znacznie szybciej na duzej tabeli)
+                    using (var conn = new SqlConnection(connectionString))
+                    {
+                        conn.Open();
+                        var sb = new System.Text.StringBuilder(@"
+                            WITH P AS (
+                                SELECT v.Partia FROM (VALUES ");
+                        for (int i = 0; i < partie.Count; i++)
+                        {
+                            if (i > 0) sb.Append(", ");
+                            sb.Append("(@P").Append(i).Append(")");
+                        }
+                        sb.Append(@") AS v(Partia)
+                            )
+                            SELECT TOP 200
+                                   r.Id, r.DataZgloszenia, r.NazwaKontrahenta, ISNULL(r.TypReklamacji,''),
+                                   ISNULL(r.StatusV2,'ZGLOSZONA'),
+                                   ISNULL(r.Opis,'') + ' / ' + ISNULL(r.PrzyczynaGlowna,'') + ' / ' + ISNULL(r.AkcjeNaprawcze,''),
+                                   m.Partia
+                            FROM [dbo].[Reklamacje] r
+                            CROSS APPLY (
+                                SELECT TOP 1 P.Partia
+                                FROM P
+                                WHERE CHARINDEX(P.Partia, ISNULL(r.Opis,'') + ' ' + ISNULL(r.PrzyczynaGlowna,'') + ' ' + ISNULL(r.AkcjeNaprawcze,'')) > 0
+                            ) m
+                            WHERE r.Id <> @SelfId
+                              AND r.DataZgloszenia >= @DataOd
+                            ORDER BY r.DataZgloszenia DESC");
+
+                        using (var cmd = new SqlCommand(sb.ToString(), conn))
+                        {
+                            cmd.CommandTimeout = 20;
+                            cmd.Parameters.AddWithValue("@SelfId", aktualnyId);
+                            cmd.Parameters.AddWithValue("@DataOd", DateTime.Today.AddMonths(-18));
+                            for (int i = 0; i < partie.Count; i++)
+                                cmd.Parameters.AddWithValue("@P" + i, partie[i]);
+
+                            using (var r = cmd.ExecuteReader())
+                            {
+                                while (r.Read())
+                                {
+                                    lista.Add(new HistoriaWiersz
+                                    {
+                                        Id = r.GetInt32(0),
+                                        Data = r.GetDateTime(1),
+                                        Klient = r.GetString(2),
+                                        Typ = r.GetString(3),
+                                        StatusV2 = r.GetString(4),
+                                        Opis = r.GetString(5),
+                                        DopasowanaPartia = r.GetString(6)
+                                    });
+                                }
+                            }
+                        }
+                    }
+                    return (lista, partie, "OK");
+                });
+
+                var (lista2, partieZFaktury, status) = rezultat;
+
+                if (status == "BRAK_FAKTURY") { ShowToast("⚠ Reklamacja bez przypisanej faktury", 3500); return; }
+                if (status == "BRAK_PARTII_W_INI") { ShowToast("⚠ Brak partii w INI Symfonii dla tej faktury", 3500); return; }
+                if (status == "BRAK_ROZPOZNANYCH") { ShowToast("⚠ Wpisy w INI nie zawierają rozpoznawalnych numerów partii", 3500); return; }
+
+                if (lista2.Count == 0)
+                {
+                    ShowToast("✅ Czysto — żadna z " + partieZFaktury.Count + " partii nie była wcześniej reklamowana", 4500);
+                    return;
+                }
+
+                PokazOknoHistoriiPartii(aktualnyNumer, partieZFaktury, lista2);
+            }
+            catch (Exception ex)
+            {
+                ShowToast("Błąd: " + ex.Message, 4500);
+            }
+            finally
+            {
+                if (ps_BtnSprawdzHistorie != null) ps_BtnSprawdzHistorie.IsEnabled = true;
+            }
+        }
+
+        // Custom okno z grupowaniem per partia + statystyki
+        private void PokazOknoHistoriiPartii(string numerFaktury, List<string> partieZFaktury, List<HistoriaWiersz> wiersze)
+        {
+            var win = new Window
+            {
+                Title = "🔍 Historia reklamacji partii z faktury " + numerFaktury,
+                Width = 820,
+                Height = 640,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                Background = new SolidColorBrush(Color.FromRgb(0xF3, 0xF4, 0xF6))
+            };
+
+            var root = new Grid();
+            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // header
+            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // stats card
+            root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // list
+            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // footer
+
+            // ── HEADER (granatowy)
+            var headerBg = new LinearGradientBrush(Color.FromRgb(0x1F, 0x29, 0x37), Color.FromRgb(0x37, 0x41, 0x51), 0);
+            var header = new Border { Background = headerBg, Padding = new Thickness(20, 14, 20, 14) };
+            var hsp = new StackPanel();
+            hsp.Children.Add(new TextBlock { Text = "🔍 HISTORIA REKLAMACJI PARTII", FontSize = 10, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(0x9C, 0xA3, 0xAF)) });
+            hsp.Children.Add(new TextBlock { Text = "z faktury " + numerFaktury, FontSize = 16, FontWeight = FontWeights.Bold, Foreground = Brushes.White, Margin = new Thickness(0, 2, 0, 0) });
+            header.Child = hsp;
+            Grid.SetRow(header, 0);
+            root.Children.Add(header);
+
+            // ── STATYSTYKI CARD (4 metryki)
+            int problemowych = partieZFaktury.Count(p => wiersze.Any(w => w.DopasowanaPartia == p));
+            int zasadnych = wiersze.Count(w => w.StatusV2 == "ZASADNA");
+            int odrzuconych = wiersze.Count(w => w.StatusV2 == "ODRZUCONA");
+            int otwartych = wiersze.Count(w => w.StatusV2 == "ZGLOSZONA" || w.StatusV2 == "W_ANALIZIE");
+
+            var statsBorder = new Border { Background = Brushes.White, BorderBrush = new SolidColorBrush(Color.FromRgb(0xE5, 0xE7, 0xEB)), BorderThickness = new Thickness(0, 0, 0, 1), Padding = new Thickness(20, 10, 20, 10) };
+            var statsGrid = new Grid();
+            for (int i = 0; i < 4; i++) statsGrid.ColumnDefinitions.Add(new ColumnDefinition());
+            AddStatTile(statsGrid, 0, "🔴", "Partii z problemami", problemowych + " / " + partieZFaktury.Count, Color.FromRgb(0xDC, 0x26, 0x26));
+            AddStatTile(statsGrid, 1, "📊", "Reklamacji łącznie", wiersze.Count.ToString(), Color.FromRgb(0x21, 0x96, 0xF3));
+            AddStatTile(statsGrid, 2, "✅", "Zasadnych", zasadnych.ToString(), Color.FromRgb(0x10, 0xB9, 0x81));
+            AddStatTile(statsGrid, 3, "🕒", "W toku", otwartych.ToString(), Color.FromRgb(0xF5, 0x9E, 0x0B));
+            statsBorder.Child = statsGrid;
+            Grid.SetRow(statsBorder, 1);
+            root.Children.Add(statsBorder);
+
+            // ── LISTA — pogrupowana per partia
+            var sv = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Padding = new Thickness(16, 12, 16, 12) };
+            var listaSp = new StackPanel();
+
+            // Grupowanie: partia → lista wierszy
+            var grupy = wiersze.GroupBy(w => w.DopasowanaPartia)
+                                .OrderByDescending(g => g.Count())
+                                .ToList();
+
+            foreach (var grupa in grupy)
+            {
+                listaSp.Children.Add(BudujGrupePartiiHistoria(grupa.Key, grupa.ToList()));
+            }
+
+            // Partie BEZ trafień (czyste) — info na dole
+            var czyste = partieZFaktury.Where(p => !wiersze.Any(w => w.DopasowanaPartia == p)).ToList();
+            if (czyste.Count > 0)
+            {
+                var czysteBorder = new Border
+                {
+                    Background = new SolidColorBrush(Color.FromRgb(0xEC, 0xFD, 0xF5)),
+                    CornerRadius = new CornerRadius(6),
+                    Padding = new Thickness(12, 8, 12, 8),
+                    Margin = new Thickness(0, 8, 0, 0),
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(0xBB, 0xF7, 0xD0)),
+                    BorderThickness = new Thickness(1)
+                };
+                var sp = new StackPanel();
+                sp.Children.Add(new TextBlock { Text = "✅ Partie bez wcześniejszych reklamacji (" + czyste.Count + ")", FontSize = 11, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(0x06, 0x59, 0x3D)) });
+                sp.Children.Add(new TextBlock { Text = string.Join(" · ", czyste), FontSize = 10, Foreground = new SolidColorBrush(Color.FromRgb(0x05, 0x8B, 0x5E)), Margin = new Thickness(0, 4, 0, 0), TextWrapping = TextWrapping.Wrap, FontFamily = new FontFamily("Cascadia Mono, Consolas, monospace") });
+                czysteBorder.Child = sp;
+                listaSp.Children.Add(czysteBorder);
+            }
+
+            sv.Content = listaSp;
+            Grid.SetRow(sv, 2);
+            root.Children.Add(sv);
+
+            // ── FOOTER (close button)
+            var footer = new Border { Background = Brushes.White, BorderBrush = new SolidColorBrush(Color.FromRgb(0xE5, 0xE7, 0xEB)), BorderThickness = new Thickness(0, 1, 0, 0), Padding = new Thickness(16, 10, 16, 10) };
+            var fsp = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+            var btnZamknij = new Button { Content = "Zamknij", Width = 100, Height = 30, FontWeight = FontWeights.SemiBold, Cursor = System.Windows.Input.Cursors.Hand };
+            btnZamknij.Click += (s, e) => win.Close();
+            fsp.Children.Add(btnZamknij);
+            footer.Child = fsp;
+            Grid.SetRow(footer, 3);
+            root.Children.Add(footer);
+
+            win.Content = root;
+            win.ShowDialog();
+        }
+
+        private static void AddStatTile(Grid g, int col, string emoji, string label, string value, Color color)
+        {
+            var sp = new StackPanel { Margin = new Thickness(6, 0, 6, 0) };
+            var top = new StackPanel { Orientation = Orientation.Horizontal };
+            top.Children.Add(new TextBlock { Text = emoji, FontSize = 16, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) });
+            top.Children.Add(new TextBlock { Text = value, FontSize = 18, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(color), VerticalAlignment = VerticalAlignment.Center });
+            sp.Children.Add(top);
+            sp.Children.Add(new TextBlock { Text = label, FontSize = 9, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromRgb(0x6B, 0x72, 0x80)), Margin = new Thickness(0, 2, 0, 0) });
+            Grid.SetColumn(sp, col);
+            g.Children.Add(sp);
+        }
+
+        private UIElement BudujGrupePartiiHistoria(string partia, List<HistoriaWiersz> wiersze)
+        {
+            int alarmCount = wiersze.Count;
+            Color paskColor = alarmCount >= 3 ? Color.FromRgb(0xDC, 0x26, 0x26)  // czerwony
+                : alarmCount == 2 ? Color.FromRgb(0xF5, 0x9E, 0x0B)              // pomarańcz
+                : Color.FromRgb(0x21, 0x96, 0xF3);                                // niebieski
+
+            var border = new Border
+            {
+                Background = Brushes.White,
+                CornerRadius = new CornerRadius(8),
+                Margin = new Thickness(0, 0, 0, 8),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(0xE5, 0xE7, 0xEB)),
+                BorderThickness = new Thickness(1)
+            };
+
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(4) }); // lewy pasek
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            grid.Children.Add(new Border { Background = new SolidColorBrush(paskColor), CornerRadius = new CornerRadius(8, 0, 0, 8) });
+
+            var sp = new StackPanel { Margin = new Thickness(10, 8, 10, 8) };
+            Grid.SetColumn(sp, 1);
+
+            // Header grupy: numer partii + liczba reklamacji
+            var hg = new Grid();
+            hg.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            hg.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var tNumer = new TextBlock { Text = "🐔 " + partia, FontSize = 13, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(0x11, 0x18, 0x27)), FontFamily = new FontFamily("Cascadia Mono, Consolas, monospace") };
+            Grid.SetColumn(tNumer, 0);
+            hg.Children.Add(tNumer);
+            var badge = new Border
+            {
+                Background = new SolidColorBrush(paskColor),
+                CornerRadius = new CornerRadius(10),
+                Padding = new Thickness(8, 2, 8, 2),
+                Child = new TextBlock { Text = "⚠ " + alarmCount + " " + (alarmCount == 1 ? "reklamacja" : (alarmCount < 5 ? "reklamacje" : "reklamacji")), FontSize = 10, FontWeight = FontWeights.Bold, Foreground = Brushes.White }
+            };
+            Grid.SetColumn(badge, 1);
+            hg.Children.Add(badge);
+            sp.Children.Add(hg);
+
+            // Separator
+            sp.Children.Add(new Border { Height = 1, Background = new SolidColorBrush(Color.FromRgb(0xF3, 0xF4, 0xF6)), Margin = new Thickness(0, 6, 0, 6) });
+
+            // Lista wierszy
+            foreach (var w in wiersze.OrderByDescending(x => x.Data))
+            {
+                sp.Children.Add(BudujWierszHistorii(w));
+            }
+
+            grid.Children.Add(sp);
+            border.Child = grid;
+            return border;
+        }
+
+        private static UIElement BudujWierszHistorii(HistoriaWiersz w)
+        {
+            var row = new Grid { Margin = new Thickness(0, 3, 0, 3) };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(60) });   // ID
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(75) });   // data
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // klient + typ
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });     // status badge
+
+            var tId = new TextBlock { Text = "#" + w.Id, FontSize = 10, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromRgb(0x6B, 0x72, 0x80)), VerticalAlignment = VerticalAlignment.Center };
+            Grid.SetColumn(tId, 0);
+            row.Children.Add(tId);
+
+            var tData = new TextBlock { Text = w.Data.ToString("dd.MM.yyyy"), FontSize = 10, Foreground = new SolidColorBrush(Color.FromRgb(0x6B, 0x72, 0x80)), VerticalAlignment = VerticalAlignment.Center, FontFamily = new FontFamily("Cascadia Mono, Consolas, monospace") };
+            Grid.SetColumn(tData, 1);
+            row.Children.Add(tData);
+
+            var tKli = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            tKli.Children.Add(new TextBlock { Text = w.Klient, FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromRgb(0x11, 0x18, 0x27)), TextTrimming = TextTrimming.CharacterEllipsis });
+            tKli.Children.Add(new TextBlock { Text = w.Typ, FontSize = 9, Foreground = new SolidColorBrush(Color.FromRgb(0x9C, 0xA3, 0xAF)), TextTrimming = TextTrimming.CharacterEllipsis });
+            Grid.SetColumn(tKli, 2);
+            row.Children.Add(tKli);
+
+            var statusBg = w.StatusV2 switch
+            {
+                "ZASADNA" => Color.FromRgb(0xD1, 0xFA, 0xE5),
+                "ODRZUCONA" => Color.FromRgb(0xFE, 0xE2, 0xE2),
+                "ZAMKNIETA" => Color.FromRgb(0xE5, 0xE7, 0xEB),
+                "W_ANALIZIE" => Color.FromRgb(0xDB, 0xEA, 0xFE),
+                "POWIAZANA" => Color.FromRgb(0xE9, 0xD5, 0xFF),
+                _ => Color.FromRgb(0xFE, 0xF3, 0xC7)
+            };
+            var statusFg = w.StatusV2 switch
+            {
+                "ZASADNA" => Color.FromRgb(0x06, 0x59, 0x3D),
+                "ODRZUCONA" => Color.FromRgb(0x99, 0x1B, 0x1B),
+                "ZAMKNIETA" => Color.FromRgb(0x37, 0x41, 0x51),
+                "W_ANALIZIE" => Color.FromRgb(0x1E, 0x40, 0xAF),
+                "POWIAZANA" => Color.FromRgb(0x6B, 0x21, 0xA8),
+                _ => Color.FromRgb(0x92, 0x40, 0x0E)
+            };
+            var badge = new Border
+            {
+                Background = new SolidColorBrush(statusBg),
+                CornerRadius = new CornerRadius(10),
+                Padding = new Thickness(8, 2, 8, 2),
+                VerticalAlignment = VerticalAlignment.Center,
+                Child = new TextBlock { Text = w.StatusV2, FontSize = 9, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(statusFg) }
+            };
+            Grid.SetColumn(badge, 3);
+            row.Children.Add(badge);
+
+            return row;
+        }
+
+        private void PokazReklamacjeParti(string nrPartii)
+        {
+            try
+            {
+                var lista = new List<(int id, DateTime data, string klient, string typ, string statusV2, string opis)>();
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    var (_, partiaDB) = Reklamacje.Services.SymfoniaPartieReader.RozbijNumerPartii(nrPartii);
+                    using (var cmd = new SqlCommand(@"
+                        SELECT TOP 50 r.Id, r.DataZgloszenia, r.NazwaKontrahenta, ISNULL(r.TypReklamacji,''),
+                               ISNULL(r.StatusV2,'ZGLOSZONA'),
+                               ISNULL(r.Opis,'') + ' / ' + ISNULL(r.PrzyczynaGlowna,'') + ' / ' + ISNULL(r.AkcjeNaprawcze,'')
+                        FROM [dbo].[Reklamacje] r
+                        WHERE r.Opis LIKE @F OR r.PrzyczynaGlowna LIKE @F OR r.AkcjeNaprawcze LIKE @F
+                           OR r.Opis LIKE @P OR r.PrzyczynaGlowna LIKE @P OR r.AkcjeNaprawcze LIKE @P
+                        ORDER BY r.DataZgloszenia DESC", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@F", "%" + nrPartii + "%");
+                        cmd.Parameters.AddWithValue("@P", "%" + (partiaDB ?? nrPartii) + "%");
+                        using (var r = cmd.ExecuteReader())
+                        {
+                            while (r.Read())
+                                lista.Add((r.GetInt32(0), r.GetDateTime(1), r.GetString(2), r.GetString(3), r.GetString(4), r.GetString(5)));
+                        }
+                    }
+                }
+                if (lista.Count == 0)
+                {
+                    ShowToast("Ta partia jeszcze nie była reklamowana", 3000);
+                    return;
+                }
+                ShowListaPopup("📜 Reklamacje partii " + nrPartii, lista.Count + " reklamacji",
+                    lista.Select(x => (
+                        title: "#" + x.id + " — " + x.klient,
+                        sub: x.data.ToString("dd.MM.yyyy") + " • " + x.typ + " • " + x.statusV2,
+                        body: x.opis,
+                        color: KolorStatusu(x.statusV2)
+                    )).ToList());
+            }
+            catch (Exception ex) { ShowToast("Blad: " + ex.Message, 4000); }
+        }
+
+        // #2 popup: inne faktury z ta partia
+        private sealed class DokumentZPartia
+        {
+            public int Id;
+            public DateTime Data;
+            public string Klient;
+            public string Typ;     // "MG" / "DK"
+            public string Seria;   // FVS / WZ / MM- itd.
+            public string Kod;     // numer dokumentu
+            public decimal? Wartosc;
+            public decimal? Kg;    // suma waga z MZ (linii)
+        }
+
+        private async void PokazFakturyZParti(string nrPartii)
+        {
+            try
+            {
+                ShowToast("🔍 Szukam dokumentów dla partii " + nrPartii + "...", 1500);
+
+                var rezultat = await System.Threading.Tasks.Task.Run(() =>
+                {
+                    var ids = Reklamacje.Services.SymfoniaPartieReader.GetDocumentsForPartia(nrPartii);
+                    if (ids.Count == 0) return (new List<DokumentZPartia>(), 0);
+
+                    var lista = new List<DokumentZPartia>();
+                    using (var conn = new SqlConnection(ReklamacjeConnectionStrings.Handel))
+                    {
+                        conn.Open();
+                        string idsCsv = string.Join(",", ids);
+                        using (var cmd = new SqlCommand($@"
+                            SELECT 'MG' AS Typ, MG.id, MG.data, ISNULL(C.shortcut,'') AS Klient,
+                                   ISNULL(MG.seria,'') AS Seria, ISNULL(MG.kod,'') AS Kod,
+                                   CAST(NULL AS DECIMAL(18,2)) AS Wartosc,
+                                   (SELECT SUM(ABS(MZ.ilosc)) FROM [HANDEL].[HM].[MZ] MZ WHERE MZ.super = MG.id) AS Kg
+                            FROM [HANDEL].[HM].[MG] MG
+                            LEFT JOIN [HANDEL].[SSCommon].[STContractors] C ON MG.khid = C.id
+                            WHERE MG.id IN ({idsCsv}) AND MG.anulowany = 0
+
+                            UNION ALL
+
+                            SELECT 'DK' AS Typ, DK.id, DK.data, ISNULL(C.shortcut,'') AS Klient,
+                                   ISNULL(DK.seria,'') AS Seria, ISNULL(DK.kod,'') AS Kod,
+                                   ABS(ISNULL(DK.walNetto,0)) AS Wartosc,
+                                   (SELECT SUM(ABS(DP.ilosc)) FROM [HANDEL].[HM].[DP] DP WHERE DP.super = DK.id) AS Kg
+                            FROM [HANDEL].[HM].[DK] DK
+                            LEFT JOIN [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
+                            WHERE DK.id IN ({idsCsv}) AND DK.anulowany = 0
+
+                            ORDER BY 3 DESC", conn))
+                        {
+                            cmd.CommandTimeout = 15;
+                            using (var r = cmd.ExecuteReader())
+                            {
+                                while (r.Read())
+                                {
+                                    lista.Add(new DokumentZPartia
+                                    {
+                                        Typ = r.GetString(0),
+                                        Id = r.GetInt32(1),
+                                        Data = r.GetDateTime(2),
+                                        Klient = r.GetString(3),
+                                        Seria = r.GetString(4),
+                                        Kod = r.GetString(5),
+                                        Wartosc = r.IsDBNull(6) ? (decimal?)null : Convert.ToDecimal(r.GetValue(6)),
+                                        Kg = r.IsDBNull(7) ? (decimal?)null : Convert.ToDecimal(r.GetValue(7))
+                                    });
+                                }
+                            }
+                        }
+                    }
+                    return (lista, ids.Count);
+                });
+
+                var (lista2, idsCount) = rezultat;
+
+                if (idsCount == 0)
+                {
+                    ShowToast("Brak innych dokumentów z tą partią w INI Symfonii", 3000);
+                    return;
+                }
+                if (lista2.Count == 0)
+                {
+                    ShowToast("⚠ Partia " + nrPartii + " jest w INI, ale dokumenty nie istnieją w HANDEL (anulowane?)", 4500);
+                    return;
+                }
+
+                PokazOknoInnychDokumentow(nrPartii, lista2);
+            }
+            catch (Exception ex)
+            {
+                ShowToast("Błąd: " + ex.Message, 4000);
+            }
+        }
+
+        // Custom okno z grupowaniem po kliencie + statystyki
+        private void PokazOknoInnychDokumentow(string nrPartii, List<DokumentZPartia> dokumenty)
+        {
+            var win = new Window
+            {
+                Title = "🌐 Inne dokumenty z partią " + nrPartii,
+                Width = 820,
+                Height = 640,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                Background = new SolidColorBrush(Color.FromRgb(0xF3, 0xF4, 0xF6))
+            };
+
+            var root = new Grid();
+            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            // HEADER (granat)
+            var headerBg = new LinearGradientBrush(Color.FromRgb(0x0F, 0x76, 0x3E), Color.FromRgb(0x10, 0xB9, 0x81), 0);
+            var header = new Border { Background = headerBg, Padding = new Thickness(20, 14, 20, 14) };
+            var hsp = new StackPanel();
+            hsp.Children.Add(new TextBlock { Text = "🌐 INNE DOKUMENTY", FontSize = 10, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(0xBB, 0xF7, 0xD0)) });
+            hsp.Children.Add(new TextBlock { Text = "z partią " + nrPartii, FontSize = 16, FontWeight = FontWeights.Bold, Foreground = Brushes.White, Margin = new Thickness(0, 2, 0, 0), FontFamily = new FontFamily("Cascadia Mono, Consolas, monospace") });
+            header.Child = hsp;
+            Grid.SetRow(header, 0);
+            root.Children.Add(header);
+
+            // STATYSTYKI (4 tiles)
+            int liczbaDK = dokumenty.Count(x => x.Typ == "DK");
+            int liczbaMG = dokumenty.Count(x => x.Typ == "MG");
+            int liczbaKlientow = dokumenty.Where(x => !string.IsNullOrEmpty(x.Klient)).Select(x => x.Klient).Distinct(StringComparer.OrdinalIgnoreCase).Count();
+            decimal sumaWartosc = dokumenty.Where(x => x.Wartosc.HasValue).Sum(x => x.Wartosc.Value);
+
+            var statsBorder = new Border { Background = Brushes.White, BorderBrush = new SolidColorBrush(Color.FromRgb(0xE5, 0xE7, 0xEB)), BorderThickness = new Thickness(0, 0, 0, 1), Padding = new Thickness(20, 10, 20, 10) };
+            var statsGrid = new Grid();
+            for (int i = 0; i < 4; i++) statsGrid.ColumnDefinitions.Add(new ColumnDefinition());
+            AddStatTile(statsGrid, 0, "📄", "Faktury", liczbaDK.ToString(), Color.FromRgb(0x10, 0xB9, 0x81));
+            AddStatTile(statsGrid, 1, "📦", "Magazynowe", liczbaMG.ToString(), Color.FromRgb(0x21, 0x96, 0xF3));
+            AddStatTile(statsGrid, 2, "👥", "Klientów", liczbaKlientow.ToString(), Color.FromRgb(0x8E, 0x24, 0xAA));
+            AddStatTile(statsGrid, 3, "💰", "Wartość fak.", sumaWartosc > 0 ? sumaWartosc.ToString("N0") + " zł" : "—", Color.FromRgb(0xEA, 0x58, 0x0C));
+            statsBorder.Child = statsGrid;
+            Grid.SetRow(statsBorder, 1);
+            root.Children.Add(statsBorder);
+
+            // LISTA — grupowana po kliencie
+            var sv = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Padding = new Thickness(16, 12, 16, 12) };
+            var listaSp = new StackPanel();
+
+            var grupy = dokumenty
+                .GroupBy(x => string.IsNullOrWhiteSpace(x.Klient) ? "(brak klienta)" : x.Klient.Trim(), StringComparer.OrdinalIgnoreCase)
+                .OrderByDescending(g => g.Sum(x => x.Wartosc ?? 0))
+                .ThenByDescending(g => g.Count())
+                .ToList();
+
+            foreach (var g in grupy)
+                listaSp.Children.Add(BudujGrupeKlientaDokumenty(g.Key, g.ToList()));
+
+            sv.Content = listaSp;
+            Grid.SetRow(sv, 2);
+            root.Children.Add(sv);
+
+            // FOOTER
+            var footer = new Border { Background = Brushes.White, BorderBrush = new SolidColorBrush(Color.FromRgb(0xE5, 0xE7, 0xEB)), BorderThickness = new Thickness(0, 1, 0, 0), Padding = new Thickness(16, 10, 16, 10) };
+            var fsp = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+            var btnZamknij = new Button { Content = "Zamknij", Width = 100, Height = 30, FontWeight = FontWeights.SemiBold, Cursor = System.Windows.Input.Cursors.Hand };
+            btnZamknij.Click += (s, e) => win.Close();
+            fsp.Children.Add(btnZamknij);
+            footer.Child = fsp;
+            Grid.SetRow(footer, 3);
+            root.Children.Add(footer);
+
+            win.Content = root;
+            win.ShowDialog();
+        }
+
+        private UIElement BudujGrupeKlientaDokumenty(string klient, List<DokumentZPartia> dokumenty)
+        {
+            int liczbaDK = dokumenty.Count(x => x.Typ == "DK");
+            int liczbaMG = dokumenty.Count(x => x.Typ == "MG");
+            decimal sumaWartosc = dokumenty.Where(x => x.Wartosc.HasValue).Sum(x => x.Wartosc.Value);
+            decimal sumaKg = dokumenty.Where(x => x.Kg.HasValue).Sum(x => x.Kg.Value);
+
+            Color paskColor = liczbaDK > 0 ? Color.FromRgb(0x10, 0xB9, 0x81) : Color.FromRgb(0x21, 0x96, 0xF3);
+
+            var border = new Border
+            {
+                Background = Brushes.White,
+                CornerRadius = new CornerRadius(8),
+                Margin = new Thickness(0, 0, 0, 8),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(0xE5, 0xE7, 0xEB)),
+                BorderThickness = new Thickness(1)
+            };
+
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(4) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.Children.Add(new Border { Background = new SolidColorBrush(paskColor), CornerRadius = new CornerRadius(8, 0, 0, 8) });
+
+            var sp = new StackPanel { Margin = new Thickness(10, 8, 10, 8) };
+            Grid.SetColumn(sp, 1);
+
+            // Header klienta
+            var hg = new Grid();
+            hg.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            hg.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var tKli = new StackPanel();
+            tKli.Children.Add(new TextBlock { Text = "👤 " + klient, FontSize = 13, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(0x11, 0x18, 0x27)) });
+            var tInfo = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 0) };
+            tInfo.Children.Add(MakeChip("📄 " + liczbaDK + " fak.", Color.FromRgb(0xD1, 0xFA, 0xE5), Color.FromRgb(0x06, 0x59, 0x3D)));
+            tInfo.Children.Add(MakeChip("📦 " + liczbaMG + " mag.", Color.FromRgb(0xDB, 0xEA, 0xFE), Color.FromRgb(0x1E, 0x40, 0xAF)));
+            if (sumaKg > 0) tInfo.Children.Add(MakeChip("⚖ " + sumaKg.ToString("N0") + " szt", Color.FromRgb(0xFE, 0xF3, 0xC7), Color.FromRgb(0x92, 0x40, 0x0E)));
+            if (sumaWartosc > 0) tInfo.Children.Add(MakeChip("💰 " + sumaWartosc.ToString("N2") + " zł", Color.FromRgb(0xFE, 0xE1, 0xD3), Color.FromRgb(0xC2, 0x41, 0x0C)));
+            tKli.Children.Add(tInfo);
+            Grid.SetColumn(tKli, 0);
+            hg.Children.Add(tKli);
+            sp.Children.Add(hg);
+
+            sp.Children.Add(new Border { Height = 1, Background = new SolidColorBrush(Color.FromRgb(0xF3, 0xF4, 0xF6)), Margin = new Thickness(0, 6, 0, 6) });
+
+            // Wiersze dokumentów
+            foreach (var d in dokumenty.OrderByDescending(x => x.Data))
+                sp.Children.Add(BudujWierszDokumentu(d));
+
+            grid.Children.Add(sp);
+            border.Child = grid;
+            return border;
+        }
+
+        private static Border MakeChip(string text, Color bg, Color fg)
+        {
+            return new Border
+            {
+                Background = new SolidColorBrush(bg),
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(6, 1, 6, 1),
+                Margin = new Thickness(0, 0, 4, 0),
+                Child = new TextBlock { Text = text, FontSize = 9, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(fg) }
+            };
+        }
+
+        // Chip metadanych partii — emoji + tekst, większy padding, hover tooltip
+        private static Border MakeMetaChip(string emoji, string text, Color bg, Color fg, string tooltip)
+        {
+            var sp = new StackPanel { Orientation = Orientation.Horizontal };
+            if (!string.IsNullOrEmpty(emoji))
+                sp.Children.Add(new TextBlock { Text = emoji, FontSize = 10, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 0) });
+            sp.Children.Add(new TextBlock { Text = text, FontSize = 10, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(fg), VerticalAlignment = VerticalAlignment.Center });
+            return new Border
+            {
+                Background = new SolidColorBrush(bg),
+                CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(7, 3, 8, 3),
+                Margin = new Thickness(0, 0, 5, 5),
+                ToolTip = tooltip,
+                Child = sp
+            };
+        }
+
+        private static UIElement BudujWierszDokumentu(DokumentZPartia d)
+        {
+            var row = new Grid { Margin = new Thickness(0, 3, 0, 3) };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });   // typ badge
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(75) });   // data
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // kod + seria
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });     // kg
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });     // wartosc
+
+            // KOL 0: badge typu (DK/MG)
+            var badgeBg = d.Typ == "DK" ? Color.FromRgb(0xD1, 0xFA, 0xE5) : Color.FromRgb(0xDB, 0xEA, 0xFE);
+            var badgeFg = d.Typ == "DK" ? Color.FromRgb(0x06, 0x59, 0x3D) : Color.FromRgb(0x1E, 0x40, 0xAF);
+            var typBadge = new Border
+            {
+                Background = new SolidColorBrush(badgeBg),
+                CornerRadius = new CornerRadius(3),
+                Padding = new Thickness(5, 1, 5, 1),
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Child = new TextBlock { Text = d.Typ, FontSize = 9, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(badgeFg) }
+            };
+            Grid.SetColumn(typBadge, 0);
+            row.Children.Add(typBadge);
+
+            // KOL 1: data
+            var tData = new TextBlock { Text = d.Data.ToString("dd.MM.yyyy"), FontSize = 10, Foreground = new SolidColorBrush(Color.FromRgb(0x6B, 0x72, 0x80)), VerticalAlignment = VerticalAlignment.Center, FontFamily = new FontFamily("Cascadia Mono, Consolas, monospace") };
+            Grid.SetColumn(tData, 1);
+            row.Children.Add(tData);
+
+            // KOL 2: kod + seria
+            var spKod = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            spKod.Children.Add(new TextBlock { Text = d.Kod, FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromRgb(0x11, 0x18, 0x27)) });
+            spKod.Children.Add(new TextBlock { Text = "seria " + (string.IsNullOrEmpty(d.Seria) ? "—" : d.Seria) + " · ID " + d.Id, FontSize = 9, Foreground = new SolidColorBrush(Color.FromRgb(0x9C, 0xA3, 0xAF)) });
+            Grid.SetColumn(spKod, 2);
+            row.Children.Add(spKod);
+
+            // KOL 3: kg
+            if (d.Kg.HasValue && d.Kg.Value > 0)
+            {
+                var tKg = new TextBlock { Text = d.Kg.Value.ToString("N0") + " szt", FontSize = 10, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromRgb(0x92, 0x40, 0x0E)), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 0, 0) };
+                Grid.SetColumn(tKg, 3);
+                row.Children.Add(tKg);
+            }
+
+            // KOL 4: wartosc
+            if (d.Wartosc.HasValue && d.Wartosc.Value > 0)
+            {
+                var tWart = new TextBlock { Text = d.Wartosc.Value.ToString("N2") + " zł", FontSize = 11, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(0xEA, 0x58, 0x0C)), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) };
+                Grid.SetColumn(tWart, 4);
+                row.Children.Add(tWart);
+            }
+
+            return row;
+        }
+
+        // #3 — otworz okno Lista Partii V2 (wymaga recznego wpisania nr partii w search)
+        private void OtworzListePartii(string nrPartii)
+        {
+            try
+            {
+                Clipboard.SetText(nrPartii);
+                var w = new Kalendarz1.Partie.Views.ListaPartiiWindow();
+                w.Owner = this;
+                w.Show();
+                ShowToast("📋 Numer partii w schowku: " + nrPartii + " — wklej (Ctrl+V) w polu wyszukiwania", 5000);
+            }
+            catch (Exception ex) { ShowToast("Nie udalo sie otworzyc Listy Partii: " + ex.Message, 4000); }
+        }
+
+        // #4 popup: hodowca + dane wstawienia (cross-DB) — schema-safe (try-catch + dynamiczne kolumny)
+        private void PokazHodowceZParti(string nrPartii)
+        {
+            try
+            {
+                string hodowca = null, arimr = null, dataWstaw = null, kurnik = null;
+                string shortName = null, irzPlus = null;
+                bool? halt = null;
+                int? sztuk = null, padle = null;
+                decimal? sredniaWaga = null;
+                DateTime? dataUboju = null;
+                string dostawca = null;
+                string warnings = "";
+
+                // Rozbij pelny numer na CustomerID + PartiaDB (format ZPSP: 11 cyfr)
+                var (rozbity_CID, rozbita_Partia) = Reklamacje.Services.SymfoniaPartieReader.RozbijNumerPartii(nrPartii);
+
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    // Znajdz partie w listapartii — listapartii nie ma kolumny Dostawca,
+                    // dostawca jest w PartiaDostawca (klucz: Partia + opcjonalnie CustomerID).
+                    try
+                    {
+                        using (var cmd = new SqlCommand(@"
+                            SELECT TOP 1 lp.CreateData
+                            FROM [dbo].[listapartii] lp
+                            WHERE lp.Partia = @P
+                            ORDER BY lp.CreateData DESC", conn))
+                        {
+                            cmd.Parameters.AddWithValue("@P", rozbita_Partia);
+                            using (var r = cmd.ExecuteReader())
+                            {
+                                if (r.Read())
+                                {
+                                    if (!r.IsDBNull(0)) dataUboju = r.GetDateTime(0);
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex) { warnings += "listapartii: " + ex.Message + "\n"; }
+
+                    // Dostawca: jezeli numer rozbity → uzyj CustomerID bezposrednio (klucz znany).
+                    // Inaczej szukaj przez PartiaDostawca.
+                    if (rozbity_CID != null)
+                    {
+                        dostawca = rozbity_CID;
+                    }
+                    else
+                    {
+                        try
+                        {
+                            using (var cmd = new SqlCommand(@"
+                                SELECT TOP 1 CustomerID, CustomerName
+                                FROM [dbo].[PartiaDostawca]
+                                WHERE Partia = @P", conn))
+                            {
+                                cmd.Parameters.AddWithValue("@P", rozbita_Partia);
+                                using (var r = cmd.ExecuteReader())
+                                {
+                                    if (r.Read())
+                                    {
+                                        dostawca = r.IsDBNull(0) ? null : r.GetString(0);
+                                        if (string.IsNullOrEmpty(hodowca) && !r.IsDBNull(1))
+                                            hodowca = r.GetString(1);
+                                    }
+                                }
+                            }
+                        }
+                        catch (Exception ex) { warnings += "PartiaDostawca: " + ex.Message + "\n"; }
+                    }
+
+                    if (!string.IsNullOrEmpty(dostawca))
+                    {
+                        try
+                        {
+                            using (var cmd = new SqlCommand(@"
+                                SELECT TOP 1
+                                    ISNULL(Name, '')      AS Name,
+                                    ISNULL(ShortName, '') AS ShortName,
+                                    ISNULL(AnimNo, '')    AS AnimNo,
+                                    ISNULL(Halt, 0)       AS Halt,
+                                    ISNULL(IRZPlus, '')   AS IRZPlus
+                                FROM [dbo].[Dostawcy] WHERE ID = @D", conn))
+                            {
+                                cmd.Parameters.AddWithValue("@D", dostawca);
+                                using (var r = cmd.ExecuteReader())
+                                {
+                                    if (r.Read())
+                                    {
+                                        hodowca = r.GetString(0);
+                                        shortName = r.GetString(1);
+                                        arimr = r.GetString(2);
+                                        halt = Convert.ToInt32(r.GetValue(3)) == 1;
+                                        irzPlus = r.GetString(4);
+                                        if (string.IsNullOrWhiteSpace(hodowca)) hodowca = shortName;
+                                        if (string.IsNullOrWhiteSpace(hodowca)) hodowca = "(brak nazwy)";
+                                    }
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            warnings += "Dostawcy: " + ex.Message + "\n";
+                        }
+
+                        // Dane wstawienia — sprawdz najpierw czy tabela istnieje + jakie kolumny
+                        if (dataUboju.HasValue)
+                        {
+                            try
+                            {
+                                // Wykryj jakie kolumny istnieja w Wstawienie
+                                var availableCols = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                                using (var cmd = new SqlCommand("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='Wstawienie'", conn))
+                                using (var r = cmd.ExecuteReader())
+                                {
+                                    while (r.Read()) availableCols.Add(r.GetString(0));
+                                }
+
+                                if (availableCols.Count > 0)
+                                {
+                                    // Buduj SELECT dynamicznie z tych co istnieja
+                                    string colDataW = availableCols.Contains("DataWstawienia") ? "DataWstawienia" : (availableCols.Contains("Data") ? "Data" : null);
+                                    string colSzt = availableCols.Contains("IloscSztuk") ? "IloscSztuk" : (availableCols.Contains("Ilosc") ? "Ilosc" : (availableCols.Contains("Sztuk") ? "Sztuk" : null));
+                                    string colPad = availableCols.Contains("IloscPadlych") ? "IloscPadlych" : (availableCols.Contains("Padle") ? "Padle" : null);
+                                    string colWaga = availableCols.Contains("SredniaWaga") ? "SredniaWaga" : (availableCols.Contains("Waga") ? "Waga" : null);
+                                    string colKurnik = availableCols.Contains("Kurnik") ? "Kurnik" : (availableCols.Contains("NrKurnika") ? "NrKurnika" : null);
+                                    string colDostawca = availableCols.Contains("IdDostawca") ? "IdDostawca" : (availableCols.Contains("DostawcaID") ? "DostawcaID" : (availableCols.Contains("Dostawca") ? "Dostawca" : null));
+
+                                    if (colDataW != null && colDostawca != null)
+                                    {
+                                        var sel = new List<string> { colDataW };
+                                        if (colSzt != null) sel.Add(colSzt);
+                                        if (colPad != null) sel.Add(colPad);
+                                        if (colWaga != null) sel.Add(colWaga);
+                                        if (colKurnik != null) sel.Add(colKurnik);
+
+                                        string sql = $"SELECT TOP 1 {string.Join(",", sel)} FROM [dbo].[Wstawienie] WHERE {colDostawca}=@D AND {colDataW}<=@DU ORDER BY {colDataW} DESC";
+                                        using (var cmd = new SqlCommand(sql, conn))
+                                        {
+                                            cmd.Parameters.AddWithValue("@D", dostawca);
+                                            cmd.Parameters.AddWithValue("@DU", dataUboju.Value);
+                                            using (var r = cmd.ExecuteReader())
+                                            {
+                                                if (r.Read())
+                                                {
+                                                    int idx = 0;
+                                                    if (!r.IsDBNull(idx)) dataWstaw = r.GetDateTime(idx).ToString("dd.MM.yyyy"); idx++;
+                                                    if (colSzt != null) { if (!r.IsDBNull(idx)) sztuk = Convert.ToInt32(r.GetValue(idx)); idx++; }
+                                                    if (colPad != null) { if (!r.IsDBNull(idx)) padle = Convert.ToInt32(r.GetValue(idx)); idx++; }
+                                                    if (colWaga != null) { if (!r.IsDBNull(idx)) sredniaWaga = Convert.ToDecimal(r.GetValue(idx)); idx++; }
+                                                    if (colKurnik != null) { if (!r.IsDBNull(idx)) kurnik = r.GetValue(idx).ToString(); }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            catch (Exception ex) { warnings += "Wstawienie: " + ex.Message + "\n"; }
+                        }
+                    }
+                }
+
+                if (hodowca == null && dostawca == null)
+                {
+                    ShowToast("Nie znaleziono partii " + nrPartii + " w listapartii", 3500);
+                    return;
+                }
+                if (!string.IsNullOrEmpty(warnings))
+                    System.Diagnostics.Debug.WriteLine("PokazHodowceZParti warnings: " + warnings);
+
+                // Buduj listę pól do popupu
+                var rows = new List<(string title, string sub, string body, SolidColorBrush color)>();
+                string hodowcaSub = hodowca ?? "(nieznany)";
+                if (!string.IsNullOrEmpty(shortName) && shortName != hodowca) hodowcaSub += "  (skrót: " + shortName + ")";
+                string hodowcaBody = "";
+                if (!string.IsNullOrEmpty(arimr)) hodowcaBody += "ARiMR: " + arimr + "  ";
+                if (!string.IsNullOrEmpty(irzPlus)) hodowcaBody += "IRZplus: " + irzPlus + "  ";
+                if (halt.HasValue && halt.Value) hodowcaBody += "⚠ ZABLOKOWANY";
+                if (!string.IsNullOrEmpty(dostawca)) hodowcaBody += "  ID: " + dostawca;
+                rows.Add(("👨‍🌾 Hodowca", hodowcaSub, hodowcaBody.Trim(), new SolidColorBrush(Color.FromRgb(0x2E, 0x7D, 0x32))));
+                if (dataUboju.HasValue) rows.Add(("🔪 Data uboju", dataUboju.Value.ToString("dd.MM.yyyy"), "(z listapartii.CreateData)", new SolidColorBrush(Color.FromRgb(0xC0, 0x39, 0x2B))));
+                if (dataWstaw != null) rows.Add(("🐔 Wstawienie", dataWstaw, kurnik != null ? "Kurnik: " + kurnik : "", new SolidColorBrush(Color.FromRgb(0xF3, 0x9C, 0x12))));
+                if (sztuk.HasValue)
+                {
+                    string padleTxt = padle.HasValue && sztuk.Value > 0
+                        ? $"padło {padle.Value} ({100.0 * padle.Value / sztuk.Value:F2}%)"
+                        : "";
+                    rows.Add(("📊 Sztuk wstawionych", sztuk.Value.ToString("N0"), padleTxt, new SolidColorBrush(Color.FromRgb(0x34, 0x98, 0xDB))));
+                }
+                if (sredniaWaga.HasValue) rows.Add(("⚖ Średnia waga", sredniaWaga.Value.ToString("F3") + " kg", "", new SolidColorBrush(Color.FromRgb(0x7F, 0x8C, 0x8D))));
+
+                ShowListaPopup("👨‍🌾 Biografia partii " + nrPartii, "Pochodzenie + wstawienie",
+                    rows);
+            }
+            catch (Exception ex) { ShowToast("Blad: " + ex.Message, 4000); }
+        }
+
+        private static SolidColorBrush KolorStatusu(string statusV2) => statusV2 switch
+        {
+            "ZGLOSZONA" => new SolidColorBrush(Color.FromRgb(0xE7, 0x4C, 0x3C)),
+            "W_ANALIZIE" => new SolidColorBrush(Color.FromRgb(0xF3, 0x9C, 0x12)),
+            "ZASADNA" => new SolidColorBrush(Color.FromRgb(0x27, 0xAE, 0x60)),
+            "ODRZUCONA" => new SolidColorBrush(Color.FromRgb(0xC0, 0x39, 0x2B)),
+            "POWIAZANA" => new SolidColorBrush(Color.FromRgb(0x9B, 0x59, 0xB6)),
+            "ZAMKNIETA" => new SolidColorBrush(Color.FromRgb(0x54, 0x6E, 0x7A)),
+            _ => new SolidColorBrush(Color.FromRgb(0x7F, 0x8C, 0x8D))
+        };
+
+        // Uniwersalny popup z listą rekordów (title + sub + body + color marker)
+        // ============================================================
+        // DEBUGGER SQL PARTII — pelna diagnostyka co kod widzi vs co jest w bazie
+        // ============================================================
+        private void PokazDiagnostykePartii(string nrPartii)
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("════════════════════════════════════════════════════════");
+            sb.AppendLine("  DIAGNOSTYKA PARTII: " + nrPartii);
+            sb.AppendLine("════════════════════════════════════════════════════════");
+            sb.AppendLine();
+
+            // KROK 1: Rozbicie numeru
+            var (cid, partiaDB) = Reklamacje.Services.SymfoniaPartieReader.RozbijNumerPartii(nrPartii);
+            sb.AppendLine("KROK 1: Rozbicie numeru (format ZPSP: [CID 3][Partia 8])");
+            sb.AppendLine("  Pelny numer: " + nrPartii + " (dlugosc: " + nrPartii.Length + ")");
+            sb.AppendLine("  CustomerID (rozbity): " + (cid ?? "(null - format nieznany lub stary)"));
+            sb.AppendLine("  PartiaDB (rozbita):   " + partiaDB);
+            sb.AppendLine();
+
+            // KROK 2: Co kod widzi przez LoadPartieInfoBatch
+            sb.AppendLine("KROK 2: Wynik LoadPartieInfoBatch (to co kod widzi w runtime)");
+            if (_partieControls.TryGetValue(nrPartii, out var pk))
+            {
+                sb.AppendLine("  Kafelek istnieje: TAK");
+                sb.AppendLine("  Hodowca TextBlock.Text: '" + (pk.Hodowca?.Text ?? "null") + "'");
+                sb.AppendLine("  Data TextBlock.Text: '" + (pk.Data?.Text ?? "null") + "'");
+                sb.AppendLine("  Check TextBlock.Text: '" + (pk.Check?.Text ?? "null") + "'");
+            }
+            else
+            {
+                sb.AppendLine("  ❌ Brak kafelka w _partieControls — partia nie była renderowana lub klucz nie pasuje");
+            }
+            sb.AppendLine();
+
+            // KROK 3-7: SQL queries
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+
+                    // 3. listapartii
+                    sb.AppendLine("KROK 3: SELECT TOP 5 * FROM listapartii WHERE Partia='" + partiaDB + "'");
+                    DoSql(sb, conn, "SELECT TOP 5 Partia, ArticleID, CreateData, IsClose, StatusV2 FROM [dbo].[listapartii] WHERE Partia=@P",
+                        new[] { ("@P", (object)partiaDB) });
+                    sb.AppendLine();
+
+                    // 4. PartiaDostawca — wszystkie wpisy dla tej Partia
+                    sb.AppendLine("KROK 4: SELECT * FROM PartiaDostawca WHERE Partia='" + partiaDB + "'");
+                    DoSql(sb, conn, "SELECT TOP 10 Partia, CustomerID, CustomerName, CreateData FROM [dbo].[PartiaDostawca] WHERE Partia=@P",
+                        new[] { ("@P", (object)partiaDB) });
+                    sb.AppendLine();
+
+                    // 5. PartiaDostawca + CustomerID match
+                    if (cid != null)
+                    {
+                        sb.AppendLine("KROK 5: SELECT * FROM PartiaDostawca WHERE Partia='" + partiaDB + "' AND CustomerID='" + cid + "'");
+                        DoSql(sb, conn, "SELECT TOP 5 Partia, CustomerID, CustomerName, CreateData FROM [dbo].[PartiaDostawca] WHERE Partia=@P AND CustomerID=@C",
+                            new[] { ("@P", (object)partiaDB), ("@C", (object)cid) });
+                        sb.AppendLine();
+
+                        // 6. Dostawcy direct po CID
+                        sb.AppendLine("KROK 6: SELECT * FROM Dostawcy WHERE ID='" + cid + "' (CID rozbity z numeru)");
+                        DoSql(sb, conn, "SELECT TOP 1 ID, Name, ShortName, AnimNo, IRZPlus, Halt FROM [dbo].[Dostawcy] WHERE ID=@C",
+                            new[] { ("@C", (object)cid) });
+                        sb.AppendLine();
+                    }
+
+                    // 7. Pełne query analogiczne do LoadPartieInfoBatch
+                    sb.AppendLine("KROK 7: PEŁNE QUERY (jak w LoadPartieInfoBatch)");
+                    string fullQuery = @"
+WITH P AS (SELECT @F AS FullNumer, @P AS PartiaDB, @C AS CID)
+SELECT P.FullNumer,
+       CASE WHEN lp.Partia IS NULL THEN 0 ELSE 1 END AS Istnieje,
+       lp.CreateData,
+       ISNULL(lp.IsClose, 0) AS Zamknieta,
+       COALESCE(NULLIF(d_cid.Name,''), NULLIF(d_pd.Name,''), NULLIF(pd.CustomerName,''), NULLIF(pd_any.CustomerName,''), '') AS Hodowca,
+       d_cid.Name AS Z_CID, d_pd.Name AS Z_PD, pd.CustomerName AS Z_PD_CACHE, pd_any.CustomerName AS Z_ANY
+FROM P
+LEFT JOIN [dbo].[listapartii] lp ON lp.Partia = P.PartiaDB
+LEFT JOIN [dbo].[PartiaDostawca] pd ON pd.Partia = P.PartiaDB AND P.CID IS NOT NULL AND pd.CustomerID = P.CID
+LEFT JOIN [dbo].[Dostawcy] d_pd ON d_pd.ID = pd.CustomerID
+LEFT JOIN [dbo].[Dostawcy] d_cid ON P.CID IS NOT NULL AND d_cid.ID = P.CID
+OUTER APPLY (SELECT TOP 1 CustomerName, CustomerID FROM [dbo].[PartiaDostawca] WHERE Partia = P.PartiaDB ORDER BY CreateData DESC) pd_any";
+                    DoSql(sb, conn, fullQuery, new[] {
+                        ("@F", (object)nrPartii),
+                        ("@P", (object)partiaDB),
+                        ("@C", (object)cid ?? DBNull.Value)
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                sb.AppendLine("❌ BŁĄD SQL: " + ex.Message);
+            }
+
+            sb.AppendLine();
+            sb.AppendLine("════════════════════════════════════════════════════════");
+            sb.AppendLine("Skopiuj tekst (Ctrl+A, Ctrl+C) i wklej do Claude/SSMS.");
+
+            // Pokaz w popup
+            PokazDiagnostykePopup("🔧 Debugger SQL partii " + nrPartii, sb.ToString());
+        }
+
+        // Wykonuje SQL i dodaje wyniki do StringBuilder
+        private static void DoSql(System.Text.StringBuilder sb, SqlConnection conn, string sql, (string name, object value)[] parameters)
+        {
+            try
+            {
+                using (var cmd = new SqlCommand(sql, conn))
+                {
+                    cmd.CommandTimeout = 5;
+                    foreach (var p in parameters)
+                        cmd.Parameters.AddWithValue(p.name, p.value ?? DBNull.Value);
+                    using (var r = cmd.ExecuteReader())
+                    {
+                        if (!r.HasRows) { sb.AppendLine("  → 0 wierszy"); return; }
+                        // Nagłówki
+                        var headers = new List<string>();
+                        for (int i = 0; i < r.FieldCount; i++) headers.Add(r.GetName(i));
+                        sb.AppendLine("  " + string.Join(" | ", headers));
+                        sb.AppendLine("  " + new string('-', 60));
+                        int n = 0;
+                        while (r.Read())
+                        {
+                            var values = new List<string>();
+                            for (int i = 0; i < r.FieldCount; i++)
+                            {
+                                if (r.IsDBNull(i)) values.Add("(null)");
+                                else
+                                {
+                                    var v = r.GetValue(i);
+                                    if (v is DateTime dt) values.Add(dt.ToString("yyyy-MM-dd"));
+                                    else values.Add(v.ToString().Trim());
+                                }
+                            }
+                            sb.AppendLine("  " + string.Join(" | ", values));
+                            n++;
+                        }
+                        sb.AppendLine("  → " + n + " wierszy");
+                    }
+                }
+            }
+            catch (Exception ex) { sb.AppendLine("  ❌ " + ex.Message); }
+        }
+
+        // Popup z monospace TextBox + buttony Kopiuj/Zamknij
+        private void PokazDiagnostykePopup(string title, string text)
+        {
+            var win = new Window
+            {
+                Title = title,
+                Width = 900,
+                Height = 700,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                Background = new SolidColorBrush(Color.FromRgb(0x2C, 0x3E, 0x50))
+            };
+            var grid = new Grid();
+            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            var tb = new TextBox
+            {
+                Text = text,
+                IsReadOnly = true,
+                FontFamily = new FontFamily("Cascadia Mono, Consolas"),
+                FontSize = 11,
+                AcceptsReturn = true,
+                TextWrapping = TextWrapping.NoWrap,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+                Background = new SolidColorBrush(Color.FromRgb(0x1E, 0x28, 0x35)),
+                Foreground = new SolidColorBrush(Color.FromRgb(0xEC, 0xF0, 0xF1)),
+                Padding = new Thickness(12),
+                BorderThickness = new Thickness(0)
+            };
+            Grid.SetRow(tb, 0);
+            grid.Children.Add(tb);
+
+            var btnPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(12) };
+            var btnKopiuj = new Button { Content = "📋 Kopiuj do schowka", Height = 32, Padding = new Thickness(14, 0, 14, 0), Margin = new Thickness(0, 0, 8, 0), Background = new SolidColorBrush(Color.FromRgb(0x16, 0xA0, 0x85)), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontWeight = FontWeights.SemiBold, Cursor = System.Windows.Input.Cursors.Hand };
+            btnKopiuj.Click += (s, e) => { try { Clipboard.SetText(text); ShowToast("📋 Skopiowano diagnostykę", 2000); } catch { } };
+            btnPanel.Children.Add(btnKopiuj);
+            var btnZamknij = new Button { Content = "Zamknij", Height = 32, Padding = new Thickness(14, 0, 14, 0), Background = new SolidColorBrush(Color.FromRgb(0x7F, 0x8C, 0x8D)), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontWeight = FontWeights.SemiBold };
+            btnZamknij.Click += (s, e) => win.Close();
+            btnPanel.Children.Add(btnZamknij);
+            Grid.SetRow(btnPanel, 1);
+            grid.Children.Add(btnPanel);
+
+            win.Content = grid;
+            win.ShowDialog();
+        }
+
+        private void ShowListaPopup(string title, string subtitle, List<(string title, string sub, string body, SolidColorBrush color)> rows)
+        {
+            var win = new Window
+            {
+                Title = title,
+                Width = 720,
+                Height = 540,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                Background = new SolidColorBrush(Color.FromRgb(0xEC, 0xF0, 0xF1))
+            };
+            var grid = new Grid();
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            // Header
+            var header = new Border { Background = new SolidColorBrush(Color.FromRgb(0x34, 0x49, 0x5E)), Padding = new Thickness(16, 12, 16, 12) };
+            var headerSp = new StackPanel();
+            headerSp.Children.Add(new TextBlock { Text = title, Foreground = Brushes.White, FontSize = 15, FontWeight = FontWeights.Bold });
+            headerSp.Children.Add(new TextBlock { Text = subtitle, Foreground = new SolidColorBrush(Color.FromRgb(0xBD, 0xC3, 0xC7)), FontSize = 11, Margin = new Thickness(0, 4, 0, 0) });
+            header.Child = headerSp;
+            Grid.SetRow(header, 0);
+            grid.Children.Add(header);
+
+            // Lista
+            var sv = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Padding = new Thickness(8) };
+            var lista = new StackPanel();
+            foreach (var row in rows)
+            {
+                var rowBorder = new Border
+                {
+                    Background = Brushes.White,
+                    CornerRadius = new CornerRadius(6),
+                    Padding = new Thickness(12, 10, 12, 10),
+                    Margin = new Thickness(0, 0, 0, 6),
+                    BorderBrush = row.color,
+                    BorderThickness = new Thickness(0, 0, 0, 0)
+                };
+                var rowGrid = new Grid();
+                rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(4) });
+                rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+                var colorBar = new Border { Background = row.color, CornerRadius = new CornerRadius(2), Margin = new Thickness(-12, -10, 8, -10) };
+                Grid.SetColumn(colorBar, 0);
+                rowGrid.Children.Add(colorBar);
+
+                var content = new StackPanel();
+                content.Children.Add(new TextBlock { Text = row.title, FontSize = 13, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(0x2C, 0x3E, 0x50)), TextWrapping = TextWrapping.Wrap });
+                if (!string.IsNullOrEmpty(row.sub))
+                    content.Children.Add(new TextBlock { Text = row.sub, FontSize = 11, Foreground = new SolidColorBrush(Color.FromRgb(0x7F, 0x8C, 0x8D)), Margin = new Thickness(0, 2, 0, 0) });
+                if (!string.IsNullOrEmpty(row.body))
+                    content.Children.Add(new TextBlock { Text = row.body, FontSize = 11, Foreground = new SolidColorBrush(Color.FromRgb(0x54, 0x6E, 0x7A)), Margin = new Thickness(0, 4, 0, 0), TextWrapping = TextWrapping.Wrap });
+                Grid.SetColumn(content, 1);
+                rowGrid.Children.Add(content);
+
+                rowBorder.Child = rowGrid;
+                lista.Children.Add(rowBorder);
+            }
+            sv.Content = lista;
+            Grid.SetRow(sv, 1);
+            grid.Children.Add(sv);
+
+            // Footer
+            var footer = new Border { Background = Brushes.White, Padding = new Thickness(16, 10, 16, 10), BorderBrush = new SolidColorBrush(Color.FromRgb(0xE0, 0xE0, 0xE0)), BorderThickness = new Thickness(0, 1, 0, 0) };
+            var btnZam = new Button { Content = "Zamknij", Width = 100, Height = 30, HorizontalAlignment = HorizontalAlignment.Right, FontSize = 12 };
+            btnZam.Click += (s, e) => win.Close();
+            footer.Child = btnZam;
+            Grid.SetRow(footer, 2);
+            grid.Children.Add(footer);
+
+            win.Content = grid;
+            win.ShowDialog();
+        }
+
+        private static UIElement BudujZalacznikRow(int id, string nazwa, long rozmiar, string typMime, DateTime data)
+        {
+            string ikona = "📄";
+            string ext = System.IO.Path.GetExtension(nazwa ?? "").ToLowerInvariant();
+            if (ext == ".pdf") ikona = "📕";
+            else if (ext == ".docx" || ext == ".doc") ikona = "📘";
+            else if (ext == ".xlsx" || ext == ".xls") ikona = "📗";
+            else if (ext == ".jpg" || ext == ".jpeg" || ext == ".png") ikona = "🖼";
+            string sizeText = rozmiar < 1024 ? rozmiar + " B" : rozmiar < 1_048_576 ? (rozmiar / 1024) + " KB" : (rozmiar / 1_048_576).ToString("F1") + " MB";
+
+            var sp = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2), Cursor = System.Windows.Input.Cursors.Hand };
+            sp.Children.Add(new TextBlock { Text = ikona, FontSize = 14, Margin = new Thickness(0, 0, 6, 0), VerticalAlignment = VerticalAlignment.Center });
+            var col = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            col.Children.Add(new TextBlock { Text = nazwa, FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromRgb(0x2C, 0x3E, 0x50)), TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 320 });
+            col.Children.Add(new TextBlock { Text = sizeText + " • " + data.ToString("dd.MM.yyyy"), FontSize = 9, Foreground = new SolidColorBrush(Color.FromRgb(0x7F, 0x8C, 0x8D)) });
+            sp.Children.Add(col);
+            sp.ToolTip = "Klik = otworz (pobierz tymczasowo i uruchom domyslnym programem)";
+            sp.MouseLeftButtonUp += (s, e) => OtworzZalacznik(id, nazwa);
+            return sp;
+        }
+
+        private static void OtworzZalacznik(int id, string nazwa)
+        {
+            try
+            {
+                using (var conn = new SqlConnection(ReklamacjeConnectionStrings.LibraNet))
+                {
+                    conn.Open();
+                    using (var cmd = new SqlCommand("SELECT Dane FROM [dbo].[ReklamacjeZalaczniki] WHERE Id=@Id", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Id", id);
+                        var v = cmd.ExecuteScalar();
+                        if (v == null || v == DBNull.Value) return;
+                        byte[] dane = (byte[])v;
+                        string tmpPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), id + "_" + nazwa);
+                        System.IO.File.WriteAllBytes(tmpPath, dane);
+                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(tmpPath) { UseShellExecute = true });
+                    }
+                }
+            }
+            catch (Exception ex) { MessageBox.Show("Blad otwarcia: " + ex.Message, "Zalacznik", MessageBoxButton.OK, MessageBoxImage.Error); }
+        }
+
+        private static UIElement BudujHistoriaRow(DateTime data, string user, string stary, string nowy, string typAkcji, string komentarz)
+        {
+            string ikona = typAkcji switch
+            {
+                "ZmianaStatusu" => "🔄",
+                "DodanieKomentarza" => "💬",
+                "DodanieZdjecia" => "🖼",
+                "DodanieZalacznika" => "📎",
+                _ => "•"
+            };
+            string opis = !string.IsNullOrEmpty(stary) && !string.IsNullOrEmpty(nowy)
+                ? stary + " → " + nowy
+                : (!string.IsNullOrEmpty(nowy) ? nowy : (typAkcji ?? ""));
+
+            var sp = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
+            sp.Children.Add(new TextBlock { Text = ikona, FontSize = 11, Margin = new Thickness(0, 0, 6, 0), VerticalAlignment = VerticalAlignment.Top });
+            var col = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            col.Children.Add(new TextBlock { Text = opis, FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromRgb(0x2C, 0x3E, 0x50)), TextWrapping = TextWrapping.Wrap, MaxWidth = 340 });
+            col.Children.Add(new TextBlock { Text = user + " • " + data.ToString("dd.MM.yyyy HH:mm"), FontSize = 9, Foreground = new SolidColorBrush(Color.FromRgb(0x7F, 0x8C, 0x8D)) });
+            if (!string.IsNullOrWhiteSpace(komentarz))
+                col.Children.Add(new TextBlock { Text = komentarz, FontSize = 10, FontStyle = FontStyles.Italic, Foreground = new SolidColorBrush(Color.FromRgb(0x7F, 0x8C, 0x8D)), TextWrapping = TextWrapping.Wrap, MaxWidth = 340, Margin = new Thickness(0, 1, 0, 0) });
+            sp.Children.Add(col);
+            return sp;
+        }
+
+        // ============================================================
+        // DRAG & DROP — zdjecia i zalaczniki
+        // ============================================================
+        private void ZdjeciaBorder_DragOver(object sender, DragEventArgs e)
+        {
+            bool ok = e.Data.GetDataPresent(DataFormats.FileDrop) && _aktywnaReklamacjaId > 0;
+            e.Effects = ok ? DragDropEffects.Copy : DragDropEffects.None;
+            if (sender is Border b && ok)
+            {
+                // Visual hint: nieco ciemniejsze tlo + niebieska ramka
+                b.Background = new SolidColorBrush(Color.FromRgb(0xE3, 0xF2, 0xFD));
+                b.BorderBrush = new SolidColorBrush(Color.FromRgb(0x21, 0x96, 0xF3));
+                b.BorderThickness = new Thickness(2);
+            }
+            e.Handled = true;
+        }
+
+        private void ZdjeciaBorder_DragLeave(object sender, DragEventArgs e)
+        {
+            if (sender is Border b)
+            {
+                b.Background = new SolidColorBrush(Color.FromRgb(0xFA, 0xFA, 0xFA)); // default #FAFAFA
+                b.BorderThickness = new Thickness(0);
+            }
+        }
+
+        private void ZdjeciaBorder_Drop(object sender, DragEventArgs e)
+        {
+            // Reset visual hint (po dragLeave dispatched przez WPF, ale defensywnie)
+            if (sender is Border b1) { b1.Background = new SolidColorBrush(Color.FromRgb(0xFA, 0xFA, 0xFA)); b1.BorderThickness = new Thickness(0); }
+            if (_aktywnaReklamacjaId <= 0 || !e.Data.GetDataPresent(DataFormats.FileDrop)) return;
+            var pliki = (string[])e.Data.GetData(DataFormats.FileDrop);
+            int dodano = 0, pominieto = 0;
+            string[] obrazExt = { ".jpg", ".jpeg", ".png", ".webp", ".bmp", ".gif" };
+            foreach (var p in pliki)
+            {
+                string ext = System.IO.Path.GetExtension(p).ToLowerInvariant();
+                if (Array.IndexOf(obrazExt, ext) < 0) { pominieto++; continue; }
+                try
+                {
+                    byte[] dane = System.IO.File.ReadAllBytes(p);
+                    string nazwa = System.IO.Path.GetFileName(p);
+                    using (var conn = new SqlConnection(connectionString))
+                    {
+                        conn.Open();
+                        using (var cmd = new SqlCommand(@"
+                            INSERT INTO [dbo].[ReklamacjeZdjecia](IdReklamacji, NazwaPliku, SciezkaPliku, DodanePrzez, DaneZdjecia)
+                            VALUES (@Id, @Nazwa, @Sciezka, @User, @Dane)", conn))
+                        {
+                            cmd.Parameters.AddWithValue("@Id", _aktywnaReklamacjaId);
+                            cmd.Parameters.AddWithValue("@Nazwa", nazwa);
+                            cmd.Parameters.AddWithValue("@Sciezka", p);
+                            cmd.Parameters.AddWithValue("@User", userId ?? "");
+                            cmd.Parameters.AddWithValue("@Dane", dane);
+                            cmd.ExecuteNonQuery();
+                            dodano++;
+                        }
+                    }
+                }
+                catch { pominieto++; }
+            }
+            ShowToast(dodano + " zdjec dodano" + (pominieto > 0 ? " (" + pominieto + " pominieto)" : ""));
+            if (dodano > 0) WczytajReklamacje();
+        }
+
+        private void ZalacznikiBorder_DragOver(object sender, DragEventArgs e)
+        {
+            bool ok = e.Data.GetDataPresent(DataFormats.FileDrop) && _aktywnaReklamacjaId > 0;
+            e.Effects = ok ? DragDropEffects.Copy : DragDropEffects.None;
+            if (sender is Border b && ok)
+            {
+                b.Background = new SolidColorBrush(Color.FromRgb(0xE3, 0xF2, 0xFD));
+                b.BorderBrush = new SolidColorBrush(Color.FromRgb(0x21, 0x96, 0xF3));
+                b.BorderThickness = new Thickness(2);
+            }
+            e.Handled = true;
+        }
+
+        private void ZalacznikiBorder_DragLeave(object sender, DragEventArgs e)
+        {
+            if (sender is Border b)
+            {
+                b.Background = new SolidColorBrush(Color.FromRgb(0xF5, 0xF5, 0xF5)); // default #F5F5F5
+                b.BorderThickness = new Thickness(0);
+            }
+        }
+
+        private void ZalacznikiBorder_Drop(object sender, DragEventArgs e)
+        {
+            if (sender is Border b1) { b1.Background = new SolidColorBrush(Color.FromRgb(0xF5, 0xF5, 0xF5)); b1.BorderThickness = new Thickness(0); }
+            if (_aktywnaReklamacjaId <= 0 || !e.Data.GetDataPresent(DataFormats.FileDrop)) return;
+            var pliki = (string[])e.Data.GetData(DataFormats.FileDrop);
+            int dodano = 0, pominieto = 0;
+            foreach (var p in pliki)
+            {
+                try
+                {
+                    var fi = new System.IO.FileInfo(p);
+                    if (!fi.Exists || fi.Length > 50 * 1024 * 1024) { pominieto++; continue; } // limit 50MB
+                    byte[] dane = System.IO.File.ReadAllBytes(p);
+                    string nazwa = fi.Name;
+                    string mime = MimeFromExt(fi.Extension);
+                    using (var conn = new SqlConnection(connectionString))
+                    {
+                        conn.Open();
+                        using (var cmd = new SqlCommand(@"
+                            INSERT INTO [dbo].[ReklamacjeZalaczniki](IdReklamacji, NazwaPliku, TypMime, Rozmiar, Dane, UserID)
+                            VALUES (@Id, @Nazwa, @Mime, @Rozmiar, @Dane, @User)", conn))
+                        {
+                            cmd.Parameters.AddWithValue("@Id", _aktywnaReklamacjaId);
+                            cmd.Parameters.AddWithValue("@Nazwa", nazwa);
+                            cmd.Parameters.AddWithValue("@Mime", mime);
+                            cmd.Parameters.AddWithValue("@Rozmiar", fi.Length);
+                            cmd.Parameters.AddWithValue("@Dane", dane);
+                            cmd.Parameters.AddWithValue("@User", userId ?? "");
+                            cmd.ExecuteNonQuery();
+                            dodano++;
+                        }
+                    }
+                }
+                catch { pominieto++; }
+            }
+            ShowToast(dodano + " zalacznik" + (dodano == 1 ? "" : "ow") + " dodano" + (pominieto > 0 ? " (" + pominieto + " pominieto)" : ""));
+            // Refresh panelu
+            if (dgReklamacje.SelectedItem is ReklamacjaItem item) WyswietlPanelSzczegolow(item);
+        }
+
+        private static string MimeFromExt(string ext) => ext?.ToLowerInvariant() switch
+        {
+            ".pdf" => "application/pdf",
+            ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            ".doc" => "application/msword",
+            ".xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            ".xls" => "application/vnd.ms-excel",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            ".txt" => "text/plain",
+            _ => "application/octet-stream"
+        };
+
+        // ============================================================
+        // TOAST — popup w prawym dolnym rogu
+        // ============================================================
+        private System.Windows.Controls.Primitives.Popup _toastPopup;
+        private DispatcherTimer _toastTimer;
+
+        public void ShowToast(string text, int durationMs = 3000)
+        {
+            try
+            {
+                if (_toastPopup == null)
+                {
+                    _toastPopup = new System.Windows.Controls.Primitives.Popup
+                    {
+                        Placement = System.Windows.Controls.Primitives.PlacementMode.Relative,
+                        PlacementTarget = this,
+                        AllowsTransparency = true,
+                        StaysOpen = true
+                    };
+                }
+                var border = new Border
+                {
+                    Background = new SolidColorBrush(Color.FromRgb(0x2C, 0x3E, 0x50)),
+                    CornerRadius = new CornerRadius(8),
+                    Padding = new Thickness(14, 10, 14, 10),
+                    Effect = new System.Windows.Media.Effects.DropShadowEffect { ShadowDepth = 3, BlurRadius = 14, Opacity = 0.35 }
+                };
+                border.Child = new TextBlock { Text = text, Foreground = Brushes.White, FontSize = 12, FontWeight = FontWeights.SemiBold };
+                _toastPopup.Child = border;
+
+                // Pozycjonowanie: prawy dolny
+                _toastPopup.HorizontalOffset = Math.Max(0, this.ActualWidth - 380);
+                _toastPopup.VerticalOffset = Math.Max(0, this.ActualHeight - 90);
+                _toastPopup.IsOpen = true;
+
+                if (_toastTimer == null)
+                {
+                    _toastTimer = new DispatcherTimer();
+                    _toastTimer.Tick += (s, a) => { _toastPopup.IsOpen = false; _toastTimer.Stop(); };
+                }
+                _toastTimer.Stop();
+                _toastTimer.Interval = TimeSpan.FromMilliseconds(durationMs);
+                _toastTimer.Start();
+            }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine("ShowToast: " + ex.Message); }
+        }
+
+        // Zwraca brush tla badge'a statusu (zgodny z DataGrid kolumna Status)
+        private static SolidColorBrush StatusBgBrush(string statusV2, bool wymaga)
+        {
+            // Oczekuje = ZGLOSZONA + WymagaUzupelnienia (pomaranczowy)
+            if (statusV2 == "ZGLOSZONA" && wymaga)
+                return new SolidColorBrush(Color.FromRgb(0xFF, 0xE0, 0xB2));
+            return statusV2 switch
+            {
+                "ZGLOSZONA" => new SolidColorBrush(Color.FromRgb(0xFD, 0xED, 0xEC)),
+                "W_ANALIZIE" => new SolidColorBrush(Color.FromRgb(0xFF, 0xF8, 0xE1)),
+                "ZASADNA" => new SolidColorBrush(Color.FromRgb(0xE8, 0xF5, 0xE9)),
+                "ODRZUCONA" => new SolidColorBrush(Color.FromRgb(0xFF, 0xEB, 0xEE)),
+                "POWIAZANA" => new SolidColorBrush(Color.FromRgb(0xF3, 0xE5, 0xF5)),
+                "ZAMKNIETA" => new SolidColorBrush(Color.FromRgb(0xEC, 0xEF, 0xF1)),
+                _ => new SolidColorBrush(Color.FromRgb(0xEC, 0xEF, 0xF1))
+            };
+        }
+
+        // ============================================================
+        // KARTA KLIENTA — sticky panel boczny (legacy, w #if)
         // ============================================================
         private void WyswietlKarteKlienta(ReklamacjaItem item)
         {

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
@@ -248,8 +249,9 @@ namespace Kalendarz1.ZSRIR.Views
                                 CommodityGroupId = brojler.Id,
                                 FormFieldsValues = new()
                                 {
-                                    [priceKey] = _aktualnyRaport.CenaZlTona,
-                                    [amountKey] = _aktualnyRaport.Tony
+                                    // ZSRIR akceptuje TYLKO PL format (przecinek dziesiętny).
+                                    [priceKey] = _aktualnyRaport.CenaZlTona.ToString("0.##", System.Globalization.CultureInfo.GetCultureInfo("pl-PL")),
+                                    [amountKey] = _aktualnyRaport.Tony.ToString("0.###", System.Globalization.CultureInfo.GetCultureInfo("pl-PL"))
                                 }
                             }
                         }
@@ -309,22 +311,24 @@ namespace Kalendarz1.ZSRIR.Views
             return null;
         }
 
-        // Rekurencyjnie szuka grupy "Brojler"/"kurcz" w drzewie commodityGroup
+        // Szuka grupy kurczak/kurczęta brojler — z priorytetem na "kurcz" PRZED "brojler",
+        // bo samo "brojler" pasuje też do "gęsi typu brojler" w drzewie ZSRIR.
         private static CommodityGroup? FindBrojlerGroup(FormConfiguration cfg)
         {
-            return FindGroupRec(cfg.CommodityGroup);
+            var all = new List<CommodityGroup>();
+            if (cfg.CommodityGroup != null) Flatten(cfg.CommodityGroup, all);
+
+            CommodityGroup? Match(Func<string, bool> pred) =>
+                all.FirstOrDefault(g => pred((g.Name ?? "").ToLowerInvariant()));
+
+            return Match(n => n.Contains("kurcz") && n.Contains("brojler"))
+                ?? Match(n => n.Contains("kurcz"))
+                ?? Match(n => n.Contains("brojler"));   // ostatnia deska ratunku — może być inny gatunek!
         }
-        private static CommodityGroup? FindGroupRec(CommodityGroup? root)
+        private static void Flatten(CommodityGroup g, List<CommodityGroup> output)
         {
-            if (root == null) return null;
-            string n = (root.Name ?? "").ToLowerInvariant();
-            if (n.Contains("brojler") || n.Contains("kurcz")) return root;
-            foreach (var sub in root.CommodityGroups)
-            {
-                var found = FindGroupRec(sub);
-                if (found != null) return found;
-            }
-            return null;
+            output.Add(g);
+            foreach (var sub in g.CommodityGroups) Flatten(sub, output);
         }
 
         // Klucz pola w formFieldsValues = ID pola jako string (§4.6 dokumentacji)

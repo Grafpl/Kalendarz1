@@ -101,7 +101,9 @@ namespace Kalendarz1.ZSRIR.Models
     public class FormPayload
     {
         [JsonPropertyName("commodityGroupId")] public int CommodityGroupId { get; set; }
-        [JsonPropertyName("formFieldsValues")] public Dictionary<string, object> FormFieldsValues { get; set; } = new();
+        // API ZSRIR wymaga wartości jako STRING (nie number) — inaczej 400 "could not be converted to System.String".
+        // Decimal serializuj z InvariantCulture (kropka dziesiętna).
+        [JsonPropertyName("formFieldsValues")] public Dictionary<string, string> FormFieldsValues { get; set; } = new();
     }
 
     // ============ AddFormZero — formularz zerowy ============

@@ -28,6 +28,18 @@ namespace Kalendarz1.ZSRIR.Services
             DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
         };
 
+        // Diagnostyka — dostępne po każdym AddFormAsync/AddFormZeroAsync (do debugger UI).
+        public string? LastRequestUrl { get; private set; }
+        public string? LastRequestJson { get; private set; }
+        public string? LastResponseJson { get; private set; }
+        public int? LastStatusCode { get; private set; }
+
+        // Raw JSON ostatnich GET endpointów (do debuggera).
+        public string? LastPeriodsRawJson { get; private set; }
+        public string? LastFormConfigRawJson { get; private set; }
+        public string? LastDataSuppliersRawJson { get; private set; }
+        public string? LastFormsRawJson { get; private set; }
+
         public ZsrirApiClient(ZsrirSecrets secrets)
         {
             _secrets = secrets ?? throw new ArgumentNullException(nameof(secrets));
@@ -104,7 +116,12 @@ namespace Kalendarz1.ZSRIR.Services
         {
             await PrepareAuthAsync(ct);
             using var resp = await _http.GetAsync("DataSupplierFormApi/GetDataSuppliers", ct);
-            return await ParseAsync<List<DataSupplier>>(resp, ct) ?? new List<DataSupplier>();
+            string raw = await resp.Content.ReadAsStringAsync(ct);
+            LastDataSuppliersRawJson = raw;
+            if (!resp.IsSuccessStatusCode)
+                throw new ZsrirApiException($"HTTP {(int)resp.StatusCode}: {raw}", (int)resp.StatusCode, raw);
+            return string.IsNullOrWhiteSpace(raw) ? new List<DataSupplier>()
+                : JsonSerializer.Deserialize<List<DataSupplier>>(raw, JsonOpts) ?? new List<DataSupplier>();
         }
 
         // ============ FORMS ============
@@ -113,7 +130,12 @@ namespace Kalendarz1.ZSRIR.Services
             await PrepareAuthAsync(ct);
             using var resp = await _http.GetAsync(
                 $"DataSupplierFormApi/GetForms?dataSupplierId={dataSupplierId}", ct);
-            return await ParseAsync<List<FormInfo>>(resp, ct) ?? new List<FormInfo>();
+            string raw = await resp.Content.ReadAsStringAsync(ct);
+            LastFormsRawJson = raw;
+            if (!resp.IsSuccessStatusCode)
+                throw new ZsrirApiException($"HTTP {(int)resp.StatusCode}: {raw}", (int)resp.StatusCode, raw);
+            return string.IsNullOrWhiteSpace(raw) ? new List<FormInfo>()
+                : JsonSerializer.Deserialize<List<FormInfo>>(raw, JsonOpts) ?? new List<FormInfo>();
         }
 
         // ============ REPORTING PERIODS ============
@@ -122,7 +144,12 @@ namespace Kalendarz1.ZSRIR.Services
             await PrepareAuthAsync(ct);
             using var resp = await _http.GetAsync(
                 $"DataSupplierFormApi/GetReportingPeriods?formId={formId}", ct);
-            return await ParseAsync<List<ReportingPeriod>>(resp, ct) ?? new List<ReportingPeriod>();
+            string raw = await resp.Content.ReadAsStringAsync(ct);
+            LastPeriodsRawJson = raw;
+            if (!resp.IsSuccessStatusCode)
+                throw new ZsrirApiException($"HTTP {(int)resp.StatusCode}: {raw}", (int)resp.StatusCode, raw);
+            return string.IsNullOrWhiteSpace(raw) ? new List<ReportingPeriod>()
+                : JsonSerializer.Deserialize<List<ReportingPeriod>>(raw, JsonOpts) ?? new List<ReportingPeriod>();
         }
 
         // ============ FORM CONFIGURATION ============
@@ -131,15 +158,25 @@ namespace Kalendarz1.ZSRIR.Services
             await PrepareAuthAsync(ct);
             using var resp = await _http.GetAsync(
                 $"DataSupplierFormApi/GetFormConfiguration?formId={formId}", ct);
-            return await ParseAsync<FormConfiguration>(resp, ct);
+            string raw = await resp.Content.ReadAsStringAsync(ct);
+            LastFormConfigRawJson = raw;
+            if (!resp.IsSuccessStatusCode)
+                throw new ZsrirApiException($"HTTP {(int)resp.StatusCode}: {raw}", (int)resp.StatusCode, raw);
+            return string.IsNullOrWhiteSpace(raw) ? null
+                : JsonSerializer.Deserialize<FormConfiguration>(raw, JsonOpts);
         }
 
         // ============ ADD FORM ============
         public async Task<string> AddFormAsync(AddFormRequest body, CancellationToken ct = default)
         {
             await PrepareAuthAsync(ct);
-            using var resp = await _http.PostAsJsonAsync("DataSupplierFormApi/AddForm", body, JsonOpts, ct);
+            LastRequestUrl = new Uri(_http.BaseAddress!, "DataSupplierFormApi/AddForm").ToString();
+            LastRequestJson = JsonSerializer.Serialize(body, JsonOpts);
+            using var content = new StringContent(LastRequestJson, Encoding.UTF8, "application/json");
+            using var resp = await _http.PostAsync("DataSupplierFormApi/AddForm", content, ct);
+            LastStatusCode = (int)resp.StatusCode;
             string raw = await resp.Content.ReadAsStringAsync(ct);
+            LastResponseJson = raw;
             if (!resp.IsSuccessStatusCode)
                 throw new ZsrirApiException($"AddForm nieudane ({(int)resp.StatusCode}): {raw}", (int)resp.StatusCode, raw);
             return raw;
@@ -149,8 +186,13 @@ namespace Kalendarz1.ZSRIR.Services
         public async Task<string> AddFormZeroAsync(AddFormZeroRequest body, CancellationToken ct = default)
         {
             await PrepareAuthAsync(ct);
-            using var resp = await _http.PostAsJsonAsync("DataSupplierFormApi/AddFormZero", body, JsonOpts, ct);
+            LastRequestUrl = new Uri(_http.BaseAddress!, "DataSupplierFormApi/AddFormZero").ToString();
+            LastRequestJson = JsonSerializer.Serialize(body, JsonOpts);
+            using var content = new StringContent(LastRequestJson, Encoding.UTF8, "application/json");
+            using var resp = await _http.PostAsync("DataSupplierFormApi/AddFormZero", content, ct);
+            LastStatusCode = (int)resp.StatusCode;
             string raw = await resp.Content.ReadAsStringAsync(ct);
+            LastResponseJson = raw;
             if (!resp.IsSuccessStatusCode)
                 throw new ZsrirApiException($"AddFormZero nieudane ({(int)resp.StatusCode}): {raw}", (int)resp.StatusCode, raw);
             return raw;

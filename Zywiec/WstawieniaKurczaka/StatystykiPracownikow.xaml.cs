@@ -472,10 +472,12 @@ namespace Kalendarz1
 
                 var stworzone = LoadStatistics("Stworzone", currentStartDate, currentEndDate);
                 var potwierdzone = LoadStatistics("Potwierdzone", currentStartDate, currentEndDate);
+                var sms = LoadStatistics("Sms", currentStartDate, currentEndDate);
 
                 var allUsers = new HashSet<string>();
                 foreach (var stat in stworzone) allUsers.Add(stat.NazwaPracownika);
                 foreach (var stat in potwierdzone) allUsers.Add(stat.NazwaPracownika);
+                foreach (var stat in sms) allUsers.Add(stat.NazwaPracownika);
 
                 userColors.Clear();
                 int colorIndex = 0;
@@ -487,12 +489,15 @@ namespace Kalendarz1
 
                 AssignColors(stworzone);
                 AssignColors(potwierdzone);
+                AssignColors(sms);
 
                 itemsStworzone.ItemsSource = stworzone;
                 itemsPotwierdzone.ItemsSource = potwierdzone;
+                if (itemsSms != null) itemsSms.ItemsSource = sms;
 
                 DrawPieChart(canvasStworzone, stworzone);
                 DrawPieChart(canvasPotwierdzone, potwierdzone);
+                if (canvasSms != null) DrawPieChart(canvasSms, sms);
 
                 LoadDetailsTable();
                 LoadCrossModuleKpi();
@@ -580,6 +585,21 @@ namespace Kalendarz1
                         LEFT JOIN dbo.operators o ON w.KtoConf = o.ID
                         WHERE w.isConf = 1 AND w.DataConf >= @StartDate AND w.DataConf < @EndDate AND w.KtoConf IS NOT NULL
                         GROUP BY o.Name, w.KtoConf
+                        ORDER BY TotalCount DESC";
+                    break;
+
+                case "Sms":
+                    // Liczba SMS-ów wysłanych przez każdego pracownika (z ContactHistory.Reason LIKE 'Auto SMS%')
+                    query = @"
+                        SELECT ISNULL(o.Name, 'Nieznany') AS UserName,
+                               CAST(ch.UserID AS VARCHAR(20)) AS UserID,
+                               COUNT(*) AS TotalCount
+                        FROM dbo.ContactHistory ch
+                        LEFT JOIN dbo.operators o ON TRY_CAST(ch.UserID AS INT) = o.ID
+                        WHERE ch.Reason LIKE 'Auto SMS%'
+                          AND ch.CreatedAt >= @StartDate AND ch.CreatedAt < @EndDate
+                          AND ch.UserID IS NOT NULL
+                        GROUP BY o.Name, ch.UserID
                         ORDER BY TotalCount DESC";
                     break;
             }

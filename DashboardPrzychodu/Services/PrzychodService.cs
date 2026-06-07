@@ -250,7 +250,12 @@ namespace Kalendarz1.DashboardPrzychodu.Services
                 SztukiZwazoneSuma = Dec(O("SztukiZwazoneSuma")) ?? 0,
                 KgZwazoneSuma = Dec(O("KgZwazoneSuma")) ?? 0,
                 SredniaWagaPlan = Dec(O("SredniaWagaPlan")),
-                SredniaWagaRzecz = Dec(O("SredniaWagaRzecz"))
+                SredniaWagaRzecz = Dec(O("SredniaWagaRzecz")),
+                PotwWaga = !r.IsDBNull(O("PotwWaga")) && r.GetBoolean(O("PotwWaga")),
+                PotwSztuki = !r.IsDBNull(O("PotwSztuki")) && r.GetBoolean(O("PotwSztuki")),
+                DataOstatniejZmiany = r.IsDBNull(O("DataOstatniejZmiany")) ? (DateTime?)null : r.GetDateTime(O("DataOstatniejZmiany")),
+                RealniHodowcy = r.IsDBNull(O("RealniHodowcy")) ? "" : r.GetString(O("RealniHodowcy")),
+                LiczbaRealnychHodowcow = r.IsDBNull(O("LiczbaRealnychHodowcow")) ? 0 : r.GetInt32(O("LiczbaRealnychHodowcow"))
             };
         }
 

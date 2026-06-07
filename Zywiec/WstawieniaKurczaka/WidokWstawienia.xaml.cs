@@ -39,6 +39,9 @@ namespace Kalendarz1
         public string TypCeny { get; set; }
         public int RoznicaDni { get; set; }
         public string Bufor { get; set; }
+        // Z LEFT JOIN WstawieniaKurczakow — używane przez ZbudujCacheStalychKlientow
+        public string Dostawca { get; set; } = "";
+        public DateTime DataWstawienia { get; set; }
     }
 
     public partial class WidokWstawienia : Window, INotifyPropertyChanged
@@ -150,9 +153,16 @@ namespace Kalendarz1
             // przycisku 🔍 Audyt w nagłówku okna. Zerowy overhead przy normalnym ładowaniu.
             PreloadDeliveryCache();
             LoadWstawienia();
+            // Po LoadWstawienia mamy DataView z hodowcami → buduj HashSet stałych klientów
+            // (O(N) jednorazowo, używane potem przez O(1) Contains w LoadingRow)
+            ZbudujCacheStalychKlientow();
             LoadPrzypomnienia();
+            LoadDoPotwierdzenia();
             LoadHistoria();
             UpdateStatistics();
+            PodepnijSkrotySms();              // #6 — S/Shift+S skróty klawiszowe
+            PodepnijDwuklikTelefonu();        // #3 — dwuklik na komórce Tel
+            OdswiezStatusBar();               // 📊 Status bar + dynamiczny tytuł + empty state
         }
 
         private void PreloadDeliveryCache(bool forceReload = false)
@@ -187,7 +197,8 @@ namespace Kalendarz1
                             HD.Cena,
                             HD.typCeny,
                             HD.bufor,
-                            WK.DataWstawienia
+                            WK.DataWstawienia,
+                            WK.Dostawca
                         FROM dbo.HarmonogramDostaw HD
                         LEFT JOIN dbo.WstawieniaKurczakow WK ON HD.LpW = WK.Lp
                         ORDER BY HD.LpW, HD.DataOdbioru";
@@ -230,7 +241,9 @@ namespace Kalendarz1
                                 Cena = reader[5] != DBNull.Value ? Convert.ToDecimal(reader[5]) : 0,
                                 TypCeny = reader[6] != DBNull.Value ? reader[6].ToString() : "-",
                                 Bufor = reader[7] != DBNull.Value ? reader[7].ToString() : "",
-                                RoznicaDni = roznicaDni
+                                RoznicaDni = roznicaDni,
+                                DataWstawienia = dataWstawienia,
+                                Dostawca = reader[9] != DBNull.Value ? (reader[9].ToString() ?? "") : ""
                             });
                             }
                             _audyt?.Sub("Reader.iterate (while reader.Read)", swRead.ElapsedMilliseconds);
@@ -260,10 +273,8 @@ namespace Kalendarz1
             dataGridWstawienia.SelectionChanged += DataGridWstawienia_SelectionChanged;
             dataGridPrzypomnienia.SelectionChanged += DataGridPrzypomnienia_SelectionChanged;
             dataGridPrzypomnienia.MouseDoubleClick += DataGridPrzypomnienia_DoubleClick;
-            chkPokazPrzyszle.Checked += ChkPokazPrzyszle_Changed;
-            chkPokazPrzyszle.Unchecked += ChkPokazPrzyszle_Changed;
-            datePickerOd.SelectedDateChanged += DatePickerOd_Changed;
-            datePickerDo.SelectedDateChanged += DatePickerDo_Changed;
+            // chkPokazPrzyszle, datePickerOd, datePickerDo — usunięte z UI (zaśmiecały miejsce).
+            // Logika w ApplyFilters jest null-safe więc pomijane automatycznie.
 
             // Zamknij tooltip przy kliknięciu lewym przyciskiem myszy w dowolne miejsce
             this.PreviewMouseLeftButtonDown += Window_PreviewMouseLeftButtonDown;
@@ -334,6 +345,12 @@ namespace Kalendarz1
         // ====== PRZYCISK POMOCY ======
         private void BtnPomoc_Click(object sender, RoutedEventArgs e)
         {
+            // Nowa graficzna instrukcja z kartami + eksportem PDF (InstrukcjaWindow.cs)
+            var okno = new InstrukcjaWindow { Owner = this };
+            okno.ShowDialog();
+            return;
+
+#pragma warning disable CS0162 // Niedostępny kod — stara instrukcja zachowana jako backup
             var instrukcja = new Window
             {
                 Title = "📚 Instrukcja Obsługi Systemu - Kompletny Przewodnik",
@@ -584,6 +601,7 @@ namespace Kalendarz1
             scrollViewer.Content = stackPanel;
             instrukcja.Content = scrollViewer;
             instrukcja.ShowDialog();
+#pragma warning restore CS0162
         }
 
         private void AddInstrukcjaSection(StackPanel parent, string title, string content)
@@ -757,15 +775,10 @@ namespace Kalendarz1
             {
                 Header = "LP",
                 Binding = new System.Windows.Data.Binding("LP"),
-                Width = 45
+                Width = 56
             });
 
-            dataGridWstawienia.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Hodowca",
-                Binding = new System.Windows.Data.Binding("Dostawca"),
-                Width = 175
-            });
+            dataGridWstawienia.Columns.Add(BudujKolumneHodowcaZGwiazdka(new DataGridLength(140)));
 
             dataGridWstawienia.Columns.Add(new DataGridTextColumn
             {
@@ -784,7 +797,7 @@ namespace Kalendarz1
                 {
                     StringFormat = "# ##0"
                 },
-                Width = 60
+                Width = 80
             });
 
             dataGridWstawienia.Columns.Add(new DataGridTextColumn
@@ -1717,6 +1730,27 @@ namespace Kalendarz1
             if (dataGridPrzypomnienia.Columns.Count > 0) return;
             dataGridPrzypomnienia.Columns.Clear();
 
+            // ⭐ przeniesiona inline do kolumny Hodowca (DostawcaZGwiazdkaConverter)
+
+            // LoadingRow — wyróżnienie stałych klientów (bold + lewy zielony border)
+            dataGridPrzypomnienia.LoadingRow += (s, e) =>
+            {
+                if (e.Row.Item is not DataRowView row) return;
+                if (row["Dostawca"] == DBNull.Value) return;
+                string dostawca = Convert.ToString(row["Dostawca"]) ?? "";
+                if (CzyStalyKlient(dostawca))
+                {
+                    e.Row.FontWeight = FontWeights.SemiBold;
+                    e.Row.BorderBrush = new SolidColorBrush(Color.FromRgb(0x4C, 0xAF, 0x50));
+                    e.Row.BorderThickness = new Thickness(3, 0, 0, 0);
+                }
+                else
+                {
+                    e.Row.FontWeight = FontWeights.Normal;
+                    e.Row.BorderThickness = new Thickness(0);
+                }
+            };
+
             dataGridPrzypomnienia.Columns.Add(new DataGridTextColumn
             {
                 Header = "LP", Binding = new Binding("LP"), Width = 46
@@ -1727,10 +1761,7 @@ namespace Kalendarz1
                 Header = "Data", Binding = new Binding("Data") { StringFormat = "MM-dd ddd" }, Width = 66
             });
 
-            dataGridPrzypomnienia.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Hodowca", Binding = new Binding("Dostawca"), Width = 95
-            });
+            dataGridPrzypomnienia.Columns.Add(BudujKolumneHodowcaZGwiazdka(new DataGridLength(130)));
 
             dataGridPrzypomnienia.Columns.Add(new DataGridTextColumn
             {
@@ -2230,54 +2261,43 @@ namespace Kalendarz1
             var dialogNumer = new OknoDodaniaNumeruDialog(dostawca, phone1, phone2, phone3);
             if (dialogNumer.ShowDialog() == true)
             {
-                try
-                {
-                    using (var connection = new SqlConnection(connectionString))
-                    {
-                        connection.Open();
-                        string query = "UPDATE dbo.Dostawcy SET Phone1 = @Phone1, Phone2 = @Phone2, Phone3 = @Phone3 WHERE ShortName = @Dostawca";
-                        using (var cmd = new SqlCommand(query, connection))
-                        {
-                            cmd.Parameters.AddWithValue("@Phone1", dialogNumer.NumerTelefonu ?? "");
-                            cmd.Parameters.AddWithValue("@Phone2", dialogNumer.NumerTelefonu2 ?? "");
-                            cmd.Parameters.AddWithValue("@Phone3", dialogNumer.NumerTelefonu3 ?? "");
-                            cmd.Parameters.AddWithValue("@Dostawca", dostawca);
-                            cmd.ExecuteNonQuery();
-                        }
-                    }
-
-                    var zapisaneNumery = new List<string>();
-                    if (!string.IsNullOrEmpty(dialogNumer.NumerTelefonu)) zapisaneNumery.Add(dialogNumer.NumerTelefonu);
-                    if (!string.IsNullOrEmpty(dialogNumer.NumerTelefonu2)) zapisaneNumery.Add(dialogNumer.NumerTelefonu2);
-                    if (!string.IsNullOrEmpty(dialogNumer.NumerTelefonu3)) zapisaneNumery.Add(dialogNumer.NumerTelefonu3);
-
-                    MessageBox.Show($"Zapisano numery telefonu:\n{string.Join("\n", zapisaneNumery)}",
-                        "Sukces",
-                        MessageBoxButton.OK, MessageBoxImage.Information);
-
-                    LoadPrzypomnienia();
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show("Błąd zapisu: " + ex.Message, "Błąd",
-                        MessageBoxButton.OK, MessageBoxImage.Error);
-                }
+                int rows = ZapiszNumeryHodowcy(dostawca, dialogNumer.NumerTelefonu, dialogNumer.NumerTelefonu2, dialogNumer.NumerTelefonu3);
+                if (rows > 0) LoadPrzypomnienia();
             }
         }
+        // Flag — czy pokazywać też wiersze ukryte przez SnoozedUntil (po wysłaniu SMS o potwierdzenie)
+        private bool _pokazUkryteNadchodzace = false;
+
         private void LoadDoPotwierdzenia()
         {
-            string query = @"
-        SELECT 
+            // Wstawienia do potwierdzenia (zakupowiec dzwoni żeby potwierdzić termin):
+            //   • 12 dni wstecz (jeszcze nie potwierdzone — zaległe!) + 14 dni do przodu
+            //   • TYLKO niepotwierdzone (w.isConf IS NULL OR w.isConf = 0)
+            //   • Ukryte: wiersze z ContactHistory.SnoozedUntil > today AND Reason LIKE 'Auto SMS%'
+            //     (po wysłaniu SMS o potwierdzenie wpis znika na 3 dni, chyba że _pokazUkryteNadchodzace=true)
+            //   • OUTER APPLY: kto i kiedy ostatnio kontaktował (najnowszy ContactHistory wpis)
+            string filtrUkrytych = _pokazUkryteNadchodzace ? "" : @"
+          AND NOT EXISTS (
+              SELECT 1 FROM dbo.ContactHistory ch
+              WHERE ch.LpWstawienia = w.LP
+                AND ch.Reason LIKE 'Auto SMS%'
+                AND ch.SnoozedUntil > CAST(GETDATE() AS date)
+          )";
+
+            string query = $@"
+        SELECT
             w.LP,
             w.Dostawca,
             w.DataWstawienia,
             w.IloscWstawienia,
+            DATEDIFF(day, CAST(GETDATE() AS date), CAST(w.DataWstawienia AS date)) AS ZaDni,
             ISNULL(d.Phone1, '-') AS Telefon
         FROM dbo.WstawieniaKurczakow w
         LEFT JOIN dbo.Dostawcy d ON d.ShortName = w.Dostawca
         WHERE (w.isConf IS NULL OR w.isConf = 0)
-          AND w.DataWstawienia >= DATEADD(day, -30, CAST(GETDATE() AS DATE))
-          AND w.DataWstawienia <= DATEADD(day, 30, CAST(GETDATE() AS DATE))
+          AND w.DataWstawienia >= DATEADD(day, -12, CAST(GETDATE() AS date))
+          AND w.DataWstawienia <= DATEADD(day, 14, CAST(GETDATE() AS date))
+          {filtrUkrytych}
         ORDER BY w.DataWstawienia ASC";
 
             using (var connection = new SqlConnection(connectionString))
@@ -2288,6 +2308,9 @@ namespace Kalendarz1
 
                 dataGridDoPotwierdzenia.ItemsSource = table.DefaultView;
                 SetupDoPotwierdzeniaColumns();
+
+                if (txtLiczbaDoPotwierdzenia != null)
+                    txtLiczbaDoPotwierdzenia.Text = table.Rows.Count.ToString();
             }
         }
         private void SetupDoPotwierdzeniaColumns()
@@ -2295,48 +2318,46 @@ namespace Kalendarz1
             if (dataGridDoPotwierdzenia.Columns.Count > 0) return;
             dataGridDoPotwierdzenia.Columns.Clear();
 
+            // ⭐ przeniesiona inline do kolumny Hodowca (DostawcaZGwiazdkaConverter)
+
             dataGridDoPotwierdzenia.Columns.Add(new DataGridTextColumn
             {
                 Header = "LP",
                 Binding = new Binding("LP"),
-                Width = 38
+                Width = 46
             });
 
             dataGridDoPotwierdzenia.Columns.Add(new DataGridTextColumn
             {
                 Header = "Data",
-                Binding = new Binding("DataWstawienia")
-                {
-                    StringFormat = "MM-dd ddd"
-                },
+                Binding = new Binding("DataWstawienia") { StringFormat = "MM-dd ddd" },
                 Width = 70
             });
 
             dataGridDoPotwierdzenia.Columns.Add(new DataGridTextColumn
             {
-                Header = "Hodowca",
-                Binding = new Binding("Dostawca"),
-                Width = new DataGridLength(1, DataGridLengthUnitType.Star)
+                Header = "Za",
+                Binding = new Binding("ZaDni") { Converter = new ZaDniConverter() },
+                Width = 70
             });
+
+            dataGridDoPotwierdzenia.Columns.Add(BudujKolumneHodowcaZGwiazdka(new DataGridLength(1, DataGridLengthUnitType.Star)));
 
             dataGridDoPotwierdzenia.Columns.Add(new DataGridTextColumn
             {
                 Header = "Ilość",
-                Binding = new Binding("IloscWstawienia")
-                {
-                    StringFormat = "# ##0"
-                },
+                Binding = new Binding("IloscWstawienia") { StringFormat = "# ##0" },
                 Width = 52
             });
 
             dataGridDoPotwierdzenia.Columns.Add(new DataGridTextColumn
             {
                 Header = "Tel",
-                Binding = new Binding("Telefon"),
-                Width = 70
+                Binding = new Binding("Telefon") { Converter = new PhoneFormatConverter() },
+                Width = 90
             });
 
-            // Dodaj context menu
+            // Context menu (zachowane oryginalne + 2 nowe SMS o potwierdzenie)
             var contextMenu = new ContextMenu();
 
             var menuItemPotwierdz = new MenuItem { Header = "✅ Potwierdź wstawienie", FontWeight = FontWeights.SemiBold };
@@ -2349,11 +2370,87 @@ namespace Kalendarz1
 
             contextMenu.Items.Add(new Separator());
 
+            // 2 warianty SMS o potwierdzenie terminu (odpisz TAK / lub nowa data)
+            var smsPotwierdzPelny = new MenuItem
+            {
+                Header = "📱 1️⃣  SMS — Pełne potwierdzenie (z prośbą TAK / nowa data)",
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Color.FromRgb(0x19, 0x76, 0xD2)),
+                Tag = "pelny"
+            };
+            smsPotwierdzPelny.Click += MenuSmsPotwierdzenie_Click;
+            contextMenu.Items.Add(smsPotwierdzPelny);
+
+            var smsPotwierdzKrotki = new MenuItem
+            {
+                Header = "📱 2️⃣  SMS — Krótkie potwierdzenie (zwięzłe)",
+                Foreground = new SolidColorBrush(Color.FromRgb(0x19, 0x76, 0xD2)),
+                Tag = "krotki"
+            };
+            smsPotwierdzKrotki.Click += MenuSmsPotwierdzenie_Click;
+            contextMenu.Items.Add(smsPotwierdzKrotki);
+
+            contextMenu.Items.Add(new Separator());
+
             var menuItemDodajTel = new MenuItem { Header = "➕ Dodaj numer hodowcy" };
             menuItemDodajTel.Click += MenuDodajTelefonDoPotwierdzenia_Click;
             contextMenu.Items.Add(menuItemDodajTel);
 
+            contextMenu.Items.Add(new Separator());
+
+            // Toggle: pokaż również wiersze ukryte przez SnoozedUntil (po wysłaniu SMS o potwierdzenie)
+            var menuItemPokazUkryte = new MenuItem
+            {
+                Header = "👁️ Pokaż również już skontaktowanych (snooze 3d)",
+                IsCheckable = true,
+                IsChecked = _pokazUkryteNadchodzace
+            };
+            menuItemPokazUkryte.Click += (s, e) =>
+            {
+                _pokazUkryteNadchodzace = menuItemPokazUkryte.IsChecked;
+                LoadDoPotwierdzenia();
+                OdswiezStatusBar();
+            };
+            contextMenu.Items.Add(menuItemPokazUkryte);
+
             dataGridDoPotwierdzenia.ContextMenu = contextMenu;
+
+            // Formatowanie wierszy — kolor wg pilności (ZaDni) + wyróżnienie stałych klientów
+            dataGridDoPotwierdzenia.LoadingRow += (s, e) =>
+            {
+                if (e.Row.Item is not DataRowView row) return;
+                if (row["Dostawca"] == DBNull.Value) return;
+
+                string dostawca = Convert.ToString(row["Dostawca"]) ?? "";
+                int zaDni = row["ZaDni"] != DBNull.Value ? Convert.ToInt32(row["ZaDni"]) : 99;
+
+                // Pilność (tło):
+                //   ujemne (zaległe) = mocno czerwone, najpilniejsze
+                //   ≤3 dni = czerwone
+                //   ≤7 dni = pomarańczowe
+                //   >7 dni = zielonkawe
+                if (zaDni < 0)
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(0xFF, 0xCD, 0xD2));      // mocne czerwone — zaległe!
+                else if (zaDni <= 3)
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(0xFF, 0xEB, 0xEE));      // czerwonawe
+                else if (zaDni <= 7)
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(0xFF, 0xF3, 0xE0));      // pomarańczowe
+                else
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(0xF1, 0xF8, 0xE9));      // zielonkawe
+
+                // Stały klient (bold + lewy zielony border)
+                if (CzyStalyKlient(dostawca))
+                {
+                    e.Row.FontWeight = FontWeights.SemiBold;
+                    e.Row.BorderBrush = new SolidColorBrush(Color.FromRgb(0x4C, 0xAF, 0x50));
+                    e.Row.BorderThickness = new Thickness(3, 0, 0, 0);
+                }
+                else
+                {
+                    e.Row.FontWeight = FontWeights.Normal;
+                    e.Row.BorderThickness = new Thickness(0);
+                }
+            };
 
             // Podwójne kliknięcie - tworzenie nowego wstawienia
             dataGridDoPotwierdzenia.MouseDoubleClick += DataGridDoPotwierdzenia_MouseDoubleClick;
@@ -2464,31 +2561,8 @@ namespace Kalendarz1
                     filters.Add($"Dostawca LIKE '%{escapedFilter}%'");
                 }
 
-                if (datePickerOd?.SelectedDate.HasValue == true)
-                {
-                    string dateString = datePickerOd.SelectedDate.Value.ToString("yyyy-MM-dd");
-                    filters.Add($"Data >= '{dateString}'");
-                }
-
-                if (datePickerDo?.SelectedDate.HasValue == true)
-                {
-                    string dateString = datePickerDo.SelectedDate.Value.ToString("yyyy-MM-dd");
-                    filters.Add($"Data <= '{dateString}'");
-                }
-
-                if (chkPokazPrzyszle?.IsChecked == true)
-                {
-                    var uniqueSuppliers = GetUniqueSuppliersWithFutureDeliveries();
-                    if (uniqueSuppliers.Any())
-                    {
-                        string suppliersFilter = string.Join(" OR ", uniqueSuppliers.Select(s => $"Dostawca = '{s.Replace("'", "''")}'"));
-                        filters.Add($"({suppliersFilter})");
-                    }
-                    else
-                    {
-                        filters.Add("1 = 0");
-                    }
-                }
+                // datePickerOd/datePickerDo/chkPokazPrzyszle — usunięte z UI (zaśmiecały miejsce).
+                // Jeśli filtr po dacie potrzebny → wpisz w szukajkę numer LP lub fragment nazwy.
 
                 viewWstawienia.RowFilter = filters.Count > 0 ? string.Join(" AND ", filters) : string.Empty;
             }
@@ -3455,38 +3529,8 @@ namespace Kalendarz1
             var dialogNumer = new OknoDodaniaNumeruDialog(dostawca, phone1, phone2, phone3);
             if (dialogNumer.ShowDialog() == true)
             {
-                try
-                {
-                    using (var connection = new SqlConnection(connectionString))
-                    {
-                        connection.Open();
-                        string query = "UPDATE dbo.Dostawcy SET Phone1 = @Phone1, Phone2 = @Phone2, Phone3 = @Phone3 WHERE ShortName = @Dostawca";
-                        using (var cmd = new SqlCommand(query, connection))
-                        {
-                            cmd.Parameters.AddWithValue("@Phone1", dialogNumer.NumerTelefonu ?? "");
-                            cmd.Parameters.AddWithValue("@Phone2", dialogNumer.NumerTelefonu2 ?? "");
-                            cmd.Parameters.AddWithValue("@Phone3", dialogNumer.NumerTelefonu3 ?? "");
-                            cmd.Parameters.AddWithValue("@Dostawca", dostawca);
-                            cmd.ExecuteNonQuery();
-                        }
-                    }
-
-                    var zapisaneNumery = new List<string>();
-                    if (!string.IsNullOrEmpty(dialogNumer.NumerTelefonu)) zapisaneNumery.Add(dialogNumer.NumerTelefonu);
-                    if (!string.IsNullOrEmpty(dialogNumer.NumerTelefonu2)) zapisaneNumery.Add(dialogNumer.NumerTelefonu2);
-                    if (!string.IsNullOrEmpty(dialogNumer.NumerTelefonu3)) zapisaneNumery.Add(dialogNumer.NumerTelefonu3);
-
-                    MessageBox.Show($"Zapisano numery telefonu:\n{string.Join("\n", zapisaneNumery)}",
-                        "Sukces",
-                        MessageBoxButton.OK, MessageBoxImage.Information);
-
-                    RefreshAll();
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show("Błąd zapisu: " + ex.Message, "Błąd",
-                        MessageBoxButton.OK, MessageBoxImage.Error);
-                }
+                int rows = ZapiszNumeryHodowcy(dostawca, dialogNumer.NumerTelefonu, dialogNumer.NumerTelefonu2, dialogNumer.NumerTelefonu3);
+                if (rows > 0) RefreshAll();
             }
         }
 
@@ -3547,25 +3591,185 @@ namespace Kalendarz1
 
         // ====== MENU KONTEKSTOWE - SMS ======
 
-        private string PrzygotujTrescSms(DataRowView row)
+        private string PrzygotujTrescSms(DataRowView row, int wariant = 1)
         {
-            string dostawca = Convert.ToString(row["Dostawca"]);
-            string ilosc = row["Ilosc"] != DBNull.Value ? Convert.ToInt32(row["Ilosc"]).ToString("# ##0") : "?";
+            // Wrapper — wybiera odpowiednią kolumnę (Ilosc dla przypomnień, IloscWstawienia dla wstawień)
+            string ilosc = "?";
+            if (row.Row.Table.Columns.Contains("Ilosc") && row["Ilosc"] != DBNull.Value)
+                ilosc = Convert.ToInt32(row["Ilosc"]).ToString("# ##0");
+            else if (row.Row.Table.Columns.Contains("IloscWstawienia") && row["IloscWstawienia"] != DBNull.Value)
+                ilosc = Convert.ToInt32(row["IloscWstawienia"]).ToString("# ##0");
+
             string data = row["Data"] != DBNull.Value ? Convert.ToDateTime(row["Data"]).ToString("dd.MM.yyyy") : "?";
 
-            return $"Dzien dobry, kontaktujemy sie w sprawie kolejnego wstawienia kurczakow. " +
-                   $"Wg naszych danych ostatnie wstawienie: {data}, {ilosc} szt. " +
-                   $"Prosimy o informacje o planowanym terminie nastepnego wstawienia. " +
-                   $"Pozdrawiamy, Ubojnia Drobiu Piorkowscy";
+            return PrzygotujTrescSmsRaw(ilosc, data, wariant);
+        }
+
+        // Czysta funkcja generująca treść SMS na podstawie podstawowych danych.
+        // Używana przez oba wrappery (przypomnienia + wstawienia).
+        // Spójny format: pełne polskie diakrytyki, podpis "Ubojnia Drobiu \"Piórkowscy\"".
+        private string PrzygotujTrescSmsRaw(string ilosc, string data, int wariant)
+        {
+            const string podpis = "Pozdrawiamy, Ubojnia Drobiu \"Piórkowscy\".";
+
+            return wariant switch
+            {
+                1 => // Oficjalny standardowy
+                    $"Dzień dobry, kontaktujemy się w sprawie kolejnego wstawienia kurczaków. " +
+                    $"Według naszych danych ostatnie wstawienie: {data}, {ilosc} szt. " +
+                    $"Prosimy o informację o planowanym terminie następnego wstawienia. " +
+                    $"{podpis}",
+
+                2 => // Krótki i konkretny
+                    $"Dzień dobry. Ostatnie wstawienie: {data} ({ilosc} szt). " +
+                    $"Prosimy o informację o terminie kolejnego. {podpis}",
+
+                3 => // Przyjazny i ciepły
+                    $"Witam serdecznie! Kontaktujemy się ws. kolejnego wstawienia kurczaków. " +
+                    $"Według naszych danych ostatnie było {data} ({ilosc} szt). " +
+                    $"Będziemy wdzięczni za informację o planowanym następnym terminie. " +
+                    $"{podpis}",
+
+                4 => // Z pytaniem o termin
+                    $"Dzień dobry! Czy znają już Państwo termin następnego wstawienia? " +
+                    $"Ostatnie według naszych zapisów: {data}, {ilosc} szt. " +
+                    $"Czekamy na informację. {podpis}",
+
+                5 => // Z delikatnym przypomnieniem
+                    $"Dzień dobry, przypominamy o naszej współpracy. " +
+                    $"Od ostatniego wstawienia ({data}, {ilosc} szt) minęło trochę czasu. " +
+                    $"Czy planują Państwo kolejne wstawienie? {podpis}",
+
+                6 => // Wolny rynek — prośba o orientacyjny termin (bez zobowiązań)
+                    $"Dzień dobry. Czy moglibyśmy prosić o orientacyjną informację kiedy planują Państwo " +
+                    $"kolejne wstawienie? Pytamy zupełnie niezobowiązująco — po prostu żebyśmy mieli " +
+                    $"ogólny obraz na wszelki wypadek. {podpis}",
+
+                7 => // Wolny rynek — otwarcie drogi do kontaktu (bez deklaracji)
+                    $"Dzień dobry. Piszę niezobowiązująco — gdyby zaszła u nas potrzeba dodatkowych " +
+                    $"kurczaków w okolicach Państwa terminu, czy moglibyśmy do Państwa zadzwonić? " +
+                    $"Z góry nic nie obiecujemy, ale chcielibyśmy mieć możliwość kontaktu. " +
+                    $"{podpis}",
+
+                8 => // Wolny rynek — sygnał zainteresowania (bardzo lekki, asekuracyjny)
+                    $"Dzień dobry. Bez zobowiązań z żadnej strony — gdyby okazało się że poszukujemy " +
+                    $"odbioru i Państwo będziecie mieli możliwość, dobrze będzie mieć ze sobą kontakt. " +
+                    $"Czy możemy w razie czego zadzwonić? {podpis}",
+
+                _ => PrzygotujTrescSmsRaw(ilosc, data, 1)
+            };
         }
 
         private string PobierzNumerTelefonu(DataRowView row)
         {
             string telefon = row["Telefon"] != DBNull.Value ? Convert.ToString(row["Telefon"]).Trim() : "";
+            // "-" w bazie traktujemy jako brak numeru (legacy placeholder)
+            if (telefon == "-") telefon = "";
             return telefon;
         }
 
         private void MenuSmsSchowek_Click(object sender, RoutedEventArgs e)
+        {
+            // Stary handler bez wariantu — wywołuje wariant 1 (domyślny oficjalny)
+            WyslijSmsWariant(1);
+        }
+
+        // Wspólny handler dla 5 wariantów SMS — wywoływany przez MenuItem z Tag=1..5
+        private void MenuSmsWariant_Click(object sender, RoutedEventArgs e)
+        {
+            int wariant = 1;
+            if (sender is MenuItem mi && mi.Tag != null && int.TryParse(mi.Tag.ToString(), out int w))
+                wariant = w;
+            WyslijSmsWariant(wariant);
+        }
+
+        // Liczy ile SMS-ów zajmie wiadomość w trybie UCS-2 (z polskimi diakrytykami).
+        // 1 SMS = 70 znaków UCS-2, kolejne 67 znaków (header concatenacji).
+        private int EstymujSmsCount(string tresc)
+        {
+            if (string.IsNullOrEmpty(tresc)) return 0;
+            int len = tresc.Length;
+            if (len <= 70) return 1;
+            return 1 + (int)Math.Ceiling((len - 70) / 67.0);
+        }
+
+        // Handler dla menu kontekstowego dataGridWstawienia (lewa lista wstawień)
+        private void MenuSmsWariantWst_Click(object sender, RoutedEventArgs e)
+        {
+            int wariant = 1;
+            if (sender is MenuItem mi && mi.Tag != null && int.TryParse(mi.Tag.ToString(), out int w))
+                wariant = w;
+            WyslijSmsZWstawien(wariant);
+        }
+
+        // Pobiera Phone1 z dbo.Dostawcy dla podanej ShortName.
+        // "-" traktowany jako brak numeru.
+        private string PobierzTelefonHodowcyZBazy(string dostawca)
+        {
+            if (string.IsNullOrWhiteSpace(dostawca)) return "";
+            try
+            {
+                using var conn = new SqlConnection(connectionString);
+                conn.Open();
+                using var cmd = new SqlCommand(
+                    "SELECT TOP 1 Phone1 FROM dbo.Dostawcy WHERE ShortName = @d", conn);
+                cmd.Parameters.AddWithValue("@d", dostawca);
+                var r = cmd.ExecuteScalar();
+                if (r == null || r == DBNull.Value) return "";
+                string tel = (Convert.ToString(r) ?? "").Trim();
+                return tel == "-" ? "" : tel;
+            }
+            catch { return ""; }
+        }
+
+        private void WyslijSmsZWstawien(int wariant)
+        {
+            if (dataGridWstawienia.SelectedItem is not DataRowView row)
+            {
+                MessageBox.Show("Wybierz wstawienie z listy.", "Uwaga",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            string dostawca = row["Dostawca"] != DBNull.Value ? Convert.ToString(row["Dostawca"]) ?? "" : "";
+            string tresc = PrzygotujTrescSms(row, wariant);
+            string telefon = PobierzTelefonHodowcyZBazy(dostawca);
+
+            Clipboard.SetText(tresc);
+
+            string nazwaWariantu = wariant switch
+            {
+                1 => "1️⃣ Oficjalny standardowy",
+                2 => "2️⃣ Krótki i konkretny",
+                3 => "3️⃣ Przyjazny i ciepły",
+                4 => "4️⃣ Z pytaniem o termin",
+                5 => "5️⃣ Z delikatnym przypomnieniem",
+                6 => "6️⃣ Wolny rynek — prośba o orientacyjny termin",
+                7 => "7️⃣ Wolny rynek — otwarcie drogi do kontaktu",
+                8 => "8️⃣ Wolny rynek — sygnał zainteresowania (lekki)",
+                _ => $"Wariant {wariant}"
+            };
+
+            // #2 Auto-wpis do ContactHistory
+            int? lpWstZ = row["LP"] != DBNull.Value ? Convert.ToInt32(row["LP"]) : (int?)null;
+            ZapiszContactSmsAutomatycznie(lpWstZ, dostawca, nazwaWariantu);
+
+            string info = $"✅ Skopiowano SMS do schowka — {nazwaWariantu}\n\n";
+            info += $"Hodowca: {dostawca}\n";
+            info += string.IsNullOrEmpty(telefon)
+                ? "Telefon: ⚠️ BRAK NUMERU!\n"
+                : $"Telefon: {telefon}\n";
+            info += $"Długość: {tresc.Length} znaków  ({EstymujSmsCount(tresc)} SMS w UCS-2)\n";
+            info += $"📝 Zapisano w Historia kontaktów\n";
+            info += $"\n— TREŚĆ SMS —\n{tresc}";
+
+            MessageBox.Show(info, $"SMS — wariant {wariant} skopiowany",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+
+            LoadHistoria();
+        }
+
+        private void WyslijSmsWariant(int wariant)
         {
             if (dataGridPrzypomnienia.SelectedItem == null)
             {
@@ -3577,19 +3781,40 @@ namespace Kalendarz1
             var row = (DataRowView)dataGridPrzypomnienia.SelectedItem;
             string dostawca = Convert.ToString(row["Dostawca"]);
             string telefon = PobierzNumerTelefonu(row);
-            string tresc = PrzygotujTrescSms(row);
+            string tresc = PrzygotujTrescSms(row, wariant);
 
             Clipboard.SetText(tresc);
 
-            string info = $"Hodowca: {dostawca}\n";
-            if (!string.IsNullOrEmpty(telefon))
-                info += $"Telefon: {telefon}\n";
-            else
-                info += "Telefon: BRAK NUMERU!\n";
-            info += $"\nTreść SMS skopiowana do schowka:\n\n{tresc}";
+            string nazwaWariantu = wariant switch
+            {
+                1 => "1️⃣ Oficjalny standardowy",
+                2 => "2️⃣ Krótki i konkretny",
+                3 => "3️⃣ Przyjazny i ciepły",
+                4 => "4️⃣ Z pytaniem o termin",
+                5 => "5️⃣ Z delikatnym przypomnieniem",
+                6 => "6️⃣ Wolny rynek — prośba o orientacyjny termin",
+                7 => "7️⃣ Wolny rynek — otwarcie drogi do kontaktu",
+                8 => "8️⃣ Wolny rynek — sygnał zainteresowania (lekki)",
+                _ => $"Wariant {wariant}"
+            };
 
-            MessageBox.Show(info, "SMS - skopiowano do schowka",
+            // #2 Auto-wpis do ContactHistory
+            int? lpWstP = row["LP"] != DBNull.Value ? Convert.ToInt32(row["LP"]) : (int?)null;
+            ZapiszContactSmsAutomatycznie(lpWstP, dostawca, nazwaWariantu);
+
+            string info = $"✅ Skopiowano SMS do schowka — {nazwaWariantu}\n\n";
+            info += $"Hodowca: {dostawca}\n";
+            info += string.IsNullOrEmpty(telefon)
+                ? "Telefon: ⚠️ BRAK NUMERU!\n"
+                : $"Telefon: {telefon}\n";
+            info += $"Długość: {tresc.Length} znaków  ({EstymujSmsCount(tresc)} SMS w UCS-2)\n";
+            info += $"📝 Zapisano w Historia kontaktów\n";
+            info += $"\n— TREŚĆ SMS —\n{tresc}";
+
+            MessageBox.Show(info, $"SMS — wariant {wariant} skopiowany",
                 MessageBoxButton.OK, MessageBoxImage.Information);
+
+            LoadHistoria();
         }
 
         private void MenuSmsPhoneLink_Click(object sender, RoutedEventArgs e)
@@ -3794,11 +4019,8 @@ namespace Kalendarz1
             var row = (DataRowView)dataGridDoPotwierdzenia.SelectedItem;
             int lp = Convert.ToInt32(row["LP"]);
 
-            var result = MessageBox.Show("Czy na pewno chcesz potwierdzić to wstawienie?", "Potwierdzenie", MessageBoxButton.YesNo, MessageBoxImage.Question);
-            if (result == MessageBoxResult.Yes)
-            {
-                PotwierdzWstawienie(lp);
-            }
+            // Bez pytania "Czy na pewno" — potwierdzamy od razu, widok odświeżony w RefreshAfterPotwierdzenie
+            PotwierdzWstawienie(lp);
         }
 
         private void MenuPotwierdzIZmienDate_Click(object sender, RoutedEventArgs e)
@@ -3946,7 +4168,6 @@ namespace Kalendarz1
                     }
                 }
 
-                MessageBox.Show("Wstawienie zostało pomyślnie potwierdzone.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
                 RefreshAfterPotwierdzenie();
             }
             catch (Exception ex)
@@ -4018,6 +4239,9 @@ namespace Kalendarz1
         private void RefreshAfterPotwierdzenie()
         {
             LoadWstawienia();
+            ZbudujCacheStalychKlientow();
+            LoadDoPotwierdzenia();   // odśwież tabelę "Nadchodzące wstawienia" — potwierdzone znikają
+            OdswiezStatusBar();
         }
 
         // Otwiera (lub aktywuje istniejące) okno Kalendarza Dostaw Żywca na konkretnej dacie
@@ -4170,8 +4394,11 @@ namespace Kalendarz1
         {
             if (value == null || value == DBNull.Value) return "";
             int dni = System.Convert.ToInt32(value);
-            if (dni == 1) return "1 dzień";
-            return $"{dni} dni";
+            if (dni == 0) return "dziś";
+            if (dni == 1) return "jutro";
+            if (dni == -1) return "wczoraj";
+            if (dni < 0) return $"{-dni} dni temu";   // wstawienie minęło, np. "5 dni temu"
+            return $"za {dni} dni";
         }
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
             => throw new NotImplementedException();

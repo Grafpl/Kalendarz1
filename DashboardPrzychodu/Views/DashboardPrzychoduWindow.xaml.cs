@@ -104,14 +104,14 @@ namespace Kalendarz1.DashboardPrzychodu.Views
             // Eventy
             dpData.SelectedDateChanged += async (s, e) =>
             {
-                // Reset śledzenia przy zmianie daty
+                // Reset śledzenia przy zmianie daty + ZAWSZE odśwież (pomijaj guard 5s)
                 _poprzednieZwazone = 0;
                 _trendStartTime = null;
                 _poprzednieAutaZwazone.Clear();
                 UpdateDateDisplay();
-                await LoadDataAsync();
+                await LoadDataAsync(force: true);
             };
-            txtSearch.TextChanged += TxtSearch_TextChanged;
+            // Search usunięty z UI
             Loaded += async (s, e) => await InitializeAsync();
             Closing += DashboardPrzychoduWindow_Closing;
         }
@@ -122,20 +122,8 @@ namespace Kalendarz1.DashboardPrzychodu.Views
         private void InitializePulseAnimation()
         {
             _pulseStoryboard = new Storyboard();
+            // KPI Strip został usunięty - animacja borderOdchylenie nieaktywna
             _pulseStoryboard.RepeatBehavior = RepeatBehavior.Forever;
-            _pulseStoryboard.AutoReverse = true;
-
-            var colorAnimation = new ColorAnimation
-            {
-                From = Color.FromRgb(239, 68, 68),    // #ef4444 (red)
-                To = Color.FromRgb(252, 165, 165),    // #fca5a5 (light red)
-                Duration = TimeSpan.FromMilliseconds(700)
-            };
-
-            Storyboard.SetTarget(colorAnimation, borderOdchylenie);
-            Storyboard.SetTargetProperty(colorAnimation, new PropertyPath("BorderBrush.Color"));
-
-            _pulseStoryboard.Children.Add(colorAnimation);
         }
 
         /// <summary>
@@ -166,7 +154,7 @@ namespace Kalendarz1.DashboardPrzychodu.Views
         /// <summary>
         /// Ładowanie danych z bazy
         /// </summary>
-        private async System.Threading.Tasks.Task LoadDataAsync()
+        private async System.Threading.Tasks.Task LoadDataAsync(bool force = false)
         {
             if (_isLoading)
             {
@@ -174,7 +162,8 @@ namespace Kalendarz1.DashboardPrzychodu.Views
                 return;
             }
 
-            if (!_przychodService.CanRefresh)
+            // Guard 5s pomijamy gdy force=true (zmiana daty z DatePicker zawsze odświeża)
+            if (!force && !_przychodService.CanRefresh)
             {
                 Debug.WriteLine("[DashboardPrzychodu] Za szybko - minimalny interwał 5s");
                 return;
@@ -246,62 +235,32 @@ namespace Kalendarz1.DashboardPrzychodu.Views
                             new Action(() => scrollViewer?.ScrollToVerticalOffset(scrollOffset)));
                     }
 
-                    // Aktualizuj kolekcje harmonogramow — merguj duplikaty po nazwie hodowcy
+                    // Aktualizuj kolekcje harmonogramow.
+                    // Deduplikujemy po NAZWIE hodowcy z priorytetem biznesowym:
+                    //   1. PotwWaga=1 (Asia potwierdziła w Menu>Specyfikacja Surowca) — KLUCZ
+                    //   2. PotwSztuki=1
+                    //   3. AutaZwazone DESC (najwięcej zważonych)
+                    //   4. AutaOgolem DESC (najwięcej wjechanych)
+                    //   5. DataOstatniejZmiany DESC (najnowszy)
+                    //   6. PlanKgLacznie DESC (największy plan)
+                    //
+                    // To eliminuje sytuację gdy dispatcher zmienia harmonogram (4 auta → 9 aut, nowy LP)
+                    // a stary LP zostaje w bazie jako "duch". Asia potwierdzając w specyfikacji surowca
+                    // oznacza który harmonogram jest TYM PRAWDZIWYM dla danego dnia.
                     _postepyHarmonogramow.Clear();
-
-                    // Grupuj harmonogramy z SQL po nazwie hodowcy (mogą mieć różne LpDostawy)
-                    var mergedHarmonogramy = noweHarmonogramy
-                        .GroupBy(h => (h.Hodowca ?? "").Trim(), StringComparer.OrdinalIgnoreCase)
-                        .Select(g =>
-                        {
-                            var first = g.First();
-                            if (g.Count() == 1) return first;
-                            // Merguj wiele wpisów tego samego hodowcy
-                            return new PostepHarmonogramu
-                            {
-                                LpDostawy = first.LpDostawy,
-                                Hodowca = first.Hodowca,
-                                AutaZwazone = g.Sum(x => x.AutaZwazone),
-                                AutaOgolem = g.Sum(x => x.AutaOgolem),
-                                AutaPlanowane = g.Sum(x => x.AutaPlanowane),
-                                PlanSztukiLacznie = g.Sum(x => x.PlanSztukiLacznie),
-                                PlanKgLacznie = g.Sum(x => x.PlanKgLacznie),
-                                SztukiZwazoneSuma = g.Sum(x => x.SztukiZwazoneSuma),
-                                KgZwazoneSuma = g.Sum(x => x.KgZwazoneSuma),
-                                SredniaWagaPlan = first.SredniaWagaPlan,
-                                SredniaWagaRzecz = g.Where(x => x.SredniaWagaRzecz.HasValue).Select(x => x.SredniaWagaRzecz).LastOrDefault(),
-                            };
-                        }).ToList();
-
-                    foreach (var harmonogram in mergedHarmonogramy)
+                    var unikalne = noweHarmonogramy
+                        .GroupBy(h => (h.Hodowca ?? "").Trim().ToUpperInvariant())
+                        .Select(g => g
+                            .OrderByDescending(h => h.PotwWaga)                                  // 1. potwierdzony przez Asię
+                            .ThenByDescending(h => h.PotwSztuki)                                 // 2. lub potwierdzone sztuki
+                            .ThenByDescending(h => h.AutaZwazone)                                // 3. ten z realnie zważonymi
+                            .ThenByDescending(h => h.AutaOgolem)                                 // 4. ten z wjechanymi
+                            .ThenByDescending(h => h.DataOstatniejZmiany ?? DateTime.MinValue)   // 5. najnowsza edycja
+                            .ThenByDescending(h => h.PlanKgLacznie)                              // 6. większy plan
+                            .First())
+                        .ToList();
+                    foreach (var harmonogram in unikalne)
                         _postepyHarmonogramow.Add(harmonogram);
-
-                    // Dodaj brakujących hodowców (z tabeli, ale bez harmonogramu)
-                    var istniejaceHodowcy = new HashSet<string>(
-                        _postepyHarmonogramow.Select(h => (h.Hodowca ?? "").Trim()),
-                        StringComparer.OrdinalIgnoreCase);
-                    var brakujacyHodowcy = _dostawy
-                        .GroupBy(d => (d.Hodowca ?? "").Trim(), StringComparer.OrdinalIgnoreCase)
-                        .Where(g => !string.IsNullOrEmpty(g.Key) && !istniejaceHodowcy.Contains(g.Key));
-                    foreach (var grp in brakujacyHodowcy)
-                    {
-                        var items = grp.ToList();
-                        int zwazone = items.Count(x => x.Status == StatusDostawy.Zwazony);
-                        _postepyHarmonogramow.Add(new PostepHarmonogramu
-                        {
-                            LpDostawy = items.First().LpDostawy ?? 0,
-                            Hodowca = grp.Key,
-                            AutaZwazone = zwazone,
-                            AutaOgolem = items.Count,
-                            AutaPlanowane = items.Count,
-                            PlanSztukiLacznie = items.Sum(x => x.SztukiPlan),
-                            PlanKgLacznie = items.Sum(x => x.KgPlan),
-                            SztukiZwazoneSuma = items.Where(x => x.Status == StatusDostawy.Zwazony).Sum(x => x.SztukiRzeczywiste),
-                            KgZwazoneSuma = items.Where(x => x.Status == StatusDostawy.Zwazony).Sum(x => x.KgRzeczywiste),
-                            SredniaWagaPlan = items.First().WagaDeklHarmonogram,
-                            SredniaWagaRzecz = items.First().SredniaWagaRzeczywistaCalc,
-                        });
-                    }
 
                     // Przypisz kolory hodowcom
                     AssignHodowcaColors();
@@ -380,59 +339,8 @@ namespace Kalendarz1.DashboardPrzychodu.Views
         /// </summary>
         private void UpdateSummaryUI()
         {
-            // Planowane - KPI Strip
-            txtKgPlan.Text = _podsumowanie.KgPlanSuma.ToString("N0");
-
-            // Zważone z trendem - KPI Strip
-            decimal noweZwazone = _podsumowanie.KgZwazoneSuma;
-            txtKgZwazone.Text = noweZwazone.ToString("N0");
-
-            // Aktualizuj trend
-            UpdateTrend(noweZwazone);
-
-            // Pozostałe - KPI Strip
-            txtKgPozostalo.Text = _podsumowanie.KgPozostalo.ToString("N0");
-
-            // Odchylenie - KPI Strip
-            if (_podsumowanie.KgZwazoneSuma > 0)
-            {
-                string znak = _podsumowanie.OdchylenieKgSuma > 0 ? "+" : "";
-                txtOdchylenie.Text = $"{znak}{_podsumowanie.OdchylenieKgSuma:N0}";
-                txtOdchylenieProc.Text = $"({znak}{_podsumowanie.OdchylenieProc:N1}%)";
-
-                // Kolorowanie odchylenia
-                txtOdchylenie.Foreground = _podsumowanie.Poziom switch
-                {
-                    PoziomOdchylenia.OK => DashboardBrushes.Green,
-                    PoziomOdchylenia.Uwaga => DashboardBrushes.AmberLight,
-                    PoziomOdchylenia.Problem => DashboardBrushes.Red,
-                    _ => DashboardBrushes.TextSecondary
-                };
-                txtOdchylenieProc.Foreground = DashboardBrushes.TextMuted;
-
-                // Pulsujące obramowanie przy problemie
-                UpdatePulseAnimation(_podsumowanie.Poziom == PoziomOdchylenia.Problem);
-            }
-            else
-            {
-                txtOdchylenie.Text = "-";
-                txtOdchylenieProc.Text = "";
-                txtOdchylenie.Foreground = DashboardBrushes.TextSecondary;
-                UpdatePulseAnimation(false);
-            }
-
-            // Realizacja - KPI Strip
-            txtRealizacja.Text = $"{_podsumowanie.ProcentRealizacjiKg}%";
-            txtDostawyStatus.Text = $"({_podsumowanie.LiczbaZwazonych}/{_podsumowanie.LiczbaDostawOgolem})";
-
-            // Tuszki - KPI Strip
-            txtPrognozaTuszek.Text = _podsumowanie.PrognozaTuszekKg.ToString("N0");
-
-            // ETA + PACE - KPI Strip (#6 + #7)
-            txtEta.Text = _podsumowanie.EtaDisplay;
-            txtPaceBadge.Text = _podsumowanie.PaceBadge;
-            txtPaceBadge.Foreground = _podsumowanie.PaceBrush;
-            borderEta.ToolTip = _podsumowanie.EtaTooltip;
+            // KPI Strip został usunięty - aktualizujemy tylko sidebar
+            UpdateTrend(_podsumowanie.KgZwazoneSuma);
 
             // Średnie wagi - sidebar
             if (_podsumowanie.SrWagaPlanSrednia.HasValue)
@@ -543,69 +451,24 @@ namespace Kalendarz1.DashboardPrzychodu.Views
 
 
         /// <summary>
-        /// Aktualizacja trendu dla kafelka ZWAŻONE w KPI Strip
+        /// Aktualizacja trendu (KPI Strip usunięty - tylko śledzenie wartości w pamięci).
         /// </summary>
         private void UpdateTrend(decimal noweZwazone)
         {
             if (_poprzednieZwazone == 0)
             {
-                // Pierwsze ładowanie
-                txtTrendZwazone.Text = "";
-                txtTempoZwazone.Text = "";
                 _trendStartTime = DateTime.Now;
                 _lastRefreshTime = DateTime.Now;
             }
             else
             {
-                decimal roznica = noweZwazone - _poprzednieZwazone;
-                if (roznica > 0)
-                {
-                    txtTrendZwazone.Text = "↑";
-                    txtTrendZwazone.Foreground = DashboardBrushes.Green;
-                }
-                else if (roznica < 0)
-                {
-                    txtTrendZwazone.Text = "↓";
-                    txtTrendZwazone.Foreground = DashboardBrushes.Red;
-                }
-                else
-                {
-                    txtTrendZwazone.Text = "→";
-                    txtTrendZwazone.Foreground = DashboardBrushes.TextMuted;
-                }
-
-                // Tempo - ile kg przybyło od startu śledzenia
-                if (_trendStartTime.HasValue)
-                {
-                    var elapsed = DateTime.Now - _trendStartTime.Value;
-                    decimal totalDiff = noweZwazone - 0; // od początku sesji
-                    if (elapsed.TotalMinutes >= 1 && roznica != 0)
-                    {
-                        string tempoText;
-                        if (Math.Abs(roznica) >= 1000)
-                            tempoText = $"+{roznica / 1000:N1}k";
-                        else
-                            tempoText = $"+{roznica:N0}";
-                        txtTempoZwazone.Text = $"{tempoText} / {AUTO_REFRESH_SECONDS}s";
-                        txtTempoZwazone.Foreground = roznica > 0
-                            ? DashboardBrushes.Green
-                            : DashboardBrushes.Red;
-                    }
-                    else if (roznica == 0)
-                    {
-                        txtTempoZwazone.Text = "bez zmian";
-                        txtTempoZwazone.Foreground = DashboardBrushes.TextMuted;
-                    }
-                }
-
                 _lastRefreshTime = DateTime.Now;
             }
-
             _poprzednieZwazone = noweZwazone;
         }
 
         /// <summary>
-        /// Włącza/wyłącza animację pulsowania obramowania kafelka ODCHYLENIE
+        /// Animacja pulsowania - kafelek ODCHYLENIE usunięty, no-op.
         /// </summary>
         private void UpdatePulseAnimation(bool enable)
         {
@@ -613,14 +476,11 @@ namespace Kalendarz1.DashboardPrzychodu.Views
             {
                 if (enable)
                 {
-                    // Mutable brush — Storyboard animuje BorderBrush.Color, więc Frozen nie zadziała
-                    borderOdchylenie.BorderBrush = new SolidColorBrush(Color.FromRgb(239, 68, 68));
                     _pulseStoryboard.Begin();
                 }
                 else
                 {
                     _pulseStoryboard.Stop();
-                    borderOdchylenie.BorderBrush = DashboardBrushes.TextMuted;
                 }
             }
             catch (Exception ex)
@@ -743,34 +603,7 @@ namespace Kalendarz1.DashboardPrzychodu.Views
             txtAutoRefreshFooter.Text = $"{_secondsToRefresh}s";
         }
 
-        /// <summary>
-        /// Filtrowanie po nazwie hodowcy
-        /// </summary>
-        private void TxtSearch_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            string searchText = txtSearch.Text?.Trim().ToLower() ?? "";
-
-            if (string.IsNullOrEmpty(searchText))
-            {
-                _dostawyView.Filter = null;
-            }
-            else
-            {
-                _dostawyView.Filter = obj =>
-                {
-                    if (obj is DostawaItem item)
-                    {
-                        return (item.Hodowca?.ToLower().Contains(searchText) ?? false) ||
-                               (item.HodowcaSkrot?.ToLower().Contains(searchText) ?? false);
-                    }
-                    return false;
-                };
-            }
-
-            // Aktualizuj licznik i podsumowanie
-            txtLiczbaWynikow.Text = $"Wyniki: {_dostawyView.Cast<object>().Count()}";
-            UpdateTableSummary();
-        }
+        // Search TextBox usunięty z UI - filtrowanie po nazwie nieaktywne
 
         /// <summary>
         /// Dwuklik na wierszu - otwiera szczegoly dostawy (#12: refactor do osobnego okna XAML).
