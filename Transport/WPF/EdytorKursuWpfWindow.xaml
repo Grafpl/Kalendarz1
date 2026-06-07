@@ -177,15 +177,45 @@
                         <!-- pola w jednym rzędzie (zawijane) -->
                         <WrapPanel Grid.Row="1">
                             <StackPanel Margin="0,0,26,12">
-                                <TextBlock Text="KIEROWCA" Style="{StaticResource T.Section}" Margin="0,0,0,4"/>
-                                <ComboBox x:Name="CmbKierowca" Width="248" Height="32" DisplayMemberPath="PelneNazwisko"
-                                          IsEditable="True" IsTextSearchEnabled="True"/>
+                                <TextBlock Text="KIEROWCA  (🟢 wolny · 🟡 ma 1 kurs · 🔴 ma 2+ kursy)" Style="{StaticResource T.Section}" Margin="0,0,0,4"/>
+                                <ComboBox x:Name="CmbKierowca" Width="248" Height="32" TextSearch.TextPath="PelneNazwisko"
+                                          IsEditable="True" IsTextSearchEnabled="True">
+                                    <ComboBox.ItemContainerStyle>
+                                        <Style TargetType="ComboBoxItem">
+                                            <Setter Property="Background" Value="{Binding Tlo}"/>
+                                            <Setter Property="Padding" Value="6,4"/>
+                                        </Style>
+                                    </ComboBox.ItemContainerStyle>
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="{Binding Wskaznik}" FontSize="11" Margin="0,0,6,0"/>
+                                                <TextBlock Text="{Binding Display}" FontSize="12"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
                             </StackPanel>
                             <StackPanel Margin="0,0,26,12">
-                                <TextBlock Text="POJAZD" Style="{StaticResource T.Section}" Margin="0,0,0,4"/>
-                                <ComboBox x:Name="CmbPojazd" Width="218" Height="32" DisplayMemberPath="Opis"
+                                <TextBlock Text="POJAZD  (🟢 wolny · 🟡 ma 1 kurs · 🔴 ma 2+ kursy)" Style="{StaticResource T.Section}" Margin="0,0,0,4"/>
+                                <ComboBox x:Name="CmbPojazd" Width="218" Height="32" TextSearch.TextPath="Opis"
                                           IsEditable="True" IsTextSearchEnabled="True"
-                                          SelectionChanged="CmbPojazd_SelectionChanged"/>
+                                          SelectionChanged="CmbPojazd_SelectionChanged">
+                                    <ComboBox.ItemContainerStyle>
+                                        <Style TargetType="ComboBoxItem">
+                                            <Setter Property="Background" Value="{Binding Tlo}"/>
+                                            <Setter Property="Padding" Value="6,4"/>
+                                        </Style>
+                                    </ComboBox.ItemContainerStyle>
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="{Binding Wskaznik}" FontSize="11" Margin="0,0,6,0"/>
+                                                <TextBlock Text="{Binding Display}" FontSize="12"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
                             </StackPanel>
                             <StackPanel Margin="0,0,26,12">
                                 <TextBlock Text="DATA" Style="{StaticResource T.Section}" Margin="0,0,0,4"/>

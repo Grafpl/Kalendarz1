@@ -42,7 +42,37 @@ namespace Kalendarz1.Transport.WPF
 
         private List<Kierowca> _kierowcy = new();
         private List<Pojazd> _pojazdy = new();
+        private List<KierowcaItem> _kierowcyItems = new();
+        private List<PojazdItem> _pojazdyItems = new();
         private bool _ladowanie;
+
+        // Tła kolorów dla wskaźnika obłożenia (0 / 1 / 2+ kursów dziś)
+        private static readonly Brush _bgZielony  = (Brush)new SolidColorBrush(Color.FromRgb(0xD1, 0xFA, 0xE5)).GetAsFrozen();
+        private static readonly Brush _bgZolty    = (Brush)new SolidColorBrush(Color.FromRgb(0xFE, 0xF3, 0xC7)).GetAsFrozen();
+        private static readonly Brush _bgCzerwony = (Brush)new SolidColorBrush(Color.FromRgb(0xFE, 0xCA, 0xCA)).GetAsFrozen();
+
+        /// <summary>Wrapper kierowcy z liczbą kursów na wybraną datę — do kolorowania ComboBox.</summary>
+        public class KierowcaItem
+        {
+            public Kierowca K { get; init; } = null!;
+            public int KursowDzis { get; set; }
+            public string PelneNazwisko => K.PelneNazwisko;
+            public string Display => KursowDzis == 0 ? PelneNazwisko : $"{PelneNazwisko}  ·  {KursowDzis} {(KursowDzis == 1 ? "kurs" : "kursy")}";
+            public Brush Tlo => KursowDzis switch { 0 => _bgZielony, 1 => _bgZolty, _ => _bgCzerwony };
+            public string Wskaznik => KursowDzis switch { 0 => "🟢", 1 => "🟡", _ => "🔴" };
+            public override string ToString() => Display;   // dla IsEditable=true ComboBox (autocomplete)
+        }
+
+        public class PojazdItem
+        {
+            public Pojazd P { get; init; } = null!;
+            public int KursowDzis { get; set; }
+            public string Opis => P.Opis;
+            public string Display => KursowDzis == 0 ? Opis : $"{Opis}  ·  {KursowDzis} {(KursowDzis == 1 ? "kurs" : "kursy")}";
+            public Brush Tlo => KursowDzis switch { 0 => _bgZielony, 1 => _bgZolty, _ => _bgCzerwony };
+            public string Wskaznik => KursowDzis switch { 0 => "🟢", 1 => "🟡", _ => "🔴" };
+            public override string ToString() => Display;
+        }
 
         // drag&drop
         private Point _dragStart;
@@ -84,6 +114,75 @@ namespace Kalendarz1.Transport.WPF
         }
 
         // ════════════════════════════════════════════════════════════════════
+        // OBCIĄŻENIE — liczba kursów na wybrany dzień per kierowca / pojazd
+        // ════════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Pobiera z TransportPL.Kurs liczbę kursów na podaną datę per kierowca i per pojazd.
+        /// Pomija anulowane oraz aktualnie edytowany kurs (żeby nie liczył siebie samego).
+        /// </summary>
+        private async Task<(Dictionary<int, int> Kierowcy, Dictionary<int, int> Pojazdy)> PobierzObciazenieAsync(DateTime data)
+        {
+            var kierowcy = new Dictionary<int, int>();
+            var pojazdy = new Dictionary<int, int>();
+            const string sql = @"
+                SELECT KierowcaID, PojazdID
+                FROM dbo.Kurs
+                WHERE DataKursu = @data
+                  AND ISNULL(Status, '') != 'Anulowany'
+                  AND (@wyklucz IS NULL OR KursID != @wyklucz)";
+            try
+            {
+                await using var cn = new Microsoft.Data.SqlClient.SqlConnection(Services.TransportWpfService.ConnTransport);
+                await cn.OpenAsync();
+                await using var cmd = new Microsoft.Data.SqlClient.SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@data", data.Date);
+                cmd.Parameters.AddWithValue("@wyklucz", (object?)_kursId ?? DBNull.Value);
+                await using var rd = await cmd.ExecuteReaderAsync();
+                while (await rd.ReadAsync())
+                {
+                    if (!rd.IsDBNull(0)) { int kid = rd.GetInt32(0); kierowcy[kid] = kierowcy.GetValueOrDefault(kid) + 1; }
+                    if (!rd.IsDBNull(1)) { int pid = rd.GetInt32(1); pojazdy[pid] = pojazdy.GetValueOrDefault(pid) + 1; }
+                }
+            }
+            catch { /* silent — kolory się nie pojawią, ale ComboBox dalej działa */ }
+            return (kierowcy, pojazdy);
+        }
+
+        /// <summary>
+        /// Buduje wrappery KierowcaItem/PojazdItem dla wybranej daty.
+        /// Wywoływane przy starcie i przy zmianie daty. Zachowuje aktualny SelectedItem.
+        /// </summary>
+        private async Task OdswiezObciazenieAsync()
+        {
+            var data = DataKursu.SelectedDate ?? DateTime.Today;
+            var (obcKierowcow, obcPojazdow) = await PobierzObciazenieAsync(data);
+
+            int? prevKierowcaId = (CmbKierowca.SelectedItem as KierowcaItem)?.K.KierowcaID;
+            int? prevPojazdId = (CmbPojazd.SelectedItem as PojazdItem)?.P.PojazdID;
+
+            _kierowcyItems = _kierowcy
+                .Select(k => new KierowcaItem { K = k, KursowDzis = obcKierowcow.GetValueOrDefault(k.KierowcaID) })
+                .OrderBy(i => i.KursowDzis)           // wolni najpierw, najmocniej obciążeni na końcu
+                .ThenBy(i => i.PelneNazwisko)
+                .ToList();
+
+            _pojazdyItems = _pojazdy
+                .Select(p => new PojazdItem { P = p, KursowDzis = obcPojazdow.GetValueOrDefault(p.PojazdID) })
+                .OrderBy(i => i.KursowDzis)
+                .ThenBy(i => i.Opis)
+                .ToList();
+
+            CmbKierowca.ItemsSource = _kierowcyItems;
+            CmbPojazd.ItemsSource = _pojazdyItems;
+
+            if (prevKierowcaId.HasValue)
+                CmbKierowca.SelectedItem = _kierowcyItems.FirstOrDefault(i => i.K.KierowcaID == prevKierowcaId.Value);
+            if (prevPojazdId.HasValue)
+                CmbPojazd.SelectedItem = _pojazdyItems.FirstOrDefault(i => i.P.PojazdID == prevPojazdId.Value);
+        }
+
+        // ════════════════════════════════════════════════════════════════════
         // LOAD
         // ════════════════════════════════════════════════════════════════════
         private async Task LoadAsync()
@@ -93,8 +192,6 @@ namespace Kalendarz1.Transport.WPF
             {
                 _kierowcy = await _svc.Repo.PobierzKierowcowAsync(true);
                 _pojazdy = await _svc.Repo.PobierzPojazdyAsync(true);
-                CmbKierowca.ItemsSource = _kierowcy;
-                CmbPojazd.ItemsSource = _pojazdy;
 
                 if (_kursId.HasValue)
                 {
@@ -103,10 +200,12 @@ namespace Kalendarz1.Transport.WPF
                     if (_kurs != null)
                     {
                         DataKursu.SelectedDate = _kurs.DataKursu.Date;
+                        // Najpierw zbuduj kolorowane wrappery dla daty kursu, potem ustaw selectedItem
+                        await OdswiezObciazenieAsync();
                         if (_kurs.KierowcaID.HasValue)
-                            CmbKierowca.SelectedItem = _kierowcy.FirstOrDefault(k => k.KierowcaID == _kurs.KierowcaID.Value);
+                            CmbKierowca.SelectedItem = _kierowcyItems.FirstOrDefault(i => i.K.KierowcaID == _kurs.KierowcaID.Value);
                         if (_kurs.PojazdID.HasValue)
-                            CmbPojazd.SelectedItem = _pojazdy.FirstOrDefault(p => p.PojazdID == _kurs.PojazdID.Value);
+                            CmbPojazd.SelectedItem = _pojazdyItems.FirstOrDefault(i => i.P.PojazdID == _kurs.PojazdID.Value);
                         TxtWyjazd.Text = _kurs.GodzWyjazdu?.ToString(@"hh\:mm") ?? "";
                         TxtPowrot.Text = _kurs.GodzPowrotu?.ToString(@"hh\:mm") ?? "";
                         TxtTrasa.Text = _kurs.Trasa ?? "";
@@ -118,6 +217,8 @@ namespace Kalendarz1.Transport.WPF
                 {
                     TytulText.Text = "🚚 Nowy kurs";
                     InfoText.Text = "";
+                    // Dla nowego kursu — buduj wrappery na dzisiejszą datę (lub wybraną)
+                    await OdswiezObciazenieAsync();
                 }
 
                 await OdswiezWolneAsync();
@@ -354,7 +455,7 @@ namespace Kalendarz1.Transport.WPF
             int sumaE2 = _ladunki.Sum(l => l.PojemnikiE2);
             const int planE2 = 36;
             int paletyNominal = sumaE2 == 0 ? 0 : (int)Math.Ceiling(sumaE2 / (double)planE2);
-            int kapacita = (CmbPojazd.SelectedItem as Pojazd)?.PaletyH1 ?? 33;
+            int kapacita = (CmbPojazd.SelectedItem as PojazdItem)?.P.PaletyH1 ?? 33;
             double proc = kapacita > 0 ? 100.0 * paletyNominal / kapacita : 0;
 
             PaskoText.Text = $"{proc:F0}%";
@@ -376,7 +477,9 @@ namespace Kalendarz1.Transport.WPF
 
         private async void DataKursu_Changed(object sender, SelectionChangedEventArgs e)
         {
-            if (!_ladowanie) await OdswiezWolneAsync();
+            if (_ladowanie) return;
+            await OdswiezObciazenieAsync();   // przelicz kolory ComboBox dla nowej daty
+            await OdswiezWolneAsync();
         }
 
         // ════════════════════════════════════════════════════════════════════
@@ -759,8 +862,8 @@ namespace Kalendarz1.Transport.WPF
             {
                 KursID = _kursId ?? 0,
                 DataKursu = data,
-                KierowcaID = (CmbKierowca.SelectedItem as Kierowca)?.KierowcaID,
-                PojazdID = (CmbPojazd.SelectedItem as Pojazd)?.PojazdID,
+                KierowcaID = (CmbKierowca.SelectedItem as KierowcaItem)?.K.KierowcaID,
+                PojazdID = (CmbPojazd.SelectedItem as PojazdItem)?.P.PojazdID,
                 Trasa = string.IsNullOrWhiteSpace(TxtTrasa.Text) ? null : TxtTrasa.Text.Trim(),
                 GodzWyjazdu = ParseGodz(TxtWyjazd.Text),
                 GodzPowrotu = ParseGodz(TxtPowrot.Text),
