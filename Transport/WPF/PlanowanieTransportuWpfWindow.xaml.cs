@@ -204,6 +204,50 @@ namespace Kalendarz1.Transport.WPF
         // ════════════════════════════════════════════════════════════════════
         // KURSY
         // ════════════════════════════════════════════════════════════════════
+        // Brushes — używane dla per-segment Foreground. Statyczne (Frozen) — bezpieczne dla data-bindingu.
+        private static readonly Brush _trasaSzary = (Brush)new SolidColorBrush(Color.FromRgb(0x1F, 0x27, 0x33)).GetAsFrozen();
+        private static readonly Brush _trasaCzerwony = (Brush)new SolidColorBrush(Color.FromRgb(0xC6, 0x28, 0x28)).GetAsFrozen();
+        private static readonly Brush _trasaSep = (Brush)new SolidColorBrush(Color.FromRgb(0x7B, 0x87, 0x94)).GetAsFrozen();
+
+        /// <summary>
+        /// Buduje listę segmentów trasy: max 5 stopów renderowanych w pełni, więcej → K1 → K2 → … → KN-1 → KN.
+        /// Nazwy bez GPS dostają kolor czerwony (alert dla planisty).
+        /// </summary>
+        private static List<TrasaSegment> ZbudujSegmenty(List<string> nazwy, HashSet<string> bezGps)
+        {
+            var wynik = new List<TrasaSegment>();
+            if (nazwy.Count == 0) return wynik;
+
+            void Dodaj(string nazwa, bool ostatni)
+            {
+                wynik.Add(new TrasaSegment
+                {
+                    Nazwa = nazwa,
+                    Kolor = bezGps.Contains(nazwa) ? _trasaCzerwony : _trasaSzary,
+                    BezGps = bezGps.Contains(nazwa),
+                    Separator = ostatni ? "" : "  →  "
+                });
+            }
+
+            if (nazwy.Count <= 5)
+            {
+                for (int i = 0; i < nazwy.Count; i++)
+                    Dodaj(nazwy[i], i == nazwy.Count - 1);
+            }
+            else
+            {
+                // K1 → K2 → … → KN-1 → KN
+                Dodaj(nazwy[0], false);
+                Dodaj(nazwy[1], false);
+                wynik.Add(new TrasaSegment { Nazwa = "…", Kolor = _trasaSep, Separator = "  →  " });
+                Dodaj(nazwy[^2], false);
+                Dodaj(nazwy[^1], true);
+                // Liczba stopów na końcu (jako dodatkowy „segment" w stylu pomocniczym)
+                wynik.Add(new TrasaSegment { Nazwa = $" ({nazwy.Count} stopów)", Kolor = _trasaSep });
+            }
+            return wynik;
+        }
+
         /// <summary>
         /// Cache klientów z geokodowanym adresem (LibraNet.KartotekaOdbiorcyDane.Latitude/Longitude IS NOT NULL).
         /// Używany do oznaczania w kolumnie Trasa tych kursów, gdzie któryś klient nie ma GPS — czerwona czcionka + ⚠.
@@ -803,19 +847,18 @@ namespace Kalendarz1.Transport.WPF
                         var bezGps = przystanki
                             .Where(p => p.KlientId > 0 && _klienciZGps != null && !_klienciZGps.Contains(p.KlientId))
                             .Select(p => p.Nazwa)
-                            .ToList();
+                            .ToHashSet();
 
-                        // Prefix „⚠ " gdy chociaż jeden klient bez GPS
-                        string prefix = bezGps.Count > 0 ? "⚠ " : "";
-
-                        // Pełna trasa po kolei: Cezar → Trzepałka → PUBLIMAR.
-                        // Dla bardzo długich (>5 stopów) skracamy: K1 → K2 → … → KN-1 → KN (N stopów).
+                        // Fallback string (sortowanie/eksport)
                         row.TrasaAuto = nazwyKlientow.Count switch
                         {
                             0 => string.IsNullOrWhiteSpace(row.Trasa) ? "—" : row.Trasa!,
-                            <= 5 => prefix + string.Join(" → ", nazwyKlientow),
-                            _ => $"{prefix}{nazwyKlientow[0]} → {nazwyKlientow[1]} → … → {nazwyKlientow[^2]} → {nazwyKlientow[^1]} ({nazwyKlientow.Count} stopów)"
+                            <= 5 => string.Join(" → ", nazwyKlientow),
+                            _ => $"{nazwyKlientow[0]} → {nazwyKlientow[1]} → … → {nazwyKlientow[^2]} → {nazwyKlientow[^1]} ({nazwyKlientow.Count} stopów)"
                         };
+
+                        // Segmenty per-klient (UI: ItemsControl z osobnymi TextBlocki — czerwony tylko nazwa bez GPS)
+                        row.TrasaSegmenty = ZbudujSegmenty(przystanki.Select(p => p.Nazwa).ToList(), bezGps);
 
                         // Tooltip — pełna lista + sekcja „bez GPS" gdy są
                         var tooltipSb = new System.Text.StringBuilder();
@@ -828,15 +871,11 @@ namespace Kalendarz1.Transport.WPF
                             tooltipSb.AppendLine().Append("Geokoduj w: Kartoteka → Mapa klientów");
                         }
                         row.TrasaAutoTooltip = tooltipSb.Length > 0 ? tooltipSb.ToString() : null;
-
-                        // Czerwona czcionka gdy są klienci bez GPS
-                        row.TrasaFg = bezGps.Count > 0
-                            ? new SolidColorBrush(Color.FromRgb(0xC6, 0x28, 0x28))  // czerwony alert
-                            : new SolidColorBrush(Color.FromRgb(0x1F, 0x27, 0x33));  // standardowy ciemny
                     }
                     else
                     {
                         row.TrasaAuto = string.IsNullOrWhiteSpace(row.Trasa) ? "—" : row.Trasa!;
+                        row.TrasaSegmenty = new List<TrasaSegment>();
                     }
                     row.UtworzylName = userNames.TryGetValue(row.UtworzylId, out var n) ? n : row.UtworzylId;
                     row.ZmienilName = !string.IsNullOrEmpty(row.ZmienilId) && userNames.TryGetValue(row.ZmienilId, out var nz)
@@ -1218,6 +1257,19 @@ namespace Kalendarz1.Transport.WPF
             public string Name { get; set; } = "";
         }
 
+        /// <summary>
+        /// Pojedynczy segment trasy (klient + separator). Pozwala na per-klient kolor — czerwony
+        /// dla klientów bez GPS, ciemny dla pozostałych. Separator " → " między, pusty po ostatnim.
+        /// </summary>
+        public class TrasaSegment
+        {
+            public string Nazwa { get; set; } = "";
+            public Brush Kolor { get; set; } = Brushes.Black;
+            public string Separator { get; set; } = "";   // "  →  " między, "" po ostatnim
+            public bool BezGps { get; set; }
+            public FontWeight Waga => BezGps ? FontWeights.SemiBold : FontWeights.Normal;
+        }
+
         public class KursRow
         {
             public Kurs Source { get; }
@@ -1238,11 +1290,14 @@ namespace Kalendarz1.Transport.WPF
 
             // Auto-trasa wyliczana z ładunków: pierwszy → ostatni klient (po Kolejność).
             // Wypełniana w UzupelnijAgregatyAsync. Fallback gdy puste: ręczna Source.Trasa, potem "—".
-            public string TrasaAuto { get; set; } = "—";
-            public string? TrasaAutoTooltip { get; set; }   // pełna lista klientów gdy więcej niż 2
-            // Czerwona czcionka gdy choć jeden klient w trasie nie ma GPS — alarm dla planisty,
-            // bo ETA dla tych klientów liczona jest fallbackiem (Haversine niedokładny).
-            public Brush TrasaFg { get; set; } = new SolidColorBrush(Color.FromRgb(0x1F, 0x27, 0x33));
+            public string TrasaAuto { get; set; } = "—";   // fallback gdy brak segmentów (sortowanie/eksport)
+            public string? TrasaAutoTooltip { get; set; }
+            // Segmenty trasy — każdy klient osobno z własnym kolorem.
+            // Klient bez GPS → czerwony; reszta → standardowy ciemny. Separator " → " między.
+            public List<TrasaSegment> TrasaSegmenty { get; set; } = new();
+            public bool MaSegmenty => TrasaSegmenty.Count > 0;
+            public Visibility SegmentyVis => MaSegmenty ? Visibility.Visible : Visibility.Collapsed;
+            public Visibility FallbackVis => MaSegmenty ? Visibility.Collapsed : Visibility.Visible;
 
             // ETA do następnego przystanku — toggle button w toolbarze pokazuje/ukrywa kolumnę.
             // Wypełniane w UzupelnijAgregatyAsync na podstawie awizacji ładunków + DateTime.Now.
