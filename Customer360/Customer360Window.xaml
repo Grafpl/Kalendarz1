@@ -634,6 +634,221 @@
 
               </TabControl>
             </TabItem>
+            <!-- ═══ GRUPA: TRANSPARENTNOSC ODBIORCY ═══ -->
+            <TabItem Header="🚨 Transparentność">
+              <TabControl Background="Transparent" BorderThickness="0" Padding="0">
+
+            <!-- Sub-Tab T1: SYGNALY I ALERTY (hero + 6 KPI + timeline) -->
+            <TabItem Header="📉 Sygnały i alerty">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20,16">
+                    <StackPanel>
+                        <!-- HERO Klasyfikacja Ryzyka -->
+                        <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <!-- Wielka litera ryzyka -->
+                                <Border Grid.Column="0" x:Name="TrLiteraBorder" Width="120" Height="120"
+                                        CornerRadius="60" Background="#6B7280" Margin="0,0,20,0">
+                                    <TextBlock x:Name="TrLiteraText" Text="?" FontSize="60" FontWeight="Bold"
+                                               Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <!-- 4 sub-wskazniki -->
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <TextBlock x:Name="TrKategoriaText" Text="Klasyfikacja ryzyka — ładowanie..."
+                                               FontSize="20" FontWeight="Bold"/>
+                                    <TextBlock x:Name="TrTotalScoreText" Text="—" FontSize="13" Foreground="#64748B"
+                                               Margin="0,2,0,12"/>
+                                    <StackPanel x:Name="TrSubWskazniki"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!-- 6 KPI TILE negatywnych -->
+                        <UniformGrid Columns="3" Rows="2" Margin="0,0,0,12">
+                            <Border x:Name="TrTileAnul" Style="{StaticResource KpiCard}" Margin="0,0,4,4">
+                                <StackPanel>
+                                    <TextBlock Text="❌ ANULOWANE 12M" Style="{StaticResource KpiLabel}"/>
+                                    <TextBlock x:Name="TrAnulVal" Text="—" Style="{StaticResource KpiValue}" Foreground="#DC2626" Margin="0,4,0,0"/>
+                                    <TextBlock x:Name="TrAnulSub" Text="—" Style="{StaticResource KpiSubvalue}" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Border>
+                            <Border x:Name="TrTileRek" Style="{StaticResource KpiCard}" Margin="4,0,4,4">
+                                <StackPanel>
+                                    <TextBlock Text="🔧 REKLAMACJE 12M" Style="{StaticResource KpiLabel}"/>
+                                    <TextBlock x:Name="TrRekVal" Text="—" Style="{StaticResource KpiValue}" Foreground="#DC2626" Margin="0,4,0,0"/>
+                                    <TextBlock x:Name="TrRekSub" Text="—" Style="{StaticResource KpiSubvalue}" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Border>
+                            <Border x:Name="TrTileNiedotrz" Style="{StaticResource KpiCard}" Margin="4,0,0,4">
+                                <StackPanel>
+                                    <TextBlock Text="⚖ NIEDOTRZYMANIE" Style="{StaticResource KpiLabel}"/>
+                                    <TextBlock x:Name="TrNiedotrzVal" Text="—" Style="{StaticResource KpiValue}" Foreground="#DC2626" Margin="0,4,0,0"/>
+                                    <TextBlock x:Name="TrNiedotrzSub" Text="—" Style="{StaticResource KpiSubvalue}" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Border>
+                            <Border x:Name="TrTileKorekty" Style="{StaticResource KpiCard}" Margin="0,4,4,0">
+                                <StackPanel>
+                                    <TextBlock Text="💸 KOREKTY MINUS" Style="{StaticResource KpiLabel}"/>
+                                    <TextBlock x:Name="TrKorektyVal" Text="—" Style="{StaticResource KpiValue}" Foreground="#DC2626" Margin="0,4,0,0"/>
+                                    <TextBlock x:Name="TrKorektySub" Text="—" Style="{StaticResource KpiSubvalue}" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Border>
+                            <Border x:Name="TrTileTerminy" Style="{StaticResource KpiCard}" Margin="4,4,4,0">
+                                <StackPanel>
+                                    <TextBlock Text="⏰ ZMIANY TERMINÓW" Style="{StaticResource KpiLabel}"/>
+                                    <TextBlock x:Name="TrTerminyVal" Text="—" Style="{StaticResource KpiValue}" Foreground="#F59E0B" Margin="0,4,0,0"/>
+                                    <TextBlock x:Name="TrTerminySub" Text="—" Style="{StaticResource KpiSubvalue}" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Border>
+                            <Border x:Name="TrTilePrzeterm" Style="{StaticResource KpiCard}" Margin="4,4,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="💰 PRZETERMINOWANE" Style="{StaticResource KpiLabel}"/>
+                                    <TextBlock x:Name="TrPrzetermVal" Text="—" Style="{StaticResource KpiValue}" Foreground="#DC2626" Margin="0,4,0,0"/>
+                                    <TextBlock x:Name="TrPrzetermSub" Text="—" Style="{StaticResource KpiSubvalue}" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Border>
+                        </UniformGrid>
+
+                        <!-- REKOMENDACJA AI -->
+                        <Border x:Name="TrRekomBorder" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1"
+                                CornerRadius="6" Padding="14,12" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="📋 Rekomendacja systemu" FontSize="12" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,6"/>
+                                <TextBlock x:Name="TrRekomText" Text="Ładowanie analizy..." FontSize="13"
+                                           TextWrapping="Wrap" Foreground="#0F172A"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- TIMELINE INCYDENTOW -->
+                        <Border Style="{StaticResource CardStyle}">
+                            <StackPanel>
+                                <TextBlock Text="🕒 Ostatnie incydenty (timeline)" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,10"/>
+                                <StackPanel x:Name="TrTimelinePanel"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- Sub-Tab T2: REKLAMACJE -->
+            <TabItem Header="🔧 Reklamacje">
+                <Grid Margin="20,16">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Border Grid.Row="0" Style="{StaticResource CardStyle}" Background="#FEF3C7" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock x:Name="TrRekHeaderText" Text="Reklamacje klienta — wszystkie 12M"
+                                       FontWeight="SemiBold" FontSize="13"/>
+                            <TextBlock x:Name="TrRekHeaderSub" Text="—" FontSize="11" Foreground="#92400E" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Border>
+                    <DataGrid Grid.Row="1" x:Name="GridReklamacje" AutoGenerateColumns="False" IsReadOnly="True"
+                              CanUserAddRows="False" CanUserDeleteRows="False"
+                              GridLinesVisibility="Horizontal" Background="White"
+                              RowHeight="38" ColumnHeaderHeight="36"
+                              AlternatingRowBackground="#FAFBFC" BorderBrush="{StaticResource Border}" BorderThickness="1">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="55"/>
+                            <DataGridTextColumn Header="Data" Binding="{Binding DataZgloszenia, StringFormat=dd.MM.yyyy}" Width="100"/>
+                            <DataGridTextColumn Header="Status" Binding="{Binding StatusV2Etykieta}" Width="110"/>
+                            <DataGridTextColumn Header="Priorytet" Binding="{Binding Priorytet}" Width="90"/>
+                            <DataGridTextColumn Header="Źródło" Binding="{Binding ZrodloZgloszenia}" Width="100"/>
+                            <DataGridTextColumn Header="Typ" Binding="{Binding TypReklamacji}" Width="160"/>
+                            <DataGridTextColumn Header="Faktura" Binding="{Binding NumerDokumentu}" Width="120"/>
+                            <DataGridTextColumn Header="Kg" Binding="{Binding SumaKg, StringFormat=N0}" Width="70"/>
+                            <DataGridTextColumn Header="Kwota" Binding="{Binding Kwota, StringFormat={}{0:N0} zł}" Width="100"/>
+                            <DataGridTextColumn Header="Dni" Binding="{Binding DniOdZgloszenia}" Width="55"/>
+                            <DataGridTextColumn Header="Rozpatruje" Binding="{Binding OsobaRozpatrujaca}" Width="120"/>
+                            <DataGridTextColumn Header="Przyczyna główna" Binding="{Binding PrzyczynaGlowna}" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+
+            <!-- Sub-Tab T3: KOREKTY I FINANSE -->
+            <TabItem Header="💸 Korekty i finanse">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20,16">
+                    <StackPanel>
+                        <Border Style="{StaticResource CardStyle}" Background="#FEF3C7" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock x:Name="TrKorekHeaderText" Text="Korekty na minus + zmiany terminów płatności"
+                                           FontWeight="SemiBold" FontSize="13"/>
+                                <TextBlock x:Name="TrKorekHeaderSub" Text="—" FontSize="11" Foreground="#92400E" Margin="0,4,0,0"/>
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock Text="💸 Korekty (FKS/FKR) z minusem" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,8"/>
+                        <DataGrid x:Name="GridKorekty" AutoGenerateColumns="False" IsReadOnly="True"
+                                  CanUserAddRows="False" CanUserDeleteRows="False"
+                                  GridLinesVisibility="Horizontal" Background="White" Height="240"
+                                  RowHeight="32" ColumnHeaderHeight="34"
+                                  AlternatingRowBackground="#FAFBFC" BorderBrush="{StaticResource Border}" BorderThickness="1"
+                                  Margin="0,0,0,16">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Numer" Binding="{Binding NumerDokumentu}" Width="140"/>
+                                <DataGridTextColumn Header="Data" Binding="{Binding Data, StringFormat=dd.MM.yyyy}" Width="100"/>
+                                <DataGridTextColumn Header="Typ" Binding="{Binding TypDk}" Width="60"/>
+                                <DataGridTextColumn Header="Wartość" Binding="{Binding Walbrutto, StringFormat={}{0:N2} zł}" Width="130"/>
+                                <DataGridTextColumn Header="Korekta do" Binding="{Binding NumerOryginalu}" Width="*"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <TextBlock Text="⏰ Zmiany terminów płatności (PN.Termin > DK.plattermin)" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,8"/>
+                        <DataGrid x:Name="GridZmianyTerminow" AutoGenerateColumns="False" IsReadOnly="True"
+                                  CanUserAddRows="False" CanUserDeleteRows="False"
+                                  GridLinesVisibility="Horizontal" Background="White" Height="240"
+                                  RowHeight="32" ColumnHeaderHeight="34"
+                                  AlternatingRowBackground="#FAFBFC" BorderBrush="{StaticResource Border}" BorderThickness="1">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Faktura" Binding="{Binding NumerFaktury}" Width="140"/>
+                                <DataGridTextColumn Header="Data wyst." Binding="{Binding DataFaktury, StringFormat=dd.MM.yyyy}" Width="100"/>
+                                <DataGridTextColumn Header="Termin pierwotny" Binding="{Binding TerminPierwotny, StringFormat=dd.MM.yyyy}" Width="130"/>
+                                <DataGridTextColumn Header="Termin aktualny" Binding="{Binding TerminAktualny, StringFormat=dd.MM.yyyy}" Width="130"/>
+                                <DataGridTextColumn Header="Przesunięcie (dni)" Binding="{Binding PrzesunieceDni}" Width="130"/>
+                                <DataGridTextColumn Header="Kwota" Binding="{Binding KwotaFaktury, StringFormat={}{0:N2} zł}" Width="*"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- Sub-Tab T4: WZORCE I AI -->
+            <TabItem Header="📊 Wzorce i AI">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20,16">
+                    <StackPanel>
+                        <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="📅 Sezonowość anulacji (3 lata wstecz)" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,8"/>
+                                <Grid x:Name="TrSezonowoscGrid" Height="80"/>
+                                <TextBlock x:Name="TrSezonowoscOpis" Text="—" FontSize="11" Foreground="#64748B" Margin="0,8,0,0"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="📈 Trend reklamacji" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,8"/>
+                                <TextBlock x:Name="TrTrendRek" Text="—" FontSize="20" FontWeight="Bold" Foreground="#475569"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource CardStyle}">
+                            <StackPanel>
+                                <TextBlock Text="🤖 Pełna analiza algorytmiczna" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,8"/>
+                                <TextBlock x:Name="TrAnalizaText" Text="—" FontSize="13" TextWrapping="Wrap"
+                                           Foreground="#0F172A" LineHeight="22"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+              </TabControl>
+            </TabItem>
             <!-- ═══ GRUPA: KLIENT ═══ -->
             <TabItem Header="👤 Klient">
               <TabControl Background="Transparent" BorderThickness="0" Padding="0">

@@ -590,6 +590,24 @@ namespace Kalendarz1.Customer360
                 Try("Alerty", () => RenderAlerty(kpi, werSumma, scoring));
                 Try("Detal scoringu", () => RenderScoringDetal(scoring, kpi));
 
+                // TRANSPARENTNOSC ODBIORCY — pelne ladowanie 3 baz, render 4 sub-zakladek
+                try
+                {
+                    var transparentnosc = await new Services.Customer360TransparentnoscService()
+                        .GetTransparentnoscAsync(klientId, kpi.Obrot12M);
+                    // Wczyt sredniej realizacji z istniejacej weryfikacji
+                    if (werSumma != null && werSumma.ZamowioneKg > 0)
+                    {
+                        transparentnosc.SredniaRealizacjaProc = werSumma.ZafakturowaneKg / werSumma.ZamowioneKg * 100m;
+                        transparentnosc.LiczbaPozycjiUcietych = werTowary?.Count(t => t.RoznicaKg < -0.5m) ?? 0;
+                        transparentnosc.SumaKgUcietych = werTowary?.Where(t => t.RoznicaKg < 0).Sum(t => Math.Abs(t.RoznicaKg)) ?? 0m;
+                    }
+                    transparentnosc.Przeterminowane = kpi.Przeterminowane;
+                    transparentnosc.MaxDniOpoznienia = kpi.MaxDniOpoznienia;
+                    RenderTransparentnosc(transparentnosc);
+                }
+                catch (Exception ex) { bledy.Add("Transparentność"); System.Diagnostics.Debug.WriteLine("[C360 Transparentnosc] " + ex); }
+
                 // Klient (Dane+Kontakty) — eager (lekkie, potrzebne do szybkich akcji telefon/email)
                 try { await LoadKlientTabAsync(klientId, hdr); }
                 catch (Exception ex) { bledy.Add("Zakładka Klient"); System.Diagnostics.Debug.WriteLine("[C360 KlientTab] " + ex); }
@@ -1732,6 +1750,220 @@ namespace Kalendarz1.Customer360
             ChipSparkline.ToolTip = $"6 ostatnich mies: " + string.Join(" · ",
                 ostatnie.Select(d => $"{(d.Month >= 1 && d.Month <= 12 ? MiesSkrot[d.Month - 1] : d.Month.ToString())} {Customer360Format.FmtZl(d.Wartosc)}"));
             ChipSparkline.Visibility = Visibility.Visible;
+        }
+
+        #endregion
+
+        #region Transparentnosc odbiorcy (4 sub-zakladki: Sygnaly / Reklamacje / Korekty / Wzorce+AI)
+
+        private void RenderTransparentnosc(Models.TransparentnoscDane d)
+        {
+            if (d == null) return;
+            // ===== HERO: Klasyfikacja Ryzyka =====
+            var k = d.Klasyfikacja;
+            TrLiteraText.Text = k.Litera;
+            TrLiteraBorder.Background = B(k.KolorHex);
+            TrKategoriaText.Text = $"{k.Kategoria} ({k.TotalScore}/100 pkt)";
+            TrTotalScoreText.Text = "Klasyfikacja oparta na 4 wymiarach ryzyka (reputacyjny, finansowy, operacyjny, komunikacyjny)";
+
+            // 4 sub-wskazniki
+            TrSubWskazniki.Children.Clear();
+            DodajSubWskaznik("Reputacyjny", k.RiskReputacyjny, k.OpisReputacyjny);
+            DodajSubWskaznik("Finansowy", k.RiskFinansowy, k.OpisFinansowy);
+            DodajSubWskaznik("Operacyjny", k.RiskOperacyjny, k.OpisOperacyjny);
+            DodajSubWskaznik("Komunikacyjny", k.RiskKomunikacyjny, k.OpisKomunikacyjny);
+
+            // ===== 6 KPI TILE =====
+            TrAnulVal.Text = d.LiczbaAnulowanych.ToString();
+            TrAnulSub.Text = $"{d.SumaKgAnulowanych:N0} kg · {d.ProcAnulowanych:N1}%";
+            TrTileAnul.Background = B(d.ProcAnulowanych > 10m ? "#FEF2F2" : d.ProcAnulowanych > 5m ? "#FFFBEB" : "#FFFFFF");
+
+            TrRekVal.Text = d.LiczbaReklamacji.ToString();
+            TrRekSub.Text = d.LiczbaReklamacji > 0
+                ? $"{d.WartoscReklamacji:N0} zł · {d.LiczbaReklamacjiOtwartych} otwartych"
+                : "Brak reklamacji ✓";
+            TrTileRek.Background = B(d.ProcReklamacjiObrotu > 0.5m ? "#FEF2F2" : d.LiczbaReklamacjiOtwartych > 0 ? "#FFFBEB" : "#FFFFFF");
+
+            TrNiedotrzVal.Text = d.SredniaRealizacjaProc > 0 ? $"{d.SredniaRealizacjaProc:N0}%" : "—";
+            TrNiedotrzSub.Text = d.SumaKgUcietych > 0 ? $"{d.LiczbaPozycjiUcietych} poz. ucięte · {d.SumaKgUcietych:N0} kg" : "—";
+            TrTileNiedotrz.Background = B(d.SredniaRealizacjaProc > 0 && d.SredniaRealizacjaProc < 90m ? "#FEF2F2" : "#FFFFFF");
+
+            TrKorektyVal.Text = d.LiczbaKorektMinus.ToString();
+            TrKorektySub.Text = d.SumaKorektMinus > 0 ? $"{d.SumaKorektMinus:N0} zł" : "Brak korekt ujemnych ✓";
+            TrTileKorekty.Background = B(d.LiczbaKorektMinus >= 3 ? "#FEF2F2" : d.LiczbaKorektMinus > 0 ? "#FFFBEB" : "#FFFFFF");
+
+            TrTerminyVal.Text = d.LiczbaZmianTerminow.ToString();
+            TrTerminySub.Text = d.LiczbaZmianTerminow > 0
+                ? $"śr. przesunięcie +{d.SredniePrzesuniecieTerminowDni.ToString("N0")} dni"
+                : "Bez przesunięć ✓";
+            TrTileTerminy.Background = B(d.LiczbaZmianTerminow >= 3 ? "#FEF2F2" : d.LiczbaZmianTerminow > 0 ? "#FFFBEB" : "#FFFFFF");
+
+            TrPrzetermVal.Text = $"{d.Przeterminowane:N0} zł";
+            TrPrzetermSub.Text = d.MaxDniOpoznienia > 0 ? $"max {d.MaxDniOpoznienia} dni" : "Wszystko w terminie ✓";
+            TrTilePrzeterm.Background = B(d.Przeterminowane > 0.01m ? "#FEF2F2" : "#FFFFFF");
+
+            // ===== REKOMENDACJA AI =====
+            TrRekomText.Text = string.IsNullOrEmpty(d.RekomendacjaTekst) ? "—" : d.RekomendacjaTekst;
+            TrRekomBorder.Background = B(d.RekomendacjaPoziom switch
+            {
+                "CRITICAL" => "#FEE2E2",
+                "WARNING" => "#FEF3C7",
+                _ => "#F8FAFC"
+            });
+
+            // ===== TIMELINE =====
+            TrTimelinePanel.Children.Clear();
+            if (d.Timeline.Count == 0)
+            {
+                TrTimelinePanel.Children.Add(new TextBlock
+                {
+                    Text = "Brak incydentów w 12 mies.",
+                    FontSize = 12, Foreground = B("#94A3B8"),
+                    Margin = new Thickness(0, 6, 0, 0)
+                });
+            }
+            else foreach (var inc in d.Timeline)
+            {
+                var row = new Border
+                {
+                    Background = B("#F8FAFC"),
+                    BorderBrush = B(inc.KolorHex),
+                    BorderThickness = new Thickness(3, 0, 0, 0),
+                    Padding = new Thickness(10, 6, 10, 6),
+                    Margin = new Thickness(0, 0, 0, 4),
+                    CornerRadius = new CornerRadius(4)
+                };
+                var sp = new StackPanel { Orientation = Orientation.Horizontal };
+                sp.Children.Add(new TextBlock
+                {
+                    Text = $"{inc.Ikona}  {inc.Data:dd.MM.yyyy}",
+                    Width = 130, FontSize = 11, Foreground = B("#475569"), VerticalAlignment = VerticalAlignment.Center
+                });
+                sp.Children.Add(new TextBlock
+                {
+                    Text = $"[{inc.Typ}]",
+                    Width = 130, FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = B(inc.KolorHex), VerticalAlignment = VerticalAlignment.Center
+                });
+                sp.Children.Add(new TextBlock
+                {
+                    Text = inc.Opis, FontSize = 11, Foreground = B("#0F172A"), VerticalAlignment = VerticalAlignment.Center,
+                    TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 380
+                });
+                if (Math.Abs(inc.Kwota) > 0.01m)
+                {
+                    sp.Children.Add(new TextBlock
+                    {
+                        Text = $"   {inc.Kwota:N0} zł",
+                        FontSize = 11, FontWeight = FontWeights.Bold, Foreground = B(inc.Kwota < 0 ? "#DC2626" : "#475569"),
+                        VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 0, 0)
+                    });
+                }
+                row.Child = sp;
+                TrTimelinePanel.Children.Add(row);
+            }
+
+            // ===== ZAKLADKA REKLAMACJE =====
+            GridReklamacje.ItemsSource = d.Reklamacje;
+            TrRekHeaderText.Text = d.LiczbaReklamacji == 0
+                ? "✅ Brak reklamacji w ostatnich 12 mies."
+                : $"🔧 {d.LiczbaReklamacji} reklamacji ({d.LiczbaReklamacjiOtwartych} otwartych, trend {d.TrendReklamacji})";
+            TrRekHeaderSub.Text = d.LiczbaReklamacji == 0
+                ? "Klient bez zgloszen reklamacyjnych — czysta historia."
+                : $"Łączna wartość: {d.WartoscReklamacji:N0} zł ({d.ProcReklamacjiObrotu:N2}% obrotu 12M).";
+
+            // ===== ZAKLADKA KOREKTY I FINANSE =====
+            GridKorekty.ItemsSource = d.Korekty;
+            GridZmianyTerminow.ItemsSource = d.ZmianyTerminow;
+            TrKorekHeaderText.Text = (d.LiczbaKorektMinus + d.LiczbaZmianTerminow) == 0
+                ? "✅ Brak korekt na minus i przekładań terminów"
+                : $"💸 {d.LiczbaKorektMinus} korekt na minus · ⏰ {d.LiczbaZmianTerminow} zmian terminów";
+            TrKorekHeaderSub.Text = (d.SumaKorektMinus > 0 ? $"Suma korekt minus: {d.SumaKorektMinus:N0} zł · " : "") +
+                                    (d.LiczbaZmianTerminow > 0 ? $"Średnie przesunięcie: {d.SredniePrzesuniecieTerminowDni.ToString("N0")} dni" : "");
+
+            // ===== ZAKLADKA WZORCE I AI =====
+            RenderSezonowoscAnulacji(d.AnulacjeWgMiesiaca);
+            TrTrendRek.Text = d.TrendReklamacji;
+            TrTrendRek.Foreground = B(d.TrendReklamacji.Contains("rosnie") ? "#DC2626"
+                                    : d.TrendReklamacji.Contains("spada") ? "#16A34A" : "#64748B");
+            TrAnalizaText.Text = BudujPelnaAnalize(d);
+        }
+
+        private void DodajSubWskaznik(string nazwa, int pkt, string opis)
+        {
+            string kolor = pkt < 20 ? "#16A34A" : pkt < 50 ? "#EAB308" : pkt < 75 ? "#F97316" : "#DC2626";
+            var g = new Grid { Margin = new Thickness(0, 0, 0, 8) };
+            g.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(130) });
+            g.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            g.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(60) });
+
+            var lbl = new TextBlock { Text = nazwa, FontSize = 12, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center };
+            Grid.SetColumn(lbl, 0); g.Children.Add(lbl);
+
+            var track = new Border { Height = 10, CornerRadius = new CornerRadius(5), Background = B("#E2E8F0"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) };
+            var fg = new Grid();
+            fg.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(Math.Max(1, pkt), GridUnitType.Star) });
+            fg.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(Math.Max(1, 100 - pkt), GridUnitType.Star) });
+            var fill = new Border { CornerRadius = new CornerRadius(5), Background = B(kolor) };
+            Grid.SetColumn(fill, 0); fg.Children.Add(fill);
+            track.Child = fg; Grid.SetColumn(track, 1); g.Children.Add(track);
+            track.ToolTip = opis;
+
+            var val = new TextBlock { Text = $"{pkt}", FontWeight = FontWeights.Bold, FontSize = 12, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right };
+            Grid.SetColumn(val, 2); g.Children.Add(val);
+
+            TrSubWskazniki.Children.Add(g);
+        }
+
+        private void RenderSezonowoscAnulacji(System.Collections.Generic.Dictionary<int, int> mapa)
+        {
+            TrSezonowoscGrid.Children.Clear();
+            TrSezonowoscGrid.ColumnDefinitions.Clear();
+            for (int i = 0; i < 12; i++) TrSezonowoscGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition());
+
+            int max = mapa.Count > 0 ? mapa.Values.DefaultIfEmpty(0).Max() : 0;
+            for (int i = 1; i <= 12; i++)
+            {
+                int v = mapa.TryGetValue(i, out var vv) ? vv : 0;
+                string kolor = v == 0 ? "#E2E8F0" : v < max / 2 ? "#FCD34D" : "#DC2626";
+                var col = new Grid();
+                col.RowDefinitions.Add(new RowDefinition());
+                col.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                var bar = new Border
+                {
+                    Background = B(kolor),
+                    Margin = new Thickness(2, max == 0 ? 60 : Math.Max(2, 60 - (v * 60 / Math.Max(1, max))), 2, 4),
+                    CornerRadius = new CornerRadius(3, 3, 0, 0),
+                    VerticalAlignment = VerticalAlignment.Stretch,
+                    ToolTip = $"{MiesPelny[i - 1]}: {v} anulacji (3 lata)"
+                };
+                Grid.SetRow(bar, 0); col.Children.Add(bar);
+                var lbl = new TextBlock
+                {
+                    Text = MiesSkrot[i - 1] + (v > 0 ? $"\n{v}" : ""), FontSize = 9, TextAlignment = TextAlignment.Center,
+                    Foreground = B("#475569"), Margin = new Thickness(0, 0, 0, 2)
+                };
+                Grid.SetRow(lbl, 1); col.Children.Add(lbl);
+                Grid.SetColumn(col, i - 1);
+                TrSezonowoscGrid.Children.Add(col);
+            }
+            int suma = mapa.Values.Sum();
+            TrSezonowoscOpis.Text = suma == 0
+                ? "Brak anulacji w 3 latach — klient stabilny operacyjnie."
+                : $"Łącznie {suma} anulacji w 3 latach. Najwięcej: {(mapa.OrderByDescending(p => p.Value).First().Key) switch { 1 => "sty", 2 => "lut", 3 => "mar", 4 => "kwi", 5 => "maj", 6 => "cze", 7 => "lip", 8 => "sie", 9 => "wrz", 10 => "paź", 11 => "lis", 12 => "gru", _ => "?" }}. Powtarzający się wzór miesięczny = potencjalny klient sezonowy (sprawdź notatki).";
+        }
+
+        private string BudujPelnaAnalize(Models.TransparentnoscDane d)
+        {
+            var s = new System.Text.StringBuilder();
+            s.AppendLine(d.RekomendacjaTekst);
+            s.AppendLine();
+            s.AppendLine($"📊 KLASYFIKACJA: {d.Klasyfikacja.Litera} — {d.Klasyfikacja.Kategoria} ({d.Klasyfikacja.TotalScore}/100 pkt)");
+            s.AppendLine();
+            s.AppendLine($"🎭 Reputacyjny: {d.Klasyfikacja.RiskReputacyjny}/100 — {d.Klasyfikacja.OpisReputacyjny}");
+            s.AppendLine($"💰 Finansowy:   {d.Klasyfikacja.RiskFinansowy}/100 — {d.Klasyfikacja.OpisFinansowy}");
+            s.AppendLine($"⚙ Operacyjny:  {d.Klasyfikacja.RiskOperacyjny}/100 — {d.Klasyfikacja.OpisOperacyjny}");
+            s.AppendLine($"📞 Komunikacja: {d.Klasyfikacja.RiskKomunikacyjny}/100 — {d.Klasyfikacja.OpisKomunikacyjny}");
+            return s.ToString();
         }
 
         #endregion
