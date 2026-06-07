@@ -1885,6 +1885,10 @@ namespace Kalendarz1.Customer360
             TrTrendRek.Text = d.TrendReklamacji;
             TrTrendRek.Foreground = B(d.TrendReklamacji.Contains("rosnie") ? "#DC2626"
                                     : d.TrendReklamacji.Contains("spada") ? "#16A34A" : "#64748B");
+            GridTopProblematyczne.ItemsSource = d.TopProblematyczne;
+            TrTopProbInfo.Text = d.TopProblematyczne.Count == 0
+                ? "Brak problematycznych towarów — czysta historia produkcyjna."
+                : $"{d.TopProblematyczne.Count} towarów z reklamacjami lub anulacjami w 12M. Risk score = reklamacje × 5 + anulacje × 3 + ucięte kg/100.";
             TrAnalizaText.Text = BudujPelnaAnalize(d);
         }
 

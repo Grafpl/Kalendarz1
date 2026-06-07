@@ -25,14 +25,16 @@ namespace Kalendarz1.Customer360.Services
             var dane = new TransparentnoscDane();
             try
             {
-                // Rownolegle: 5 osobnych zapytan z 2 baz
+                // Rownolegle: 7 osobnych zapytan z 2 baz
                 var tAnul = LoadAnulowaneStatystykiAsync(klientId);
                 var tRek = LoadReklamacjePeneAsync(klientId);
                 var tKor = LoadKorektyMinusAsync(klientId);
                 var tTerm = LoadZmianyTerminowAsync(klientId);
                 var tWzor = LoadAnulacjeWgMiesiacaAsync(klientId);
+                var tTopProb = LoadTopProblematyczneAsync(klientId);
+                var tKomun = LoadRiskKomunikacyjnyAsync(klientId);
 
-                await Task.WhenAll(tAnul, tRek, tKor, tTerm, tWzor);
+                await Task.WhenAll(tAnul, tRek, tKor, tTerm, tWzor, tTopProb, tKomun);
 
                 var anul = await tAnul;
                 dane.LiczbaAnulowanych = anul.liczba;
@@ -57,13 +59,18 @@ namespace Kalendarz1.Customer360.Services
                     : 0m;
 
                 dane.AnulacjeWgMiesiaca = await tWzor;
+                dane.TopProblematyczne = await tTopProb;
+                var (komunRisk, komunOpis) = await tKomun;
 
                 // Niedotrzymanie z istniejacego serwisu Customer360Service (re-use)
                 // (Wezwiemy z UI bo tu byloby cykliczne)
 
                 dane.Timeline = BudujTimeline(dane);
-                dane.TopProblematyczne = BudujTopProblematyczne(dane);
                 dane.TrendReklamacji = ObliczTrendReklamacji(dane.Reklamacje);
+
+                // Komunikacyjny risk z parsing notatek (zostanie zastosowany w KlasyfikujRyzyko)
+                dane.Klasyfikacja.RiskKomunikacyjny = komunRisk;
+                dane.Klasyfikacja.OpisKomunikacyjny = komunOpis;
 
                 // KLASYFIKACJA RYZYKA
                 dane.Klasyfikacja = KlasyfikujRyzyko(dane, obrot12M);
@@ -363,12 +370,147 @@ namespace Kalendarz1.Customer360.Services
             return t.OrderByDescending(x => x.Data).Take(20).ToList();
         }
 
-        private List<TopProblematycznyTowar> BudujTopProblematyczne(TransparentnoscDane d)
+        // Top problematyczne towary — JOIN ReklamacjeTowary z reklamacjami klienta + anulowane pozycje
+        private async Task<List<TopProblematycznyTowar>> LoadTopProblematyczneAsync(int klientId)
         {
-            // Agregacja per kod towaru z reklamacji (bo Reklamacje to glowne zrodlo informacji per-towar)
-            // Tu uproszczenie: grupowanie reklamacji po opisie/numerze dok (bez ReklamacjeTowary join)
-            // Pelne rozszerzenie w przyszlosci po dolaczeniu ReklamacjeTowary
-            return new List<TopProblematycznyTowar>();
+            var lista = new List<TopProblematycznyTowar>();
+            try
+            {
+                await using var cn = new SqlConnection(ConnLibra);
+                await cn.OpenAsync();
+                // Sprawdz czy tabela ReklamacjeTowary istnieje
+                await using (var chk = new SqlCommand(
+                    "SELECT COUNT(*) FROM sys.tables WHERE name='ReklamacjeTowary'", cn) { CommandTimeout = 3 })
+                {
+                    if (Convert.ToInt32(await chk.ExecuteScalarAsync()) == 0) return lista;
+                }
+
+                // Reklamacje per towar (Symbol+Nazwa) + Anulowane per towar (KodTowaru)
+                const string sql = @"
+                    WITH RekTowary AS (
+                        SELECT rt.Symbol AS Klucz, MAX(rt.Nazwa) AS Nazwa,
+                               COUNT(DISTINCT r.Id) AS LiczbaRek, SUM(rt.Waga) AS KgRek
+                        FROM dbo.Reklamacje r
+                        INNER JOIN dbo.ReklamacjeTowary rt ON rt.IdReklamacji = r.Id
+                        WHERE r.IdKontrahenta = @kid
+                          AND r.DataZgloszenia >= DATEADD(MONTH,-12,GETDATE())
+                          AND rt.Symbol IS NOT NULL AND rt.Symbol <> ''
+                        GROUP BY rt.Symbol
+                    ),
+                    AnulTowary AS (
+                        SELECT CAST(zt.KodTowaru AS NVARCHAR(50)) AS Klucz,
+                               COUNT(DISTINCT z.Id) AS LiczbaAnul, SUM(zt.Ilosc) AS KgAnul
+                        FROM dbo.ZamowieniaMieso z
+                        INNER JOIN dbo.ZamowieniaMiesoTowar zt ON zt.ZamowienieId = z.Id
+                        WHERE z.KlientId = @kid
+                          AND ISNULL(z.Status,'') IN ('Anulowane','Anulowano')
+                          AND z.DataPrzyjazdu >= DATEADD(MONTH,-12,GETDATE())
+                          AND zt.KodTowaru IS NOT NULL
+                        GROUP BY zt.KodTowaru
+                    )
+                    SELECT TOP 10
+                        ISNULL(R.Klucz, A.Klucz) AS Klucz,
+                        ISNULL(R.Nazwa, 'Towar #' + ISNULL(A.Klucz,'?')) AS Nazwa,
+                        ISNULL(R.LiczbaRek, 0) AS LiczbaRek,
+                        ISNULL(R.KgRek, 0) AS KgRek,
+                        ISNULL(A.LiczbaAnul, 0) AS LiczbaAnul,
+                        ISNULL(A.KgAnul, 0) AS KgAnul
+                    FROM RekTowary R
+                    FULL OUTER JOIN AnulTowary A ON R.Klucz = A.Klucz
+                    WHERE (ISNULL(R.LiczbaRek,0) + ISNULL(A.LiczbaAnul,0)) > 0
+                    ORDER BY (ISNULL(R.LiczbaRek,0)*5 + ISNULL(A.LiczbaAnul,0)*3) DESC";
+                await using var cmd = new SqlCommand(sql, cn) { CommandTimeout = 12 };
+                cmd.Parameters.AddWithValue("@kid", klientId);
+                await using var rd = await cmd.ExecuteReaderAsync();
+                while (await rd.ReadAsync())
+                {
+                    int liczbaRek = rd.IsDBNull(2) ? 0 : Convert.ToInt32(rd.GetValue(2));
+                    decimal kgRek = rd.IsDBNull(3) ? 0m : Convert.ToDecimal(rd.GetValue(3));
+                    int liczbaAnul = rd.IsDBNull(4) ? 0 : Convert.ToInt32(rd.GetValue(4));
+                    decimal kgAnul = rd.IsDBNull(5) ? 0m : Convert.ToDecimal(rd.GetValue(5));
+                    // RiskScore: reklamacje 5pkt + anulacje 3pkt + (kg uciete/100) — cap 100
+                    int risk = Math.Min(100, liczbaRek * 5 + liczbaAnul * 3 + (int)(kgAnul / 100));
+                    var item = new TopProblematycznyTowar
+                    {
+                        Nazwa = rd.GetString(1),
+                        LiczbaReklamacji = liczbaRek,
+                        LiczbaAnulacji = liczbaAnul,
+                        SumaKgUcietych = kgAnul,
+                        RiskScore = risk
+                    };
+                    // KodTowaru — sprobuj sparse'owac z Klucza (int) jesli mozliwe
+                    if (int.TryParse(rd.GetString(0), out int kod)) item.KodTowaru = kod;
+                    lista.Add(item);
+                }
+            }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine("[C360 top problem] " + ex.Message); }
+            return lista;
+        }
+
+        // RiskKomunikacyjny z parsingu notatek — slowa kluczowe sygnalizujace konflikty
+        private async Task<(int risk, string opis)> LoadRiskKomunikacyjnyAsync(int klientId)
+        {
+            try
+            {
+                await using var cn = new SqlConnection(ConnLibra);
+                await cn.OpenAsync();
+                // Sprawdz czy tabela istnieje
+                await using (var chk = new SqlCommand(
+                    "SELECT COUNT(*) FROM sys.tables WHERE name='Customer360_Notatki'", cn) { CommandTimeout = 3 })
+                {
+                    if (Convert.ToInt32(await chk.ExecuteScalarAsync()) == 0)
+                        return (0, "Brak tabeli notatek");
+                }
+                await using var cmd = new SqlCommand(
+                    @"SELECT ISNULL(Tresc,'') FROM dbo.Customer360_Notatki
+                      WHERE KlientId = @kid AND CreatedAt >= DATEADD(MONTH,-12,GETDATE())", cn) { CommandTimeout = 5 };
+                cmd.Parameters.AddWithValue("@kid", klientId);
+                var notatki = new List<string>();
+                await using var rd = await cmd.ExecuteReaderAsync();
+                while (await rd.ReadAsync()) notatki.Add(rd.GetString(0).ToLowerInvariant());
+
+                if (notatki.Count == 0) return (0, "Brak notatek — neutralne");
+
+                // Slowa kluczowe z wagami
+                var slowniki = new Dictionary<string[], int>
+                {
+                    [new[] { "groz", "windykacj", "sad", "prawnik", "adwokat" }] = 20,
+                    [new[] { "blokad", "blokowa", "wstrzyma" }] = 15,
+                    [new[] { "obraz", "krzyk", "wulgar", "awantur" }] = 15,
+                    [new[] { "spor", "konflikt", "niezadow" }] = 10,
+                    [new[] { "zalega", "przeterminow", "nie zaplaci" }] = 10,
+                    [new[] { "reklamacj", "skarg", "zarzut" }] = 5,
+                    [new[] { "anulacj", "rezygnacj", "zerwa" }] = 5,
+                    [new[] { "problem", "trudnos", "niezgod" }] = 3
+                };
+                int total = 0;
+                var trafione = new HashSet<string>();
+                foreach (var notatka in notatki)
+                {
+                    foreach (var kv in slowniki)
+                    {
+                        foreach (var slowo in kv.Key)
+                        {
+                            if (notatka.Contains(slowo))
+                            {
+                                total += kv.Value;
+                                trafione.Add(slowo);
+                                break;  // 1 slowo per kategoria per notatka
+                            }
+                        }
+                    }
+                }
+                int risk = Math.Min(100, total);
+                string opis = trafione.Count == 0
+                    ? $"{notatki.Count} notatek bez negatywnych slow kluczowych"
+                    : $"Wykryte sygnaly: {string.Join(", ", trafione.Take(5))} ({notatki.Count} notatek)";
+                return (risk, opis);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("[C360 komun risk] " + ex.Message);
+                return (0, "Bład parsowania notatek");
+            }
         }
 
         private string ObliczTrendReklamacji(List<ReklamacjaSzczegoly> rek)
@@ -386,7 +528,12 @@ namespace Kalendarz1.Customer360.Services
 
         private KlasyfikacjaRyzyka KlasyfikujRyzyko(TransparentnoscDane d, decimal obrot12M)
         {
-            var k = new KlasyfikacjaRyzyka();
+            // Zachowaj wartosci komunikacyjne ustawione wczesniej (z parsing notatek)
+            var k = new KlasyfikacjaRyzyka
+            {
+                RiskKomunikacyjny = d.Klasyfikacja.RiskKomunikacyjny,
+                OpisKomunikacyjny = d.Klasyfikacja.OpisKomunikacyjny
+            };
 
             // 4 sub-wskazniki, kazdy 0-100 gdzie 100 = krytyczne
             // 1) REPUTACYJNY — reklamacje + ich SLA + priorytet
@@ -422,12 +569,10 @@ namespace Kalendarz1.Customer360.Services
                 ? "Plynna realizacja"
                 : $"{d.LiczbaAnulowanych} anulacji ({d.ProcAnulowanych:N1}%), realizacja {d.SredniaRealizacjaProc:N0}%";
 
-            // 4) KOMUNIKACYJNY — narazie placeholder (do rozszerzenia o parsing notatek)
-            k.RiskKomunikacyjny = 0;
-            k.OpisKomunikacyjny = "Brak analizy notatek (placeholder)";
+            // 4) KOMUNIKACYJNY — z parsing notatek (juz ustawione na poczatku z tTask)
 
-            // TOTAL — srednia wazona
-            k.TotalScore = (int)((k.RiskReputacyjny * 0.30 + k.RiskFinansowy * 0.35 + k.RiskOperacyjny * 0.30 + k.RiskKomunikacyjny * 0.05));
+            // TOTAL — srednia wazona (komunikacyjny waga 10% — gdy zaimplementowany)
+            k.TotalScore = (int)((k.RiskReputacyjny * 0.30 + k.RiskFinansowy * 0.30 + k.RiskOperacyjny * 0.30 + k.RiskKomunikacyjny * 0.10));
 
             // Litera + kolor
             if (k.TotalScore < 15) { k.Litera = "A"; k.Kategoria = "Niskie ryzyko"; k.KolorHex = "#16A34A"; }

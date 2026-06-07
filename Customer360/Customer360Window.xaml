@@ -837,6 +837,26 @@
                             </StackPanel>
                         </Border>
 
+                        <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="⚠ Top 10 problematycznych towarów" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,8"/>
+                                <TextBlock x:Name="TrTopProbInfo" Text="" FontSize="11" Foreground="#64748B" Margin="0,0,0,8"/>
+                                <DataGrid x:Name="GridTopProblematyczne" AutoGenerateColumns="False" IsReadOnly="True"
+                                          CanUserAddRows="False" CanUserDeleteRows="False"
+                                          GridLinesVisibility="Horizontal" Background="White" MaxHeight="280"
+                                          RowHeight="30" ColumnHeaderHeight="32"
+                                          AlternatingRowBackground="#FAFBFC" BorderBrush="{StaticResource Border}" BorderThickness="1">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Towar" Binding="{Binding Nazwa}" Width="*"/>
+                                        <DataGridTextColumn Header="Reklamacje" Binding="{Binding LiczbaReklamacji}" Width="100"/>
+                                        <DataGridTextColumn Header="Anulacje" Binding="{Binding LiczbaAnulacji}" Width="90"/>
+                                        <DataGridTextColumn Header="Kg ucięte" Binding="{Binding SumaKgUcietych, StringFormat=N0}" Width="100"/>
+                                        <DataGridTextColumn Header="Risk score" Binding="{Binding RiskScore}" Width="100"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </StackPanel>
+                        </Border>
+
                         <Border Style="{StaticResource CardStyle}">
                             <StackPanel>
                                 <TextBlock Text="🤖 Pełna analiza algorytmiczna" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,8"/>
