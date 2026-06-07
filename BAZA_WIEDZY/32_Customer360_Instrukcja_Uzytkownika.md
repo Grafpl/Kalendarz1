@@ -73,6 +73,7 @@
 33. [Słownik branżowy drobiarski](#33-słownik-branżowy-drobiarski-w-kontekście-c360)
 34. [Mapa wszystkich pól w karcie](#34-mapa-wszystkich-pól-w-karcie-referencyjna)
 35. [Mapy myśli — kluczowe koncepty wizualnie](#35-mapy-myśli--kluczowe-koncepty-wizualnie)
+36. [Zakładka 🚨 Transparentność — pełna sekcja](#36-zakładka--transparentność--pełna-sekcja) **(NOWE!)**
 
 ---
 
@@ -2501,6 +2502,169 @@ nowego handlowca       chaosu             szkolenie planowe
 Pamięć kontaktu        z głowy            Notatki
                        (zawodzi)          (zawsze dostępne)
 ```
+
+---
+
+## 36. Zakładka 🚨 Transparentność — pełna sekcja
+
+> **Po co**: nowa zakładka (commit `7a568a7`) skupia **wszystkie negatywne sygnały** o odbiorcy w jednym miejscu. Wcześniej były rozproszone: reklamacje w hero KPI, anulowane w Sprzedaży, korekty nigdzie, zmiany terminów nigdzie. Teraz jeden klik = pełen obraz „co tu nie jest okej".
+
+### Analogia główna: **karta pacjenta z historią chorób**
+
+Lekarz przed wizytą czyta nie tylko aktualne objawy, ale całą historię — alergie, hospitalizacje, badania krwi z ostatnich lat. Bez tego: leczy objaw, problem wraca.
+
+Transparentność jest **kartą historii chorób klienta**. Wszystkie incydenty (reklamacje, anulacje, spory, zaległości, korekty) widoczne razem. Wzorce wychodzą — czy to jednorazowe załamanie, czy chroniczna toksyczność.
+
+### Struktura zakładki
+
+Główna zakładka `🚨 Transparentność` po `💰 Sprzedaż` (przed `👤 Klient`). 6 sub-zakładek:
+
+| Sub-zakładka | Co tam jest |
+|---|---|
+| **📉 Sygnały i alerty** | Hero klasyfikacji ryzyka + 6 KPI + rekomendacja AI + timeline |
+| **❌ Anulowane** | Lista anulowanych zamówień (przeniesione ze Sprzedaży) |
+| **⚖ Niedotrzymanie** | Realizacja zamówień fakturami per towar (przeniesione, rename z „Weryfikacja") |
+| **🔧 Reklamacje** | Pełna lista z modułu Reklamacje (12 kolumn ze StatusV2, Priorytet, Źródło, …) |
+| **💸 Korekty i finanse** | Korekty FKS/FKR na minus + zmiany terminów płatności |
+| **📊 Wzorce i AI** | Sezonowość anulacji + trend reklamacji + pełna analiza algorytmiczna |
+
+### 36.1 Hero: Klasyfikacja Ryzyka (🟢🟡🟠🔴)
+
+Wielkie kolorowe koło z literą + 4 sub-paski.
+
+**Literka ryzyka** (Total 0-100, gdzie 0 = brak ryzyka):
+- 🟢 **A** (Total <15) — Niskie ryzyko, czysta historia
+- 🟡 **B** (15-34) — Średnie ryzyko, sporadyczne incydenty
+- 🟠 **C** (35-59) — Wysokie ryzyko, regularne problemy
+- 🔴 **D** (60+) — Krytyczne, klient toksyczny (jak Case Study 2 z sekcji 23)
+
+**4 wymiary ryzyka** (każdy 0-100, łączy się w Total):
+
+| Wymiar | Waga | Co mierzy | Z czego liczy |
+|---|---|---|---|
+| **Reputacyjny** | 30% | Reklamacje + SLA + priorytet | LiczbaReklamacji × 5 + Otwarte × 10 + SLA przekroczone × 7 + Krytyczne × 5 |
+| **Finansowy** | 35% | Przeterminowane + korekty + zmiany terminów | (Przeterm/Obrot×1000) + KorektyMinus×5 + ZmianyTerm×4 + MaxDni/6 |
+| **Operacyjny** | 30% | Anulacje + niedotrzymanie | %Anulacji × 3 + (100-Realizacja) × 2 |
+| **Komunikacyjny** | 5% | Parsing notatek (placeholder) | 0 do czasu rozszerzenia o parsing słów kluczowych |
+
+**Tooltip każdego paska** = konkretny opis ("3 reklamacji, 2 otwartych", "85 000 zł przeterminowane, 1 korekta minus, …").
+
+### 36.2 6 KPI tile (negatywne)
+
+Każdy ma blade tło wg progu:
+- **Białe** = brak problemu
+- **Jasno-amber** = uwaga
+- **Jasno-czerwone** = alert
+
+| Tile | Wartość | Sub | Próg amber | Próg czerwony |
+|---|---|---|---|---|
+| ❌ Anulowane | liczba | kg + % | 5% | 10% |
+| 🔧 Reklamacje | liczba | wartość + otwarte | otwartych >0 | wartość >0.5% obrotu |
+| ⚖ Niedotrzymanie | % | poz. ucięte + kg | — | <90% |
+| 💸 Korekty minus | liczba | suma zł | >0 | ≥3 |
+| ⏰ Zmiany terminów | liczba | śr. przesunięcie dni | >0 | ≥3 |
+| 💰 Przeterminowane | kwota | max dni | — | >0 zł |
+
+### 36.3 Rekomendacja AI
+
+Ramka pod KPI z **konkretnym tekstem po polsku** generowanym algorytmicznie wg poziomu ryzyka:
+
+**INFO** (zielone tło) — gdy Total <15:
+> ✅ Klient bez istotnych sygnałów ryzyka. Kontynuuj standardową obsługę.
+
+**WARNING** (żółte tło) — gdy 15-34:
+> ⚠ WYSOKIE RYZYKO — wymaga proaktywnej obsługi i nadzoru:
+> • 4 otwartych reklamacji — wymaga eskalacji do jakości
+> • 8% zamówień anulowanych — nieregularny wzór operacyjny
+
+**CRITICAL** (czerwone tło) — gdy 35+:
+> 🚨 KRYTYCZNE RYZYKO — wymaga decyzji strategicznej (blokada / windykacja / rezygnacja):
+> • Reklamacje >2% obrotu (3.5%) — toksyczny stosunek wartości do problemów
+> • 6 korekt na minus (45 000 zł) — spór cenowy / niezgodności
+> • Realizacja zamówień 87% — mocne niedotrzymanie
+
+### 36.4 Timeline incydentów
+
+Pod rekomendacją — chronologiczna lista **20 ostatnich incydentów** (reklamacje + korekty minus + zmiany terminów) z kolorowymi paskami z lewej. Każdy wiersz:
+- Ikona + data
+- Typ ([Reklamacja] / [Korekta minus] / [Zmiana terminu])
+- Opis (numer faktury, status, typ)
+- Kwota (czerwona gdy ujemna)
+
+### 36.5 Sub-zakładka 🔧 Reklamacje — pełna lista
+
+DataGrid z 12 kolumn z modułu Reklamacje. Pełen StatusV2 (Nowa / Rozpatrywana / Uznana / Połączona / Zamknięta / Odrzucona), Priorytet (Niski/Normalny/Wysoki/Krytyczny), Źródło (Handlowiec/Kierowca/Klient/Symfonia/Jakość), Typ Reklamacji, Faktura, kg, Kwota, Dni od zgłoszenia, Rozpatrujący, Przyczyna główna.
+
+**Header dynamiczny**:
+- „✅ Brak reklamacji" gdy 0
+- „🔧 X reklamacji (Y otwartych, trend ▲/▼/▬)" gdy >0
+
+### 36.6 Sub-zakładka 💸 Korekty i finanse
+
+**Tabela 1**: Korekty FKS/FKR z minusem (Numer, Data, Typ, Wartość ujemna, Korekta do oryginału).
+**Tabela 2**: Zmiany terminów płatności (Faktura, Data wyst., Termin pierwotny, Termin aktualny, Przesunięcie dni, Kwota).
+
+### 36.7 Sub-zakładka 📊 Wzorce i AI
+
+**Sezonowość anulacji** — wykres słupkowy 12-miesięczny (3 lata wstecz). Kolor:
+- Szary (brak)
+- Żółty (<1/2 max)
+- Czerwony (>1/2 max)
+
+Pod wykresem opis: „Łącznie 23 anulacji w 3 latach. Najwięcej: grudzień. Powtarzający się wzór miesięczny = potencjalny klient sezonowy."
+
+**Trend reklamacji** — wielka strzałka ▲ rośnie / ▼ spada / ▬ stabilnie.
+
+**Pełna analiza algorytmiczna** — wszystkie 4 wymiary z opisami plus pełna rekomendacja.
+
+### 36.8 Co to ZMIENIA w praktyce
+
+**Bez Transparentności**:
+- Reklamacje widziałaś tylko jako liczbę w hero („3 reklamacji 12M")
+- Anulowane były w innej zakładce, bez kontekstu
+- Korekty na minus były niewidoczne — musiałaś otwierać Sage
+- Zmiany terminów były niewidoczne — informacja gubiła się w PN
+- Klasyfikacja ryzyka nie istniała — Sergiusz oceniał intuicyjnie
+
+**Z Transparentnością**:
+- Klikasz 🚨 → 5 sek = pełen obraz wszystkich negatywnych sygnałów
+- Klasyfikacja A/B/C/D → szybka decyzja czy klient toksyczny
+- Rekomendacja AI w czerwonej ramce → konkretny plan działania
+- Sezonowość anulacji → odróżniasz klienta sezonowego od porzucającego
+- Timeline → widzisz że incydenty z grudnia powtarzają się 3 lata pod rząd = wzór, nie kryzys
+
+### 36.9 Scenariusz — Sergiusz codziennie rano
+
+1. Pulpit Portfela → lista 10 klientów z czerwonymi wierszami
+2. Otwierasz pierwszego → 🚨 Transparentność
+3. Klasyfikacja **D Krytyczne 67/100**
+4. Rekomendacja: „blokada / windykacja / rezygnacja"
+5. Czytasz rozbicie:
+   - Reputacyjny 80/100 — 5 reklamacji, 4 otwartych, 3 z przekroczonym SLA
+   - Finansowy 70/100 — 95 000 zł przeterminowane 45 dni, 4 korekty minus
+   - Operacyjny 50/100 — 18% anulacji, realizacja 82%
+6. Decyzja: **blokada kredytu + telefon z planem**
+7. Sub-zakładka 📝 Notatki → wpis decyzji z datą
+8. Następny klient — 3 minuty total
+
+### 36.10 Scenariusz — Maja przed telefonem
+
+1. Klient dzwoni, Maja otwiera kartę
+2. Sparkline w toolbarze — zielony (rośnie ostatnie 6M)
+3. Klasyfikacja Transparentności — **B Średnie 28/100**
+4. Maja widzi że klient ma **2 otwarte reklamacje** w hero
+5. Sub-zakładka 🔧 Reklamacje — czyta szczegóły, źródło, status, rozpatrujący
+6. Wie o czym klient pewnie zapyta zanim sam zacznie
+7. Rozmowa: „Pani Anno, widziałam że pani sprawa R/2026/123 nadal jest w analizie, sprawdzę u jakości i oddzwonię do końca tygodnia"
+8. **Klient: „dziękuję, dokładnie o to chciałam zapytać"**
+
+### 36.11 Ograniczenia (znane)
+
+- **Komunikacyjny ryzyko = 0** (placeholder, parsing notatek w przyszłej iteracji)
+- **TopProblematycznyTowar = pusta lista** (do rozszerzenia o JOIN ReklamacjeTowary)
+- **Reklamacje TOP 100** — gdy klient ma więcej, widzisz tylko najnowsze
+- **Wzorce sezonowości** wymagają 3 lata danych — dla nowszych klientów wykres prawie pusty
+- **AI rekomendacja** jest **algorytmiczna** (nie LLM) — szybka, deterministyczna, ale nie tak elastyczna w opisach jak Claude. Rozważyć integrację w przyszłości.
 
 ---
 
