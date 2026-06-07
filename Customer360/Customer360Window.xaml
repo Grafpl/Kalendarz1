@@ -259,7 +259,7 @@
         <TabControl Grid.Row="2" x:Name="MainTabs" Margin="0" Background="Transparent" BorderThickness="0" SelectionChanged="MainTabs_SelectionChanged">
 
             <!-- Tab 1: PRZEGLĄD (dashboard) -->
-            <TabItem Header="📊 Przegląd">
+            <TabItem Header="📊 Pulpit">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20,16">
                     <StackPanel>
                         <!-- Banner bledow ladowania — widoczny gdy rendery rzucily wyjatki -->
@@ -513,7 +513,7 @@
             </TabItem>
 
             <!-- Tab 4: WERYFIKACJA — zamówienia × faktury -->
-            <TabItem Header="⚖ Weryfikacja">
+            <TabItem Header="⚖ Niedotrzymanie">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20,16">
                     <StackPanel>
                         <!-- Banner diagnostyczny gdy brak faktur -->
@@ -811,7 +811,7 @@
             </TabItem>
 
             <!-- Tab 9: HISTORIA ZMIAN -->
-            <TabItem Header="📜 Historia">
+            <TabItem Header="📜 Historia zmian">
                 <Border Padding="20,16">
                     <Grid>
                         <DataGrid x:Name="GridHistoria" AutoGenerateColumns="False" IsReadOnly="True"
