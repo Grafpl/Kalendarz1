@@ -206,14 +206,17 @@
                                     <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="FontSize" Value="13"/><Setter Property="Foreground" Value="#1F2733"/></Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
-                            <DataGridTemplateColumn Header="Kierowca" Width="150">
+                            <DataGridTemplateColumn Header="Kierowca" Width="153">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                            <Ellipse Width="8" Height="8" Fill="{Binding KolorKierowcy}" Margin="0,0,6,0" VerticalAlignment="Center"
-                                                     ToolTip="Indywidualny kolor kierowcy"/>
-                                            <TextBlock Style="{StaticResource Icon}" Text="&#xE77B;" FontSize="11.5" Foreground="{Binding KierowcaFg}" Margin="0,0,5,0"/>
-                                            <TextBlock Text="{Binding KierowcaDisplay}" Foreground="{Binding KierowcaFg}" FontWeight="{Binding KierowcaWaga}" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <StackPanel Orientation="Horizontal">
+                                                <Ellipse Width="8" Height="8" Fill="{Binding KolorKierowcy}" Margin="0,0,6,0" VerticalAlignment="Center"
+                                                         ToolTip="Indywidualny kolor kierowcy"/>
+                                                <TextBlock Style="{StaticResource Icon}" Text="&#xE77B;" FontSize="11.5" Foreground="{Binding KierowcaFg}" Margin="0,0,5,0"/>
+                                                <TextBlock Text="{Binding KierowcaDisplay}" Foreground="{Binding KierowcaFg}" FontWeight="{Binding KierowcaWaga}" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                                            </StackPanel>
+                                            <TextBlock Text="{Binding KierowcaTelefon}" FontSize="10.5" Foreground="#7b8794" Margin="14,1,0,0" TextTrimming="CharacterEllipsis"/>
                                         </StackPanel>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>

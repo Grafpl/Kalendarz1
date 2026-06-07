@@ -374,15 +374,6 @@ namespace Kalendarz1.Transport.WPF
             if (!_ladowanie) PrzeliczPakowanie();
         }
 
-        /// <summary>Pod ComboBoxem kierowcy pokazujemy numer telefonu (przyda się gdy planista musi zadzwonić).</summary>
-        private void CmbKierowca_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (TxtKierowcaTelefon == null) return;
-            var k = CmbKierowca.SelectedItem as Kierowca;
-            string tel = k?.Telefon?.Trim() ?? "";
-            TxtKierowcaTelefon.Text = string.IsNullOrEmpty(tel) ? "📞 brak numeru" : $"📞 {tel}";
-        }
-
         private async void DataKursu_Changed(object sender, SelectionChangedEventArgs e)
         {
             if (!_ladowanie) await OdswiezWolneAsync();

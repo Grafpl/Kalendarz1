@@ -31,6 +31,7 @@ namespace Kalendarz1.Transport.WPF
         private readonly string _user = App.UserID ?? "system";
         private List<KursRow> _rows = new();      // widoczne (po filtrze)
         private List<KursRow> _rowsAll = new();   // wszystkie z dnia
+        private Dictionary<int, string>? _telefonyKierowcow;   // cache TransportPL.Kierowca.Telefon (load raz na sesję window)
 
         private List<WolneZamowienieWpf> _wolneAll = new();
         private readonly ObservableCollection<WolneZamowienieWpf> _wolne = new();
@@ -202,6 +203,32 @@ namespace Kalendarz1.Transport.WPF
         // ════════════════════════════════════════════════════════════════════
         // KURSY
         // ════════════════════════════════════════════════════════════════════
+        /// <summary>
+        /// Cache telefonów kierowców z TransportPL.Kierowca. Ładujemy raz na sesję okna
+        /// (telefony zmieniają się rzadko, kafelek odświeża się często — szkoda zapytania per refresh).
+        /// </summary>
+        private async Task ZapewnijTelefonyKierowcowAsync()
+        {
+            if (_telefonyKierowcow != null) return;
+            var dict = new Dictionary<int, string>();
+            try
+            {
+                await using var cn = new Microsoft.Data.SqlClient.SqlConnection(Services.TransportWpfService.ConnTransport);
+                await cn.OpenAsync();
+                await using var cmd = new Microsoft.Data.SqlClient.SqlCommand(
+                    "SELECT KierowcaID, Telefon FROM dbo.Kierowca WHERE Telefon IS NOT NULL AND LTRIM(RTRIM(Telefon)) <> ''", cn);
+                await using var rd = await cmd.ExecuteReaderAsync();
+                while (await rd.ReadAsync())
+                {
+                    int id = rd.GetInt32(0);
+                    string tel = rd.GetString(1).Trim();
+                    if (!string.IsNullOrEmpty(tel)) dict[id] = tel;
+                }
+            }
+            catch { /* silent — telefony są niekrytyczne, brak nie blokuje listy kursów */ }
+            _telefonyKierowcow = dict;
+        }
+
         private async Task LoadKursyAsync()
         {
             if (_ladowanie) return;   // re-entrancy guard — chroni przed podwójnym wywołaniem
@@ -217,6 +244,19 @@ namespace Kalendarz1.Transport.WPF
 
                 _rowsAll = kursy.Select(k => new KursRow(k,
                     ladunki.TryGetValue(k.KursID, out var l) ? l.Count : 0)).ToList();
+
+                // Wpisz telefony kierowców pod nazwiskami (cache na poziomie sesji okna)
+                await ZapewnijTelefonyKierowcowAsync();
+                foreach (var row in _rowsAll)
+                {
+                    if (row.Source.KierowcaID.HasValue
+                        && _telefonyKierowcow != null
+                        && _telefonyKierowcow.TryGetValue(row.Source.KierowcaID.Value, out var tel)
+                        && !string.IsNullOrWhiteSpace(tel))
+                    {
+                        row.KierowcaTelefon = $"📞 {tel}";
+                    }
+                }
 
                 await UzupelnijAgregatyAsync(ladunki);
                 FiltrujKursy();
@@ -1156,6 +1196,10 @@ namespace Kalendarz1.Transport.WPF
             public string? EtaTooltip { get; set; }   // pełny adres GPS pojazdu (postext z Webfleet) + prędkość
             public string? KierowcaNazwa => Source.KierowcaNazwa;
             public string? PojazdRejestracja => Source.PojazdRejestracja;
+
+            // Telefon kierowcy (z TransportPL.Kierowca.Telefon) — wypełniany w LoadKursyAsync.
+            // Pod nazwiskiem w kolumnie Kierowca — żeby planista mógł zadzwonić bez otwierania karty.
+            public string KierowcaTelefon { get; set; } = "";
             public string Status => Source.Status ?? "Planowany";
             public int PaletyNominal => Source.PaletyNominal;
 
