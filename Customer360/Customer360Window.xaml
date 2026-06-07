@@ -866,9 +866,16 @@
 
                         <Border Style="{StaticResource CardStyle}">
                             <StackPanel>
-                                <TextBlock Text="🤖 Pełna analiza algorytmiczna" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,8"/>
+                                <DockPanel>
+                                    <Button x:Name="BtnEksportTransparentnosc" Content="📄 Eksport do PDF"
+                                            DockPanel.Dock="Right" Click="BtnEksportTransparentnosc_Click"
+                                            Padding="14,7" Cursor="Hand" Background="#2563EB" Foreground="White"
+                                            BorderThickness="0" FontWeight="SemiBold"
+                                            ToolTip="Pełen raport transparentności do dossiera klienta"/>
+                                    <TextBlock Text="🤖 Pełna analiza algorytmiczna" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,8" VerticalAlignment="Center"/>
+                                </DockPanel>
                                 <TextBlock x:Name="TrAnalizaText" Text="—" FontSize="13" TextWrapping="Wrap"
-                                           Foreground="#0F172A" LineHeight="22"/>
+                                           Foreground="#0F172A" LineHeight="22" Margin="0,8,0,0"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>

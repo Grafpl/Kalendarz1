@@ -1763,9 +1763,12 @@ namespace Kalendarz1.Customer360
 
         #region Transparentnosc odbiorcy (4 sub-zakladki: Sygnaly / Reklamacje / Korekty / Wzorce+AI)
 
+        private Models.TransparentnoscDane? _lastTransparentnosc;
+
         private void RenderTransparentnosc(Models.TransparentnoscDane d)
         {
             if (d == null) return;
+            _lastTransparentnosc = d;
             // ===== HERO: Klasyfikacja Ryzyka =====
             var k = d.Klasyfikacja;
             TrLiteraText.Text = k.Litera;
@@ -2001,6 +2004,37 @@ namespace Kalendarz1.Customer360
             DiffBanner.BorderBrush = B(noweAnul > 0 ? "#F59E0B" : "#3B82F6");
             DiffBannerText.Foreground = B(noweAnul > 0 ? "#92400E" : "#1E40AF");
             DiffBanner.Visibility = Visibility.Visible;
+        }
+
+        private void BtnEksportTransparentnosc_Click(object sender, RoutedEventArgs e)
+        {
+            if (_lastTransparentnosc == null || _hdr == null || !_selectedKlientId.HasValue)
+            {
+                MessageBox.Show(this, "Brak danych do eksportu. Spróbuj odświeżyć kartę (F5).", "Eksport PDF",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            try
+            {
+                Cursor = System.Windows.Input.Cursors.Wait;
+                byte[] pdf = Services.Customer360TransparentnoscPdfExporter.Generate(
+                    _hdr.Nazwa, _selectedKlientId.Value, _lastTransparentnosc);
+                string nazwaPlik = $"C360_Transparentnosc_{_selectedKlientId.Value}_{DateTime.Now:yyyyMMdd_HHmm}.pdf";
+                string sciezka = System.IO.Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.Desktop), nazwaPlik);
+                System.IO.File.WriteAllBytes(sciezka, pdf);
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = sciezka,
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, "Błąd eksportu PDF: " + ex.Message, "Eksport",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally { Cursor = System.Windows.Input.Cursors.Arrow; }
         }
 
         private string BudujPelnaAnalize(Models.TransparentnoscDane d)
