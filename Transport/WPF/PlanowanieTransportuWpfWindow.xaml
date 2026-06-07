@@ -237,7 +237,8 @@
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding TrasaAuto}" ToolTip="{Binding TrasaAutoTooltip}"
-                                                   TextTrimming="CharacterEllipsis" FontSize="12.5" Foreground="#1F2733"
+                                                   TextTrimming="CharacterEllipsis" FontSize="12.5"
+                                                   Foreground="{Binding TrasaFg}"
                                                    VerticalAlignment="Center"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>

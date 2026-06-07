@@ -32,6 +32,7 @@ namespace Kalendarz1.Transport.WPF
         private List<KursRow> _rows = new();      // widoczne (po filtrze)
         private List<KursRow> _rowsAll = new();   // wszystkie z dnia
         private Dictionary<int, string>? _telefonyKierowcow;   // cache TransportPL.Kierowca.Telefon (load raz na sesję window)
+        private HashSet<int>? _klienciZGps;                    // cache LibraNet.KartotekaOdbiorcyDane (klienci z Lat/Lng)
 
         private List<WolneZamowienieWpf> _wolneAll = new();
         private readonly ObservableCollection<WolneZamowienieWpf> _wolne = new();
@@ -204,6 +205,29 @@ namespace Kalendarz1.Transport.WPF
         // KURSY
         // ════════════════════════════════════════════════════════════════════
         /// <summary>
+        /// Cache klientów z geokodowanym adresem (LibraNet.KartotekaOdbiorcyDane.Latitude/Longitude IS NOT NULL).
+        /// Używany do oznaczania w kolumnie Trasa tych kursów, gdzie któryś klient nie ma GPS — czerwona czcionka + ⚠.
+        /// Cache 1 zapytanie na sesję okna (geokodowanie zmienia się rzadko).
+        /// </summary>
+        private async Task ZapewnijKlienciZGpsAsync()
+        {
+            if (_klienciZGps != null) return;
+            var set = new HashSet<int>();
+            try
+            {
+                await using var cn = new Microsoft.Data.SqlClient.SqlConnection(Services.TransportWpfService.ConnLibra);
+                await cn.OpenAsync();
+                await using var cmd = new Microsoft.Data.SqlClient.SqlCommand(
+                    @"SELECT IdSymfonia FROM dbo.KartotekaOdbiorcyDane
+                      WHERE Latitude IS NOT NULL AND Longitude IS NOT NULL", cn);
+                await using var rd = await cmd.ExecuteReaderAsync();
+                while (await rd.ReadAsync()) set.Add(rd.GetInt32(0));
+            }
+            catch { /* silent — brak listy nie blokuje renderu, po prostu nie podświetlamy */ }
+            _klienciZGps = set;
+        }
+
+        /// <summary>
         /// Cache telefonów kierowców z TransportPL.Kierowca. Ładujemy raz na sesję okna
         /// (telefony zmieniają się rzadko, kafelek odświeża się często — szkoda zapytania per refresh).
         /// </summary>
@@ -257,6 +281,9 @@ namespace Kalendarz1.Transport.WPF
                         row.KierowcaTelefon = $"📞 {tel}";
                     }
                 }
+
+                // Cache klientów z GPS — do oznaczania w kolumnie Trasa (czerwony + ⚠ dla bez GPS)
+                await ZapewnijKlienciZGpsAsync();
 
                 await UzupelnijAgregatyAsync(ladunki);
                 FiltrujKursy();
@@ -755,31 +782,57 @@ namespace Kalendarz1.Transport.WPF
                     // Logistyk nie musi ręcznie wpisywać — program sam zczytuje kolejność.
                     if (ladunki.TryGetValue(row.KursID, out var ladList))
                     {
-                        var nazwyKlientow = ladList
+                        // Para (Nazwa, BezGps) — żeby wiedzieć których brakuje GPS
+                        var przystanki = ladList
                             .OrderBy(x => x.Kolejnosc)
                             .Where(x => x.KodKlienta != null && x.KodKlienta.StartsWith("ZAM_")
                                         && int.TryParse(x.KodKlienta.Substring(4), out _))
                             .Select(x =>
                             {
                                 var zid = int.Parse(x.KodKlienta!.Substring(4));
-                                return info.TryGetValue(zid, out var zi) ? zi.Nazwa : null;
+                                if (!info.TryGetValue(zid, out var zi) || string.IsNullOrEmpty(zi.Nazwa))
+                                    return (Nazwa: (string?)null, KlientId: 0);
+                                return (Nazwa: (string?)zi.Nazwa, KlientId: zi.KlientId);
                             })
-                            .Where(s => !string.IsNullOrEmpty(s))
-                            .Cast<string>()
-                            .Distinct()   // ten sam klient z kilku ładunków = 1 stop
+                            .Where(t => !string.IsNullOrEmpty(t.Nazwa))
+                            .GroupBy(t => t.Nazwa)   // ten sam klient z kilku ładunków = 1 stop
+                            .Select(g => (Nazwa: g.Key!, KlientId: g.First().KlientId))
                             .ToList();
 
-                        // Pełna trasa po kolei (po Distinct nazwy): Cezar → Trzepałka → PUBLIMAR.
+                        var nazwyKlientow = przystanki.Select(p => p.Nazwa).ToList();
+                        var bezGps = przystanki
+                            .Where(p => p.KlientId > 0 && _klienciZGps != null && !_klienciZGps.Contains(p.KlientId))
+                            .Select(p => p.Nazwa)
+                            .ToList();
+
+                        // Prefix „⚠ " gdy chociaż jeden klient bez GPS
+                        string prefix = bezGps.Count > 0 ? "⚠ " : "";
+
+                        // Pełna trasa po kolei: Cezar → Trzepałka → PUBLIMAR.
                         // Dla bardzo długich (>5 stopów) skracamy: K1 → K2 → … → KN-1 → KN (N stopów).
                         row.TrasaAuto = nazwyKlientow.Count switch
                         {
                             0 => string.IsNullOrWhiteSpace(row.Trasa) ? "—" : row.Trasa!,
-                            <= 5 => string.Join(" → ", nazwyKlientow),
-                            _ => $"{nazwyKlientow[0]} → {nazwyKlientow[1]} → … → {nazwyKlientow[^2]} → {nazwyKlientow[^1]} ({nazwyKlientow.Count} stopów)"
+                            <= 5 => prefix + string.Join(" → ", nazwyKlientow),
+                            _ => $"{prefix}{nazwyKlientow[0]} → {nazwyKlientow[1]} → … → {nazwyKlientow[^2]} → {nazwyKlientow[^1]} ({nazwyKlientow.Count} stopów)"
                         };
-                        row.TrasaAutoTooltip = nazwyKlientow.Count > 5
-                            ? $"Trasa ({nazwyKlientow.Count} stopów):\n" + string.Join(" → ", nazwyKlientow)
-                            : null;
+
+                        // Tooltip — pełna lista + sekcja „bez GPS" gdy są
+                        var tooltipSb = new System.Text.StringBuilder();
+                        if (nazwyKlientow.Count > 5)
+                            tooltipSb.AppendLine($"Trasa ({nazwyKlientow.Count} stopów):").Append(string.Join(" → ", nazwyKlientow));
+                        if (bezGps.Count > 0)
+                        {
+                            if (tooltipSb.Length > 0) tooltipSb.AppendLine().AppendLine();
+                            tooltipSb.Append($"⚠ Bez GPS: {string.Join(", ", bezGps)}");
+                            tooltipSb.AppendLine().Append("Geokoduj w: Kartoteka → Mapa klientów");
+                        }
+                        row.TrasaAutoTooltip = tooltipSb.Length > 0 ? tooltipSb.ToString() : null;
+
+                        // Czerwona czcionka gdy są klienci bez GPS
+                        row.TrasaFg = bezGps.Count > 0
+                            ? new SolidColorBrush(Color.FromRgb(0xC6, 0x28, 0x28))  // czerwony alert
+                            : new SolidColorBrush(Color.FromRgb(0x1F, 0x27, 0x33));  // standardowy ciemny
                     }
                     else
                     {
@@ -1187,6 +1240,9 @@ namespace Kalendarz1.Transport.WPF
             // Wypełniana w UzupelnijAgregatyAsync. Fallback gdy puste: ręczna Source.Trasa, potem "—".
             public string TrasaAuto { get; set; } = "—";
             public string? TrasaAutoTooltip { get; set; }   // pełna lista klientów gdy więcej niż 2
+            // Czerwona czcionka gdy choć jeden klient w trasie nie ma GPS — alarm dla planisty,
+            // bo ETA dla tych klientów liczona jest fallbackiem (Haversine niedokładny).
+            public Brush TrasaFg { get; set; } = new SolidColorBrush(Color.FromRgb(0x1F, 0x27, 0x33));
 
             // ETA do następnego przystanku — toggle button w toolbarze pokazuje/ukrywa kolumnę.
             // Wypełniane w UzupelnijAgregatyAsync na podstawie awizacji ładunków + DateTime.Now.
