@@ -179,7 +179,10 @@
                             <StackPanel Margin="0,0,26,12">
                                 <TextBlock Text="KIEROWCA" Style="{StaticResource T.Section}" Margin="0,0,0,4"/>
                                 <ComboBox x:Name="CmbKierowca" Width="248" Height="32" DisplayMemberPath="PelneNazwisko"
-                                          IsEditable="True" IsTextSearchEnabled="True"/>
+                                          IsEditable="True" IsTextSearchEnabled="True"
+                                          SelectionChanged="CmbKierowca_SelectionChanged"/>
+                                <TextBlock x:Name="TxtKierowcaTelefon" Foreground="{StaticResource InkMuted}"
+                                           FontSize="11" Margin="2,2,0,0" Width="248"/>
                             </StackPanel>
                             <StackPanel Margin="0,0,26,12">
                                 <TextBlock Text="POJAZD" Style="{StaticResource T.Section}" Margin="0,0,0,4"/>

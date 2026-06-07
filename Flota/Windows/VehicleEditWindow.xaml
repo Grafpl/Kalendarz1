@@ -162,7 +162,7 @@
             </TabItem>
 
             <!-- ═══ TAB: Dokumenty/Ubezpieczenia ═══ -->
-            <TabItem Header="  Dokumenty/Ubezp.  " Visibility="Collapsed">
+            <TabItem Header="  Dokumenty/Ubezp.  ">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16">
                     <StackPanel>
                         <Border Style="{StaticResource SectionBorder}">
@@ -223,7 +223,7 @@
             </TabItem>
 
             <!-- ═══ TAB: Kierowcy ═══ -->
-            <TabItem Header="  Kierowcy  " Visibility="Collapsed">
+            <TabItem Header="  Kierowcy  ">
                 <Grid Margin="8">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -273,7 +273,7 @@
             </TabItem>
 
             <!-- ═══ TAB: Serwis ═══ -->
-            <TabItem Header="  Serwis  " Visibility="Collapsed">
+            <TabItem Header="  Serwis  ">
                 <Grid Margin="8">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -319,6 +319,77 @@
                         <TextBlock x:Name="TxtSerwisPodsumowanie" FontFamily="Segoe UI" FontSize="12" FontWeight="SemiBold"/>
                     </Border>
                 </Grid>
+            </TabItem>
+
+            <!-- ═══ TAB: Webfleet (GPS mapping) ═══ -->
+            <TabItem Header="  📡 Webfleet (GPS)  ">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16">
+                    <StackPanel>
+                        <TextBlock Text="Mapowanie pojazdu z Webfleet GPS" FontWeight="Bold" FontSize="14"
+                                   Foreground="#1E3A5F" Margin="0,0,0,4"/>
+                        <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="#5D6D7E" Margin="0,0,0,12"
+                                   Text="Powiązanie tego pojazdu z urządzeniem GPS w Webfleet. Pozwala mapie/monitorowi pokazywać aktualną pozycję + uczyć się czasów rozładunku z historii."/>
+
+                        <Border Style="{StaticResource SectionBorder}">
+                            <StackPanel>
+                                <TextBlock Text="Aktualne mapowanie" FontWeight="Bold" FontSize="13" Foreground="#1E3A5F" Margin="0,0,0,6"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="Webfleet Object No" Style="{StaticResource FieldLabel}"/>
+                                        <TextBox x:Name="TxtWebfleetObjectNo" Style="{StaticResource FieldInput}" Width="200" Margin="0,2,16,4"
+                                                 ToolTip="Numer urządzenia GPS w Webfleet (np. ABC123). Sprawdź w panelu Webfleet → Pojazdy."/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Bottom" Margin="0,0,0,8">
+                                        <TextBlock x:Name="TxtWebfleetStatus" FontSize="12" FontWeight="SemiBold"/>
+                                        <TextBlock x:Name="TxtWebfleetInfo" FontSize="11" Foreground="#5D6D7E" Margin="0,2,0,0" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </Grid>
+
+                                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                    <Button x:Name="BtnZapiszWebfleet" Content="💾 Zapisz mapowanie" Padding="12,6"
+                                            Background="#27AE60" Foreground="White" BorderThickness="0"
+                                            Cursor="Hand" Click="BtnZapiszWebfleet_Click"/>
+                                    <Button x:Name="BtnUsunWebfleet" Content="🗑 Usuń mapowanie" Padding="12,6" Margin="8,0,0,0"
+                                            Background="#E74C3C" Foreground="White" BorderThickness="0"
+                                            Cursor="Hand" Click="BtnUsunWebfleet_Click"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource SectionBorder}">
+                            <StackPanel>
+                                <TextBlock Text="Dostępne pojazdy Webfleet (już zmapowane na liście)" FontWeight="Bold" FontSize="13"
+                                           Foreground="#1E3A5F" Margin="0,0,0,6"/>
+                                <TextBlock FontSize="11" Foreground="#5D6D7E" Margin="0,0,0,6" TextWrapping="Wrap"
+                                           Text="Dwuklik na liście aby wkleić ObjectNo do pola powyżej (przyda się gdy edytujesz wpis który już istniał)."/>
+                                <dxg:GridControl x:Name="GridWebfleetDostepne" MaxHeight="220">
+                                    <dxg:GridControl.Columns>
+                                        <dxg:GridColumn FieldName="WebfleetObjectNo" Header="ObjectNo" Width="120" ReadOnly="True"/>
+                                        <dxg:GridColumn FieldName="Rejestracja" Header="Rejestracja" Width="120" ReadOnly="True"/>
+                                        <dxg:GridColumn FieldName="Marka" Header="Marka" Width="100" ReadOnly="True"/>
+                                        <dxg:GridColumn FieldName="Model" Header="Model" Width="100" ReadOnly="True"/>
+                                        <dxg:GridColumn FieldName="DataMapowania" Header="Zmapowano" Width="120" ReadOnly="True"/>
+                                    </dxg:GridControl.Columns>
+                                    <dxg:GridControl.View>
+                                        <dxg:TableView AutoWidth="True" AllowEditing="False" ShowGroupPanel="False"
+                                                       RowDoubleClick="GridWebfleetDostepne_DoubleClick"/>
+                                    </dxg:GridControl.View>
+                                </dxg:GridControl>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Background="#FFFBEB" BorderBrush="#FCD34D" BorderThickness="1" CornerRadius="4" Padding="10,8" Margin="0,8,0,0">
+                            <TextBlock FontSize="11" Foreground="#78350F" TextWrapping="Wrap">
+                                <Run Text="💡 Tip: " FontWeight="Bold"/>
+                                <Run Text="Jeśli nie wiesz jakiego ObjectNo użyć, otwórz w menu głównym kafelek 🔗 Mapowanie Webfleet (GPS) — tam masz pełną listę wszystkich pojazdów z konta Webfleet plus asystent mapowania."/>
+                            </TextBlock>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
             </TabItem>
         </TabControl>
 

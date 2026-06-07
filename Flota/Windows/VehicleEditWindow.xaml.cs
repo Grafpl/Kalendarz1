@@ -31,7 +31,166 @@ namespace Kalendarz1.Flota.Windows
                 TxtID.Background = System.Windows.Media.Brushes.LightGray;
                 await LoadVehicleDataAsync();
                 // LoadAssignmentsAsync() / LoadServiceLogsAsync() wylaczone — pobieraja z LibraNet (legacy)
+                await LoadWebfleetMappingAsync();
             }
+            await LoadWebfleetDostepneAsync();   // lista dla obu trybów (nowy + edycja)
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // WEBFLEET MAPPING — TransportPL.WebfleetVehicleMapping
+        // PojazdID (INT) ↔ WebfleetObjectNo (varchar20)
+        // ════════════════════════════════════════════════════════════════════
+        private const string _connTransportLocal =
+            "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+
+        private async System.Threading.Tasks.Task LoadWebfleetMappingAsync()
+        {
+            if (string.IsNullOrEmpty(_carTrailerID) || !int.TryParse(_carTrailerID, out int pid)) return;
+            try
+            {
+                await using var cn = new Microsoft.Data.SqlClient.SqlConnection(_connTransportLocal);
+                await cn.OpenAsync();
+                await using var cmd = new Microsoft.Data.SqlClient.SqlCommand(
+                    "SELECT TOP 1 WebfleetObjectNo, DataMapowania FROM dbo.WebfleetVehicleMapping WHERE PojazdID = @id", cn);
+                cmd.Parameters.AddWithValue("@id", pid);
+                await using var r = await cmd.ExecuteReaderAsync();
+                if (await r.ReadAsync())
+                {
+                    TxtWebfleetObjectNo.Text = r["WebfleetObjectNo"]?.ToString() ?? "";
+                    TxtWebfleetStatus.Text = "✓ Zmapowany";
+                    TxtWebfleetStatus.Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFrom("#27AE60")!;
+                    if (r["DataMapowania"] != DBNull.Value)
+                        TxtWebfleetInfo.Text = $"Zmapowano: {((DateTime)r["DataMapowania"]):yyyy-MM-dd HH:mm}";
+                }
+                else
+                {
+                    TxtWebfleetObjectNo.Text = "";
+                    TxtWebfleetStatus.Text = "⊘ Niezmapowany";
+                    TxtWebfleetStatus.Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFrom("#E74C3C")!;
+                    TxtWebfleetInfo.Text = "Pojazd nie ma jeszcze przypisanego urządzenia GPS.";
+                }
+            }
+            catch (Exception ex)
+            {
+                TxtWebfleetStatus.Text = "⚠ Błąd";
+                TxtWebfleetInfo.Text = ex.Message;
+            }
+        }
+
+        private async System.Threading.Tasks.Task LoadWebfleetDostepneAsync()
+        {
+            try
+            {
+                var dt = new System.Data.DataTable();
+                await using var cn = new Microsoft.Data.SqlClient.SqlConnection(_connTransportLocal);
+                await cn.OpenAsync();
+                await using var cmd = new Microsoft.Data.SqlClient.SqlCommand(@"
+                    SELECT m.WebfleetObjectNo, p.Rejestracja, p.Marka, p.Model,
+                           CONVERT(varchar(16), m.DataMapowania, 120) AS DataMapowania
+                    FROM dbo.WebfleetVehicleMapping m
+                    LEFT JOIN dbo.Pojazd p ON p.PojazdID = m.PojazdID
+                    ORDER BY m.DataMapowania DESC, m.WebfleetObjectNo", cn);
+                await using var r = await cmd.ExecuteReaderAsync();
+                dt.Load(r);
+                GridWebfleetDostepne.ItemsSource = dt.DefaultView;
+            }
+            catch { /* tichą porażka — grid zostaje pusty */ }
+        }
+
+        private async void BtnZapiszWebfleet_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(_carTrailerID) || !int.TryParse(_carTrailerID, out int pid))
+            {
+                MessageBox.Show("Najpierw zapisz pojazd (zakładka Dane pojazdu → ZAPISZ), potem mapuj GPS.",
+                    "Wymagany zapis", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            string objectNo = (TxtWebfleetObjectNo.Text ?? "").Trim();
+            if (string.IsNullOrEmpty(objectNo))
+            {
+                MessageBox.Show("Wpisz WebfleetObjectNo (numer urządzenia z Webfleet).",
+                    "Brak ObjectNo", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            BtnZapiszWebfleet.IsEnabled = false;
+            try
+            {
+                // MERGE: jeśli ten ObjectNo już istnieje, podmień PojazdID. Inaczej INSERT.
+                const string sql = @"
+                    MERGE dbo.WebfleetVehicleMapping AS t
+                    USING (SELECT @wfNo AS WebfleetObjectNo, @pid AS PojazdID) AS s
+                    ON t.WebfleetObjectNo = s.WebfleetObjectNo
+                    WHEN MATCHED THEN UPDATE SET PojazdID = s.PojazdID, DataMapowania = GETDATE()
+                    WHEN NOT MATCHED THEN INSERT (WebfleetObjectNo, PojazdID, DataMapowania)
+                                          VALUES (s.WebfleetObjectNo, s.PojazdID, GETDATE());";
+                await using var cn = new Microsoft.Data.SqlClient.SqlConnection(_connTransportLocal);
+                await cn.OpenAsync();
+                await using var cmd = new Microsoft.Data.SqlClient.SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@wfNo", objectNo);
+                cmd.Parameters.AddWithValue("@pid", pid);
+                await cmd.ExecuteNonQueryAsync();
+
+                await LoadWebfleetMappingAsync();
+                await LoadWebfleetDostepneAsync();
+                MessageBox.Show($"✓ Pojazd {_carTrailerID} zmapowany z Webfleet ObjectNo: {objectNo}",
+                    "Mapowanie zapisane", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd zapisu mapowania:\n{ex.Message}", "Błąd",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally { BtnZapiszWebfleet.IsEnabled = true; }
+        }
+
+        private async void BtnUsunWebfleet_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(_carTrailerID) || !int.TryParse(_carTrailerID, out int pid)) return;
+
+            var r = MessageBox.Show($"Usunąć mapowanie Webfleet dla pojazdu {_carTrailerID}?\n\n" +
+                "Wpis w tabeli WebfleetVehicleMapping NIE zostanie usunięty — tylko odpięty od tego pojazdu " +
+                "(można go potem przypisać do innego).",
+                "Usunąć mapowanie?", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (r != MessageBoxResult.Yes) return;
+
+            BtnUsunWebfleet.IsEnabled = false;
+            try
+            {
+                await using var cn = new Microsoft.Data.SqlClient.SqlConnection(_connTransportLocal);
+                await cn.OpenAsync();
+                await using var cmd = new Microsoft.Data.SqlClient.SqlCommand(
+                    "UPDATE dbo.WebfleetVehicleMapping SET PojazdID = NULL WHERE PojazdID = @id", cn);
+                cmd.Parameters.AddWithValue("@id", pid);
+                await cmd.ExecuteNonQueryAsync();
+
+                await LoadWebfleetMappingAsync();
+                await LoadWebfleetDostepneAsync();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally { BtnUsunWebfleet.IsEnabled = true; }
+        }
+
+        private void GridWebfleetDostepne_DoubleClick(object sender, DevExpress.Xpf.Grid.RowDoubleClickEventArgs e)
+        {
+            try
+            {
+                var rowHandle = e.HitInfo.RowHandle;
+                if (rowHandle < 0) return;
+                var grid = GridWebfleetDostepne;
+                var row = grid.GetRow(rowHandle) as System.Data.DataRowView;
+                if (row == null) return;
+                string obj = row["WebfleetObjectNo"]?.ToString() ?? "";
+                if (!string.IsNullOrEmpty(obj))
+                {
+                    TxtWebfleetObjectNo.Text = obj;
+                    TxtWebfleetObjectNo.Focus();
+                }
+            }
+            catch { /* ignore */ }
         }
 
         private async System.Threading.Tasks.Task LoadVehicleDataAsync()
