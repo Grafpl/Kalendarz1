@@ -276,6 +276,13 @@
                             </DockPanel>
                         </Border>
 
+                        <!-- Diff od ostatniej wizyty — widoczny gdy klient byl otwierany poprzednio -->
+                        <Border x:Name="DiffBanner" Visibility="Collapsed"
+                                Background="#DBEAFE" BorderBrush="#3B82F6" BorderThickness="1"
+                                CornerRadius="6" Padding="12,8" Margin="0,0,0,10">
+                            <TextBlock x:Name="DiffBannerText" Foreground="#1E40AF" FontSize="12" TextWrapping="Wrap" FontWeight="SemiBold"/>
+                        </Border>
+
                         <!-- ════ HERO: Scoring + składniki + churn + rekomendacja ════ -->
                         <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
                             <Grid>

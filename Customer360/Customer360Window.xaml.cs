@@ -490,6 +490,10 @@ namespace Kalendarz1.Customer360
 
         private async Task LoadKlientAsync(int klientId, bool forceScore = false)
         {
+            // Diff: pobierz date ostatniej wizyty PRZED odswiezeniem (RecentClientsStore.Add nadpisze w finally)
+            DateTime? ostatniaWizyta = Services.RecentClientsStore.Get()
+                .FirstOrDefault(r => r.Id == klientId)?.Kiedy;
+
             try
             {
                 Cursor = System.Windows.Input.Cursors.Wait;
@@ -623,6 +627,9 @@ namespace Kalendarz1.Customer360
                 {
                     ErrorBanner.Visibility = Visibility.Collapsed;
                 }
+
+                // Diff od ostatniej wizyty — pokaz co sie zmienilo (sensowne tylko jesli wizyta byla w ciagu 90 dni)
+                RenderDiffOdOstatniej(ostatniaWizyta, fakturyDet, history, anulowane);
 
                 // Analiza (Historia+Transport+Asortyment) — LAZY, ładowana przy wejściu w zakładkę Analiza
                 _analizaTabLoaded = false;
@@ -1954,6 +1961,46 @@ namespace Kalendarz1.Customer360
             TrSezonowoscOpis.Text = suma == 0
                 ? "Brak anulacji w 3 latach — klient stabilny operacyjnie."
                 : $"Łącznie {suma} anulacji w 3 latach. Najwięcej: {(mapa.OrderByDescending(p => p.Value).First().Key) switch { 1 => "sty", 2 => "lut", 3 => "mar", 4 => "kwi", 5 => "maj", 6 => "cze", 7 => "lip", 8 => "sie", 9 => "wrz", 10 => "paź", 11 => "lis", 12 => "gru", _ => "?" }}. Powtarzający się wzór miesięczny = potencjalny klient sezonowy (sprawdź notatki).";
+        }
+
+        // Diff od ostatniej wizyty — szybki sygnal "co sie zmienilo od ostatniego razu" w niebieskim banerze
+        private void RenderDiffOdOstatniej(DateTime? ostatnia,
+            List<Models.FakturaDetail> fakturyDet,
+            List<OrderHistoryItem> history,
+            List<Kalendarz1.Customer360.Models.AnulowaneZam> anulowane)
+        {
+            if (DiffBanner == null) return;
+            if (!ostatnia.HasValue || ostatnia.Value < DateTime.Today.AddDays(-90))
+            {
+                DiffBanner.Visibility = Visibility.Collapsed;
+                return;
+            }
+            var od = ostatnia.Value;
+            int noweFak = fakturyDet?.Count(f => f.DataWystawienia > od) ?? 0;
+            decimal nowyObrot = fakturyDet?.Where(f => f.DataWystawienia > od).Sum(f => f.Brutto) ?? 0m;
+            int noweZam = history?.Count(z => z.DataZamowienia > od) ?? 0;
+            int noweAnul = anulowane?.Count(a => a.DataAnulowania.HasValue && a.DataAnulowania.Value > od) ?? 0;
+
+            if (noweFak == 0 && noweZam == 0 && noweAnul == 0)
+            {
+                DiffBannerText.Text = $"⚡ Od ostatniej wizyty ({od:dd.MM.yyyy HH:mm}) — bez nowych wydarzeń.";
+                DiffBanner.Background = B("#F1F5F9");
+                DiffBanner.BorderBrush = B("#94A3B8");
+                DiffBannerText.Foreground = B("#475569");
+                DiffBanner.Visibility = Visibility.Visible;
+                return;
+            }
+
+            var partykuly = new List<string>();
+            if (noweFak > 0) partykuly.Add($"+{noweFak} faktur ({nowyObrot:N0} zł)");
+            if (noweZam > 0) partykuly.Add($"+{noweZam} zamówień");
+            if (noweAnul > 0) partykuly.Add($"+{noweAnul} anulowanych");
+
+            DiffBannerText.Text = $"⚡ Od ostatniej wizyty ({od:dd.MM.yyyy HH:mm}): " + string.Join(" · ", partykuly);
+            DiffBanner.Background = B(noweAnul > 0 ? "#FEF3C7" : "#DBEAFE");
+            DiffBanner.BorderBrush = B(noweAnul > 0 ? "#F59E0B" : "#3B82F6");
+            DiffBannerText.Foreground = B(noweAnul > 0 ? "#92400E" : "#1E40AF");
+            DiffBanner.Visibility = Visibility.Visible;
         }
 
         private string BudujPelnaAnalize(Models.TransparentnoscDane d)
