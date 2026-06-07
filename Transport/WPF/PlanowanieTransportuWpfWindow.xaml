@@ -236,10 +236,32 @@
                             <DataGridTemplateColumn Header="Trasa" Width="*">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <TextBlock Text="{Binding TrasaAuto}" ToolTip="{Binding TrasaAutoTooltip}"
-                                                   TextTrimming="CharacterEllipsis" FontSize="12.5"
-                                                   Foreground="{Binding TrasaFg}"
-                                                   VerticalAlignment="Center"/>
+                                        <Grid VerticalAlignment="Center" ToolTip="{Binding TrasaAutoTooltip}">
+                                            <!-- Segmenty per-klient (kolor czerwony tylko dla nazwy bez GPS) -->
+                                            <ItemsControl ItemsSource="{Binding TrasaSegmenty}" Visibility="{Binding SegmentyVis}">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <StackPanel Orientation="Horizontal"/>
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <TextBlock Text="{Binding Nazwa}" FontSize="12.5"
+                                                                       Foreground="{Binding Kolor}"
+                                                                       FontWeight="{Binding Waga}"
+                                                                       TextTrimming="CharacterEllipsis"/>
+                                                            <TextBlock Text="{Binding Separator}" FontSize="12.5"
+                                                                       Foreground="#7B8794"/>
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                            <!-- Fallback string (gdy brak segmentów: ręczna trasa lub „—") -->
+                                            <TextBlock Text="{Binding TrasaAuto}" Visibility="{Binding FallbackVis}"
+                                                       TextTrimming="CharacterEllipsis" FontSize="12.5"
+                                                       Foreground="#1F2733"/>
+                                        </Grid>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
