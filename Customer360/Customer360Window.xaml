@@ -543,14 +543,15 @@
                                   AlternatingRowBackground="#FAFBFC" BorderBrush="{StaticResource Border}" BorderThickness="1">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="60"/>
-                                <DataGridTextColumn Header="Data zamówienia" Binding="{Binding DataZamowienia, StringFormat=dd.MM.yyyy}" Width="140"/>
-                                <DataGridTextColumn Header="Data przyjazdu" Binding="{Binding DataPrzyjazdu, StringFormat=dd.MM.yyyy}" Width="130"/>
-                                <DataGridTextColumn Header="Suma kg" Binding="{Binding SumaKg, StringFormat=N0}" Width="100"/>
-                                <DataGridTextColumn Header="Wartość" Binding="{Binding Wartosc, StringFormat={}{0:N2} zł}" Width="130"/>
-                                <DataGridTextColumn Header="Handlowiec" Binding="{Binding Handlowiec}" Width="120"/>
-                                <DataGridTextColumn Header="Anulował" Binding="{Binding AnulowanePrzez}" Width="120"/>
-                                <DataGridTextColumn Header="Data anulowania" Binding="{Binding DataAnulowania, StringFormat=dd.MM.yyyy HH:mm}" Width="160"/>
-                                <DataGridTextColumn Header="Powód / Uwagi" Binding="{Binding Powod}" Width="*"/>
+                                <DataGridTextColumn Header="Data zamówienia" Binding="{Binding DataZamowienia, StringFormat=dd.MM.yyyy}" Width="130"/>
+                                <DataGridTextColumn Header="Data przyjazdu" Binding="{Binding DataPrzyjazdu, StringFormat=dd.MM.yyyy}" Width="120"/>
+                                <DataGridTextColumn Header="Suma kg" Binding="{Binding SumaKg, StringFormat=N0}" Width="80"/>
+                                <DataGridTextColumn Header="Wartość" Binding="{Binding Wartosc, StringFormat={}{0:N2} zł}" Width="110"/>
+                                <DataGridTextColumn Header="Handlowiec" Binding="{Binding Handlowiec}" Width="140"/>
+                                <DataGridTextColumn Header="Anulował" Binding="{Binding AnulowanePrzez}" Width="140"/>
+                                <DataGridTextColumn Header="Data anulowania" Binding="{Binding DataAnulowania, StringFormat=dd.MM.yyyy HH:mm}" Width="140"/>
+                                <DataGridTextColumn Header="Przyczyna anulacji" Binding="{Binding Przyczyna}" Width="2*"/>
+                                <DataGridTextColumn Header="Uwagi do zamówienia" Binding="{Binding Uwagi}" Width="*"/>
                             </DataGrid.Columns>
                         </DataGrid>
                     </StackPanel>

@@ -1032,21 +1032,29 @@ namespace Kalendarz1.Customer360.Services
             {
                 await using var cn = new SqlConnection(ConnLibra);
                 await cn.OpenAsync();
-                // AnulowanePrzez i DataAnulowania mogą istnieć (sprawdzaliśmy w schema fast check)
+                // PrzyczynaAnulowania (nvarchar 200) i AnulowanePrzez sa OSOBNYMI polami od Uwagi (uwagi do zamowienia).
+                // LEFT JOIN operators dla nazw zamiast ID — spojnie z innymi modulami (ZSRIR, Listapartii, …).
                 const string sql = @"
                     SELECT z.Id, z.DataZamowienia, z.DataPrzyjazdu,
                            ISNULL(SUM(zt.Ilosc), 0) AS SumaKg,
                            ISNULL(SUM(zt.Ilosc * TRY_CAST(zt.Cena AS DECIMAL(18,2))), 0) AS Wartosc,
+                           CASE WHEN COL_LENGTH('dbo.ZamowieniaMieso','PrzyczynaAnulowania') IS NOT NULL
+                                THEN ISNULL(z.PrzyczynaAnulowania,'') ELSE '' END AS Przyczyna,
                            ISNULL(z.Uwagi, '') AS Uwagi,
-                           ISNULL(CAST(z.IdUser AS NVARCHAR(20)), '') AS Handlowiec,
-                           CASE WHEN COL_LENGTH('dbo.ZamowieniaMieso','AnulowanePrzez') IS NOT NULL THEN ISNULL(z.AnulowanePrzez,'') ELSE '' END AS AnulPrzez,
-                           CASE WHEN COL_LENGTH('dbo.ZamowieniaMieso','DataAnulowania') IS NOT NULL THEN z.DataAnulowania ELSE NULL END AS DataAnul
+                           ISNULL(opHand.Name, CAST(z.IdUser AS NVARCHAR(20))) AS HandlowiecNazwa,
+                           CASE WHEN COL_LENGTH('dbo.ZamowieniaMieso','AnulowanePrzez') IS NOT NULL
+                                THEN ISNULL(opAnul.Name, ISNULL(z.AnulowanePrzez,'')) ELSE '' END AS AnulPrzezNazwa,
+                           CASE WHEN COL_LENGTH('dbo.ZamowieniaMieso','DataAnulowania') IS NOT NULL
+                                THEN z.DataAnulowania ELSE NULL END AS DataAnul
                     FROM dbo.ZamowieniaMieso z
                     LEFT JOIN dbo.ZamowieniaMiesoTowar zt ON zt.ZamowienieId = z.Id
+                    LEFT JOIN dbo.operators opHand ON opHand.ID = CAST(z.IdUser AS NVARCHAR(50))
+                    LEFT JOIN dbo.operators opAnul ON opAnul.ID = z.AnulowanePrzez
                     WHERE z.KlientId = @kid
                       AND (@months <= 0 OR z.DataPrzyjazdu >= DATEADD(MONTH, -@months, GETDATE()))
                       AND ISNULL(z.Status,'') IN ('Anulowane','Anulowano')
-                    GROUP BY z.Id, z.DataZamowienia, z.DataPrzyjazdu, z.Uwagi, z.IdUser, z.AnulowanePrzez, z.DataAnulowania
+                    GROUP BY z.Id, z.DataZamowienia, z.DataPrzyjazdu, z.PrzyczynaAnulowania, z.Uwagi,
+                             z.IdUser, opHand.Name, z.AnulowanePrzez, opAnul.Name, z.DataAnulowania
                     ORDER BY z.DataPrzyjazdu DESC";
                 await using var cmd = new SqlCommand(sql, cn) { CommandTimeout = 8 };
                 cmd.Parameters.AddWithValue("@kid", klientId);
@@ -1061,10 +1069,11 @@ namespace Kalendarz1.Customer360.Services
                         DataPrzyjazdu = rd.IsDBNull(2) ? null : (DateTime?)rd.GetDateTime(2),
                         SumaKg = rd.IsDBNull(3) ? 0m : rd.GetDecimal(3),
                         Wartosc = rd.IsDBNull(4) ? 0m : rd.GetDecimal(4),
-                        Powod = rd.GetString(5),
-                        Handlowiec = rd.GetString(6),
-                        AnulowanePrzez = rd.IsDBNull(7) ? "" : rd.GetString(7),
-                        DataAnulowania = rd.IsDBNull(8) ? null : (DateTime?)rd.GetDateTime(8)
+                        Przyczyna = rd.GetString(5),
+                        Uwagi = rd.GetString(6),
+                        Handlowiec = rd.GetString(7),
+                        AnulowanePrzez = rd.IsDBNull(8) ? "" : rd.GetString(8),
+                        DataAnulowania = rd.IsDBNull(9) ? null : (DateTime?)rd.GetDateTime(9)
                     });
                 }
             }

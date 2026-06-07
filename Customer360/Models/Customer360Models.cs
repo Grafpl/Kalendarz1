@@ -233,10 +233,15 @@ namespace Kalendarz1.Customer360.Models
         public DateTime? DataPrzyjazdu { get; set; }
         public decimal SumaKg { get; set; }
         public decimal Wartosc { get; set; }
-        public string Powod { get; set; } = "";
+        /// <summary>Przyczyna anulacji z dbo.ZamowieniaMieso.PrzyczynaAnulowania (osobne pole od Uwagi zamowienia).</summary>
+        public string Przyczyna { get; set; } = "";
+        /// <summary>Uwagi do zamowienia (z dbo.ZamowieniaMieso.Uwagi) — kontekst co klient chcial pierwotnie. NIE jest powodem anulacji.</summary>
+        public string Uwagi { get; set; } = "";
+        /// <summary>Nazwa handlowca ktory zlozyl zamowienie (z JOIN do operators).</summary>
+        public string Handlowiec { get; set; } = "";
+        /// <summary>Nazwa osoby ktora anulowala (z JOIN do operators).</summary>
         public string AnulowanePrzez { get; set; } = "";
         public DateTime? DataAnulowania { get; set; }
-        public string Handlowiec { get; set; } = "";
     }
 
     /// <summary>Pełna faktura z liniami pozycji.</summary>
