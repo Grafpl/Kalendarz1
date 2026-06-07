@@ -513,6 +513,44 @@
             </TabItem>
 
             <!-- Tab 4: WERYFIKACJA — zamówienia × faktury -->
+              </TabControl>
+            </TabItem>
+            <!-- ═══ GRUPA: TRANSPARENTNOSC ODBIORCY ═══ -->
+            <TabItem Header="🚨 Transparentność">
+              <TabControl Background="Transparent" BorderThickness="0" Padding="0">
+
+            <!-- Sub-Tab T0: ANULOWANE ZAMOWIENIA (przeniesione ze Sprzedazy) -->
+            <TabItem Header="❌ Anulowane">
+                <Border Padding="20,16">
+                    <StackPanel>
+                        <Border Style="{StaticResource CardStyle}" Background="#FEF3C7" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock x:Name="AnulHeader" Text="Anulowane zamówienia w ostatnich 12 mies" FontWeight="SemiBold" FontSize="13"/>
+                                <TextBlock x:Name="AnulSummary" Text="—" FontSize="11" Foreground="#92400E" Margin="0,4,0,0"/>
+                            </StackPanel>
+                        </Border>
+                        <DataGrid x:Name="GridAnulowane" AutoGenerateColumns="False" IsReadOnly="True"
+                                  CanUserAddRows="False" CanUserDeleteRows="False"
+                                  GridLinesVisibility="Horizontal" Background="White"
+                                  RowHeight="34" ColumnHeaderHeight="36"
+                                  AlternatingRowBackground="#FAFBFC" BorderBrush="{StaticResource Border}" BorderThickness="1">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="60"/>
+                                <DataGridTextColumn Header="Data zamówienia" Binding="{Binding DataZamowienia, StringFormat=dd.MM.yyyy}" Width="140"/>
+                                <DataGridTextColumn Header="Data przyjazdu" Binding="{Binding DataPrzyjazdu, StringFormat=dd.MM.yyyy}" Width="130"/>
+                                <DataGridTextColumn Header="Suma kg" Binding="{Binding SumaKg, StringFormat=N0}" Width="100"/>
+                                <DataGridTextColumn Header="Wartość" Binding="{Binding Wartosc, StringFormat={}{0:N2} zł}" Width="130"/>
+                                <DataGridTextColumn Header="Handlowiec" Binding="{Binding Handlowiec}" Width="120"/>
+                                <DataGridTextColumn Header="Anulował" Binding="{Binding AnulowanePrzez}" Width="120"/>
+                                <DataGridTextColumn Header="Data anulowania" Binding="{Binding DataAnulowania, StringFormat=dd.MM.yyyy HH:mm}" Width="160"/>
+                                <DataGridTextColumn Header="Powód / Uwagi" Binding="{Binding Powod}" Width="*"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </StackPanel>
+                </Border>
+            </TabItem>
+
+            <!-- Sub-Tab T0b: NIEDOTRZYMANIE (przeniesione ze Sprzedazy) -->
             <TabItem Header="⚖ Niedotrzymanie">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20,16">
                     <StackPanel>
@@ -600,43 +638,6 @@
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
-
-            <!-- Tab 5: ANULOWANE -->
-            <TabItem Header="❌ Anulowane">
-                <Border Padding="20,16">
-                    <StackPanel>
-                        <Border Style="{StaticResource CardStyle}" Background="#FEF3C7" Margin="0,0,0,12">
-                            <StackPanel>
-                                <TextBlock x:Name="AnulHeader" Text="Anulowane zamówienia w ostatnich 12 mies" FontWeight="SemiBold" FontSize="13"/>
-                                <TextBlock x:Name="AnulSummary" Text="—" FontSize="11" Foreground="#92400E" Margin="0,4,0,0"/>
-                            </StackPanel>
-                        </Border>
-                        <DataGrid x:Name="GridAnulowane" AutoGenerateColumns="False" IsReadOnly="True"
-                                  CanUserAddRows="False" CanUserDeleteRows="False"
-                                  GridLinesVisibility="Horizontal" Background="White"
-                                  RowHeight="34" ColumnHeaderHeight="36"
-                                  AlternatingRowBackground="#FAFBFC" BorderBrush="{StaticResource Border}" BorderThickness="1">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="60"/>
-                                <DataGridTextColumn Header="Data zamówienia" Binding="{Binding DataZamowienia, StringFormat=dd.MM.yyyy}" Width="140"/>
-                                <DataGridTextColumn Header="Data przyjazdu" Binding="{Binding DataPrzyjazdu, StringFormat=dd.MM.yyyy}" Width="130"/>
-                                <DataGridTextColumn Header="Suma kg" Binding="{Binding SumaKg, StringFormat=N0}" Width="100"/>
-                                <DataGridTextColumn Header="Wartość" Binding="{Binding Wartosc, StringFormat={}{0:N2} zł}" Width="130"/>
-                                <DataGridTextColumn Header="Handlowiec" Binding="{Binding Handlowiec}" Width="120"/>
-                                <DataGridTextColumn Header="Anulował" Binding="{Binding AnulowanePrzez}" Width="120"/>
-                                <DataGridTextColumn Header="Data anulowania" Binding="{Binding DataAnulowania, StringFormat=dd.MM.yyyy HH:mm}" Width="160"/>
-                                <DataGridTextColumn Header="Powód / Uwagi" Binding="{Binding Powod}" Width="*"/>
-                            </DataGrid.Columns>
-                        </DataGrid>
-                    </StackPanel>
-                </Border>
-            </TabItem>
-
-              </TabControl>
-            </TabItem>
-            <!-- ═══ GRUPA: TRANSPARENTNOSC ODBIORCY ═══ -->
-            <TabItem Header="🚨 Transparentność">
-              <TabControl Background="Transparent" BorderThickness="0" Padding="0">
 
             <!-- Sub-Tab T1: SYGNALY I ALERTY (hero + 6 KPI + timeline) -->
             <TabItem Header="📉 Sygnały i alerty">
