@@ -142,6 +142,25 @@ namespace Kalendarz1.Transport.WPF
         /// Używa istniejącego WinForms TransportRaportForm z czasów starego planowania
         /// (reuse logiki ZaladujKursyAsync + PrintDocument_PrintPage).
         /// </summary>
+        /// <summary>
+        /// Otwiera okno statystyk rozładunku per klient (uczone z Webfleet GPS).
+        /// Pokazuje medianę czasu, liczbę wizyt, wiarygodność + TOP 5 najdłużej/najkrócej.
+        /// W oknie: 🔄 Odśwież → przelicz dane GPS z ostatnich 30 dni.
+        /// </summary>
+        private void BtnStatystyki_Click(object s, RoutedEventArgs e)
+        {
+            try
+            {
+                var win = new StatystykiRozladunkuWindow { Owner = this };
+                win.Show();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Nie udało się otworzyć statystyk:\n{ex.Message}", "Statystyki",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
         private async void BtnRaport_Click(object s, RoutedEventArgs e)
         {
             try

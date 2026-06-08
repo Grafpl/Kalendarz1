@@ -37,9 +37,13 @@ namespace Kalendarz1.Transport.Services
     public class HistoriaRozladunkuService
     {
         // ── Stałe ────────────────────────────────────────────────────────────
-        // Filtr „realnej wizyty"
+        // Filtr „realnej wizyty" (postoju na rozładunek u klienta)
         private const int MinWizytaMin = 5;     // krótszy postój = przelot / korek
-        private const int MaxWizytaMin = 240;   // dłuższy = nocowanie / anomalia
+        private const int MaxWizytaMin = 180;   // dłuższy = pauza/nocowanie (typowy rozładunek ≤2h)
+        // Godziny robocze — wizyty rozpoczynające się poza tym oknem to nocleg/pauza kierowcy
+        // Klienci POL zwykle pracują 06:00-22:00; wszystko poza = nieprawdziwy postój
+        private const int RoboczeStart = 5;     // 05:00
+        private const int RoboczeKoniec = 23;   // 23:00
         // Filtr „realnego odcinka jazdy" (B2)
         private const int MinOdcinekMin = 5;    // <5 min = klient blisko, w sąsiednim bloku
         private const int MaxOdcinekMin = 300;  // >5h = przerwa nocna lub long-haul
@@ -391,6 +395,17 @@ namespace Kalendarz1.Transport.Services
         {
             int min = (int)Math.Round((koniec - start).TotalMinutes);
             if (min < MinWizytaMin || min > MaxWizytaMin) return;
+
+            // Filtr nocy/pauz: wizyta która przechodzi przez północ = nocleg kierowcy (nie rozładunek)
+            if (start.Date != koniec.Date) return;
+
+            // Wizyta rozpoczynająca się POZA godzinami pracy (np. 23:30, 02:15) — nocna pauza
+            int hStart = start.Hour;
+            if (hStart < RoboczeStart || hStart >= RoboczeKoniec) return;
+
+            // Wizyta KOŃCZĄCA się głęboko w nocy mimo rozsądnego startu — odjazd nad ranem po pauzie
+            if (koniec.Hour >= RoboczeKoniec || koniec.Hour < RoboczeStart) return;
+
             wynik.Add(new Wizyta(klientId, min, start, koniec));
         }
 
