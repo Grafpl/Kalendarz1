@@ -104,6 +104,9 @@ namespace Kalendarz1.Transport.WPF
             // drag&drop
             WolneGrid.PreviewMouseLeftButtonDown += (_, e) => _dragStart = e.GetPosition(null);
             WolneGrid.PreviewMouseMove += WolneGrid_PreviewMouseMove;
+            WolneGrid.DragOver += WolneGrid_DragOver;
+            WolneGrid.Drop += WolneGrid_Drop;
+            WolneGrid.DragLeave += (_, _) => { if (DropHintWolne != null) DropHintWolne.Visibility = Visibility.Collapsed; };
             LadunkiGrid.PreviewMouseLeftButtonDown += (_, e) => _dragStart = e.GetPosition(null);
             LadunkiGrid.PreviewMouseMove += LadunkiGrid_PreviewMouseMove;
             LadunkiGrid.DragOver += LadunkiGrid_DragOver;
@@ -519,6 +522,15 @@ namespace Kalendarz1.Transport.WPF
         private void BtnUsunLadunek_Click(object sender, RoutedEventArgs e)
         {
             if (LadunkiGrid.SelectedItem is not LadunekWierszWpf lad) return;
+            UsunLadunek(lad);
+        }
+
+        /// <summary>
+        /// Usuwa ładunek z kursu i (jeśli to zamówienie ZAM_) odkłada do listy wolnych zamówień.
+        /// Używane przez przycisk Usuń i drag-and-drop (ładunek → wolne zamówienia).
+        /// </summary>
+        private void UsunLadunek(LadunekWierszWpf lad)
+        {
             if (lad.LadunekID > 0) _ladunkiDoUsuniecia.Add(lad.LadunekID);
             _ladunki.Remove(lad);
             Renumeruj();
@@ -630,8 +642,58 @@ namespace Kalendarz1.Transport.WPF
             if (e.LeftButton != MouseButtonState.Pressed) return;
             if (!WpfDragHelper.ExceededThreshold(_dragStart, e.GetPosition(null))) return;
             if (LadunkiGrid.SelectedItem is not LadunekWierszWpf lad) return;
+
+            // Ghost + hint na wolnych zamówieniach („wywal z kursu") — tylko dla ładunków z ZAM_ id
+            // (LadunekID > 0 z bazy lub świeży z DodajWolne — czyli ZamowienieId.HasValue)
+            bool moznaWywalic = lad.ZamowienieId.HasValue;
+            StartGhost(moznaWywalic
+                ? $"🗑 {lad.NazwaKlienta} — przeciągnij do Wolnych aby usunąć z kursu, lub na inny wiersz aby zmienić kolejność"
+                : $"↕ {lad.NazwaKlienta} — przeciągnij aby zmienić kolejność");
+            if (moznaWywalic && DropHintWolne != null) DropHintWolne.Visibility = Visibility.Visible;
+
             try { DragDrop.DoDragDrop(LadunkiGrid, new DataObject(FmtLadunek, lad), DragDropEffects.Move); }
             catch { }
+            finally
+            {
+                EndGhost();
+                if (DropHintWolne != null) DropHintWolne.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        /// <summary>
+        /// Drag z LadunkiGrid → Drop na WolneGrid = wywalenie z kursu (odpowiednik przycisku Usuń).
+        /// Drop z FmtWolne (zamówienie → wolne) jest ignorowany — to nie ma sensu (zamówienie już jest wolne).
+        /// </summary>
+        private void WolneGrid_DragOver(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent(FmtLadunek))
+            {
+                e.Effects = DragDropEffects.Move;
+                if (DropHintWolne != null) DropHintWolne.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                e.Effects = DragDropEffects.None;
+            }
+            if (_ghost != null && Content is IInputElement root) _ghost.SetPosition(e.GetPosition(root));
+            e.Handled = true;
+        }
+
+        private void WolneGrid_Drop(object sender, DragEventArgs e)
+        {
+            if (DropHintWolne != null) DropHintWolne.Visibility = Visibility.Collapsed;
+            if (!e.Data.GetDataPresent(FmtLadunek)) return;
+            if (e.Data.GetData(FmtLadunek) is not LadunekWierszWpf lad) return;
+
+            // Tylko ładunki z zamówieniem (ZAM_) wracają do wolnych — ręczne ładunki nie mają gdzie wrócić
+            if (!lad.ZamowienieId.HasValue)
+            {
+                StatusText.Text = "Tego ładunku nie można wywalić do wolnych (brak ZamowienieId).";
+                return;
+            }
+            UsunLadunek(lad);
+            StatusText.Text = $"✓ Wywalono z kursu: {lad.NazwaKlienta}";
+            e.Handled = true;
         }
 
         private void LadunkiGrid_DragOver(object sender, DragEventArgs e)
