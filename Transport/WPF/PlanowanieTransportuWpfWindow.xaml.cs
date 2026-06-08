@@ -136,6 +136,25 @@ namespace Kalendarz1.Transport.WPF
             }
         }
 
+        /// <summary>
+        /// Raport transportowy — wszystkie kursy z wybranej daty + drukowanie.
+        /// Otwiera istniejący WinForms TransportRaportForm z czasów starego planowania.
+        /// Window-level dialog, niemodalny — można zostawić otwarte obok WPF.
+        /// </summary>
+        private void BtnRaport_Click(object s, RoutedEventArgs e)
+        {
+            try
+            {
+                const string conn = "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+                var raport = new Kalendarz1.Transport.TransportRaportForm(conn);
+                raport.Show();   // WinForms .Show() — niemodalny, ale wymaga że WinForms message loop działa
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Nie udało się otworzyć raportu:\n{ex.Message}", "Raport", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
         private async void TglEta_Click(object s, RoutedEventArgs e)
         {
             // Toggle widoczność kolumny "🎯 ETA → następny" + dolicz live z Webfleet

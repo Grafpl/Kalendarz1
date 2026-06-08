@@ -75,6 +75,10 @@
                                     Click="BtnGeokoduj_Click" Background="Transparent" BorderBrush="{StaticResource Line}" BorderThickness="1"
                                     Cursor="Hand" FontSize="12" Foreground="{StaticResource InkSecondary}"
                                     ToolTip="Otwórz Mapa Klientów — kliknij tam '📍 Geokoduj adresy' żeby uzupełnić współrzędne klientów (potrzebne do ETA)."/>
+                            <Button Content="📊 Raport" Margin="6,0,0,0" Padding="10,5" VerticalAlignment="Center"
+                                    Click="BtnRaport_Click" Background="Transparent" BorderBrush="{StaticResource Line}" BorderThickness="1"
+                                    Cursor="Hand" FontSize="12" Foreground="{StaticResource InkSecondary}"
+                                    ToolTip="Raport transportowy — wszystkie kursy z wybranej daty + drukowanie."/>
                             <ToggleButton x:Name="TglEta" Content="🎯 ETA" Margin="6,0,0,0" Padding="10,5" VerticalAlignment="Center"
                                           Click="TglEta_Click" Background="Transparent" BorderBrush="{StaticResource Line}" BorderThickness="1"
                                           Cursor="Hand" FontSize="12" Foreground="{StaticResource InkSecondary}">
