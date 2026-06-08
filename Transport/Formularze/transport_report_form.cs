@@ -275,7 +275,55 @@ namespace Kalendarz1.Transport
                 kurs.PaletyUzyteNominal = (int)Math.Ceiling((double)kurs.SumaPojemnikiE2 / kurs.PlanE2NaPalete);
             }
 
+            // Fallback: dla ładunków bez nazwy klienta (cache KlientAdres pusty) dociągnij
+            // bezpośrednio z HANDEL.SSCommon.STContractors przez ZamowieniaMieso.KlientId
+            await UzupelnijNazwyZHandelAsync(kursy);
+
             return kursy;
+        }
+
+        private async Task UzupelnijNazwyZHandelAsync(List<KursRaport> kursy)
+        {
+            var brakujace = kursy
+                .SelectMany(k => k.Ladunki)
+                .Where(l => string.IsNullOrEmpty(l.NazwaKlienta) && l.KlientId.HasValue && l.KlientId.Value > 0)
+                .Select(l => l.KlientId!.Value)
+                .Distinct()
+                .ToList();
+
+            if (brakujace.Count == 0) return;
+
+            var nazwy = new Dictionary<int, string>();
+            const string connHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
+            try
+            {
+                await using var cn = new SqlConnection(connHandel);
+                await cn.OpenAsync();
+                using var cmd = cn.CreateCommand();
+                var parametry = new List<string>();
+                for (int i = 0; i < brakujace.Count; i++)
+                {
+                    var p = $"@id{i}";
+                    parametry.Add(p);
+                    cmd.Parameters.AddWithValue(p, brakujace[i]);
+                }
+                cmd.CommandText = $"SELECT Id, Name FROM [SSCommon].[STContractors] WHERE Id IN ({string.Join(",", parametry)})";
+                cmd.CommandTimeout = 15;
+                await using var r = await cmd.ExecuteReaderAsync();
+                while (await r.ReadAsync())
+                    nazwy[r.GetInt32(0)] = r.IsDBNull(1) ? "" : r.GetString(1);
+            }
+            catch { /* silent — gdy Handel niedostępny pokażemy ZAM_xxx */ }
+
+            // Podstaw nazwy do ładunków + uzupełnij KlientAdres dla przyszłych raportów
+            foreach (var lad in kursy.SelectMany(k => k.Ladunki))
+            {
+                if (string.IsNullOrEmpty(lad.NazwaKlienta) && lad.KlientId.HasValue
+                    && nazwy.TryGetValue(lad.KlientId.Value, out var n) && !string.IsNullOrEmpty(n))
+                {
+                    lad.NazwaKlienta = n;
+                }
+            }
         }
 
         private async Task<List<LadunekRaport>> PobierzLadunkiKursuAsync(long kursId)
@@ -295,7 +343,8 @@ namespace Kalendarz1.Transport
                        zm.DataPrzyjazdu AS DataAwizacji,
                        ISNULL((SELECT SUM(t.Ilosc) FROM LibraNet.dbo.ZamowieniaMiesoTowar t
                                WHERE t.ZamowienieId = zm.Id), 0) AS IloscKg,
-                       ka.NazwaKlienta
+                       ka.NazwaKlienta,
+                       zm.KlientId
                 FROM dbo.Ladunek l
                 LEFT JOIN LibraNet.dbo.ZamowieniaMieso zm
                     ON l.KodKlienta LIKE 'ZAM[_]%'
@@ -321,7 +370,8 @@ namespace Kalendarz1.Transport
                     Uwagi = reader.IsDBNull(6) ? null : reader.GetString(6),
                     DataAwizacji = reader.IsDBNull(7) ? null : reader.GetDateTime(7),
                     IloscKg = reader.IsDBNull(8) ? 0 : Convert.ToDecimal(reader.GetValue(8)),
-                    NazwaKlienta = reader.IsDBNull(9) ? null : reader.GetString(9)
+                    NazwaKlienta = reader.IsDBNull(9) ? null : reader.GetString(9),
+                    KlientId = reader.IsDBNull(10) ? null : Convert.ToInt32(reader.GetValue(10))
                 });
             }
 
@@ -462,13 +512,8 @@ namespace Kalendarz1.Transport
                 yPos += 12;
             }
 
-            // ═══ LAYOUT 2-KOLUMNOWY ═══════════════════════════════════════════
+            // ═══ LAYOUT 1-KOLUMNOWY (pełna szerokość strony) ═══════════════════
             int yStop = bounds.Bottom - 14;
-            int kolW = (bounds.Width - GAP_KOL) / 2;
-            int[] kolX = { bounds.Left, bounds.Left + kolW + GAP_KOL };
-
-            int kolumna = 0;
-            int[] yKol = { yPos, yPos };
             var kultPL = new System.Globalization.CultureInfo("pl-PL");
 
             while (_printKursIndex < kursyPosortowane.Count)
@@ -476,15 +521,7 @@ namespace Kalendarz1.Transport
                 var kurs = kursyPosortowane[_printKursIndex];
                 int kartaH = ObliczWysokoscKarty(kurs);
 
-                int wybranaKolumna = -1;
-                if (yKol[kolumna] + kartaH <= yStop) wybranaKolumna = kolumna;
-                else
-                {
-                    int innaKolumna = 1 - kolumna;
-                    if (yKol[innaKolumna] + kartaH <= yStop) wybranaKolumna = innaKolumna;
-                }
-
-                if (wybranaKolumna == -1)
+                if (yPos + kartaH > yStop)
                 {
                     RysujStopke(g, bounds, fS, brGray);
                     e.HasMorePages = true;
@@ -492,12 +529,8 @@ namespace Kalendarz1.Transport
                     return;
                 }
 
-                int xK = kolX[wybranaKolumna];
-                int yK = yKol[wybranaKolumna];
-                RysujKarte(g, xK, yK, kolW, kurs, fKurs, fT, fTGray, br, brGray, penKurs, kultPL);
-                yKol[wybranaKolumna] += kartaH + GAP_KART;
-
-                kolumna = 1 - wybranaKolumna;
+                RysujKarte(g, bounds.Left, yPos, bounds.Width, kurs, fKurs, fT, fTGray, br, brGray, penKurs, kultPL);
+                yPos += kartaH + GAP_KART;
                 _printKursIndex++;
             }
 
@@ -622,5 +655,6 @@ namespace Kalendarz1.Transport
         public DateTime? DataAwizacji { get; set; }
         public decimal IloscKg { get; set; }
         public string NazwaKlienta { get; set; }
+        public int? KlientId { get; set; }   // do fallback lookup w HM.STContractors gdy KlientAdres puste
     }
 }
