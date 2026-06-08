@@ -222,12 +222,13 @@ namespace Kalendarz1.Transport
             using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
 
-            // Pobierz kursy z podstawowymi danymi
+            // Pobierz kursy z podstawowymi danymi + telefon kierowcy
             var sqlKursy = @"
-                SELECT 
-                    k.KursID, k.DataKursu, k.Trasa, k.GodzWyjazdu, k.GodzPowrotu, 
+                SELECT
+                    k.KursID, k.DataKursu, k.Trasa, k.GodzWyjazdu, k.GodzPowrotu,
                     k.Status, k.PlanE2NaPalete,
                     CONCAT(ki.Imie, ' ', ki.Nazwisko) AS KierowcaNazwa,
+                    ki.Telefon AS KierowcaTelefon,
                     p.Rejestracja AS PojazdRejestracja,
                     p.PaletyH1 AS PaletyPojazdu
                 FROM dbo.Kurs k
@@ -254,8 +255,9 @@ namespace Kalendarz1.Transport
                             Status = reader.GetString(5),
                             PlanE2NaPalete = reader.GetByte(6),
                             KierowcaNazwa = reader.GetString(7),
-                            PojazdRejestracja = reader.GetString(8),
-                            PaletyPojazdu = reader.GetInt32(9)
+                            KierowcaTelefon = reader.IsDBNull(8) ? null : reader.GetString(8),
+                            PojazdRejestracja = reader.GetString(9),
+                            PaletyPojazdu = reader.GetInt32(10)
                         };
 
                         kursy.Add(kurs);
@@ -389,215 +391,137 @@ namespace Kalendarz1.Transport
         }
 
         // ────────────────────────────────────────────────────────────────────
-        // RAPORT — czarno-biały, zbity, paginacja per-wiersz dla długich kursów
+        // RAPORT — kompaktowy 2-kolumnowy layout (landscape A4)
         // ────────────────────────────────────────────────────────────────────
-        // Layout:
-        //   Strona 1: header firmy + tytuł + sumaryzacja
-        //   Każda strona: karty kursów (header + tabela ładunków + suma)
-        //   Karta dzielona między stronami jeśli za długa
-        //   Stopka: data wygenerowania + strona N
+        // Layout 2 kolumn (kursy „wpadają" lewa→prawa, gdy pełna → nowa strona)
+        // Sortowanie: od najwcześniejszego wyjazdu do najpóźniejszego
+        // Numery telefonów kierowców (clickable w mobile)
+        // Wszystkie kursy gwarantowane (paginacja na poziomie kursu)
         // ────────────────────────────────────────────────────────────────────
 
         private int _printPageIndex;      // numer strony (od 1)
-        private int _printKursIndex;      // index aktualnego kursu
-        private int _printLadunekIndex;   // index ładunku w aktualnym kursie (dla kursów dzielonych)
-        private bool _printPokazujHeaderKarty;  // czy rysować header karty (false dla kontynuacji ze strony poprzedniej)
+        private int _printKursIndex;      // index w posortowanej liście
 
-        // ─ kolumny tabeli — wspólne dla header + wierszy + sumy ──────────────
-        private const int COL_LP = 28, COL_AWIZ = 60, COL_KG = 62, COL_POJ = 48, COL_PAL = 50, COL_UWAGI = 100;
-        private const int ROW_H = 15;       // wysokość wiersza ładunku (zbicie)
-        private const int TABLE_HEAD_H = 18;
-        private const int KART_HEAD_H = 40;
-        private const int SUMA_H = 18;
+        // ─ kolumny mini-tabeli ładunków per karta ─────────────────────────────
+        private const int COL_LP = 20, COL_AWIZ = 44, COL_KG = 52, COL_POJ = 36, COL_PAL = 32;
+        private const int ROW_H = 12;       // wiersz ładunku — bardzo zbity
+        private const int TABLE_HEAD_H = 14;
+        private const int KART_HEAD_H = 36;  // 3 linie po ~12px
+        private const int SUMA_H = 14;
+        private const int GAP_KOL = 10;     // odstęp między kolumnami
+        private const int GAP_KART = 6;     // odstęp pionowy między kartami
 
         private void PrintDocument_PrintPage(object sender, PrintPageEventArgs e)
         {
-            if (_printPageIndex == 0) { _printPageIndex = 1; _printKursIndex = 0; _printLadunekIndex = 0; _printPokazujHeaderKarty = true; }
+            if (_printPageIndex == 0) { _printPageIndex = 1; _printKursIndex = 0; }
 
             var g = e.Graphics;
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
             g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
             var bounds = e.MarginBounds;
 
-            // Czcionki — czarno-białe, czytelne
-            var fH1 = new Font("Segoe UI", 14, FontStyle.Bold);
-            var fH2 = new Font("Segoe UI", 10, FontStyle.Bold);
-            var fH3 = new Font("Segoe UI", 9, FontStyle.Bold);
-            var fT  = new Font("Segoe UI", 8.5f);
-            var fTB = new Font("Segoe UI", 8.5f, FontStyle.Bold);
-            var fS  = new Font("Segoe UI", 7.5f);
+            var fH1 = new Font("Segoe UI", 12, FontStyle.Bold);
+            var fH2 = new Font("Segoe UI", 9, FontStyle.Bold);
+            var fH3 = new Font("Segoe UI", 8, FontStyle.Bold);
+            var fT  = new Font("Segoe UI", 7.5f);
+            var fTB = new Font("Segoe UI", 7.5f, FontStyle.Bold);
+            var fS  = new Font("Segoe UI", 7f);
 
             var br = Brushes.Black;
             var brGray = Brushes.DimGray;
-            using var penThin = new Pen(Color.Black, 0.6f);
-            using var penThick = new Pen(Color.Black, 1.4f);
-            using var brHeaderBg = new SolidBrush(Color.FromArgb(235, 235, 235));
+            using var penThin = new Pen(Color.Black, 0.5f);
+            using var penThick = new Pen(Color.Black, 1.2f);
+            using var brHeaderBg = new SolidBrush(Color.FromArgb(232, 232, 232));
+
+            // Sortowanie posortowane raz (rosnąco po godzinie wyjazdu)
+            var kursyPosortowane = _kursy
+                .OrderBy(k => k.GodzWyjazdu ?? TimeSpan.MaxValue)
+                .ThenBy(k => k.KursID)
+                .ToList();
 
             int yPos = bounds.Top;
 
-            // ═══ HEADER strony 1 ═══════════════════════════════════════════════
+            // ═══ HEADER strony 1 ══════════════════════════════════════════════
             if (_printPageIndex == 1)
             {
                 g.DrawString("UBOJNIA DROBIU PIÓRKOWSCY", fH1, br,
-                    new RectangleF(bounds.Left, yPos, bounds.Width, 20),
+                    new RectangleF(bounds.Left, yPos, bounds.Width, 16),
                     new StringFormat { Alignment = StringAlignment.Center });
-                yPos += 22;
+                yPos += 18;
+
                 g.DrawString("Koziołki 40, 95-061 Dmosin   ·   NIP: 726-162-54-06   ·   Ilona Krakowiak: 508 309 314",
                     fT, brGray,
-                    new RectangleF(bounds.Left, yPos, bounds.Width, 12),
+                    new RectangleF(bounds.Left, yPos, bounds.Width, 11),
                     new StringFormat { Alignment = StringAlignment.Center });
-                yPos += 16;
+                yPos += 14;
 
                 g.DrawLine(penThick, bounds.Left, yPos, bounds.Right, yPos);
-                yPos += 8;
+                yPos += 5;
 
                 var data = dtpData.Value;
                 var kultura = new System.Globalization.CultureInfo("pl-PL");
                 string dzienTyg = data.ToString("dddd", kultura);
-                g.DrawString($"RAPORT TRANSPORTOWY — {data:dd.MM.yyyy} ({dzienTyg})", fH2, br,
-                    bounds.Left, yPos);
-                yPos += 18;
 
-                // Sumaryzacja jako pasek z obramowaniem (B&W)
-                int sumPoj = _kursy.Sum(k => k.SumaPojemnikiE2);
-                int sumPal = _kursy.Sum(k => k.PaletyUzyteNominal);
-                int sumLad = _kursy.Sum(k => k.Ladunki.Count);
-                decimal sumKg = _kursy.Sum(k => k.SumaKg);
-                string podsum = $"{_kursy.Count} kurs(y) · {sumLad} klient(ów) · {sumKg:N0} kg · {sumPoj} pojemników · {sumPal} palet";
-                g.FillRectangle(brHeaderBg, bounds.Left, yPos, bounds.Width, 18);
-                g.DrawRectangle(penThin, bounds.Left, yPos, bounds.Width, 18);
-                g.DrawString(podsum, fTB, br, bounds.Left + 6, yPos + 3);
-                yPos += 22;
+                int sumPoj = kursyPosortowane.Sum(k => k.SumaPojemnikiE2);
+                int sumPal = kursyPosortowane.Sum(k => k.PaletyUzyteNominal);
+                int sumLad = kursyPosortowane.Sum(k => k.Ladunki.Count);
+                decimal sumKg = kursyPosortowane.Sum(k => k.SumaKg);
+
+                g.FillRectangle(brHeaderBg, bounds.Left, yPos, bounds.Width, 16);
+                g.DrawRectangle(penThin, bounds.Left, yPos, bounds.Width, 16);
+                string tytul = $"RAPORT TRANSPORTOWY  {data:dd.MM.yyyy} ({dzienTyg})  ·  {kursyPosortowane.Count} kurs(y) · {sumLad} klient(ów) · {sumKg:N0} kg · {sumPoj} poj. · {sumPal} palet";
+                g.DrawString(tytul, fH2, br,
+                    new RectangleF(bounds.Left + 4, yPos + 1, bounds.Width - 8, 14),
+                    new StringFormat { LineAlignment = StringAlignment.Center });
+                yPos += 20;
             }
 
-            // ═══ KARTY KURSÓW (z paginacją per-wiersz) ════════════════════════
-            // Szerokości kolumn — szerokość klienta = całość - inne kolumny
-            int wTotal = bounds.Width;
-            int wKlient = wTotal - COL_LP - COL_AWIZ - COL_KG - COL_POJ - COL_PAL - COL_UWAGI;
-            int[] szer = { COL_LP, wKlient, COL_AWIZ, COL_KG, COL_POJ, COL_PAL, COL_UWAGI };
-            string[] headers = { "Lp", "Klient", "Awizacja", "Kg", "Poj.", "Palet", "Uwagi" };
-            StringAlignment[] aligns = {
-                StringAlignment.Center, StringAlignment.Near, StringAlignment.Center,
-                StringAlignment.Far, StringAlignment.Center, StringAlignment.Center, StringAlignment.Near
-            };
+            // ═══ LAYOUT 2-KOLUMNOWY ═══════════════════════════════════════════
+            int yStop = bounds.Bottom - 14;       // miejsce na stopkę
+            int kolW = (bounds.Width - GAP_KOL) / 2;
+            int[] kolX = { bounds.Left, bounds.Left + kolW + GAP_KOL };
 
-            int yStop = bounds.Bottom - 18;   // miejsce na stopkę
+            int kolumna = 0;
+            int yLewa = yPos, yPrawa = yPos;
+            int[] yKol = { yPos, yPos };
 
-            while (_printKursIndex < _kursy.Count)
+            while (_printKursIndex < kursyPosortowane.Count)
             {
-                var kurs = _kursy[_printKursIndex];
-                var ladunki = kurs.Ladunki.OrderBy(z => z.Kolejnosc).ToList();
-                int liczbaPozostalych = ladunki.Count - _printLadunekIndex;
+                var kurs = kursyPosortowane[_printKursIndex];
+                int kartaH = ObliczWysokoscKarty(kurs);
 
-                // Wymaganie minimum: header karty + table header + 1 wiersz + suma = czytelnie nie zaczynamy karty pod koniec strony
-                int wymaganeMin = (_printPokazujHeaderKarty ? KART_HEAD_H : 0) + TABLE_HEAD_H + ROW_H + SUMA_H;
-                if (yPos + wymaganeMin > yStop)
+                // Znajdź kolumnę dla tej karty:
+                // 1. Próbuj aktualnej
+                // 2. Jeśli nie mieści się → spróbuj drugiej (która ma mniej zapełniona)
+                // 3. Jeśli żadna → nowa strona
+                int wybranaKolumna = -1;
+                if (yKol[kolumna] + kartaH <= yStop) wybranaKolumna = kolumna;
+                else
                 {
+                    int innaKolumna = 1 - kolumna;
+                    if (yKol[innaKolumna] + kartaH <= yStop) wybranaKolumna = innaKolumna;
+                }
+
+                if (wybranaKolumna == -1)
+                {
+                    // Obie kolumny pełne — nowa strona
+                    RysujStopke(g, bounds, fS, brGray);
                     e.HasMorePages = true;
                     _printPageIndex++;
-                    RysujStopke(g, bounds, fS, brGray);
                     return;
                 }
 
-                // ── HEADER karty (gdy nie kontynuacja)
-                if (_printPokazujHeaderKarty)
-                {
-                    g.DrawRectangle(penThin, bounds.Left, yPos, wTotal, KART_HEAD_H);
-                    string godziny = $"{kurs.GodzWyjazdu?.ToString(@"hh\:mm") ?? "--"} → {kurs.GodzPowrotu?.ToString(@"hh\:mm") ?? "--"}";
-                    string linia1 = $"KURS #{kurs.KursID}   ·   {kurs.KierowcaNazwa}   ·   {kurs.PojazdRejestracja}";
-                    string linia2 = $"Wyjazd: {kurs.DataKursu:dd.MM} {godziny}   ·   {kurs.Status}   ·   pojemność: {kurs.PaletyUzyteNominal}/{kurs.PaletyPojazdu} palet";
-                    if (!string.IsNullOrWhiteSpace(kurs.Trasa)) linia2 += $"   ·   trasa: {kurs.Trasa}";
-                    g.DrawString(linia1, fTB, br, bounds.Left + 6, yPos + 3);
-                    g.DrawString(linia2, fT, brGray,
-                        new RectangleF(bounds.Left + 6, yPos + 20, wTotal - 12, 14),
-                        new StringFormat { Trimming = StringTrimming.EllipsisCharacter, FormatFlags = StringFormatFlags.NoWrap });
-                    yPos += KART_HEAD_H;
-                }
+                // Rysuj kartę w wybranej kolumnie
+                int xKarta = kolX[wybranaKolumna];
+                int yKarta = yKol[wybranaKolumna];
+                RysujKarte(g, xKarta, yKarta, kolW, kartaH, kurs,
+                    fH3, fT, fTB, br, brGray, penThin, brHeaderBg);
+                yKol[wybranaKolumna] += kartaH + GAP_KART;
 
-                // ── HEADER tabeli (rysowany na każdej stronie kursu)
-                g.FillRectangle(brHeaderBg, bounds.Left, yPos, wTotal, TABLE_HEAD_H);
-                g.DrawRectangle(penThin, bounds.Left, yPos, wTotal, TABLE_HEAD_H);
-                int colX = bounds.Left;
-                for (int i = 0; i < headers.Length; i++)
-                {
-                    g.DrawString(headers[i], fTB, br,
-                        new RectangleF(colX + 3, yPos + 2, szer[i] - 6, TABLE_HEAD_H - 4),
-                        new StringFormat { Alignment = aligns[i], LineAlignment = StringAlignment.Center });
-                    if (i < headers.Length - 1) g.DrawLine(penThin, colX + szer[i], yPos, colX + szer[i], yPos + TABLE_HEAD_H);
-                    colX += szer[i];
-                }
-                yPos += TABLE_HEAD_H;
+                // Przełącz kolumnę dla następnej karty (rotacja)
+                kolumna = 1 - wybranaKolumna;
 
-                // ── Wiersze ładunków — paginacja per wiersz
-                int yTabelaStart = yPos;
-                bool dokonczonoKurs = false;
-                while (_printLadunekIndex < ladunki.Count)
-                {
-                    // Czy zmieści się jeszcze 1 wiersz + suma?
-                    if (yPos + ROW_H + SUMA_H > yStop)
-                    {
-                        // Zamknij obramowanie tabeli na tej stronie + obetnij linie pionowe
-                        RysujLinieKolumn(g, penThin, bounds.Left, yTabelaStart, yPos, szer, headers.Length);
-                        g.DrawLine(penThin, bounds.Left, yPos, bounds.Right, yPos);
-
-                        e.HasMorePages = true;
-                        _printPageIndex++;
-                        _printPokazujHeaderKarty = false;   // header karty już pokazany
-                        RysujStopke(g, bounds, fS, brGray);
-                        return;
-                    }
-
-                    var l = ladunki[_printLadunekIndex];
-                    string nazwa = !string.IsNullOrEmpty(l.NazwaKlienta) ? l.NazwaKlienta : (l.KodKlienta ?? "—");
-                    string awiz = l.DataAwizacji?.ToString("HH:mm") ?? "—";
-                    string kg = l.IloscKg > 0 ? l.IloscKg.ToString("N0") : "—";
-                    string poj = l.PojemnikiE2.ToString();
-                    string palet = l.PaletyH1.HasValue ? l.PaletyH1.ToString() : "—";
-                    string uwagi = l.Uwagi ?? "";
-
-                    string[] cells = { l.Kolejnosc.ToString(), nazwa, awiz, kg, poj, palet, uwagi };
-                    colX = bounds.Left;
-                    for (int i = 0; i < cells.Length; i++)
-                    {
-                        g.DrawString(cells[i], fT, br,
-                            new RectangleF(colX + 3, yPos + 1, szer[i] - 6, ROW_H - 2),
-                            new StringFormat
-                            {
-                                Alignment = aligns[i],
-                                LineAlignment = StringAlignment.Center,
-                                Trimming = StringTrimming.EllipsisCharacter,
-                                FormatFlags = StringFormatFlags.NoWrap
-                            });
-                        colX += szer[i];
-                    }
-                    yPos += ROW_H;
-                    _printLadunekIndex++;
-                }
-                dokonczonoKurs = true;
-
-                // ── Wiersz SUMA
-                g.FillRectangle(brHeaderBg, bounds.Left, yPos, wTotal, SUMA_H);
-                g.DrawRectangle(penThin, bounds.Left, yPos, wTotal, SUMA_H);
-                string[] sumaCells = { "", "SUMA", "", kurs.SumaKg.ToString("N0"), kurs.SumaPojemnikiE2.ToString(), $"{kurs.PaletyUzyteNominal}/{kurs.PaletyPojazdu}", "" };
-                colX = bounds.Left;
-                for (int i = 0; i < sumaCells.Length; i++)
-                {
-                    g.DrawString(sumaCells[i], fTB, br,
-                        new RectangleF(colX + 3, yPos + 2, szer[i] - 6, SUMA_H - 4),
-                        new StringFormat { Alignment = aligns[i], LineAlignment = StringAlignment.Center });
-                    if (i < sumaCells.Length - 1) g.DrawLine(penThin, colX + szer[i], yPos, colX + szer[i], yPos + SUMA_H);
-                    colX += szer[i];
-                }
-                yPos += SUMA_H;
-
-                // Dorysuj linie kolumn na całej wysokości tabeli (od yTabelaStart do yPos przed SUMA)
-                RysujLinieKolumn(g, penThin, bounds.Left, yTabelaStart, yPos - SUMA_H, szer, headers.Length);
-
-                // Następny kurs
                 _printKursIndex++;
-                _printLadunekIndex = 0;
-                _printPokazujHeaderKarty = true;
-                yPos += 6;   // odstęp między kartami (zbity)
             }
 
             // ═══ KONIEC — stopka + reset ═════════════════════════════════════
@@ -605,18 +529,105 @@ namespace Kalendarz1.Transport
             e.HasMorePages = false;
             _printPageIndex = 0;
             _printKursIndex = 0;
-            _printLadunekIndex = 0;
-            _printPokazujHeaderKarty = true;
         }
 
-        /// <summary>Rysuje pionowe linie kolumn tabeli między y1 i y2.</summary>
-        private static void RysujLinieKolumn(Graphics g, Pen pen, int x0, int y1, int y2, int[] szer, int kolumnyCount)
+        /// <summary>Oblicza wysokość karty kursu (header + table-header + N wierszy + suma).</summary>
+        private static int ObliczWysokoscKarty(KursRaport k)
         {
-            int x = x0;
-            for (int i = 0; i < kolumnyCount; i++)
+            int wierszy = Math.Max(1, k.Ladunki.Count);
+            return KART_HEAD_H + TABLE_HEAD_H + wierszy * ROW_H + SUMA_H;
+        }
+
+        /// <summary>
+        /// Rysuje pojedynczą kartę kursu w zadanym rectangle (x, y, w, h).
+        /// Header karty (3 linie: tytuł / kierowca+tel / pojazd+pojemność) + mini-tabela ładunków + suma.
+        /// </summary>
+        private static void RysujKarte(Graphics g, int x, int y, int w, int h, KursRaport kurs,
+            Font fH3, Font fT, Font fTB, Brush br, Brush brGray, Pen penThin, Brush brHeaderBg)
+        {
+            // Ramka karty
+            g.DrawRectangle(penThin, x, y, w, h);
+
+            // ── HEADER karty (3 linie ~12px)
+            string godziny = $"{kurs.GodzWyjazdu?.ToString(@"hh\:mm") ?? "--"}→{kurs.GodzPowrotu?.ToString(@"hh\:mm") ?? "--"}";
+            string linia1 = $"#{kurs.KursID}  ·  WYJAZD {godziny}  ·  {kurs.Status}";
+            string linia2 = kurs.KierowcaNazwa + (!string.IsNullOrWhiteSpace(kurs.KierowcaTelefon) ? $"   tel. {kurs.KierowcaTelefon}" : "");
+            string linia3 = $"{kurs.PojazdRejestracja}  ({kurs.PaletyUzyteNominal}/{kurs.PaletyPojazdu} palet)" +
+                            (!string.IsNullOrWhiteSpace(kurs.Trasa) ? $"  ·  {kurs.Trasa}" : "");
+
+            g.DrawString(linia1, fTB, br,
+                new RectangleF(x + 4, y + 2, w - 8, 11),
+                new StringFormat { Trimming = StringTrimming.EllipsisCharacter, FormatFlags = StringFormatFlags.NoWrap });
+            g.DrawString(linia2, fT, br,
+                new RectangleF(x + 4, y + 13, w - 8, 11),
+                new StringFormat { Trimming = StringTrimming.EllipsisCharacter, FormatFlags = StringFormatFlags.NoWrap });
+            g.DrawString(linia3, fT, brGray,
+                new RectangleF(x + 4, y + 24, w - 8, 11),
+                new StringFormat { Trimming = StringTrimming.EllipsisCharacter, FormatFlags = StringFormatFlags.NoWrap });
+
+            int yTab = y + KART_HEAD_H;
+            g.DrawLine(penThin, x, yTab, x + w, yTab);   // separator header → tabela
+
+            // ── HEADER tabeli
+            int wKlient = w - COL_LP - COL_AWIZ - COL_KG - COL_POJ - COL_PAL;
+            int[] szer = { COL_LP, wKlient, COL_AWIZ, COL_KG, COL_POJ, COL_PAL };
+            string[] headers = { "Lp", "Klient", "Awiz.", "Kg", "Poj.", "Pal" };
+            StringAlignment[] aligns = {
+                StringAlignment.Center, StringAlignment.Near, StringAlignment.Center,
+                StringAlignment.Far, StringAlignment.Center, StringAlignment.Center
+            };
+
+            g.FillRectangle(brHeaderBg, x, yTab, w, TABLE_HEAD_H);
+            g.DrawLine(penThin, x, yTab + TABLE_HEAD_H, x + w, yTab + TABLE_HEAD_H);
+            int colX = x;
+            for (int i = 0; i < headers.Length; i++)
             {
-                if (i < kolumnyCount - 1) g.DrawLine(pen, x + szer[i], y1, x + szer[i], y2);
-                x += szer[i];
+                g.DrawString(headers[i], fTB, br,
+                    new RectangleF(colX + 2, yTab + 1, szer[i] - 4, TABLE_HEAD_H - 2),
+                    new StringFormat { Alignment = aligns[i], LineAlignment = StringAlignment.Center });
+                if (i < headers.Length - 1) g.DrawLine(penThin, colX + szer[i], yTab, colX + szer[i], y + h - SUMA_H);
+                colX += szer[i];
+            }
+            int yRows = yTab + TABLE_HEAD_H;
+
+            // ── Wiersze ładunków
+            foreach (var l in kurs.Ladunki.OrderBy(z => z.Kolejnosc))
+            {
+                string nazwa = !string.IsNullOrEmpty(l.NazwaKlienta) ? l.NazwaKlienta : (l.KodKlienta ?? "—");
+                string awiz = l.DataAwizacji?.ToString("HH:mm") ?? "—";
+                string kg = l.IloscKg > 0 ? l.IloscKg.ToString("N0") : "—";
+                string poj = l.PojemnikiE2.ToString();
+                string palet = l.PaletyH1.HasValue ? l.PaletyH1.ToString() : "—";
+
+                string[] cells = { l.Kolejnosc.ToString(), nazwa, awiz, kg, poj, palet };
+                colX = x;
+                for (int i = 0; i < cells.Length; i++)
+                {
+                    g.DrawString(cells[i], fT, br,
+                        new RectangleF(colX + 2, yRows, szer[i] - 4, ROW_H),
+                        new StringFormat
+                        {
+                            Alignment = aligns[i],
+                            LineAlignment = StringAlignment.Center,
+                            Trimming = StringTrimming.EllipsisCharacter,
+                            FormatFlags = StringFormatFlags.NoWrap
+                        });
+                    colX += szer[i];
+                }
+                yRows += ROW_H;
+            }
+
+            // ── Wiersz SUMA
+            g.FillRectangle(brHeaderBg, x, yRows, w, SUMA_H);
+            g.DrawLine(penThin, x, yRows, x + w, yRows);
+            string[] sumaCells = { "", "SUMA", "", kurs.SumaKg.ToString("N0"), kurs.SumaPojemnikiE2.ToString(), kurs.PaletyUzyteNominal.ToString() };
+            colX = x;
+            for (int i = 0; i < sumaCells.Length; i++)
+            {
+                g.DrawString(sumaCells[i], fTB, br,
+                    new RectangleF(colX + 2, yRows + 1, szer[i] - 4, SUMA_H - 2),
+                    new StringFormat { Alignment = aligns[i], LineAlignment = StringAlignment.Center });
+                colX += szer[i];
             }
         }
 
@@ -624,7 +635,7 @@ namespace Kalendarz1.Transport
         {
             string stopka = $"Wygenerowano: {DateTime.Now:dd.MM.yyyy HH:mm}   ·   ZPSP Transport   ·   Strona {_printPageIndex}";
             g.DrawString(stopka, fS, brGray,
-                new RectangleF(bounds.Left, bounds.Bottom - 12, bounds.Width, 10),
+                new RectangleF(bounds.Left, bounds.Bottom - 11, bounds.Width, 10),
                 new StringFormat { Alignment = StringAlignment.Center });
         }
 
@@ -644,6 +655,7 @@ namespace Kalendarz1.Transport
         public long KursID { get; set; }
         public DateTime DataKursu { get; set; }
         public string KierowcaNazwa { get; set; }
+        public string KierowcaTelefon { get; set; }
         public string PojazdRejestracja { get; set; }
         public int PaletyPojazdu { get; set; }
         public string Trasa { get; set; }
