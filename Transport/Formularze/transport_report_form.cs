@@ -296,7 +296,7 @@ namespace Kalendarz1.Transport
 
             if (idy.Count == 0) return;
 
-            var nazwy = new Dictionary<int, string>();
+            var dane = new Dictionary<int, (string Nazwa, string Adres)>();
             const string connHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
             try
             {
@@ -310,27 +310,39 @@ namespace Kalendarz1.Transport
                     parametry.Add(p);
                     cmd.Parameters.AddWithValue(p, idy[i]);
                 }
-                // Shortcut (skrót) zamiast Name (pełna nazwa) — żeby pasować do widoku kursów.
-                // ISNULL(Shortcut, 'KH ' + Id) — fallback dla klientów bez ustawionego skrótu.
+                // Skrót (jak w widoku kursów) + adres domyślny (ulica + miasto)
                 cmd.CommandText = $@"
-                    SELECT Id, ISNULL(Shortcut, 'KH ' + CAST(Id AS VARCHAR(10))) AS Skrot
-                    FROM [SSCommon].[STContractors]
-                    WHERE Id IN ({string.Join(",", parametry)})";
+                    SELECT c.Id,
+                           ISNULL(c.Shortcut, 'KH ' + CAST(c.Id AS VARCHAR(10))) AS Skrot,
+                           LTRIM(RTRIM(ISNULL(poa.Street, '') + ' ' + ISNULL(poa.Place, ''))) AS Adres
+                    FROM [SSCommon].[STContractors] c
+                    LEFT JOIN [SSCommon].[STPostOfficeAddresses] poa
+                        ON poa.ContactGuid = c.ContactGuid
+                       AND poa.AddressName = N'adres domyślny'
+                    WHERE c.Id IN ({string.Join(",", parametry)})";
                 cmd.CommandTimeout = 15;
                 await using var r = await cmd.ExecuteReaderAsync();
                 while (await r.ReadAsync())
-                    nazwy[r.GetInt32(0)] = r.IsDBNull(1) ? "" : r.GetString(1).Trim();
+                {
+                    int id = r.GetInt32(0);
+                    string nazwa = r.IsDBNull(1) ? "" : r.GetString(1).Trim();
+                    string adres = r.IsDBNull(2) ? "" : r.GetString(2).Trim();
+                    dane[id] = (nazwa, adres);
+                }
             }
-            catch { /* silent — gdy Handel niedostępny pokażemy fallback */ }
+            catch { /* silent — gdy Handel niedostępny pokażemy cache lub fallback */ }
 
-            // Podstaw skróty z Sage (nadpisuje pełne nazwy z KlientAdres)
+            // Podstaw nazwy + adresy
             foreach (var lad in kursy.SelectMany(k => k.Ladunki))
             {
-                if (lad.KlientId.HasValue
-                    && nazwy.TryGetValue(lad.KlientId.Value, out var n) && !string.IsNullOrEmpty(n))
-                {
-                    lad.NazwaKlienta = n;
-                }
+                if (!lad.KlientId.HasValue || !dane.TryGetValue(lad.KlientId.Value, out var d)) continue;
+
+                // Nazwa: zawsze skrót z Sage (nadpisuje pełne nazwy z KlientAdres)
+                if (!string.IsNullOrEmpty(d.Nazwa)) lad.NazwaKlienta = d.Nazwa;
+
+                // Adres: priorytet ka cache (geolokalizacja), fallback Sage
+                if (string.IsNullOrWhiteSpace(lad.Adres) && !string.IsNullOrWhiteSpace(d.Adres))
+                    lad.Adres = d.Adres;
             }
         }
 
@@ -352,7 +364,8 @@ namespace Kalendarz1.Transport
                        ISNULL((SELECT SUM(t.Ilosc) FROM LibraNet.dbo.ZamowieniaMiesoTowar t
                                WHERE t.ZamowienieId = zm.Id), 0) AS IloscKg,
                        ka.NazwaKlienta,
-                       zm.KlientId
+                       zm.KlientId,
+                       LTRIM(RTRIM(ISNULL(ka.Ulica, '') + ' ' + ISNULL(ka.Miasto, ''))) AS AdresCache
                 FROM dbo.Ladunek l
                 LEFT JOIN LibraNet.dbo.ZamowieniaMieso zm
                     ON l.KodKlienta LIKE 'ZAM[_]%'
@@ -367,6 +380,7 @@ namespace Kalendarz1.Transport
             using var reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
             {
+                string adresCache = reader.IsDBNull(11) ? "" : reader.GetString(11).Trim();
                 ladunki.Add(new LadunekRaport
                 {
                     LadunekID = reader.GetInt64(0),
@@ -379,7 +393,8 @@ namespace Kalendarz1.Transport
                     DataAwizacji = reader.IsDBNull(7) ? null : reader.GetDateTime(7),
                     IloscKg = reader.IsDBNull(8) ? 0 : Convert.ToDecimal(reader.GetValue(8)),
                     NazwaKlienta = reader.IsDBNull(9) ? null : reader.GetString(9),
-                    KlientId = reader.IsDBNull(10) ? null : Convert.ToInt32(reader.GetValue(10))
+                    KlientId = reader.IsDBNull(10) ? null : Convert.ToInt32(reader.GetValue(10)),
+                    Adres = adresCache   // może być puste, fallback Sage uzupełni
                 });
             }
 
@@ -484,6 +499,7 @@ namespace Kalendarz1.Transport
             var fT  = new Font("Segoe UI", 9);
             var fTGray = new Font("Consolas", 8.5f);   // monospace — kolumna awizacji się ładnie układa
             var fS  = new Font("Segoe UI", 7.5f);
+            var fStrzalka = new Font("Segoe UI", 11, FontStyle.Bold);
 
             var br = Brushes.Black;
             var brGray = Brushes.DimGray;
@@ -528,6 +544,8 @@ namespace Kalendarz1.Transport
             int kolumna = 0;
             var kultPL = new System.Globalization.CultureInfo("pl-PL");
             var dataKursowa = dtpData.Value.Date;
+            // Numer porządkowy w obrębie kolumny (1., 2., 3., ...)
+            int[] numerWKolumnie = { 0, 0 };
 
             while (_printKursIndex < kursyPosortowane.Count)
             {
@@ -550,7 +568,19 @@ namespace Kalendarz1.Transport
                     return;
                 }
 
-                RysujKarte(g, kolX[wybrana], yKol[wybrana], kolW, kurs, fKurs, fT, fTGray, br, brGray, penKurs, kultPL, dataKursowa);
+                // Strzałka między kursami w tej samej kolumnie (jeśli nie pierwszy)
+                if (numerWKolumnie[wybrana] > 0)
+                {
+                    int xArrow = kolX[wybrana] + kolW / 2;
+                    int yArrow = yKol[wybrana] - GAP_KART + 1;
+                    g.DrawString("↓", fStrzalka, brGray,
+                        new RectangleF(xArrow - 12, yArrow, 24, GAP_KART - 2),
+                        new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
+                }
+
+                numerWKolumnie[wybrana]++;
+                RysujKarte(g, kolX[wybrana], yKol[wybrana], kolW, kurs, numerWKolumnie[wybrana],
+                    fKurs, fT, fTGray, br, brGray, penKurs, kultPL, dataKursowa);
                 yKol[wybrana] += kartaH + GAP_KART;
                 kolumna = 1 - wybrana;   // rotacja LR LR
                 _printKursIndex++;
@@ -575,23 +605,23 @@ namespace Kalendarz1.Transport
         /// Header: „06:00  #234  Kierowca (telefon)  ·  Rejestracja"
         /// Odbiorca: „pon 08.06 13:00  Nazwa Klienta"
         /// </summary>
-        private static void RysujKarte(Graphics g, int x, int y, int w, KursRaport kurs,
+        private static void RysujKarte(Graphics g, int x, int y, int w, KursRaport kurs, int numerKursu,
             Font fKurs, Font fT, Font fTGray, Brush br, Brush brGray, Pen penKurs,
             System.Globalization.CultureInfo kult, DateTime dataKursowa)
         {
-            // ── HEADER karty (godzina wyjazdu + numer + kierowca + telefon + pojazd)
+            // ── HEADER karty: numer porządkowy + godzina + kierowca + telefon + pojazd
             string godzWyjazdu = kurs.GodzWyjazdu?.ToString(@"hh\:mm") ?? "--:--";
-            string tel = !string.IsNullOrWhiteSpace(kurs.KierowcaTelefon) ? $"   tel. {kurs.KierowcaTelefon}" : "";
-            string header = $"{godzWyjazdu}   #{kurs.KursID}   {kurs.KierowcaNazwa}{tel}   ·   {kurs.PojazdRejestracja}";
+            string tel = !string.IsNullOrWhiteSpace(kurs.KierowcaTelefon) ? $"  tel. {kurs.KierowcaTelefon}" : "";
+            string header = $"{numerKursu}.  {godzWyjazdu}  ·  {kurs.KierowcaNazwa}{tel}  ·  {kurs.PojazdRejestracja}";
             g.DrawString(header, fKurs, br,
                 new RectangleF(x, y, w, 14),
                 new StringFormat { Trimming = StringTrimming.EllipsisCharacter, FormatFlags = StringFormatFlags.NoWrap, LineAlignment = StringAlignment.Center });
 
-            // Linia pod nagłówkiem kursu — wyraźna
+            // Linia pod nagłówkiem kursu
             int yLine = y + 15;
             g.DrawLine(penKurs, x, yLine, x + w, yLine);
 
-            // ── Lista odbiorców: „Klient (HH:mm)" lub „Klient (wt 09.06 06:00)" gdy inny dzień
+            // ── Lista odbiorców: „Klient (awizacja) · adres"
             int yRow = y + KART_HEAD_H;
             foreach (var l in kurs.Ladunki.OrderBy(z => z.Kolejnosc))
             {
@@ -602,20 +632,17 @@ namespace Kalendarz1.Transport
                 {
                     var d = l.DataAwizacji.Value;
                     if (d.Date == dataKursowa)
-                    {
-                        // Ten sam dzień co kurs — pokaż tylko godzinę
                         awiz = d.ToString("HH:mm");
-                    }
                     else
                     {
-                        // Inny dzień (np. odjazd dziś, dostawa jutro rano) — pełna data
                         string dzien = d.ToString("ddd", kult).TrimEnd('.');
                         awiz = $"{dzien} {d:dd.MM} {d:HH:mm}";
                     }
                 }
                 else awiz = "brak awizacji";
 
-                string wiersz = $"{nazwa} ({awiz})";
+                string adres = !string.IsNullOrWhiteSpace(l.Adres) ? $"  ·  {l.Adres}" : "";
+                string wiersz = $"{nazwa} ({awiz}){adres}";
                 g.DrawString(wiersz, fT, br,
                     new RectangleF(x + INDENT, yRow, w - INDENT - 2, ROW_H),
                     new StringFormat
@@ -681,5 +708,6 @@ namespace Kalendarz1.Transport
         public decimal IloscKg { get; set; }
         public string NazwaKlienta { get; set; }
         public int? KlientId { get; set; }   // do fallback lookup w HM.STContractors gdy KlientAdres puste
+        public string Adres { get; set; }    // ulica + miasto (z KlientAdres lub Sage)
     }
 }
