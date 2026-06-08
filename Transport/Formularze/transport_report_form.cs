@@ -283,12 +283,24 @@ namespace Kalendarz1.Transport
             using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
 
+            // Cross-DB JOIN (TransportPL ↔ LibraNet — ten sam serwer 192.168.0.109):
+            // - ZamowieniaMieso (awizacja + agregowane kg z ZamowieniaMiesoTowar)
+            // - KlientAdres (cache nazwy klienta, wypełniany przez Webfleet sync)
+            // Wszystkie LEFT JOIN — ładunek może nie być ZAM_, wtedy NULL i fallback w UI.
             var sql = @"
-                SELECT LadunekID, Kolejnosc, KodKlienta, PojemnikiE2, PaletyH1, 
-                       PlanE2NaPaleteOverride, Uwagi
-                FROM dbo.Ladunek 
-                WHERE KursID = @KursID
-                ORDER BY Kolejnosc";
+                SELECT l.LadunekID, l.Kolejnosc, l.KodKlienta, l.PojemnikiE2, l.PaletyH1,
+                       l.PlanE2NaPaleteOverride, l.Uwagi,
+                       zm.DataPrzyjazdu AS DataAwizacji,
+                       ISNULL((SELECT SUM(t.Ilosc) FROM LibraNet.dbo.ZamowieniaMiesoTowar t
+                               WHERE t.ZamowienieId = zm.Id), 0) AS IloscKg,
+                       ka.NazwaKlienta
+                FROM dbo.Ladunek l
+                LEFT JOIN LibraNet.dbo.ZamowieniaMieso zm
+                    ON l.KodKlienta LIKE 'ZAM[_]%'
+                   AND zm.Id = TRY_CAST(SUBSTRING(l.KodKlienta, 5, 20) AS INT)
+                LEFT JOIN dbo.KlientAdres ka ON ka.KodKlienta = l.KodKlienta
+                WHERE l.KursID = @KursID
+                ORDER BY l.Kolejnosc";
 
             using var cmd = new SqlCommand(sql, connection);
             cmd.Parameters.AddWithValue("@KursID", kursId);
@@ -304,7 +316,10 @@ namespace Kalendarz1.Transport
                     PojemnikiE2 = reader.GetInt32(3),
                     PaletyH1 = reader.IsDBNull(4) ? null : reader.GetInt32(4),
                     PlanE2NaPaleteOverride = reader.IsDBNull(5) ? null : reader.GetByte(5),
-                    Uwagi = reader.IsDBNull(6) ? null : reader.GetString(6)
+                    Uwagi = reader.IsDBNull(6) ? null : reader.GetString(6),
+                    DataAwizacji = reader.IsDBNull(7) ? null : reader.GetDateTime(7),
+                    IloscKg = reader.IsDBNull(8) ? 0 : Convert.ToDecimal(reader.GetValue(8)),
+                    NazwaKlienta = reader.IsDBNull(9) ? null : reader.GetString(9)
                 });
             }
 
@@ -373,126 +388,229 @@ namespace Kalendarz1.Transport
             }
         }
 
+        // ────────────────────────────────────────────────────────────────────
+        // RAPORT — bogaty layout z paginacją
+        // ────────────────────────────────────────────────────────────────────
+        // Każdy kurs = osobny „karta" w pełnej szerokości strony:
+        //   header (kierowca + auto) → tabela ładunków (lp/klient/awizacja/kg/poj/palety/uwagi) → suma
+        // Paginacja: gdy karta nie mieści się — przeskok na następną stronę.
+        // ────────────────────────────────────────────────────────────────────
+
+        private int _printPageIndex;        // numer aktualnie drukowanej strony (od 1)
+        private int _printKursIndex;        // index kursu od którego zaczynamy tę stronę
+
         private void PrintDocument_PrintPage(object sender, PrintPageEventArgs e)
         {
+            // Reset stanu przy pierwszej stronie
+            if (_printPageIndex == 0) { _printPageIndex = 1; _printKursIndex = 0; }
+
             var g = e.Graphics;
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
             var bounds = e.MarginBounds;
-            var yPos = bounds.Top;
 
-            // Czcionki
-            var fontNaglowek = new Font("Arial", 14, FontStyle.Bold);
-            var fontPodnaglowek = new Font("Arial", 10, FontStyle.Bold);
-            var fontTekst = new Font("Arial", 9);
-            var fontMaly = new Font("Arial", 8);
+            // Kolory & czcionki
+            var clrAccent     = Color.FromArgb(30, 64, 175);    // indygo-700
+            var clrAccentSoft = Color.FromArgb(224, 231, 255);  // indygo-100
+            var clrText       = Color.FromArgb(31, 41, 51);
+            var clrMuted      = Color.FromArgb(123, 135, 148);
+            var clrLine       = Color.FromArgb(226, 232, 240);
+            var clrZebra      = Color.FromArgb(248, 250, 252);
+            var clrSumaBg     = Color.FromArgb(243, 244, 246);
 
-            // Nagłówek firmy
-            var naglowekFirmy = "UBOJNIA DROBIU \"PIÓRKOWSCY\"";
-            var adresFirmy = "Koziołki 40, 95-061 Dmosin";
-            var nipFirmy = "NIP: 726-162-54-06";
-            var kontaktFirmy = "Ilona Krakowiak  •  Tel: 508 309 314";
+            var fH1 = new Font("Segoe UI Semibold", 16, FontStyle.Bold);
+            var fH2 = new Font("Segoe UI", 11, FontStyle.Bold);
+            var fH3 = new Font("Segoe UI Semibold", 10, FontStyle.Bold);
+            var fT  = new Font("Segoe UI", 9.5f);
+            var fTB = new Font("Segoe UI", 9.5f, FontStyle.Bold);
+            var fS  = new Font("Segoe UI", 8);
 
-            var sizeNaglowek = g.MeasureString(naglowekFirmy, fontNaglowek);
-            g.DrawString(naglowekFirmy, fontNaglowek, Brushes.Black,
-                bounds.Left + (bounds.Width - sizeNaglowek.Width) / 2, yPos);
-            yPos += (int)sizeNaglowek.Height + 5;
+            int yPos = bounds.Top;
 
-            g.DrawString(adresFirmy, fontTekst, Brushes.Black,
-                bounds.Left + (bounds.Width - g.MeasureString(adresFirmy, fontTekst).Width) / 2, yPos);
-            yPos += 15;
-
-            g.DrawString($"{nipFirmy}  •  {kontaktFirmy}", fontTekst, Brushes.Black,
-                bounds.Left + (bounds.Width - g.MeasureString($"{nipFirmy}  •  {kontaktFirmy}", fontTekst).Width) / 2, yPos);
-            yPos += 25;
-
-            // Linia oddzielająca
-            g.DrawLine(Pens.Black, bounds.Left, yPos, bounds.Right, yPos);
-            yPos += 15;
-
-            // Tytuł raportu
-            var tytulRaportu = $"RAPORT TRANSPORTOWY - {dtpData.Value:dd.MM.yyyy}";
-            var sizeTytul = g.MeasureString(tytulRaportu, fontPodnaglowek);
-            g.DrawString(tytulRaportu, fontPodnaglowek, Brushes.Black,
-                bounds.Left + (bounds.Width - sizeTytul.Width) / 2, yPos);
-            yPos += (int)sizeTytul.Height + 20;
-
-            // Informacje podsumowujące
-            var infoText = $"Łączna liczba kursów: {_kursy.Count}  •  " +
-                          $"Łączna liczba ładunków: {_kursy.Sum(k => k.Ladunki.Count)}  •  " +
-                          $"Łączne pojemniki: {_kursy.Sum(k => k.SumaPojemnikiE2)}";
-            g.DrawString(infoText, fontTekst, Brushes.DarkBlue, bounds.Left, yPos);
-            yPos += 25;
-
-            // Tabela kursów
-            var kolumny = new[]
+            // ─── HEADER (tylko na 1. stronie) ─────────────────────────────────
+            if (_printPageIndex == 1)
             {
-                new { Nazwa = "Lp.", Szerokosc = 30 },
-                new { Nazwa = "Kierowca", Szerokosc = 120 },
-                new { Nazwa = "Pojazd", Szerokosc = 80 },
-                new { Nazwa = "Trasa", Szerokosc = 150 },
-                new { Nazwa = "Wyjazd", Szerokosc = 50 },
-                new { Nazwa = "Powrót", Szerokosc = 50 },
-                new { Nazwa = "Palety", Szerokosc = 60 },
-                new { Nazwa = "Pojemniki", Szerokosc = 70 },
-                new { Nazwa = "Status", Szerokosc = 80 },
-                new { Nazwa = "Ładunki", Szerokosc = 300 }
-            };
+                // Nazwa firmy (centered)
+                g.DrawString("UBOJNIA DROBIU PIÓRKOWSCY", fH1, new SolidBrush(clrAccent),
+                    new RectangleF(bounds.Left, yPos, bounds.Width, 24),
+                    new StringFormat { Alignment = StringAlignment.Center });
+                yPos += 28;
 
-            // Nagłówki kolumn
-            var xPos = bounds.Left;
-            foreach (var kolumna in kolumny)
-            {
-                var rect = new Rectangle(xPos, yPos, kolumna.Szerokosc, 20);
-                g.FillRectangle(Brushes.LightGray, rect);
-                g.DrawRectangle(Pens.Black, rect);
-                g.DrawString(kolumna.Nazwa, fontPodnaglowek, Brushes.Black,
-                    rect.X + 2, rect.Y + 2);
-                xPos += kolumna.Szerokosc;
+                g.DrawString("Koziołki 40, 95-061 Dmosin   ·   NIP: 726-162-54-06   ·   Ilona Krakowiak: tel. 508 309 314",
+                    fT, new SolidBrush(clrMuted),
+                    new RectangleF(bounds.Left, yPos, bounds.Width, 16),
+                    new StringFormat { Alignment = StringAlignment.Center });
+                yPos += 22;
+
+                // Akcent linia
+                using (var penAccent = new Pen(clrAccent, 2)) g.DrawLine(penAccent, bounds.Left, yPos, bounds.Right, yPos);
+                yPos += 16;
+
+                // Tytuł raportu + data + dzień tygodnia
+                var data = dtpData.Value;
+                var kultura = new System.Globalization.CultureInfo("pl-PL");
+                string dzienTyg = data.ToString("dddd", kultura);
+                g.DrawString($"📅 RAPORT TRANSPORTOWY — {data:dd.MM.yyyy} ({dzienTyg})", fH2,
+                    new SolidBrush(clrText), bounds.Left, yPos);
+                yPos += 22;
+
+                // Sumaryzacja
+                int sumPoj = _kursy.Sum(k => k.SumaPojemnikiE2);
+                int sumPal = _kursy.Sum(k => k.PaletyUzyteNominal);
+                int sumLad = _kursy.Sum(k => k.Ladunki.Count);
+                decimal sumKg = _kursy.Sum(k => k.SumaKg);
+                string podsum = $"{_kursy.Count} kurs(y/ów)   ·   {sumLad} klient(ów)   ·   {sumKg:N0} kg   ·   {sumPoj} pojemników   ·   {sumPal} palet";
+                using (var brBg = new SolidBrush(clrAccentSoft))
+                    g.FillRectangle(brBg, bounds.Left, yPos, bounds.Width, 22);
+                g.DrawString(podsum, fTB, new SolidBrush(clrAccent), bounds.Left + 8, yPos + 4);
+                yPos += 32;
             }
-            yPos += 22;
 
-            // Dane kursów
-            for (int i = 0; i < _kursy.Count && yPos < bounds.Bottom - 100; i++)
+            // ─── KARTY KURSÓW ─────────────────────────────────────────────────
+            while (_printKursIndex < _kursy.Count)
             {
-                var kurs = _kursy[i];
-                xPos = bounds.Left;
+                var kurs = _kursy[_printKursIndex];
+                int kartaH = ObliczWysokoscKarty(kurs);
 
-                // Wysokość wiersza (może być większa dla wielu ładunków)
-                var wysokoscWiersza = Math.Max(20, kurs.Ladunki.Count * 12 + 8);
-
-                var wartosci = new string[]
+                // Czy karta zmieści się na tej stronie? (zostaw 30px na stopkę)
+                if (yPos + kartaH > bounds.Bottom - 30)
                 {
-                    (i + 1).ToString(),
-                    kurs.KierowcaNazwa,
-                    kurs.PojazdRejestracja,
-                    kurs.Trasa ?? "-",
-                    kurs.GodzWyjazdu?.ToString(@"hh\:mm") ?? "-",
-                    kurs.GodzPowrotu?.ToString(@"hh\:mm") ?? "-",
-                    $"{kurs.PaletyUzyteNominal}/{kurs.PaletyPojazdu}",
-                    kurs.SumaPojemnikiE2.ToString(),
-                    kurs.Status,
-                    string.Join("; ", kurs.Ladunki.Select(l =>
-                        $"{l.Uwagi ?? l.KodKlienta ?? "?"} ({l.PojemnikiE2}poj)"))
-                };
-
-                for (int j = 0; j < kolumny.Length; j++)
-                {
-                    var rect = new Rectangle(xPos, yPos, kolumny[j].Szerokosc, wysokoscWiersza);
-                    g.DrawRectangle(Pens.Gray, rect);
-
-                    // Dla kolumny ładunków użyj mniejszej czcionki
-                    var font = j == kolumny.Length - 1 ? fontMaly : fontTekst;
-                    var textRect = new RectangleF(rect.X + 2, rect.Y + 2, rect.Width - 4, rect.Height - 4);
-                    g.DrawString(wartosci[j], font, Brushes.Black, textRect);
-
-                    xPos += kolumny[j].Szerokosc;
+                    if (_printKursIndex == 0) // gigantyczny pojedynczy kurs → wymuś rysowanie z paginacją wewnątrz
+                        break;
+                    e.HasMorePages = true;
+                    _printPageIndex++;
+                    RysujStopke(g, bounds, fS, clrMuted);
+                    return;
                 }
 
-                yPos += wysokoscWiersza;
+                yPos = RysujKarteKursu(g, bounds, yPos, kurs, fH3, fT, fTB, fS,
+                    clrAccent, clrText, clrMuted, clrLine, clrZebra, clrSumaBg);
+                yPos += 12; // odstęp między kartami
+                _printKursIndex++;
             }
 
-            // Stopka
-            var stopka = $"Wygenerowano: {DateTime.Now:dd.MM.yyyy HH:mm}  •  Strona 1";
-            g.DrawString(stopka, fontMaly, Brushes.Gray, bounds.Left, bounds.Bottom - 20);
+            // ─── STOPKA ───────────────────────────────────────────────────────
+            RysujStopke(g, bounds, fS, clrMuted);
+            e.HasMorePages = false;
+            // Reset na koniec — żeby kolejny BtnPodglad_Click zaczynał od pierwszej strony
+            _printPageIndex = 0;
+            _printKursIndex = 0;
+        }
+
+        private int ObliczWysokoscKarty(KursRaport k)
+        {
+            // header (50) + tabela header (22) + N wierszy (18) + suma (22) + padding (16)
+            int wierszy = Math.Max(1, k.Ladunki.Count);
+            return 50 + 22 + wierszy * 18 + 22 + 16;
+        }
+
+        private int RysujKarteKursu(Graphics g, Rectangle bounds, int y0, KursRaport k,
+            Font fH3, Font fT, Font fTB, Font fS,
+            Color clrAccent, Color clrText, Color clrMuted, Color clrLine, Color clrZebra, Color clrSumaBg)
+        {
+            int x = bounds.Left;
+            int w = bounds.Width;
+            int y = y0;
+
+            // ── HEADER karty (akcent na lewo + tytuł + info)
+            using (var brAcc = new SolidBrush(clrAccent))
+                g.FillRectangle(brAcc, x, y, 4, 50);
+
+            // Linia 1: KURS #ID · WYJAZD → POWRÓT · Status
+            string godziny = $"{k.GodzWyjazdu?.ToString(@"hh\:mm") ?? "--"} → {k.GodzPowrotu?.ToString(@"hh\:mm") ?? "--"}";
+            string linia1 = $"KURS #{k.KursID}   ·   {godziny}   ·   {k.DataKursu:dd.MM.yyyy}   ·   Status: {k.Status}";
+            g.DrawString(linia1, fH3, new SolidBrush(clrText), x + 12, y + 4);
+
+            // Linia 2: 👤 Kierowca   ·   🚛 Pojazd
+            string linia2 = $"👤 {k.KierowcaNazwa}    🚛 {k.PojazdRejestracja}   (pojemność {k.PaletyPojazdu} palet · zaplanowano {k.PaletyUzyteNominal})";
+            g.DrawString(linia2, fT, new SolidBrush(clrMuted), x + 12, y + 22);
+
+            // Trasa (skrócona, jeśli zbyt długa)
+            if (!string.IsNullOrWhiteSpace(k.Trasa))
+                g.DrawString($"🛣 {k.Trasa}", fT, new SolidBrush(clrMuted), x + 12, y + 36);
+            y += 52;
+
+            // ── TABELA ładunków
+            int[] szer = { 28, w - 28 - 70 - 70 - 50 - 60 - 110, 70, 70, 50, 60, 110 };
+            string[] headers = { "Lp", "Klient", "Awizacja", "Kg", "Poj.", "Palet", "Uwagi" };
+            StringAlignment[] aligns = {
+                StringAlignment.Center, StringAlignment.Near, StringAlignment.Center,
+                StringAlignment.Far, StringAlignment.Center, StringAlignment.Center, StringAlignment.Near
+            };
+
+            // Tło + tekst nagłówków
+            using (var brBg = new SolidBrush(Color.FromArgb(243, 244, 246)))
+                g.FillRectangle(brBg, x, y, w, 22);
+            int colX = x;
+            for (int i = 0; i < headers.Length; i++)
+            {
+                g.DrawString(headers[i], fTB, new SolidBrush(clrText),
+                    new RectangleF(colX + 4, y + 4, szer[i] - 8, 18),
+                    new StringFormat { Alignment = aligns[i], LineAlignment = StringAlignment.Center });
+                colX += szer[i];
+            }
+            using (var penLine = new Pen(clrLine, 1)) g.DrawLine(penLine, x, y + 22, x + w, y + 22);
+            y += 22;
+
+            // Wiersze ładunków
+            int row = 0;
+            foreach (var l in k.Ladunki.OrderBy(z => z.Kolejnosc))
+            {
+                if (row % 2 == 1)
+                    using (var brZ = new SolidBrush(clrZebra))
+                        g.FillRectangle(brZ, x, y, w, 18);
+
+                string nazwa = !string.IsNullOrEmpty(l.NazwaKlienta) ? l.NazwaKlienta : (l.KodKlienta ?? "—");
+                string awiz = l.DataAwizacji?.ToString("HH:mm") ?? "—";
+                string kg = l.IloscKg > 0 ? l.IloscKg.ToString("N0") : "—";
+                string poj = l.PojemnikiE2.ToString();
+                string palet = l.PaletyH1.HasValue ? l.PaletyH1.ToString() : "—";
+                string uwagi = l.Uwagi ?? "";
+
+                string[] cells = { l.Kolejnosc.ToString(), nazwa, awiz, kg, poj, palet, uwagi };
+                colX = x;
+                for (int i = 0; i < cells.Length; i++)
+                {
+                    g.DrawString(cells[i], fT, new SolidBrush(clrText),
+                        new RectangleF(colX + 4, y + 2, szer[i] - 8, 16),
+                        new StringFormat
+                        {
+                            Alignment = aligns[i],
+                            LineAlignment = StringAlignment.Center,
+                            Trimming = StringTrimming.EllipsisCharacter,
+                            FormatFlags = StringFormatFlags.NoWrap
+                        });
+                    colX += szer[i];
+                }
+                y += 18;
+                row++;
+            }
+
+            // Wiersz SUMA (wyróżniony)
+            using (var brBg = new SolidBrush(clrSumaBg))
+                g.FillRectangle(brBg, x, y, w, 22);
+            using (var penLine = new Pen(clrLine, 1)) g.DrawLine(penLine, x, y, x + w, y);
+
+            string[] sumaCells = { "", "SUMA", "", k.SumaKg.ToString("N0"), k.SumaPojemnikiE2.ToString(), $"{k.PaletyUzyteNominal}/{k.PaletyPojazdu}", "" };
+            colX = x;
+            for (int i = 0; i < sumaCells.Length; i++)
+            {
+                g.DrawString(sumaCells[i], fTB, new SolidBrush(clrAccent),
+                    new RectangleF(colX + 4, y + 4, szer[i] - 8, 18),
+                    new StringFormat { Alignment = aligns[i], LineAlignment = StringAlignment.Center });
+                colX += szer[i];
+            }
+            y += 24;
+
+            return y;
+        }
+
+        private void RysujStopke(Graphics g, Rectangle bounds, Font fS, Color clrMuted)
+        {
+            string stopka = $"Wygenerowano: {DateTime.Now:dd.MM.yyyy HH:mm}   ·   ZPSP Transport   ·   Strona {_printPageIndex}";
+            g.DrawString(stopka, fS, new SolidBrush(clrMuted),
+                new RectangleF(bounds.Left, bounds.Bottom - 14, bounds.Width, 12),
+                new StringFormat { Alignment = StringAlignment.Center });
         }
 
         protected override void Dispose(bool disposing)
@@ -521,6 +639,7 @@ namespace Kalendarz1.Transport
         public List<LadunekRaport> Ladunki { get; set; } = new List<LadunekRaport>();
         public int SumaPojemnikiE2 { get; set; }
         public int PaletyUzyteNominal { get; set; }
+        public decimal SumaKg => Ladunki.Sum(l => l.IloscKg);
     }
 
     public class LadunekRaport
@@ -532,5 +651,9 @@ namespace Kalendarz1.Transport
         public int? PaletyH1 { get; set; }
         public byte? PlanE2NaPaleteOverride { get; set; }
         public string Uwagi { get; set; }
+        // Dane z JOINów (ZamowieniaMieso + ZamowieniaMiesoTowar + KlientAdres)
+        public DateTime? DataAwizacji { get; set; }
+        public decimal IloscKg { get; set; }
+        public string NazwaKlienta { get; set; }
     }
 }
