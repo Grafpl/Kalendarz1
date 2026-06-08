@@ -404,10 +404,12 @@ namespace Kalendarz1.Transport
         private int _printPageIndex;      // numer strony (od 1)
         private int _printKursIndex;      // index w posortowanej liście
 
-        private const int ROW_H = 11;        // wiersz odbiorcy
-        private const int KART_HEAD_H = 14;  // 1 linia headera kursu
-        private const int GAP_KOL = 14;      // odstęp poziomy między kolumnami
-        private const int GAP_KART = 10;     // odstęp pionowy między kartami
+        private const int ROW_H = 14;        // wiersz odbiorcy (więcej powietrza dla czytelności)
+        private const int KART_HEAD_H = 18;  // header kursu + linia pod
+        private const int GAP_KOL = 16;      // odstęp poziomy między kolumnami
+        private const int GAP_KART = 14;     // odstęp pionowy między kartami
+        private const int INDENT = 12;       // wcięcie wierszy odbiorcy względem headera
+        private const int COL_AWIZ_W = 120;  // szerokość kolumny awizacji ("pon 08.06 10:00" = ~15 znaków × 7px)
 
         private void PrintDocument_PrintPage(object sender, PrintPageEventArgs e)
         {
@@ -418,12 +420,12 @@ namespace Kalendarz1.Transport
             g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
             var bounds = e.MarginBounds;
 
-            var fH1 = new Font("Segoe UI", 14, FontStyle.Bold);
-            var fH2 = new Font("Segoe UI", 9, FontStyle.Bold);
-            var fKurs = new Font("Segoe UI", 9, FontStyle.Bold);
-            var fT  = new Font("Segoe UI", 8.5f);
-            var fTGray = new Font("Segoe UI", 8.5f);
-            var fS  = new Font("Segoe UI", 7f);
+            var fH1 = new Font("Segoe UI", 15, FontStyle.Bold);
+            var fH2 = new Font("Segoe UI", 10);
+            var fKurs = new Font("Segoe UI", 10, FontStyle.Bold);
+            var fT  = new Font("Segoe UI", 9);
+            var fTGray = new Font("Consolas", 8.5f);   // monospace — kolumna awizacji się ładnie układa
+            var fS  = new Font("Segoe UI", 7.5f);
 
             var br = Brushes.Black;
             var brGray = Brushes.DimGray;
@@ -443,21 +445,21 @@ namespace Kalendarz1.Transport
             if (_printPageIndex == 1)
             {
                 g.DrawString("UBOJNIA DROBIU PIÓRKOWSCY", fH1, br,
-                    new RectangleF(bounds.Left, yPos, bounds.Width, 18),
+                    new RectangleF(bounds.Left, yPos, bounds.Width, 22),
                     new StringFormat { Alignment = StringAlignment.Center });
-                yPos += 20;
+                yPos += 24;
 
                 var dataR = dtpData.Value;
                 var kult = new System.Globalization.CultureInfo("pl-PL");
                 string dzienTyg = dataR.ToString("dddd", kult);
                 g.DrawString($"Plan kursów na {dataR:dd.MM.yyyy} ({dzienTyg})  ·  {kursyPosortowane.Count} kurs(y)",
                     fH2, br,
-                    new RectangleF(bounds.Left, yPos, bounds.Width, 12),
+                    new RectangleF(bounds.Left, yPos, bounds.Width, 14),
                     new StringFormat { Alignment = StringAlignment.Center });
-                yPos += 16;
+                yPos += 18;
 
                 g.DrawLine(penThick, bounds.Left, yPos, bounds.Right, yPos);
-                yPos += 6;
+                yPos += 12;
             }
 
             // ═══ LAYOUT 2-KOLUMNOWY ═══════════════════════════════════════════
@@ -522,16 +524,17 @@ namespace Kalendarz1.Transport
             Font fKurs, Font fT, Font fTGray, Brush br, Brush brGray, Pen penKurs,
             System.Globalization.CultureInfo kult)
         {
-            // ── HEADER karty (1 linia, podkreślona)
+            // ── HEADER karty (godzina wyjazdu na ostro w lewo + reszta)
             string godzWyjazdu = kurs.GodzWyjazdu?.ToString(@"hh\:mm") ?? "--:--";
-            string tel = !string.IsNullOrWhiteSpace(kurs.KierowcaTelefon) ? $" ({kurs.KierowcaTelefon})" : "";
-            string header = $"{godzWyjazdu}   #{kurs.KursID}   {kurs.KierowcaNazwa}{tel}   ·   {kurs.PojazdRejestracja}";
+            string tel = !string.IsNullOrWhiteSpace(kurs.KierowcaTelefon) ? $"   tel. {kurs.KierowcaTelefon}" : "";
+            string trasa = !string.IsNullOrWhiteSpace(kurs.Trasa) ? $"   ·   {kurs.Trasa}" : "";
+            string header = $"{godzWyjazdu}   #{kurs.KursID}   {kurs.KierowcaNazwa}{tel}   ·   {kurs.PojazdRejestracja}{trasa}";
             g.DrawString(header, fKurs, br,
-                new RectangleF(x, y, w, 12),
-                new StringFormat { Trimming = StringTrimming.EllipsisCharacter, FormatFlags = StringFormatFlags.NoWrap });
+                new RectangleF(x, y, w, 14),
+                new StringFormat { Trimming = StringTrimming.EllipsisCharacter, FormatFlags = StringFormatFlags.NoWrap, LineAlignment = StringAlignment.Center });
 
-            // Linia pod nagłówkiem kursu (czytelność)
-            int yLine = y + 12;
+            // Linia pod nagłówkiem kursu — wyraźna, gruba
+            int yLine = y + 15;
             g.DrawLine(penKurs, x, yLine, x + w, yLine);
 
             // ── Lista odbiorców
@@ -543,19 +546,20 @@ namespace Kalendarz1.Transport
                 if (l.DataAwizacji.HasValue)
                 {
                     var d = l.DataAwizacji.Value;
-                    string dzien = d.ToString("ddd", kult);   // pon, wt, śr...
+                    string dzien = d.ToString("ddd", kult).TrimEnd('.');   // niektóre kultury dają „pon." → wycinamy kropkę
                     awiz = $"{dzien} {d:dd.MM} {d:HH:mm}";
                 }
-                else awiz = "(brak awizacji)";
+                else awiz = "— brak awizacji —";
 
-                // Awizacja w stałej szerokości po lewej (czytelność tabelaryczna)
-                g.DrawString(awiz, fTGray, brGray,
-                    new RectangleF(x + 4, yRow, 84, ROW_H),
+                // Awizacja w stałej szerokości (monospace Consolas — kolumny się układają wertykalnie)
+                g.DrawString(awiz, fTGray, br,
+                    new RectangleF(x + INDENT, yRow, COL_AWIZ_W, ROW_H),
                     new StringFormat { LineAlignment = StringAlignment.Center });
 
-                // Nazwa klienta po prawej
+                // Nazwa klienta — po prawej awizacji, max-width minus padding
+                int xNazwa = x + INDENT + COL_AWIZ_W + 6;
                 g.DrawString(nazwa, fT, br,
-                    new RectangleF(x + 92, yRow, w - 92, ROW_H),
+                    new RectangleF(xNazwa, yRow, w - (xNazwa - x) - 2, ROW_H),
                     new StringFormat
                     {
                         Trimming = StringTrimming.EllipsisCharacter,
