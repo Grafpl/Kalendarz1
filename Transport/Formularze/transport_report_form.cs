@@ -311,6 +311,18 @@ namespace Kalendarz1.Transport
             return ladunki;
         }
 
+        /// <summary>
+        /// Programowy podgląd raportu dla wybranej daty — bez pokazywania okna z DataGridView.
+        /// Używane przez nowy WPF (PlanowanieTransportuWpfWindow → 📊 Raport):
+        /// jeden klik = od razu PrintPreviewDialog z kursami danego dnia.
+        /// </summary>
+        public async Task PokazPodgladDlaDatyAsync(DateTime data)
+        {
+            dtpData.Value = data;
+            await ZaladujKursyAsync();
+            BtnPodglad_Click(this, EventArgs.Empty);
+        }
+
         private void BtnPodglad_Click(object sender, EventArgs e)
         {
             try
