@@ -389,227 +389,242 @@ namespace Kalendarz1.Transport
         }
 
         // ────────────────────────────────────────────────────────────────────
-        // RAPORT — bogaty layout z paginacją
+        // RAPORT — czarno-biały, zbity, paginacja per-wiersz dla długich kursów
         // ────────────────────────────────────────────────────────────────────
-        // Każdy kurs = osobny „karta" w pełnej szerokości strony:
-        //   header (kierowca + auto) → tabela ładunków (lp/klient/awizacja/kg/poj/palety/uwagi) → suma
-        // Paginacja: gdy karta nie mieści się — przeskok na następną stronę.
+        // Layout:
+        //   Strona 1: header firmy + tytuł + sumaryzacja
+        //   Każda strona: karty kursów (header + tabela ładunków + suma)
+        //   Karta dzielona między stronami jeśli za długa
+        //   Stopka: data wygenerowania + strona N
         // ────────────────────────────────────────────────────────────────────
 
-        private int _printPageIndex;        // numer aktualnie drukowanej strony (od 1)
-        private int _printKursIndex;        // index kursu od którego zaczynamy tę stronę
+        private int _printPageIndex;      // numer strony (od 1)
+        private int _printKursIndex;      // index aktualnego kursu
+        private int _printLadunekIndex;   // index ładunku w aktualnym kursie (dla kursów dzielonych)
+        private bool _printPokazujHeaderKarty;  // czy rysować header karty (false dla kontynuacji ze strony poprzedniej)
+
+        // ─ kolumny tabeli — wspólne dla header + wierszy + sumy ──────────────
+        private const int COL_LP = 28, COL_AWIZ = 60, COL_KG = 62, COL_POJ = 48, COL_PAL = 50, COL_UWAGI = 100;
+        private const int ROW_H = 15;       // wysokość wiersza ładunku (zbicie)
+        private const int TABLE_HEAD_H = 18;
+        private const int KART_HEAD_H = 40;
+        private const int SUMA_H = 18;
 
         private void PrintDocument_PrintPage(object sender, PrintPageEventArgs e)
         {
-            // Reset stanu przy pierwszej stronie
-            if (_printPageIndex == 0) { _printPageIndex = 1; _printKursIndex = 0; }
+            if (_printPageIndex == 0) { _printPageIndex = 1; _printKursIndex = 0; _printLadunekIndex = 0; _printPokazujHeaderKarty = true; }
 
             var g = e.Graphics;
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
             g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
             var bounds = e.MarginBounds;
 
-            // Kolory & czcionki
-            var clrAccent     = Color.FromArgb(30, 64, 175);    // indygo-700
-            var clrAccentSoft = Color.FromArgb(224, 231, 255);  // indygo-100
-            var clrText       = Color.FromArgb(31, 41, 51);
-            var clrMuted      = Color.FromArgb(123, 135, 148);
-            var clrLine       = Color.FromArgb(226, 232, 240);
-            var clrZebra      = Color.FromArgb(248, 250, 252);
-            var clrSumaBg     = Color.FromArgb(243, 244, 246);
+            // Czcionki — czarno-białe, czytelne
+            var fH1 = new Font("Segoe UI", 14, FontStyle.Bold);
+            var fH2 = new Font("Segoe UI", 10, FontStyle.Bold);
+            var fH3 = new Font("Segoe UI", 9, FontStyle.Bold);
+            var fT  = new Font("Segoe UI", 8.5f);
+            var fTB = new Font("Segoe UI", 8.5f, FontStyle.Bold);
+            var fS  = new Font("Segoe UI", 7.5f);
 
-            var fH1 = new Font("Segoe UI Semibold", 16, FontStyle.Bold);
-            var fH2 = new Font("Segoe UI", 11, FontStyle.Bold);
-            var fH3 = new Font("Segoe UI Semibold", 10, FontStyle.Bold);
-            var fT  = new Font("Segoe UI", 9.5f);
-            var fTB = new Font("Segoe UI", 9.5f, FontStyle.Bold);
-            var fS  = new Font("Segoe UI", 8);
+            var br = Brushes.Black;
+            var brGray = Brushes.DimGray;
+            using var penThin = new Pen(Color.Black, 0.6f);
+            using var penThick = new Pen(Color.Black, 1.4f);
+            using var brHeaderBg = new SolidBrush(Color.FromArgb(235, 235, 235));
 
             int yPos = bounds.Top;
 
-            // ─── HEADER (tylko na 1. stronie) ─────────────────────────────────
+            // ═══ HEADER strony 1 ═══════════════════════════════════════════════
             if (_printPageIndex == 1)
             {
-                // Nazwa firmy (centered)
-                g.DrawString("UBOJNIA DROBIU PIÓRKOWSCY", fH1, new SolidBrush(clrAccent),
-                    new RectangleF(bounds.Left, yPos, bounds.Width, 24),
-                    new StringFormat { Alignment = StringAlignment.Center });
-                yPos += 28;
-
-                g.DrawString("Koziołki 40, 95-061 Dmosin   ·   NIP: 726-162-54-06   ·   Ilona Krakowiak: tel. 508 309 314",
-                    fT, new SolidBrush(clrMuted),
-                    new RectangleF(bounds.Left, yPos, bounds.Width, 16),
+                g.DrawString("UBOJNIA DROBIU PIÓRKOWSCY", fH1, br,
+                    new RectangleF(bounds.Left, yPos, bounds.Width, 20),
                     new StringFormat { Alignment = StringAlignment.Center });
                 yPos += 22;
-
-                // Akcent linia
-                using (var penAccent = new Pen(clrAccent, 2)) g.DrawLine(penAccent, bounds.Left, yPos, bounds.Right, yPos);
+                g.DrawString("Koziołki 40, 95-061 Dmosin   ·   NIP: 726-162-54-06   ·   Ilona Krakowiak: 508 309 314",
+                    fT, brGray,
+                    new RectangleF(bounds.Left, yPos, bounds.Width, 12),
+                    new StringFormat { Alignment = StringAlignment.Center });
                 yPos += 16;
 
-                // Tytuł raportu + data + dzień tygodnia
+                g.DrawLine(penThick, bounds.Left, yPos, bounds.Right, yPos);
+                yPos += 8;
+
                 var data = dtpData.Value;
                 var kultura = new System.Globalization.CultureInfo("pl-PL");
                 string dzienTyg = data.ToString("dddd", kultura);
-                g.DrawString($"📅 RAPORT TRANSPORTOWY — {data:dd.MM.yyyy} ({dzienTyg})", fH2,
-                    new SolidBrush(clrText), bounds.Left, yPos);
-                yPos += 22;
+                g.DrawString($"RAPORT TRANSPORTOWY — {data:dd.MM.yyyy} ({dzienTyg})", fH2, br,
+                    bounds.Left, yPos);
+                yPos += 18;
 
-                // Sumaryzacja
+                // Sumaryzacja jako pasek z obramowaniem (B&W)
                 int sumPoj = _kursy.Sum(k => k.SumaPojemnikiE2);
                 int sumPal = _kursy.Sum(k => k.PaletyUzyteNominal);
                 int sumLad = _kursy.Sum(k => k.Ladunki.Count);
                 decimal sumKg = _kursy.Sum(k => k.SumaKg);
-                string podsum = $"{_kursy.Count} kurs(y/ów)   ·   {sumLad} klient(ów)   ·   {sumKg:N0} kg   ·   {sumPoj} pojemników   ·   {sumPal} palet";
-                using (var brBg = new SolidBrush(clrAccentSoft))
-                    g.FillRectangle(brBg, bounds.Left, yPos, bounds.Width, 22);
-                g.DrawString(podsum, fTB, new SolidBrush(clrAccent), bounds.Left + 8, yPos + 4);
-                yPos += 32;
+                string podsum = $"{_kursy.Count} kurs(y) · {sumLad} klient(ów) · {sumKg:N0} kg · {sumPoj} pojemników · {sumPal} palet";
+                g.FillRectangle(brHeaderBg, bounds.Left, yPos, bounds.Width, 18);
+                g.DrawRectangle(penThin, bounds.Left, yPos, bounds.Width, 18);
+                g.DrawString(podsum, fTB, br, bounds.Left + 6, yPos + 3);
+                yPos += 22;
             }
 
-            // ─── KARTY KURSÓW ─────────────────────────────────────────────────
-            while (_printKursIndex < _kursy.Count)
-            {
-                var kurs = _kursy[_printKursIndex];
-                int kartaH = ObliczWysokoscKarty(kurs);
-
-                // Czy karta zmieści się na tej stronie? (zostaw 30px na stopkę)
-                if (yPos + kartaH > bounds.Bottom - 30)
-                {
-                    if (_printKursIndex == 0) // gigantyczny pojedynczy kurs → wymuś rysowanie z paginacją wewnątrz
-                        break;
-                    e.HasMorePages = true;
-                    _printPageIndex++;
-                    RysujStopke(g, bounds, fS, clrMuted);
-                    return;
-                }
-
-                yPos = RysujKarteKursu(g, bounds, yPos, kurs, fH3, fT, fTB, fS,
-                    clrAccent, clrText, clrMuted, clrLine, clrZebra, clrSumaBg);
-                yPos += 12; // odstęp między kartami
-                _printKursIndex++;
-            }
-
-            // ─── STOPKA ───────────────────────────────────────────────────────
-            RysujStopke(g, bounds, fS, clrMuted);
-            e.HasMorePages = false;
-            // Reset na koniec — żeby kolejny BtnPodglad_Click zaczynał od pierwszej strony
-            _printPageIndex = 0;
-            _printKursIndex = 0;
-        }
-
-        private int ObliczWysokoscKarty(KursRaport k)
-        {
-            // header (50) + tabela header (22) + N wierszy (18) + suma (22) + padding (16)
-            int wierszy = Math.Max(1, k.Ladunki.Count);
-            return 50 + 22 + wierszy * 18 + 22 + 16;
-        }
-
-        private int RysujKarteKursu(Graphics g, Rectangle bounds, int y0, KursRaport k,
-            Font fH3, Font fT, Font fTB, Font fS,
-            Color clrAccent, Color clrText, Color clrMuted, Color clrLine, Color clrZebra, Color clrSumaBg)
-        {
-            int x = bounds.Left;
-            int w = bounds.Width;
-            int y = y0;
-
-            // ── HEADER karty (akcent na lewo + tytuł + info)
-            using (var brAcc = new SolidBrush(clrAccent))
-                g.FillRectangle(brAcc, x, y, 4, 50);
-
-            // Linia 1: KURS #ID · WYJAZD → POWRÓT · Status
-            string godziny = $"{k.GodzWyjazdu?.ToString(@"hh\:mm") ?? "--"} → {k.GodzPowrotu?.ToString(@"hh\:mm") ?? "--"}";
-            string linia1 = $"KURS #{k.KursID}   ·   {godziny}   ·   {k.DataKursu:dd.MM.yyyy}   ·   Status: {k.Status}";
-            g.DrawString(linia1, fH3, new SolidBrush(clrText), x + 12, y + 4);
-
-            // Linia 2: 👤 Kierowca   ·   🚛 Pojazd
-            string linia2 = $"👤 {k.KierowcaNazwa}    🚛 {k.PojazdRejestracja}   (pojemność {k.PaletyPojazdu} palet · zaplanowano {k.PaletyUzyteNominal})";
-            g.DrawString(linia2, fT, new SolidBrush(clrMuted), x + 12, y + 22);
-
-            // Trasa (skrócona, jeśli zbyt długa)
-            if (!string.IsNullOrWhiteSpace(k.Trasa))
-                g.DrawString($"🛣 {k.Trasa}", fT, new SolidBrush(clrMuted), x + 12, y + 36);
-            y += 52;
-
-            // ── TABELA ładunków
-            int[] szer = { 28, w - 28 - 70 - 70 - 50 - 60 - 110, 70, 70, 50, 60, 110 };
+            // ═══ KARTY KURSÓW (z paginacją per-wiersz) ════════════════════════
+            // Szerokości kolumn — szerokość klienta = całość - inne kolumny
+            int wTotal = bounds.Width;
+            int wKlient = wTotal - COL_LP - COL_AWIZ - COL_KG - COL_POJ - COL_PAL - COL_UWAGI;
+            int[] szer = { COL_LP, wKlient, COL_AWIZ, COL_KG, COL_POJ, COL_PAL, COL_UWAGI };
             string[] headers = { "Lp", "Klient", "Awizacja", "Kg", "Poj.", "Palet", "Uwagi" };
             StringAlignment[] aligns = {
                 StringAlignment.Center, StringAlignment.Near, StringAlignment.Center,
                 StringAlignment.Far, StringAlignment.Center, StringAlignment.Center, StringAlignment.Near
             };
 
-            // Tło + tekst nagłówków
-            using (var brBg = new SolidBrush(Color.FromArgb(243, 244, 246)))
-                g.FillRectangle(brBg, x, y, w, 22);
-            int colX = x;
-            for (int i = 0; i < headers.Length; i++)
+            int yStop = bounds.Bottom - 18;   // miejsce na stopkę
+
+            while (_printKursIndex < _kursy.Count)
             {
-                g.DrawString(headers[i], fTB, new SolidBrush(clrText),
-                    new RectangleF(colX + 4, y + 4, szer[i] - 8, 18),
-                    new StringFormat { Alignment = aligns[i], LineAlignment = StringAlignment.Center });
-                colX += szer[i];
-            }
-            using (var penLine = new Pen(clrLine, 1)) g.DrawLine(penLine, x, y + 22, x + w, y + 22);
-            y += 22;
+                var kurs = _kursy[_printKursIndex];
+                var ladunki = kurs.Ladunki.OrderBy(z => z.Kolejnosc).ToList();
+                int liczbaPozostalych = ladunki.Count - _printLadunekIndex;
 
-            // Wiersze ładunków
-            int row = 0;
-            foreach (var l in k.Ladunki.OrderBy(z => z.Kolejnosc))
-            {
-                if (row % 2 == 1)
-                    using (var brZ = new SolidBrush(clrZebra))
-                        g.FillRectangle(brZ, x, y, w, 18);
-
-                string nazwa = !string.IsNullOrEmpty(l.NazwaKlienta) ? l.NazwaKlienta : (l.KodKlienta ?? "—");
-                string awiz = l.DataAwizacji?.ToString("HH:mm") ?? "—";
-                string kg = l.IloscKg > 0 ? l.IloscKg.ToString("N0") : "—";
-                string poj = l.PojemnikiE2.ToString();
-                string palet = l.PaletyH1.HasValue ? l.PaletyH1.ToString() : "—";
-                string uwagi = l.Uwagi ?? "";
-
-                string[] cells = { l.Kolejnosc.ToString(), nazwa, awiz, kg, poj, palet, uwagi };
-                colX = x;
-                for (int i = 0; i < cells.Length; i++)
+                // Wymaganie minimum: header karty + table header + 1 wiersz + suma = czytelnie nie zaczynamy karty pod koniec strony
+                int wymaganeMin = (_printPokazujHeaderKarty ? KART_HEAD_H : 0) + TABLE_HEAD_H + ROW_H + SUMA_H;
+                if (yPos + wymaganeMin > yStop)
                 {
-                    g.DrawString(cells[i], fT, new SolidBrush(clrText),
-                        new RectangleF(colX + 4, y + 2, szer[i] - 8, 16),
-                        new StringFormat
-                        {
-                            Alignment = aligns[i],
-                            LineAlignment = StringAlignment.Center,
-                            Trimming = StringTrimming.EllipsisCharacter,
-                            FormatFlags = StringFormatFlags.NoWrap
-                        });
+                    e.HasMorePages = true;
+                    _printPageIndex++;
+                    RysujStopke(g, bounds, fS, brGray);
+                    return;
+                }
+
+                // ── HEADER karty (gdy nie kontynuacja)
+                if (_printPokazujHeaderKarty)
+                {
+                    g.DrawRectangle(penThin, bounds.Left, yPos, wTotal, KART_HEAD_H);
+                    string godziny = $"{kurs.GodzWyjazdu?.ToString(@"hh\:mm") ?? "--"} → {kurs.GodzPowrotu?.ToString(@"hh\:mm") ?? "--"}";
+                    string linia1 = $"KURS #{kurs.KursID}   ·   {kurs.KierowcaNazwa}   ·   {kurs.PojazdRejestracja}";
+                    string linia2 = $"Wyjazd: {kurs.DataKursu:dd.MM} {godziny}   ·   {kurs.Status}   ·   pojemność: {kurs.PaletyUzyteNominal}/{kurs.PaletyPojazdu} palet";
+                    if (!string.IsNullOrWhiteSpace(kurs.Trasa)) linia2 += $"   ·   trasa: {kurs.Trasa}";
+                    g.DrawString(linia1, fTB, br, bounds.Left + 6, yPos + 3);
+                    g.DrawString(linia2, fT, brGray,
+                        new RectangleF(bounds.Left + 6, yPos + 20, wTotal - 12, 14),
+                        new StringFormat { Trimming = StringTrimming.EllipsisCharacter, FormatFlags = StringFormatFlags.NoWrap });
+                    yPos += KART_HEAD_H;
+                }
+
+                // ── HEADER tabeli (rysowany na każdej stronie kursu)
+                g.FillRectangle(brHeaderBg, bounds.Left, yPos, wTotal, TABLE_HEAD_H);
+                g.DrawRectangle(penThin, bounds.Left, yPos, wTotal, TABLE_HEAD_H);
+                int colX = bounds.Left;
+                for (int i = 0; i < headers.Length; i++)
+                {
+                    g.DrawString(headers[i], fTB, br,
+                        new RectangleF(colX + 3, yPos + 2, szer[i] - 6, TABLE_HEAD_H - 4),
+                        new StringFormat { Alignment = aligns[i], LineAlignment = StringAlignment.Center });
+                    if (i < headers.Length - 1) g.DrawLine(penThin, colX + szer[i], yPos, colX + szer[i], yPos + TABLE_HEAD_H);
                     colX += szer[i];
                 }
-                y += 18;
-                row++;
+                yPos += TABLE_HEAD_H;
+
+                // ── Wiersze ładunków — paginacja per wiersz
+                int yTabelaStart = yPos;
+                bool dokonczonoKurs = false;
+                while (_printLadunekIndex < ladunki.Count)
+                {
+                    // Czy zmieści się jeszcze 1 wiersz + suma?
+                    if (yPos + ROW_H + SUMA_H > yStop)
+                    {
+                        // Zamknij obramowanie tabeli na tej stronie + obetnij linie pionowe
+                        RysujLinieKolumn(g, penThin, bounds.Left, yTabelaStart, yPos, szer, headers.Length);
+                        g.DrawLine(penThin, bounds.Left, yPos, bounds.Right, yPos);
+
+                        e.HasMorePages = true;
+                        _printPageIndex++;
+                        _printPokazujHeaderKarty = false;   // header karty już pokazany
+                        RysujStopke(g, bounds, fS, brGray);
+                        return;
+                    }
+
+                    var l = ladunki[_printLadunekIndex];
+                    string nazwa = !string.IsNullOrEmpty(l.NazwaKlienta) ? l.NazwaKlienta : (l.KodKlienta ?? "—");
+                    string awiz = l.DataAwizacji?.ToString("HH:mm") ?? "—";
+                    string kg = l.IloscKg > 0 ? l.IloscKg.ToString("N0") : "—";
+                    string poj = l.PojemnikiE2.ToString();
+                    string palet = l.PaletyH1.HasValue ? l.PaletyH1.ToString() : "—";
+                    string uwagi = l.Uwagi ?? "";
+
+                    string[] cells = { l.Kolejnosc.ToString(), nazwa, awiz, kg, poj, palet, uwagi };
+                    colX = bounds.Left;
+                    for (int i = 0; i < cells.Length; i++)
+                    {
+                        g.DrawString(cells[i], fT, br,
+                            new RectangleF(colX + 3, yPos + 1, szer[i] - 6, ROW_H - 2),
+                            new StringFormat
+                            {
+                                Alignment = aligns[i],
+                                LineAlignment = StringAlignment.Center,
+                                Trimming = StringTrimming.EllipsisCharacter,
+                                FormatFlags = StringFormatFlags.NoWrap
+                            });
+                        colX += szer[i];
+                    }
+                    yPos += ROW_H;
+                    _printLadunekIndex++;
+                }
+                dokonczonoKurs = true;
+
+                // ── Wiersz SUMA
+                g.FillRectangle(brHeaderBg, bounds.Left, yPos, wTotal, SUMA_H);
+                g.DrawRectangle(penThin, bounds.Left, yPos, wTotal, SUMA_H);
+                string[] sumaCells = { "", "SUMA", "", kurs.SumaKg.ToString("N0"), kurs.SumaPojemnikiE2.ToString(), $"{kurs.PaletyUzyteNominal}/{kurs.PaletyPojazdu}", "" };
+                colX = bounds.Left;
+                for (int i = 0; i < sumaCells.Length; i++)
+                {
+                    g.DrawString(sumaCells[i], fTB, br,
+                        new RectangleF(colX + 3, yPos + 2, szer[i] - 6, SUMA_H - 4),
+                        new StringFormat { Alignment = aligns[i], LineAlignment = StringAlignment.Center });
+                    if (i < sumaCells.Length - 1) g.DrawLine(penThin, colX + szer[i], yPos, colX + szer[i], yPos + SUMA_H);
+                    colX += szer[i];
+                }
+                yPos += SUMA_H;
+
+                // Dorysuj linie kolumn na całej wysokości tabeli (od yTabelaStart do yPos przed SUMA)
+                RysujLinieKolumn(g, penThin, bounds.Left, yTabelaStart, yPos - SUMA_H, szer, headers.Length);
+
+                // Następny kurs
+                _printKursIndex++;
+                _printLadunekIndex = 0;
+                _printPokazujHeaderKarty = true;
+                yPos += 6;   // odstęp między kartami (zbity)
             }
 
-            // Wiersz SUMA (wyróżniony)
-            using (var brBg = new SolidBrush(clrSumaBg))
-                g.FillRectangle(brBg, x, y, w, 22);
-            using (var penLine = new Pen(clrLine, 1)) g.DrawLine(penLine, x, y, x + w, y);
-
-            string[] sumaCells = { "", "SUMA", "", k.SumaKg.ToString("N0"), k.SumaPojemnikiE2.ToString(), $"{k.PaletyUzyteNominal}/{k.PaletyPojazdu}", "" };
-            colX = x;
-            for (int i = 0; i < sumaCells.Length; i++)
-            {
-                g.DrawString(sumaCells[i], fTB, new SolidBrush(clrAccent),
-                    new RectangleF(colX + 4, y + 4, szer[i] - 8, 18),
-                    new StringFormat { Alignment = aligns[i], LineAlignment = StringAlignment.Center });
-                colX += szer[i];
-            }
-            y += 24;
-
-            return y;
+            // ═══ KONIEC — stopka + reset ═════════════════════════════════════
+            RysujStopke(g, bounds, fS, brGray);
+            e.HasMorePages = false;
+            _printPageIndex = 0;
+            _printKursIndex = 0;
+            _printLadunekIndex = 0;
+            _printPokazujHeaderKarty = true;
         }
 
-        private void RysujStopke(Graphics g, Rectangle bounds, Font fS, Color clrMuted)
+        /// <summary>Rysuje pionowe linie kolumn tabeli między y1 i y2.</summary>
+        private static void RysujLinieKolumn(Graphics g, Pen pen, int x0, int y1, int y2, int[] szer, int kolumnyCount)
+        {
+            int x = x0;
+            for (int i = 0; i < kolumnyCount; i++)
+            {
+                if (i < kolumnyCount - 1) g.DrawLine(pen, x + szer[i], y1, x + szer[i], y2);
+                x += szer[i];
+            }
+        }
+
+        private void RysujStopke(Graphics g, Rectangle bounds, Font fS, Brush brGray)
         {
             string stopka = $"Wygenerowano: {DateTime.Now:dd.MM.yyyy HH:mm}   ·   ZPSP Transport   ·   Strona {_printPageIndex}";
-            g.DrawString(stopka, fS, new SolidBrush(clrMuted),
-                new RectangleF(bounds.Left, bounds.Bottom - 14, bounds.Width, 12),
+            g.DrawString(stopka, fS, brGray,
+                new RectangleF(bounds.Left, bounds.Bottom - 12, bounds.Width, 10),
                 new StringFormat { Alignment = StringAlignment.Center });
         }
 
