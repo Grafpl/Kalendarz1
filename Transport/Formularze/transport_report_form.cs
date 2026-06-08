@@ -284,14 +284,17 @@ namespace Kalendarz1.Transport
 
         private async Task UzupelnijNazwyZHandelAsync(List<KursRaport> kursy)
         {
-            var brakujace = kursy
+            // Bierzemy WSZYSTKIE ZAM_ ładunki (nie tylko te z pustą nazwą) — bo chcemy
+            // skróty z Sage.Shortcut zamiast pełnych nazw z TransportPL.KlientAdres.
+            // Zgodne z widokiem kursów (TransportWpfService.PobierzNazwyKlientowAsync).
+            var idy = kursy
                 .SelectMany(k => k.Ladunki)
-                .Where(l => string.IsNullOrEmpty(l.NazwaKlienta) && l.KlientId.HasValue && l.KlientId.Value > 0)
+                .Where(l => l.KlientId.HasValue && l.KlientId.Value > 0)
                 .Select(l => l.KlientId!.Value)
                 .Distinct()
                 .ToList();
 
-            if (brakujace.Count == 0) return;
+            if (idy.Count == 0) return;
 
             var nazwy = new Dictionary<int, string>();
             const string connHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
@@ -301,24 +304,29 @@ namespace Kalendarz1.Transport
                 await cn.OpenAsync();
                 using var cmd = cn.CreateCommand();
                 var parametry = new List<string>();
-                for (int i = 0; i < brakujace.Count; i++)
+                for (int i = 0; i < idy.Count; i++)
                 {
                     var p = $"@id{i}";
                     parametry.Add(p);
-                    cmd.Parameters.AddWithValue(p, brakujace[i]);
+                    cmd.Parameters.AddWithValue(p, idy[i]);
                 }
-                cmd.CommandText = $"SELECT Id, Name FROM [SSCommon].[STContractors] WHERE Id IN ({string.Join(",", parametry)})";
+                // Shortcut (skrót) zamiast Name (pełna nazwa) — żeby pasować do widoku kursów.
+                // ISNULL(Shortcut, 'KH ' + Id) — fallback dla klientów bez ustawionego skrótu.
+                cmd.CommandText = $@"
+                    SELECT Id, ISNULL(Shortcut, 'KH ' + CAST(Id AS VARCHAR(10))) AS Skrot
+                    FROM [SSCommon].[STContractors]
+                    WHERE Id IN ({string.Join(",", parametry)})";
                 cmd.CommandTimeout = 15;
                 await using var r = await cmd.ExecuteReaderAsync();
                 while (await r.ReadAsync())
-                    nazwy[r.GetInt32(0)] = r.IsDBNull(1) ? "" : r.GetString(1);
+                    nazwy[r.GetInt32(0)] = r.IsDBNull(1) ? "" : r.GetString(1).Trim();
             }
-            catch { /* silent — gdy Handel niedostępny pokażemy ZAM_xxx */ }
+            catch { /* silent — gdy Handel niedostępny pokażemy fallback */ }
 
-            // Podstaw nazwy do ładunków + uzupełnij KlientAdres dla przyszłych raportów
+            // Podstaw skróty z Sage (nadpisuje pełne nazwy z KlientAdres)
             foreach (var lad in kursy.SelectMany(k => k.Ladunki))
             {
-                if (string.IsNullOrEmpty(lad.NazwaKlienta) && lad.KlientId.HasValue
+                if (lad.KlientId.HasValue
                     && nazwy.TryGetValue(lad.KlientId.Value, out var n) && !string.IsNullOrEmpty(n))
                 {
                     lad.NazwaKlienta = n;
@@ -512,16 +520,29 @@ namespace Kalendarz1.Transport
                 yPos += 12;
             }
 
-            // ═══ LAYOUT 1-KOLUMNOWY (pełna szerokość strony) ═══════════════════
+            // ═══ LAYOUT 2-KOLUMNOWY (każda kolumna = pół szerokości) ═══════════
             int yStop = bounds.Bottom - 14;
+            int kolW = (bounds.Width - GAP_KOL) / 2;
+            int[] kolX = { bounds.Left, bounds.Left + kolW + GAP_KOL };
+            int[] yKol = { yPos, yPos };
+            int kolumna = 0;
             var kultPL = new System.Globalization.CultureInfo("pl-PL");
+            var dataKursowa = dtpData.Value.Date;
 
             while (_printKursIndex < kursyPosortowane.Count)
             {
                 var kurs = kursyPosortowane[_printKursIndex];
                 int kartaH = ObliczWysokoscKarty(kurs);
 
-                if (yPos + kartaH > yStop)
+                int wybrana = -1;
+                if (yKol[kolumna] + kartaH <= yStop) wybrana = kolumna;
+                else
+                {
+                    int inna = 1 - kolumna;
+                    if (yKol[inna] + kartaH <= yStop) wybrana = inna;
+                }
+
+                if (wybrana == -1)
                 {
                     RysujStopke(g, bounds, fS, brGray);
                     e.HasMorePages = true;
@@ -529,8 +550,9 @@ namespace Kalendarz1.Transport
                     return;
                 }
 
-                RysujKarte(g, bounds.Left, yPos, bounds.Width, kurs, fKurs, fT, fTGray, br, brGray, penKurs, kultPL);
-                yPos += kartaH + GAP_KART;
+                RysujKarte(g, kolX[wybrana], yKol[wybrana], kolW, kurs, fKurs, fT, fTGray, br, brGray, penKurs, kultPL, dataKursowa);
+                yKol[wybrana] += kartaH + GAP_KART;
+                kolumna = 1 - wybrana;   // rotacja LR LR
                 _printKursIndex++;
             }
 
@@ -555,44 +577,47 @@ namespace Kalendarz1.Transport
         /// </summary>
         private static void RysujKarte(Graphics g, int x, int y, int w, KursRaport kurs,
             Font fKurs, Font fT, Font fTGray, Brush br, Brush brGray, Pen penKurs,
-            System.Globalization.CultureInfo kult)
+            System.Globalization.CultureInfo kult, DateTime dataKursowa)
         {
-            // ── HEADER karty (godzina wyjazdu na ostro w lewo + reszta)
+            // ── HEADER karty (godzina wyjazdu + numer + kierowca + telefon + pojazd)
             string godzWyjazdu = kurs.GodzWyjazdu?.ToString(@"hh\:mm") ?? "--:--";
             string tel = !string.IsNullOrWhiteSpace(kurs.KierowcaTelefon) ? $"   tel. {kurs.KierowcaTelefon}" : "";
-            string trasa = !string.IsNullOrWhiteSpace(kurs.Trasa) ? $"   ·   {kurs.Trasa}" : "";
-            string header = $"{godzWyjazdu}   #{kurs.KursID}   {kurs.KierowcaNazwa}{tel}   ·   {kurs.PojazdRejestracja}{trasa}";
+            string header = $"{godzWyjazdu}   #{kurs.KursID}   {kurs.KierowcaNazwa}{tel}   ·   {kurs.PojazdRejestracja}";
             g.DrawString(header, fKurs, br,
                 new RectangleF(x, y, w, 14),
                 new StringFormat { Trimming = StringTrimming.EllipsisCharacter, FormatFlags = StringFormatFlags.NoWrap, LineAlignment = StringAlignment.Center });
 
-            // Linia pod nagłówkiem kursu — wyraźna, gruba
+            // Linia pod nagłówkiem kursu — wyraźna
             int yLine = y + 15;
             g.DrawLine(penKurs, x, yLine, x + w, yLine);
 
-            // ── Lista odbiorców
+            // ── Lista odbiorców: „Klient (HH:mm)" lub „Klient (wt 09.06 06:00)" gdy inny dzień
             int yRow = y + KART_HEAD_H;
             foreach (var l in kurs.Ladunki.OrderBy(z => z.Kolejnosc))
             {
                 string nazwa = !string.IsNullOrEmpty(l.NazwaKlienta) ? l.NazwaKlienta : (l.KodKlienta ?? "—");
+
                 string awiz;
                 if (l.DataAwizacji.HasValue)
                 {
                     var d = l.DataAwizacji.Value;
-                    string dzien = d.ToString("ddd", kult).TrimEnd('.');   // niektóre kultury dają „pon." → wycinamy kropkę
-                    awiz = $"{dzien} {d:dd.MM} {d:HH:mm}";
+                    if (d.Date == dataKursowa)
+                    {
+                        // Ten sam dzień co kurs — pokaż tylko godzinę
+                        awiz = d.ToString("HH:mm");
+                    }
+                    else
+                    {
+                        // Inny dzień (np. odjazd dziś, dostawa jutro rano) — pełna data
+                        string dzien = d.ToString("ddd", kult).TrimEnd('.');
+                        awiz = $"{dzien} {d:dd.MM} {d:HH:mm}";
+                    }
                 }
-                else awiz = "— brak awizacji —";
+                else awiz = "brak awizacji";
 
-                // Awizacja w stałej szerokości (monospace Consolas — kolumny się układają wertykalnie)
-                g.DrawString(awiz, fTGray, br,
-                    new RectangleF(x + INDENT, yRow, COL_AWIZ_W, ROW_H),
-                    new StringFormat { LineAlignment = StringAlignment.Center });
-
-                // Nazwa klienta — po prawej awizacji, max-width minus padding
-                int xNazwa = x + INDENT + COL_AWIZ_W + 6;
-                g.DrawString(nazwa, fT, br,
-                    new RectangleF(xNazwa, yRow, w - (xNazwa - x) - 2, ROW_H),
+                string wiersz = $"{nazwa} ({awiz})";
+                g.DrawString(wiersz, fT, br,
+                    new RectangleF(x + INDENT, yRow, w - INDENT - 2, ROW_H),
                     new StringFormat
                     {
                         Trimming = StringTrimming.EllipsisCharacter,
