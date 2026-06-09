@@ -720,6 +720,9 @@
                                 <MenuItem Header="➕ Nowa dostawa na ten dzień" Click="MenuItemNowaDostawaZDaty_Click" FontWeight="SemiBold" InputGestureText="Ctrl+N"/>
                                 <MenuItem Header="📋 Duplikuj dostawę" Click="BtnDuplikuj_Click" InputGestureText="Ctrl+D"/>
                                 <MenuItem Header="📱 Kopiuj SMS o szczegółach dostawy" Click="MenuKopiujSMS_Click" Loaded="MenuKopiujSMS_Loaded"/>
+                                <MenuItem Header="📞 Zadzwoń do dostawcy" Click="MenuZadzwonDoDostawcy_Click" FontWeight="SemiBold" Foreground="#15803D"/>
+                                <MenuItem Header="📋 SMS — Zapytanie o nowe wstawienie" Click="MenuSmsZapytanieOWstawienie_Click" Foreground="#1976D2"/>
+                                <MenuItem Header="🧪 TEST: wyślij SMS przez telefon (bez zapisu)" Click="MenuTestSmsPrzezTelefon_Click" Foreground="#7C3AED"/>
                                 <Separator/>
 
                                 <!-- SEKCJA: Przesuwanie daty -->
@@ -1097,6 +1100,9 @@
                                 <MenuItem Header="➕ Nowa dostawa na ten dzień" Click="MenuItemNowaDostawaZDaty_Click" FontWeight="SemiBold" InputGestureText="Ctrl+N"/>
                                 <MenuItem Header="📋 Duplikuj dostawę" Click="BtnDuplikuj_Click" InputGestureText="Ctrl+D"/>
                                 <MenuItem Header="📱 Kopiuj SMS o szczegółach dostawy" Click="MenuKopiujSMS_Click" Loaded="MenuKopiujSMS_Loaded"/>
+                                <MenuItem Header="📞 Zadzwoń do dostawcy" Click="MenuZadzwonDoDostawcy_Click" FontWeight="SemiBold" Foreground="#15803D"/>
+                                <MenuItem Header="📋 SMS — Zapytanie o nowe wstawienie" Click="MenuSmsZapytanieOWstawienie_Click" Foreground="#1976D2"/>
+                                <MenuItem Header="🧪 TEST: wyślij SMS przez telefon (bez zapisu)" Click="MenuTestSmsPrzezTelefon_Click" Foreground="#7C3AED"/>
                                 <Separator/>
 
                                 <!-- SEKCJA: Przesuwanie daty -->

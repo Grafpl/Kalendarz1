@@ -517,6 +517,7 @@ namespace Kalendarz1.Transport.WPF
             _ = OdswiezPodpowiedziParAsync().ContinueWith(_ => Dispatcher.Invoke(FiltrujWolne));
             FiltrujWolne();
             PrzeliczPakowanie();
+            OdswiezHarmonogram();
         }
 
         private void BtnUsunLadunek_Click(object sender, RoutedEventArgs e)
@@ -551,6 +552,7 @@ namespace Kalendarz1.Transport.WPF
             // przelicz "🤝 razem" — usunięty klient zmienia podpowiedzi
             _ = OdswiezPodpowiedziParAsync().ContinueWith(_ => Dispatcher.Invoke(FiltrujWolne));
             PrzeliczPakowanie();
+            OdswiezHarmonogram();
         }
 
         private void BtnGora_Click(object sender, RoutedEventArgs e) => Przesun(-1);
@@ -565,6 +567,7 @@ namespace Kalendarz1.Transport.WPF
             _ladunki.Move(idx, nowy);
             Renumeruj();
             LadunkiGrid.SelectedItem = lad;
+            OdswiezHarmonogram();
         }
 
         private void BtnSortuj_Click(object sender, RoutedEventArgs e)
@@ -573,6 +576,7 @@ namespace Kalendarz1.Transport.WPF
             _ladunki.Clear();
             foreach (var l in posort) _ladunki.Add(l);
             Renumeruj();
+            OdswiezHarmonogram();
         }
 
         private void Renumeruj()
@@ -854,6 +858,9 @@ namespace Kalendarz1.Transport.WPF
                 double km = wynik.TotalDistanceKm + wynik.ReturnDistanceKm;
                 SzacunekHint.Text = $"~{km:F0} km";
                 StatusText.Text = "Oszacowano powrót.";
+
+                // Wypełnij panel harmonogramu pod listą ładunków szczegółowymi krokami
+                WypelnijHarmonogram(wyjazd, wynik, stops, odcinki, km);
             }
             catch (Exception ex)
             {
@@ -861,6 +868,61 @@ namespace Kalendarz1.Transport.WPF
                 StatusText.Text = $"Błąd szacowania: {ex.Message}";
             }
             finally { BtnSzacujPowrot.IsEnabled = true; }
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // HARMONOGRAM KURSU — wypełnianie panelu pod listą ładunków
+        // ════════════════════════════════════════════════════════════════════
+
+        private void WypelnijHarmonogram(TimeSpan godzWyjazdu, EtaService.RouteEtaResult eta,
+                                          List<EtaService.StopInput> stops,
+                                          Dictionary<(int, int), int>? odcinki,
+                                          double totalKm)
+        {
+            if (HarmonogramTekst == null) return;
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"🚛 WYJAZD {godzWyjazdu:hh\\:mm}  ·  Koziołki 40, 95-061 Dmosin");
+
+            int prevLokId = EtaService.BazaLokId;
+            for (int i = 0; i < eta.Stops.Count; i++)
+            {
+                var s = eta.Stops[i];
+                var inp = i < stops.Count ? stops[i] : null;
+
+                bool zHist = inp?.KlientId.HasValue == true
+                             && odcinki != null
+                             && odcinki.ContainsKey((prevLokId, inp.KlientId.Value));
+                string flag = zHist ? "✓ historia" : (s.HasCoordinates ? "~ Haversine" : "⚠ bez GPS");
+
+                sb.AppendLine($"   ↓ jazda {s.DistanceFromPrevKm:F0} km ({(int)s.DriveTime.TotalMinutes} min)  [{flag}]");
+                sb.AppendLine($"📍 {s.Eta:hh\\:mm}  #{s.Kolejnosc}  {s.NazwaKlienta}");
+                sb.AppendLine($"   ⏸ rozładunek {s.UnloadMin} min  →  odjazd {s.DepartureAfterUnload:hh\\:mm}");
+
+                if (inp?.KlientId.HasValue == true) prevLokId = inp.KlientId.Value;
+            }
+            sb.AppendLine($"   ↓ powrót do bazy ({eta.ReturnDistanceKm:F0} km)");
+            sb.AppendLine($"🏁 POWRÓT {eta.EstimatedReturnTime:hh\\:mm}");
+
+            HarmonogramTekst.Text = sb.ToString();
+            if (HarmonogramSuma != null)
+                HarmonogramSuma.Text = $"RAZEM: {eta.TotalDuration.TotalHours:F1} h  ·  {totalKm:F0} km";
+        }
+
+        /// <summary>
+        /// Auto-trigger szacowania — fire-and-forget po dodaniu/usunięciu/przesunięciu ładunku.
+        /// Pełna logika jest w BtnSzacujPowrot_Click — tu po prostu klikamy programowo.
+        /// </summary>
+        private void OdswiezHarmonogram()
+        {
+            if (_ladunki.Count == 0)
+            {
+                if (HarmonogramTekst != null) HarmonogramTekst.Text = "(dodaj klientów do kursu — harmonogram pojawi się automatycznie)";
+                if (HarmonogramSuma != null) HarmonogramSuma.Text = "";
+                return;
+            }
+            // Wywołaj logikę szacowania (asynchronicznie — nie blokuje UI)
+            BtnSzacujPowrot_Click(this, new RoutedEventArgs());
         }
 
         private static TimeSpan ZaokraglijDo5(TimeSpan t)
@@ -1051,6 +1113,9 @@ namespace Kalendarz1.Transport.WPF
             if (h is < 0 or > 23) return;
             if (m is < 0 or > 59) return;
             tb.Text = $"{h:00}:{m:00}";
+
+            // Gdy zmieniono GODZINĘ WYJAZDU — przelicz harmonogram + powrót na bieżąco
+            if (ReferenceEquals(tb, TxtWyjazd)) OdswiezHarmonogram();
         }
 
         /// <summary>Pozwala wpisywać tylko cyfry i znak dwukropka/kropki/przecinka.</summary>

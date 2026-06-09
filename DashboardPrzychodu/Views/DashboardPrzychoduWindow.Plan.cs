@@ -15,26 +15,9 @@ namespace Kalendarz1.DashboardPrzychodu.Views
         /// <summary>
         /// Obsluga zmiany trybu planu (Stare/Nowe).
         /// </summary>
-        private void RbPlanMode_Checked(object sender, RoutedEventArgs e)
-        {
-            if (rbPlanNowe == null || rbPlanStare == null) return; // jeszcze nie zainicjalizowane
-            // IsChecked="True" w XAML pali ten event podczas InitializeComponent, ZANIM konstruktor
-            // zdazyl utworzyc kolekcje i podsumowanie. Pomijamy - LoadDataAsync i tak wywola refresh.
-            if (_dostawy == null || _podsumowanie == null) return;
-
-            _useNowyPlan = rbPlanNowe.IsChecked == true;
-
-            if (_useNowyPlan)
-                RecalculateNowyPlan();
-            else
-                ClearNowyPlan();
-
-            UpdateSummaryUI();
-            UpdateTableSummary();
-
-            // Persystencja (#9)
-            SaveSettings();
-        }
+        // RbPlanMode_Checked - zostawiony jako stub (RadioButtony usuniete z XAML)
+        // dla kompatybilnosci - moze byc wywolany jesli ktokolwiek bindowal handler.
+        private void RbPlanMode_Checked(object sender, RoutedEventArgs e) { }
 
         /// <summary>
         /// Tryb "Nowe": per-auto plan = SztukiExcel × WagaDek(harmonogram),

@@ -699,6 +699,7 @@ namespace Kalendarz1
         // ====== ŁADOWANIE DANYCH ======
         private void LoadWstawienia()
         {
+            var stanWst = ZachowajStanGrid(dataGridWstawienia);
             // Po przeładowaniu wstawień lista hodowców z przyszłymi dostawami może być nieaktualna
             _uniqueSuppliersFutureCache = null;
             string topClause = _wstawieniaShowAll ? "" : $"TOP {WSTAWIENIA_DEFAULT_LIMIT}";
@@ -762,6 +763,7 @@ namespace Kalendarz1
             }
             var swFilters = System.Diagnostics.Stopwatch.StartNew();
             ApplyFilters();
+            PrzywrocStanGrid(dataGridWstawienia, stanWst);
             _audyt?.Sub("ApplyFilters", swFilters.ElapsedMilliseconds);
         }
 
@@ -1547,6 +1549,7 @@ namespace Kalendarz1
 
         private void LoadPrzypomnienia()
         {
+            var stanGrid = ZachowajStanGrid(dataGridPrzypomnienia);
             var table = new DataTable();
             table.Columns.Add("LP", typeof(int));
             table.Columns.Add("Data", typeof(DateTime));
@@ -1722,6 +1725,7 @@ namespace Kalendarz1
             dataGridPrzypomnienia.ItemsSource = table.DefaultView;
             SetupPrzypomieniaColumns();
             ApplyFilters();
+            PrzywrocStanGrid(dataGridPrzypomnienia, stanGrid);
             _audyt?.Sub("ItemsSource + SetupColumns + ApplyFilters", swSetupP.ElapsedMilliseconds);
         }
 
@@ -2270,6 +2274,7 @@ namespace Kalendarz1
 
         private void LoadDoPotwierdzenia()
         {
+            var stanDP = ZachowajStanGrid(dataGridDoPotwierdzenia);
             // Wstawienia do potwierdzenia (zakupowiec dzwoni żeby potwierdzić termin):
             //   • 12 dni wstecz (jeszcze nie potwierdzone — zaległe!) + 14 dni do przodu
             //   • TYLKO niepotwierdzone (w.isConf IS NULL OR w.isConf = 0)
@@ -2308,6 +2313,7 @@ namespace Kalendarz1
 
                 dataGridDoPotwierdzenia.ItemsSource = table.DefaultView;
                 SetupDoPotwierdzeniaColumns();
+                PrzywrocStanGrid(dataGridDoPotwierdzenia, stanDP);
 
                 if (txtLiczbaDoPotwierdzenia != null)
                     txtLiczbaDoPotwierdzenia.Text = table.Rows.Count.ToString();
@@ -2367,6 +2373,18 @@ namespace Kalendarz1
             var menuItemPotwierdzData = new MenuItem { Header = "📅 Potwierdź i zmień datę", FontWeight = FontWeights.SemiBold };
             menuItemPotwierdzData.Click += MenuPotwierdzIZmienDate_Click;
             contextMenu.Items.Add(menuItemPotwierdzData);
+
+            contextMenu.Items.Add(new Separator());
+
+            // 📞 Zadzwoń do hodowcy przez telefon (MacroDroid /call)
+            var menuItemZadzwon = new MenuItem
+            {
+                Header = "📞 Zadzwoń do hodowcy",
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Color.FromRgb(0x15, 0x80, 0x3D))
+            };
+            menuItemZadzwon.Click += MenuZadzwonHodowcyDoPotwierdzenia_Click;
+            contextMenu.Items.Add(menuItemZadzwon);
 
             contextMenu.Items.Add(new Separator());
 
@@ -3735,8 +3753,6 @@ namespace Kalendarz1
             string tresc = PrzygotujTrescSms(row, wariant);
             string telefon = PobierzTelefonHodowcyZBazy(dostawca);
 
-            Clipboard.SetText(tresc);
-
             string nazwaWariantu = wariant switch
             {
                 1 => "1️⃣ Oficjalny standardowy",
@@ -3750,21 +3766,12 @@ namespace Kalendarz1
                 _ => $"Wariant {wariant}"
             };
 
+            // Wysyłka przez telefon (dialog) LUB schowek (legacy) — wspólny helper
+            if (!WyslijSmsLubPokaSchowek(dostawca, telefon, tresc, nazwaWariantu, out _)) return;
+
             // #2 Auto-wpis do ContactHistory
             int? lpWstZ = row["LP"] != DBNull.Value ? Convert.ToInt32(row["LP"]) : (int?)null;
             ZapiszContactSmsAutomatycznie(lpWstZ, dostawca, nazwaWariantu);
-
-            string info = $"✅ Skopiowano SMS do schowka — {nazwaWariantu}\n\n";
-            info += $"Hodowca: {dostawca}\n";
-            info += string.IsNullOrEmpty(telefon)
-                ? "Telefon: ⚠️ BRAK NUMERU!\n"
-                : $"Telefon: {telefon}\n";
-            info += $"Długość: {tresc.Length} znaków  ({EstymujSmsCount(tresc)} SMS w UCS-2)\n";
-            info += $"📝 Zapisano w Historia kontaktów\n";
-            info += $"\n— TREŚĆ SMS —\n{tresc}";
-
-            MessageBox.Show(info, $"SMS — wariant {wariant} skopiowany",
-                MessageBoxButton.OK, MessageBoxImage.Information);
 
             LoadHistoria();
         }
@@ -3783,8 +3790,6 @@ namespace Kalendarz1
             string telefon = PobierzNumerTelefonu(row);
             string tresc = PrzygotujTrescSms(row, wariant);
 
-            Clipboard.SetText(tresc);
-
             string nazwaWariantu = wariant switch
             {
                 1 => "1️⃣ Oficjalny standardowy",
@@ -3798,21 +3803,12 @@ namespace Kalendarz1
                 _ => $"Wariant {wariant}"
             };
 
+            // Wysyłka przez telefon (dialog) LUB schowek (legacy) — wspólny helper
+            if (!WyslijSmsLubPokaSchowek(dostawca, telefon, tresc, nazwaWariantu, out _)) return;
+
             // #2 Auto-wpis do ContactHistory
             int? lpWstP = row["LP"] != DBNull.Value ? Convert.ToInt32(row["LP"]) : (int?)null;
             ZapiszContactSmsAutomatycznie(lpWstP, dostawca, nazwaWariantu);
-
-            string info = $"✅ Skopiowano SMS do schowka — {nazwaWariantu}\n\n";
-            info += $"Hodowca: {dostawca}\n";
-            info += string.IsNullOrEmpty(telefon)
-                ? "Telefon: ⚠️ BRAK NUMERU!\n"
-                : $"Telefon: {telefon}\n";
-            info += $"Długość: {tresc.Length} znaków  ({EstymujSmsCount(tresc)} SMS w UCS-2)\n";
-            info += $"📝 Zapisano w Historia kontaktów\n";
-            info += $"\n— TREŚĆ SMS —\n{tresc}";
-
-            MessageBox.Show(info, $"SMS — wariant {wariant} skopiowany",
-                MessageBoxButton.OK, MessageBoxImage.Information);
 
             LoadHistoria();
         }

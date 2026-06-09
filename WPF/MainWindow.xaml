@@ -711,8 +711,8 @@
                 <Grid x:Name="rightPanel" Grid.Column="2" Margin="3,0,4,4">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>   <!-- nagłówek Podsumowanie dnia -->
-                    <RowDefinition Height="54*"/>     <!-- towary (karty) — na górze -->
-                    <RowDefinition Height="46*"/>     <!-- szczegóły zamówienia + notatki (na dole, wyższe) -->
+                    <RowDefinition Height="52*"/>     <!-- towary (karty) — na górze -->
+                    <RowDefinition Height="48*"/>     <!-- szczegóły zamówienia + zmiany kg (na dole) -->
                 </Grid.RowDefinitions>
 
                 <!-- Ukryte elementy kompatybilności (wyszukiwarka produktu + dane klienta — kod ich używa, -->
@@ -770,10 +770,16 @@
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,3">
                     <TextBlock Text="Podsumowanie dnia"
                                Style="{StaticResource SectionHeaderStyle}" Margin="0,0,12,0"/>
-                    <ComboBox x:Name="cbProductFilter" Width="180" Height="26" FontSize="11"
+                    <!-- Przycisk otwiera okno wyboru towaru (zastępuje widoczny combobox; combobox ukryty, ale wciąż zasila logikę) -->
+                    <Button x:Name="btnWyborTowaru" Height="26" MinWidth="180" FontSize="11.5"
+                            VerticalAlignment="Center" Cursor="Hand" Padding="10,0"
+                            Background="White" BorderBrush="#CBD3DA" BorderThickness="1"
+                            ToolTip="Kliknij — wybierz towar do filtrowania (okno ze wszystkimi towarami)"
+                            Content="📋 Wszystkie produkty  ▾"
+                            Click="BtnWyborTowaru_Click"/>
+                    <ComboBox x:Name="cbProductFilter" Visibility="Collapsed" Width="180" Height="26" FontSize="11"
                               VerticalContentAlignment="Center" MaxDropDownHeight="450"
                               VerticalAlignment="Center"
-                              ToolTip="Filtruj zamówienia po towarze"
                               SelectionChanged="CbProductFilter_SelectionChanged"/>
                     <!-- Przełącznik Zam./Wyd. ukryty — bilans zawsze liczony z zamówień (Zam.) -->
                     <RadioButton x:Name="rbBilansZamowienia" Content="Zam." IsChecked="True" Visibility="Collapsed"
@@ -806,8 +812,14 @@
                     </ScrollViewer>
                 </Border>
 
-                <!-- Szczegóły zamówienia (na dole): tabela + [Waluta po lewej | szersze notatki po prawej] -->
-                <Border Grid.Row="2" Style="{StaticResource PanelBorderStyle}" Margin="0,8,0,0">
+                <!-- Szczegóły zamówienia (na dole) + wąski panel ostatnich zmian kg po prawej -->
+                <Grid Grid.Row="2" Margin="0,8,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition x:Name="colZmianyKg" Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                <Border Grid.Column="0" Style="{StaticResource PanelBorderStyle}">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="*"/>
@@ -845,6 +857,29 @@
                         </Grid>
                     </Grid>
                 </Border>
+
+                <!-- Wąski panel: ostatnie zmiany kg (TOP 15 z dzisiejszego uboju) -->
+                <Border x:Name="panelZmianyKg" Grid.Column="1" Width="360" Margin="8,0,0,0"
+                        Background="White" CornerRadius="6" BorderBrush="#E0E0E0" BorderThickness="1">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <Border Grid.Row="0" CornerRadius="6,6,0,0" Padding="8,5" Background="#34495E">
+                            <TextBlock Text="📉 Ostatnie zmiany kg dzisiejszego uboju" FontSize="11" FontWeight="Bold"
+                                       Foreground="White" TextWrapping="Wrap"
+                                       ToolTip="Ostatnie zmiany ilości (kg) w zamówieniach z dzisiejszego uboju"/>
+                        </Border>
+                        <DataGrid x:Name="dgZmianyKg" Grid.Row="1"
+                                  Style="{StaticResource ModernDataGridStyle}"
+                                  AutoGenerateColumns="False" IsReadOnly="True"
+                                  HeadersVisibility="None" CanUserAddRows="False"
+                                  SelectionMode="Single" GridLinesVisibility="Horizontal"
+                                  HorizontalScrollBarVisibility="Disabled"/>
+                    </Grid>
+                </Border>
+                </Grid>
                 </Grid>
             </Grid>
         </Grid>

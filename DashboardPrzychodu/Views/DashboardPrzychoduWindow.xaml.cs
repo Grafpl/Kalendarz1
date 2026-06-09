@@ -44,8 +44,8 @@ namespace Kalendarz1.DashboardPrzychodu.Views
         private DateTime _lastRefreshTime = DateTime.MinValue;
         private Storyboard _pulseStoryboard;
 
-        // Tryb obliczania planu
-        private bool _useNowyPlan = false;
+        // Tryb obliczania planu - ZAWSZE Nowy (Stary usunięty z UI)
+        private bool _useNowyPlan = true;
         private decimal _origKgPlanDoZwazonych;
         private decimal _origOdchylenieKgSuma;
 
@@ -781,6 +781,142 @@ namespace Kalendarz1.DashboardPrzychodu.Views
                 MessageBox.Show($"Błąd diagnostyki:\n\n{ex.Message}\n\n{ex.StackTrace}",
                     "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        /// <summary>
+        /// Pokaż okno z wyliczeniem PLAN dla każdego wiersza tabeli (skąd się wzięła liczba).
+        /// </summary>
+        private void BtnPlanWyjasnij_Click(object sender, RoutedEventArgs e)
+        {
+            if (_dostawy == null || _dostawy.Count == 0)
+            {
+                MessageBox.Show("Brak danych — odśwież dashboard.", "Plan?",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("WYLICZENIE KOLUMNY 'PLAN' DLA KAŻDEGO WIERSZA");
+            sb.AppendLine("=============================================");
+            sb.AppendLine($"Data: {dpData.SelectedDate?.ToString("yyyy-MM-dd") ?? "-"}");
+            sb.AppendLine($"Tryb: PLAN PER AUTO (SztukiExcel × WagaDek z harmonogramu)");
+            sb.AppendLine();
+            sb.AppendLine("LEGENDA REGUŁ:");
+            sb.AppendLine("  [Std]      SztukiExcel × WagaDek (standardowe per-auto)");
+            sb.AppendLine("  [Reszta]   PlanLaczny − SUM(poprzednich w grupie)  (ostatnie auto grupy, nie-overflow)");
+            sb.AppendLine("  [Overflow] więcej aut wjechało niż w planie → każde auto = SztukiExcel × WagaDek");
+            sb.AppendLine("  [Brak Lp]  auto bez LpDostawy → SztukiExcel × WagaDek (fallback: NettoFarmWeight)");
+            sb.AppendLine();
+            sb.AppendLine($"SUMA PLAN ze wszystkich wierszy: {_dostawy.Sum(d => d.KgPlanNaAuto):N0} kg");
+            sb.AppendLine();
+
+            // Grupy po LpDostawy
+            var grupy = _dostawy
+                .Where(d => d.LpDostawy.HasValue)
+                .GroupBy(d => d.LpDostawy.Value)
+                .OrderBy(g => g.Min(d => d.NrKursu))
+                .ToList();
+
+            foreach (var g in grupy)
+            {
+                var items = g.OrderBy(d => d.NrKursu).ToList();
+                var pierwsze = items.First();
+                int autaPlan = pierwsze.AutaPlanowane;
+                decimal wagaDek = pierwsze.WagaDeklHarmonogram ?? 0m;
+                decimal planLacz = pierwsze.PlanKgLacznie;
+                bool overflow = items.Count > autaPlan;
+
+                sb.AppendLine($"GRUPA LpDostawy = {g.Key}  ({pierwsze.Hodowca})");
+                sb.AppendLine($"  Harmonogram: {autaPlan} aut × {wagaDek:N3} kg/szt × " +
+                              $"{(autaPlan > 0 ? (int)Math.Round(planLacz / Math.Max(autaPlan,1) / Math.Max(wagaDek,0.001m), 0) : 0)} szt/aut");
+                sb.AppendLine($"  PlanLaczny harmonogramu: {planLacz:N0} kg");
+                sb.AppendLine($"  Realnie wjechało: {items.Count} aut → {(overflow ? "⚠ OVERFLOW (+aut)" : "OK")}");
+                sb.AppendLine();
+
+                decimal sumaPoprzednich = 0m;
+                int nr = 0;
+                foreach (var it in items)
+                {
+                    nr++;
+                    bool ostatnie = nr == items.Count;
+                    decimal plan;
+                    string regula;
+                    string wzor;
+
+                    if (overflow)
+                    {
+                        plan = it.SztukiExcel * wagaDek;
+                        regula = "[Overflow]";
+                        wzor = $"{it.SztukiExcel} szt × {wagaDek:N3} kg/szt = {plan:N0}";
+                    }
+                    else if (ostatnie)
+                    {
+                        plan = planLacz - sumaPoprzednich;
+                        regula = "[Reszta]";
+                        wzor = $"{planLacz:N0} − {sumaPoprzednich:N0} (poprzednie) = {plan:N0}";
+                    }
+                    else
+                    {
+                        plan = it.SztukiExcel * wagaDek;
+                        sumaPoprzednich += plan;
+                        regula = "[Std]";
+                        wzor = $"{it.SztukiExcel} szt × {wagaDek:N3} kg/szt = {plan:N0}";
+                    }
+
+                    sb.AppendLine($"  Wiersz {it.NrKursu,2} {it.Hodowca,-25} {regula,-10} {wzor}");
+                }
+                sb.AppendLine();
+            }
+
+            // Sieroty (bez LpDostawy)
+            var sieroty = _dostawy.Where(d => !d.LpDostawy.HasValue).ToList();
+            if (sieroty.Count > 0)
+            {
+                sb.AppendLine($"AUTA BEZ HARMONOGRAMU ({sieroty.Count}):");
+                foreach (var it in sieroty)
+                {
+                    decimal wagaDek = it.WagaDeklHarmonogram ?? it.SredniaWagaPlan ?? 0m;
+                    decimal obliczony = it.SztukiExcel * wagaDek;
+                    decimal plan = obliczony > 0 ? obliczony : it.KgPlan;
+                    string wzor = obliczony > 0
+                        ? $"[Brak Lp] {it.SztukiExcel} szt × {wagaDek:N3} kg/szt = {plan:N0}"
+                        : $"[Brak Lp] fallback NettoFarmWeight = {plan:N0}";
+                    sb.AppendLine($"  Wiersz {it.NrKursu,2} {it.Hodowca,-25} {wzor}");
+                }
+                sb.AppendLine();
+            }
+
+            // Okno wynikowe (analogicznie do BtnDiagnose_Click)
+            var win = new Window
+            {
+                Title = "🧮 Wyliczenie kolumny PLAN — skąd ta liczba",
+                Width = 980,
+                Height = 720,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                Background = new SolidColorBrush(Color.FromRgb(28, 25, 23))
+            };
+            var scroll = new ScrollViewer
+            {
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+                Margin = new Thickness(10)
+            };
+            var tb = new TextBox
+            {
+                Text = sb.ToString(),
+                IsReadOnly = true,
+                FontFamily = new FontFamily("Consolas"),
+                FontSize = 13,
+                Background = new SolidColorBrush(Color.FromRgb(41, 37, 36)),
+                Foreground = new SolidColorBrush(Color.FromRgb(231, 229, 228)),
+                BorderThickness = new Thickness(0),
+                TextWrapping = TextWrapping.NoWrap,
+                AcceptsReturn = true
+            };
+            scroll.Content = tb;
+            win.Content = scroll;
+            win.ShowDialog();
         }
 
     }

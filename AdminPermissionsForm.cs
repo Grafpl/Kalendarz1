@@ -1084,6 +1084,11 @@ namespace Kalendarz1
 
             permissionsFlowPanel.Controls.Add(handlowcyContainer);
 
+            // ═══════════════════════════════════════════════════════════════════════
+            // SEKCJA: POWIADOMIENIA (komu pokazywać alerty o zmianach)
+            // ═══════════════════════════════════════════════════════════════════════
+            BudujSekcjePowiadomien(totalWidth);
+
             // Wypelnij combo dostepnymi handlowcami
             try
             {
@@ -1117,6 +1122,125 @@ namespace Kalendarz1
 
             // Aktualizuj pasek postępu
             UpdateProgressBar();
+        }
+
+        // Sekcja powiadomień w edytorze uprawnień użytkownika — 2 przełączniki (zapis natychmiastowy).
+        // Odbiorcy trzymani w LibraNet.dbo.PowiadomieniaOdbiorcy (kategorie ZAMOWIENIA_MIESA / DOSTAWY_ZYWCA).
+        private void BudujSekcjePowiadomien(int totalWidth)
+        {
+            var headerPanel = new Panel
+            {
+                Width = totalWidth,
+                Height = 28,
+                BackColor = Color.FromArgb(230, 126, 34),
+                Margin = new Padding(0, 12, 0, 2)
+            };
+            headerPanel.Controls.Add(new Label
+            {
+                Text = "  🔔 Powiadomienia o zmianach (po godzinie)",
+                Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                ForeColor = Color.White,
+                Location = new Point(6, 4),
+                AutoSize = true,
+                BackColor = Color.Transparent
+            });
+            permissionsFlowPanel.Controls.Add(headerPanel);
+
+            var container = new Panel
+            {
+                Width = totalWidth,
+                AutoSize = true,
+                MinimumSize = new System.Drawing.Size(totalWidth, 84),
+                BackColor = Color.White,
+                Padding = new Padding(12, 8, 12, 8),
+                Margin = new Padding(0, 0, 0, 4)
+            };
+
+            var info = new Label
+            {
+                Text = "Zaznacz, jakie powiadomienia mają pojawiać się temu użytkownikowi. (Zapis natychmiastowy)",
+                Font = new Font("Segoe UI", 8.5f, FontStyle.Italic),
+                ForeColor = Color.Gray,
+                AutoSize = true,
+                Location = new Point(2, 2)
+            };
+            container.Controls.Add(info);
+
+            var chkZam = new CheckBox
+            {
+                Text = "🥩  Zmiany zamówień mięsa",
+                Font = new Font("Segoe UI", 9.5f),
+                ForeColor = Colors.TextDark,
+                AutoSize = true,
+                Location = new Point(4, 26),
+                Cursor = Cursors.Hand
+            };
+            var chkDost = new CheckBox
+            {
+                Text = "🐄  Zmiany dostaw żywca",
+                Font = new Font("Segoe UI", 9.5f),
+                ForeColor = Colors.TextDark,
+                AutoSize = true,
+                Location = new Point(4, 52),
+                Cursor = Cursors.Hand
+            };
+            container.Controls.Add(chkZam);
+            container.Controls.Add(chkDost);
+            permissionsFlowPanel.Controls.Add(container);
+
+            string uid = selectedUserId;
+            string uname = allUsers.Find(u => u.ID == uid)?.Name ?? uid;
+            string by = App.UserFullName ?? App.UserID ?? Environment.UserName;
+            bool loading = true;
+
+            // Załaduj stan z bazy (jawne członkostwo, bez reguły 'pusta=wszyscy')
+            _ = System.Threading.Tasks.Task.Run(async () =>
+            {
+                bool zam = await Services.PowiadomieniaOdbiorcyService.IsUserExplicitlyListedAsync(
+                    Services.PowiadomieniaOdbiorcyService.KatZamowieniaMiesa, uid);
+                bool dost = await Services.PowiadomieniaOdbiorcyService.IsUserExplicitlyListedAsync(
+                    Services.PowiadomieniaOdbiorcyService.KatDostawyZywca, uid);
+                try
+                {
+                    this.BeginInvoke(new Action(() =>
+                    {
+                        if (selectedUserId != uid) return; // user zmieniony w międzyczasie
+                        chkZam.Checked = zam;
+                        chkDost.Checked = dost;
+                        loading = false;
+                    }));
+                }
+                catch { }
+            });
+
+            chkZam.CheckedChanged += async (s, e) =>
+            {
+                if (loading) return;
+                try
+                {
+                    if (chkZam.Checked)
+                        await Services.PowiadomieniaOdbiorcyService.AddOdbiorcaAsync(
+                            Services.PowiadomieniaOdbiorcyService.KatZamowieniaMiesa, uid, uname, by);
+                    else
+                        await Services.PowiadomieniaOdbiorcyService.RemoveOdbiorcaAsync(
+                            Services.PowiadomieniaOdbiorcyService.KatZamowieniaMiesa, uid);
+                }
+                catch (Exception ex) { MessageBox.Show($"Błąd zapisu powiadomień: {ex.Message}"); }
+            };
+            chkDost.CheckedChanged += async (s, e) =>
+            {
+                if (loading) return;
+                try
+                {
+                    if (chkDost.Checked)
+                        await Services.PowiadomieniaOdbiorcyService.AddOdbiorcaAsync(
+                            Services.PowiadomieniaOdbiorcyService.KatDostawyZywca, uid, uname, by);
+                    else
+                        await Services.PowiadomieniaOdbiorcyService.RemoveOdbiorcaAsync(
+                            Services.PowiadomieniaOdbiorcyService.KatDostawyZywca, uid);
+                }
+                catch (Exception ex) { MessageBox.Show($"Błąd zapisu powiadomień: {ex.Message}"); }
+            };
         }
 
         private void OdswiezHandlowcyChips(List<string> assigned, ComboBox cmbHandlowcy)

@@ -250,6 +250,13 @@
                         <StackPanel Grid.Column="1" Margin="7,0,0,0" VerticalAlignment="Top">
                             <TextBlock Text="{Binding Kod}" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource TextPrimary}" TextWrapping="Wrap" LineHeight="13" MaxHeight="40"/>
                             <TextBlock Text="{Binding KategoriaDisplay}" FontSize="9" Foreground="{StaticResource TextMuted}" Margin="0,1,0,0"/>
+                            <!-- Przełącznik wariantu (np. Filet pojedynczy ⇄ podwójny) — tylko gdy towar ma warianty -->
+                            <Button Visibility="{Binding WariantVisibility}" Content="{Binding WariantLabel}"
+                                    Tag="{Binding Id}" Click="BtnWariant_Click" Cursor="Hand"
+                                    HorizontalAlignment="Left" Margin="0,3,0,0"
+                                    FontSize="9" FontWeight="SemiBold" Foreground="#6B21A8"
+                                    Background="#F3E8FF" BorderBrush="#D8B4FE" BorderThickness="1" Padding="5,1"
+                                    ToolTip="Kliknij, aby przełączyć wariant (w Symfonii zostaje ten sam towar)"/>
                         </StackPanel>
                         <!-- Checkboxes 2x2 z pełnymi nazwami (między nazwą a ✓) -->
                         <UniformGrid Grid.Column="2" Rows="2" Columns="2" Width="128" VerticalAlignment="Center" Margin="5,0,0,0">

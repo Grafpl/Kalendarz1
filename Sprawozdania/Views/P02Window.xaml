@@ -186,6 +186,17 @@
                     <Button Style="{StaticResource ToolBtn}" Content="🧮  Sugeruj zapasy"
                             Click="BtnSugerujZapasy_Click" MinWidth="160" Margin="8,0,0,0"
                             ToolTip="Otwórz dialog porównania metod liczenia zapasów wyrobów. Symfonia zwykle zostawia 0."/>
+                    <TextBlock Text="Wersja XML:" VerticalAlignment="Center" Margin="14,0,4,0"
+                               Foreground="{StaticResource TextMuted}" FontSize="11"/>
+                    <ComboBox x:Name="cbWersja" Width="78" Padding="6,4" VerticalAlignment="Center"
+                              SelectionChanged="CbWersja_Changed"
+                              ToolTip="Wersja formularza P-02 (zmienia się co rok — sprawdź w Sage Symfonii)">
+                        <ComboBoxItem Content="16.0" Tag="16.0"/>
+                        <ComboBoxItem Content="17.0" Tag="17.0"/>
+                        <ComboBoxItem Content="18.0" Tag="18.0"/>
+                        <ComboBoxItem Content="19.0" Tag="19.0" IsSelected="True"/>
+                        <ComboBoxItem Content="20.0" Tag="20.0"/>
+                    </ComboBox>
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">

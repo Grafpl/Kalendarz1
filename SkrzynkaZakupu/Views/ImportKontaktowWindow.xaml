@@ -1,0 +1,187 @@
+<Window x:Class="Kalendarz1.SkrzynkaZakupu.Views.ImportKontaktowWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Kontakty i import" Height="660" Width="700" MinHeight="520" MinWidth="560"
+        WindowStartupLocation="CenterOwner" Background="#F1F5F9"
+        FontFamily="Segoe UI" UseLayoutRounding="True">
+    <Window.Resources>
+        <SolidColorBrush x:Key="Brand" Color="#2E7D32"/>
+        <SolidColorBrush x:Key="BrandDark" Color="#1B5E20"/>
+        <SolidColorBrush x:Key="Line" Color="#E5E9EF"/>
+        <SolidColorBrush x:Key="TextSub" Color="#475569"/>
+        <SolidColorBrush x:Key="TextMute" Color="#94A3B8"/>
+
+        <Style x:Key="Card" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="BorderBrush" Value="{StaticResource Line}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="18"/>
+            <Setter Property="Margin" Value="0,0,0,14"/>
+        </Style>
+        <Style x:Key="H" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14.5"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="#0F172A"/>
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="BorderBrush" Value="{StaticResource Line}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="8,7"/>
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="b" Background="White" CornerRadius="8" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+                            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="b" Property="BorderBrush" Value="{StaticResource Brand}"/></Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="Primary" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource Brand}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="b" Background="{TemplateBinding Background}" CornerRadius="8" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="b" Property="Background" Value="{StaticResource BrandDark}"/></Trigger>
+                            <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.5"/></Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="Ghost" TargetType="Button">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Foreground" Value="{StaticResource TextSub}"/>
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="b" Background="{TemplateBinding Background}" CornerRadius="8" Padding="{TemplateBinding Padding}" BorderBrush="{StaticResource Line}" BorderThickness="1">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="b" Property="Background" Value="#F1F5F9"/></Trigger>
+                            <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.5"/></Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <DockPanel>
+        <!-- nagłówek -->
+        <Border DockPanel.Dock="Top" Background="White" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="20,14">
+            <StackPanel Orientation="Horizontal">
+                <Border Width="38" Height="38" CornerRadius="10" Background="#E8F5E9">
+                    <TextBlock Text="👥" FontSize="19" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+                <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                    <TextBlock Text="Kontakty i import" FontSize="16" FontWeight="Bold" Foreground="#0F172A"/>
+                    <TextBlock x:Name="TxtPodtytul" Text="Książka adresowa działu zakupu" FontSize="11.5" Foreground="{StaticResource TextMute}"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- stopka -->
+        <Border DockPanel.Dock="Bottom" Background="White" BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0" Padding="20,12">
+            <DockPanel>
+                <TextBlock x:Name="TxtStatus" Text="" Foreground="{StaticResource TextSub}" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                <Button Style="{StaticResource Ghost}" Content="Zamknij" Width="100" Height="36" HorizontalAlignment="Right" DockPanel.Dock="Right" Click="BtnZamknij_Click"/>
+            </DockPanel>
+        </Border>
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20,16">
+            <StackPanel>
+
+                <!-- SEKCJA 1: skan IMAP -->
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource H}" Text="📥  Adresy z bieżącej skrzynki"/>
+                        <TextBlock Text="Przejrzy wszystkie foldery skrzynki i doda do podpowiedzi każdy adres z nadawców i odbiorców."
+                                   Foreground="{StaticResource TextSub}" FontSize="12.5" TextWrapping="Wrap" Margin="0,6,0,12"/>
+                        <StackPanel Orientation="Horizontal">
+                            <Button x:Name="BtnSkanImap" Style="{StaticResource Primary}" Content="Skanuj skrzynkę" Height="36" Click="BtnSkanImap_Click"/>
+                            <TextBlock x:Name="TxtImapInfo" VerticalAlignment="Center" Margin="14,0,0,0" Foreground="{StaticResource TextMute}" FontSize="12"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- SEKCJA 2: Thunderbird -->
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource H}" Text="🐦  Import z Mozilla Thunderbird"/>
+                        <TextBlock Text="Wczyta lokalne foldery (mbox) z Thunderbirda — np. historię POP3 z różnych stacji. Zawsze zbiera adresy; maile wgra na serwer tylko jeśli zaznaczysz."
+                                   Foreground="{StaticResource TextSub}" FontSize="12.5" TextWrapping="Wrap" Margin="0,6,0,12"/>
+
+                        <DockPanel Margin="0,0,0,8">
+                            <TextBlock Text="Profil:" Width="56" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="12.5" Foreground="{StaticResource TextSub}"/>
+                            <Button DockPanel.Dock="Right" Style="{StaticResource Ghost}" Content="Przeglądaj…" Margin="8,0,0,0" Click="BtnPrzegladaj_Click"/>
+                            <ComboBox x:Name="CmbProfile" Height="32" FontSize="12.5" VerticalContentAlignment="Center"/>
+                        </DockPanel>
+
+                        <Button x:Name="BtnSzukajFolderow" Style="{StaticResource Ghost}" Content="🔍  Szukaj folderów" HorizontalAlignment="Left" Margin="0,2,0,10" Click="BtnSzukajFolderow_Click"/>
+
+                        <Border Background="#FBFCFD" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="8" Padding="4" MinHeight="120" MaxHeight="220">
+                            <Grid>
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <ItemsControl x:Name="LstFoldery">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <DockPanel Margin="6,4">
+                                                    <CheckBox IsChecked="{Binding Wybrany, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                    <TextBlock Text="{Binding SizeLabel}" DockPanel.Dock="Right" Foreground="{StaticResource TextMute}" FontSize="11.5" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                                    <TextBlock Text="{Binding Display}" FontSize="12.5" Foreground="{StaticResource TextSub}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                                </DockPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                                <TextBlock x:Name="TxtBrakFolderow" Text="Wybierz profil i kliknij „Szukaj folderów"
+                                           Foreground="{StaticResource TextMute}" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+
+                        <Border Background="#FFF8E1" BorderBrush="#FFE082" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,12,0,0">
+                            <StackPanel>
+                                <CheckBox x:Name="ChkWgraj" Content="Wgraj też stare maile na serwer (wspólna skrzynka — zobaczą wszyscy)"
+                                          FontSize="12.5" Foreground="#6D4C41" FontWeight="SemiBold" Checked="ChkWgraj_Changed" Unchecked="ChkWgraj_Changed"/>
+                                <DockPanel x:Name="PanelFolderCel" Margin="24,8,0,0" Visibility="Collapsed">
+                                    <TextBlock Text="Folder docelowy:" VerticalAlignment="Center" FontSize="12" Foreground="{StaticResource TextSub}" Margin="0,0,8,0"/>
+                                    <TextBox x:Name="TxtFolderCel" Text="Archiwum Thunderbird"/>
+                                </DockPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                            <Button x:Name="BtnImportuj" Style="{StaticResource Primary}" Content="Importuj zaznaczone" Height="38" Click="BtnImportuj_Click" IsEnabled="False"/>
+                            <Button x:Name="BtnAnulujImport" Style="{StaticResource Ghost}" Content="Przerwij" Height="38" Margin="8,0,0,0" Click="BtnAnulujImport_Click" Visibility="Collapsed"/>
+                        </StackPanel>
+
+                        <Border x:Name="PanelWynik" Background="#E8F5E9" BorderBrush="#A5D6A7" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,12,0,0" Visibility="Collapsed">
+                            <TextBlock x:Name="TxtWynik" Foreground="#1B5E20" FontSize="12.5" TextWrapping="Wrap"/>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</Window>

@@ -43,6 +43,17 @@ namespace Kalendarz1.Sprawozdania.Views
             InitializeComponent();
             dgPozycje.ItemsSource = Pozycje;
 
+            // Wczytaj zapamiętaną wersję XML
+            var cfgInit = GusSettingsManager.Load();
+            foreach (ComboBoxItem item in cbWersja.Items)
+            {
+                if ((item.Tag?.ToString() ?? "") == cfgInit.P02FormularzWersja)
+                {
+                    item.IsSelected = true;
+                    break;
+                }
+            }
+
             // Miesiące 1-12
             foreach (var m in new[] {
                 "styczeń","luty","marzec","kwiecień","maj","czerwiec",
@@ -473,6 +484,23 @@ namespace Kalendarz1.Sprawozdania.Views
         }
 
         private void BtnClose_Click(object sender, RoutedEventArgs e) => Close();
+
+        // Wybór wersji formularza XML (zapisz do settings)
+        private void CbWersja_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            if (!IsLoaded) return;
+            if (cbWersja.SelectedItem is ComboBoxItem cbi && cbi.Tag is string tag)
+            {
+                try
+                {
+                    var cfg = GusSettingsManager.Load();
+                    cfg.P02FormularzWersja = tag;
+                    GusSettingsManager.Save(cfg);
+                    lblFooter.Text = $"✓ Wersja formularza P-02 ustawiona na {tag} (zapamiętane)";
+                }
+                catch { /* ignore */ }
+            }
+        }
     }
 
     // ════════════════════════════════════════════════════════════════════

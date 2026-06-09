@@ -1284,22 +1284,53 @@ namespace Kalendarz1
 
             // Pobierz pozycje zamówienia
             var orderPositions = new List<(int TowarId, decimal Ilosc, bool Folia, bool E2, bool Hallal, bool Strefa)>();
+            var wariantPerTowar = new Dictionary<int, string>();  // TowarId → wariant (np. "Filet podwójny")
             using (var cn = new SqlConnection(_connLibra))
             {
                 await cn.OpenAsync();
                 bool hasStrefa = await CheckStrefaColumnExistsAsync(cn);
+                bool hasWariant;
+                using (var chk = new SqlCommand(
+                    "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='ZamowieniaMiesoTowar' AND COLUMN_NAME='Wariant'", cn))
+                {
+                    hasWariant = Convert.ToInt32(await chk.ExecuteScalarAsync()) > 0;
+                }
                 string strefaSel = hasStrefa ? ", ISNULL(zmt.Strefa, 0) as Strefa" : "";
-                string sql = $@"SELECT zmt.KodTowaru, zmt.Ilosc, ISNULL(zmt.Folia, 0) AS Folia, ISNULL(zmt.E2, 0) AS E2, ISNULL(zmt.Hallal, 0) AS Hallal{strefaSel}
+                string wariantSel = hasWariant ? ", zmt.Wariant" : "";
+                string sql = $@"SELECT zmt.KodTowaru, zmt.Ilosc, ISNULL(zmt.Folia, 0) AS Folia, ISNULL(zmt.E2, 0) AS E2, ISNULL(zmt.Hallal, 0) AS Hallal{strefaSel}{wariantSel}
                                FROM dbo.ZamowieniaMiesoTowar zmt
                                WHERE zmt.ZamowienieId=@Id";
                 var cmd = new SqlCommand(sql, cn);
                 cmd.Parameters.AddWithValue("@Id", info.Id);
 
+                int wariantIdx = hasWariant ? (hasStrefa ? 6 : 5) : -1;
                 using var rd = await cmd.ExecuteReaderAsync();
                 while (await rd.ReadAsync())
                 {
-                    orderPositions.Add((rd.GetInt32(0), rd.GetDecimal(1), rd.GetBoolean(2), rd.GetBoolean(3), rd.GetBoolean(4), hasStrefa ? rd.GetBoolean(5) : false));
+                    int towarId = rd.GetInt32(0);
+                    orderPositions.Add((towarId, rd.GetDecimal(1), rd.GetBoolean(2), rd.GetBoolean(3), rd.GetBoolean(4), hasStrefa ? rd.GetBoolean(5) : false));
+                    if (wariantIdx >= 0 && !rd.IsDBNull(wariantIdx))
+                    {
+                        string wk = rd.GetString(wariantIdx);
+                        if (!string.IsNullOrEmpty(wk)) wariantPerTowar[towarId] = wk;
+                    }
                 }
+            }
+
+            // Rozwiąż kody wariantów na nazwy (np. "PODWOJNY" → "Filet podwójny")
+            if (wariantPerTowar.Count > 0)
+            {
+                try
+                {
+                    var mapa = await new Kalendarz1.Zamowienia.Services.TowarWariantyService(_connLibra).GetMapaAsync();
+                    foreach (var kid in wariantPerTowar.Keys.ToList())
+                        if (mapa.TryGetValue(kid, out var wl))
+                        {
+                            var w = wl.FirstOrDefault(x => x.Kod == wariantPerTowar[kid]);
+                            if (w != null) wariantPerTowar[kid] = w.Nazwa;
+                        }
+                }
+                catch { }
             }
 
             // Wydane = to, co magazynier zatwierdził w "✅ Wydane" (dialog WydanieDialog).
@@ -1342,6 +1373,9 @@ namespace Kalendarz1
                 snapshot.TryGetValue(id, out var snap);
 
                 string produktNazwa = towary.ContainsKey(id) ? towary[id].Kod : $"Towar {id}";
+                // Wariant wewnętrzny (np. Filet podwójny) — widoczny dla magazyniera/produkcji
+                if (wariantPerTowar.TryGetValue(id, out var wariantNazwa) && !string.IsNullOrEmpty(wariantNazwa))
+                    produktNazwa += $"  ·  🔀 {wariantNazwa}";
 
                 // Oblicz zmianę od snapshotu
                 string zmiana = "";

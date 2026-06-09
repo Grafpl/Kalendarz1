@@ -42,10 +42,17 @@ namespace Kalendarz1.Transport.WPF
                 var dane = await PobierzZBazyAsync();
                 if (dane.Count > 0) await DociagnijNazwyAsync(dane);
 
-                _wszystkie = dane.OrderByDescending(s => s.MinutyMediana).ToList();
+                // Najpierw klienci z największą medianą, potem ci bez wizyt
+                _wszystkie = dane
+                    .OrderByDescending(s => s.LiczbaProb > 0)
+                    .ThenByDescending(s => s.MinutyMediana)
+                    .ToList();
                 Filtruj();
                 AktualizujPodsumowanie();
-                TxtStatus.Text = $"✓ Załadowano {_wszystkie.Count} klientów z estymacją.";
+                int bezWizyt = _wszystkie.Count(s => s.LiczbaProb == 0);
+                int zWizytami = _wszystkie.Count - bezWizyt;
+                TxtStatus.Text = $"✓ Załadowano {_wszystkie.Count} klientów z geolokalizacją " +
+                                 $"({zWizytami} z wizytami, {bezWizyt} bez wizyt).";
             }
             catch (Exception ex)
             {
@@ -58,13 +65,26 @@ namespace Kalendarz1.Transport.WPF
         private async Task<List<StatystykaRow>> PobierzZBazyAsync()
         {
             var wynik = new List<StatystykaRow>();
-            // Upewnij się że tabela istnieje (dla świeżej instalacji)
             try { await new HistoriaRozladunkuService().EnsureTableAsync(); } catch { }
+            try { await new CzasRozladunkuService().EnsureColumnAsync(); } catch { }
+
+            // Pokaż WSZYSTKICH klientów z geolokalizacją (Latitude/Longitude IS NOT NULL),
+            // nawet jeśli nie mają jeszcze estymacji w EstymacjeRozladunku.
+            // Dla nich MinutyMediana=0, LiczbaProb=0, OstatniRefresh=null.
+            // Plus pokaż wartość w karcie (CzasRozladunkuMin) żeby porównać z historią.
+            const string sql = @"
+                SELECT kod.IdSymfonia                                   AS KlientId,
+                       ISNULL(er.MinutyMediana, 0)                      AS MinutyMediana,
+                       ISNULL(er.LiczbaProb, 0)                         AS LiczbaProb,
+                       er.OstatniRefresh                                AS OstatniRefresh,
+                       kod.CzasRozladunkuMin                            AS WKarcie
+                FROM dbo.KartotekaOdbiorcyDane kod
+                LEFT JOIN dbo.EstymacjeRozladunku er ON er.KlientId = kod.IdSymfonia
+                WHERE kod.Latitude IS NOT NULL AND kod.Longitude IS NOT NULL";
 
             await using var cn = new SqlConnection(ConnLibra);
             await cn.OpenAsync();
-            await using var cmd = new SqlCommand(
-                "SELECT KlientId, MinutyMediana, LiczbaProb, OstatniRefresh FROM dbo.EstymacjeRozladunku", cn);
+            await using var cmd = new SqlCommand(sql, cn);
             await using var rd = await cmd.ExecuteReaderAsync();
             while (await rd.ReadAsync())
             {
@@ -73,7 +93,8 @@ namespace Kalendarz1.Transport.WPF
                     KlientId = rd.GetInt32(0),
                     MinutyMediana = rd.GetInt32(1),
                     LiczbaProb = rd.GetInt32(2),
-                    OstatniRefresh = rd.GetDateTime(3)
+                    OstatniRefresh = rd.IsDBNull(3) ? (DateTime?)null : rd.GetDateTime(3),
+                    WKarcie = rd.IsDBNull(4) ? (int?)null : rd.GetInt32(4)
                 });
             }
             return wynik;
@@ -153,7 +174,10 @@ namespace Kalendarz1.Transport.WPF
             }
 
             var wiarygodne = _wszystkie.Where(s => s.LiczbaProb >= HistoriaRozladunkuService.MinProbDoZaufania).ToList();
+            int bezWizyt = _wszystkie.Count(s => s.LiczbaProb == 0);
             TxtLiczbaKlientow.Text = _wszystkie.Count.ToString();
+            if (TxtLiczbaBezWizyt != null)
+                TxtLiczbaBezWizyt.Text = bezWizyt > 0 ? $"({bezWizyt} bez wykrytych wizyt)" : "";
             TxtLiczbaWiarygodnych.Text = wiarygodne.Count.ToString();
             TxtSredniaMediana.Text = wiarygodne.Count > 0
                 ? $"{(int)wiarygodne.Average(s => s.MinutyMediana)} min"
@@ -199,28 +223,42 @@ namespace Kalendarz1.Transport.WPF
         private void Filtr_Changed(object sender, RoutedEventArgs e) => Filtruj();
         private void BtnZamknij_Click(object sender, RoutedEventArgs e) => Close();
 
+        private void BtnDebugger_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var dbg = new DebuggerStatystykiRozladunkuWindow { Owner = this };
+                dbg.Show();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Nie udało się otworzyć debuggera:\n\n{ex.Message}",
+                                "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
         private async void BtnOdswiez_Click(object sender, RoutedEventArgs e)
         {
             var r = MessageBox.Show(
-                "Pobrać świeże dane GPS z Webfleet z ostatnich 12 miesięcy (365 dni)?\n\n" +
+                "Pobrać świeże dane GPS z Webfleet z ostatnich 2 miesięcy (60 dni)?\n\n" +
                 "• Pobiera tracks dla każdego zmapowanego pojazdu\n" +
-                "• Wykrywa wizyty u klientów (≤2 km, 5–180 min)\n" +
+                "• Wykrywa wizyty u klientów (≤3,5 km, 5–180 min)\n" +
                 "• Pomija pauzy i noclegi kierowców (poza 05:00–23:00)\n" +
                 "• Liczy medianę z wszystkich wizyt\n" +
                 "• Wiarygodne mediany (≥3 wizyt) zostaną automatycznie zapisane\n" +
                 "  w karcie odbiorcy (KartotekaOdbiorcyDane.CzasRozladunkuMin)\n\n" +
-                "Może potrwać 10–30 min (zależy od liczby pojazdów × dni).",
-                "Odśwież z Webfleet — 12 miesięcy",
+                "Może potrwać 3–7 min (zależy od liczby pojazdów × dni).",
+                "Odśwież z Webfleet — 2 miesiące",
                 MessageBoxButton.YesNo, MessageBoxImage.Question);
             if (r != MessageBoxResult.Yes) return;
 
             BtnOdswiez.IsEnabled = false;
-            TxtStatus.Text = "🔄 Pobieram dane z Webfleet (12 miesięcy)…";
+            TxtStatus.Text = "🔄 Pobieram dane z Webfleet (2 miesiące)…";
             try
             {
                 var svc = new HistoriaRozladunkuService();
                 var progress = new Progress<string>(msg => TxtStatus.Text = $"🔄 {msg}");
-                var wynik = await svc.OdswiezAsync(daysBack: 365, progress);
+                var wynik = await svc.OdswiezAsync(daysBack: 60, progress);
 
                 // Reload widoku przed zapisem — żeby _wszystkie miało świeże dane
                 await ZaladujAsync();
@@ -232,7 +270,7 @@ namespace Kalendarz1.Transport.WPF
                 TxtStatus.Text = $"✓ Gotowe — {wynik.WizytaWykrytych} wizyt, {wynik.KlientowZestymowanych} klientów z estymacją, {zapisanych} zapisanych do karty odbiorcy.";
                 MessageBox.Show(
                     $"✓ Aktualizacja zakończona.\n\n" +
-                    $"Webfleet (365 dni):\n" +
+                    $"Webfleet (60 dni):\n" +
                     $"  • {wynik.PojazdowPrzetworzonych} pojazdów × {wynik.DniPrzetworzonych} dni\n" +
                     $"  • {wynik.WizytaWykrytych} wykrytych wizyt\n" +
                     $"  • {wynik.KlientowZestymowanych} klientów z estymacją\n\n" +
@@ -289,16 +327,27 @@ namespace Kalendarz1.Transport.WPF
             public string Nazwa { get; set; } = "";
             public int MinutyMediana { get; set; }
             public int LiczbaProb { get; set; }
-            public DateTime OstatniRefresh { get; set; }
+            public DateTime? OstatniRefresh { get; set; }
+            public int? WKarcie { get; set; }
 
-            public string MedianaDisplay => $"{MinutyMediana} min";
-            public string ZaufanieDisplay => LiczbaProb >= HistoriaRozladunkuService.MinProbDoZaufania
-                ? "✓ wiarygodne" : $"⏳ za mało ({LiczbaProb}/{HistoriaRozladunkuService.MinProbDoZaufania})";
+            public string MedianaDisplay => LiczbaProb == 0 ? "—" : $"{MinutyMediana} min";
+            public string WKarcieDisplay => WKarcie.HasValue ? $"{WKarcie.Value} min" : "—";
+            public string ZaufanieDisplay
+            {
+                get
+                {
+                    if (LiczbaProb == 0) return "⚪ brak wizyt";
+                    return LiczbaProb >= HistoriaRozladunkuService.MinProbDoZaufania
+                        ? "✓ wiarygodne"
+                        : $"⏳ za mało ({LiczbaProb}/{HistoriaRozladunkuService.MinProbDoZaufania})";
+                }
+            }
             public string RefreshDisplay
             {
                 get
                 {
-                    var dni = (DateTime.Now.Date - OstatniRefresh.Date).TotalDays;
+                    if (!OstatniRefresh.HasValue) return "—";
+                    var dni = (DateTime.Now.Date - OstatniRefresh.Value.Date).TotalDays;
                     if (dni < 1) return "dziś";
                     if (dni < 2) return "wczoraj";
                     if (dni < 7) return $"{(int)dni} dni temu";

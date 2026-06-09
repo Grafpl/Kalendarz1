@@ -120,6 +120,12 @@ namespace Kalendarz1.Sprawozdania.Models
         public string EmailOsoby { get; set; } = "sekretariat@piorkowscy.com.pl";
         public string FolderEksportu { get; set; } = "";
 
+        // Wersje formularzy (GUS aktualizuje co rok — Sage co rok +1.0)
+        //   P-02:  2023=16.0, 2024=17.0, 2025=18.0, 2026=19.0
+        //   R-09U: 2026=2.0
+        public string P02FormularzWersja { get; set; } = "19.0";   // 2026
+        public string R09UFormularzWersja { get; set; } = "2.0";
+
         public bool IsConfigured =>
             !string.IsNullOrWhiteSpace(Regon) &&
             !string.IsNullOrWhiteSpace(OsobaNazwisko);

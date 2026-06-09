@@ -296,5 +296,19 @@ namespace Kalendarz1
         }
 
         private void BtnZamknij_Click(object sender, RoutedEventArgs e) => Close();
+
+        private void BtnWarianty_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var okno = new Kalendarz1.Zamowienia.WariantyTowarowWindow { Owner = this };
+                okno.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Nie udało się otworzyć wariantów:\n{ex.Message}",
+                    "Warianty towarów", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
     }
 }

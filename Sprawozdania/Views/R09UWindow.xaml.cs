@@ -1,6 +1,6 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using Kalendarz1.Sprawozdania.Models;
 using Kalendarz1.Sprawozdania.Services;
@@ -17,50 +18,52 @@ namespace Kalendarz1.Sprawozdania.Views
 {
     public partial class R09UWindow : Window
     {
-        // RoutedCommands dla skrótów F5/Ctrl+G/P/H/Left/Right/Esc
-        public static readonly System.Windows.Input.RoutedCommand LoadCmd = new();
-        public static readonly System.Windows.Input.RoutedCommand GenerateCmd = new();
-        public static readonly System.Windows.Input.RoutedCommand PreviewCmd = new();
-        public static readonly System.Windows.Input.RoutedCommand HistoryCmd = new();
-        public static readonly System.Windows.Input.RoutedCommand PrevMonthCmd = new();
-        public static readonly System.Windows.Input.RoutedCommand NextMonthCmd = new();
-        public static readonly System.Windows.Input.RoutedCommand CloseCmd = new();
+        public static readonly RoutedCommand LoadCmd = new();
+        public static readonly RoutedCommand GenerateCmd = new();
+        public static readonly RoutedCommand PreviewCmd = new();
+        public static readonly RoutedCommand HistoryCmd = new();
+        public static readonly RoutedCommand PrevMonthCmd = new();
+        public static readonly RoutedCommand NextMonthCmd = new();
+        public static readonly RoutedCommand CloseCmd = new();
 
-        private readonly R09UDataService _data = new();
+        private readonly R09USpecyfikacjeService _spec = new();
         private readonly R09UXmlGenerator _gen = new();
         private readonly GusSubmissionsRepo _repo = new();
         private readonly R09UValidator _validator = new();
 
-        public ObservableCollection<R09URowVm> Pozycje { get; } = new();
+        public ObservableCollection<R09USpecDzien> Dni { get; } = new();
+        public ObservableCollection<WynikRow> Wynik { get; } = new();
+
         private static readonly CultureInfo Pl = new("pl-PL");
 
         public R09UWindow()
         {
             InitializeComponent();
-            dg.ItemsSource = Pozycje;
+            dgDni.ItemsSource = Dni;
+            dgWynik.ItemsSource = Wynik;
 
             foreach (var m in new[] {
                 "styczeń","luty","marzec","kwiecień","maj","czerwiec",
                 "lipiec","sierpień","wrzesień","październik","listopad","grudzień"
-            })
-                cbMiesiac.Items.Add(m);
+            }) cbMiesiac.Items.Add(m);
 
             int currentRok = DateTime.Today.Year;
             for (int r = currentRok - 5; r <= currentRok + 1; r++) cbRok.Items.Add(r);
 
+            // Default: ZAWSZE poprzedni miesiąc (per ustaleniu Sergiusza)
             var prev = DateTime.Today.AddMonths(-1);
             cbMiesiac.SelectedIndex = prev.Month - 1;
             cbRok.SelectedItem = prev.Year;
 
-            Pozycje.CollectionChanged += (s, e) => { OdswiezKarty(); OdswiezEmptyState(); };
+            Dni.CollectionChanged += (s, e) => { OdswiezKarty(); OdswiezEmptyState(); };
 
-            CommandBindings.Add(new System.Windows.Input.CommandBinding(LoadCmd, (s, e) => BtnLoad_Click(s, e)));
-            CommandBindings.Add(new System.Windows.Input.CommandBinding(GenerateCmd, (s, e) => BtnGenerate_Click(s, e)));
-            CommandBindings.Add(new System.Windows.Input.CommandBinding(PreviewCmd, (s, e) => BtnPreviewXml_Click(s, e)));
-            CommandBindings.Add(new System.Windows.Input.CommandBinding(HistoryCmd, (s, e) => BtnHistory_Click(s, e)));
-            CommandBindings.Add(new System.Windows.Input.CommandBinding(PrevMonthCmd, (s, e) => PrzesunMiesiac(-1)));
-            CommandBindings.Add(new System.Windows.Input.CommandBinding(NextMonthCmd, (s, e) => PrzesunMiesiac(+1)));
-            CommandBindings.Add(new System.Windows.Input.CommandBinding(CloseCmd, (s, e) => Close()));
+            CommandBindings.Add(new CommandBinding(LoadCmd, (s, e) => BtnLoad_Click(s, e)));
+            CommandBindings.Add(new CommandBinding(GenerateCmd, (s, e) => BtnGenerate_Click(s, e)));
+            CommandBindings.Add(new CommandBinding(PreviewCmd, (s, e) => BtnPreviewXml_Click(s, e)));
+            CommandBindings.Add(new CommandBinding(HistoryCmd, (s, e) => BtnHistory_Click(s, e)));
+            CommandBindings.Add(new CommandBinding(PrevMonthCmd, (s, e) => PrzesunMiesiac(-1)));
+            CommandBindings.Add(new CommandBinding(NextMonthCmd, (s, e) => PrzesunMiesiac(+1)));
+            CommandBindings.Add(new CommandBinding(CloseCmd, (s, e) => Close()));
 
             SourceInitialized += (s, e) =>
             {
@@ -91,23 +94,25 @@ namespace Kalendarz1.Sprawozdania.Views
             return (r, m);
         }
 
+        // ════════════════════════════════════════════════════════════════
+        // POBIERANIE
+        // ════════════════════════════════════════════════════════════════
         private async void BtnLoad_Click(object sender, RoutedEventArgs e)
         {
             var (rok, mies) = AktualnyOkres();
-            loadingText.Text = $"Pobieram dane ubojowe za {NazwaMc(mies)} {rok}…";
+            loadingText.Text = $"Agreguję Specyfikacje za {NazwaMc(mies)} {rok}…";
             loadingOverlay.Visibility = Visibility.Visible;
             try
             {
-                var brojler = await _data.PobierzBrojleryZaMiesiacAsync(rok, mies);
-                Pozycje.Clear();
-                Pozycje.Add(new R09URowVm(brojler));
+                var dni = await _spec.PobierzZaMiesiacAsync(rok, mies);
+                Dni.Clear();
+                foreach (var d in dni) Dni.Add(d);
 
-                OdswiezStatus(brojler.JestPusta ? "Brak danych" : "✓ Pobrano",
-                    brojler.JestPusta ? "#FEF3C7" : "#DCFCE7",
-                    brojler.JestPusta ? "#92400E" : "#15803D");
-
-                lblFooter.Text = $"Pobrano {NazwaMc(mies)} {rok}: w14 brojlery kurze · " +
-                                 "r1=LumQnt, r2=NettoFarmWeight, r3=NettoWeight, r5=wartość z faktur";
+                OdswiezStatus(dni.Count == 0 ? "Brak danych" : $"✓ Pobrano {dni.Count} dni",
+                    dni.Count == 0 ? "#FEF3C7" : "#DCFCE7",
+                    dni.Count == 0 ? "#92400E" : "#15803D");
+                lblFooter.Text = $"Pobrano {dni.Count} dni · {NazwaMc(mies)} {rok}. " +
+                                 "Tabela powyżej → mini-tabela R-09U poniżej (D1+D2).";
             }
             catch (Exception ex)
             {
@@ -121,9 +126,12 @@ namespace Kalendarz1.Sprawozdania.Views
             }
         }
 
+        // ════════════════════════════════════════════════════════════════
+        // GENEROWANIE XML
+        // ════════════════════════════════════════════════════════════════
         private async void BtnGenerate_Click(object sender, RoutedEventArgs e)
         {
-            if (Pozycje.Count == 0)
+            if (Dni.Count == 0)
             {
                 MessageBox.Show("Najpierw pobierz dane.", "Brak danych",
                     MessageBoxButton.OK, MessageBoxImage.Information);
@@ -133,27 +141,18 @@ namespace Kalendarz1.Sprawozdania.Views
             var cfg = GusSettingsManager.Load();
             if (!cfg.IsConfigured)
             {
-                MessageBox.Show("Skonfiguruj REGON i osobę odpowiedzialną.",
-                    "Brak konfiguracji", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("Skonfiguruj REGON i osobę odpowiedzialną.", "Brak konfiguracji",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
             var (rok, mies) = AktualnyOkres();
-            var data = new R09UReportData
-            {
-                Rok = rok,
-                Miesiac = mies,
-                OkresOd = new DateTime(rok, mies, 1),
-                OkresDo = new DateTime(rok, mies, 1).AddMonths(1).AddDays(-1),
-                Dzial1 = Pozycje.Select(p => p.Source).ToList(),
-                Dzial2 = new()
-            };
+            var data = ZbudujReportData(rok, mies);
 
-            // Walidacja przed eksportem
+            // Walidacja
             var issues = _validator.Validate(data, cfg);
             if (issues.Count > 0)
             {
-                // Konwersja R09UValidator.ValidationIssue → P02Validator.ValidationIssue (wspólny dialog)
                 var p02Issues = issues.Select(i => new P02Validator.ValidationIssue(
                     (P02Validator.Severity)(int)i.Severity, i.Field, i.Message)).ToList();
                 var walidDlg = new WalidacjaDialog(p02Issues) { Owner = this };
@@ -164,7 +163,6 @@ namespace Kalendarz1.Sprawozdania.Views
             try
             {
                 var xml = _gen.Build(data, cfg);
-
                 string nazwa = R09UXmlGenerator.ProponowanaNazwaPliku(rok, mies, cfg.Regon);
                 string folder = string.IsNullOrWhiteSpace(cfg.FolderEksportu)
                     ? GusSettingsManager.DomyslnyFolderEksportu() : cfg.FolderEksportu;
@@ -180,20 +178,18 @@ namespace Kalendarz1.Sprawozdania.Views
                     FormularzWersja = "2.0",
                     OkresOd = data.OkresOd,
                     OkresDo = data.OkresDo,
-                    Rok = rok,
-                    Miesiac = mies,
+                    Rok = rok, Miesiac = mies,
                     Regon = cfg.Regon,
                     GeneratedXml = xml.ToString(),
                     PlikXml = sciezka,
                     Status = "Generated",
-                    IloscPozycji = data.Dzial1.Count,
-                    SumaWartosc = data.Dzial1.Sum(p => p.WartoscZl),
+                    IloscPozycji = 2, // D1 + D2 dla brojlera
+                    SumaWartosc = data.Dzial1.Sum(p => p.WagaZywaKg) + data.Dzial2.Sum(p => p.WagaZywaKg),
                     GeneratedBy = TryGetUserId(),
                     GeneratedAt = DateTime.Now
                 });
 
-                OdswiezStatus($"✓ XML wygenerowany", "#DCFCE7", "#15803D");
-
+                OdswiezStatus("✓ XML wygenerowany", "#DCFCE7", "#15803D");
                 var info = MessageBox.Show(
                     $"XML zapisany:\n{sciezka}\n\nOtworzyć folder?",
                     "✓ Sukces", MessageBoxButton.YesNo, MessageBoxImage.Information);
@@ -209,19 +205,12 @@ namespace Kalendarz1.Sprawozdania.Views
 
         private void BtnPreviewXml_Click(object sender, RoutedEventArgs e)
         {
-            if (Pozycje.Count == 0) { MessageBox.Show("Brak danych do podglądu."); return; }
+            if (Dni.Count == 0) { MessageBox.Show("Brak danych do podglądu."); return; }
             try
             {
                 var cfg = GusSettingsManager.Load();
                 var (rok, mies) = AktualnyOkres();
-                var data = new R09UReportData
-                {
-                    Rok = rok, Miesiac = mies,
-                    OkresOd = new DateTime(rok, mies, 1),
-                    OkresDo = new DateTime(rok, mies, 1).AddMonths(1).AddDays(-1),
-                    Dzial1 = Pozycje.Select(p => p.Source).ToList(),
-                    Dzial2 = new()
-                };
+                var data = ZbudujReportData(rok, mies);
                 var xml = _gen.Build(data, cfg);
                 var dlg = new Window
                 {
@@ -243,70 +232,95 @@ namespace Kalendarz1.Sprawozdania.Views
         }
 
         // ════════════════════════════════════════════════════════════════
-        // DRILL-DOWN — dwuklik na komórkę liczbową
+        // MAPOWANIE → R-09U
         // ════════════════════════════════════════════════════════════════
-        private void Dg_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        private R09UReportData ZbudujReportData(int rok, int mies)
         {
-            if (e.OriginalSource is DependencyObject dep)
+            int sumD1Szt = Dni.Sum(d => d.D1_Sztuki);
+            decimal sumD1Kg = Dni.Sum(d => d.D1_Kg);
+            int sumD2Szt = Dni.Sum(d => d.D2_Sztuki);
+            decimal sumD2Kg = Dni.Sum(d => d.D2_Kg);
+
+            return new R09UReportData
             {
-                var src = dep;
-                while (src != null && src is not System.Windows.Controls.DataGridRow
-                       && src is not System.Windows.Controls.Primitives.DataGridColumnHeader)
-                    src = System.Windows.Media.VisualTreeHelper.GetParent(src);
-                if (src is System.Windows.Controls.Primitives.DataGridColumnHeader) return;
-            }
+                Rok = rok, Miesiac = mies,
+                OkresOd = new DateTime(rok, mies, 1),
+                OkresDo = new DateTime(rok, mies, 1).AddMonths(1).AddDays(-1),
+                Dzial1 = new List<R09UPozycja>
+                {
+                    new()
+                    {
+                        Wiersz = R09UWiersz.Brojlery_Kurze,
+                        LiczbaSztuk = sumD1Szt,
+                        WagaZywaKg = sumD1Kg,
+                        WagaPoubojowaBruttoKg = 0,
+                        WagaHandlowaNettoKg = 0,
+                        WartoscZl = 0
+                    }
+                },
+                Dzial2 = new List<R09UPozycja>
+                {
+                    new()
+                    {
+                        Wiersz = R09UWiersz.Brojlery_Kurze,
+                        LiczbaSztuk = sumD2Szt,
+                        WagaZywaKg = sumD2Kg,
+                        WagaPoubojowaBruttoKg = 0,
+                        WagaHandlowaNettoKg = 0,
+                        WartoscZl = 0
+                    }
+                }
+            };
+        }
 
-            if (dg.CurrentCell == null || dg.CurrentCell.Column == null) return;
-            var col = dg.CurrentCell.Column;
+        // ════════════════════════════════════════════════════════════════
+        // UI
+        // ════════════════════════════════════════════════════════════════
+        private void OdswiezKarty()
+        {
+            int d1Szt = Dni.Sum(d => d.D1_Sztuki);
+            decimal d1Kg = Dni.Sum(d => d.D1_Kg);
+            int d2Szt = Dni.Sum(d => d.D2_Sztuki);
+            decimal d2Kg = Dni.Sum(d => d.D2_Kg);
+            int zdat = Dni.Sum(d => d.ZdatneSzt);
+            int padle = Dni.Sum(d => d.PadleSzt);
+            int konfi = Dni.Sum(d => d.KonfiSzt);
+            decimal zywiec = Dni.Sum(d => d.ZywiecKg);
+            decimal konfKg = Dni.Sum(d => d.KonfiKg);
+            decimal padleKg = Dni.Sum(d => d.PadleKg);
 
-            R09UDrillTyp? typ = null;
-            string label = "";
-            if (col == colR1) { typ = R09UDrillTyp.Partie; label = "r1 — Sztuki"; }
-            else if (col == colR2) { typ = R09UDrillTyp.Partie; label = "r2 — Waga żywa (NettoFarmWeight)"; }
-            else if (col == colR3) { typ = R09UDrillTyp.Partie; label = "r3 — Po uboju brutto (NettoWeight)"; }
-            else if (col == colR4) { typ = R09UDrillTyp.Partie; label = "r4 — Handlowa netto"; }
-            else if (col == colR5) { typ = R09UDrillTyp.FakturyZywca; label = "r5 — Wartość (faktury FVZ+FVR+FKZ)"; }
+            cardD1Szt.Text = d1Szt.ToString("N0", Pl);
+            cardD1SztSub.Text = $"Zdatne {zdat:N0} + Konfi {konfi:N0}";
+            cardD1Kg.Text = $"{(d1Kg / 1000m).ToString("N1", Pl)} t";
+            cardD1KgSub.Text = $"Żywiec {zywiec:N0} + Konfi kg {konfKg:N0}";
 
-            if (typ == null) return;
+            cardD2Szt.Text = d2Szt.ToString("N0", Pl);
+            cardD2SztSub.Text = $"Padłe {padle:N0} + Konfi {konfi:N0}";
+            cardD2Kg.Text = $"{d2Kg.ToString("N0", Pl)} kg";
+            cardD2KgSub.Text = $"Padłe kg {padleKg:N0} + Konfi kg {konfKg:N0}";
 
-            var (rok, mies) = AktualnyOkres();
-            try
+            // Update mini tabeli wynikowej
+            Wynik.Clear();
+            Wynik.Add(new WynikRow
             {
-                var dlg = new R09UDrillDownDialog(typ.Value, rok, mies, label) { Owner = this };
-                dlg.ShowDialog();
-            }
-            catch (Exception ex)
+                Dzial = "🟢 Dział 1 (ubój całkowity)",
+                Sztuki = d1Szt,
+                Kg = d1Kg,
+                Wzor = "Zdatne[szt] + Konfi[szt]  ·  Żywiec[kg] + Konfi[kg]"
+            });
+            Wynik.Add(new WynikRow
             {
-                MessageBox.Show("Błąd drill-down:\n" + ex.Message, "Błąd",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+                Dzial = "🔴 Dział 2 (nie do konsumpcji)",
+                Sztuki = d2Szt,
+                Kg = d2Kg,
+                Wzor = "Padłe[szt] + Konfi[szt]  ·  Suma[kg] = Padłe + Konfi"
+            });
         }
 
         private void OdswiezEmptyState()
         {
             if (emptyStateOverlay != null)
-                emptyStateOverlay.Visibility = Pozycje.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-        }
-
-        private void OdswiezKarty()
-        {
-            if (Pozycje.Count == 0)
-            {
-                cardSztuki.Text = cardZywa.Text = cardNetto.Text = cardWydajnosc.Text = cardWartosc.Text = "—";
-                cardSztukiSub.Text = cardZywaSub.Text = cardNettoSub.Text = cardWydajnoscSub.Text = cardWartoscSub.Text = "";
-                return;
-            }
-            var p = Pozycje[0].Source;
-            cardSztuki.Text = $"{p.LiczbaSztuk.ToString("N0", Pl)}";
-            cardSztukiSub.Text = "ubitych ptaków (r1)";
-            cardZywa.Text = $"{(p.WagaZywaKg / 1000m).ToString("N1", Pl)} t";
-            cardZywaSub.Text = $"{p.WagaZywaKg.ToString("N0", Pl)} kg (r2 NettoFarmWeight)";
-            cardNetto.Text = $"{(p.WagaPoubojowaBruttoKg / 1000m).ToString("N1", Pl)} t";
-            cardNettoSub.Text = $"{p.WagaPoubojowaBruttoKg.ToString("N0", Pl)} kg (r3 NettoWeight)";
-            cardWydajnosc.Text = $"{p.WydajnoscPoubojowa.ToString("N1", Pl)} %";
-            cardWydajnoscSub.Text = $"śr. masa szt: {p.SredniaMasaSztKg.ToString("N2", Pl)} kg";
-            cardWartosc.Text = $"{(p.WartoscZl / 1000m).ToString("N0", Pl)} tys zł";
-            cardWartoscSub.Text = $"r5 z FVZ+FVR+FKZ";
+                emptyStateOverlay.Visibility = Dni.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private void OdswiezStatus(string text, string bgHex, string fgHex)
@@ -345,41 +359,12 @@ namespace Kalendarz1.Sprawozdania.Views
         private void BtnClose_Click(object sender, RoutedEventArgs e) => Close();
     }
 
-    public class R09URowVm : INotifyPropertyChanged
+    // ViewModel wiersza w mini-tabeli wynikowej R-09U
+    public class WynikRow
     {
-        public R09UPozycja Source { get; }
-        public R09URowVm(R09UPozycja s) { Source = s; }
-
-        public string KategoriaLabel => Source.WierszLabel;
-
-        public int LiczbaSztuk
-        {
-            get => Source.LiczbaSztuk;
-            set { Source.LiczbaSztuk = value; OnCh(nameof(LiczbaSztuk)); }
-        }
-        public decimal WagaZywaKg
-        {
-            get => Source.WagaZywaKg;
-            set { Source.WagaZywaKg = value; OnCh(nameof(WagaZywaKg)); }
-        }
-        public decimal WagaPoubojowaBruttoKg
-        {
-            get => Source.WagaPoubojowaBruttoKg;
-            set { Source.WagaPoubojowaBruttoKg = value; OnCh(nameof(WagaPoubojowaBruttoKg)); }
-        }
-        public decimal WagaHandlowaNettoKg
-        {
-            get => Source.WagaHandlowaNettoKg;
-            set { Source.WagaHandlowaNettoKg = value; OnCh(nameof(WagaHandlowaNettoKg)); }
-        }
-        public decimal WartoscZl
-        {
-            get => Source.WartoscZl;
-            set { Source.WartoscZl = value; OnCh(nameof(WartoscZl)); }
-        }
-
-        public event PropertyChangedEventHandler? PropertyChanged;
-        private void OnCh(string name) =>
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+        public string Dzial { get; set; } = "";
+        public int Sztuki { get; set; }
+        public decimal Kg { get; set; }
+        public string Wzor { get; set; } = "";
     }
 }

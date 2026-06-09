@@ -1008,9 +1008,59 @@ namespace Kalendarz1.Transport.Formularze
             var menuWebfleet = new ToolStripMenuItem("📡 Wyślij do Webfleet", null, MenuWebfleetWyslij_Click);
             menuWebfleet.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
 
+            // 📱 SMS — pojedynczy do kierowcy bieżącego kursu + grupowo do wszystkich z dnia
+            var menuSeparator3 = new ToolStripSeparator();
+            var menuSmsKierowca = new ToolStripMenuItem("📱 Wyślij SMS o kursie do kierowcy", null, MenuSmsDoKierowcy_Click);
+            menuSmsKierowca.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            menuSmsKierowca.ForeColor = Color.FromArgb(21, 128, 61);
+            var menuSmsGrupowy = new ToolStripMenuItem("📲 Grupowy SMS do wszystkich kierowców (dzień)", null, MenuSmsGrupowy_Click);
+            menuSmsGrupowy.ForeColor = Color.FromArgb(21, 128, 61);
+
             contextMenuKurs.Items.AddRange(new ToolStripItem[] {
-                menuPodglad, menuHistoria, menuSeparator, menuEdytuj, menuUsun, menuSeparator2, menuWebfleet
+                menuPodglad, menuHistoria, menuSeparator, menuEdytuj, menuUsun,
+                menuSeparator2, menuWebfleet,
+                menuSeparator3, menuSmsKierowca, menuSmsGrupowy
             });
+        }
+
+        // 📱 Pojedynczy SMS — kierowca wybranego kursu
+        private async void MenuSmsDoKierowcy_Click(object? sender, EventArgs e)
+        {
+            try
+            {
+                if (dgvKursy.CurrentRow?.DataBoundItem is not Kurs kurs)
+                {
+                    MessageBox.Show("Wybierz kurs.", "📱 SMS", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+                if (!kurs.KierowcaID.HasValue)
+                {
+                    MessageBox.Show("Kurs nie ma przypisanego kierowcy.", "📱 SMS", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+                var kierowcy = await _repozytorium.PobierzKierowcowAsync();
+                var kierowca = kierowcy.FirstOrDefault(k => k.KierowcaID == kurs.KierowcaID.Value);
+                await Kalendarz1.Transport.Services.TransportSmsService.WyslijSmsPojedynczyAsync(
+                    _repozytorium, kurs, kierowca, "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True", App.UserID);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd: {ex.Message}", "📱 SMS", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // 📲 Grupowy SMS — wszyscy kierowcy z kursów na wybranej dacie
+        private async void MenuSmsGrupowy_Click(object? sender, EventArgs e)
+        {
+            try
+            {
+                await Kalendarz1.Transport.Services.TransportSmsService.WyslijSmsGrupoweAsync(
+                    _repozytorium, _selectedDate, "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True", App.UserID);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd: {ex.Message}", "📲 Grupowy SMS", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private void CreateContent()

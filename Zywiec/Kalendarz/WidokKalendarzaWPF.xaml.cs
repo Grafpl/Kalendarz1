@@ -6708,16 +6708,45 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 ? BuildDostawaSmsAktualizacjaText(dostawa)
                 : BuildDostawaSmsText(dostawa);
 
-            try
+            // === NOWA ŚCIEŻKA: jeśli telefon (MacroDroid) jest skonfigurowany dla zalogowanego usera → dialog z podglądem ===
+            if (Zywiec.Kalendarz.Dialogs.WyslijSmsDialog.CzyTelefonSkonfigurowany(UserID))
             {
-                Clipboard.SetText(sms);
-                ShowToast(wariant == "aktualizacja"
-                    ? "📱 SMS AKTUALIZUJĄCY skopiowany do schowka"
-                    : "📱 SMS skopiowany do schowka", ToastType.Success);
+                string telefonHodowcy = await PobierzTelefonZSugestiaAsync(dostawa.Dostawca) ?? "";
+                string dostawcaInfo = $"LP {dostawa.LP}  •  {dostawa.Dostawca}  •  {dostawa.DataOdbioru:dd.MM.yyyy}  •  {dostawa.Auta} aut, {dostawa.SztukiDek:#,0} szt";
+
+                var dlg = new Zywiec.Kalendarz.Dialogs.WyslijSmsDialog(
+                    dostawcaInfo, dostawa.Dostawca, telefonHodowcy, sms, ConnectionString, UserID) { Owner = this };
+                bool? wynik = dlg.ShowDialog();
+
+                if (wynik != true)
+                {
+                    // User anulował — nic nie zapisujemy
+                    return;
+                }
+
+                // SMS poszedł (przez telefon) lub fallback do schowka — zapisz snapshot + notatka
+                sms = dlg.FinalTresc; // może user edytował treść
+                if (dlg.SmsWyslanyPrzezTelefon)
+                    ShowToast($"📲 SMS wysłany przez telefon do {dlg.FinalNumer}", ToastType.Success);
+                else if (dlg.TylkoSchowek)
+                    ShowToast("📋 Treść w schowku — wklej w aplikacji telefonu", ToastType.Info);
+
+                // Dalej w dół przechodzimy do zapisu snapshotu + notatki
             }
-            catch
+            else
             {
-                ShowToast("Nie udało się skopiować do schowka", ToastType.Error);
+                // Stary flow: kopiuj do schowka + pokaż MessageBox (gdy MacroDroid nie skonfigurowany)
+                try
+                {
+                    Clipboard.SetText(sms);
+                    ShowToast(wariant == "aktualizacja"
+                        ? "📱 SMS AKTUALIZUJĄCY skopiowany do schowka"
+                        : "📱 SMS skopiowany do schowka", ToastType.Success);
+                }
+                catch
+                {
+                    ShowToast("Nie udało się skopiować do schowka", ToastType.Error);
+                }
             }
 
             // TRYB SYMULACJI — nie zapisuj snapshotu ani notatki, SMS tylko w schowku
@@ -6770,9 +6799,192 @@ namespace Kalendarz1.Zywiec.Kalendarz
                 }
             }
 
-            MessageBox.Show(sms,
-                wariant == "aktualizacja" ? "📱 SMS AKTUALIZUJĄCY — szczegóły dostawy" : "📱 SMS — szczegóły dostawy",
-                MessageBoxButton.OK, MessageBoxImage.Information);
+            // MessageBox z treścią SMS-a tylko gdy używamy starego flow (schowek).
+            // Gdy MacroDroid jest skonfigurowany (dla tego usera), dialog WyslijSmsDialog już wszystko pokazał.
+            if (!Zywiec.Kalendarz.Dialogs.WyslijSmsDialog.CzyTelefonSkonfigurowany(UserID))
+            {
+                MessageBox.Show(sms,
+                    wariant == "aktualizacja" ? "📱 SMS AKTUALIZUJĄCY — szczegóły dostawy" : "📱 SMS — szczegóły dostawy",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        // Pobiera Phone1 dostawcy z dbo.Dostawcy (po ShortName lub Name).
+        // Zwraca pusty string jeśli brak — dialog SMS pozwoli wpisać ręcznie.
+        private async Task<string> PobierzTelefonDostawcyAsync(string dostawca)
+        {
+            if (string.IsNullOrWhiteSpace(dostawca)) return "";
+            try
+            {
+                using var conn = new SqlConnection(ConnectionString);
+                await conn.OpenAsync();
+                using var cmd = new SqlCommand(
+                    "SELECT TOP 1 ISNULL(Phone1, '') FROM dbo.Dostawcy WHERE ShortName = @n OR Name = @n", conn);
+                cmd.Parameters.AddWithValue("@n", dostawca);
+                var r = await cmd.ExecuteScalarAsync();
+                return r?.ToString() ?? "";
+            }
+            catch
+            {
+                return "";
+            }
+        }
+
+        // Pobiera telefon, a jeśli brak — proponuje dodać teraz (otwiera OknoDodaniaNumeruDialog).
+        // Zwraca:
+        //   - numer telefonu (z bazy lub świeżo dodany)
+        //   - null jeśli user anulował dodawanie (oznacza "przerwij całą akcję")
+        //   - pusty string jeśli user nie chciał dodawać (akcja kontynuuje z pustym numerem)
+        private async Task<string?> PobierzTelefonZSugestiaAsync(string dostawca)
+        {
+            string telefon = await PobierzTelefonDostawcyAsync(dostawca);
+            if (!string.IsNullOrWhiteSpace(telefon) && telefon != "-") return telefon;
+
+            // Brak — zaoferuj dodanie
+            string? nowy = await Zywiec.Kalendarz.Services.DodanieNumeruHelper.ZaproponujDodanieAsync(
+                this, ConnectionString, dostawca);
+            if (string.IsNullOrEmpty(nowy))
+            {
+                // User powiedział NIE / anulował dialog → kontynuuj z pustym (możliwe że wpisze w dialogu SMS-a ręcznie)
+                return "";
+            }
+            return nowy;
+        }
+
+        // 📋 SMS — formalne zapytanie o nowe wstawienie (nawiązuje do bieżącej dostawy).
+        // Otwiera ten sam WyslijSmsDialog co inne SMS-y. NIE zapisuje snapshotu
+        // (to nie SMS o szczegółach dostawy żywca), ale zapisuje notatkę żeby było wiadomo
+        // że pytaliśmy.
+        private async void MenuSmsZapytanieOWstawienie_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(_selectedLP))
+            {
+                ShowToast("Wybierz dostawę", ToastType.Warning);
+                return;
+            }
+            var dostawa = _dostawy.FirstOrDefault(d => d.LP == _selectedLP)
+                          ?? _dostawyNastepnyTydzien.FirstOrDefault(d => d.LP == _selectedLP);
+            if (dostawa == null || dostawa.IsHeaderRow || dostawa.IsSeparator)
+            {
+                ShowToast("Wybierz dostawę", ToastType.Warning);
+                return;
+            }
+
+            // Treść formalna nawiązująca do dostawy
+            string tresc =
+                $"Dzień dobry," + Environment.NewLine +
+                $"w nawiązaniu do dostawy z {dostawa.DataOdbioru:dd.MM.yyyy} — " +
+                $"czy planuje Pan/Pani kolejne wstawienie kurczaków?" + Environment.NewLine +
+                $"Prosimy o informację, jeśli tak — chętnie omówimy termin i szczegóły." + Environment.NewLine +
+                Environment.NewLine +
+                "Pozdrawiamy, Ubojnia Drobiu \"Piórkowscy\".";
+
+            string telefonHodowcy = await PobierzTelefonZSugestiaAsync(dostawa.Dostawca) ?? "";
+            string dostawcaInfo = $"📋 Zapytanie o nowe wstawienie\n" +
+                                  $"LP {dostawa.LP}  •  {dostawa.Dostawca}  •  dostawa {dostawa.DataOdbioru:dd.MM.yyyy}";
+
+            var dlg = new Zywiec.Kalendarz.Dialogs.WyslijSmsDialog(
+                dostawcaInfo, dostawa.Dostawca, telefonHodowcy, tresc, ConnectionString, UserID) { Owner = this };
+            bool? wynik = dlg.ShowDialog();
+
+            if (wynik != true) return;
+            if (dlg.SmsWyslanyPrzezTelefon)
+                ShowToast($"📋 Zapytanie o nowe wstawienie wysłane do {dostawa.Dostawca}", ToastType.Success);
+            else if (dlg.TylkoSchowek)
+                ShowToast("📋 Zapytanie w schowku — wklej w aplikacji telefonu", ToastType.Info);
+
+            // Zapisz notatkę żeby było widoczne w historii dostawy że pytaliśmy
+            await DodajNotatkeZapytanieAsync(dostawa);
+        }
+
+        // Wpis do dbo.Notatki — historia dostawy zachowuje informację o wysłanym zapytaniu
+        private async Task DodajNotatkeZapytanieAsync(DostawaModel d)
+        {
+            try
+            {
+                using var conn = new SqlConnection(ConnectionString);
+                await conn.OpenAsync();
+                using var cmd = new SqlCommand(
+                    "INSERT INTO Notatki (IndeksID, TypID, Tresc, KtoStworzyl, DataUtworzenia) VALUES (@lp, 1, @tresc, @kto, GETDATE())", conn);
+                cmd.Parameters.AddWithValue("@lp", d.LP);
+                cmd.Parameters.AddWithValue("@tresc", $"📋 Wysłano zapytanie o nowe wstawienie (dostawa {d.DataOdbioru:dd.MM.yyyy}).");
+                cmd.Parameters.AddWithValue("@kto", UserID ?? "0");
+                await cmd.ExecuteNonQueryAsync();
+                if (_selectedLP == d.LP)
+                {
+                    await LoadNotatkiAsync(d.LP);
+                    await LoadOstatnieNotatkiAsync();
+                }
+            }
+            catch { }
+        }
+
+        // 📞 ZADZWOŃ DO DOSTAWCY — POST /call do MacroDroid (telefon dzwoni z numeru pracownicy)
+        private async void MenuZadzwonDoDostawcy_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(_selectedLP))
+            {
+                ShowToast("Wybierz dostawę", ToastType.Warning);
+                return;
+            }
+            var dostawa = _dostawy.FirstOrDefault(d => d.LP == _selectedLP)
+                          ?? _dostawyNastepnyTydzien.FirstOrDefault(d => d.LP == _selectedLP);
+            if (dostawa == null || dostawa.IsHeaderRow || dostawa.IsSeparator)
+            {
+                ShowToast("Wybierz dostawę", ToastType.Warning);
+                return;
+            }
+
+            var wynik = await Zywiec.Kalendarz.Services.ZadzwonHelper.ZadzwonDoDostawcyAsync(
+                this, ConnectionString, UserID, dostawa.Dostawca);
+
+            if (wynik.UserAnulowal) return;
+
+            if (wynik.Sukces)
+            {
+                ShowToast(wynik.Komunikat, ToastType.Success);
+            }
+            else if (wynik.BrakNumeru)
+            {
+                MessageBox.Show(wynik.Komunikat, "Brak numeru telefonu",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            else if (wynik.TelefonNieSkonfigurowany)
+            {
+                MessageBox.Show(wynik.Komunikat, "Telefon nieskonfigurowany",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            else
+            {
+                MessageBox.Show(
+                    $"Telefon nieosiągalny — sprawdź MacroDroid / IP / sieć.\n\nSzczegóły:\n{wynik.Komunikat}",
+                    "Błąd połączenia", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        // 🧪 TEST SMS przez telefon (MacroDroid webhook) — bez żadnego zapisu do bazy.
+        // Otwiera dialog z konfiguracją (IP/port/token zapamiętane), pozwala wpisać dowolny
+        // numer testowy + treść, wysyła HTTP POST i pokazuje wynik. Nic nie trafia do
+        // SmsDostawySnapshot ani do Notatki.
+        private void MenuTestSmsPrzezTelefon_Click(object sender, RoutedEventArgs e)
+        {
+            string? dostawaInfo = null;
+            string? sugerowanaTresc = null;
+
+            // Jeśli wybrano dostawę — wstawiamy pomocniczo jej info i SMS jako sugerowaną treść
+            if (!string.IsNullOrEmpty(_selectedLP))
+            {
+                var dostawa = _dostawy.FirstOrDefault(d => d.LP == _selectedLP)
+                              ?? _dostawyNastepnyTydzien.FirstOrDefault(d => d.LP == _selectedLP);
+                if (dostawa != null && !dostawa.IsHeaderRow && !dostawa.IsSeparator)
+                {
+                    dostawaInfo = $"LP {dostawa.LP}, {dostawa.Dostawca}, {dostawa.DataOdbioru:dd.MM.yyyy}, {dostawa.Auta} aut";
+                    sugerowanaTresc = BuildDostawaSmsText(dostawa);
+                }
+            }
+
+            var dlg = new Zywiec.Kalendarz.Dialogs.TestSmsDialog(dostawaInfo, sugerowanaTresc, UserID) { Owner = this };
+            dlg.ShowDialog();
         }
 
         // Aktualizacja nagłówka MenuItem przed otwarciem menu — pokazuje "AKTUALIZUJĄCY"

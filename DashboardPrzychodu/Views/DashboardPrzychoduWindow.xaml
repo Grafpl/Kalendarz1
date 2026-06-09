@@ -167,34 +167,34 @@
         <!-- ============================================ -->
 
         <Style x:Key="DgHeader" TargetType="DataGridColumnHeader">
-            <Setter Property="Background" Value="#44403c"/>
-            <Setter Property="Foreground" Value="#a8a29e"/>
-            <Setter Property="FontSize" Value="11"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Padding" Value="8,6"/>
-            <Setter Property="BorderThickness" Value="0,0,0,1"/>
-            <Setter Property="BorderBrush" Value="#57534e"/>
+            <Setter Property="Background" Value="#292524"/>
+            <Setter Property="Foreground" Value="#fbbf24"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Padding" Value="10,9"/>
+            <Setter Property="BorderThickness" Value="0,0,1,2"/>
+            <Setter Property="BorderBrush" Value="#f59e0b"/>
         </Style>
 
         <Style x:Key="DgRow" TargetType="DataGridRow">
             <Setter Property="Background" Value="{Binding HodowcaKolorTlo}"/>
             <Setter Property="Foreground" Value="#e7e5e4"/>
-            <Setter Property="BorderThickness" Value="3,0,0,0"/>
+            <Setter Property="BorderThickness" Value="4,0,0,0"/>
             <Setter Property="BorderBrush" Value="{Binding HodowcaKolor}"/>
-            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontSize" Value="14"/>
             <Style.Triggers>
                 <Trigger Property="IsSelected" Value="True">
                     <Setter Property="Background" Value="#44403c"/>
                 </Trigger>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#44403c"/>
+                    <Setter Property="Background" Value="#3a3633"/>
                 </Trigger>
                 <DataTrigger Binding="{Binding JestProblem}" Value="True">
-                    <Setter Property="Background" Value="#2D1F1F"/>
+                    <Setter Property="Background" Value="#3a1f1f"/>
                 </DataTrigger>
                 <!-- Separator grup hodowców: grubsza linia na górze pierwszego wiersza nowej grupy -->
                 <DataTrigger Binding="{Binding PierwszyWierszGrupy}" Value="True">
-                    <Setter Property="BorderThickness" Value="3,2,0,0"/>
+                    <Setter Property="BorderThickness" Value="4,3,0,0"/>
                     <Setter Property="BorderBrush" Value="{Binding HodowcaKolor}"/>
                 </DataTrigger>
             </Style.Triggers>
@@ -202,7 +202,7 @@
 
         <Style x:Key="DgCell" TargetType="DataGridCell">
             <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="6,2"/>
+            <Setter Property="Padding" Value="8,4"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="DataGridCell">
@@ -225,9 +225,10 @@
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="RowBackground" Value="Transparent"/>
             <Setter Property="AlternationCount" Value="0"/>
-            <Setter Property="GridLinesVisibility" Value="None"/>
-            <Setter Property="RowHeight" Value="34"/>
-            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="#1c1917"/>
+            <Setter Property="RowHeight" Value="42"/>
+            <Setter Property="FontSize" Value="14"/>
             <Setter Property="HeadersVisibility" Value="Column"/>
             <Setter Property="CanUserAddRows" Value="False"/>
             <Setter Property="CanUserDeleteRows" Value="False"/>
@@ -235,6 +236,7 @@
             <Setter Property="IsReadOnly" Value="True"/>
             <Setter Property="EnableRowVirtualization" Value="True"/>
             <Setter Property="EnableColumnVirtualization" Value="True"/>
+            <Setter Property="ColumnHeaderHeight" Value="40"/>
         </Style>
 
         <!-- ============================================ -->
@@ -314,7 +316,7 @@
         <!-- ============================================ -->
         <Grid Grid.Row="0">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="680"/>  <!-- Sidebar - duzo szerszy z navigacja -->
+                <ColumnDefinition Width="820"/>  <!-- Sidebar - jeszcze szerszy z navigacja -->
                 <ColumnDefinition Width="*"/>    <!-- Table -->
             </Grid.ColumnDefinitions>
 
@@ -348,30 +350,15 @@
                                 </StackPanel>
                             </Grid>
 
-                            <!-- Linia 2: Data + Plan S/N -->
-                            <Grid>
-                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Text="📅" FontSize="16" VerticalAlignment="Center"/>
-                                    <DatePicker x:Name="dpData" SelectedDate="{x:Static sys:DateTime.Today}"
-                                                Width="160" FontSize="13" Style="{StaticResource DarkDatePicker}"
-                                                Margin="6,0,0,0"/>
-                                    <TextBlock x:Name="txtDataDisplay" Text="" FontSize="12"
-                                               Foreground="#a8a29e" Margin="8,0,0,0" VerticalAlignment="Center"/>
-                                </StackPanel>
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                    <TextBlock Text="Plan:" FontSize="13" Foreground="#a8a29e" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                    <RadioButton x:Name="rbPlanStare" Content="S" GroupName="PlanMode"
-                                                 Checked="RbPlanMode_Checked"
-                                                 Foreground="#a8a29e" FontSize="14" FontWeight="Bold"
-                                                 VerticalAlignment="Center" Margin="0,0,14,0" Cursor="Hand"
-                                                 ToolTip="Stare - plan proporcjonalny / ostatnie auto = reszta"/>
-                                    <RadioButton x:Name="rbPlanNowe" Content="N" GroupName="PlanMode"
-                                                 IsChecked="True" Checked="RbPlanMode_Checked"
-                                                 Foreground="#a8a29e" FontSize="14" FontWeight="Bold"
-                                                 VerticalAlignment="Center" Cursor="Hand"
-                                                 ToolTip="Nowe - plan per auto z SztukiExcel × WagaDek"/>
-                                </StackPanel>
-                            </Grid>
+                            <!-- Linia 2: Data -->
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="📅" FontSize="16" VerticalAlignment="Center"/>
+                                <DatePicker x:Name="dpData" SelectedDate="{x:Static sys:DateTime.Today}"
+                                            Width="160" FontSize="13" Style="{StaticResource DarkDatePicker}"
+                                            Margin="6,0,0,0"/>
+                                <TextBlock x:Name="txtDataDisplay" Text="" FontSize="12"
+                                           Foreground="#a8a29e" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
                         </StackPanel>
                     </Border>
 
@@ -397,7 +384,7 @@
                                 </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Border CornerRadius="7" Margin="0,0,7,7" MinWidth="280" MaxWidth="300"
+                                        <Border CornerRadius="5" Margin="0,0,4,4" MinWidth="240" MaxWidth="252"
                                                 Background="#1c1917"
                                                 ToolTip="{Binding Hodowca, Mode=OneWay}">
                                             <!-- Pulsowanie aktywnej karty - kolorowe obramowanie -->
@@ -419,68 +406,67 @@
                                                         CornerRadius="6,0,0,6"
                                                         Background="{Binding HodowcaKolor, Mode=OneWay}"/>
 
-                                                <StackPanel Margin="12,8,10,8">
+                                                <StackPanel Margin="9,6,7,6">
                                                     <!-- Nagłówek: Hodowca (pełna szerokość) + badge'e w prawym górnym rogu -->
-                                                    <Grid Margin="0,0,0,6">
+                                                    <Grid Margin="0,0,0,4">
                                                         <Grid.ColumnDefinitions>
                                                             <ColumnDefinition Width="*"/>
                                                             <ColumnDefinition Width="Auto"/>
                                                         </Grid.ColumnDefinitions>
                                                         <StackPanel Grid.Column="0" Orientation="Horizontal">
                                                             <!-- Kropka statusu -->
-                                                            <Ellipse Width="9" Height="9" Margin="0,0,5,0"
+                                                            <Ellipse Width="7" Height="7" Margin="0,0,4,0"
                                                                      Fill="{Binding StatusDotColor, Mode=OneWay}"
                                                                      Opacity="{Binding StatusDotOpacity, Mode=OneWay}"
                                                                      VerticalAlignment="Center"/>
-                                                            <TextBlock Text="{Binding Hodowca, Mode=OneWay}" FontSize="13" FontWeight="Bold"
+                                                            <TextBlock Text="{Binding Hodowca, Mode=OneWay}" FontSize="11" FontWeight="Bold"
                                                                        Foreground="{Binding HodowcaKolor, Mode=OneWay}"
                                                                        TextTrimming="CharacterEllipsis"
                                                                        VerticalAlignment="Center"/>
                                                         </StackPanel>
-                                                        <Border Grid.Column="1" Background="{Binding HodowcaKolor, Mode=OneWay}" CornerRadius="3"
-                                                                Padding="5,1,5,1" VerticalAlignment="Center">
-                                                            <TextBlock Text="{Binding TrendDisplay, Mode=OneWay}" FontSize="11" FontWeight="Bold"
+                                                        <Border Grid.Column="1" Background="{Binding HodowcaKolor, Mode=OneWay}" CornerRadius="2"
+                                                                Padding="4,0,4,0" VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding TrendDisplay, Mode=OneWay}" FontSize="9" FontWeight="Bold"
                                                                        Foreground="#1c1917"/>
                                                         </Border>
                                                     </Grid>
 
                                                     <!-- REALNI HODOWCY (pokazujemy gdy rozni sie od planowanego) -->
-                                                    <Border Background="#292524" CornerRadius="3" Padding="6,3" Margin="0,0,0,5"
+                                                    <Border Background="#292524" CornerRadius="2" Padding="5,2" Margin="0,0,0,4"
                                                             Visibility="{Binding MaRoznychRealnych, Converter={StaticResource BoolToVisibilityConverter}}"
                                                             ToolTip="{Binding RealniHodowcy}">
                                                         <StackPanel Orientation="Horizontal">
-                                                            <TextBlock Text="👥" FontSize="11" Margin="0,0,4,0" VerticalAlignment="Center"/>
-                                                            <TextBlock Text="Realnie: " FontSize="10" Foreground="#78716c" VerticalAlignment="Center"/>
-                                                            <TextBlock Text="{Binding RealniHodowcyDisplay, Mode=OneWay}" FontSize="10" FontWeight="SemiBold"
-                                                                       Foreground="#fbbf24" TextTrimming="CharacterEllipsis" MaxWidth="220"
+                                                            <TextBlock Text="👥" FontSize="9" Margin="0,0,3,0" VerticalAlignment="Center"/>
+                                                            <TextBlock Text="{Binding RealniHodowcyDisplay, Mode=OneWay}" FontSize="9" FontWeight="SemiBold"
+                                                                       Foreground="#fbbf24" TextTrimming="CharacterEllipsis" MaxWidth="195"
                                                                        VerticalAlignment="Center"/>
                                                         </StackPanel>
                                                     </Border>
 
                                                     <!-- Plan vs Rzecz - 2 kolumny -->
-                                                    <Grid Margin="0,0,0,4">
+                                                    <Grid Margin="0,0,0,3">
                                                         <Grid.ColumnDefinitions>
                                                             <ColumnDefinition Width="*"/>
                                                             <ColumnDefinition Width="Auto"/>
                                                             <ColumnDefinition Width="*"/>
                                                         </Grid.ColumnDefinitions>
                                                         <StackPanel Grid.Column="0">
-                                                            <TextBlock Text="PLAN" FontSize="8" Foreground="#78716c" FontWeight="SemiBold"/>
-                                                            <TextBlock Text="{Binding KgPlanDisplay, Mode=OneWay}" FontSize="15" FontWeight="SemiBold"
+                                                            <TextBlock Text="PLAN" FontSize="7" Foreground="#78716c" FontWeight="SemiBold"/>
+                                                            <TextBlock Text="{Binding KgPlanDisplay, Mode=OneWay}" FontSize="13" FontWeight="SemiBold"
                                                                        Foreground="#a8a29e"/>
                                                         </StackPanel>
-                                                        <TextBlock Grid.Column="1" Text="→" Foreground="#57534e" FontSize="13"
-                                                                   VerticalAlignment="Bottom" Margin="6,0,6,2"/>
+                                                        <TextBlock Grid.Column="1" Text="→" Foreground="#57534e" FontSize="11"
+                                                                   VerticalAlignment="Bottom" Margin="5,0,5,1"/>
                                                         <StackPanel Grid.Column="2" HorizontalAlignment="Right">
-                                                            <TextBlock Text="RZECZ" FontSize="8" Foreground="#78716c" FontWeight="SemiBold"
+                                                            <TextBlock Text="RZECZ" FontSize="7" Foreground="#78716c" FontWeight="SemiBold"
                                                                        HorizontalAlignment="Right"/>
-                                                            <TextBlock Text="{Binding KgRzeczDisplay, Mode=OneWay}" FontSize="15" FontWeight="Bold"
+                                                            <TextBlock Text="{Binding KgRzeczDisplay, Mode=OneWay}" FontSize="13" FontWeight="Bold"
                                                                        Foreground="#e7e5e4" HorizontalAlignment="Right"/>
                                                         </StackPanel>
                                                     </Grid>
 
                                                     <!-- CENTRALNE: Odchylenie kg i odchylenie waga (focus karty) -->
-                                                    <Border Background="#0a0a0a" CornerRadius="4" Padding="8,6" Margin="0,2,0,5">
+                                                    <Border Background="#0a0a0a" CornerRadius="3" Padding="6,4" Margin="0,1,0,4">
                                                         <Grid>
                                                             <Grid.ColumnDefinitions>
                                                                 <ColumnDefinition Width="*"/>
@@ -489,9 +475,9 @@
                                                             </Grid.ColumnDefinitions>
                                                             <!-- Lewa: ODCHYL.KG -->
                                                             <StackPanel Grid.Column="0" HorizontalAlignment="Center">
-                                                                <TextBlock Text="ODCHYL. KG" FontSize="8" Foreground="#78716c" FontWeight="SemiBold"
+                                                                <TextBlock Text="ODCHYL. KG" FontSize="7" Foreground="#78716c" FontWeight="SemiBold"
                                                                            HorizontalAlignment="Center"/>
-                                                                <TextBlock Text="{Binding OdchylenieKgDisplay, Mode=OneWay}" FontSize="16" FontWeight="Bold"
+                                                                <TextBlock Text="{Binding OdchylenieKgDisplay, Mode=OneWay}" FontSize="13" FontWeight="Bold"
                                                                            Foreground="{Binding OdchylenieKgBrush, Mode=OneWay}"
                                                                            HorizontalAlignment="Center"/>
                                                             </StackPanel>
@@ -499,9 +485,9 @@
                                                             <Rectangle Grid.Column="1" Fill="#44403c" Width="1" Margin="0,2"/>
                                                             <!-- Prawa: ODCHYL.WAGA -->
                                                             <StackPanel Grid.Column="2" HorizontalAlignment="Center">
-                                                                <TextBlock Text="ODCHYL. WAGA" FontSize="8" Foreground="#78716c" FontWeight="SemiBold"
+                                                                <TextBlock Text="ODCHYL. WAGA" FontSize="7" Foreground="#78716c" FontWeight="SemiBold"
                                                                            HorizontalAlignment="Center"/>
-                                                                <TextBlock Text="{Binding OdchylenieWagiDisplay, Mode=OneWay}" FontSize="16" FontWeight="Bold"
+                                                                <TextBlock Text="{Binding OdchylenieWagiDisplay, Mode=OneWay}" FontSize="13" FontWeight="Bold"
                                                                            Foreground="{Binding OdchylenieWagiBrush, Mode=OneWay}"
                                                                            HorizontalAlignment="Center"/>
                                                             </StackPanel>
@@ -509,15 +495,15 @@
                                                     </Border>
 
                                                     <!-- Waga: dek → rzecz (mała linia kontekstowa) -->
-                                                    <Grid Margin="0,0,0,5">
+                                                    <Grid Margin="0,0,0,4">
                                                         <StackPanel Orientation="Horizontal">
-                                                            <TextBlock Text="⚖ " FontSize="10" Foreground="#57534e"/>
-                                                            <TextBlock Text="{Binding SredniaWagaPlanDisplay, Mode=OneWay}" FontSize="11"
+                                                            <TextBlock Text="⚖ " FontSize="9" Foreground="#57534e"/>
+                                                            <TextBlock Text="{Binding SredniaWagaPlanDisplay, Mode=OneWay}" FontSize="9"
                                                                        Foreground="#78716c"/>
-                                                            <TextBlock Text="→" FontSize="10" Foreground="#57534e" Margin="5,0,5,0"/>
-                                                            <TextBlock Text="{Binding SredniaWagaRzeczDisplay, Mode=OneWay}" FontSize="11" FontWeight="Bold"
+                                                            <TextBlock Text="→" FontSize="9" Foreground="#57534e" Margin="4,0,4,0"/>
+                                                            <TextBlock Text="{Binding SredniaWagaRzeczDisplay, Mode=OneWay}" FontSize="9" FontWeight="Bold"
                                                                        Foreground="#e7e5e4"/>
-                                                            <TextBlock Text=" kg" FontSize="9" Foreground="#57534e"/>
+                                                            <TextBlock Text=" kg" FontSize="8" Foreground="#57534e"/>
                                                         </StackPanel>
                                                     </Grid>
 
@@ -528,10 +514,10 @@
                                                             <ColumnDefinition Width="Auto"/>
                                                         </Grid.ColumnDefinitions>
                                                         <ProgressBar Grid.Column="0" Value="{Binding RealizacjaProc, Mode=OneWay}" Maximum="100"
-                                                                     Height="6" Background="#292524" Foreground="{Binding HodowcaKolor, Mode=OneWay}"
+                                                                     Height="4" Background="#292524" Foreground="{Binding HodowcaKolor, Mode=OneWay}"
                                                                      VerticalAlignment="Center"/>
-                                                        <TextBlock Grid.Column="1" Text="{Binding PostepDisplay, Mode=OneWay}" FontSize="10" FontWeight="SemiBold"
-                                                                   Foreground="#78716c" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                                        <TextBlock Grid.Column="1" Text="{Binding PostepDisplay, Mode=OneWay}" FontSize="9" FontWeight="SemiBold"
+                                                                   Foreground="#78716c" Margin="5,0,0,0" VerticalAlignment="Center"/>
                                                     </Grid>
                                                 </StackPanel>
                                             </Grid>
@@ -778,35 +764,37 @@
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
-                            <DataGridTextColumn Header="LP" Binding="{Binding NrKursu}" Width="55">
+                            <DataGridTextColumn Header="LP" Binding="{Binding NrKursu}" Width="60">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
-                                        <Setter Property="FontWeight" Value="SemiBold"/>
-                                        <Setter Property="FontSize" Value="12"/>
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                        <Setter Property="FontSize" Value="14"/>
                                         <Setter Property="VerticalAlignment" Value="Center"/>
+                                        <Setter Property="HorizontalAlignment" Value="Center"/>
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
 
-                            <DataGridTemplateColumn Header="HODOWCA" Width="*" MinWidth="140">
+                            <DataGridTemplateColumn Header="HODOWCA" Width="*" MinWidth="160">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding Hodowca}"
                                                    Foreground="{Binding HodowcaKolor}"
-                                                   FontWeight="SemiBold"
+                                                   FontWeight="Bold"
                                                    TextTrimming="CharacterEllipsis"
-                                                   FontSize="12" VerticalAlignment="Center"/>
+                                                   FontSize="14" VerticalAlignment="Center"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
                             <!-- PLAN NA AUTO -->
-                            <DataGridTemplateColumn Header="PLAN" Width="100">
+                            <DataGridTemplateColumn Header="PLAN" Width="110">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding KgPlanNaAuto, StringFormat=N0}" Foreground="#a8a29e" FontSize="12"/>
-                                            <TextBlock Text=" (R)" Foreground="#f59e0b" FontSize="10" FontWeight="Bold"
+                                            <TextBlock Text="{Binding KgPlanNaAuto, StringFormat=N0}" Foreground="#a8a29e"
+                                                       FontSize="14" FontWeight="SemiBold"/>
+                                            <TextBlock Text=" (R)" Foreground="#f59e0b" FontSize="11" FontWeight="Bold"
                                                        Visibility="{Binding CzyOstatnieAuto, Converter={StaticResource BoolToVisibilityConverter}}"
                                                        ToolTip="Reszta z harmonogramu"/>
                                         </StackPanel>
@@ -814,36 +802,36 @@
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
-                            <DataGridTemplateColumn Header="RZECZ" Width="95">
+                            <DataGridTemplateColumn Header="RZECZ" Width="105">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding KgRzeczywiste, StringFormat=N0}" HorizontalAlignment="Right"
-                                                   Foreground="#f59e0b"
-                                                   VerticalAlignment="Center" FontWeight="SemiBold" FontSize="12"/>
+                                                   Foreground="#fbbf24"
+                                                   VerticalAlignment="Center" FontWeight="Bold" FontSize="15"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
                             <!-- ODCH.PLAN: vs plan-na-auto (dispatching POV). Tooltip pokazuje OBIE metryki. -->
-                            <DataGridTemplateColumn Header="ODCH.PLAN" Width="115"
+                            <DataGridTemplateColumn Header="ODCH.PLAN" Width="130"
                                                     ToolTipService.ToolTip="Odchylenie wzgledem planu dispatchera na to auto">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding OdchylenieVsPlanAutoDisplay}"
                                                    Foreground="{Binding Poziom, Converter={StaticResource OdchylenieToColorConverter}}"
-                                                   VerticalAlignment="Center" FontSize="11"
+                                                   VerticalAlignment="Center" FontSize="13" FontWeight="SemiBold"
                                                    ToolTip="{Binding OdchylenieFullTooltip}"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
                             <!-- POZOSTALO Z HARMONOGRAMU - tylko na ostatnim wierszu hodowcy -->
-                            <DataGridTemplateColumn Header="POZOST." Width="105">
+                            <DataGridTemplateColumn Header="POZOST." Width="115">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <StackPanel VerticalAlignment="Center"
                                                     Visibility="{Binding OstatniWierszHodowcy, Converter={StaticResource BoolToVisibilityConverter}}">
-                                            <TextBlock Foreground="{Binding PozostaloKolor}" FontSize="11">
+                                            <TextBlock Foreground="{Binding PozostaloKolor}" FontSize="13" FontWeight="SemiBold">
                                                 <Run Text="{Binding KgPozostalo, StringFormat=N0}"/><Run Text=" kg"/>
                                             </TextBlock>
                                         </StackPanel>
@@ -852,46 +840,48 @@
                             </DataGridTemplateColumn>
 
                             <!-- POSTEP HARMONOGRAMU - tylko na ostatnim wierszu hodowcy -->
-                            <DataGridTemplateColumn Header="POST." Width="80">
+                            <DataGridTemplateColumn Header="POST." Width="90">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <StackPanel VerticalAlignment="Center"
                                                     Visibility="{Binding OstatniWierszHodowcy, Converter={StaticResource BoolToVisibilityConverter}}">
-                                            <TextBlock Text="{Binding PostepDisplay}" FontSize="10" Foreground="#78716c" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="{Binding PostepDisplay}" FontSize="12" Foreground="#a8a29e" FontWeight="SemiBold"
+                                                       HorizontalAlignment="Center"/>
                                             <ProgressBar Value="{Binding PostepProc, Mode=OneWay}" Maximum="100"
-                                                         Height="3" Background="#44403c" Foreground="#22c55e"/>
+                                                         Height="4" Background="#44403c" Foreground="#22c55e" Margin="0,2,0,0"/>
                                         </StackPanel>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
-                            <DataGridTemplateColumn Header="W.DEK" Width="75">
+                            <DataGridTemplateColumn Header="W.DEK" Width="85">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding SredniaWagaPlanCalc, StringFormat=N2}"
-                                                   Foreground="#78716c" FontSize="11"
+                                                   Foreground="#a8a29e" FontSize="13"
                                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
-                            <DataGridTemplateColumn Header="W.RZ" Width="75"
+                            <DataGridTemplateColumn Header="W.RZ" Width="85"
                                                     ToolTipService.ToolTip="Srednia waga rzeczywista [kg/szt] = Netto / SztRzecz">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding SredniaWagaRzeczywistaCalc, StringFormat='{}{0:N2}', TargetNullValue='-', FallbackValue='-'}"
                                                    Foreground="{Binding Status, Converter={StaticResource StatusToColorConverter}}"
-                                                   FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                   FontSize="13" FontWeight="SemiBold"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
                             <!-- TUSZKI -->
-                            <DataGridTemplateColumn Header="TUSZKI" Width="85">
+                            <DataGridTemplateColumn Header="TUSZKI" Width="95">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding TuszkiRzeczywisteKg, Converter={StaticResource NullToDashConverter}}"
-                                                   Foreground="#c084fc" FontSize="11" FontWeight="SemiBold"
+                                                   Foreground="#c084fc" FontSize="13" FontWeight="SemiBold"
                                                    HorizontalAlignment="Right" VerticalAlignment="Center"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
@@ -899,13 +889,14 @@
 
                             <!-- ROZM. i Status icon usuniete na zyczenie usera -->
 
-                            <DataGridTextColumn Header="GODZ" Binding="{Binding PrzyjazdDisplay}" Width="75">
+                            <DataGridTextColumn Header="GODZ" Binding="{Binding PrzyjazdDisplay}" Width="85">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="HorizontalAlignment" Value="Center"/>
-                                        <Setter Property="Foreground" Value="#78716c"/>
+                                        <Setter Property="Foreground" Value="#a8a29e"/>
                                         <Setter Property="VerticalAlignment" Value="Center"/>
-                                        <Setter Property="FontSize" Value="11"/>
+                                        <Setter Property="FontSize" Value="13"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
@@ -913,38 +904,46 @@
                     </DataGrid>
 
                     <!-- WIERSZ SUMA -->
-                    <Border Grid.Row="2" Background="#92400e" Padding="8,10"
+                    <Border Grid.Row="2" Background="#92400e" Padding="8,12"
                             CornerRadius="0,0,5,5" BorderThickness="0,2,0,0" BorderBrush="#f59e0b">
                         <Grid>
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="55"/>   <!-- LP -->
-                                <ColumnDefinition Width="*" MinWidth="140"/>  <!-- HODOWCA (zwezona) -->
-                                <ColumnDefinition Width="100"/>  <!-- PLAN -->
-                                <ColumnDefinition Width="95"/>   <!-- RZECZ -->
-                                <ColumnDefinition Width="115"/>  <!-- ODCH.PLAN -->
-                                <ColumnDefinition Width="105"/>  <!-- POZOSTAŁO -->
-                                <ColumnDefinition Width="80"/>   <!-- POSTĘP -->
-                                <ColumnDefinition Width="75"/>   <!-- W.DEK -->
-                                <ColumnDefinition Width="75"/>   <!-- W.RZ -->
-                                <ColumnDefinition Width="85"/>   <!-- TUSZKI -->
-                                <ColumnDefinition Width="75"/>   <!-- GODZ -->
+                                <ColumnDefinition Width="60"/>   <!-- LP -->
+                                <ColumnDefinition Width="*" MinWidth="160"/>  <!-- HODOWCA -->
+                                <ColumnDefinition Width="110"/>  <!-- PLAN -->
+                                <ColumnDefinition Width="105"/>  <!-- RZECZ -->
+                                <ColumnDefinition Width="130"/>  <!-- ODCH.PLAN -->
+                                <ColumnDefinition Width="115"/>  <!-- POZOSTAŁO -->
+                                <ColumnDefinition Width="90"/>   <!-- POSTĘP -->
+                                <ColumnDefinition Width="85"/>   <!-- W.DEK -->
+                                <ColumnDefinition Width="85"/>   <!-- W.RZ -->
+                                <ColumnDefinition Width="95"/>   <!-- TUSZKI -->
+                                <ColumnDefinition Width="85"/>   <!-- GODZ -->
                             </Grid.ColumnDefinitions>
 
-                            <TextBlock Grid.Column="0" Text="SUMA" FontSize="11" FontWeight="Bold" Foreground="#fbbf24" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="1" x:Name="txtSumaDostawy" Text="0 dostaw" FontSize="11" Foreground="#a8a29e" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="2" x:Name="txtSumaPlan" Text="0" FontSize="12" FontWeight="SemiBold" Foreground="#e7e5e4" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="3" x:Name="txtSumaRzecz" Text="0" FontSize="12" FontWeight="Bold" Foreground="#22c55e" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="4" x:Name="txtSumaOdchylenie" Text="-" FontSize="11" FontWeight="SemiBold" Foreground="#fbbf24" VerticalAlignment="Center" HorizontalAlignment="Center"
+                            <TextBlock Grid.Column="0" Text="SUMA" FontSize="14" FontWeight="Bold" Foreground="#fbbf24"
+                                       VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                            <TextBlock Grid.Column="1" x:Name="txtSumaDostawy" Text="0 dostaw" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="#fed7aa" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="2" x:Name="txtSumaPlan" Text="0" FontSize="15" FontWeight="Bold"
+                                       Foreground="#ffffff" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="3" x:Name="txtSumaRzecz" Text="0" FontSize="15" FontWeight="Bold"
+                                       Foreground="#22c55e" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="4" x:Name="txtSumaOdchylenie" Text="-" FontSize="14" FontWeight="Bold"
+                                       Foreground="#fbbf24" VerticalAlignment="Center" HorizontalAlignment="Center"
                                        ToolTip="Suma odchylen vs plan-na-auto"/>
                             <StackPanel Grid.Column="5" VerticalAlignment="Center">
-                                <TextBlock x:Name="txtSumaPozostaloKg" Text="-" Foreground="#60a5fa" FontSize="11" FontWeight="SemiBold"/>
-                                <TextBlock x:Name="txtSumaPozostaloTuszki" Text="-" Foreground="#c084fc" FontSize="10"/>
+                                <TextBlock x:Name="txtSumaPozostaloKg" Text="-" Foreground="#60a5fa" FontSize="13" FontWeight="Bold"/>
+                                <TextBlock x:Name="txtSumaPozostaloTuszki" Text="-" Foreground="#c084fc" FontSize="11"/>
                             </StackPanel>
-                            <TextBlock Grid.Column="6" Text="-" FontSize="11" Foreground="#78716c" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="7" x:Name="txtSumaWagaPlan" Text="-" FontSize="11" Foreground="#78716c" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="8" x:Name="txtSumaSrWaga" Text="-" FontSize="11" Foreground="#e7e5e4" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="9" x:Name="txtSumaTuszkiRzecz" Text="-" FontSize="12" FontWeight="Bold" Foreground="#c084fc" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="10" Text="-" FontSize="11" Foreground="#78716c" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="6" Text="-" FontSize="13" Foreground="#fed7aa" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="7" x:Name="txtSumaWagaPlan" Text="-" FontSize="13" Foreground="#fed7aa"
+                                       FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="8" x:Name="txtSumaSrWaga" Text="-" FontSize="13" FontWeight="Bold"
+                                       Foreground="#ffffff" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="9" x:Name="txtSumaTuszkiRzecz" Text="-" FontSize="15" FontWeight="Bold"
+                                       Foreground="#c084fc" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="10" Text="-" FontSize="13" Foreground="#fed7aa" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Grid>
                     </Border>
                 </Grid>
@@ -973,7 +972,9 @@
                     <TextBlock FontSize="9" Foreground="#78716c" VerticalAlignment="Center">
                         <Run Text="Akt: "/><Run x:Name="txtAutoRefreshFooter" Text="-" Foreground="#fbbf24"/>
                     </TextBlock>
-                    <Button Content="📋 Excel" Style="{StaticResource BottomBtn}" Click="BtnExportExcel_Click" Margin="12,0,0,0"/>
+                    <Button Content="🧮 Plan?" Style="{StaticResource BottomBtn}" Click="BtnPlanWyjasnij_Click" Margin="12,0,0,0"
+                            ToolTip="Pokaż dokładnie skąd wzięła się kolumna PLAN dla każdego wiersza"/>
+                    <Button Content="📋 Excel" Style="{StaticResource BottomBtn}" Click="BtnExportExcel_Click" Margin="4,0,0,0"/>
                     <Button Content="🖨️ Drukuj" Style="{StaticResource BottomBtn}" Click="BtnPrint_Click" Margin="4,0,0,0"/>
                     <Button Content="🔧 DIAG" Style="{StaticResource BottomBtnDanger}" Click="BtnDiagnose_Click" Margin="4,0,0,0"/>
                 </StackPanel>

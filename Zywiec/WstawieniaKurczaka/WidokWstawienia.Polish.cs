@@ -13,6 +13,19 @@ namespace Kalendarz1
 
     public partial class WidokWstawienia
     {
+        // Counter dzisiejszych akcji w status bar — tylko bieżący user
+        private async System.Threading.Tasks.Task OdswiezLicznikDzisiajAsync()
+        {
+            try
+            {
+                var (sms, call) = await Zywiec.Kalendarz.Services.CallLogService
+                    .LiczbaAkcjiDzisAsync(connectionString, App.UserID);
+                if (statusDzisiaj != null)
+                    statusDzisiaj.Text = $"Dzisiaj: {sms} SMS · {call} 📞";
+            }
+            catch { }
+        }
+
         // Wywoływane po każdej operacji która zmienia liczbę wierszy
         internal void OdswiezStatusBar()
         {
@@ -53,6 +66,9 @@ namespace Kalendarz1
                     string user = App.UserFullName ?? App.UserID ?? "";
                     statusUser.Text = $"Zalogowany: {user}   •   {DateTime.Now:HH:mm}";
                 }
+
+                // Counter dzisiejszych akcji (SMS + Call) — async, fire-and-forget
+                _ = OdswiezLicznikDzisiajAsync();
 
                 // Dynamiczny tytuł okna — pokazuje liczniki w pasku zadań/Alt+Tab
                 this.Title = $"🐔 Wstawienia Kurczaków — ⏰ {liczbaPrzypomnien} przypomnień, 📞 {liczbaNadchodzacych} nadchodzących";

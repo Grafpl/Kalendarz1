@@ -1418,6 +1418,7 @@ namespace Kalendarz1
             /* 81 */ "KreatorPuliBilansu",
             /* 82 */ "HDIDokumenty",
             /* 83 */ "HalaLive",
+            /* 84 */ "SkrzynkaZakupu",
         };
 
         private void ParseAccessString(string accessString)
@@ -1524,6 +1525,11 @@ namespace Kalendarz1
                 // ═══════════════════════════════════════════════════════════════════════════
                 ["ZAOPATRZENIE I ZAKUPY"] = new List<MenuItemConfig>
                 {
+                    new MenuItemConfig("SkrzynkaZakupu", "Skrzynka Zakupu",
+                        "Wspólna poczta działu zakupu (zakup@piorkowscy.com.pl): czytanie, odpowiadanie, foldery i załączniki. Przeczytane/nieprzeczytane osobno dla każdej osoby.",
+                        Color.FromArgb(0, 121, 107), // Teal #00796B (narzędzie komunikacji)
+                        () => new Kalendarz1.SkrzynkaZakupu.Views.SkrzynkaZakupuWindow(), "📧", "Poczta"),
+
                     new MenuItemConfig("DaneHodowcy", "Baza Hodowców",
                         "Kompletna kartoteka wszystkich dostawców żywca kurczaków z danymi kontaktowymi i historią współpracy",
                         Color.FromArgb(165, 214, 167), // Jasny zielony #A5D6A7

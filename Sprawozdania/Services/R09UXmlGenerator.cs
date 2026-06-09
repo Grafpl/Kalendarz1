@@ -28,7 +28,7 @@ namespace Kalendarz1.Sprawozdania.Services
         private static readonly XNamespace Xsi = "http://www.w3.org/2001/XMLSchema-instance";
 
         private const string FormularzSymbol = "R-09U";
-        private const string FormularzWersja = "2.0";
+        // Wersja brana z GusSettings.R09UFormularzWersja (default 2.0 dla 2026)
 
         public XDocument Build(R09UReportData data, GusSettings cfg)
         {
@@ -68,11 +68,12 @@ namespace Kalendarz1.Sprawozdania.Services
             DodajSekcjeUkryte(elementy);
 
             // ═══════ Root ═══════
+            string wersja = string.IsNullOrWhiteSpace(cfg.R09UFormularzWersja) ? "2.0" : cfg.R09UFormularzWersja;
             var root = new XElement(Ns + "Sprawozdanie",
                 new XAttribute(XNamespace.Xmlns + "xsi", Xsi.NamespaceName),
                 new XAttribute(Xsi + "schemaLocation", "http://ps.stat.gov.pl/ps/schema/sprawozdanie sprawozdanie.xsd"),
                 new XAttribute("formularzSymbol", FormularzSymbol),
-                new XAttribute("formularzWersja", FormularzWersja),
+                new XAttribute("formularzWersja", wersja),
                 new XAttribute("numerSprawozdania", "0"),
                 elementy);
 

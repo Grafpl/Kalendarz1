@@ -30,6 +30,18 @@ namespace Kalendarz1.Transport.Services
         /// </summary>
         public const double RoadFactor = 1.3;
 
+        /// <summary>
+        /// Bufor bezpieczeństwa — dodawany do KAŻDEGO odcinka jazdy.
+        /// 10% extra uwzględnia: korki w mieście, zwolnienia, wjazd/wyjazd z bramy,
+        /// nieprzewidziane postoje (stacja paliw, toaleta, telefon).
+        /// </summary>
+        public const double BufferJazdyProcent = 0.10;
+
+        /// <summary>
+        /// Extra minut na każdy rozładunek — kolejka na bramce, dokumenty, czekanie na wagę.
+        /// </summary>
+        public const int BufferRozladunkuMin = 5;
+
         /// <summary>Dane wejściowe jednego przystanku</summary>
         public class StopInput
         {
@@ -144,9 +156,12 @@ namespace Kalendarz1.Transport.Services
                 }
                 _ = zHistorii;   // flag może być wystawiona na UI w przyszłości
 
+                // BUFOR BEZPIECZEŃSTWA — +10% na jazdę (korki, zwolnienia, manewry)
+                driveTime = TimeSpan.FromMinutes(driveTime.TotalMinutes * (1.0 + BufferJazdyProcent));
+
                 var eta = currentTime.Add(driveTime);
-                // Czas rozładunku: per-stop override > globalny default
-                int unloadMin = stop.RozladunekMin ?? UnloadMinutes;
+                // Czas rozładunku: per-stop override > globalny default + bufor (kolejka na bramce, dokumenty)
+                int unloadMin = (stop.RozladunekMin ?? UnloadMinutes) + BufferRozladunkuMin;
                 var departure = eta.Add(TimeSpan.FromMinutes(unloadMin));
 
                 result.Stops.Add(new StopEta
@@ -179,11 +194,13 @@ namespace Kalendarz1.Transport.Services
             var lastStop = sorted.Last();
             int lastLokId = lastStop.KlientId ?? BazaLokId;
 
+            // Bufor +10% też dla powrotu
+            double bufMul = 1.0 + BufferJazdyProcent;
             if (odcinki != null && odcinki.TryGetValue((lastLokId, BazaLokId), out var retMinHist))
             {
                 double retDist = retMinHist * (AvgSpeedKmh / 60.0);
                 result.ReturnDistanceKm = Math.Round(retDist, 1);
-                result.EstimatedReturnTime = currentTime.Add(TimeSpan.FromMinutes(retMinHist));
+                result.EstimatedReturnTime = currentTime.Add(TimeSpan.FromMinutes(retMinHist * bufMul));
             }
             else
             {
@@ -192,7 +209,7 @@ namespace Kalendarz1.Transport.Services
                 {
                     double retDist = HaversineKm(lastWithCoords.Latitude, lastWithCoords.Longitude, BaseLat, BaseLng) * RoadFactor;
                     result.ReturnDistanceKm = Math.Round(retDist, 1);
-                    result.EstimatedReturnTime = currentTime.Add(TimeSpan.FromHours(retDist / AvgSpeedKmh));
+                    result.EstimatedReturnTime = currentTime.Add(TimeSpan.FromHours(retDist / AvgSpeedKmh * bufMul));
                 }
                 else
                 {

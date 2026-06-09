@@ -288,6 +288,7 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                     <Border Grid.Row="0" Background="{StaticResource SurfaceAlt}" Padding="12,8" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1">
                         <DockPanel>
@@ -354,6 +355,32 @@
                             </Border>
                         </Border>
                     </Grid>
+
+                    <!-- ── HARMONOGRAM KURSU (auto-liczony z EstymacjeTras + KartotekaOdbiorcyDane) ── -->
+                    <Border Grid.Row="2" Background="#F0FDF4" BorderBrush="#22C55E" BorderThickness="0,1,0,0">
+                        <DockPanel>
+                            <Border DockPanel.Dock="Top" Background="#22C55E" Padding="10,6">
+                                <DockPanel>
+                                    <TextBlock DockPanel.Dock="Right" x:Name="HarmonogramSuma"
+                                               Foreground="White" FontWeight="Bold" FontSize="12"
+                                               VerticalAlignment="Center" Margin="0,0,10,0"
+                                               Text=""/>
+                                    <TextBlock Text="📅 HARMONOGRAM KURSU  ·  Webfleet history + bufor (jazda +10%, postój +5 min) — auto-przelicz przy zmianach"
+                                               Foreground="White" FontWeight="SemiBold" FontSize="11.5"
+                                               VerticalAlignment="Center"/>
+                                </DockPanel>
+                            </Border>
+                            <TextBox x:Name="HarmonogramTekst" IsReadOnly="True"
+                                     FontFamily="Consolas" FontSize="11"
+                                     Background="White" Foreground="#212529"
+                                     BorderThickness="0" Padding="10,6"
+                                     MaxHeight="220" MinHeight="100"
+                                     VerticalScrollBarVisibility="Auto"
+                                     HorizontalScrollBarVisibility="Auto"
+                                     TextWrapping="NoWrap"
+                                     Text="(dodaj klientów do kursu — harmonogram pojawi się automatycznie)"/>
+                        </DockPanel>
+                    </Border>
                 </Grid>
 
                 <!-- ── PRZYCISKI ── -->

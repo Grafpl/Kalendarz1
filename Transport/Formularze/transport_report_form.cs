@@ -479,8 +479,8 @@ namespace Kalendarz1.Transport
         private int _printPageIndex;      // numer strony (od 1)
         private int _printKursIndex;      // index w posortowanej liście
 
-        private const int ROW_H = 14;        // wiersz odbiorcy (zbity)
-        private const int KART_HEAD_H = 16;  // 1-linijkowy header kursu
+        private const int ROW_H = 18;        // wiersz odbiorcy (z większym odstępem, ale bez przesady)
+        private const int KART_HEAD_H = 20;  // 1-linijkowy header kursu
         private const int GAP_KART = 6;      // odstęp między kursami (mała linia + 2px)
         private const int COL_GODZ_W = 56;   // kolumna godziny wyjazdu po lewej
 
@@ -603,15 +603,16 @@ namespace Kalendarz1.Transport
                 new RectangleF(x, y, COL_GODZ_W - 4, KART_HEAD_H),
                 new StringFormat { LineAlignment = StringAlignment.Center });
 
-            // ── Tabela po prawej: 3 kolumny KG | POJ | PAL (linie pionowe + pozioma pod headerem)
-            const int kolKgW = 78, kolPojW = 52, kolPalW = 50;
+            // ── Tabela po prawej: 3 kolumny KG | POJ | PAL (linie pionowe + pozioma pod headerem).
+            // Szersze (244 zamiast 180) żeby pomieścić przedrostki "kg / poj / pal" przy każdej wartości.
+            const int kolKgW = 100, kolPojW = 72, kolPalW = 72;
             int kolPalX = x + w - kolPalW;
             int kolPojX = kolPalX - kolPojW;
             int kolKgX  = kolPojX - kolKgW;
             int tabelaX = kolKgX;       // lewa krawędź tabeli
 
-            // ── HEADER kursu (lewa: kierowca/pojazd/tel; prawa: sumy w komórkach tabeli)
-            string tel = !string.IsNullOrWhiteSpace(kurs.KierowcaTelefon) ? $"   ·   tel. {kurs.KierowcaTelefon}" : "";
+            // ── HEADER kursu (lewa: kierowca/pojazd/telefon; prawa: sumy w komórkach tabeli)
+            string tel = !string.IsNullOrWhiteSpace(kurs.KierowcaTelefon) ? $"   ·   {kurs.KierowcaTelefon}" : "";
             string headerLewy = $"{kurs.KierowcaNazwa}   ·   {kurs.PojazdRejestracja}{tel}";
             g.DrawString(headerLewy, fKurs, br,
                 new RectangleF(xTresc, y, tabelaX - xTresc - 6, KART_HEAD_H),
@@ -666,11 +667,11 @@ namespace Kalendarz1.Transport
 
                 int paletyL = l.PaletyH1 ?? (int)Math.Ceiling(l.PojemnikiE2 / (double)Math.Max(1, (int)kurs.PlanE2NaPalete));
                 var stR = new StringFormat { Alignment = StringAlignment.Far, LineAlignment = StringAlignment.Center };
-                g.DrawString(l.IloscKg > 0 ? $"{l.IloscKg:N0}" : "—", fT, br,
+                g.DrawString(l.IloscKg > 0 ? $"{l.IloscKg:N0} kg" : "—", fT, br,
                     new RectangleF(kolKgX, yRow, kolKgW - 4, ROW_H), stR);
-                g.DrawString(l.PojemnikiE2.ToString(), fT, br,
+                g.DrawString($"{l.PojemnikiE2} poj", fT, br,
                     new RectangleF(kolPojX, yRow, kolPojW - 4, ROW_H), stR);
-                g.DrawString(paletyL.ToString(), fT, br,
+                g.DrawString($"{paletyL} pal", fT, br,
                     new RectangleF(kolPalX, yRow, kolPalW - 4, ROW_H), stR);
 
                 yRow += ROW_H;

@@ -1,0 +1,629 @@
+<Window x:Class="Kalendarz1.SkrzynkaZakupu.Views.SkrzynkaZakupuWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
+        xmlns:local="clr-namespace:Kalendarz1.SkrzynkaZakupu.Views"
+        Title="Skrzynka Zakupu" Height="760" Width="1240" MinHeight="560" MinWidth="900"
+        WindowState="Maximized"
+        WindowStartupLocation="CenterScreen" Background="#F1F5F9"
+        FontFamily="Segoe UI" TextOptions.TextFormattingMode="Display"
+        UseLayoutRounding="True">
+    <Window.Resources>
+        <local:ZeroToHiddenConverter x:Key="ZeroHide"/>
+        <local:BoolToVisibleConverter x:Key="BoolHide"/>
+        <local:ReadToWeightConverter x:Key="ReadWeight"/>
+        <local:UnreadToVisibleConverter x:Key="UnreadShow"/>
+        <local:HexToBrushConverter x:Key="HexBrush"/>
+        <local:FlaggedToBrushConverter x:Key="FlagBrush"/>
+
+        <!-- PALETA -->
+        <SolidColorBrush x:Key="Brand"      Color="#2E7D32"/>
+        <SolidColorBrush x:Key="BrandDark"  Color="#1B5E20"/>
+        <SolidColorBrush x:Key="BrandSoft"  Color="#E8F5E9"/>
+        <SolidColorBrush x:Key="Surface"    Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="Line"       Color="#E5E9EF"/>
+        <SolidColorBrush x:Key="TextMain"   Color="#0F172A"/>
+        <SolidColorBrush x:Key="TextSub"    Color="#475569"/>
+        <SolidColorBrush x:Key="TextMute"   Color="#94A3B8"/>
+        <SolidColorBrush x:Key="Hover"      Color="#F1F5F9"/>
+
+        <!-- przycisk w toolbarze: flat z hoverem -->
+        <Style x:Key="TB" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#334155"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="11,7"/>
+            <Setter Property="Margin" Value="1,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="b" Background="{TemplateBinding Background}" CornerRadius="7"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="b" Property="Background" Value="#EEF2F7"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.38"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- główny przycisk akcji (Napisz) -->
+        <Style x:Key="Primary" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource Brand}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="b" Background="{TemplateBinding Background}" CornerRadius="8"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="b" Property="Background" Value="{StaticResource BrandDark}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- okrągły przycisk akcji w podglądzie -->
+        <Style x:Key="PreviewAction" TargetType="Button">
+            <Setter Property="Background" Value="#F1F5F9"/>
+            <Setter Property="Foreground" Value="#334155"/>
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding" Value="12,7"/>
+            <Setter Property="Margin" Value="0,0,8,0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="b" Background="{TemplateBinding Background}" CornerRadius="8"
+                                Padding="{TemplateBinding Padding}" BorderBrush="{StaticResource Line}" BorderThickness="1">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="b" Property="Background" Value="{StaticResource BrandSoft}"/>
+                                <Setter TargetName="b" Property="BorderBrush" Value="#A5D6A7"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- kontener pozycji folderu -->
+        <Style x:Key="FolderItemStyle" TargetType="ListBoxItem">
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="6,1"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="bd" CornerRadius="8" Background="Transparent" Padding="9,8">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#EEF2F7"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{StaticResource BrandSoft}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- kontener pozycji maila -->
+        <Style x:Key="MailItemStyle" TargetType="ListBoxItem">
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="bd" Background="Transparent" BorderBrush="#EEF1F5" BorderThickness="0,0,0,1">
+                            <Grid>
+                                <Border x:Name="accent" Width="3" HorizontalAlignment="Left" Background="{StaticResource Brand}"
+                                        Visibility="Collapsed"/>
+                                <ContentPresenter Margin="0"/>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#F7FAFC"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{StaticResource BrandSoft}"/>
+                                <Setter TargetName="accent" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- czysta ListBox bez ramki -->
+        <Style x:Key="CleanList" TargetType="ListBox">
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
+        </Style>
+
+        <!-- smukły pasek przewijania (globalnie w oknie) -->
+        <Style TargetType="ScrollBar">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Width" Value="9"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollBar">
+                        <Grid Background="Transparent">
+                            <Track x:Name="PART_Track" IsDirectionReversed="True">
+                                <Track.Thumb>
+                                    <Thumb>
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="Thumb">
+                                                <Border x:Name="t" CornerRadius="4" Background="#CBD5E1" Margin="2,0"/>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="t" Property="Background" Value="#94A3B8"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton Command="ScrollBar.PageDownCommand" Opacity="0" Focusable="False"/>
+                                </Track.IncreaseRepeatButton>
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Command="ScrollBar.PageUpCommand" Opacity="0" Focusable="False"/>
+                                </Track.DecreaseRepeatButton>
+                            </Track>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="Orientation" Value="Horizontal">
+                                <Setter Property="Height" Value="9"/>
+                                <Setter Property="Width" Value="Auto"/>
+                                <Setter TargetName="PART_Track" Property="IsDirectionReversed" Value="False"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- chip filtra (single-select) -->
+        <Style x:Key="Chip" TargetType="RadioButton">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
+            <Setter Property="FontSize" Value="11.5"/>
+            <Setter Property="Foreground" Value="{StaticResource TextSub}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="b" CornerRadius="13" Background="#F1F5F9" Padding="11,5">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="b" Property="Background" Value="#E2E8F0"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="b" Property="Background" Value="{StaticResource Brand}"/>
+                                <Setter TargetName="b" Property="TextBlock.Foreground" Value="White"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- nagłówek grupy daty na liście -->
+        <Style x:Key="GroupHeaderStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="{StaticResource TextMute}"/>
+            <Setter Property="Margin" Value="14,12,0,4"/>
+        </Style>
+
+        <!-- spinner ładowania (animowany łuk) -->
+        <ControlTemplate x:Key="Spinner" TargetType="Control">
+            <Grid Width="38" Height="38">
+                <Ellipse Stroke="#E5E9EF" StrokeThickness="4"/>
+                <Path Stroke="{StaticResource Brand}" StrokeThickness="4" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                      Data="M19,3 A16,16 0 0 1 35,19" RenderTransformOrigin="0.5,0.5">
+                    <Path.RenderTransform>
+                        <RotateTransform x:Name="rot"/>
+                    </Path.RenderTransform>
+                    <Path.Triggers>
+                        <EventTrigger RoutedEvent="Loaded">
+                            <BeginStoryboard>
+                                <Storyboard RepeatBehavior="Forever">
+                                    <DoubleAnimation Storyboard.TargetName="rot" Storyboard.TargetProperty="Angle"
+                                                     From="0" To="360" Duration="0:0:0.85"/>
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </EventTrigger>
+                    </Path.Triggers>
+                </Path>
+            </Grid>
+        </ControlTemplate>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- ======= PASEK AKCJI (akcje + konto) ======= -->
+        <Border Grid.Row="0" Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1">
+            <DockPanel Margin="14,7">
+                <!-- prawy klaster: nieprzeczytane / konto / kontakty / ustawienia -->
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border x:Name="BadgeUnread" Background="{StaticResource BrandSoft}" CornerRadius="13" Padding="11,5" Margin="0,0,10,0"
+                            VerticalAlignment="Center" Visibility="Collapsed">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse Width="7" Height="7" Fill="{StaticResource Brand}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <TextBlock x:Name="TxtUnreadTotal" Text="" Foreground="{StaticResource BrandDark}" FontWeight="SemiBold" FontSize="11.5"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Width="30" Height="30" CornerRadius="15" Background="#00796B" Margin="0,0,7,0">
+                        <TextBlock Text="ZA" Foreground="White" FontWeight="SemiBold" FontSize="11.5"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <TextBlock x:Name="TxtKonto" Text="" FontSize="11.5" Foreground="{StaticResource TextMute}"
+                               VerticalAlignment="Center" Margin="0,0,6,0"/>
+                    <Button x:Name="BtnKontakty" Style="{StaticResource TB}" Click="BtnKontakty_Click"
+                            ToolTip="Kontakty i import (Thunderbird)" Content="👥  Kontakty"/>
+                    <Button x:Name="BtnUstawienia" Style="{StaticResource TB}" Click="BtnUstawienia_Click"
+                            ToolTip="Ustawienia skrzynki" Content="⚙️"/>
+                </StackPanel>
+
+                <!-- lewa strona: akcje na wiadomościach -->
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="BtnNapisz" Style="{StaticResource Primary}" Click="BtnNapisz_Click" Content="✏️  Napisz"/>
+                    <Rectangle Width="1" Fill="{StaticResource Line}" Margin="12,4"/>
+                    <Button x:Name="BtnOdswiez" Style="{StaticResource TB}" Click="BtnOdswiez_Click" Content="🔄  Odśwież"/>
+                    <Button x:Name="BtnOdpowiedz" Style="{StaticResource TB}" Click="BtnOdpowiedz_Click" Content="↩️  Odpowiedz" IsEnabled="False"/>
+                    <Button x:Name="BtnPrzekaz" Style="{StaticResource TB}" Click="BtnPrzekaz_Click" Content="➡️  Przekaż" IsEnabled="False"/>
+                    <Rectangle Width="1" Fill="{StaticResource Line}" Margin="12,4"/>
+                    <Button x:Name="BtnPrzeczytane" Style="{StaticResource TB}" Click="BtnPrzeczytane_Click" Content="✓  Przeczytane" IsEnabled="False"/>
+                    <Button x:Name="BtnNieprzeczytane" Style="{StaticResource TB}" Click="BtnNieprzeczytane_Click" Content="●  Nieprzeczytane" IsEnabled="False"/>
+                    <Button x:Name="BtnPrzenies" Style="{StaticResource TB}" Click="BtnPrzenies_Click" Content="📁  Przenieś" IsEnabled="False"/>
+                    <Button x:Name="BtnUsun" Style="{StaticResource TB}" Click="BtnUsun_Click" Content="🗑️  Usuń" IsEnabled="False"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- ======= TREŚĆ: 3 panele ======= -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="216" MinWidth="170"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="380" MinWidth="290"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*" MinWidth="340"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- FOLDERY -->
+            <Border Grid.Column="0" Background="#FBFCFD" BorderBrush="{StaticResource Line}" BorderThickness="0,0,1,0">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top" Text="FOLDERY" FontSize="10.5" FontWeight="Bold"
+                               Foreground="{StaticResource TextMute}" Margin="16,14,0,6"/>
+                    <ListBox x:Name="LstFoldery" Style="{StaticResource CleanList}"
+                             ItemContainerStyle="{StaticResource FolderItemStyle}"
+                             AllowDrop="True" DragOver="LstFoldery_DragOver" Drop="LstFoldery_Drop"
+                             SelectionChanged="LstFoldery_SelectionChanged">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <DockPanel>
+                                    <TextBlock Text="{Binding Ikona}" FontSize="14" Margin="0,0,9,0" VerticalAlignment="Center"/>
+                                    <Border DockPanel.Dock="Right" Background="{StaticResource Brand}" CornerRadius="9"
+                                            Padding="6,1" VerticalAlignment="Center" MinWidth="18"
+                                            Visibility="{Binding Unread, Converter={StaticResource ZeroHide}}">
+                                        <TextBlock Text="{Binding Unread}" Foreground="White" FontSize="10.5"
+                                                   FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Text="{Binding DisplayName}" FontSize="13" Foreground="{StaticResource TextSub}"
+                                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                </DockPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+            </Border>
+
+            <GridSplitter Grid.Column="1" Width="3" Background="Transparent" HorizontalAlignment="Center"/>
+
+            <!-- LISTA MAILI -->
+            <Border Grid.Column="2" Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="0,0,1,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- SZUKAJ + filtry -->
+                    <Border Grid.Row="0" Padding="12,10,12,9" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1">
+                        <StackPanel>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="0" Background="#F1F5F9" CornerRadius="9" Padding="10,0">
+                                    <Grid Height="34">
+                                        <TextBlock Text="🔎" FontSize="12.5" VerticalAlignment="Center" HorizontalAlignment="Left" Foreground="{StaticResource TextMute}"/>
+                                        <TextBox x:Name="TxtSzukaj" Margin="24,0,0,0" VerticalContentAlignment="Center"
+                                                 Background="Transparent" BorderThickness="0" FontSize="12.5"
+                                                 TextChanged="TxtSzukaj_TextChanged"/>
+                                        <TextBlock x:Name="TxtSzukajHint" Text="Szukaj  ·  from: temat is:unread has:attachment" Foreground="{StaticResource TextMute}"
+                                                   FontSize="12.5" Margin="25,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False"/>
+                                    </Grid>
+                                </Border>
+                                <Button x:Name="BtnSortuj" Grid.Column="1" Margin="8,0,0,0" Width="34" Height="34"
+                                        Style="{StaticResource TB}" Click="BtnSortuj_Click" ToolTip="Sortowanie" Content="⇅">
+                                    <Button.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem Header="📅  Data (najnowsze)" Tag="date" Click="Sortuj_Click"/>
+                                            <MenuItem Header="👤  Nadawca" Tag="sender" Click="Sortuj_Click"/>
+                                            <MenuItem Header="🔤  Temat" Tag="subject" Click="Sortuj_Click"/>
+                                            <MenuItem Header="●  Nieprzeczytane u góry" Tag="unread" Click="Sortuj_Click"/>
+                                        </ContextMenu>
+                                    </Button.ContextMenu>
+                                </Button>
+                                <Button x:Name="BtnOznaczWszystkie" Grid.Column="2" Margin="6,0,0,0" Width="34" Height="34"
+                                        Style="{StaticResource TB}" Click="BtnOznaczWszystkie_Click"
+                                        ToolTip="Oznacz wszystkie jako przeczytane" Content="✓✓"/>
+                            </Grid>
+                            <StackPanel Orientation="Horizontal" Margin="0,9,0,1">
+                                <RadioButton x:Name="ChipWszystkie" Style="{StaticResource Chip}" GroupName="filtr" Tag="all"
+                                             IsChecked="True" Checked="Chip_Checked" Content="Wszystkie"/>
+                                <RadioButton Style="{StaticResource Chip}" GroupName="filtr" Tag="unread" Checked="Chip_Checked" Content="Nieprzeczytane"/>
+                                <RadioButton Style="{StaticResource Chip}" GroupName="filtr" Tag="flag" Checked="Chip_Checked" Content="⭐ Gwiazdka"/>
+                                <RadioButton Style="{StaticResource Chip}" GroupName="filtr" Tag="att" Checked="Chip_Checked" Content="📎 Załącznik"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <ListBox x:Name="LstMaile" Grid.Row="1" Style="{StaticResource CleanList}"
+                             ItemContainerStyle="{StaticResource MailItemStyle}"
+                             SelectionMode="Extended"
+                             SelectionChanged="LstMaile_SelectionChanged"
+                             MouseDoubleClick="LstMaile_DoubleClick"
+                             PreviewMouseRightButtonDown="LstMaile_RightDown"
+                             PreviewMouseLeftButtonDown="LstMaile_PreLeftDown"
+                             PreviewMouseMove="LstMaile_PreMove">
+                        <ListBox.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="🪟  Otwórz w nowym oknie" Click="BtnOtworzWoknie_Click"/>
+                                <MenuItem Header="⭐  Przełącz gwiazdkę" Click="BtnGwiazdkaMenu_Click"/>
+                                <Separator/>
+                                <MenuItem Header="↩️  Odpowiedz" Click="BtnOdpowiedz_Click"/>
+                                <MenuItem Header="↩️↩️  Odpowiedz wszystkim" Click="BtnOdpowiedzWsz_Click"/>
+                                <MenuItem Header="➡️  Przekaż" Click="BtnPrzekaz_Click"/>
+                                <Separator/>
+                                <MenuItem Header="✓  Oznacz jako przeczytane" Click="BtnPrzeczytane_Click"/>
+                                <MenuItem Header="●  Oznacz jako nieprzeczytane" Click="BtnNieprzeczytane_Click"/>
+                                <Separator/>
+                                <MenuItem Header="📁  Przenieś…" Click="BtnPrzenies_Click"/>
+                                <MenuItem Header="🗑️  Usuń" Click="BtnUsun_Click"/>
+                            </ContextMenu>
+                        </ListBox.ContextMenu>
+                        <ListBox.GroupStyle>
+                            <GroupStyle>
+                                <GroupStyle.HeaderTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Name}" Style="{StaticResource GroupHeaderStyle}"/>
+                                    </DataTemplate>
+                                </GroupStyle.HeaderTemplate>
+                            </GroupStyle>
+                        </ListBox.GroupStyle>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="12,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- AWATAR -->
+                                    <Border Grid.Column="0" Width="38" Height="38" CornerRadius="19" Margin="0,0,11,0"
+                                            VerticalAlignment="Top"
+                                            Background="{Binding AvatarKolor, Converter={StaticResource HexBrush}}">
+                                        <TextBlock Text="{Binding Inicjaly}" Foreground="White" FontWeight="SemiBold"
+                                                   FontSize="13.5" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+
+                                    <StackPanel Grid.Column="1">
+                                        <DockPanel>
+                                            <Button DockPanel.Dock="Right" Background="Transparent" BorderThickness="0" Cursor="Hand"
+                                                    Padding="3,0" Margin="4,0,0,0" Click="Gwiazdka_Click" Tag="{Binding}" ToolTip="Gwiazdka">
+                                                <TextBlock Text="{Binding Gwiazdka}" FontSize="15"
+                                                           Foreground="{Binding IsFlagged, Converter={StaticResource FlagBrush}}"/>
+                                            </Button>
+                                            <TextBlock Text="{Binding DataLabel}" DockPanel.Dock="Right" Foreground="{StaticResource TextMute}"
+                                                       FontSize="11" Margin="6,1,0,0" VerticalAlignment="Top"/>
+                                            <Ellipse DockPanel.Dock="Right" Width="8" Height="8" Fill="{StaticResource Brand}"
+                                                     VerticalAlignment="Center" Margin="6,0,0,0"
+                                                     Visibility="{Binding IsReadLocal, Converter={StaticResource UnreadShow}}"/>
+                                            <TextBlock Text="📎" DockPanel.Dock="Right" FontSize="11" VerticalAlignment="Center" Margin="6,0,0,0"
+                                                       Visibility="{Binding HasAttachments, Converter={StaticResource BoolHide}}"/>
+                                            <TextBlock Text="{Binding From}" TextTrimming="CharacterEllipsis" FontSize="13.5"
+                                                       Foreground="{StaticResource TextMain}"
+                                                       FontWeight="{Binding IsReadLocal, Converter={StaticResource ReadWeight}}"/>
+                                        </DockPanel>
+                                        <TextBlock Text="{Binding Subject}" TextTrimming="CharacterEllipsis" FontSize="12.5"
+                                                   Foreground="{StaticResource TextSub}" Margin="0,2,0,0"
+                                                   FontWeight="{Binding IsReadLocal, Converter={StaticResource ReadWeight}}"/>
+                                        <TextBlock Text="{Binding Preview}" TextTrimming="CharacterEllipsis" FontSize="11.5"
+                                                   Foreground="{StaticResource TextMute}" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <StackPanel x:Name="TxtPusto" Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed">
+                        <TextBlock Text="📭" FontSize="40" HorizontalAlignment="Center" Opacity="0.5"/>
+                        <TextBlock Text="Brak wiadomości" Foreground="{StaticResource TextMute}" FontSize="13" Margin="0,8,0,0" HorizontalAlignment="Center"/>
+                    </StackPanel>
+
+                    <!-- overlay ładowania listy -->
+                    <Border x:Name="ListLoading" Grid.Row="1" Background="#D8FFFFFF" Visibility="Collapsed">
+                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                            <Control Template="{StaticResource Spinner}"/>
+                            <TextBlock Text="Ładuję wiadomości…" Foreground="{StaticResource TextMute}" FontSize="12" Margin="0,10,0,0" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <GridSplitter Grid.Column="3" Width="3" Background="Transparent" HorizontalAlignment="Center"/>
+
+            <!-- PODGLĄD -->
+            <Border x:Name="PodgladPanel" Grid.Column="4" Background="{StaticResource Surface}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- nagłówek wiadomości -->
+                    <Border x:Name="PodgladHeader" Grid.Row="0" Padding="22,18,22,16"
+                            BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Visibility="Collapsed">
+                        <StackPanel>
+                            <TextBlock x:Name="TxtPodgladTemat" Text="" FontSize="19" FontWeight="Bold"
+                                       TextWrapping="Wrap" Foreground="{StaticResource TextMain}"/>
+                            <Grid Margin="0,14,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Border x:Name="PodgladAvatar" Grid.Column="0" Width="44" Height="44" CornerRadius="22"
+                                        Background="#78909C" Margin="0,0,12,0">
+                                    <TextBlock x:Name="PodgladInicjaly" Text="" Foreground="White" FontWeight="SemiBold"
+                                               FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <TextBlock x:Name="TxtPodgladOd" Text="" Foreground="{StaticResource TextMain}" FontSize="13.5" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock x:Name="TxtPodgladDo" Text="" Foreground="{StaticResource TextMute}" FontSize="11.5" TextTrimming="CharacterEllipsis" Margin="0,1,0,0"/>
+                                </StackPanel>
+                                <TextBlock x:Name="TxtPodgladData" Grid.Column="2" Text="" Foreground="{StaticResource TextMute}"
+                                           FontSize="11.5" VerticalAlignment="Center"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- szybkie akcje -->
+                    <Border x:Name="PodgladAkcje" Grid.Row="1" Padding="22,12" Background="#FBFCFD"
+                            BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Visibility="Collapsed">
+                        <StackPanel Orientation="Horizontal">
+                            <Button Style="{StaticResource PreviewAction}" Click="BtnOdpowiedz_Click" Content="↩️  Odpowiedz"/>
+                            <Button Style="{StaticResource PreviewAction}" Click="BtnOdpowiedzWsz_Click" Content="↩️↩️  Wszystkim"/>
+                            <Button Style="{StaticResource PreviewAction}" Click="BtnPrzekaz_Click" Content="➡️  Przekaż"/>
+                            <Button Style="{StaticResource PreviewAction}" Click="BtnDrukuj_Click" Content="🖨️  Drukuj"/>
+                            <Button Style="{StaticResource PreviewAction}" Click="BtnOtworzWoknie_Click" Content="🪟  Otwórz"/>
+                            <Button Style="{StaticResource PreviewAction}" Click="BtnPrzenies_Click" Content="📁  Przenieś"/>
+                            <Button Style="{StaticResource PreviewAction}" Click="BtnUsun_Click" Content="🗑️  Usuń"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- załączniki -->
+                    <StackPanel x:Name="PanelZalaczniki" Grid.Row="2" Margin="22,12,22,0" Visibility="Collapsed">
+                        <DockPanel Margin="0,0,0,8">
+                            <Button x:Name="BtnZapiszWszystkie" DockPanel.Dock="Right" Style="{StaticResource PreviewAction}"
+                                    Margin="0" Padding="10,5" Click="BtnZapiszWszystkie_Click" Content="💾  Zapisz wszystkie"/>
+                            <TextBlock x:Name="TxtZalLabel" Text="Załączniki" FontSize="11.5" FontWeight="Bold"
+                                       Foreground="{StaticResource TextMute}" VerticalAlignment="Center"/>
+                        </DockPanel>
+                    <ItemsControl x:Name="LstZalaczniki">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Margin="0,0,8,8" Padding="0" Tag="{Binding}" Click="Zalacznik_Click"
+                                        Cursor="Hand" BorderThickness="0" Background="Transparent">
+                                    <Border Background="#F1F5F9" CornerRadius="8" Padding="11,8" BorderBrush="{StaticResource Line}" BorderThickness="1">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="📎" FontSize="14" Margin="0,0,7,0" VerticalAlignment="Center"/>
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding FileName, Mode=OneWay}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextSub}" TextTrimming="CharacterEllipsis" MaxWidth="200"/>
+                                                <TextBlock Text="{Binding SizeLabel, Mode=OneWay}" FontSize="10.5" Foreground="{StaticResource TextMute}"/>
+                                            </StackPanel>
+                                            <TextBlock Text="⬇" FontSize="13" Margin="9,0,0,0" VerticalAlignment="Center" Foreground="{StaticResource Brand}"/>
+                                        </StackPanel>
+                                    </Border>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    </StackPanel>
+
+                    <wv2:WebView2 x:Name="WebBody" Grid.Row="3" Margin="6,8,6,6"/>
+
+                    <!-- stan pusty podglądu -->
+                    <StackPanel x:Name="TxtWybierz" Grid.Row="3" VerticalAlignment="Center" HorizontalAlignment="Center">
+                        <TextBlock Text="✉️" FontSize="56" HorizontalAlignment="Center" Opacity="0.35"/>
+                        <TextBlock Text="Wybierz wiadomość" FontSize="15" FontWeight="SemiBold"
+                                   Foreground="{StaticResource TextSub}" Margin="0,12,0,0" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Treść pojawi się tutaj" FontSize="12" Foreground="{StaticResource TextMute}"
+                                   Margin="0,3,0,0" HorizontalAlignment="Center"/>
+                    </StackPanel>
+
+                    <!-- overlay ładowania treści -->
+                    <Border x:Name="BodyLoading" Grid.Row="3" Background="#E6FFFFFF" Visibility="Collapsed">
+                        <Control Template="{StaticResource Spinner}" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                    </Border>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- ======= SNACKBAR (Cofnij) ======= -->
+        <Border x:Name="Snackbar" Grid.Row="1" VerticalAlignment="Bottom" HorizontalAlignment="Center"
+                Margin="0,0,0,20" Background="#0F172A" CornerRadius="10" Padding="18,11" Visibility="Collapsed" Panel.ZIndex="100">
+            <Border.Effect>
+                <DropShadowEffect Color="Black" Opacity="0.3" BlurRadius="16" ShadowDepth="3" Direction="270"/>
+            </Border.Effect>
+            <StackPanel Orientation="Horizontal">
+                <TextBlock x:Name="TxtSnackbar" Foreground="White" FontSize="12.5" VerticalAlignment="Center"/>
+                <Button x:Name="BtnUndo" Content="COFNIJ" Click="BtnUndo_Click" Margin="18,0,0,0"
+                        Background="Transparent" Foreground="#7CE38B" Cursor="Hand" BorderThickness="0" FontWeight="Bold" FontSize="12"/>
+            </StackPanel>
+        </Border>
+
+        <!-- ======= STATUS ======= -->
+        <Border Grid.Row="2" Background="#FBFCFD" BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0" Padding="14,5">
+            <DockPanel>
+                <TextBlock x:Name="TxtStatusBar" Text="Gotowe" Foreground="{StaticResource TextSub}" FontSize="11.5"/>
+            </DockPanel>
+        </Border>
+    </Grid>
+</Window>

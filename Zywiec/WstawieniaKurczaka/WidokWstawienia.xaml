@@ -403,6 +403,8 @@
                                         <MenuItem Header="✅ Potwierdzenie wstawienia" Click="MenuPotwierdzWstawienieGrid_Click" FontWeight="SemiBold" Foreground="#27AE60"/>
                                         <MenuItem Header="↩️ Cofnij potwierdzenie" Click="MenuCofnijPotwierdzenie_Click" Foreground="#E67E22"/>
                                         <Separator/>
+                                        <MenuItem Header="📞 Zadzwoń do hodowcy" Click="MenuZadzwonHodowcyWst_Click" FontWeight="SemiBold" Foreground="#15803D"/>
+                                        <Separator/>
                                         <MenuItem Header="📱 1️⃣  SMS — Oficjalny standardowy" Tag="1" Click="MenuSmsWariantWst_Click" FontWeight="SemiBold"/>
                                         <MenuItem Header="📱 2️⃣  SMS — Krótki i konkretny" Tag="2" Click="MenuSmsWariantWst_Click"/>
                                         <MenuItem Header="📱 3️⃣  SMS — Przyjazny i ciepły" Tag="3" Click="MenuSmsWariantWst_Click"/>
@@ -457,7 +459,8 @@
                                         <MenuItem Header="🕐 Odłożenie na dłużej..." Click="MenuOdlozDluzej_Click"/>
                                         <MenuItem Header="➕ Dodanie numeru hodowcy" Click="MenuDodajNumer_Click"/>
                                         <Separator/>
-                                        <MenuItem Header="📞 Zadzwoń (Łącze z telefonem)" Click="MenuZadzwon_Click" FontWeight="SemiBold"/>
+                                        <MenuItem Header="📞 Zadzwoń do hodowcy (z mojego telefonu)" Click="MenuZadzwonHodowcyPrz_Click" FontWeight="SemiBold" Foreground="#15803D"/>
+                                        <MenuItem Header="📞 Zadzwoń (Łącze z telefonem)" Click="MenuZadzwon_Click"/>
                                         <Separator/>
                                         <MenuItem Header="📱 1️⃣  SMS — Oficjalny standardowy" Tag="1" Click="MenuSmsWariant_Click" FontWeight="SemiBold"/>
                                         <MenuItem Header="📱 2️⃣  SMS — Krótki i konkretny" Tag="2" Click="MenuSmsWariant_Click"/>
@@ -550,7 +553,12 @@
                         <TextBlock x:Name="statusHistoria" Text="Historia: —" FontSize="10" FontWeight="SemiBold" Foreground="#9B59B6" VerticalAlignment="Center" Margin="0,0,16,0"/>
 
                         <TextBlock Text="⭐" FontSize="11" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                        <TextBlock x:Name="statusStali" Text="Stałych: —" FontSize="10" FontWeight="SemiBold" Foreground="#4CAF50" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="statusStali" Text="Stałych: —" FontSize="10" FontWeight="SemiBold" Foreground="#4CAF50" VerticalAlignment="Center" Margin="0,0,16,0"/>
+
+                        <!-- Counter dzisiejszych akcji (Sergiusz / Teresa / etc.) -->
+                        <TextBlock Text="📅" FontSize="11" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                        <TextBlock x:Name="statusDzisiaj" Text="Dzisiaj: —" FontSize="10" FontWeight="SemiBold" Foreground="#0EA5E9" VerticalAlignment="Center"
+                                   ToolTip="Twoje dzisiejsze SMS-y i połączenia (z bazy)"/>
                     </StackPanel>
 
                     <TextBlock Grid.Column="2" x:Name="statusUser" Text="" FontSize="9" Foreground="#95A5A6" FontStyle="Italic" VerticalAlignment="Center"/>

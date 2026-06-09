@@ -24,17 +24,8 @@ namespace Kalendarz1.DashboardPrzychodu.Views
                 PodsumowanieDnia.WorkdayStart = _settings.WorkdayStart;
                 PodsumowanieDnia.WorkdayEnd = _settings.WorkdayEnd;
 
-                // Tryb planu
-                if (string.Equals(_settings.TrybPlanu, "Nowe", StringComparison.OrdinalIgnoreCase))
-                {
-                    rbPlanNowe.IsChecked = true;
-                    _useNowyPlan = true;
-                }
-                else
-                {
-                    rbPlanStare.IsChecked = true;
-                    _useNowyPlan = false;
-                }
+                // Tryb planu - zawsze "Nowy" (Stary usuniety z UI)
+                _useNowyPlan = true;
 
                 // Logo
                 if (!string.IsNullOrEmpty(_settings.LogoFilePath) && File.Exists(_settings.LogoFilePath))

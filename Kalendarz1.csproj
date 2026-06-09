@@ -91,6 +91,8 @@
     <PackageReference Include="GMap.NET.WinForms" Version="2.1.7" />
 
     <PackageReference Include="Microsoft.Data.SqlClient" Version="5.1.5" />
+    <!-- Skrzynka Zakupu: czytanie poczty (IMAP) + wysyłka/odpowiedź (SMTP) dla zakup@piorkowscy.com.pl (dpoczta) -->
+    <PackageReference Include="MailKit" Version="4.8.0" />
     <PackageReference Include="Microsoft.Office.Interop.Outlook" Version="15.0.4797.1004" />
     <PackageReference Include="Microsoft.Office.Interop.Word" Version="15.0.4797.1004" />
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2739.15" />

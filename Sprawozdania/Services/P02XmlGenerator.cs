@@ -29,7 +29,9 @@ namespace Kalendarz1.Sprawozdania.Services
         private static readonly XNamespace Xsi = "http://www.w3.org/2001/XMLSchema-instance";
 
         private const string FormularzSymbol = "P-02";
-        private const string FormularzWersja = "16.0";
+        // UWAGA: wersja brana z GusSettings.P02FormularzWersja (default 19.0 dla 2026).
+        // GUS aktualizuje wersję XSD co rok — Sage tradycyjnie +1.0 rocznie.
+        // Możesz zmienić w UI (combo "Wersja XML" w P02Window) lub w Konfiguracji.
 
         public XDocument Build(P02ReportData data, GusSettings cfg)
         {
@@ -133,11 +135,12 @@ namespace Kalendarz1.Sprawozdania.Services
             elementy.Add(SekcjaUkryta("s_D0"));
 
             // ═══════ Root <Sprawozdanie> ═══════
+            string wersja = string.IsNullOrWhiteSpace(cfg.P02FormularzWersja) ? "19.0" : cfg.P02FormularzWersja;
             var root = new XElement(Ns + "Sprawozdanie",
                 new XAttribute(XNamespace.Xmlns + "xsi", Xsi.NamespaceName),
                 new XAttribute(Xsi + "schemaLocation", "http://ps.stat.gov.pl/ps/schema/sprawozdanie sprawozdanie.xsd"),
                 new XAttribute("formularzSymbol", FormularzSymbol),
-                new XAttribute("formularzWersja", FormularzWersja),
+                new XAttribute("formularzWersja", wersja),
                 new XAttribute("numerSprawozdania", "0"),
                 elementy);
 

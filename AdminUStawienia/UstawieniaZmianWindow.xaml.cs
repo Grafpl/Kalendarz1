@@ -66,6 +66,10 @@ namespace Kalendarz1
                 var operators = await ZmianyZamowienSettingsService.GetOperatorsAsync();
                 cbOperator.ItemsSource = operators.Select(o => new OperatorItem { Id = o.Id, Name = o.Name }).ToList();
 
+                // ═══ Dostawy żywca: ustawienia harmonogramu (odbiorcy = w panelu uprawnień) ═══
+                var dostawy = await DostawyZywcaSettingsService.GetSettingsAsync();
+                ApplyDostawySettingsToUI(dostawy);
+
                 txtStatus.Text = "Gotowe";
                 txtStatus.Foreground = FindResource("BrTextMuted") as SolidColorBrush;
             }
@@ -149,6 +153,46 @@ namespace Kalendarz1
             return s;
         }
 
+        // ═══ DOSTAWY ŻYWCA: UI ↔ SETTINGS ═══
+        private void ApplyDostawySettingsToUI(DostawyZywcaSettings s)
+        {
+            chkDostawyAktywne.IsChecked = s.CzyAktywne;
+            txtDostawyGodzina.Text = FormatTime(s.GodzinaOdKtorejPowiadamiac);
+            txtDostawyMinKg.Text = s.MinimalnaZmianaKgDoPowiadomienia.ToString("F0");
+            SelectComboItem(cbDostawyRodzaj, s.RodzajPowiadomienia);
+
+            var days = ParseDays(s.DniTygodniaAktywne);
+            tglDostPon.IsChecked = days.Contains(1);
+            tglDostWt.IsChecked = days.Contains(2);
+            tglDostSr.IsChecked = days.Contains(3);
+            tglDostCzw.IsChecked = days.Contains(4);
+            tglDostPt.IsChecked = days.Contains(5);
+            tglDostSob.IsChecked = days.Contains(6);
+            tglDostNdz.IsChecked = days.Contains(0);
+        }
+
+        private DostawyZywcaSettings ReadDostawySettingsFromUI()
+        {
+            var s = new DostawyZywcaSettings();
+            s.CzyAktywne = chkDostawyAktywne.IsChecked == true;
+            s.GodzinaOdKtorejPowiadamiac = ParseTime(txtDostawyGodzina.Text) ?? new TimeSpan(11, 0, 0);
+            decimal.TryParse(txtDostawyMinKg.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal minKg);
+            s.MinimalnaZmianaKgDoPowiadomienia = minKg;
+            var rodzaj = cbDostawyRodzaj.SelectedItem as System.Windows.Controls.ComboBoxItem;
+            s.RodzajPowiadomienia = rodzaj?.Content?.ToString() ?? "Toast";
+
+            var days = new List<int>();
+            if (tglDostPon.IsChecked == true) days.Add(1);
+            if (tglDostWt.IsChecked == true) days.Add(2);
+            if (tglDostSr.IsChecked == true) days.Add(3);
+            if (tglDostCzw.IsChecked == true) days.Add(4);
+            if (tglDostPt.IsChecked == true) days.Add(5);
+            if (tglDostSob.IsChecked == true) days.Add(6);
+            if (tglDostNdz.IsChecked == true) days.Add(0);
+            s.DniTygodniaAktywne = string.Join(",", days);
+            return s;
+        }
+
         // ═══ PREVIEW PANEL ═══
         private void UpdatePreview()
         {
@@ -185,6 +229,9 @@ namespace Kalendarz1
                 var settings = ReadSettingsFromUI();
                 string user = App.UserFullName ?? App.UserID ?? "admin";
                 await ZmianyZamowienSettingsService.SaveSettingsAsync(settings, user);
+
+                // Dostawy żywca: harmonogram (odbiorcy = Panel Admina → uprawnienia)
+                await DostawyZywcaSettingsService.SaveSettingsAsync(ReadDostawySettingsFromUI(), user);
 
                 txtStatus.Text = "Zapisano pomyślnie";
                 txtStatus.Foreground = FindResource("BrAccentGreen") as SolidColorBrush;
@@ -342,6 +389,7 @@ namespace Kalendarz1
             public string Id { get; set; } = "";
             public string Name { get; set; } = "";
         }
+
 
         private class WylaczonyRow
         {

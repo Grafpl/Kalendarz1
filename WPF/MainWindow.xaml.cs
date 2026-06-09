@@ -55,6 +55,8 @@ namespace Kalendarz1.WPF
         private static readonly DateTime MinSqlDate = new DateTime(1753, 1, 1);
         private static readonly DateTime MaxSqlDate = new DateTime(9999, 12, 31);
         private static bool _strefaColumnExists = false;
+        private static bool _wariantColumnExists = false;
+        private static Dictionary<int, string> _wariantNazwy = new(); // Kod wariantu → nazwa (do wyświetlenia)
 
         // Avatary handlowców (identycznie jak w HandlowiecDashboardWindow)
         private static Dictionary<string, BitmapSource> _handlowiecAvatarCache = new(StringComparer.OrdinalIgnoreCase);
@@ -410,8 +412,8 @@ namespace Kalendarz1.WPF
                 const double DEFAULT_ORDER_ROW = 35;
                 const double DEFAULT_AGG_FONT = 13;
                 const double DEFAULT_AGG_ROW = 40;
-                const double DEFAULT_DETAILS_FONT = 10;
-                const double DEFAULT_DETAILS_ROW = 26;
+                const double DEFAULT_DETAILS_FONT = 15;
+                const double DEFAULT_DETAILS_ROW = 34;
 
                 double availableHeight = windowHeight - 180;
 
@@ -470,13 +472,13 @@ namespace Kalendarz1.WPF
 
                     if (detailsRowCount > 8 || detailsOptimalHeight < 22)
                     {
-                        dgDetails.FontSize = 9;
-                        dgDetails.RowHeight = Math.Max(18, Math.Min(detailsOptimalHeight, 22));
+                        dgDetails.FontSize = 13;
+                        dgDetails.RowHeight = Math.Max(22, Math.Min(detailsOptimalHeight, 26));
                     }
                     else if (detailsRowCount > 5 || detailsOptimalHeight < 26)
                     {
-                        dgDetails.FontSize = 10;
-                        dgDetails.RowHeight = Math.Max(22, Math.Min(detailsOptimalHeight, 26));
+                        dgDetails.FontSize = 14;
+                        dgDetails.RowHeight = Math.Max(26, Math.Min(detailsOptimalHeight, 30));
                     }
                     else
                     {
@@ -1395,6 +1397,12 @@ namespace Kalendarz1.WPF
                 }
 
                 _strefaColumnExists = true;
+
+                // Kolumna Wariant (tworzy ją TowarWariantyService; tu tylko wykrywamy do odczytu w szczegółach)
+                const string wariantCheck = @"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+                                              WHERE TABLE_NAME = 'ZamowieniaMiesoTowar' AND COLUMN_NAME = 'Wariant'";
+                await using var cmdW = new SqlCommand(wariantCheck, cn);
+                _wariantColumnExists = Convert.ToInt32(await cmdW.ExecuteScalarAsync()) > 0;
             }
             catch
             {
@@ -2129,8 +2137,62 @@ namespace Kalendarz1.WPF
             if (cbProductFilter.SelectedItem is ComboBoxItem selected && selected.IsEnabled)
             {
                 _selectedProductId = selected.Tag as int?;
+                UpdateWyborTowaruLabel();
                 await RefreshAllDataAsync();
             }
+        }
+
+        /// <summary>Aktualizuje napis na przycisku wyboru towaru wg bieżącego filtra.</summary>
+        private void UpdateWyborTowaruLabel()
+        {
+            if (btnWyborTowaru == null) return;
+            if (!_selectedProductId.HasValue)
+            {
+                btnWyborTowaru.Content = "📋 Wszystkie produkty  ▾";
+                return;
+            }
+            string nazwa = _allProductItems.FirstOrDefault(p => p.id == _selectedProductId.Value).name ?? "Towar";
+            btnWyborTowaru.Content = $"🔎 {nazwa}  ▾";
+        }
+
+        /// <summary>Klik w przycisk — okno ze wszystkimi towarami; wybór filtruje i zamyka okno.</summary>
+        private async void BtnWyborTowaru_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // Upewnij się, że lista towarów jest zbudowana
+                if (_allProductItems.Count == 0) PopulateProductComboBox();
+
+                var okno = new Zamowienia.WyborTowaruWindow(_allProductItems, _selectedProductId) { Owner = this };
+                if (okno.ShowDialog() == true && okno.Wybrano)
+                {
+                    _selectedProductId = okno.WybranyTowarId;
+                    // Zsynchronizuj ukryty combobox (zachowuje spójność z resztą logiki), bez podwójnego refresh
+                    SyncProductComboToSelection();
+                    UpdateWyborTowaruLabel();
+                    await RefreshAllDataAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Nie udało się otworzyć wyboru towaru:\n{ex.Message}",
+                    "Wybór towaru", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>Ustawia ukryty combobox na _selectedProductId bez wywoływania jego handlera.</summary>
+        private void SyncProductComboToSelection()
+        {
+            cbProductFilter.SelectionChanged -= CbProductFilter_SelectionChanged;
+            int idx = 0;
+            if (_selectedProductId.HasValue)
+            {
+                for (int i = 0; i < cbProductFilter.Items.Count; i++)
+                    if (cbProductFilter.Items[i] is ComboBoxItem ci && ci.Tag is int tagId && tagId == _selectedProductId.Value)
+                    { idx = i; break; }
+            }
+            cbProductFilter.SelectedIndex = idx;
+            cbProductFilter.SelectionChanged += CbProductFilter_SelectionChanged;
         }
 
         /// <summary>
@@ -3842,6 +3904,9 @@ namespace Kalendarz1.WPF
                 stepSw.Stop();
                 timings.AppendLine($"2b+3. Produkty+Podsumowanie(||): {stepSw.ElapsedMilliseconds} ms");
 
+                // Panel "Ostatnie zmiany kg" — fire-and-forget, nie blokuje głównego ładowania
+                _ = LoadZmianyKgAsync(_selectedDate);
+
                 // NIE ładuj Transport, Historia, Dashboard w tle - lazy loading
                 // Te dane będą załadowane dopiero gdy użytkownik kliknie odpowiednią zakładkę
 
@@ -5321,6 +5386,18 @@ ORDER BY zm.Id";
             // ✅ Avatary nie są ucinane — mogą wychodzić poza wiersz
             dgOrders.ClipToBounds = false;
             dgOrders.MinRowHeight = 40; // kompaktowe wiersze zamówień
+            dgOrders.FontSize = 16;            // większa czcionka w tabeli zamówień
+            dgOrders.ColumnHeaderHeight = 23;  // wąski wiersz nagłówka
+            // Własny styl nagłówka — niski (styl współdzielony ma Height=40, który by wygrał)
+            var orderHeaderStyle = new Style(typeof(System.Windows.Controls.Primitives.DataGridColumnHeader));
+            orderHeaderStyle.Setters.Add(new Setter(Control.BackgroundProperty, new SolidColorBrush(Color.FromRgb(0x2C, 0x3E, 0x50))));
+            orderHeaderStyle.Setters.Add(new Setter(Control.ForegroundProperty, Brushes.White));
+            orderHeaderStyle.Setters.Add(new Setter(Control.FontWeightProperty, FontWeights.SemiBold));
+            orderHeaderStyle.Setters.Add(new Setter(Control.FontSizeProperty, 7.5));
+            orderHeaderStyle.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(6, 0, 6, 0)));
+            orderHeaderStyle.Setters.Add(new Setter(FrameworkElement.HeightProperty, 23.0));
+            orderHeaderStyle.Setters.Add(new Setter(Control.HorizontalContentAlignmentProperty, HorizontalAlignment.Left));
+            dgOrders.ColumnHeaderStyle = orderHeaderStyle;
             var rowStyle = new Style(typeof(DataGridRow));
             rowStyle.Setters.Add(new Setter(UIElement.ClipToBoundsProperty, false));
             dgOrders.RowStyle = rowStyle;
@@ -5418,6 +5495,7 @@ ORDER BY zm.Id";
                 var odbiorcaTxt = new FrameworkElementFactory(typeof(TextBlock));
                 odbiorcaTxt.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("Odbiorca"));
                 odbiorcaTxt.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+                odbiorcaTxt.SetValue(TextBlock.FontSizeProperty, 15.0);
                 odbiorcaTxt.SetValue(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis);
                 odbiorcaCellFactory.AppendChild(odbiorcaTxt);
 
@@ -5481,12 +5559,13 @@ ORDER BY zm.Id";
                 var zamTxt = new FrameworkElementFactory(typeof(TextBlock));
                 zamTxt.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("IloscZamowiona") { StringFormat = "{0:N0} kg" });
                 zamTxt.SetValue(TextBlock.FontWeightProperty, FontWeights.Bold);
+                zamTxt.SetValue(TextBlock.FontSizeProperty, 15.0);
                 zamTxt.SetValue(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center);
                 zamStack.AppendChild(zamTxt);
 
                 // Wydano (Panel Magazyniera) — styl przez Style, bo trigger na "częściowo wydane" musi wygrać
                 var wydStyle = new Style(typeof(TextBlock));
-                wydStyle.Setters.Add(new Setter(TextBlock.FontSizeProperty, 9.0));
+                wydStyle.Setters.Add(new Setter(TextBlock.FontSizeProperty, 11.0));
                 wydStyle.Setters.Add(new Setter(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(139, 148, 158))));
                 wydStyle.Setters.Add(new Setter(FrameworkElement.ToolTipProperty, "Wydano (Panel Magazyniera)"));
                 var czescioweTrig = new DataTrigger { Binding = new System.Windows.Data.Binding("WydaneWszystko"), Value = 0 };
@@ -5601,6 +5680,7 @@ ORDER BY zm.Id";
 
                 var cenaTxt = new FrameworkElementFactory(typeof(TextBlock));
                 cenaTxt.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("SredniaCena") { Converter = new CenaLiczbaConverter() });
+                cenaTxt.SetValue(TextBlock.FontSizeProperty, 17.0);
                 cenaTxt.SetValue(FrameworkElement.StyleProperty, sredniaCenaStyle);
                 cenaStack.AppendChild(cenaTxt);
 
@@ -5645,12 +5725,12 @@ ORDER BY zm.Id";
             textContainerFactory.SetValue(StackPanel.MarginProperty, new Thickness(2));
 
             var textFactory = new FrameworkElementFactory(typeof(TextBlock));
-            textFactory.SetValue(TextBlock.FontSizeProperty, 11.0);
+            textFactory.SetValue(TextBlock.FontSizeProperty, 13.0);
             textFactory.SetValue(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis);
             textFactory.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("UtworzonePrzez"));
 
             var timeFactory = new FrameworkElementFactory(typeof(TextBlock));
-            timeFactory.SetValue(TextBlock.FontSizeProperty, 9.0);
+            timeFactory.SetValue(TextBlock.FontSizeProperty, 11.0);
             timeFactory.SetValue(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(139, 148, 158)));
             timeFactory.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("UtworzonoGodzina"));
 
@@ -5683,6 +5763,8 @@ ORDER BY zm.Id";
             terminStack.SetValue(StackPanel.HorizontalAlignmentProperty, HorizontalAlignment.Center);
 
             var terminTxt = new FrameworkElementFactory(typeof(TextBlock));
+            terminTxt.SetValue(TextBlock.FontSizeProperty, 15.0); // większy termin awizacji
+            terminTxt.SetValue(TextBlock.FontWeightProperty, FontWeights.SemiBold);
             // Ikona zależna od transportu: 🏭 awizacja na zakładzie / 🚗 klient odbiera własnym autem
             var terminMb = new System.Windows.Data.MultiBinding { Converter = new TerminIkonaConverter() };
             terminMb.Bindings.Add(new System.Windows.Data.Binding("TerminInfo"));
@@ -5700,7 +5782,7 @@ ORDER BY zm.Id";
 
             // Realne wydanie — styl przez Style (settery + trigger), bo lokalne SetValue wygrałoby z triggerem
             var wydanoStyle = new Style(typeof(TextBlock));
-            wydanoStyle.Setters.Add(new Setter(TextBlock.FontSizeProperty, 9.0));
+            wydanoStyle.Setters.Add(new Setter(TextBlock.FontSizeProperty, 11.0));
             wydanoStyle.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.SemiBold));
             wydanoStyle.Setters.Add(new Setter(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(0x2E, 0x7D, 0x32))));
             wydanoStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center));
@@ -5751,11 +5833,11 @@ ORDER BY zm.Id";
                 var c = dgOrders.Columns.FirstOrDefault(x => (x.Header?.ToString() ?? "") == header);
                 if (c != null) c.Width = new DataGridLength(tier == 0 ? w0 : tier == 1 ? w1 : w2);
             }
-            Ustaw("Odbiorca", 195, 167, 145);
-            Ustaw("Zam.", 82, 70, 62);     // razem z poddrukiem "wydano X kg"
-            Ustaw("Cena", 64, 58, 52);   // węższa — jednostka "zł/kg" jest pod liczbą
-            Ustaw("Utworzono", 92, 86, 80);
-            Ustaw("Termin", 96, 84, 74);
+            Ustaw("Odbiorca", 252, 214, 182);  // szersza — większa czcionka
+            Ustaw("Zam.", 104, 88, 76);         // razem z poddrukiem "wydano X kg"
+            Ustaw("Cena", 80, 70, 60);          // jednostka "zł/kg" jest pod liczbą
+            Ustaw("Utworzono", 108, 98, 88);
+            Ustaw("Termin", 112, 98, 86);
 
             double tableW = 0;
             foreach (var col in dgOrders.Columns)
@@ -5768,6 +5850,10 @@ ORDER BY zm.Id";
                 if (!leftColumnDef.Width.IsStar && leftColumnDef.Width.Value != tableW)
                     leftColumnDef.Width = new GridLength(tableW);
             }
+
+            // Panel "Ostatnie zmiany kg" chowamy przy wąskim oknie, by NIE zakrywał szczegółów zamówienia
+            if (panelZmianyKg != null)
+                panelZmianyKg.Visibility = winW < 1500 ? Visibility.Collapsed : Visibility.Visible;
         }
 
         // Flagi lazy loading - czy dane zostały już załadowane dla aktualnego dnia
@@ -6633,6 +6719,285 @@ ORDER BY zm.Id";
             return dict;
         }
 
+        // ════════════════════════════════════════════════════════════════════
+        //  Wąski panel "Ostatnie zmiany kg" (po prawej od szczegółów zamówienia)
+        //  TOP 15 zmian ilości pozycji (PoleZmienione 'Pozycja:% - Zam.') dla zamówień
+        //  z wybranego dnia uboju. Lekkie: 1 zapytanie, mapy klientów/towarów z cache, fire-and-forget.
+        // ════════════════════════════════════════════════════════════════════
+        private readonly DataTable _dtZmianyKg = new();
+        private bool _zmianyKgGridReady;
+
+        private void SetupZmianyKgDataGrid()
+        {
+            if (_zmianyKgGridReady) return;
+
+            _dtZmianyKg.Columns.Add("Avatar", typeof(ImageSource));
+            _dtZmianyKg.Columns.Add("Klient", typeof(string));
+            _dtZmianyKg.Columns.Add("Godzina", typeof(string));   // "HH:mm • Użytkownik"
+            _dtZmianyKg.Columns.Add("TowarImg", typeof(BitmapImage));
+            _dtZmianyKg.Columns.Add("TowarNazwa", typeof(string)); // pod zdjęciem, mała czcionka
+            _dtZmianyKg.Columns.Add("DeltaTxt", typeof(string));
+            _dtZmianyKg.Columns.Add("DeltaKolor", typeof(string));
+            _dtZmianyKg.Columns.Add("Strzalka", typeof(string));
+            _dtZmianyKg.Columns.Add("NowaTxt", typeof(string));     // nowa ilość (nad +/-)
+            _dtZmianyKg.Columns.Add("StaraTxt", typeof(string));    // stara ilość (skreślona, pod +/-)
+            _dtZmianyKg.Columns.Add("Tooltip", typeof(string));
+
+            dgZmianyKg.ItemsSource = _dtZmianyKg.DefaultView;
+            dgZmianyKg.Columns.Clear();
+            dgZmianyKg.MinRowHeight = 58; // wieloliniowo: nowa/+-/stara + nazwa towaru pod zdjęciem, większe czcionki
+
+            // 1. Avatar osoby zmieniającej — okrągły, dopasowany (UniformToFill w ramce 38 px)
+            var avCol = new DataGridTemplateColumn { Width = new DataGridLength(46), IsReadOnly = true };
+            var avBorder = new FrameworkElementFactory(typeof(Border));
+            avBorder.SetValue(FrameworkElement.WidthProperty, 38.0);
+            avBorder.SetValue(FrameworkElement.HeightProperty, 38.0);
+            avBorder.SetValue(Border.CornerRadiusProperty, new CornerRadius(19));
+            avBorder.SetValue(UIElement.ClipToBoundsProperty, true);
+            avBorder.SetValue(Border.BackgroundProperty, new SolidColorBrush(Color.FromRgb(0xEC, 0xF0, 0xF1)));
+            avBorder.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+            avBorder.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+            var avImg = new FrameworkElementFactory(typeof(System.Windows.Controls.Image));
+            avImg.SetBinding(System.Windows.Controls.Image.SourceProperty, new System.Windows.Data.Binding("Avatar"));
+            avImg.SetValue(System.Windows.Controls.Image.StretchProperty, Stretch.UniformToFill);
+            avImg.SetValue(FrameworkElement.WidthProperty, 38.0);
+            avImg.SetValue(FrameworkElement.HeightProperty, 38.0);
+            avBorder.AppendChild(avImg);
+            avCol.CellTemplate = new DataTemplate { VisualTree = avBorder };
+            dgZmianyKg.Columns.Add(avCol);
+
+            // 2. Klient (góra) + godzina zmiany (dół)
+            var midCol = new DataGridTemplateColumn { Width = new DataGridLength(1, DataGridLengthUnitType.Star), IsReadOnly = true };
+            var midStack = new FrameworkElementFactory(typeof(StackPanel));
+            midStack.SetValue(StackPanel.OrientationProperty, Orientation.Vertical);
+            midStack.SetValue(StackPanel.VerticalAlignmentProperty, VerticalAlignment.Center);
+            var klientTxt = new FrameworkElementFactory(typeof(TextBlock));
+            klientTxt.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("Klient"));
+            klientTxt.SetValue(TextBlock.FontSizeProperty, 14.0);
+            klientTxt.SetValue(TextBlock.FontWeightProperty, FontWeights.Bold);
+            klientTxt.SetValue(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis);
+            midStack.AppendChild(klientTxt);
+            // Godzina zmiany • nazwa użytkownika
+            var godzTxt = new FrameworkElementFactory(typeof(TextBlock));
+            godzTxt.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("Godzina"));
+            godzTxt.SetValue(TextBlock.FontSizeProperty, 12.0);
+            godzTxt.SetValue(TextBlock.FontWeightProperty, FontWeights.SemiBold);
+            godzTxt.SetValue(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(90, 100, 110)));
+            godzTxt.SetValue(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis);
+            midStack.AppendChild(godzTxt);
+            midCol.CellTemplate = new DataTemplate { VisualTree = midStack };
+            dgZmianyKg.Columns.Add(midCol);
+
+            // 3. Zdjęcie towaru + strzałka kierunku (▲/▼) na górze, nazwa towaru pod spodem (mała czcionka)
+            var imgCol = new DataGridTemplateColumn { Width = new DataGridLength(78), IsReadOnly = true };
+            var imgOuter = new FrameworkElementFactory(typeof(StackPanel));
+            imgOuter.SetValue(StackPanel.OrientationProperty, Orientation.Vertical);
+            imgOuter.SetValue(StackPanel.VerticalAlignmentProperty, VerticalAlignment.Center);
+            imgOuter.SetValue(StackPanel.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+
+            var imgStack = new FrameworkElementFactory(typeof(StackPanel));
+            imgStack.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
+            imgStack.SetValue(StackPanel.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+
+            var towarImg = new FrameworkElementFactory(typeof(System.Windows.Controls.Image));
+            towarImg.SetBinding(System.Windows.Controls.Image.SourceProperty, new System.Windows.Data.Binding("TowarImg"));
+            towarImg.SetValue(FrameworkElement.WidthProperty, 22.0);
+            towarImg.SetValue(FrameworkElement.HeightProperty, 22.0);
+            towarImg.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+            imgStack.AppendChild(towarImg);
+
+            var strzalka = new FrameworkElementFactory(typeof(TextBlock));
+            strzalka.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("Strzalka"));
+            strzalka.SetBinding(TextBlock.ForegroundProperty, new System.Windows.Data.Binding("DeltaKolor") { Converter = new HexToBrushSafeConverter() });
+            strzalka.SetValue(TextBlock.FontSizeProperty, 12.0);
+            strzalka.SetValue(TextBlock.FontWeightProperty, FontWeights.Bold);
+            strzalka.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+            strzalka.SetValue(FrameworkElement.MarginProperty, new Thickness(2, 0, 0, 0));
+            imgStack.AppendChild(strzalka);
+            imgOuter.AppendChild(imgStack);
+
+            // Nazwa towaru — pod zdjęciem, mała czcionka
+            var towarNazwa = new FrameworkElementFactory(typeof(TextBlock));
+            towarNazwa.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("TowarNazwa"));
+            towarNazwa.SetValue(TextBlock.FontSizeProperty, 8.5);
+            towarNazwa.SetValue(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(120, 128, 138)));
+            towarNazwa.SetValue(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+            towarNazwa.SetValue(TextBlock.TextAlignmentProperty, TextAlignment.Center);
+            towarNazwa.SetValue(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis);
+            towarNazwa.SetValue(TextBlock.MaxWidthProperty, 76.0);
+            imgOuter.AppendChild(towarNazwa);
+
+            imgCol.CellTemplate = new DataTemplate { VisualTree = imgOuter };
+            dgZmianyKg.Columns.Add(imgCol);
+
+            // 4. Nowa ilość (góra, kolor zmiany) / +/- kg (środek, bold) / stara ilość skreślona (dół, szara)
+            var deltaCol = new DataGridTemplateColumn { Width = new DataGridLength(96), IsReadOnly = true };
+            var deltaStack = new FrameworkElementFactory(typeof(StackPanel));
+            deltaStack.SetValue(StackPanel.OrientationProperty, Orientation.Vertical);
+            deltaStack.SetValue(StackPanel.VerticalAlignmentProperty, VerticalAlignment.Center);
+            deltaStack.SetValue(StackPanel.HorizontalAlignmentProperty, HorizontalAlignment.Left);
+            deltaStack.SetValue(FrameworkElement.MarginProperty, new Thickness(4, 0, 0, 0));
+
+            // Nowa ilość — na górze, w kolorze zmiany (zielony/czerwony)
+            var nowaTxt = new FrameworkElementFactory(typeof(TextBlock));
+            nowaTxt.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("NowaTxt"));
+            nowaTxt.SetBinding(TextBlock.ForegroundProperty, new System.Windows.Data.Binding("DeltaKolor") { Converter = new HexToBrushSafeConverter() });
+            nowaTxt.SetValue(TextBlock.FontSizeProperty, 12.0);
+            nowaTxt.SetValue(TextBlock.FontWeightProperty, FontWeights.Bold);
+            nowaTxt.SetValue(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Left);
+            deltaStack.AppendChild(nowaTxt);
+
+            // +/- kg — środek, bold, w kolorze zmiany
+            var deltaTxt = new FrameworkElementFactory(typeof(TextBlock));
+            deltaTxt.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("DeltaTxt"));
+            deltaTxt.SetBinding(TextBlock.ForegroundProperty, new System.Windows.Data.Binding("DeltaKolor") { Converter = new HexToBrushSafeConverter() });
+            deltaTxt.SetValue(TextBlock.FontSizeProperty, 11.0);
+            deltaTxt.SetValue(TextBlock.FontWeightProperty, FontWeights.SemiBold);
+            deltaTxt.SetValue(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Left);
+            deltaStack.AppendChild(deltaTxt);
+
+            // Stara ilość — dół, szara, PRZEKREŚLONA
+            var staraTxt = new FrameworkElementFactory(typeof(TextBlock));
+            staraTxt.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("StaraTxt"));
+            staraTxt.SetValue(TextBlock.FontSizeProperty, 9.5);
+            staraTxt.SetValue(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(139, 148, 158)));
+            staraTxt.SetValue(TextBlock.TextDecorationsProperty, TextDecorations.Strikethrough);
+            staraTxt.SetValue(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Left);
+            deltaStack.AppendChild(staraTxt);
+
+            deltaCol.CellTemplate = new DataTemplate { VisualTree = deltaStack };
+            dgZmianyKg.Columns.Add(deltaCol);
+
+            _zmianyKgGridReady = true;
+        }
+
+        private async Task LoadZmianyKgAsync(DateTime day)
+        {
+            try
+            {
+                SetupZmianyKgDataGrid();
+                day = ValidateSqlDate(day);
+                string dateCol = (_showBySlaughterDate && _slaughterDateColumnExists) ? "DataUboju" : "DataZamowienia";
+
+                var wpisy = new List<(int klientId, string towar, decimal stara, decimal nowa, decimal delta, DateTime kiedy, string userId, string userNazwa)>();
+
+                await using (var cn = new SqlConnection(_connLibra))
+                {
+                    await cn.OpenAsync();
+                    // Tabela tworzona dynamicznie — jeśli brak, panel zostaje pusty
+                    bool hasHist;
+                    await using (var check = new SqlCommand(
+                        "SELECT CASE WHEN EXISTS (SELECT 1 FROM sys.objects WHERE name='HistoriaZmianZamowien' AND type='U') THEN 1 ELSE 0 END", cn))
+                    {
+                        hasHist = Convert.ToInt32(await check.ExecuteScalarAsync()) == 1;
+                    }
+                    if (!hasHist) { _dtZmianyKg.Rows.Clear(); return; }
+
+                    // TOP 50 — filtr towaru robimy w pamięci (PoleZmienione trzyma nazwę), potem przycinamy do 15
+                    string sql = $@"
+                        SELECT TOP 50 zm.KlientId, h.PoleZmienione, h.WartoscPoprzednia, h.WartoscNowa,
+                               h.DataZmiany, h.Uzytkownik, h.UzytkownikNazwa
+                        FROM dbo.HistoriaZmianZamowien h
+                        JOIN dbo.ZamowieniaMieso zm ON zm.Id = h.ZamowienieId
+                        WHERE h.TypZmiany = 'EDYCJA'
+                          AND h.PoleZmienione LIKE N'Pozycja:% - Zam.'
+                          AND zm.{dateCol} = @Day
+                        ORDER BY h.DataZmiany DESC";
+                    await using var cmd = new SqlCommand(sql, cn) { CommandTimeout = 20 };
+                    cmd.Parameters.AddWithValue("@Day", day);
+                    await using var rd = await cmd.ExecuteReaderAsync();
+                    while (await rd.ReadAsync())
+                    {
+                        int klientId = rd.IsDBNull(0) ? 0 : rd.GetInt32(0);
+                        string pole = rd.IsDBNull(1) ? "" : rd.GetString(1);
+                        decimal? stara = ParseKgZmiana(rd.IsDBNull(2) ? null : rd.GetString(2));
+                        decimal? nowa = ParseKgZmiana(rd.IsDBNull(3) ? null : rd.GetString(3));
+                        DateTime kiedy = rd.GetDateTime(4);
+                        string userId = rd.IsDBNull(5) ? "" : rd.GetString(5);
+                        string userNazwa = rd.IsDBNull(6) ? "" : rd.GetString(6);
+                        if (!stara.HasValue || !nowa.HasValue || stara.Value == nowa.Value) continue;
+
+                        string towar = WyciagnijTowarZPola(pole);
+                        wpisy.Add((klientId, towar, stara.Value, nowa.Value, nowa.Value - stara.Value, kiedy, userId, userNazwa));
+                    }
+                }
+
+                // Mapy z cache (zero dodatkowych zapytań): kod towaru ← nazwa, klient ← nazwa
+                var nazwaDoKodu = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                foreach (var kv in _productCatalogCache)
+                    if (!nazwaDoKodu.ContainsKey(kv.Value)) nazwaDoKodu[kv.Value] = kv.Key;
+
+                // Filtr towaru — jeśli w Podsumowaniu dnia wybrano konkretny towar, pokazuj tylko jego zmiany
+                IEnumerable<(int klientId, string towar, decimal stara, decimal nowa, decimal delta, DateTime kiedy, string userId, string userNazwa)> widoczne = wpisy;
+                if (_selectedProductId.HasValue)
+                {
+                    int sel = _selectedProductId.Value;
+                    widoczne = wpisy.Where(x => nazwaDoKodu.TryGetValue(x.towar, out int k) && k == sel);
+                }
+
+                _dtZmianyKg.Rows.Clear();
+                foreach (var w in widoczne.Take(15))
+                {
+                    string klientNazwa = _cachedKontrahenci.TryGetValue(w.klientId, out var c) ? c.Name : $"KH {w.klientId}";
+
+                    BitmapImage towarImg = null;
+                    if (nazwaDoKodu.TryGetValue(w.towar, out int kod))
+                        towarImg = GetProductImage(kod);
+
+                    ImageSource avatar = null;
+                    if (!string.IsNullOrEmpty(w.userId))
+                        try
+                        {
+                            using var drawingImg = UserAvatarManager.GetAvatar(w.userId);
+                            if (drawingImg != null) avatar = ConvertToImageSource(drawingImg);
+                        }
+                        catch { }
+
+                    string deltaTxt = (w.delta > 0 ? "+" : "−") + $"{Math.Abs(w.delta):N0} kg";
+                    string deltaKolor = w.delta > 0 ? "#1E8449" : "#C0392B";
+                    string strzalka = w.delta > 0 ? "▲" : "▼";
+
+                    // Imię użytkownika (pierwszy człon) przy godzinie
+                    string userImie = !string.IsNullOrWhiteSpace(w.userNazwa)
+                        ? (w.userNazwa.Contains(' ') ? w.userNazwa.Split(' ')[0] : w.userNazwa)
+                        : w.userId;
+
+                    var row = _dtZmianyKg.NewRow();
+                    row["Avatar"] = (object)avatar ?? DBNull.Value;
+                    row["Klient"] = klientNazwa;
+                    row["Godzina"] = string.IsNullOrWhiteSpace(userImie) ? w.kiedy.ToString("HH:mm") : $"{w.kiedy:HH:mm} • {userImie}";
+                    row["TowarImg"] = (object)towarImg ?? DBNull.Value;
+                    row["TowarNazwa"] = w.towar;
+                    row["DeltaTxt"] = deltaTxt;
+                    row["DeltaKolor"] = deltaKolor;
+                    row["Strzalka"] = strzalka;
+                    row["NowaTxt"] = $"{w.nowa:N0} kg";
+                    row["StaraTxt"] = $"{w.stara:N0} kg";
+                    row["Tooltip"] = $"{klientNazwa} • {w.towar} • {w.stara:N0} → {w.nowa:N0} kg ({deltaTxt}) • {w.kiedy:HH:mm} • {w.userNazwa}";
+                    _dtZmianyKg.Rows.Add(row);
+                }
+            }
+            catch { /* panel pomocniczy — błąd nie blokuje głównego widoku */ }
+        }
+
+        private static decimal? ParseKgZmiana(string raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return null;
+            string s = raw.Replace("kg", "", StringComparison.OrdinalIgnoreCase).Replace(" ", "").Replace(" ", "").Trim();
+            if (decimal.TryParse(s, NumberStyles.Number, CultureInfo.InvariantCulture, out var v)) return v;
+            if (decimal.TryParse(s.Replace(',', '.'), NumberStyles.Number, CultureInfo.InvariantCulture, out v)) return v;
+            return null;
+        }
+
+        private static string WyciagnijTowarZPola(string pole)
+        {
+            const string pre = "Pozycja: ";
+            const string suf = " - Zam.";
+            if (pole.StartsWith(pre) && pole.EndsWith(suf) && pole.Length > pre.Length + suf.Length)
+                return pole.Substring(pre.Length, pole.Length - pre.Length - suf.Length);
+            return pole;
+        }
+
         private async Task DisplayOrderDetailsAsync(int orderId)
         {
             try
@@ -6645,7 +7010,7 @@ ORDER BY zm.Id";
                 int clientId = 0;
                 string notes = "";
                 string waluta = "PLN";
-                var orderItems = new List<(int ProductCode, decimal Quantity, bool Foil, bool Hallal, string Cena, bool Strefa)>(); // STRING!
+                var orderItems = new List<(int ProductCode, decimal Quantity, bool Foil, bool Hallal, string Cena, bool Strefa, string Wariant)>(); // STRING!
                 DateTime dateForReleases = ValidateSqlDate(_selectedDate.Date);
 
                 await using (var cn = new SqlConnection(_connLibra))
@@ -6693,12 +7058,14 @@ ORDER BY zm.Id";
 
                     using (var cmdItems = new SqlCommand(@"
                 SELECT KodTowaru, Ilosc, ISNULL(Folia, 0) as Folia, ISNULL(Hallal, 0) as Hallal, ISNULL(Cena, '0') as Cena" +
-                (_strefaColumnExists ? ", ISNULL(Strefa, 0) as Strefa" : "") + @"
+                (_strefaColumnExists ? ", ISNULL(Strefa, 0) as Strefa" : "") +
+                (_wariantColumnExists ? ", Wariant" : "") + @"
                 FROM dbo.ZamowieniaMiesoTowar
                 WHERE ZamowienieId = @Id", cn))
                     {
                         cmdItems.Parameters.AddWithValue("@Id", orderId);
                         using var readerItems = await cmdItems.ExecuteReaderAsync();
+                        int wariantIdx = _wariantColumnExists ? (_strefaColumnExists ? 6 : 5) : -1;
 
                         while (await readerItems.ReadAsync())
                         {
@@ -6708,8 +7075,9 @@ ORDER BY zm.Id";
                             bool hallal = readerItems.GetBoolean(3);
                             string cenaStr = readerItems.GetString(4); // STRING z bazy!
                             bool strefa = _strefaColumnExists ? readerItems.GetBoolean(5) : false;
+                            string wariant = (wariantIdx >= 0 && !readerItems.IsDBNull(wariantIdx)) ? readerItems.GetString(wariantIdx) : "";
 
-                            orderItems.Add((productCode, quantity, foil, hallal, cenaStr, strefa));
+                            orderItems.Add((productCode, quantity, foil, hallal, cenaStr, strefa, wariant));
                         }
                     }
                 }
@@ -6769,6 +7137,14 @@ ORDER BY zm.Id";
 
                 var cultureInfo = new CultureInfo("pl-PL");
 
+                // Mapa wariantów (Kod→Nazwa per towar) — tylko gdy jakaś pozycja ma wariant
+                Dictionary<int, List<Zamowienia.Services.TowarWariantyService.Wariant>>? wariantMapa = null;
+                if (_wariantColumnExists && orderItems.Any(i => !string.IsNullOrEmpty(i.Wariant)))
+                {
+                    try { wariantMapa = await new Zamowienia.Services.TowarWariantyService(_connLibra).GetMapaAsync(); }
+                    catch { }
+                }
+
                 foreach (var item in orderItems)
                 {
                     if (!_productCatalogCache.ContainsKey(item.ProductCode))
@@ -6776,6 +7152,17 @@ ORDER BY zm.Id";
 
                     string product = _productCatalogCache.TryGetValue(item.ProductCode, out var code) ?
                         code : $"Nieznany ({item.ProductCode})";
+                    // Dopisz wariant (np. "Filet A · Podwójny") — widoczne dla produkcji/magazynu
+                    if (!string.IsNullOrEmpty(item.Wariant))
+                    {
+                        string wn = item.Wariant;
+                        if (wariantMapa != null && wariantMapa.TryGetValue(item.ProductCode, out var wlist))
+                        {
+                            var wdef = wlist.FirstOrDefault(x => x.Kod == item.Wariant);
+                            if (wdef != null) wn = wdef.Nazwa;
+                        }
+                        product += $"  ·  🔀 {wn}";
+                    }
                     decimal ordered = item.Quantity;
                     decimal released = releases.TryGetValue(item.ProductCode, out var w) ? w : 0m;
                     decimal difference = released - ordered;
@@ -6882,9 +7269,31 @@ ORDER BY zm.Id";
 
             // Kolumna Produkt z miniaturką zdjęcia i kolorowymi ikonami statusu.
             // Nagłówek = nazwa kontrahenta (zamiast "Produkt"), gdy znana.
+            bool maKlienta = !string.IsNullOrWhiteSpace(_detailsClientName);
+            object naglowekProdukt;
+            if (maKlienta)
+            {
+                // Nazwa klienta PODŚWIETLONA — żółte tło, pogrubiona, ciemny tekst
+                naglowekProdukt = new Border
+                {
+                    Background = new SolidColorBrush(Color.FromRgb(0xFF, 0xE0, 0x82)),
+                    CornerRadius = new CornerRadius(4),
+                    Padding = new Thickness(8, 2, 8, 2),
+                    Child = new TextBlock
+                    {
+                        Text = _detailsClientName,
+                        FontWeight = FontWeights.Bold,
+                        FontSize = 14,
+                        Foreground = new SolidColorBrush(Color.FromRgb(0x4A, 0x36, 0x00)),
+                        TextTrimming = TextTrimming.CharacterEllipsis
+                    }
+                };
+            }
+            else naglowekProdukt = "Produkt";
+
             var produktCol = new DataGridTemplateColumn
             {
-                Header = string.IsNullOrWhiteSpace(_detailsClientName) ? "Produkt" : _detailsClientName,
+                Header = naglowekProdukt,
                 Width = new DataGridLength(1, DataGridLengthUnitType.Star),
                 MinWidth = 80,
                 IsReadOnly = true
@@ -7661,7 +8070,8 @@ ORDER BY zm.Id";
                     colors[colorIdx % colors.Length], kurczakAName, kurczakA.Key,
                     _pojemnikiKlasyPrognoza, uzywajWydan, rezerwacjeKlas));
                 colorIdx++;
-                // (separator po Kurczaku A usunięty — psuł układ 3 kart w linii)
+                // Karta klas tuszki — zaraz po Kurczaku A (prognoza pojemników per klasa wagowa)
+                wpProductCards.Children.Add(CreateKlasyTuszkiCard(_pojemnikiKlasyPrognoza));
             }
 
             // 3. Pozostałe produkty (pomijając Kurczak A) — najpierw zbierz dane, potem sortuj i twórz karty
@@ -7917,6 +8327,108 @@ ORDER BY zm.Id";
             return names;
         }
 
+        // Karta "Klasy tuszki kurczaka" — liczba pojemników (palet) per klasa wagowa
+        // z PROGNOZY dnia ubojowego (_pojemnikiKlasyPrognoza, każdy poj = 15 kg).
+        // Layout: 9 wierszy (klasy 4–12) w 2 kolumnach (Kl. | poj).
+        private Border CreateKlasyTuszkiCard(int[] pojemnikiKlasy)
+        {
+            var card = new Border
+            {
+                Background = Brushes.White,
+                CornerRadius = new CornerRadius(9),
+                Margin = new Thickness(2),
+                Padding = new Thickness(10, 7, 10, 7),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(0x2C, 0x3E, 0x50)),
+                BorderThickness = new Thickness(1),
+                Width = 280,
+                Height = 194,
+                Tag = new { TowarId = 0, Nazwa = "Klasy tuszki" },
+                UseLayoutRounding = true
+            };
+
+            var root = new StackPanel();
+            root.Children.Add(new TextBlock
+            {
+                Text = "🐔 Klasy tuszki (poj.)",
+                FontSize = 12,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Color.FromRgb(0x2C, 0x3E, 0x50)),
+                Margin = new Thickness(0, 0, 0, 4)
+            });
+
+            // Kolory klas: 4–7 Duży (niebieski), 8–12 Mały (pomarańczowy)
+            Color KolorKlasy(int kl) => kl <= 7
+                ? Color.FromRgb(0x25, 0x63, 0xEB)
+                : Color.FromRgb(0xF9, 0x73, 0x16);
+
+            // Klasy 5–11 (bez 4 i 12)
+            const int KL_OD = 5, KL_DO = 11;
+            int sumaPoj = 0;
+            for (int k = KL_OD; k <= KL_DO; k++) sumaPoj += (k < pojemnikiKlasy.Length ? pojemnikiKlasy[k] : 0);
+
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            for (int i = KL_OD; i <= KL_DO; i++) grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            for (int kl = KL_OD; kl <= KL_DO; kl++)
+            {
+                int poj = kl < pojemnikiKlasy.Length ? pojemnikiKlasy[kl] : 0;
+                int rowIdx = kl - KL_OD;
+                bool ma = poj > 0;
+                var kolor = KolorKlasy(kl);
+
+                var lbl = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 0, 1) };
+                lbl.Children.Add(new Border
+                {
+                    Width = 8, Height = 8, CornerRadius = new CornerRadius(4),
+                    Background = new SolidColorBrush(ma ? kolor : Color.FromRgb(0xD5, 0xDB, 0xDF)),
+                    Margin = new Thickness(0, 0, 4, 0), VerticalAlignment = VerticalAlignment.Center
+                });
+                lbl.Children.Add(new TextBlock
+                {
+                    Text = $"Kl. {kl}",
+                    FontSize = 11,
+                    FontWeight = ma ? FontWeights.SemiBold : FontWeights.Normal,
+                    Foreground = new SolidColorBrush(ma ? Color.FromRgb(0x3C, 0x3C, 0x3C) : Color.FromRgb(0xAE, 0xB6, 0xBD)),
+                    VerticalAlignment = VerticalAlignment.Center
+                });
+                Grid.SetRow(lbl, rowIdx); Grid.SetColumn(lbl, 0);
+                grid.Children.Add(lbl);
+
+                double procent = sumaPoj > 0 ? 100.0 * poj / sumaPoj : 0;
+                var val = new TextBlock
+                {
+                    FontSize = 11,
+                    FontWeight = ma ? FontWeights.Bold : FontWeights.Normal,
+                    Foreground = new SolidColorBrush(ma ? kolor : Color.FromRgb(0xC2, 0xC8, 0xCD)),
+                    HorizontalAlignment = HorizontalAlignment.Right,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                if (ma)
+                {
+                    val.Inlines.Add(new Run($"{poj} poj · {poj * 15:N0} kg "));
+                    val.Inlines.Add(new Run($"{procent:N0}%") { Foreground = new SolidColorBrush(Color.FromRgb(0x8A, 0x98, 0xA3)), FontWeight = FontWeights.SemiBold });
+                }
+                else val.Text = "—";
+                System.Windows.Documents.Typography.SetNumeralAlignment(val, FontNumeralAlignment.Tabular);
+                Grid.SetRow(val, rowIdx); Grid.SetColumn(val, 1);
+                grid.Children.Add(val);
+            }
+            root.Children.Add(grid);
+
+            // Stopka: suma
+            root.Children.Add(new Border { Height = 1, Background = new SolidColorBrush(Color.FromRgb(0xE3, 0xE8, 0xEC)), Margin = new Thickness(0, 3, 0, 2) });
+            var suma = new TextBlock { HorizontalAlignment = HorizontalAlignment.Right, FontSize = 11, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(0x2C, 0x3E, 0x50)) };
+            suma.Inlines.Add(new Run("Razem: ") { Foreground = new SolidColorBrush(Color.FromRgb(0x8A, 0x98, 0xA3)), FontWeight = FontWeights.Normal });
+            suma.Inlines.Add(new Run($"{sumaPoj} poj · {sumaPoj * 15:N0} kg"));
+            root.Children.Add(suma);
+
+            card.ToolTip = "Prognoza pojemników tuszki A per klasa wagowa (z dnia ubojowego). 1 poj ≈ 15 kg.";
+            card.Child = root;
+            return card;
+        }
+
         // Pasek postępu pod bilansem — spójna geometria na każdej karcie:
         //   [ pigułkowy tor = 100% dostępności | strefa nadmiaru ] [ % ]
         // Znacznik (pionowa kreska) wyznacza limit 100%; przy nadmiarze wypełnienie
@@ -7932,7 +8444,7 @@ ORDER BY zm.Id";
 
             var root = new Grid { Margin = new Thickness(1, 7, 4, 0) };
             root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // pasek
-            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });                   // % (stała kolumna)
+            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(34) });                   // % (stała kolumna)
 
             // --- strefa paska ---
             var barZone = new Grid { Height = 10, VerticalAlignment = VerticalAlignment.Center };
@@ -7989,8 +8501,9 @@ ORDER BY zm.Id";
                 FontSize = 10,
                 FontWeight = FontWeights.Bold,
                 Foreground = new SolidColorBrush(statusColor),
-                HorizontalAlignment = HorizontalAlignment.Right,
-                VerticalAlignment = VerticalAlignment.Center
+                HorizontalAlignment = HorizontalAlignment.Left,   // tuż przy końcu paska
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(3, 0, 0, 0)
             };
             System.Windows.Documents.Typography.SetNumeralAlignment(pctLbl, FontNumeralAlignment.Tabular);
             Grid.SetColumn(pctLbl, 1);
@@ -8025,7 +8538,7 @@ ORDER BY zm.Id";
                 BorderBrush = new SolidColorBrush(Color.FromRgb(0x2C, 0x3E, 0x50)),
                 BorderThickness = new Thickness(1),
                 Width = 280,
-                Height = 212,
+                Height = 194,
                 Tag = new { TowarId = 0, Nazwa = "Bilans dnia" }, // Tag ≠ null → ApplyCardLayout nadaje slot
                 UseLayoutRounding = true,
                 SnapsToDevicePixels = true
@@ -8173,7 +8686,7 @@ ORDER BY zm.Id";
         private void ApplyCardLayout()
         {
             if (_applyingCardLayout) return; // blokada re-entrancji (SizeChanged wywołane przez nasze własne zmiany)
-            const double MIN_W = 232, MAX_W = 470, MARG = 4;   // MIN niżej — przy wąskim oknie karty kurczą się mocniej zamiast znikać
+            const double MIN_W = 184, MAX_W = 340, MARG = 4;   // mniejsze karty → cel 4 na wiersz
             double avail = wpProductCards.ActualWidth;
             if (avail < MIN_W + MARG) return;
             // Ignoruj mikro-drgania szerokości (<2 px) — gasi pętle layoutu
@@ -8182,7 +8695,7 @@ ORDER BY zm.Id";
             _cardLayoutForce = false;
 
             // Celujemy w 3 kolumny (3 karty w linii, 3 pod spodem); przy wąskim panelu spadamy do 2
-            int cols = Math.Max(2, Math.Min(3, (int)(avail / (MIN_W + MARG))));
+            int cols = Math.Max(2, Math.Min(4, (int)(avail / (MIN_W + MARG))));
             double w = Math.Min(MAX_W, Math.Floor((avail - cols * MARG) / cols));
 
             try
@@ -8609,7 +9122,7 @@ ORDER BY zm.Id";
                 BorderBrush = new SolidColorBrush(cardBorder),
                 BorderThickness = new Thickness(1),
                 Width = 280,  // wstępna — ApplyCardLayout() dopasowuje do szerokości panelu
-                Height = 212, // wyższa — większe zdjęcie towaru (40 px) w nagłówku
+                Height = 194, // karty podsumowania dnia
                 ToolTip = tooltip ?? nazwa,
                 Tag = new { TowarId = towarId, Nazwa = nazwa },
                 Cursor = System.Windows.Input.Cursors.Hand,
@@ -8715,7 +9228,7 @@ ORDER BY zm.Id";
             var root = new Grid();
             root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(6) });                       // pasek statusu
             root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });    // treść
-            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(102) });                     // równanie
+            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(92) });                      // równanie
 
             // --- KOLUMNA 0: pasek statusu (pełny kolor) ---
             var stripe = new Border
@@ -9057,7 +9570,7 @@ ORDER BY zm.Id";
                 BorderBrush = new SolidColorBrush(kCardBorder),
                 BorderThickness = new Thickness(1),
                 Width = 280,      // wstępna — ApplyCardLayout() nadaje 1 slot (zwinięty) lub 2 sloty (rozwinięty)
-                MinHeight = 212,  // tabelka klas może być wyższa — karta wtedy urośnie
+                MinHeight = 194,  // tabelka klas może być wyższa — karta wtedy urośnie
                 Tag = new { TowarId = towarId, Nazwa = nazwa },
                 Cursor = System.Windows.Input.Cursors.Hand,
                 UseLayoutRounding = true,
@@ -9130,13 +9643,12 @@ ORDER BY zm.Id";
                 brush.BeginAnimation(SolidColorBrush.ColorProperty, pulseAnim);
             }
 
-            // Główny layout: pasek statusu | treść | równanie | tabelka klas (zwijana) | uchwyt
+            // Główny layout: pasek statusu | treść | równanie (przy ścianie) | tabelka klas (zwijana strzałką przy nazwie)
             var mainGrid = new Grid();
             mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(6) });                       // pasek statusu
             mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });    // treść
-            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(102) });                     // równanie
+            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(92) });                      // równanie
             mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });                         // klasy wagowe (Visibility)
-            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });                         // uchwyt rozwijania
 
             string zamWydCapK = uzywajWydan ? "Wyd" : "Zam";
             decimal bazaK = fakt > 0 ? fakt : plan;
@@ -9161,8 +9673,9 @@ ORDER BY zm.Id";
             mainGrid.Children.Add(contentK);
 
             var headerGridK = new Grid();
-            headerGridK.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            headerGridK.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            headerGridK.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });               // zdjęcie
+            headerGridK.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // nazwa
+            headerGridK.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });               // strzałka rozwijania
 
             var productImage = towarId > 0 ? GetProductImage(towarId) : null;
             Border imgBorder;
@@ -9212,6 +9725,34 @@ ORDER BY zm.Id";
             };
             Grid.SetColumn(titleK, 1);
             headerGridK.Children.Add(titleK);
+
+            // Strzałka rozwijania klas — PRZY NAZWIE (klik tutaj pokazuje/ukrywa tabelkę klas)
+            var arrowText = new TextBlock
+            {
+                Text = _kurczakAExpanded ? "◀" : "▶",
+                FontSize = 11,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Color.FromRgb(0x6B, 0x7A, 0x86)),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            var arrowHeader = new Border
+            {
+                Width = 22,
+                Height = 22,
+                CornerRadius = new CornerRadius(5),
+                Background = new SolidColorBrush(Color.FromRgb(0xF2, 0xF4, 0xF6)),
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(4, 0, 0, 0),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                ToolTip = "Pokaż/ukryj klasy wagowe",
+                Child = arrowText
+            };
+            arrowHeader.MouseEnter += (s, e) => arrowHeader.Background = new SolidColorBrush(Color.FromRgb(0xE1, 0xE8, 0xED));
+            arrowHeader.MouseLeave += (s, e) => arrowHeader.Background = new SolidColorBrush(Color.FromRgb(0xF2, 0xF4, 0xF6));
+            Grid.SetColumn(arrowHeader, 2);
+            headerGridK.Children.Add(arrowHeader);
+
             Grid.SetRow(headerGridK, 0);
             contentK.Children.Add(headerGridK);
 
@@ -9544,33 +10085,10 @@ ORDER BY zm.Id";
             Grid.SetColumn(rightBorder, 3);
             mainGrid.Children.Add(rightBorder);
 
-            // ========== KOLUMNA 4: uchwyt rozwijania/zwijania tabelki klas ==========
-            var arrowText = new TextBlock
-            {
-                Text = _kurczakAExpanded ? "◀" : "▶",
-                FontSize = 10,
-                Foreground = new SolidColorBrush(Color.FromRgb(0x6B, 0x7A, 0x86)),
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            var handle = new Border
-            {
-                Width = 20,
-                Height = 46,
-                VerticalAlignment = VerticalAlignment.Center,
-                CornerRadius = new CornerRadius(8, 0, 0, 8),
-                Background = new SolidColorBrush(Color.FromRgb(0xFA, 0xFB, 0xFC)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(0xE3, 0xE8, 0xEC)),
-                BorderThickness = new Thickness(1),
-                Cursor = System.Windows.Input.Cursors.Hand,
-                ToolTip = "Pokaż/ukryj klasy wagowe",
-                Child = arrowText
-            };
-            handle.MouseEnter += (s, e) => handle.Background = new SolidColorBrush(Color.FromRgb(0xEF, 0xF3, 0xF6));
-            handle.MouseLeave += (s, e) => handle.Background = new SolidColorBrush(Color.FromRgb(0xFA, 0xFB, 0xFC));
-            // Down + Up z Handled — żeby NIE odpalał się filtr produktu ani double-click karty
-            handle.MouseLeftButtonDown += (s, e) => { e.Handled = true; };
-            handle.MouseLeftButtonUp += (s, e) =>
+            // Klik strzałki PRZY NAZWIE — rozwija/zwija tabelkę klas (boczny uchwyt usunięty,
+            // dzięki czemu równanie plan/fakt/zam jest tuż przy prawej krawędzi karty)
+            arrowHeader.MouseLeftButtonDown += (s, e) => { e.Handled = true; };
+            arrowHeader.MouseLeftButtonUp += (s, e) =>
             {
                 e.Handled = true;
                 _kurczakAExpanded = !_kurczakAExpanded;
@@ -9578,8 +10096,6 @@ ORDER BY zm.Id";
                 arrowText.Text = _kurczakAExpanded ? "◀" : "▶";
                 ForceCardLayout();
             };
-            Grid.SetColumn(handle, 4);
-            mainGrid.Children.Add(handle);
 
             card.Child = mainGrid;
             _kurczakACard = card; // referencja dla ApplyCardLayout (2 sloty po rozwinięciu)
@@ -10915,6 +11431,20 @@ ORDER BY zm.Id";
             }
             public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
                 => throw new NotSupportedException();
+        }
+
+        // Hex string ("#C0392B") → SolidColorBrush, defensywnie (panel ostatnich zmian kg)
+        public class HexToBrushSafeConverter : IValueConverter
+        {
+            public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+            {
+                string hex = value as string;
+                if (string.IsNullOrWhiteSpace(hex)) return Brushes.Black;
+                try { return new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex)); }
+                catch { return Brushes.Black; }
+            }
+            public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+                => System.Windows.Data.Binding.DoNothing;
         }
 
         // Sama liczba ceny (jednostka "zł/kg" jest osobnym wierszem pod spodem)

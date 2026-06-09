@@ -25,6 +25,18 @@
         <SolidColorBrush x:Key="PrimaryBrush" Color="#2563EB"/>
         <SolidColorBrush x:Key="DgHeaderBg" Color="#F0F4F8"/>
         <SolidColorBrush x:Key="DgAltRowBg" Color="#FAFBFC"/>
+        <SolidColorBrush x:Key="DgRowHoverBg" Color="#F0F7FF"/>
+
+        <!-- Kolory grup -->
+        <SolidColorBrush x:Key="GrpD1Bg" Color="#ECFDF5"/>
+        <SolidColorBrush x:Key="GrpD1Border" Color="#A7F3D0"/>
+        <SolidColorBrush x:Key="GrpD1Text" Color="#065F46"/>
+        <SolidColorBrush x:Key="GrpD2Bg" Color="#FEF2F2"/>
+        <SolidColorBrush x:Key="GrpD2Border" Color="#FECACA"/>
+        <SolidColorBrush x:Key="GrpD2Text" Color="#B91C1C"/>
+        <SolidColorBrush x:Key="GrpSurBg" Color="#EFF6FF"/>
+        <SolidColorBrush x:Key="GrpSurBorder" Color="#BFDBFE"/>
+        <SolidColorBrush x:Key="GrpSurText" Color="#1E40AF"/>
 
         <Style x:Key="ToolBtn" TargetType="Button">
             <Setter Property="Padding" Value="14,7"/>
@@ -45,10 +57,26 @@
             <Setter Property="Background" Value="{StaticResource DgHeaderBg}"/>
             <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="FontSize" Value="11"/>
-            <Setter Property="Padding" Value="8,8"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Padding" Value="6,6"/>
             <Setter Property="BorderBrush" Value="{StaticResource CardBorder}"/>
             <Setter Property="BorderThickness" Value="0,0,1,1"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="DgRowStyle" TargetType="DataGridRow">
+            <Setter Property="Background" Value="White"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource DgRowHoverBg}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="DgNumeric" TargetType="TextBlock">
+            <Setter Property="HorizontalAlignment" Value="Right"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="6,0"/>
+            <Setter Property="FontFamily" Value="Consolas"/>
+            <Setter Property="FontSize" Value="12"/>
         </Style>
         <Style x:Key="StatCard" TargetType="Border">
             <Setter Property="Background" Value="White"/>
@@ -65,7 +93,9 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
@@ -89,7 +119,7 @@
                     <StackPanel Margin="14,0,0,0" VerticalAlignment="Center">
                         <TextBlock Text="Sprawozdanie o wielkości ubojów zwierząt"
                                    FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}"/>
-                        <TextBlock Text="Miesięczne · drób (brojlery kurze) · dane z LibraNet + HANDEL"
+                        <TextBlock Text="Źródło: Specyfikacje surowca › Podsumowanie (FarmerCalc) — brojlery kurze w14"
                                    FontSize="11" Foreground="{StaticResource TextMuted}" Margin="0,2,0,0"/>
                     </StackPanel>
                     <Border x:Name="statusBadge" Background="#FEF3C7" CornerRadius="14"
@@ -100,11 +130,10 @@
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                     <Button Style="{StaticResource ToolBtn}" Content="📜  Historia" Click="BtnHistory_Click"
-                            ToolTip="Historia wszystkich sprawozdań GUS (Ctrl+H)"/>
-                    <Button Style="{StaticResource ToolBtn}" Content="⚙  Konfiguracja" Click="BtnSettings_Click"
-                            ToolTip="REGON, osoba odpowiedzialna, folder eksportu"/>
+                            ToolTip="Historia (Ctrl+H)"/>
+                    <Button Style="{StaticResource ToolBtn}" Content="⚙  Konfiguracja" Click="BtnSettings_Click"/>
                     <Button Style="{StaticResource ToolBtn}" Content="✖" MinWidth="38" Click="BtnClose_Click"
-                            ToolTip="Zamknij okno (Esc)"/>
+                            ToolTip="Zamknij (Esc)"/>
                 </StackPanel>
             </Grid>
         </Border>
@@ -122,170 +151,178 @@
                             BorderBrush="{StaticResource CardBorder}" BorderThickness="1">
                         <StackPanel Orientation="Horizontal">
                             <Button Content="◀" Width="32" Background="Transparent" BorderThickness="0"
-                                    Click="BtnPrevMonth_Click"/>
+                                    Click="BtnPrevMonth_Click" ToolTip="Poprzedni miesiąc (Ctrl+←)"/>
                             <ComboBox x:Name="cbMiesiac" Width="130" Padding="6,4" BorderThickness="0"
                                       Background="Transparent" SelectionChanged="Picker_Changed"/>
                             <ComboBox x:Name="cbRok" Width="78" Padding="6,4" BorderThickness="0"
                                       Background="Transparent" SelectionChanged="Picker_Changed"/>
                             <Button Content="▶" Width="32" Background="Transparent" BorderThickness="0"
-                                    Click="BtnNextMonth_Click"/>
+                                    Click="BtnNextMonth_Click" ToolTip="Następny miesiąc (Ctrl+→)"/>
                         </StackPanel>
                     </Border>
-                    <Button Style="{StaticResource PrimaryBtn}" Content="🔄  Pobierz z baz"
-                            Margin="10,0,0,0" MinWidth="170" Click="BtnLoad_Click"
-                            ToolTip="Pobierz LumQnt + wagi z FarmerCalc + faktury żywca (F5)"/>
+                    <Button Style="{StaticResource PrimaryBtn}" Content="🔄  Pobierz z Specyfikacji"
+                            Margin="10,0,0,0" MinWidth="200" Click="BtnLoad_Click"
+                            ToolTip="Agregacja per dzień z FarmerCalc (F5)"/>
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                     <Button Style="{StaticResource ToolBtn}" Content="🔍  Podgląd XML" Click="BtnPreviewXml_Click"
-                            ToolTip="Zobacz strukturę XML przed eksportem (Ctrl+P)"/>
+                            ToolTip="(Ctrl+P)"/>
                     <Button Style="{StaticResource PrimaryBtn}" Content="💾  Generuj XML"
-                            Click="BtnGenerate_Click" MinWidth="160"
-                            ToolTip="Walidacja + zapis pliku + historia (Ctrl+G)"/>
+                            Click="BtnGenerate_Click" MinWidth="160" ToolTip="(Ctrl+G)"/>
                 </StackPanel>
             </Grid>
         </Border>
 
-        <!-- Stat cards -->
+        <!-- 4 karty z sumami D1 + D2 -->
         <Border Grid.Row="2" Background="White" BorderBrush="{StaticResource CardBorder}"
-                BorderThickness="0,0,0,1" Padding="22,14">
-            <UniformGrid Rows="1" Columns="5">
-                <Border Style="{StaticResource StatCard}">
+                BorderThickness="0,0,0,1" Padding="22,12">
+            <UniformGrid Rows="1" Columns="4">
+                <Border Style="{StaticResource StatCard}" Background="{StaticResource GrpD1Bg}"
+                        BorderBrush="{StaticResource GrpD1Border}">
                     <StackPanel>
-                        <TextBlock Text="🐔  Sztuki" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextMuted}"/>
-                        <TextBlock x:Name="cardSztuki" FontSize="22" FontWeight="Bold" Foreground="#1F2A36" Margin="0,4,0,0"/>
-                        <TextBlock x:Name="cardSztukiSub" FontSize="10" Foreground="{StaticResource TextSubtle}"/>
+                        <TextBlock Text="DZIAŁ 1 — Sztuki  (Zdatne + Konfi)" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{StaticResource GrpD1Text}"/>
+                        <TextBlock x:Name="cardD1Szt" FontSize="22" FontWeight="Bold"
+                                   Foreground="{StaticResource TextPrimary}" Margin="0,4,0,0"/>
+                        <TextBlock x:Name="cardD1SztSub" FontSize="10" Foreground="{StaticResource TextSubtle}"/>
                     </StackPanel>
                 </Border>
-                <Border Style="{StaticResource StatCard}">
+                <Border Style="{StaticResource StatCard}" Background="{StaticResource GrpD1Bg}"
+                        BorderBrush="{StaticResource GrpD1Border}">
                     <StackPanel>
-                        <TextBlock Text="⚖  Waga żywa" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextMuted}"/>
-                        <TextBlock x:Name="cardZywa" FontSize="22" FontWeight="Bold" Foreground="#15803D" Margin="0,4,0,0"/>
-                        <TextBlock x:Name="cardZywaSub" FontSize="10" Foreground="{StaticResource TextSubtle}"/>
+                        <TextBlock Text="DZIAŁ 1 — Waga żywa  (Żywiec + Konfi kg)" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{StaticResource GrpD1Text}"/>
+                        <TextBlock x:Name="cardD1Kg" FontSize="22" FontWeight="Bold"
+                                   Foreground="{StaticResource TextPrimary}" Margin="0,4,0,0"/>
+                        <TextBlock x:Name="cardD1KgSub" FontSize="10" Foreground="{StaticResource TextSubtle}"/>
                     </StackPanel>
                 </Border>
-                <Border Style="{StaticResource StatCard}">
+                <Border Style="{StaticResource StatCard}" Background="{StaticResource GrpD2Bg}"
+                        BorderBrush="{StaticResource GrpD2Border}">
                     <StackPanel>
-                        <TextBlock Text="🍖  Po uboju (netto)" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextMuted}"/>
-                        <TextBlock x:Name="cardNetto" FontSize="22" FontWeight="Bold" Foreground="#DC2626" Margin="0,4,0,0"/>
-                        <TextBlock x:Name="cardNettoSub" FontSize="10" Foreground="{StaticResource TextSubtle}"/>
+                        <TextBlock Text="DZIAŁ 2 — Sztuki  (Padłe + Konfi)" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{StaticResource GrpD2Text}"/>
+                        <TextBlock x:Name="cardD2Szt" FontSize="22" FontWeight="Bold"
+                                   Foreground="{StaticResource TextPrimary}" Margin="0,4,0,0"/>
+                        <TextBlock x:Name="cardD2SztSub" FontSize="10" Foreground="{StaticResource TextSubtle}"/>
                     </StackPanel>
                 </Border>
-                <Border Style="{StaticResource StatCard}">
+                <Border Style="{StaticResource StatCard}" Background="{StaticResource GrpD2Bg}"
+                        BorderBrush="{StaticResource GrpD2Border}" Margin="0">
                     <StackPanel>
-                        <TextBlock Text="📊  Wydajność" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextMuted}"/>
-                        <TextBlock x:Name="cardWydajnosc" FontSize="22" FontWeight="Bold" Foreground="#7C3AED" Margin="0,4,0,0"/>
-                        <TextBlock x:Name="cardWydajnoscSub" FontSize="10" Foreground="{StaticResource TextSubtle}"/>
-                    </StackPanel>
-                </Border>
-                <Border Style="{StaticResource StatCard}" Margin="0">
-                    <StackPanel>
-                        <TextBlock Text="💰  Wartość żywca" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextMuted}"/>
-                        <TextBlock x:Name="cardWartosc" FontSize="22" FontWeight="Bold" Foreground="#1E40AF" Margin="0,4,0,0"/>
-                        <TextBlock x:Name="cardWartoscSub" FontSize="10" Foreground="{StaticResource TextSubtle}"/>
+                        <TextBlock Text="DZIAŁ 2 — Waga  (Suma kg = Padłe + Konfi)" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{StaticResource GrpD2Text}"/>
+                        <TextBlock x:Name="cardD2Kg" FontSize="22" FontWeight="Bold"
+                                   Foreground="{StaticResource TextPrimary}" Margin="0,4,0,0"/>
+                        <TextBlock x:Name="cardD2KgSub" FontSize="10" Foreground="{StaticResource TextSubtle}"/>
                     </StackPanel>
                 </Border>
             </UniformGrid>
         </Border>
 
-        <!-- DataGrid pozycji + info pasek -->
-        <Grid Grid.Row="3" Margin="22,12">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-            </Grid.RowDefinitions>
+        <!-- Info pasek -->
+        <Border Grid.Row="3" Background="#EFF6FF" BorderBrush="#BFDBFE" BorderThickness="0,0,0,1"
+                Padding="22,8">
+            <TextBlock FontSize="11" Foreground="#1E40AF" TextWrapping="Wrap">
+                <Run Text="💡 "/><Run FontWeight="SemiBold" Text="Mapowanie do R-09U:"/>
+                <Run Text=" Dział 1.w14 (brojlery kurze)"/><Run Text=" → sztuki = "/><Run FontWeight="SemiBold" Text="Zdatne + Konfi"/><Run Text=", kg = "/><Run FontWeight="SemiBold" Text="Żywiec + Konfi kg"/>
+                <Run Text="   ·   Dział 2.w14 → sztuki = "/><Run FontWeight="SemiBold" Text="Padłe + Konfi"/><Run Text=", kg = "/><Run FontWeight="SemiBold" Text="Suma kg"/>
+            </TextBlock>
+        </Border>
 
-            <Border Grid.Row="0" Background="#EFF6FF" BorderBrush="#BFDBFE" BorderThickness="1"
-                    CornerRadius="6" Padding="14,10" Margin="0,0,0,10">
-                <DockPanel LastChildFill="True">
-                    <TextBlock DockPanel.Dock="Left" Text="💡" FontSize="18" VerticalAlignment="Center"
-                               Margin="0,0,12,0"/>
-                    <StackPanel>
-                        <TextBlock FontSize="12" FontWeight="SemiBold" Foreground="#1E40AF" TextWrapping="Wrap">
-                            <Run Text="R-09U dla ubojni · komórki edytowalne · źródła:"/>
-                        </TextBlock>
-                        <TextBlock FontSize="11" Foreground="#1E40AF" Margin="0,3,0,0" TextWrapping="Wrap">
-                            <Run Text="Sztuki + masa netto"/><Run FontWeight="SemiBold" Text=" = "/>
-                            <Run Text="LibraNet.FarmerCalc (LumQnt + NettoFarmWeight)"/>
-                            <Run Text="    ·    "/>
-                            <Run Text="Waga żywa + wartość"/><Run FontWeight="SemiBold" Text=" = "/>
-                            <Run Text="HANDEL faktury FVZ+FVR+FKZ na kody 67653 (rolnik) + 67654 (vatowiec)"/>
-                        </TextBlock>
-                    </StackPanel>
-                </DockPanel>
-            </Border>
-
-            <Grid Grid.Row="1">
+        <!-- Tablica dziennych sum -->
+        <Grid Grid.Row="4" Margin="22,12">
             <Border Background="White" BorderBrush="{StaticResource CardBorder}"
                     BorderThickness="1" CornerRadius="6">
-                <DataGrid x:Name="dg" AutoGenerateColumns="False" HeadersVisibility="Column"
-                          GridLinesVisibility="Horizontal" RowHeight="44"
-                          CanUserAddRows="False" CanUserDeleteRows="False" CanUserSortColumns="False"
+                <DataGrid x:Name="dgDni" AutoGenerateColumns="False" HeadersVisibility="Column"
+                          GridLinesVisibility="Horizontal" RowHeight="26"
+                          CanUserAddRows="False" CanUserDeleteRows="False" CanUserSortColumns="True"
                           ColumnHeaderStyle="{StaticResource DgHeader}"
+                          RowStyle="{StaticResource DgRowStyle}"
                           AlternatingRowBackground="{StaticResource DgAltRowBg}" Background="Transparent"
-                          BorderThickness="0" SelectionMode="Single" SelectionUnit="Cell"
-                          MouseDoubleClick="Dg_MouseDoubleClick">
+                          BorderThickness="0" IsReadOnly="True" FrozenColumnCount="2">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="Wiersz / Kategoria" Binding="{Binding KategoriaLabel}" Width="220" IsReadOnly="True">
+                        <DataGridTextColumn Header="Data" Binding="{Binding DataText}" Width="60">
                             <DataGridTextColumn.ElementStyle>
                                 <Style TargetType="TextBlock">
-                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                    <Setter Property="HorizontalAlignment" Value="Center"/>
                                     <Setter Property="VerticalAlignment" Value="Center"/>
-                                    <Setter Property="Margin" Value="10,0"/>
-                                </Style>
-                            </DataGridTextColumn.ElementStyle>
-                        </DataGridTextColumn>
-                        <DataGridTextColumn x:Name="colR1" Header="r1 — Sztuki" Binding="{Binding LiczbaSztuk, UpdateSourceTrigger=PropertyChanged, StringFormat={}{0:N0}}" Width="*">
-                            <DataGridTextColumn.ElementStyle>
-                                <Style TargetType="TextBlock">
-                                    <Setter Property="HorizontalAlignment" Value="Right"/>
-                                    <Setter Property="VerticalAlignment" Value="Center"/>
-                                    <Setter Property="Margin" Value="8,0"/>
-                                    <Setter Property="FontFamily" Value="Consolas"/>
                                     <Setter Property="FontWeight" Value="SemiBold"/>
                                 </Style>
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn x:Name="colR2" Header="r2 — Waga żywa (kg)" Binding="{Binding WagaZywaKg, UpdateSourceTrigger=PropertyChanged, StringFormat={}{0:N0}}" Width="*">
+                        <DataGridTextColumn Header="dow" Binding="{Binding DowText}" Width="40">
                             <DataGridTextColumn.ElementStyle>
                                 <Style TargetType="TextBlock">
-                                    <Setter Property="HorizontalAlignment" Value="Right"/>
+                                    <Setter Property="HorizontalAlignment" Value="Center"/>
                                     <Setter Property="VerticalAlignment" Value="Center"/>
-                                    <Setter Property="Margin" Value="8,0"/>
-                                    <Setter Property="FontFamily" Value="Consolas"/>
-                                    <Setter Property="Foreground" Value="#15803D"/>
+                                    <Setter Property="Foreground" Value="{StaticResource TextSubtle}"/>
+                                    <Setter Property="FontSize" Value="10"/>
                                 </Style>
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn x:Name="colR3" Header="r3 — Po uboju brutto (kg)" Binding="{Binding WagaPoubojowaBruttoKg, UpdateSourceTrigger=PropertyChanged, StringFormat={}{0:N0}}" Width="*">
+
+                        <!-- Surowe kolumny z Podsumowania -->
+                        <DataGridTextColumn Header="Zdatne [szt]" Binding="{Binding ZdatneSzt, StringFormat={}{0:N0}}" Width="95" ElementStyle="{StaticResource DgNumeric}"/>
+                        <DataGridTextColumn Header="Padłe [szt]" Binding="{Binding PadleSzt, StringFormat={}{0:N0}}" Width="85" ElementStyle="{StaticResource DgNumeric}"/>
+                        <DataGridTextColumn Header="Konfi [szt]" Binding="{Binding KonfiSzt, StringFormat={}{0:N0}}" Width="85" ElementStyle="{StaticResource DgNumeric}"/>
+                        <DataGridTextColumn Header="Konfi [kg]" Binding="{Binding KonfiKg, StringFormat={}{0:N0}}" Width="85" ElementStyle="{StaticResource DgNumeric}"/>
+                        <DataGridTextColumn Header="Padłe [kg]" Binding="{Binding PadleKg, StringFormat={}{0:N0}}" Width="85" ElementStyle="{StaticResource DgNumeric}"/>
+                        <DataGridTextColumn Header="Żywiec [kg]" Binding="{Binding ZywiecKg, StringFormat={}{0:N0}}" Width="105" ElementStyle="{StaticResource DgNumeric}"/>
+                        <DataGridTextColumn Header="Suma [kg]" Binding="{Binding SumaKg, StringFormat={}{0:N0}}" Width="90" ElementStyle="{StaticResource DgNumeric}"/>
+
+                        <!-- D1 / D2 obliczone -->
+                        <DataGridTextColumn Header="D1 szt" Binding="{Binding D1_Sztuki, StringFormat={}{0:N0}}" Width="90">
+                            <DataGridTextColumn.CellStyle>
+                                <Style TargetType="DataGridCell">
+                                    <Setter Property="Background" Value="{StaticResource GrpD1Bg}"/>
+                                    <Setter Property="BorderBrush" Value="{x:Null}"/>
+                                </Style>
+                            </DataGridTextColumn.CellStyle>
                             <DataGridTextColumn.ElementStyle>
-                                <Style TargetType="TextBlock">
-                                    <Setter Property="HorizontalAlignment" Value="Right"/>
-                                    <Setter Property="VerticalAlignment" Value="Center"/>
-                                    <Setter Property="Margin" Value="8,0"/>
-                                    <Setter Property="FontFamily" Value="Consolas"/>
-                                    <Setter Property="Foreground" Value="#DC2626"/>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource DgNumeric}">
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
                                 </Style>
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn x:Name="colR4" Header="r4 — Handlowa netto (kg)" Binding="{Binding WagaHandlowaNettoKg, UpdateSourceTrigger=PropertyChanged, StringFormat={}{0:N0}}" Width="*">
+                        <DataGridTextColumn Header="D1 kg" Binding="{Binding D1_Kg, StringFormat={}{0:N0}}" Width="100">
+                            <DataGridTextColumn.CellStyle>
+                                <Style TargetType="DataGridCell">
+                                    <Setter Property="Background" Value="{StaticResource GrpD1Bg}"/>
+                                    <Setter Property="BorderBrush" Value="{x:Null}"/>
+                                </Style>
+                            </DataGridTextColumn.CellStyle>
                             <DataGridTextColumn.ElementStyle>
-                                <Style TargetType="TextBlock">
-                                    <Setter Property="HorizontalAlignment" Value="Right"/>
-                                    <Setter Property="VerticalAlignment" Value="Center"/>
-                                    <Setter Property="Margin" Value="8,0"/>
-                                    <Setter Property="FontFamily" Value="Consolas"/>
-                                    <Setter Property="Foreground" Value="#7C3AED"/>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource DgNumeric}">
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                    <Setter Property="Foreground" Value="{StaticResource GrpD1Text}"/>
                                 </Style>
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn x:Name="colR5" Header="r5 — Wartość (zł)" Binding="{Binding WartoscZl, UpdateSourceTrigger=PropertyChanged, StringFormat={}{0:N0}}" Width="*">
+                        <DataGridTextColumn Header="D2 szt" Binding="{Binding D2_Sztuki, StringFormat={}{0:N0}}" Width="80">
+                            <DataGridTextColumn.CellStyle>
+                                <Style TargetType="DataGridCell">
+                                    <Setter Property="Background" Value="{StaticResource GrpD2Bg}"/>
+                                    <Setter Property="BorderBrush" Value="{x:Null}"/>
+                                </Style>
+                            </DataGridTextColumn.CellStyle>
                             <DataGridTextColumn.ElementStyle>
-                                <Style TargetType="TextBlock">
-                                    <Setter Property="HorizontalAlignment" Value="Right"/>
-                                    <Setter Property="VerticalAlignment" Value="Center"/>
-                                    <Setter Property="Margin" Value="8,0"/>
-                                    <Setter Property="FontFamily" Value="Consolas"/>
-                                    <Setter Property="Foreground" Value="#1E40AF"/>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource DgNumeric}">
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="D2 kg" Binding="{Binding D2_Kg, StringFormat={}{0:N0}}" Width="90">
+                            <DataGridTextColumn.CellStyle>
+                                <Style TargetType="DataGridCell">
+                                    <Setter Property="Background" Value="{StaticResource GrpD2Bg}"/>
+                                    <Setter Property="BorderBrush" Value="{x:Null}"/>
+                                </Style>
+                            </DataGridTextColumn.CellStyle>
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource DgNumeric}">
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                    <Setter Property="Foreground" Value="{StaticResource GrpD2Text}"/>
                                 </Style>
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
@@ -293,34 +330,89 @@
                 </DataGrid>
             </Border>
 
-            <!-- Empty state overlay -->
-            <Border x:Name="emptyStateOverlay" Background="#FAFBFC" CornerRadius="6"
-                    Visibility="Visible">
+            <!-- Empty state -->
+            <Border x:Name="emptyStateOverlay" Background="#FAFBFC" CornerRadius="6" Visibility="Visible">
                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                     <TextBlock Text="🐔" FontSize="56" HorizontalAlignment="Center" Foreground="{StaticResource TextSubtle}"/>
                     <TextBlock Text="Brak danych za wybrany miesiąc" FontSize="17"
                                FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}"
                                Margin="0,16,0,6" HorizontalAlignment="Center"/>
-                    <TextBlock Text="Kliknij '🔄 Pobierz z baz' lub naciśnij F5"
+                    <TextBlock Text="Kliknij '🔄 Pobierz z Specyfikacji' lub naciśnij F5"
                                FontSize="12" Foreground="{StaticResource TextMuted}"
                                HorizontalAlignment="Center" Margin="0,0,0,18"/>
-                    <Button Style="{StaticResource PrimaryBtn}" Content="🔄  Pobierz z baz"
-                            Click="BtnLoad_Click" MinWidth="200" Padding="18,9"
+                    <Button Style="{StaticResource PrimaryBtn}" Content="🔄  Pobierz z Specyfikacji"
+                            Click="BtnLoad_Click" MinWidth="220" Padding="18,9"
                             HorizontalAlignment="Center"/>
                 </StackPanel>
             </Border>
-            </Grid>
         </Grid>
 
-        <!-- Footer -->
-        <Border Grid.Row="4" Background="White" BorderBrush="{StaticResource CardBorder}"
+        <!-- Mini tabela R-09U Dział 1+2 (gotowe wartości do XML) -->
+        <Border Grid.Row="5" Background="White" BorderBrush="{StaticResource CardBorder}"
                 BorderThickness="0,1,0,0" Padding="22,12">
-            <TextBlock x:Name="lblFooter" VerticalAlignment="Center" FontSize="12"
-                       Foreground="{StaticResource TextMuted}"
-                       Text="⚠ Generator XML — szkielet (do dostrojenia po dostarczeniu wzorca z Symfonii). Liczby są prawdziwe."/>
+            <StackPanel>
+                <TextBlock Text="📋 Wartości do wpisania w R-09U (w14 brojlery kurze)"
+                           FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}"
+                           Margin="0,0,0,8"/>
+                <Border BorderBrush="{StaticResource CardBorder}" BorderThickness="1" CornerRadius="6">
+                    <DataGrid x:Name="dgWynik" AutoGenerateColumns="False" HeadersVisibility="Column"
+                              GridLinesVisibility="Horizontal" RowHeight="38"
+                              CanUserAddRows="False" CanUserDeleteRows="False" CanUserSortColumns="False"
+                              ColumnHeaderStyle="{StaticResource DgHeader}"
+                              Background="Transparent" BorderThickness="0" IsReadOnly="True"
+                              SelectionMode="Single">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Dział" Binding="{Binding Dzial}" Width="220">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                        <Setter Property="Margin" Value="10,0"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Sztuki  (r1)" Binding="{Binding Sztuki, StringFormat={}{0:N0}}" Width="*">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource DgNumeric}">
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                        <Setter Property="FontSize" Value="14"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Waga żywa kg  (r2)" Binding="{Binding Kg, StringFormat={}{0:N0}}" Width="*">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource DgNumeric}">
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                        <Setter Property="FontSize" Value="14"/>
+                                        <Setter Property="Foreground" Value="#15803D"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Wzór" Binding="{Binding Wzor}" Width="320">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                        <Setter Property="Margin" Value="10,0"/>
+                                        <Setter Property="FontStyle" Value="Italic"/>
+                                        <Setter Property="Foreground" Value="{StaticResource TextMuted}"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+            </StackPanel>
         </Border>
 
-        <Grid x:Name="loadingOverlay" Background="#A0FFFFFF" Visibility="Collapsed" Grid.RowSpan="5">
+        <!-- Footer -->
+        <Border Grid.Row="6" Background="White" BorderBrush="{StaticResource CardBorder}"
+                BorderThickness="0,1,0,0" Padding="22,10">
+            <TextBlock x:Name="lblFooter" VerticalAlignment="Center" FontSize="11"
+                       Foreground="{StaticResource TextMuted}"
+                       Text="💡 Default: poprzedni miesiąc. Tabela powyżej = każdy dzień miesiąca z agregatami i wartościami R-09U."/>
+        </Border>
+
+        <Grid x:Name="loadingOverlay" Background="#A0FFFFFF" Visibility="Collapsed" Grid.RowSpan="7">
             <Border Background="White" CornerRadius="10" Padding="28,18"
                     HorizontalAlignment="Center" VerticalAlignment="Center"
                     BorderBrush="{StaticResource CardBorder}" BorderThickness="1">

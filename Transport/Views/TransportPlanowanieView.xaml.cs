@@ -174,6 +174,58 @@ namespace Kalendarz1.Transport.Views
         }
 
         // ═══════════════════════════════════════════════════════════════════
+        // 📱 SMS DO KIEROWCY — pojedynczy + grupowy
+        // ═══════════════════════════════════════════════════════════════════
+        private void MenuEdytuj_Click(object sender, RoutedEventArgs e) => OtworzEdytor(false);
+        private void MenuUsun_Click(object sender, RoutedEventArgs e) => BtnUsun_Click(sender, e);
+
+        private async void MenuSmsDoKierowcy_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (KursyGrid.SelectedItem is not KursRow row)
+                {
+                    MessageBox.Show("Wybierz kurs.", "📱 SMS", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+                var kurs = row.Source;
+                if (!kurs.KierowcaID.HasValue)
+                {
+                    MessageBox.Show("Kurs nie ma przypisanego kierowcy.", "📱 SMS",
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+                var kierowcy = await _repo.PobierzKierowcowAsync();
+                var kierowca = kierowcy.FirstOrDefault(k => k.KierowcaID == kurs.KierowcaID.Value);
+
+                string libraConn = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+                await Kalendarz1.Transport.Services.TransportSmsService.WyslijSmsPojedynczyAsync(
+                    _repo, kurs, kierowca, libraConn, App.UserID);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd: {ex.Message}", "📱 SMS",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async void MenuSmsGrupowy_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var data = DataKursu.SelectedDate ?? DateTime.Today;
+                string libraConn = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+                await Kalendarz1.Transport.Services.TransportSmsService.WyslijSmsGrupoweAsync(
+                    _repo, data, libraConn, App.UserID);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd grupowego SMS: {ex.Message}", "📲 Grupowy SMS",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
         // Row wrapper
         // ═══════════════════════════════════════════════════════════════════
         public class KursRow

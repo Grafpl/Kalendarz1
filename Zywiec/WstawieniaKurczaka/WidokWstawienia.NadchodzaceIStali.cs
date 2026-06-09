@@ -193,30 +193,17 @@ namespace Kalendarz1
             string telefon = row["Telefon"] != DBNull.Value ? Convert.ToString(row["Telefon"])?.Trim() ?? "" : "";
             string tresc = PrzygotujTrescPotwierdzenia(row, wariant);
 
-            Clipboard.SetText(tresc);
-
             string nazwaWariantu = wariant == "pelny"
                 ? "1️⃣ Pełne potwierdzenie"
                 : "2️⃣ Krótkie potwierdzenie";
 
-            int smsCount = string.IsNullOrEmpty(tresc) ? 0
-                : (tresc.Length <= 70 ? 1 : 1 + (int)Math.Ceiling((tresc.Length - 70) / 67.0));
+            // Wysyłka przez telefon (dialog) LUB schowek (legacy) — wspólny helper
+            if (!WyslijSmsLubPokaSchowek(dostawca, telefon, tresc, "Potwierdzenie terminu — " + nazwaWariantu, out _,
+                $"SMS potwierdzający — wariant {(wariant == "pelny" ? "1" : "2")}")) return;
 
             // #2 Auto-wpis do ContactHistory + snooze 3 dni (wiersz znika z Nadchodzących)
             int? lpWst = row["LP"] != DBNull.Value ? Convert.ToInt32(row["LP"]) : (int?)null;
             ZapiszContactSmsAutomatycznie(lpWst, dostawca, "Potwierdzenie terminu — " + nazwaWariantu, snoozeDays: 3);
-
-            string info = $"✅ Skopiowano SMS o potwierdzenie terminu — {nazwaWariantu}\n\n";
-            info += $"Hodowca: {dostawca}\n";
-            info += string.IsNullOrEmpty(telefon) || telefon == "-"
-                ? "Telefon: ⚠️ BRAK NUMERU!\n"
-                : $"Telefon: {telefon}\n";
-            info += $"Długość: {tresc.Length} znaków  ({smsCount} SMS w UCS-2)\n";
-            info += $"📝 Zapisano w Historia kontaktów\n";
-            info += $"\n— TREŚĆ SMS —\n{tresc}";
-
-            MessageBox.Show(info, $"SMS potwierdzający — wariant {(wariant == "pelny" ? "1" : "2")}",
-                MessageBoxButton.OK, MessageBoxImage.Information);
 
             LoadHistoria();
             LoadDoPotwierdzenia();  // wiersz znika z listy (snooze 3 dni)

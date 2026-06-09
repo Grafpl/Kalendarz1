@@ -50,30 +50,43 @@ namespace Kalendarz1.DashboardPrzychodu.Views
                 _hodowcaColorMap[name] = DashboardBrushes.HodowcaPalette[idx];
             }
 
-            // Pierwszy/ostatni wiersz grupy hodowcy dla DataGrid (separatory + POZOSTALO)
+            // PierwszyWierszGrupy = wizualny separator między hodowcami (per nazwa).
+            // OstatniWierszHodowcy = flaga "to wiersz na ktorym renderujemy POZOST i POST"
+            //   → musi byc per GRUPA LpDostawy (bo Pozost/Post sa atrybutem grupy harmonogramu).
+            //   Gdy w jednej grupie LpDostawy sa dwaj rozni realni hodowcy (np. Łapiak Piotr+Monika
+            //   wjechali wszyscy na Lp Moniki), inaczej Pozost wyswietli sie 2x z ta sama wartoscia.
+            //   Fallback dla aut-sierot (bez LpDostawy): klucz = nazwa hodowcy.
+            string OstatniKey(DostawaItem d)
+                => d.LpDostawy.HasValue
+                    ? $"LP_{d.LpDostawy.Value}"
+                    : $"H_{(d.Hodowca ?? "").Trim()}";
+
             var ostatniIndex = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             for (int i = 0; i < _dostawy.Count; i++)
             {
-                var key = (_dostawy[i].Hodowca ?? "").Trim();
-                if (!string.IsNullOrEmpty(key))
+                var key = OstatniKey(_dostawy[i]);
+                if (!string.IsNullOrEmpty(key) && key != "H_" && key != "LP_")
                     ostatniIndex[key] = i;
             }
 
             var pierwszyIndex = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             for (int i = 0; i < _dostawy.Count; i++)
             {
-                var key = (_dostawy[i].Hodowca ?? "").Trim();
-                if (!string.IsNullOrEmpty(key) && !pierwszyIndex.ContainsKey(key))
-                    pierwszyIndex[key] = i;
+                var nazwa = (_dostawy[i].Hodowca ?? "").Trim();
+                if (!string.IsNullOrEmpty(nazwa) && !pierwszyIndex.ContainsKey(nazwa))
+                    pierwszyIndex[nazwa] = i;
             }
 
             for (int i = 0; i < _dostawy.Count; i++)
             {
                 var d = _dostawy[i];
-                var key = (d.Hodowca ?? "").Trim();
+                var nazwa = (d.Hodowca ?? "").Trim();
+                var ostKey = OstatniKey(d);
 
-                d.OstatniWierszHodowcy = ostatniIndex.TryGetValue(key, out int li) && li == i;
-                d.PierwszyWierszGrupy = i > 0 && pierwszyIndex.TryGetValue(key, out int fi) && fi == i;
+                d.OstatniWierszHodowcy = ostatniIndex.TryGetValue(ostKey, out int li) && li == i;
+                d.PierwszyWierszGrupy = i > 0 && pierwszyIndex.TryGetValue(nazwa, out int fi) && fi == i;
+
+                var key = nazwa;
 
                 if (_hodowcaColorMap.TryGetValue(key, out var brush))
                 {

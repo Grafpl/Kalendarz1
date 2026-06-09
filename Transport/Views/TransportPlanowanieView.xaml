@@ -106,6 +106,15 @@
                   IsReadOnly="True"
                   SelectionChanged="KursyGrid_SelectionChanged"
                   MouseDoubleClick="KursyGrid_DoubleClick">
+            <DataGrid.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="📝 Edytuj kurs" Click="MenuEdytuj_Click" FontWeight="SemiBold"/>
+                    <MenuItem Header="❌ Usuń kurs" Click="MenuUsun_Click" Foreground="#C62828"/>
+                    <Separator/>
+                    <MenuItem Header="📱 Wyślij SMS o kursie do kierowcy" Click="MenuSmsDoKierowcy_Click" FontWeight="SemiBold" Foreground="#15803D"/>
+                    <MenuItem Header="📲 Grupowy SMS do wszystkich kierowców (dzień)" Click="MenuSmsGrupowy_Click" Foreground="#15803D"/>
+                </ContextMenu>
+            </DataGrid.ContextMenu>
             <DataGrid.Columns>
                 <DataGridTextColumn Header="ID" Binding="{Binding KursID}" Width="60">
                     <DataGridTextColumn.ElementStyle>

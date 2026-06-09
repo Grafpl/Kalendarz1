@@ -20,7 +20,7 @@
             <StackPanel>
                 <TextBlock Text="📊 Statystyki rozładunku per klient" FontSize="16" FontWeight="Bold" Foreground="#166534"/>
                 <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="#6B7280" Margin="0,6,0,0">
-                    Dane uczone automatycznie z historii GPS Webfleet (12 miesięcy). Pojazd stoi (≤5 km/h) i jest ≤2 km od klienta → wizyta.
+                    Dane uczone automatycznie z historii GPS Webfleet (2 miesiące). Pojazd stoi (≤5 km/h) i jest ≤3,5 km od klienta → wizyta.
                     Filtrowane: 5–180 min, w godz. 05:00–23:00 (omijane noclegi i pauzy kierowców).
                     <LineBreak/>
                     <Run FontStyle="Italic">Wymagana min. liczba prób (3). Po Odśwież: wiarygodne mediany zapisują się do karty odbiorcy jako oficjalne czasy rozładunku.</Run>
@@ -43,10 +43,14 @@
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right">
-                    <Button x:Name="BtnOdswiez" Content="🔄 Odśwież z Webfleet (12 miesięcy)" Padding="12,6"
+                    <Button x:Name="BtnDebugger" Content="🔍 Debugger" Padding="10,6" Margin="0,0,8,0"
+                            Click="BtnDebugger_Click" Background="#1F2937" Foreground="White"
+                            BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"
+                            ToolTip="Diagnostyka: surowe dane z LibraNet/TransportPL/Webfleet — czemu klient nie ma wizyt"/>
+                    <Button x:Name="BtnOdswiez" Content="🔄 Odśwież z Webfleet (2 miesiące)" Padding="12,6"
                             Click="BtnOdswiez_Click" Background="#059669" Foreground="White"
                             BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"
-                            ToolTip="Pobierz tracks GPS z 12 miesięcy + przelicz mediany + zapisz wiarygodne do karty odbiorcy (10-30 min)"/>
+                            ToolTip="Pobierz tracks GPS z 2 miesięcy + przelicz mediany + zapisz wiarygodne do karty odbiorcy (3-7 min)"/>
                 </StackPanel>
             </DockPanel>
         </Border>
@@ -69,10 +73,11 @@
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="Klient" Binding="{Binding Nazwa}" Width="*"
                                             FontWeight="SemiBold"/>
-                        <DataGridTextColumn Header="Mediana" Binding="{Binding MedianaDisplay}" Width="100"/>
-                        <DataGridTextColumn Header="Wizyt" Binding="{Binding LiczbaProb}" Width="80"/>
-                        <DataGridTextColumn Header="Zaufanie" Binding="{Binding ZaufanieDisplay}" Width="120"/>
-                        <DataGridTextColumn Header="Ostatni refresh" Binding="{Binding RefreshDisplay}" Width="140"/>
+                        <DataGridTextColumn Header="Mediana (GPS)" Binding="{Binding MedianaDisplay}" Width="100"/>
+                        <DataGridTextColumn Header="W karcie" Binding="{Binding WKarcieDisplay}" Width="80"/>
+                        <DataGridTextColumn Header="Wizyt" Binding="{Binding LiczbaProb}" Width="70"/>
+                        <DataGridTextColumn Header="Zaufanie" Binding="{Binding ZaufanieDisplay}" Width="130"/>
+                        <DataGridTextColumn Header="Ostatni refresh" Binding="{Binding RefreshDisplay}" Width="120"/>
                     </DataGrid.Columns>
                 </DataGrid>
             </Border>
@@ -85,8 +90,9 @@
 
                         <Border Background="#ECFDF5" BorderBrush="#A7F3D0" BorderThickness="1" CornerRadius="4" Padding="10,8" Margin="0,0,0,8">
                             <StackPanel>
-                                <TextBlock Text="KLIENTÓW Z ESTYMACJĄ" FontSize="10" Foreground="#065F46"/>
+                                <TextBlock Text="KLIENTÓW Z GEOLOKALIZACJĄ" FontSize="10" Foreground="#065F46"/>
                                 <TextBlock x:Name="TxtLiczbaKlientow" Text="—" FontSize="20" FontWeight="Bold" Foreground="#064E3B"/>
+                                <TextBlock x:Name="TxtLiczbaBezWizyt" Text="" FontSize="10" Foreground="#6B7280" Margin="0,2,0,0"/>
                             </StackPanel>
                         </Border>
 

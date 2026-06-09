@@ -182,6 +182,10 @@
             <TabItem Header="💧 Wodospad" Style="{StaticResource TabHeaderStyle}">
                 <views:WidokWodospad x:Name="widokWodospad"/>
             </TabItem>
+
+            <TabItem Header="💹 Udział towarów" Style="{StaticResource TabHeaderStyle}">
+                <views:WidokUdzialPrzychodu x:Name="widokUdzial"/>
+            </TabItem>
         </TabControl>
 
         <!-- ═══ Loading overlay (nad TabControl) ═══ -->

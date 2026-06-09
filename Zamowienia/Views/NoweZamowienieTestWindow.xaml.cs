@@ -379,10 +379,12 @@ namespace Kalendarz1.Zamowienia.Views
 
                 // 2) Items
                 bool strefaTowarExists = await ColumnExistsAsync(cn, "ZamowieniaMiesoTowar", "Strefa");
+                bool wariantTowarExists = await ColumnExistsAsync(cn, "ZamowieniaMiesoTowar", "Wariant");
                 string strefaCol = strefaTowarExists ? ", ISNULL(Strefa,0) AS Strefa" : ", CAST(0 AS BIT) AS Strefa";
-                string itemsSql = $@"SELECT KodTowaru, Ilosc, Cena, ISNULL(E2,0) AS E2, ISNULL(Folia,0) AS Folia, ISNULL(Hallal,0) AS Hallal{strefaCol}
+                string wariantCol = wariantTowarExists ? ", Wariant" : ", CAST(NULL AS NVARCHAR(20)) AS Wariant";
+                string itemsSql = $@"SELECT KodTowaru, Ilosc, Cena, ISNULL(E2,0) AS E2, ISNULL(Folia,0) AS Folia, ISNULL(Hallal,0) AS Hallal{strefaCol}{wariantCol}
                                       FROM dbo.ZamowieniaMiesoTowar WHERE ZamowienieId = @id";
-                var items = new List<(int Id, decimal Ilosc, string? Cena, bool E2, bool Folia, bool Hallal, bool Strefa)>();
+                var items = new List<(int Id, decimal Ilosc, string? Cena, bool E2, bool Folia, bool Hallal, bool Strefa, string? Wariant)>();
                 await using (var cmd = new SqlCommand(itemsSql, cn))
                 {
                     cmd.Parameters.AddWithValue("@id", orderId);
@@ -397,7 +399,8 @@ namespace Kalendarz1.Zamowienia.Views
                             Convert.ToBoolean(rd["E2"]),
                             Convert.ToBoolean(rd["Folia"]),
                             Convert.ToBoolean(rd["Hallal"]),
-                            Convert.ToBoolean(rd["Strefa"])
+                            Convert.ToBoolean(rd["Strefa"]),
+                            rd["Wariant"] == DBNull.Value ? null : rd["Wariant"]?.ToString()
                         ));
                     }
                 }
@@ -458,6 +461,7 @@ namespace Kalendarz1.Zamowienia.Views
                     p.Folia = it.Folia;
                     p.Hallal = it.Hallal;
                     p.Strefa = it.Strefa;
+                    if (p.Warianty.Count > 0 && !string.IsNullOrEmpty(it.Wariant)) p.Wariant = it.Wariant;
                 }
                 foreach (var p in _produkty.Where(x => x.QtyKg > 0)) RecalcProductDisplay(p);
 
@@ -480,7 +484,8 @@ namespace Kalendarz1.Zamowienia.Views
                             E2 = it.E2,
                             Folia = it.Folia,
                             Hallal = it.Hallal,
-                            Strefa = it.Strefa
+                            Strefa = it.Strefa,
+                            Wariant = it.Wariant ?? ""
                         })
                 };
 
@@ -651,6 +656,49 @@ namespace Kalendarz1.Zamowienia.Views
                     });
                 }
             }
+
+            // Warianty wewnętrzne (np. Filet A → Pojedynczy/Podwójny) — przełącznik w wierszu produktu.
+            // Filet A dostaje przełącznik AUTOMATYCZNIE (bez konfiguracji). Słownik TowarWarianty
+            // to tylko opcjonalne nadpisanie/rozszerzenie dla innych towarów.
+            var domyslneFilet = new List<Kalendarz1.Zamowienia.Services.TowarWariantyService.Wariant>
+            {
+                new() { Kod = "POJEDYNCZY", Nazwa = "Filet pojedynczy", Lp = 0 },
+                new() { Kod = "PODWOJNY",   Nazwa = "Filet podwójny",   Lp = 1 },
+            };
+            try
+            {
+                _wariantySvc ??= new Kalendarz1.Zamowienia.Services.TowarWariantyService(_connLibra);
+                var mapa = await _wariantySvc.GetMapaAsync();
+                foreach (var p in _produkty)
+                {
+                    if (mapa.TryGetValue(p.Id, out var wl) && wl.Count > 0)
+                        p.Warianty = wl;                              // konfiguracja ze słownika (override)
+                    else if (p.Kod.ToUpper().Contains("FILET A"))
+                        p.Warianty = domyslneFilet;                   // domyślnie dla Filetu A
+                    if (p.Warianty.Count > 0 && string.IsNullOrEmpty(p.Wariant))
+                        p.Wariant = p.Warianty[0].Kod;                // domyślnie pierwszy (np. pojedynczy)
+                }
+            }
+            catch
+            {
+                // nawet bez bazy słownika — Filet A i tak dostaje przełącznik
+                foreach (var p in _produkty)
+                    if (p.Kod.ToUpper().Contains("FILET A"))
+                    {
+                        p.Warianty = domyslneFilet;
+                        if (string.IsNullOrEmpty(p.Wariant)) p.Wariant = domyslneFilet[0].Kod;
+                    }
+            }
+        }
+
+        private Kalendarz1.Zamowienia.Services.TowarWariantyService? _wariantySvc;
+
+        // Czytelna nazwa wariantu z jego kodu (do logu historii). Pusty kod → "(brak)".
+        private static string NazwaWariantu(ProductVm p, string kod)
+        {
+            if (string.IsNullOrEmpty(kod)) return "(brak)";
+            var w = p.Warianty.FirstOrDefault(x => x.Kod == kod);
+            return w != null ? w.Nazwa : kod;
         }
 
         // Process-wide cache zdjęć — dzielony między wszystkie instancje okna.
@@ -2920,6 +2968,20 @@ namespace Kalendarz1.Zamowienia.Views
             }
         }
 
+        // Przełącznik wariantu (np. Filet pojedynczy ⇄ podwójny) — cykluje po wariantach towaru.
+        private void BtnWariant_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button b && b.Tag is int id)
+            {
+                var p = _produkty.FirstOrDefault(x => x.Id == id);
+                if (p == null || p.Warianty.Count == 0) return;
+                int idx = p.Warianty.FindIndex(w => w.Kod == p.Wariant);
+                idx = (idx + 1) % p.Warianty.Count;   // następny wariant (zapętlenie)
+                p.Wariant = p.Warianty[idx].Kod;
+                RebuildCart();
+            }
+        }
+
         private void BtnCartRemove_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button b && b.Tag is int id)
@@ -3750,6 +3812,7 @@ namespace Kalendarz1.Zamowienia.Views
             bool dataProdExists = await ColumnExistsAsync(cn, "ZamowieniaMieso", "DataProdukcji");
             bool dataUbojuExists = await ColumnExistsAsync(cn, "ZamowieniaMieso", "DataUboju");
             bool strefaTowarExists = await ColumnExistsAsync(cn, "ZamowieniaMiesoTowar", "Strefa");
+            bool wariantTowarExists = await ColumnExistsAsync(cn, "ZamowieniaMiesoTowar", "Wariant");
             bool czyModMagazynuExists = await ColumnExistsAsync(cn, "ZamowieniaMieso", "CzyZmodyfikowaneDlaMagazynu");
             bool czyModProdukcjiExists = await ColumnExistsAsync(cn, "ZamowieniaMieso", "CzyZmodyfikowaneDlaProdukcji");
             bool uwagiSnapshotExists = await ColumnExistsAsync(cn, "ZamowieniaMieso", "UwagiSnapshot");
@@ -3864,10 +3927,12 @@ namespace Kalendarz1.Zamowienia.Views
 
             string strefaCol = strefaTowarExists ? ", Strefa" : "";
             string strefaVal = strefaTowarExists ? ", @strefa" : "";
+            string wariantCol = wariantTowarExists ? ", Wariant" : "";
+            string wariantVal = wariantTowarExists ? ", @wariant" : "";
             var cmdItem = new SqlCommand(
                 $@"INSERT INTO dbo.ZamowieniaMiesoTowar
-                   (ZamowienieId, KodTowaru, Ilosc, Cena, Pojemniki, Palety, E2, Folia, Hallal{strefaCol})
-                   VALUES (@zid, @kt, @il, @ce, @poj, @pal, @e2, @folia, @hallal{strefaVal})", cn, tr);
+                   (ZamowienieId, KodTowaru, Ilosc, Cena, Pojemniki, Palety, E2, Folia, Hallal{strefaCol}{wariantCol})
+                   VALUES (@zid, @kt, @il, @ce, @poj, @pal, @e2, @folia, @hallal{strefaVal}{wariantVal})", cn, tr);
 
             cmdItem.Parameters.Add("@zid", SqlDbType.Int);
             cmdItem.Parameters.Add("@kt", SqlDbType.Int);
@@ -3879,6 +3944,7 @@ namespace Kalendarz1.Zamowienia.Views
             cmdItem.Parameters.Add("@folia", SqlDbType.Bit);
             cmdItem.Parameters.Add("@hallal", SqlDbType.Bit);
             if (strefaTowarExists) cmdItem.Parameters.Add("@strefa", SqlDbType.Bit);
+            if (wariantTowarExists) cmdItem.Parameters.Add("@wariant", SqlDbType.NVarChar, 20);
 
             foreach (var p in items)
             {
@@ -3897,6 +3963,9 @@ namespace Kalendarz1.Zamowienia.Views
                 cmdItem.Parameters["@folia"].Value = p.Folia;
                 cmdItem.Parameters["@hallal"].Value = p.Hallal;
                 if (strefaTowarExists) cmdItem.Parameters["@strefa"].Value = p.Strefa;
+                if (wariantTowarExists)
+                    cmdItem.Parameters["@wariant"].Value =
+                        (p.Warianty.Count > 0 && !string.IsNullOrEmpty(p.Wariant)) ? (object)p.Wariant : DBNull.Value;
 
                 await cmdItem.ExecuteNonQueryAsync();
             }
@@ -3941,6 +4010,10 @@ namespace Kalendarz1.Zamowienia.Views
                         if (p.Folia) await Kalendarz1.Services.HistoriaZmianService.LogujZmianePozycji(orderId, p.Kod, "Folia", "false", "true", userId, userName);
                         if (p.Hallal) await Kalendarz1.Services.HistoriaZmianService.LogujZmianePozycji(orderId, p.Kod, "Hallal", "false", "true", userId, userName);
                         if (p.Strefa) await Kalendarz1.Services.HistoriaZmianService.LogujZmianePozycji(orderId, p.Kod, "Strefa", "false", "true", userId, userName);
+                        // Wariant (np. Filet podwójny) — gdy towar ma warianty i wybrano inny niż pierwszy/pusty
+                        if (p.Warianty.Count > 0 && !string.IsNullOrEmpty(p.Wariant))
+                            await Kalendarz1.Services.HistoriaZmianService.LogujZmianePozycji(orderId, p.Kod, "Wariant",
+                                "(brak)", NazwaWariantu(p, p.Wariant), userId, userName);
                     }
                     return;
                 }
@@ -4008,6 +4081,12 @@ namespace Kalendarz1.Zamowienia.Views
                             await Kalendarz1.Services.HistoriaZmianService.LogujZmianePozycji(orderId, p.Kod, "Hallal", orig_it.Hallal.ToString().ToLower(), p.Hallal.ToString().ToLower(), userId, userName);
                         if (orig_it.Strefa != p.Strefa)
                             await Kalendarz1.Services.HistoriaZmianService.LogujZmianePozycji(orderId, p.Kod, "Strefa", orig_it.Strefa.ToString().ToLower(), p.Strefa.ToString().ToLower(), userId, userName);
+                        // Zmiana wariantu (np. Pojedynczy → Podwójny) — log z czytelnymi nazwami
+                        string origWar = orig_it.Wariant ?? "";
+                        string nowyWar = (p.Warianty.Count > 0 ? p.Wariant : "") ?? "";
+                        if (origWar != nowyWar)
+                            await Kalendarz1.Services.HistoriaZmianService.LogujZmianePozycji(orderId, p.Kod, "Wariant",
+                                NazwaWariantu(p, origWar), NazwaWariantu(p, nowyWar), userId, userName);
                     }
                     else
                     {
@@ -4155,6 +4234,43 @@ namespace Kalendarz1.Zamowienia.Views
             public bool Strefa { get; set; }
             public string? Cena { get; set; }
 
+            // ── Warianty wewnętrzne (np. Filet A: Pojedynczy/Podwójny) ──
+            // KodTowaru w Symfonii bez zmian; wariant to atrybut pozycji dla produkcji/magazynu.
+            private List<Kalendarz1.Zamowienia.Services.TowarWariantyService.Wariant> _warianty = new();
+            public List<Kalendarz1.Zamowienia.Services.TowarWariantyService.Wariant> Warianty
+            {
+                get => _warianty;
+                set
+                {
+                    _warianty = value ?? new();
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Warianty)));
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(WariantVisibility)));
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(WariantLabel)));
+                }
+            }
+            public Visibility WariantVisibility => Warianty.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+            private string _wariant = "";
+            public string Wariant
+            {
+                get => _wariant;
+                set
+                {
+                    _wariant = value ?? "";
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Wariant)));
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(WariantLabel)));
+                }
+            }
+            // Etykieta na przełączniku: nazwa bieżącego wariantu (lub pierwszego, jeśli nie wybrano)
+            public string WariantLabel
+            {
+                get
+                {
+                    if (Warianty.Count == 0) return "";
+                    var w = Warianty.FirstOrDefault(x => x.Kod == _wariant) ?? Warianty[0];
+                    return "🔀 " + w.Nazwa;
+                }
+            }
+
             public decimal Pojemniki { get; set; }
             public decimal Palety { get; set; }
 
@@ -4285,6 +4401,7 @@ namespace Kalendarz1.Zamowienia.Views
             public bool Folia { get; set; }
             public bool Hallal { get; set; }
             public bool Strefa { get; set; }
+            public string Wariant { get; set; } = "";
         }
 
         public class OrderSnapshot

@@ -5,7 +5,7 @@
 //
 // Algorytm:
 //   1. Dla każdego zmapowanego pojazdu, pobierz tracks z ostatnich N dni
-//   2. Dla każdego trackpoint: jeśli stoi (speed≤5) i jest ≤2 km od klienta z GPS,
+//   2. Dla każdego trackpoint: jeśli stoi (speed≤5) i jest ≤3,5 km od klienta z GPS,
 //      kontynuuj/rozpocznij „wizytę" u tego klienta
 //   3. Gdy pojazd odjedzie albo zmieni klienta — zamknij wizytę
 //   4. Filtruj: wizyta < 5 min (krótki postój) lub > 240 min (anomalia, nocowanie)
@@ -27,6 +27,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Data.SqlClient;
 using Newtonsoft.Json;
@@ -37,20 +38,22 @@ namespace Kalendarz1.Transport.Services
     public class HistoriaRozladunkuService
     {
         // ── Stałe ────────────────────────────────────────────────────────────
-        // Filtr „realnej wizyty" (postoju na rozładunek u klienta)
-        private const int MinWizytaMin = 5;     // krótszy postój = przelot / korek
-        private const int MaxWizytaMin = 180;   // dłuższy = pauza/nocowanie (typowy rozładunek ≤2h)
-        // Godziny robocze — wizyty rozpoczynające się poza tym oknem to nocleg/pauza kierowcy
-        // Klienci POL zwykle pracują 06:00-22:00; wszystko poza = nieprawdziwy postój
-        private const int RoboczeStart = 5;     // 05:00
-        private const int RoboczeKoniec = 23;   // 23:00
-        // Filtr „realnego odcinka jazdy" (B2)
-        private const int MinOdcinekMin = 5;    // <5 min = klient blisko, w sąsiednim bloku
-        private const int MaxOdcinekMin = 300;  // >5h = przerwa nocna lub long-haul
-        // Bliskość klienta (linia prosta, bez RoadFactor — to próg „jesteśmy na miejscu")
-        private const double PromienKlientaKm = 2.0;
-        // Próg „stoi" (≤ km/h)
-        private const int ProgStoiKmh = 5;
+        // (public — debugger korzysta z tych wartości żeby raport zgadzał się z algorytmem)
+        public const int MinWizytaMin = 5;
+        public const int MaxWizytaMin = 180;
+        public const int RoboczeStart = 5;
+        public const int RoboczeKoniec = 23;
+        public const int MinOdcinekMin = 5;
+        public const int MaxOdcinekMin = 300;
+        public const double PromienKlientaKm = 3.5;
+        public const double PromienBazyKm = 2.0;
+        public const int ProgStoiKmh = 5;
+        // Max przerwa między dwoma wizytami u TEGO SAMEGO klienta żeby je scalić.
+        // Powód: gdy pojazd manewruje na placu klienta (wycofuje, podjeżdża pod kolejny dok),
+        // speed > 5 km/h przez 2-10 minut → algorytm rozcina jedną realną wizytę na 2-4 fragmenty.
+        // 15 min jest bezpiecznie: prawdziwy klient nigdy nie ma takiej luki w środku wizyty,
+        // a manewry/postoje pod bramą trwają max ~10 min.
+        public const int MaxMergePrzerwaMin = 15;
         // Minimalna liczba wizyt aby zaufać medianie
         public const int MinProbDoZaufania = 3;
         // Baza Koziołki — id=0 w EstymacjeTras
@@ -260,7 +263,7 @@ namespace Kalendarz1.Transport.Services
         public record TrackPoint(double Lat, double Lon, int Speed, DateTime Time);
         public record Wizyta(int KlientId, int Minuty, DateTime Start, DateTime Koniec);
 
-        private async Task<List<(int PojazdID, string ObjectNo)>> PobierzZmapowanePojazdyAsync()
+        public async Task<List<(int PojazdID, string ObjectNo)>> PobierzZmapowanePojazdyAsync()
         {
             var lista = new List<(int, string)>();
             try
@@ -277,7 +280,7 @@ namespace Kalendarz1.Transport.Services
             return lista;
         }
 
-        private async Task<Dictionary<int, (double Lat, double Lon)>> PobierzKlientowZGpsAsync()
+        public async Task<Dictionary<int, (double Lat, double Lon)>> PobierzKlientowZGpsAsync()
         {
             var wynik = new Dictionary<int, (double, double)>();
             try
@@ -301,8 +304,106 @@ namespace Kalendarz1.Transport.Services
             return wynik;
         }
 
-        /// <summary>Pobiera tracks z Webfleet dla pojazdu w danym dniu.</summary>
+        // Throttling: Webfleet API ma quota ~200 zapytań/min (errorCode=8011 "request quota reached").
+        // Sekwencyjnie (1 jednoczesne) + adaptive interwał:
+        //   - start: 600ms (≈100 req/min, w quota)
+        //   - po quota error: lock cały API na 30s + zwiększ interwał
+        //   - po N kolejnych sukcesach: zmniejsz interwał
+        private static readonly SemaphoreSlim _webfleetSem = new(1, 1);
+        private static long _lastRequestTicks = 0;
+        private static long _quotaLockedUntilTicks = 0;
+        private static int _currentIntervalMs = 600;
+        private const int MinIntervalMs = 600;
+        private const int MaxIntervalMs = 3000;
+        private const int QuotaLockMs = 30000;
+
+        // Cache wyników per (objectNo, data) — drugi skan tego samego dnia nie pyta API
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<(string, DateTime), List<TrackPoint>> _tracksCache = new();
+        public static int CacheSize => _tracksCache.Count;
+        public static void ClearTracksCache() => _tracksCache.Clear();
+
+        /// <summary>
+        /// Wyjątek rzucany gdy Webfleet API zwróci błędną odpowiedź (rate limit, brak uprawnień, itp).
+        /// Zawiera fragment body żeby debugger pokazał konkretny kod błędu.
+        /// </summary>
+        public class WebfleetApiException : Exception
+        {
+            public string ResponseBody { get; }
+            public int HttpStatus { get; }
+            public WebfleetApiException(string msg, int status, string body) : base(msg)
+            {
+                HttpStatus = status;
+                ResponseBody = body;
+            }
+        }
+
+        /// <summary>Pobiera tracks z Webfleet dla pojazdu w danym dniu. Adaptive throttle + cache + retry.</summary>
         public async Task<List<TrackPoint>> PobierzTracksAsync(string objectNo, DateTime data)
+        {
+            // 1) Cache hit — bez API
+            var key = (objectNo, data.Date);
+            if (_tracksCache.TryGetValue(key, out var cached)) return cached;
+
+            // 2) Sekwencyjnie + adaptive interwał
+            await _webfleetSem.WaitAsync();
+            try
+            {
+                Exception? lastEx = null;
+                for (int attempt = 1; attempt <= 3; attempt++)
+                {
+                    // Czekaj jeśli quota lock aktywny
+                    long lockMs = _quotaLockedUntilTicks - Environment.TickCount64;
+                    if (lockMs > 0) await Task.Delay((int)lockMs);
+
+                    // Czekaj między zapytaniami
+                    long since = Environment.TickCount64 - _lastRequestTicks;
+                    if (since < _currentIntervalMs) await Task.Delay((int)(_currentIntervalMs - since));
+                    _lastRequestTicks = Environment.TickCount64;
+
+                    try
+                    {
+                        var result = await PobierzTracksJednorazowoAsync(objectNo, data);
+                        // Sukces — schłódź interwał (zmniejsz o 50ms, nie poniżej minimum)
+                        if (_currentIntervalMs > MinIntervalMs)
+                            _currentIntervalMs = Math.Max(MinIntervalMs, _currentIntervalMs - 50);
+                        _tracksCache[key] = result;
+                        return result;
+                    }
+                    catch (WebfleetApiException ex)
+                    {
+                        lastEx = ex;
+                        // Detekcja quota — lock globalny + podwojenie interwału
+                        if (ex.ResponseBody.Contains("8011") || ex.ResponseBody.Contains("quota"))
+                        {
+                            _quotaLockedUntilTicks = Environment.TickCount64 + QuotaLockMs;
+                            _currentIntervalMs = Math.Min(MaxIntervalMs, _currentIntervalMs * 2);
+                            if (attempt < 3) continue; // retry po wait
+                        }
+                        else
+                        {
+                            if (attempt < 3) await Task.Delay(attempt * 1000);
+                            else throw;
+                        }
+                    }
+                    catch (HttpRequestException ex) when (attempt < 3)
+                    {
+                        lastEx = ex;
+                        await Task.Delay(attempt * 1000);
+                    }
+                }
+                throw lastEx ?? new InvalidOperationException("Unknown Webfleet error");
+            }
+            finally { _webfleetSem.Release(); }
+        }
+
+        /// <summary>Aktualne wartości throttlingu — do raportu w debuggerze.</summary>
+        public static (int CurrentIntervalMs, int CacheSize, bool QuotaLocked) GetThrottleStats()
+        {
+            bool locked = _quotaLockedUntilTicks > Environment.TickCount64;
+            return (_currentIntervalMs, _tracksCache.Count, locked);
+        }
+
+        private async Task<List<TrackPoint>> PobierzTracksJednorazowoAsync(string objectNo, DateTime data)
         {
             var dataStr = data.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
             var url = WebfleetHttp.BuildUrlBase("showTracks")
@@ -314,9 +415,19 @@ namespace Kalendarz1.Transport.Services
             using var res = await WebfleetHttp.Instance.SendAsync(req);
             var body = await res.Content.ReadAsStringAsync();
 
-            // Webfleet zwraca błędy w formacie tekstowym (nie JSON)
-            if (string.IsNullOrWhiteSpace(body) || !body.TrimStart().StartsWith("["))
-                return new List<TrackPoint>();
+            // Pusty body przy 200 OK = realny brak tracków (weekend / pojazd nie jeździł)
+            if (string.IsNullOrWhiteSpace(body)) return new List<TrackPoint>();
+
+            // Webfleet zwraca błędy w formacie tekstowym (np. "error_code=9013,error_text=request rate limit exceeded")
+            var trimmed = body.TrimStart();
+            if (!trimmed.StartsWith("["))
+            {
+                // To NIE jest pusta odpowiedź — to BŁĄD API. Rzuć z fragmentem body żeby debugger pokazał.
+                string fragment = body.Length > 200 ? body.Substring(0, 200) : body;
+                throw new WebfleetApiException(
+                    $"Webfleet API error: {fragment.Replace("\n", " ").Trim()}",
+                    (int)res.StatusCode, body);
+            }
 
             var raw = JsonConvert.DeserializeObject<List<WfTrackRaw>>(body) ?? new();
             var lista = new List<TrackPoint>(raw.Count);
@@ -329,7 +440,6 @@ namespace Kalendarz1.Transport.Services
                     continue;
                 lista.Add(new TrackPoint(lat, lon, t.speed, time));
             }
-            // Posortuj chronologicznie — Webfleet zazwyczaj zwraca posortowane, ale na pewno
             return lista.OrderBy(p => p.Time).ToList();
         }
 
@@ -337,7 +447,7 @@ namespace Kalendarz1.Transport.Services
         /// Chronologiczne skanowanie tracks. Wizyta = ciągły blok punktów gdzie
         /// pojazd stoi (≤5 km/h) i jest blisko klienta (≤2 km).
         /// </summary>
-        public static List<Wizyta> WykryjWizyty(List<TrackPoint> tracks, Dictionary<int, (double Lat, double Lon)> klienciGps)
+        public static List<Wizyta> WykryjWizyty(List<TrackPoint> tracks, Dictionary<int, (double Lat, double Lon)> klienciGps, bool scalSasiadujace = true)
         {
             var wynik = new List<Wizyta>();
             int? aktKlient = null;
@@ -388,6 +498,43 @@ namespace Kalendarz1.Transport.Services
             if (aktKlient.HasValue && aktStart.HasValue)
                 DodajJesliRealna(wynik, aktKlient.Value, aktStart.Value, aktKoniec);
 
+            // POST-PROCESS: scal sąsiadujące wizyty u TEGO SAMEGO klienta jeśli przerwa <= MaxMergePrzerwaMin.
+            // Powód: gdy pojazd manewruje na placu klienta (wycofuje, podjeżdża pod kolejny dok),
+            // speed > 5 km/h przez 2-10 minut → algorytm rozcina jedną realną wizytę na 2-4 fragmenty.
+            return scalSasiadujace ? ScalSasiadujace(wynik) : wynik;
+        }
+
+        /// <summary>
+        /// Łączy sąsiadujące wizyty u tego samego klienta jeśli przerwa <= MaxMergePrzerwaMin.
+        /// Idempotentna — wynik kolejny raz przez nią przepuszczony nic nie zmienia.
+        /// Public żeby debugger mógł pokazać "przed/po".
+        /// </summary>
+        public static List<Wizyta> ScalSasiadujace(List<Wizyta> wizyty)
+        {
+            if (wizyty.Count <= 1) return wizyty;
+            var posortowane = wizyty.OrderBy(w => w.Start).ToList();
+            var wynik = new List<Wizyta>();
+            var biezaca = posortowane[0];
+            for (int i = 1; i < posortowane.Count; i++)
+            {
+                var nast = posortowane[i];
+                int przerwaMin = (int)(nast.Start - biezaca.Koniec).TotalMinutes;
+                if (nast.KlientId == biezaca.KlientId && przerwaMin >= 0 && przerwaMin <= MaxMergePrzerwaMin)
+                {
+                    // Scalenie — koniec = max, łączny czas = (koniec - start)
+                    var nowyKoniec = nast.Koniec > biezaca.Koniec ? nast.Koniec : biezaca.Koniec;
+                    int nowyCzas = (int)(nowyKoniec - biezaca.Start).TotalMinutes;
+                    // Sprawdź też max — gdyby scalenie wyszło ponad MaxWizytaMin, lepiej zostaw rozdzielone
+                    if (nowyCzas <= MaxWizytaMin)
+                    {
+                        biezaca = new Wizyta(biezaca.KlientId, nowyCzas, biezaca.Start, nowyKoniec);
+                        continue;
+                    }
+                }
+                wynik.Add(biezaca);
+                biezaca = nast;
+            }
+            wynik.Add(biezaca);
             return wynik;
         }
 
@@ -445,7 +592,7 @@ namespace Kalendarz1.Transport.Services
             foreach (var p in tracks)
             {
                 if (p.Time >= pierwsza.Start) break;
-                if (HaversineKm(p.Lat, p.Lon, BazaLat, BazaLon) <= PromienKlientaKm)
+                if (HaversineKm(p.Lat, p.Lon, BazaLat, BazaLon) <= PromienBazyKm)
                     wyjazdZBazy = p.Time;   // zapamiętuj ostatni moment w bazie
             }
             if (wyjazdZBazy.HasValue)
@@ -461,7 +608,7 @@ namespace Kalendarz1.Transport.Services
             foreach (var p in tracks)
             {
                 if (p.Time <= ostatnia.Koniec) continue;
-                if (HaversineKm(p.Lat, p.Lon, BazaLat, BazaLon) <= PromienKlientaKm)
+                if (HaversineKm(p.Lat, p.Lon, BazaLat, BazaLon) <= PromienBazyKm)
                 {
                     przyjazdDoBazy = p.Time;
                     break;
@@ -557,7 +704,7 @@ namespace Kalendarz1.Transport.Services
                 : (sorted[n / 2 - 1] + sorted[n / 2]) / 2;
         }
 
-        private static double HaversineKm(double lat1, double lon1, double lat2, double lon2)
+        public static double HaversineKm(double lat1, double lon1, double lat2, double lon2)
         {
             const double R = 6371.0;
             double dLat = ToRad(lat2 - lat1);

@@ -285,6 +285,43 @@
             <Setter Property="Padding" Value="0,10"/>
             <Setter Property="Margin" Value="0,0,0,2"/>
         </Style>
+
+        <!-- ═══ NAGŁÓWEK ZAKŁADKI (ciemny motyw) ═══ -->
+        <Style x:Key="DarkTabItem" TargetType="TabItem">
+            <Setter Property="Foreground" Value="{StaticResource BrTextSecondary}"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="bd" Background="#161b22" BorderBrush="#30363d" BorderThickness="1,1,1,0"
+                                CornerRadius="6,6,0,0" Padding="18,8" Margin="0,0,4,0">
+                            <ContentPresenter ContentSource="Header" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#0d1117"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="#58a6ff"/>
+                                <Setter Property="Foreground" Value="{StaticResource BrAccentBlue}"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="BorderBrush" Value="#58a6ff"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ═══ LISTA ODBIORCÓW (osoby) ═══ -->
+        <DataTemplate x:Key="OdbiorcaItemTemplate">
+            <CheckBox IsChecked="{Binding IsSelected}" Margin="4,2" Cursor="Hand"
+                      Foreground="{StaticResource BrTextPrimary}" FontSize="12">
+                <CheckBox.Content>
+                    <TextBlock Text="{Binding UserName}" TextTrimming="CharacterEllipsis"/>
+                </CheckBox.Content>
+            </CheckBox>
+        </DataTemplate>
     </Window.Resources>
 
     <!-- ═══════════════════════════════════════════════ -->
@@ -319,9 +356,11 @@
                 </Grid>
             </Border>
 
-            <!-- ═══ TREŚĆ GŁÓWNA ═══ -->
-            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="0">
-                <StackPanel Margin="20,16,20,8">
+            <!-- ═══ TREŚĆ GŁÓWNA — 2 ZAKŁADKI ═══ -->
+            <TabControl Grid.Row="1" Background="Transparent" BorderThickness="0" Margin="16,8,16,0">
+            <TabItem Header="🥩 Zamówienia mięsa" Style="{StaticResource DarkTabItem}">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0">
+                <StackPanel Margin="4,12,4,8">
 
                     <!-- ═══ AKTYWNE REGUŁY — PODGLĄD ═══ -->
                     <Border Background="#0c1824" CornerRadius="8" Padding="16,12" Margin="0,0,0,16"
@@ -668,8 +707,112 @@
                             </Border>
                         </StackPanel>
                     </Border>
+
+                    <!-- Odbiorców (osoby) konfiguruje się w: Panel Admina → Użytkownicy i uprawnienia -->
+                    <Border Background="#0c1824" CornerRadius="8" Padding="14,10" BorderBrush="#1a3060" BorderThickness="1" Margin="0,0,0,8">
+                        <TextBlock Foreground="{StaticResource BrTextSecondary}" FontSize="12" TextWrapping="Wrap">
+                            <Run Text="👤 "/><Run FontWeight="SemiBold" Foreground="{StaticResource BrAccentBlue}" Text="Komu pokazywać powiadomienia?"/>
+                            <Run Text=" — ustawiasz przy użytkowniku w "/>
+                            <Run FontWeight="SemiBold" Text="Panel Admina → Użytkownicy i uprawnienia"/>
+                            <Run Text=" (sekcja 🔔 Powiadomienia). Tutaj zostają tylko reguły: godziny, próg kg, dni."/>
+                        </TextBlock>
+                    </Border>
                 </StackPanel>
             </ScrollViewer>
+            </TabItem>
+
+            <!-- ═══════════════ ZAKŁADKA 2: DOSTAWY ŻYWCA ═══════════════ -->
+            <TabItem Header="🐄 Dostawy żywca" Style="{StaticResource DarkTabItem}">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0">
+                <StackPanel Margin="4,12,4,8">
+
+                    <!-- Ustawienia harmonogramu dostaw -->
+                    <Border Style="{StaticResource SectionCard}" Margin="0,0,0,16">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
+                                <TextBlock Text="🕐" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="Powiadomienia o zmianach dostaw żywca" Style="{StaticResource SectionTitle}"/>
+                            </StackPanel>
+                            <TextBlock Text="Kiedy i przy jakiej zmianie informować o korektach dostaw żywca w kalendarzu" Style="{StaticResource SectionSubtitle}"/>
+
+                            <Border Style="{StaticResource RowSep}">
+                                <CheckBox x:Name="chkDostawyAktywne" Style="{StaticResource ToggleSwitch}" IsChecked="True">
+                                    <TextBlock Text="Powiadomienia o dostawach włączone" Style="{StaticResource FieldLabel}"/>
+                                </CheckBox>
+                            </Border>
+
+                            <Border Style="{StaticResource RowSep}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="Godzina powiadomień" Style="{StaticResource FieldLabel}"/>
+                                        <TextBlock Text="Od tej godziny pojawiają się alerty o zmianach dostaw" Style="{StaticResource FieldHint}"/>
+                                    </StackPanel>
+                                    <TextBox x:Name="txtDostawyGodzina" Grid.Column="1" Style="{StaticResource InputBox}"
+                                             Width="72" Text="11:00" TextAlignment="Center" ToolTip="Format HH:mm"/>
+                                </Grid>
+                            </Border>
+
+                            <Border Style="{StaticResource RowSep}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="Min. zmiana kg" Style="{StaticResource FieldLabel}"/>
+                                        <TextBlock Text="0 = powiadom przy każdej zmianie" Style="{StaticResource FieldHint}"/>
+                                    </StackPanel>
+                                    <TextBox x:Name="txtDostawyMinKg" Grid.Column="1" Style="{StaticResource InputBox}" Width="72" Text="0" TextAlignment="Center"/>
+                                </Grid>
+                            </Border>
+
+                            <Border Style="{StaticResource RowSep}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Rodzaj powiadomienia" Style="{StaticResource FieldLabel}"/>
+                                    <ComboBox x:Name="cbDostawyRodzaj" Grid.Column="1" Style="{StaticResource InputCombo}" Width="130">
+                                        <ComboBoxItem Content="Toast" IsSelected="True"/>
+                                        <ComboBoxItem Content="MessageBox"/>
+                                        <ComboBoxItem Content="StatusBar"/>
+                                    </ComboBox>
+                                </Grid>
+                            </Border>
+
+                            <StackPanel Margin="0,6,0,0">
+                                <TextBlock Text="Aktywne dni" Style="{StaticResource FieldLabel}" Margin="0,0,0,8"/>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                                    <ToggleButton x:Name="tglDostPon" Style="{StaticResource DayToggle}" Content="Pn" Margin="0,0,4,0"/>
+                                    <ToggleButton x:Name="tglDostWt"  Style="{StaticResource DayToggle}" Content="Wt" Margin="0,0,4,0"/>
+                                    <ToggleButton x:Name="tglDostSr"  Style="{StaticResource DayToggle}" Content="Śr" Margin="0,0,4,0"/>
+                                    <ToggleButton x:Name="tglDostCzw" Style="{StaticResource DayToggle}" Content="Cz" Margin="0,0,4,0"/>
+                                    <ToggleButton x:Name="tglDostPt"  Style="{StaticResource DayToggle}" Content="Pt" Margin="0,0,4,0"/>
+                                    <ToggleButton x:Name="tglDostSob" Style="{StaticResource DayToggle}" Content="So" Margin="0,0,4,0"/>
+                                    <ToggleButton x:Name="tglDostNdz" Style="{StaticResource DayToggle}" Content="Nd"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Odbiorców (osoby) konfiguruje się w: Panel Admina → Użytkownicy i uprawnienia -->
+                    <Border Background="#0c1824" CornerRadius="8" Padding="14,10" BorderBrush="#1a3060" BorderThickness="1" Margin="0,0,0,8">
+                        <TextBlock Foreground="{StaticResource BrTextSecondary}" FontSize="12" TextWrapping="Wrap">
+                            <Run Text="👤 "/><Run FontWeight="SemiBold" Foreground="{StaticResource BrAccentBlue}" Text="Komu pokazywać powiadomienia dostaw?"/>
+                            <Run Text=" — ustawiasz przy użytkowniku w "/>
+                            <Run FontWeight="SemiBold" Text="Panel Admina → Użytkownicy i uprawnienia"/>
+                            <Run Text=" (sekcja 🔔 Powiadomienia → 🐄 Zmiany dostaw żywca)."/>
+                        </TextBlock>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+            </TabItem>
+            </TabControl>
 
             <!-- ═══ STOPKA ═══ -->
             <Border Grid.Row="2" Background="#161b22" BorderBrush="{StaticResource BrBorder}" BorderThickness="0,1,0,0">

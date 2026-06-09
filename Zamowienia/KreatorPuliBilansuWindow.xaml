@@ -227,6 +227,9 @@
                 <StackPanel Orientation="Horizontal">
                     <Button x:Name="btnNowa" Content="🆕 Nowa pula" Click="BtnNowa_Click"
                             Padding="14,8" Margin="0,0,8,0" Background="#95A5A6" Foreground="White" BorderThickness="0"/>
+                    <Button x:Name="btnWarianty" Content="🔀 Warianty towarów" Click="BtnWarianty_Click"
+                            Padding="14,8" Margin="0,0,8,0" Background="#9333EA" Foreground="White" BorderThickness="0"
+                            ToolTip="Zdefiniuj warianty (np. Filet pojedynczy/podwójny) — przełącznik w oknie zamówienia"/>
                     <TextBlock x:Name="txtStatus" VerticalAlignment="Center" Margin="8,0,0,0"
                                FontSize="11" Foreground="#7F8C8D"/>
                 </StackPanel>

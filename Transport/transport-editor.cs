@@ -66,6 +66,9 @@ namespace Kalendarz1.Transport.Formularze
 
         // Grid ładunków
         private DataGridView dgvLadunki;
+        private TextBox txtHarmonogram;
+        private Button btnPrzeliczHarmonogram;
+        private readonly Services.HarmonogramKursuService _harmSvc = new();
 
         // Panel zamówień
         private DataGridView dgvWolneZamowienia;
@@ -703,6 +706,8 @@ namespace Kalendarz1.Transport.Formularze
                 ForeColor = Color.FromArgb(255, 193, 7),
                 BorderStyle = BorderStyle.FixedSingle
             };
+            // Po zmianie godziny wyjazdu — przelicz harmonogram (fire-and-forget)
+            txtGodzWyjazdu.TextChanged += (s, e) => { _ = PrzeliczHarmonogramAsync(); };
 
             var lblDo = CreateLabel("→", 375, 58, 25);
             lblDo.TextAlign = ContentAlignment.MiddleCenter;
@@ -959,8 +964,75 @@ namespace Kalendarz1.Transport.Formularze
             dgvLadunki.DragDrop += DgvLadunki_DragDrop;
             dgvLadunki.DragLeave += DgvTarget_DragLeave;
 
-            panel.Controls.Add(dgvLadunki);
-            panel.Controls.Add(panelKolejnosc);
+            // ── PANEL HARMONOGRAMU (dół panelu ładunków) ──
+            // Pokazuje planowaną trasę: baza → klienci → baza, z czasami z EstymacjeTras
+            // i czasami rozładunku per klient. Auto-refresh po każdej zmianie ładunków/godziny wyjazdu.
+            // Wysokość 180 px aby zostawić wystarczająco miejsca dla dgvLadunki w wierszu 40% okna.
+            var panelHarmonogram = new Panel
+            {
+                Dock = DockStyle.Bottom,
+                Height = 180,
+                BackColor = Color.FromArgb(232, 245, 233),   // zielonkawe tło — wyraźniej widać że to nowy panel
+                Padding = new Padding(8, 4, 8, 4)
+            };
+
+            var panelHarmTytul = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 26,
+                BackColor = Color.FromArgb(39, 174, 96)      // zielony pasek tytułowy
+            };
+
+            var lblHarmTytul = new Label
+            {
+                Text = "  📅  HARMONOGRAM KURSU  —  czasy z Webfleet history (EstymacjeTras + KartotekaOdbiorcyDane)",
+                Dock = DockStyle.Fill,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = Color.White,
+                BackColor = Color.Transparent,
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+
+            btnPrzeliczHarmonogram = new Button
+            {
+                Text = "🔄 Przelicz",
+                Dock = DockStyle.Right,
+                Width = 110,
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(33, 150, 83),
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Cursor = Cursors.Hand
+            };
+            btnPrzeliczHarmonogram.FlatAppearance.BorderSize = 0;
+            btnPrzeliczHarmonogram.Click += async (s, e) => await PrzeliczHarmonogramAsync();
+
+            // Right (button) MUSI być dodany przed Fill (label) w WinForms żeby się wyrenderował na wierzchu
+            panelHarmTytul.Controls.Add(lblHarmTytul);
+            panelHarmTytul.Controls.Add(btnPrzeliczHarmonogram);
+
+            txtHarmonogram = new TextBox
+            {
+                Dock = DockStyle.Fill,
+                Multiline = true,
+                ReadOnly = true,
+                ScrollBars = ScrollBars.Vertical,
+                Font = new Font("Consolas", 9F),
+                BackColor = Color.White,
+                ForeColor = Color.FromArgb(33, 37, 41),
+                BorderStyle = BorderStyle.FixedSingle,
+                Text = "(dodaj klientów do kursu, harmonogram pojawi się automatycznie)"
+            };
+
+            // Fill MUSI być dodany przed Top w WinForms żeby Top był na wierzchu
+            panelHarmonogram.Controls.Add(txtHarmonogram);
+            panelHarmonogram.Controls.Add(panelHarmTytul);
+
+            // KOLEJNOŚĆ DOCK W WINFORMS:
+            // edge-docked (Top/Bottom) muszą być dodane PO Fill, inaczej Fill zajmuje całość.
+            panel.Controls.Add(dgvLadunki);        // Fill — pierwszy
+            panel.Controls.Add(panelHarmonogram);  // Bottom — drugi
+            panel.Controls.Add(panelKolejnosc);    // Top — ostatni
 
             return panel;
         }
@@ -1881,6 +1953,9 @@ namespace Kalendarz1.Transport.Formularze
 
             UpdateTrasa();
             await UpdateWypelnienie();
+
+            // Przelicz harmonogram po załadowaniu kursu z bazy (LoadLadunki buduje grid bez wywoływania RefreshLadunkiGrid)
+            _ = PrzeliczHarmonogramAsync();
         }
 
         /// <summary>
@@ -2056,6 +2131,9 @@ namespace Kalendarz1.Transport.Formularze
                 }
             }
             catch { }
+
+            // Auto-refresh harmonogramu — fire-and-forget (UI nie blokuje się)
+            _ = PrzeliczHarmonogramAsync();
         }
 
         // 8. DODAJ nową metodę pomocniczą:
@@ -3860,6 +3938,63 @@ Adres: {zamowienie.Adres}";
             }
 
             return base.ProcessCmdKey(ref msg, keyData);
+        }
+
+        // ──────────────────────────────────────────────────────────────────────
+        // HARMONOGRAM KURSU (panel pod listą ładunków)
+        // ──────────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Przelicza harmonogram kursu: baza → klienci (w kolejności) → baza.
+        /// Czasy jazdy z EstymacjeTras (gdy są), inaczej Haversine × 1.3 ÷ 60 km/h.
+        /// Czasy rozładunku z KartotekaOdbiorcyDane / EstymacjeRozladunku / 30 min default.
+        /// </summary>
+        private async Task PrzeliczHarmonogramAsync()
+        {
+            // Guard: kontrolki mogą jeszcze nie istnieć podczas inicjalizacji
+            if (txtHarmonogram == null || txtGodzWyjazdu == null) return;
+            if (_ladunki == null || _ladunki.Count == 0)
+            {
+                txtHarmonogram.Text = "(dodaj klientów do kursu, harmonogram pojawi się automatycznie)";
+                return;
+            }
+
+            // Parsuj godzinę wyjazdu (MaskedTextBox 06:00)
+            if (!TimeSpan.TryParse(txtGodzWyjazdu.Text, out var godzWyjazdu))
+            {
+                txtHarmonogram.Text = $"(niepoprawna godzina wyjazdu: '{txtGodzWyjazdu.Text}' — wpisz format HH:mm)";
+                return;
+            }
+
+            try
+            {
+                txtHarmonogram.Text = $"⏳ Liczę harmonogram dla {_ladunki.Count} klientów (pobieranie GPS + odcinków z bazy)…";
+
+                // Wyciąg ZAM_xxx → int (ZamowienieId)
+                var punkty = new List<Services.HarmonogramKursuService.WejsciePunkt>();
+                foreach (var l in _ladunki.OrderBy(x => x.Kolejnosc))
+                {
+                    int? zamId = null;
+                    if (!string.IsNullOrWhiteSpace(l.KodKlienta) && l.KodKlienta.StartsWith("ZAM_"))
+                    {
+                        if (int.TryParse(l.KodKlienta.AsSpan(4), out var z)) zamId = z;
+                    }
+                    punkty.Add(new Services.HarmonogramKursuService.WejsciePunkt
+                    {
+                        Kolejnosc = l.Kolejnosc,
+                        ZamowienieId = zamId,
+                        Nazwa = !string.IsNullOrWhiteSpace(l.NazwaKlienta) ? l.NazwaKlienta : (l.KodKlienta ?? "—")
+                    });
+                }
+
+                var wynik = await _harmSvc.ObliczAsync(godzWyjazdu, punkty);
+                txtHarmonogram.Text = Services.HarmonogramKursuService.Sformatuj(wynik);
+            }
+            catch (Exception ex)
+            {
+                txtHarmonogram.Text = $"❌ Błąd obliczania harmonogramu:\r\n{ex.Message}";
+                System.Diagnostics.Debug.WriteLine($"[Harmonogram] {ex}");
+            }
         }
 
         #endregion

@@ -431,6 +431,7 @@ namespace Kalendarz1.Admin.Services
                 //     opakowania (PodsumowanieSaldOpak/SaldaOdbiorcowOpak → widoczne jako OpakowaniaWinForm).
                 new() { Key = "KontraktyHodowcow",  DisplayName = "Kontrakty Hodowców",        Description = "Rejestr umów z hodowcami: wersjonowanie warunków, compliance ARiMR, alerty wygasania", Category = "Zaopatrzenie i Zakupy", Icon = "📜" },
                 new() { Key = "MapowanieDostawcow", DisplayName = "Mapowanie Dostawców",       Description = "Dopasowanie dostawców LibraNet do kontrahentów Symfonii (auto-match po NIP)",          Category = "Zaopatrzenie i Zakupy", Icon = "🔗" },
+                new() { Key = "SkrzynkaZakupu",     DisplayName = "Skrzynka Zakupu",           Description = "Wspólna poczta działu zakupu (IMAP/SMTP): czytanie, odpowiadanie, foldery, załączniki", Category = "Zaopatrzenie i Zakupy", Icon = "📧" },
 
                 new() { Key = "DOA",                DisplayName = "DOA — Padłe w Transporcie", Description = "Rejestr padłych sztuk (Dead On Arrival) + ranking hodowców wg % DOA",                  Category = "Produkcja i Magazyn", Icon = "💀" },
                 new() { Key = "ColdChain",          DisplayName = "Cold Chain HACCP",          Description = "Monitoring CCP — temperatury parzelnika/chłodni/mroźni + incydenty",                   Category = "Produkcja i Magazyn", Icon = "🛡" },
@@ -479,6 +480,7 @@ namespace Kalendarz1.Admin.Services
                 [72] = "SprawozdaniaGus",       [73] = "Customer360",           [74] = "DOA",                   [75] = "ColdChain",
                 [76] = "Traceability",          [77] = "TransportWPF",          [78] = "KontraktyHodowcow",     [79] = "MapowanieDostawcow",
                 [80] = "KameryPanelJola",       [81] = "KreatorPuliBilansu",   [82] = "HDIDokumenty",          [83] = "HalaLive",
+                [84] = "SkrzynkaZakupu",
             };
         }
 
