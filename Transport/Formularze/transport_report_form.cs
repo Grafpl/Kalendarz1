@@ -603,28 +603,37 @@ namespace Kalendarz1.Transport
                 new RectangleF(x, y, COL_GODZ_W - 4, KART_HEAD_H),
                 new StringFormat { LineAlignment = StringAlignment.Center });
 
-            // ── HEADER kursu w treści: kierowca + pojazd + tel | suma kg/poj/palety
+            // ── Tabela po prawej: 3 kolumny KG | POJ | PAL (linie pionowe + pozioma pod headerem)
+            const int kolKgW = 78, kolPojW = 52, kolPalW = 50;
+            int kolPalX = x + w - kolPalW;
+            int kolPojX = kolPalX - kolPojW;
+            int kolKgX  = kolPojX - kolKgW;
+            int tabelaX = kolKgX;       // lewa krawędź tabeli
+
+            // ── HEADER kursu (lewa: kierowca/pojazd/tel; prawa: sumy w komórkach tabeli)
             string tel = !string.IsNullOrWhiteSpace(kurs.KierowcaTelefon) ? $"   ·   tel. {kurs.KierowcaTelefon}" : "";
             string headerLewy = $"{kurs.KierowcaNazwa}   ·   {kurs.PojazdRejestracja}{tel}";
-            string headerPrawy = $"{kurs.SumaKg:N0} kg · {kurs.SumaPojemnikiE2} poj · {kurs.PaletyUzyteNominal}/{kurs.PaletyPojazdu} pal";
-
-            var sizePrawy = g.MeasureString(headerPrawy, fKurs);
-            int wPrawy = (int)Math.Ceiling(sizePrawy.Width) + 4;
-
             g.DrawString(headerLewy, fKurs, br,
-                new RectangleF(xTresc, y, wTresc - wPrawy - 4, KART_HEAD_H),
+                new RectangleF(xTresc, y, tabelaX - xTresc - 6, KART_HEAD_H),
                 new StringFormat { Trimming = StringTrimming.EllipsisCharacter, FormatFlags = StringFormatFlags.NoWrap, LineAlignment = StringAlignment.Center });
-            g.DrawString(headerPrawy, fKurs, br,
-                new RectangleF(x + w - wPrawy, y, wPrawy, KART_HEAD_H),
-                new StringFormat { Alignment = StringAlignment.Far, LineAlignment = StringAlignment.Center });
 
-            // ── KLIENCI: „1. Klient (10:30) ul. X 5         1 200 kg · 36 poj · 1 pal"
+            // Sumy w komórkach (bold w fKurs)
+            var stHead = new StringFormat { Alignment = StringAlignment.Far, LineAlignment = StringAlignment.Center };
+            g.DrawString($"{kurs.SumaKg:N0} kg", fKurs, br,
+                new RectangleF(kolKgX, y, kolKgW - 4, KART_HEAD_H), stHead);
+            g.DrawString($"{kurs.SumaPojemnikiE2} poj", fKurs, br,
+                new RectangleF(kolPojX, y, kolPojW - 4, KART_HEAD_H), stHead);
+            g.DrawString($"{kurs.PaletyUzyteNominal}/{kurs.PaletyPojazdu} pal", fKurs, br,
+                new RectangleF(kolPalX, y, kolPalW - 4, KART_HEAD_H), stHead);
+
+            // ── KLIENCI
             var ladunki = kurs.Ladunki.OrderBy(z => z.Kolejnosc).ToList();
             int yRow = y + KART_HEAD_H;
+            int yTabelaTop = y;
+            int yTabelaBottom = yRow + ladunki.Count * ROW_H;
 
-            // Jedna kolumna liczb po prawej — kg · poj · pal w jednym ciągu
-            int kolLiczbyW = 170;
-            int kolLiczbyX = x + w - kolLiczbyW;
+            // Linia pozioma pod headerem (oddziela sumy od wierszy klientów w tabeli)
+            g.DrawLine(penKurs, tabelaX, yRow, x + w, yRow);
 
             for (int i = 0; i < ladunki.Count; i++)
             {
@@ -645,7 +654,7 @@ namespace Kalendarz1.Transport
                 string wiersz = $"{i + 1}. {nazwa} ({awiz}){adres}";
 
                 int xText = xTresc;
-                int wText = kolLiczbyX - xText - 4;
+                int wText = tabelaX - xText - 6;
                 g.DrawString(wiersz, fT, br,
                     new RectangleF(xText, yRow, wText, ROW_H),
                     new StringFormat
@@ -656,13 +665,23 @@ namespace Kalendarz1.Transport
                     });
 
                 int paletyL = l.PaletyH1 ?? (int)Math.Ceiling(l.PojemnikiE2 / (double)Math.Max(1, (int)kurs.PlanE2NaPalete));
-                string kg = l.IloscKg > 0 ? $"{l.IloscKg:N0} kg" : "— kg";
-                string liczby = $"{kg} · {l.PojemnikiE2} poj · {paletyL} pal";
-                g.DrawString(liczby, fT, br,
-                    new RectangleF(kolLiczbyX, yRow, kolLiczbyW - 2, ROW_H),
-                    new StringFormat { Alignment = StringAlignment.Far, LineAlignment = StringAlignment.Center });
+                var stR = new StringFormat { Alignment = StringAlignment.Far, LineAlignment = StringAlignment.Center };
+                g.DrawString(l.IloscKg > 0 ? $"{l.IloscKg:N0}" : "—", fT, br,
+                    new RectangleF(kolKgX, yRow, kolKgW - 4, ROW_H), stR);
+                g.DrawString(l.PojemnikiE2.ToString(), fT, br,
+                    new RectangleF(kolPojX, yRow, kolPojW - 4, ROW_H), stR);
+                g.DrawString(paletyL.ToString(), fT, br,
+                    new RectangleF(kolPalX, yRow, kolPalW - 4, ROW_H), stR);
 
                 yRow += ROW_H;
+            }
+
+            // Linie pionowe tabeli (od góry karty do dolnego separatora)
+            using (var penTabela = new Pen(Color.FromArgb(160, 160, 160), 0.5f))
+            {
+                g.DrawLine(penTabela, tabelaX, yTabelaTop, tabelaX, yRow);             // lewa krawędź tabeli
+                g.DrawLine(penTabela, kolPojX, yTabelaTop, kolPojX, yRow);             // KG | POJ
+                g.DrawLine(penTabela, kolPalX, yTabelaTop, kolPalX, yRow);             // POJ | PAL
             }
 
             // ── Cienka linia separator między kursami
