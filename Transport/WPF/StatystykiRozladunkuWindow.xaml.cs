@@ -202,26 +202,44 @@ namespace Kalendarz1.Transport.WPF
         private async void BtnOdswiez_Click(object sender, RoutedEventArgs e)
         {
             var r = MessageBox.Show(
-                "Pobrać świeże dane GPS z Webfleet z ostatnich 30 dni?\n\n" +
+                "Pobrać świeże dane GPS z Webfleet z ostatnich 12 miesięcy (365 dni)?\n\n" +
                 "• Pobiera tracks dla każdego zmapowanego pojazdu\n" +
                 "• Wykrywa wizyty u klientów (≤2 km, 5–180 min)\n" +
                 "• Pomija pauzy i noclegi kierowców (poza 05:00–23:00)\n" +
-                "• Liczy medianę z wszystkich wizyt\n\n" +
-                "Może potrwać 1–3 min.",
-                "Odśwież z Webfleet",
+                "• Liczy medianę z wszystkich wizyt\n" +
+                "• Wiarygodne mediany (≥3 wizyt) zostaną automatycznie zapisane\n" +
+                "  w karcie odbiorcy (KartotekaOdbiorcyDane.CzasRozladunkuMin)\n\n" +
+                "Może potrwać 10–30 min (zależy od liczby pojazdów × dni).",
+                "Odśwież z Webfleet — 12 miesięcy",
                 MessageBoxButton.YesNo, MessageBoxImage.Question);
             if (r != MessageBoxResult.Yes) return;
 
             BtnOdswiez.IsEnabled = false;
-            TxtStatus.Text = "🔄 Pobieram dane z Webfleet…";
+            TxtStatus.Text = "🔄 Pobieram dane z Webfleet (12 miesięcy)…";
             try
             {
                 var svc = new HistoriaRozladunkuService();
                 var progress = new Progress<string>(msg => TxtStatus.Text = $"🔄 {msg}");
-                var wynik = await svc.OdswiezAsync(daysBack: 30, progress);
+                var wynik = await svc.OdswiezAsync(daysBack: 365, progress);
 
-                TxtStatus.Text = $"✓ Gotowe — {wynik.WizytaWykrytych} wizyt u {wynik.KlientowZestymowanych} klientów.";
-                await ZaladujAsync();   // Reload widoku z nowymi danymi
+                // Reload widoku przed zapisem — żeby _wszystkie miało świeże dane
+                await ZaladujAsync();
+
+                // Zapisz wiarygodne mediany do KartotekaOdbiorcyDane
+                TxtStatus.Text = "💾 Zapisuję mediany do karty odbiorcy…";
+                int zapisanych = await ZapiszDoKartotekiAsync();
+
+                TxtStatus.Text = $"✓ Gotowe — {wynik.WizytaWykrytych} wizyt, {wynik.KlientowZestymowanych} klientów z estymacją, {zapisanych} zapisanych do karty odbiorcy.";
+                MessageBox.Show(
+                    $"✓ Aktualizacja zakończona.\n\n" +
+                    $"Webfleet (365 dni):\n" +
+                    $"  • {wynik.PojazdowPrzetworzonych} pojazdów × {wynik.DniPrzetworzonych} dni\n" +
+                    $"  • {wynik.WizytaWykrytych} wykrytych wizyt\n" +
+                    $"  • {wynik.KlientowZestymowanych} klientów z estymacją\n\n" +
+                    $"KartotekaOdbiorcyDane:\n" +
+                    $"  • {zapisanych} median zapisanych jako oficjalne czasy rozładunku\n" +
+                    $"  • Wartości używane od razu przez ETA i planowanie",
+                    "Aktualizacja zakończona", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
@@ -230,6 +248,36 @@ namespace Kalendarz1.Transport.WPF
                     "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally { BtnOdswiez.IsEnabled = true; }
+        }
+
+        /// <summary>
+        /// Zapisuje wiarygodne mediany (LiczbaProb ≥ MinProbDoZaufania) do KartotekaOdbiorcyDane.CzasRozladunkuMin.
+        /// Te wartości stają się „oficjalnym" czasem rozładunku per klient — używanym przez planowanie i ETA.
+        /// </summary>
+        private async Task<int> ZapiszDoKartotekiAsync()
+        {
+            var wiarygodne = _wszystkie
+                .Where(s => s.LiczbaProb >= HistoriaRozladunkuService.MinProbDoZaufania)
+                .ToList();
+            if (wiarygodne.Count == 0) return 0;
+
+            var svc = new CzasRozladunkuService();
+            try { await svc.EnsureColumnAsync(); } catch { }
+
+            int zapisanych = 0;
+            foreach (var s in wiarygodne)
+            {
+                try
+                {
+                    // Walidacja zakresu — CzasRozladunkuService.ZapiszDlaKlientaAsync wymaga [MinMin, MaxMin]
+                    int wartosc = Math.Clamp(s.MinutyMediana,
+                        CzasRozladunkuService.MinMin, CzasRozladunkuService.MaxMin);
+                    await svc.ZapiszDlaKlientaAsync(s.KlientId, wartosc);
+                    zapisanych++;
+                }
+                catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[ZapiszDoKartoteki {s.KlientId}] {ex.Message}"); }
+            }
+            return zapisanych;
         }
 
         // ════════════════════════════════════════════════════════════════════

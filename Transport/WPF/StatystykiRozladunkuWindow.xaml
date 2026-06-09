@@ -20,10 +20,10 @@
             <StackPanel>
                 <TextBlock Text="📊 Statystyki rozładunku per klient" FontSize="16" FontWeight="Bold" Foreground="#166534"/>
                 <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="#6B7280" Margin="0,6,0,0">
-                    Dane uczone automatycznie z historii GPS Webfleet. Pojazd stoi (≤5 km/h) i jest ≤2 km od klienta → wizyta.
+                    Dane uczone automatycznie z historii GPS Webfleet (12 miesięcy). Pojazd stoi (≤5 km/h) i jest ≤2 km od klienta → wizyta.
                     Filtrowane: 5–180 min, w godz. 05:00–23:00 (omijane noclegi i pauzy kierowców).
                     <LineBreak/>
-                    <Run FontStyle="Italic">Wymagana min. liczba prób (3) żeby uznać medianę za wiarygodną.</Run>
+                    <Run FontStyle="Italic">Wymagana min. liczba prób (3). Po Odśwież: wiarygodne mediany zapisują się do karty odbiorcy jako oficjalne czasy rozładunku.</Run>
                 </TextBlock>
             </StackPanel>
         </Border>
@@ -43,10 +43,10 @@
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right">
-                    <Button x:Name="BtnOdswiez" Content="🔄 Odśwież z Webfleet (30 dni)" Padding="12,6"
+                    <Button x:Name="BtnOdswiez" Content="🔄 Odśwież z Webfleet (12 miesięcy)" Padding="12,6"
                             Click="BtnOdswiez_Click" Background="#059669" Foreground="White"
                             BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"
-                            ToolTip="Pobierz świeże dane GPS z Webfleet i przelicz mediany (1-3 min)"/>
+                            ToolTip="Pobierz tracks GPS z 12 miesięcy + przelicz mediany + zapisz wiarygodne do karty odbiorcy (10-30 min)"/>
                 </StackPanel>
             </DockPanel>
         </Border>
