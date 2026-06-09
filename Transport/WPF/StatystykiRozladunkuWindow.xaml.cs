@@ -118,6 +118,10 @@ namespace Kalendarz1.Transport.WPF
         // ════════════════════════════════════════════════════════════════════
         private void Filtruj()
         {
+            // Guard: handlery TextChanged/Checked mogą się odpalić podczas parsowania XAML
+            // (gdy CheckBox ma IsChecked=True) zanim DataGrid zostanie utworzony.
+            if (GridStatystyki == null) return;
+
             string szukaj = (TxtSzukaj?.Text ?? "").Trim().ToLowerInvariant();
             bool tylkoWiarygodne = ChkTylkoWiarygodne?.IsChecked == true;
 
@@ -134,6 +138,9 @@ namespace Kalendarz1.Transport.WPF
 
         private void AktualizujPodsumowanie()
         {
+            // Guard — wywoływane po załadowaniu, ale kontrolki mogą być null w edge case
+            if (TxtLiczbaKlientow == null) return;
+
             if (_wszystkie.Count == 0)
             {
                 TxtLiczbaKlientow.Text = "0";
