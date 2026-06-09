@@ -419,6 +419,7 @@ namespace Kalendarz1.Transport
             {
                 var printDocument = new PrintDocument();
                 printDocument.DefaultPageSettings.Landscape = false;   // portret (pionowa kartka)
+                printDocument.DefaultPageSettings.Margins = new System.Drawing.Printing.Margins(20, 20, 20, 20);   // 0.2 cala ≈ 5 mm
                 printDocument.PrintPage += PrintDocument_PrintPage;
 
                 var printPreviewDialog = new PrintPreviewDialog
@@ -444,6 +445,7 @@ namespace Kalendarz1.Transport
             {
                 var printDocument = new PrintDocument();
                 printDocument.DefaultPageSettings.Landscape = false;   // portret (pionowa kartka)
+                printDocument.DefaultPageSettings.Margins = new System.Drawing.Printing.Margins(20, 20, 20, 20);   // 0.2 cala ≈ 5 mm
                 printDocument.PrintPage += PrintDocument_PrintPage;
 
                 var printDialog = new PrintDialog
@@ -575,13 +577,13 @@ namespace Kalendarz1.Transport
         }
 
         /// <summary>
-        /// Wysokość karty: header (z tłem) + padding + N wierszy odbiorcy + stopka sumy.
+        /// Wysokość karty: header (z sumą) + padding + N wierszy odbiorcy.
+        /// Bez stopki sumy — suma zintegrowana w headerze (więcej miejsca dla klientów).
         /// </summary>
         private static int ObliczWysokoscKarty(KursRaport k)
         {
             int wierszy = Math.Max(1, k.Ladunki.Count);
-            // Header (22) + pad (6) + N wierszy + (N-1) strzałek między + pad (6) + stopka sumy (18)
-            return KART_HEAD_H + KART_PAD + wierszy * ROW_H + (wierszy - 1) * ROW_ARROW_H + KART_PAD + 18;
+            return KART_HEAD_H + KART_PAD + wierszy * ROW_H + (wierszy - 1) * ROW_ARROW_H + KART_PAD;
         }
 
         /// <summary>
@@ -606,10 +608,22 @@ namespace Kalendarz1.Transport
 
             string godzWyjazdu = kurs.GodzWyjazdu?.ToString(@"hh\:mm") ?? "--:--";
             string tel = !string.IsNullOrWhiteSpace(kurs.KierowcaTelefon) ? $"  tel. {kurs.KierowcaTelefon}" : "";
-            string header = $"{godzWyjazdu}   {kurs.KierowcaNazwa}{tel}   ·   {kurs.PojazdRejestracja}";
-            g.DrawString(header, fKurs, br,
-                new RectangleF(x + KART_PAD, y, w - 2 * KART_PAD, KART_HEAD_H),
+            string headerLewy = $"{godzWyjazdu}   {kurs.KierowcaNazwa}{tel}   ·   {kurs.PojazdRejestracja}";
+            string headerPrawy = $"{kurs.SumaKg:N0} kg  ·  {kurs.SumaPojemnikiE2} poj  ·  {kurs.PaletyUzyteNominal}/{kurs.PaletyPojazdu} pal";
+
+            // Zmierz prawą część żeby zarezerwować miejsce
+            var sizePrawy = g.MeasureString(headerPrawy, fKurs);
+            int wPrawy = (int)Math.Ceiling(sizePrawy.Width) + 8;
+
+            // Lewy: nazwa kierowcy + pojazd (skraca się jeśli za długi)
+            g.DrawString(headerLewy, fKurs, br,
+                new RectangleF(x + KART_PAD, y, w - 2 * KART_PAD - wPrawy, KART_HEAD_H),
                 new StringFormat { Trimming = StringTrimming.EllipsisCharacter, FormatFlags = StringFormatFlags.NoWrap, LineAlignment = StringAlignment.Center });
+
+            // Prawy: suma kursu wyrównana do prawej krawędzi
+            g.DrawString(headerPrawy, fKurs, br,
+                new RectangleF(x + w - KART_PAD - wPrawy, y, wPrawy, KART_HEAD_H),
+                new StringFormat { Alignment = StringAlignment.Far, LineAlignment = StringAlignment.Center });
 
             // ── Lista odbiorców z numerowaniem + strzałkami między
             var ladunki = kurs.Ladunki.OrderBy(z => z.Kolejnosc).ToList();
@@ -684,25 +698,6 @@ namespace Kalendarz1.Transport
                     yRow += ROW_ARROW_H;
                 }
             }
-
-            // ── Stopka kursu z sumą (kg / poj / palet)
-            yRow += KART_PAD;
-            using (var brStopkaBg = new SolidBrush(Color.FromArgb(245, 245, 245)))
-                g.FillRectangle(brStopkaBg, x + 1, yRow, w - 2, 17);
-            g.DrawLine(penKurs, x, yRow, x + w, yRow);
-
-            string labelSuma = $"SUMA  ({ladunki.Count} klient{(ladunki.Count == 1 ? "" : "ów")})";
-            g.DrawString(labelSuma, fKurs, br,
-                new RectangleF(x + KART_PAD, yRow, w / 2, 17),
-                new StringFormat { LineAlignment = StringAlignment.Center });
-
-            var stSumaR = new StringFormat { Alignment = StringAlignment.Far, LineAlignment = StringAlignment.Center };
-            g.DrawString($"{kurs.SumaKg:N0} kg", fKurs, br,
-                new RectangleF(kolKgX, yRow, kolKgW - 4, 17), stSumaR);
-            g.DrawString($"{kurs.SumaPojemnikiE2} poj", fKurs, br,
-                new RectangleF(kolPojX, yRow, kolPojW - 4, 17), stSumaR);
-            g.DrawString($"{kurs.PaletyUzyteNominal}/{kurs.PaletyPojazdu} pal", fKurs, br,
-                new RectangleF(kolPalX, yRow, kolPalW - 4, 17), stSumaR);
         }
 
         private void RysujStopke(Graphics g, Rectangle bounds, Font fS, Brush brGray)
